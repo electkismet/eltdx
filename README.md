@@ -1,7 +1,7 @@
 <div align="center">
   <h1>eltdx</h1>
-  <p><strong>通达信行情协议的 Python 客户端库</strong></p>
-  <p>安装后就能直接调快照、分时、逐笔、K 线、集合竞价等接口，返回结果统一、字段清楚，也支持查看原始十六进制数据。</p>
+  <p><strong>通达信行情协议的 Python 库</strong></p>
+  <p>安装后就能直接调快照、分时、逐笔、K 线、集合竞价等接口，返回结果统一、字段清楚，也支持查看原始十六进制数据。主要用于个人行情研究，请勿用于任何商业或违法用途。</p>
   <p>
     <a href="https://pypi.org/project/eltdx/"><img alt="PyPI" src="https://img.shields.io/pypi/v/eltdx?cacheSeconds=300&logo=pypi"></a>
     <a href="https://pypi.org/project/eltdx/"><img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-blue"></a>
@@ -10,14 +10,14 @@
   </p>
 </div>
 
-## 这是什么
+## 简单介绍
 
-`eltdx` 想做的事情很简单：
+`eltdx` 优点：
 
-- 给你一个统一入口：`TdxClient`
+- 一个统一入口：`TdxClient`
 - 让常用接口直接就能调：`get_quote()`、`get_minute()`、`get_trades()`、`get_kline()` 等
 - 返回结果尽量好懂：统一 dataclass，不直接丢一堆裸 `dict`
-- 时间字段直接给你 Python 原生 `date` / `datetime`
+- 时间字段给 Python 原生 `date` / `datetime`
 - 价格字段同时保留浮点值和 `*_milli` 整数值
 - 需要排查问题时，可以打开 `include_raw=True` 看原始十六进制
 
@@ -37,7 +37,7 @@
 
 ## 安装
 
-最推荐的安装方式：
+推荐的安装方式：
 
 ```bash
 python -m pip install eltdx
@@ -121,13 +121,13 @@ with TdxClient(
 - 默认支持多连接分发，批量取快照会更稳一些
 - 返回字段统一，做展示、落库、计算都比较顺手
 
-## 使用时先知道
+## 注意
 
 ### `get_count(exchange)` 不是股票总数
 
-它更像“这个市场的代码表条目数”，不是“这个市场一共有多少只股票”。
+它是“这个市场的代码表条目数”，不是“这个市场一共有多少只股票”。
 
-如果你更想拿到股票口径的数量，优先试：
+如果你更想拿到股票口径的数量，可以试试：
 
 - `get_stock_count(exchange)`
 - `get_a_share_count(exchange)`
@@ -136,7 +136,7 @@ with TdxClient(
 
 这里面会混有股票、指数、板块分类项、ETF、基金、债券回购等条目。
 
-如果你想直接拿一组更实用的代码去拉行情，优先试：
+如果你想直接拿一组更实用的代码去拉行情，可以试试：
 
 - `get_stock_codes_all()`
 - `get_a_share_codes_all()`
@@ -146,7 +146,7 @@ with TdxClient(
 ### `with` 不是强制的
 
 - 你只是临时拉一把数据：用 `with`
-- 你要一直保持连接：手动 `connect()` / `close()` 也完全可以
+- 你要一直保持连接：手动 `connect()` / `close()` 也可以
 
 ### `host` 和 `hosts` 都可以传
 
@@ -154,7 +154,7 @@ with TdxClient(
 - `hosts=`：传多个地址，交给客户端自己处理
 - 不传时会回退到库内默认地址列表
 
-## 文档怎么读
+## 文档指北
 
 如果你是第一次用，建议按这个顺序看：
 
