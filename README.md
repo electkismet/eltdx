@@ -15,7 +15,7 @@
 `eltdx` 面向 Python 使用场景，目标是让行情接口调用尽量简单：
 
 - 一个主入口：`TdxClient`
-- 明确的方法名：`get_quote()`、`get_minute()`、`get_trades()`、`get_kline()` 等
+- 多个方法名：`get_quote()`、`get_minute()`、`get_trades()`、`get_kline()` 等
 - 统一返回 dataclass：不直接向外暴露裸 `dict`
 - 所有时间字段统一转换为 Python 原生 `date` / `datetime`
 - 价格字段同时保留浮点值和 `*_milli` 整数值
@@ -30,6 +30,9 @@
 - 集合竞价
 - 公司行为 / 股本变化 / 复权因子
 - 常用 helper 与服务层封装
+
+## 项目参考
+- [injoyai](https://github.com/injoyai/tdx)
 
 ## 安装
 
@@ -182,9 +185,9 @@ with TdxClient(
 
 ## FAQ
 
-### 仓库里为什么保留了 `tests/` 和 `scripts/`？
+### 关于仓库里的 `tests/` 和 `scripts/`说明
 
-因为它们属于仓库维护资源：
+它们属于仓库维护资源：
 
 - `tests/` 用来保证协议解析和公开 API 行为稳定
 - `scripts/` 用来做 smoke、导出和发布前验证
@@ -193,18 +196,6 @@ with TdxClient(
 ### 这些测试和脚本会跟着 `pip install eltdx` 一起装进去吗？
 
 日常安装重点使用的是库本体；普通使用场景只需要关注 `eltdx` 包本身。
-
-### GitHub 上改了 README 或文档，PyPI 会自动同步吗？
-
-不会。
-
-PyPI 页面展示的是发布当时上传的项目元数据和说明页内容。你在 GitHub 上改了 README 或文档后，PyPI 不会自动刷新；如果你希望 PyPI 页面也更新，通常需要发布一个新版本。
-
-### 如何发布新版本？
-
-维护与发布说明见：
-
-- [发布指南](https://github.com/electkismet/eltdx/blob/main/docs/maintainers/PUBLISHING.md)
 
 ## 当前状态
 
