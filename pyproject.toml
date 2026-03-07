@@ -34,6 +34,13 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
+[project.urls]
+Homepage = "https://github.com/electkismet/eltdx"
+Repository = "https://github.com/electkismet/eltdx"
+Documentation = "https://github.com/electkismet/eltdx/tree/main/docs"
+Issues = "https://github.com/electkismet/eltdx/issues"
+Changelog = "https://github.com/electkismet/eltdx/blob/main/CHANGELOG.md"
+
 [project.optional-dependencies]
 dev = [
   "build>=1.2",
