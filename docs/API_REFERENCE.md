@@ -7,15 +7,14 @@
 - 推荐统一使用全代码，例如 `sz000001`、`sh600000`、`bj920001`；多数接口也接受裸六码，内部会自动补前缀。
 - 所有时间字段都转换为 Python 原生对象：交易日使用 `date`，带时分秒字段使用 `datetime`。
 - 价格统一提供双形态：浮点字段与 `*_milli` 整数毫厘字段同时保留。
-- 大部分协议接口都支持 `include_raw=True`，便于输出 `raw_frame_hex`、`raw_payload_hex` 做对拍调试。
+- 大部分协议接口都支持 `include_raw=True`，便于输出 `raw_frame_hex`、`raw_payload_hex` 做比对调试。
 - `get_count()` 与 `get_codes*()` 的语义是“底层代码表”，不是“股票官方分类总数”。
 
 相关文档：
 
 - 字段说明：[`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md)
 - 调试方法：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
-- 在线验证归纳：[`API_VALIDATION_SUMMARY.md`](./API_VALIDATION_SUMMARY.md)
-- 架构说明：[`ARCHITECTURE.md`](./ARCHITECTURE.md)
+- 维护者资料：[`maintainers/README.md`](./maintainers/README.md)
 
 > 本页示例基于 2026-03-07 的联网验证整理；实时行情会随时变化，示例数值只用于说明字段含义，不代表固定结果。
 
@@ -621,6 +620,5 @@ with TdxClient() as client:
 
 1. API 用法总览：[`README.md`](../README.md)
 2. 字段中文说明：[`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md)
-3. 调试与 raw 对拍：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
-4. 在线验证结果：[`API_VALIDATION_SUMMARY.md`](./API_VALIDATION_SUMMARY.md)
-5. 架构与分层：[`ARCHITECTURE.md`](./ARCHITECTURE.md)
+3. 调试与 raw 比对：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
+4. 维护者资料：[`maintainers/README.md`](./maintainers/README.md)

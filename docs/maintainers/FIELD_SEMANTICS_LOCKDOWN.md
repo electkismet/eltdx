@@ -137,7 +137,7 @@
 
 建议你以后看字段说明时按这个顺序判断：
 
-1. 先看 [`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md) 的中文解释
+1. 先看 [`FIELD_REFERENCE.md`](../FIELD_REFERENCE.md) 的中文解释
 2. 如果字段比较底层，再看这份表的“实现证据 + 置信度”
 3. 真要继续深挖，再直接去看 `src/eltdx/` 里的对应实现
 

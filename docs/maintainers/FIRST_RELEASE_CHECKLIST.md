@@ -93,7 +93,7 @@ Completed:
 - `pyproject.toml`
 - `README.md`
 - `CHANGELOG.md`
-- architecture documentation in `docs/ARCHITECTURE.md`
+- architecture documentation in `docs/maintainers/ARCHITECTURE.md`
 - build configuration for wheel and sdist
 
 ## Explicitly deferred

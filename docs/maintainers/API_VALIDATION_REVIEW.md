@@ -1,6 +1,6 @@
 ﻿# API Validation Review
 
-This document records the places where `docs/API_VALIDATION_SUMMARY.md` is currently too optimistic or semantically inaccurate when compared with the real exported data in `artifacts/live_validation_20260307_042853`.
+This document records the places where `docs/maintainers/API_VALIDATION_SUMMARY.md` was too optimistic or semantically inaccurate when compared with the real exported data in `artifacts/live_validation_20260307_042853`.
 
 Update on the current branch:
 
@@ -148,6 +148,6 @@ The current summary should be read this way:
 
 ## Recommended next fixes
 
-1. revise `docs/API_VALIDATION_SUMMARY.md` wording for count and code-table APIs
+1. revise `docs/maintainers/API_VALIDATION_SUMMARY.md` wording for count and code-table APIs
 2. mark `get_stock_codes_all()` / `get_etf_codes_all()` / `get_index_codes_all()` as "current heuristic classification"
 3. if desired, redesign classification rules from the real exchange product taxonomy instead of prefix-only shortcuts

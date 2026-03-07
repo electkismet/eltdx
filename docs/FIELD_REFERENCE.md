@@ -6,17 +6,15 @@
 
 - 想知道每个字段是什么意思
 - 想把接口字段映射成中文指标名
-- 想把原始值和解析值拿去人工对拍
+- 想把原始值和解析值拿去人工比对
 
 配套阅读：
 
 - API 用法：[`API_REFERENCE.md`](./API_REFERENCE.md)
 - 调试方法：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
-- 最新联网验证：[`API_VALIDATION_SUMMARY.md`](./API_VALIDATION_SUMMARY.md)
-- 最终归纳与真实对照：[`API_FINAL_VALIDATION_REPORT.md`](./API_FINAL_VALIDATION_REPORT.md)
-- 字段语义锁定：[`FIELD_SEMANTICS_LOCKDOWN.md`](./FIELD_SEMANTICS_LOCKDOWN.md)
+- 维护者资料：[`maintainers/README.md`](./maintainers/README.md)
 
-样例来源：本文示例值来自 `artifacts/live_validation_20260307_075132/` 下的真实导出文件。
+样例来源：本文示例值来自项目维护阶段的真实联网导出样本。
 
 ## 1. 通用约定
 
@@ -24,7 +22,7 @@
 
 大多数价格字段都会同时保留两种形式：
 
-- `xxx_milli`：整数毫厘价格，适合精确计算与对拍
+- `xxx_milli`：整数毫厘价格，适合精确计算与比对
 - `xxx`：浮点价格，适合展示与直接使用
 
 换算关系：

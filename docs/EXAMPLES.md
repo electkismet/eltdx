@@ -6,8 +6,8 @@
 
 - API 用法总表：[`API_REFERENCE.md`](./API_REFERENCE.md)
 - 字段中文解释：[`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md)
-- 字段语义锁定：[`FIELD_SEMANTICS_LOCKDOWN.md`](./FIELD_SEMANTICS_LOCKDOWN.md)
 - 调试方法：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
+- 更多实现与验证资料：[`maintainers/README.md`](./maintainers/README.md)
 
 ## 1. 一次性抓取：推荐用 `with`
 
@@ -341,7 +341,7 @@ with TdxClient() as client:
 适合场景：
 
 - 看集合竞价序列
-- 做原始记录对拍
+- 做原始记录比对
 - 验证 `include_raw=True` 的调试输出
 
 ## 9. 公司行为 / 股本 / 复权因子
@@ -430,7 +430,7 @@ with TdxClient(hosts=hosts, timeout=8.0) as client:
 - 你可以自己传 `host=` 或 `hosts=`
 - 不传时会回退到库内默认地址列表
 
-## 11. 原始值调试与对拍
+## 11. 原始值调试与比对
 
 如果你要做协议核对，最实用的方式是打开 `include_raw=True`。
 

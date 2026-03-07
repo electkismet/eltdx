@@ -6,7 +6,7 @@
     <a href="./docs/README.md"><img alt="Docs" src="https://img.shields.io/badge/Docs-完整文档-2ea44f"></a>
     <a href="./docs/API_REFERENCE.md"><img alt="API Reference" src="https://img.shields.io/badge/API-Reference-0A66C2"></a>
     <a href="./docs/FIELD_REFERENCE.md"><img alt="Field Reference" src="https://img.shields.io/badge/Fields-Reference-8A2BE2"></a>
-    <a href="./docs/API_VALIDATION_SUMMARY.md"><img alt="Validation" src="https://img.shields.io/badge/Validation-43%20passed-brightgreen"></a>
+    <a href="./docs/EXAMPLES.md"><img alt="Examples" src="https://img.shields.io/badge/Examples-Runnable-orange"></a>
   </p>
   <p>
     <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-3776AB">
@@ -27,7 +27,7 @@
 - 统一返回 dataclass：不直接向外暴露裸 `dict`
 - 所有时间字段统一转换为 Python 原生 `date` / `datetime`
 - 价格统一保留双形态：浮点值 + `*_milli` 整数值
-- 支持 `include_raw=True` 输出原始 `frame/payload` 十六进制，便于调试与对拍
+- 支持 `include_raw=True` 输出原始 `frame/payload` 十六进制，便于调试与比对
 
 当前版本重点覆盖：
 
@@ -57,14 +57,14 @@
 
 - 关键协议接口支持 `include_raw=True`
 - 支持查看 `raw_frame_hex`、`raw_payload_hex`
-- 适合人工核对、协议对拍、问题定位
+- 适合人工核对、原始报文比对、问题定位
 
 ### 对数据处理友好
 
 - 返回统一 dataclass 模型
 - 时间字段已转换为 Python 原生类型
 - 价格字段保留 `price` 与 `price_milli` 双形态
-- 文档中提供字段中文解释、真实样例、字段语义锁定说明
+- 文档中提供字段中文解释、真实样例与进阶说明入口
 
 ## 安装
 
@@ -91,7 +91,7 @@ pip install eltdx
 
 - Python `>=3.10`
 
-发布与上架流程见：[`docs/PUBLISHING.md`](./docs/PUBLISHING.md)
+仓库维护与发布流程见：[`docs/maintainers/PUBLISHING.md`](./docs/maintainers/PUBLISHING.md)
 
 ## 30 秒上手
 
@@ -262,7 +262,7 @@ with TdxClient() as client:
 - `WorkdayService`
 - `GbbqService`
 
-## 字段与语义说明
+## 字段说明怎么找
 
 如果你最关心的是“这个字段到底是什么意思”，建议按下面顺序看：
 
@@ -273,10 +273,11 @@ with TdxClient() as client:
    - 看字段中文含义
    - 看真实样例
    - 看原始值 -> 解析值对照
-3. [`docs/FIELD_SEMANTICS_LOCKDOWN.md`](./docs/FIELD_SEMANTICS_LOCKDOWN.md)
-   - 看字段语义已经锁定到什么程度
-   - 区分哪些字段可以放心写进正式说明
-   - 看哪些字段还应保持保守口径
+3. [`docs/DEBUG_GUIDE.md`](./docs/DEBUG_GUIDE.md)
+   - 看 `include_raw=True` 怎么调试
+   - 看 raw hex 与解析结果怎么比对
+
+如果你还想看实现依据、联网验证记录和发布资料，再看：[`docs/maintainers/README.md`](./docs/maintainers/README.md)
 
 ## 重要语义边界
 
@@ -333,13 +334,8 @@ with TdxClient() as client:
 | [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md) | 完整 API 用法 | 想看每个函数怎么调用 |
 | [`docs/EXAMPLES.md`](./docs/EXAMPLES.md) | 示例集合 | 想直接抄可运行示例 |
 | [`docs/FIELD_REFERENCE.md`](./docs/FIELD_REFERENCE.md) | 字段中文解释 | 想知道字段是什么含义 |
-| [`docs/FIELD_SEMANTICS_LOCKDOWN.md`](./docs/FIELD_SEMANTICS_LOCKDOWN.md) | 字段语义锁定 | 想确认字段口径是否已经坐实 |
-| [`docs/PROTOCOL_COMPARISON_CHECKLIST.md`](./docs/PROTOCOL_COMPARISON_CHECKLIST.md) | 协议核对 | 想看当前实现的协议覆盖与边界 |
-| [`docs/DEBUG_GUIDE.md`](./docs/DEBUG_GUIDE.md) | 调试指南 / smoke | 想定位问题或做 raw 对拍 |
-| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | 分层与结构 | 想理解项目内部组织 |
-| [`docs/API_VALIDATION_SUMMARY.md`](./docs/API_VALIDATION_SUMMARY.md) | 在线验证归纳 | 想看哪些 API 已经联网跑通 |
-| [`docs/API_FINAL_VALIDATION_REPORT.md`](./docs/API_FINAL_VALIDATION_REPORT.md) | 最终归纳与样例对照 | 想做人工核对 |
-| [`docs/FIRST_RELEASE_CHECKLIST.md`](./docs/FIRST_RELEASE_CHECKLIST.md) | 首发检查清单 | 准备打包发布时 |
+| [`docs/DEBUG_GUIDE.md`](./docs/DEBUG_GUIDE.md) | 调试指南 / smoke | 想定位问题或查看 raw 输出 |
+| [`docs/maintainers/README.md`](./docs/maintainers/README.md) | 维护者资料 | 想看架构、验证记录、发布流程 |
 
 ## 项目结构
 
@@ -409,8 +405,20 @@ eltdx/
 推荐顺序：
 
 1. 看 `docs/FIELD_REFERENCE.md`
-2. 再看 `docs/FIELD_SEMANTICS_LOCKDOWN.md`
-3. 如果还需要，打开 `artifacts/` 里的真实导出样本对照
+2. 再看 `docs/DEBUG_GUIDE.md`
+3. 如需更深入的实现与验证资料，再看 `docs/maintainers/README.md`
+
+### Q7：为什么仓库里保留了 `tests/` 和 `scripts/`？
+
+因为它们属于仓库维护资源：
+
+- `tests/` 用来保证协议解析和公开 API 行为稳定
+- `scripts/` 用来做 smoke、导出和发布前验证
+- 它们帮助维护质量，但不是对外公开 API
+
+### Q8：这些测试和脚本会跟着 `pip install eltdx` 一起装进去吗？
+
+正常安装主要使用打包后的库本体；日常使用重点是 `src/eltdx/` 下的代码。
 
 ## 路线图
 
@@ -443,18 +451,10 @@ eltdx/
 
 ## 当前状态
 
-截至 **2026-03-07** 的最新联网验证基线：
-
-- `43 passed / 0 failed`
-- 分时实时路径与历史路径都已单独验证
-- 关键字段已有真实样例与语义锁定文档
-
-详情见：[`docs/API_VALIDATION_SUMMARY.md`](./docs/API_VALIDATION_SUMMARY.md)
+- 当前版本处于 Alpha 阶段，主链路 API 已可用
+- 公开说明集中在 API、示例、字段说明和调试四类文档
+- 架构、验证记录和发布流程见：[`docs/maintainers/README.md`](./docs/maintainers/README.md)
 
 ## 许可证
-
-MIT
-
-## License
 
 MIT
