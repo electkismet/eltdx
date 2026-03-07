@@ -188,6 +188,12 @@ python -c "from eltdx import TdxClient; print(TdxClient)"
 8. 打 `v0.1.0` 标签
 9. 验证 `pip install eltdx`
 
+## PyPI 页面更新规则
+
+- GitHub 上修改 `README.md`、`docs/` 或其他说明文件后，PyPI 页面不会自动同步更新。
+- PyPI 页面展示的是发布当时上传的项目元数据和说明页内容。
+- 如果你希望 PyPI 页面也更新，通常需要发布一个新版本。
+
 ## 常见问题
 
 ### `pip install eltdx` 是从 GitHub 安装吗？
