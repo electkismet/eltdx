@@ -2,6 +2,16 @@
 
 All notable changes to `eltdx` will be documented in this file.
 
+## 0.1.1 - 2026-03-07
+
+Small compatibility update for the first public release.
+
+### Fixed
+
+- restored full Python 3.10 compatibility in protocol numeric decoding
+- replaced direct `math.exp2()` usage with a safe fallback for older Python runtimes
+- added a regression test to keep the 3.10 code path covered in CI
+
 ## 0.1.0 - 2026-03-07
 
 First Python alpha cut of the Tongdaxin client, focused on the protocol and client layer.
@@ -39,4 +49,3 @@ First Python alpha cut of the Tongdaxin client, focused on the protocol and clie
 
 - unit test suite passes locally
 - integration tests remain opt-in through `ELTDX_RUN_LIVE=1`
-
