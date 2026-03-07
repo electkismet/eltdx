@@ -1,7 +1,7 @@
 <div align="center">
   <h1>eltdx</h1>
   <p><strong>通达信行情协议的 Python 客户端库</strong></p>
-  <p>提供统一入口、明确方法名、稳定 dataclass 返回模型，以及可选原始十六进制调试能力。</p>
+  <p>安装后就能直接调快照、分时、逐笔、K 线、集合竞价等接口，返回结果统一、字段清楚，也支持查看原始十六进制数据。</p>
   <p>
     <a href="https://pypi.org/project/eltdx/"><img alt="PyPI" src="https://img.shields.io/pypi/v/eltdx"></a>
     <a href="https://pypi.org/project/eltdx/"><img alt="Python Versions" src="https://img.shields.io/pypi/pyversions/eltdx"></a>
@@ -10,16 +10,16 @@
   </p>
 </div>
 
-## 简介
+## 这是什么
 
-`eltdx` 面向 Python 使用场景，目标是让行情接口调用尽量简单：
+`eltdx` 想做的事情很简单：
 
-- 一个主入口：`TdxClient`
-- 多个方法名：`get_quote()`、`get_minute()`、`get_trades()`、`get_kline()` 等
-- 统一返回 dataclass：不直接向外暴露裸 `dict`
-- 所有时间字段统一转换为 Python 原生 `date` / `datetime`
+- 给你一个统一入口：`TdxClient`
+- 让常用接口直接就能调：`get_quote()`、`get_minute()`、`get_trades()`、`get_kline()` 等
+- 返回结果尽量好懂：统一 dataclass，不直接丢一堆裸 `dict`
+- 时间字段直接给你 Python 原生 `date` / `datetime`
 - 价格字段同时保留浮点值和 `*_milli` 整数值
-- 关键协议支持 `include_raw=True`，可查看原始 `frame/payload` 十六进制
+- 需要排查问题时，可以打开 `include_raw=True` 看原始十六进制
 
 当前版本重点覆盖：
 
@@ -29,26 +29,23 @@
 - K 线
 - 集合竞价
 - 公司行为 / 股本变化 / 复权因子
-- 常用 helper 与服务层封装
-
-## 项目参考
-- [injoyai](https://github.com/injoyai/tdx)
+- 一些常用 helper
 
 ## 安装
 
-### 推荐安装
+最推荐的安装方式：
 
 ```bash
 python -m pip install eltdx
 ```
 
-### 升级
+升级：
 
 ```bash
 python -m pip install -U eltdx
 ```
 
-### 本地开发安装
+如果你是拉源码自己调：
 
 ```bash
 pip install -e .
@@ -58,7 +55,9 @@ pip install -e .
 
 - Python `>=3.10`
 
-## 30 秒上手
+## 快速开始
+
+最简单的用法：
 
 ```python
 from eltdx import TdxClient
@@ -69,7 +68,7 @@ with TdxClient() as client:
         print(quote.code, quote.last_price, quote.server_time)
 ```
 
-查看原始协议数据：
+如果你想看原始协议数据：
 
 ```python
 from eltdx import TdxClient
@@ -80,7 +79,7 @@ with TdxClient() as client:
     print(minute.raw_payload_hex)
 ```
 
-自定义服务器地址：
+如果你想自己指定服务器地址：
 
 ```python
 from eltdx import TdxClient
@@ -94,115 +93,116 @@ with TdxClient(
     print(quote.last_price)
 ```
 
-## 为什么用它
+## 常用功能
 
-- `with TdxClient()` 支持上下文管理器，适合一次性抓取任务
-- 也支持手动 `connect()` / `close()`，适合长连接实时场景
-- `get_quote()` 内置自动分批，默认每批 `80` 个代码，并默认使用两条连接分发请求
-- 返回模型统一，时间字段和价格字段都已经做过 Python 化处理
-- 可以在调试阶段直接拿到原始十六进制数据做人工核对
+### 先连上，再取数据
 
-## API 概览
+- `connect()`：主动建立连接
+- `close()`：关闭连接
+- `with TdxClient() as client:`：适合一次性脚本，跑完自动关
 
-### 生命周期
+### 最常会用到的接口
 
-- `connect()`：主动建立连接池
-- `close()`：关闭连接池
-- `with TdxClient() as client:`：适合一次性脚本和导出任务
+- `get_quote()`：拿快照行情
+- `get_minute()` / `get_history_minute()`：拿分时
+- `get_trades()` / `get_trades_all()`：拿逐笔
+- `get_kline()` / `get_kline_all()`：拿 K 线
+- `get_call_auction()`：拿集合竞价
+- `get_gbbq()` / `get_xdxr()` / `get_equity()` / `get_factors()`：拿公司行为、股本和复权相关数据
 
-### 行情与代码表
+### 用起来比较省心的地方
 
-- `get_quote()`：快照行情
-- `get_count()` / `get_codes()` / `get_codes_all()`：底层代码表能力
-- `get_stock_count()` / `get_a_share_count()`：过滤后的股票数量 helper
-- `get_stock_codes_all()` / `get_a_share_codes_all()` / `get_etf_codes_all()` / `get_index_codes_all()`：常用代码筛选 helper
+- `with` 可用可不用；短任务推荐用，长连接也可以手动控制
+- `get_quote()` 自带自动分批，不用你自己切列表
+- 默认支持多连接分发，批量取快照会更稳一些
+- 返回字段统一，做展示、落库、计算都比较顺手
 
-### 时间序列
-
-- `get_minute()` / `get_history_minute()`：分时
-- `get_trades()` / `get_trades_all()`：逐笔
-- `get_kline()` / `get_kline_all()`：K 线
-- `get_call_auction()`：集合竞价
-
-### 公司行为与复权
-
-- `get_gbbq()`：公司行为原始记录
-- `get_xdxr()`：除权除息记录
-- `get_equity_changes()` / `get_equity()`：股本变化与指定日期股本
-- `get_factors()`：复权因子
-- `get_adjusted_kline()` / `get_adjusted_kline_all()`：复权 K 线
-
-### 派生 helper
-
-- `get_turnover()`：换手率 helper
-- `get_trade_minute_kline()` / `get_history_trade_minute_kline()`：逐笔聚合分钟 K 线
-
-完整参数、返回值和示例见完整文档。
-
-## 重要说明
+## 使用时先知道
 
 ### `get_count(exchange)` 不是股票总数
 
-它返回的是底层代码表条目数，不是“这个市场一共有多少只股票”。
+它更像“这个市场的代码表条目数”，不是“这个市场一共有多少只股票”。
 
-如果你要更接近股票口径的数量，请优先使用：
+如果你更想拿到股票口径的数量，优先试：
 
 - `get_stock_count(exchange)`
 - `get_a_share_count(exchange)`
 
-### `get_codes*()` 不是官方证券分类总表
+### `get_codes()` / `get_codes_all()` 不只是股票列表
 
-代码表里会混有股票、指数、板块分类项、ETF、基金、债券回购等条目。
+这里面会混有股票、指数、板块分类项、ETF、基金、债券回购等条目。
 
-如果你想直接拿一组更实用的代码去拉行情，优先使用：
+如果你想直接拿一组更实用的代码去拉行情，优先试：
 
 - `get_stock_codes_all()`
 - `get_a_share_codes_all()`
 - `get_etf_codes_all()`
 - `get_index_codes_all()`
 
-### `with` 关闭是可选的
+### `with` 不是强制的
 
-- 一次性拉数据：推荐 `with`
-- 长连接实时场景：可以手动持有 `client`，最后再 `close()`
+- 你只是临时拉一把数据：用 `with`
+- 你要一直保持连接：手动 `connect()` / `close()` 也完全可以
 
 ### `host` 和 `hosts` 都可以传
 
-- `host=`：指定一个地址
-- `hosts=`：传多个地址给客户端自动处理
+- `host=`：只测一个地址时比较方便
+- `hosts=`：传多个地址，交给客户端自己处理
 - 不传时会回退到库内默认地址列表
 
-## 文档
+## 文档怎么读
 
-完整文档放在 GitHub：
+如果你是第一次用，建议按这个顺序看：
 
 - [文档首页](https://github.com/electkismet/eltdx/blob/main/docs/README.md)
-- [API Reference](https://github.com/electkismet/eltdx/blob/main/docs/API_REFERENCE.md)
-- [Examples](https://github.com/electkismet/eltdx/blob/main/docs/EXAMPLES.md)
-- [Field Reference](https://github.com/electkismet/eltdx/blob/main/docs/FIELD_REFERENCE.md)
-- [Debug Guide](https://github.com/electkismet/eltdx/blob/main/docs/DEBUG_GUIDE.md)
-- [Maintainers](https://github.com/electkismet/eltdx/blob/main/docs/maintainers/README.md)
+- [API 用法](https://github.com/electkismet/eltdx/blob/main/docs/API_REFERENCE.md)
+- [使用示例](https://github.com/electkismet/eltdx/blob/main/docs/EXAMPLES.md)
+- [字段说明](https://github.com/electkismet/eltdx/blob/main/docs/FIELD_REFERENCE.md)
+- [调试指南](https://github.com/electkismet/eltdx/blob/main/docs/DEBUG_GUIDE.md)
 
 ## FAQ
 
-### 关于仓库里的 `tests/` 和 `scripts/`说明
+### 如果我只拉一次数据，推荐怎么写？
 
-它们属于仓库维护资源：
+直接用：
 
-- `tests/` 用来保证协议解析和公开 API 行为稳定
-- `scripts/` 用来做 smoke、导出和发布前验证
-- 它们帮助维护质量，但不是对外公开 API
+```python
+with TdxClient() as client:
+    ...
+```
 
-### 这些测试和脚本会跟着 `pip install eltdx` 一起装进去吗？
+这样最省心，代码块结束后会自动关连接。
 
-日常安装重点使用的是库本体；普通使用场景只需要关注 `eltdx` 包本身。
+### 如果我要做长连接实时场景呢？
 
-## 当前状态
+那就自己控制连接生命周期：
 
-- 当前版本：`0.1.0`
-- 发布地址：[PyPI / eltdx](https://pypi.org/project/eltdx/)
-- 仓库地址：[GitHub / electkismet/eltdx](https://github.com/electkismet/eltdx)
-- 当前定位：Alpha，可用于实际拉取和二次开发验证
+```python
+client = TdxClient()
+client.connect()
+try:
+    ...
+finally:
+    client.close()
+```
+
+### 为什么 `get_count("sh")` 看起来特别大？
+
+因为它不是股票总数，而是代码表条目数。
+
+### 为什么 `get_codes()` 里看起来不全是股票？
+
+因为它本来就不只是股票，还会带上指数、ETF、板块分类项等条目。
+
+### 我只想拿 A 股代码，应该用哪个？
+
+优先用：
+
+- `get_a_share_codes_all()`
+
+如果你希望把 B 股也一起算进去，再试：
+
+- `get_stock_codes_all()`
 
 ## 许可证
 

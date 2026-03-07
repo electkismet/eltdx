@@ -1,13 +1,14 @@
-# Examples
+# 使用示例
 
-这份文档提供 `eltdx` 的可运行示例，适合你直接复制、微调、验证。
+这份文档放的是可以直接复制、改一改就能用的代码。
+
+如果你不想先通读完整 API 文档，先从这页开始也完全没问题。
 
 配套阅读：
 
-- API 用法总表：[`API_REFERENCE.md`](./API_REFERENCE.md)
-- 字段中文解释：[`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md)
-- 调试方法：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
-- 更多实现与验证资料：[`maintainers/README.md`](./maintainers/README.md)
+- API 用法：[`API_REFERENCE.md`](./API_REFERENCE.md)
+- 字段说明：[`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md)
+- 调试指南：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
 
 ## 1. 一次性抓取：推荐用 `with`
 

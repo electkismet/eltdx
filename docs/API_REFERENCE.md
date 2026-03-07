@@ -1,22 +1,24 @@
-# API Reference
+# API 用法
 
-这份文档说明 `eltdx` 当前版本的公开 API、调用方式、关键参数与返回模型。
+这份文档就是“每个函数怎么用”的总说明。
 
-统一约定：
+你可以把它当作查表页：想找初始化方式、参数、返回值、示例，就来这里看。
 
-- 推荐统一使用全代码，例如 `sz000001`、`sh600000`、`bj920001`；多数接口也接受裸六码，内部会自动补前缀。
-- 所有时间字段都转换为 Python 原生对象：交易日使用 `date`，带时分秒字段使用 `datetime`。
-- 价格统一提供双形态：浮点字段与 `*_milli` 整数毫厘字段同时保留。
-- 大部分协议接口都支持 `include_raw=True`，便于输出 `raw_frame_hex`、`raw_payload_hex` 做比对调试。
-- `get_count()` 与 `get_codes*()` 的语义是“底层代码表”，不是“股票官方分类总数”。
+先记住这几件事：
 
-相关文档：
+- 推荐尽量使用完整代码，例如 `sz000001`、`sh600000`、`bj920001`
+- 多数接口也接受裸六码，内部会自动补前缀
+- 时间字段会直接转换成 Python 原生对象：交易日用 `date`，带时分秒的字段用 `datetime`
+- 价格字段会同时保留浮点值和 `*_milli` 整数值
+- 很多接口支持 `include_raw=True`，需要排查时可以直接看 `raw_frame_hex` 和 `raw_payload_hex`
+
+配套阅读：
 
 - 字段说明：[`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md)
-- 调试方法：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
-- 维护者资料：[`maintainers/README.md`](./maintainers/README.md)
+- 调试指南：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
+- 使用示例：[`EXAMPLES.md`](./EXAMPLES.md)
 
-> 本页示例基于 2026-03-07 的联网验证整理；实时行情会随时变化，示例数值只用于说明字段含义，不代表固定结果。
+> 本页示例只用于说明调用方式和字段含义，实时行情会变化，示例数值不代表固定结果。
 
 ## 1. `TdxClient` 初始化
 
@@ -621,4 +623,4 @@ with TdxClient() as client:
 1. API 用法总览：[`README.md`](../README.md)
 2. 字段中文说明：[`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md)
 3. 调试与 raw 比对：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
-4. 维护者资料：[`maintainers/README.md`](./maintainers/README.md)
+4. ?????????[`EXAMPLES.md`](./EXAMPLES.md)
