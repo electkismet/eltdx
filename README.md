@@ -4,7 +4,7 @@
   <p>安装后就能直接调快照、分时、逐笔、K 线、集合竞价等接口，返回结果统一、字段清楚，也支持查看原始十六进制数据。</p>
   <p>
     <a href="https://pypi.org/project/eltdx/"><img alt="PyPI" src="https://img.shields.io/pypi/v/eltdx"></a>
-    <a href="https://pypi.org/project/eltdx/"><img alt="Python Versions" src="https://img.shields.io/pypi/pyversions/eltdx"></a>
+    <a href="https://pypi.org/project/eltdx/"><img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-blue"></a>
     <a href="https://github.com/electkismet/eltdx/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/electkismet/eltdx/ci.yml?branch=main"></a>
     <a href="https://github.com/electkismet/eltdx/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/pypi/l/eltdx"></a>
   </p>
