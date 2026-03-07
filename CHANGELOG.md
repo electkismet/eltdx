@@ -2,6 +2,16 @@
 
 All notable changes to `eltdx` will be documented in this file.
 
+## 0.1.2 - 2026-03-07
+
+Small documentation and packaging refresh.
+
+### Changed
+
+- refreshed the PyPI project page to match the latest public README
+- replaced the README Python badge with a clearer `Python 3.10+` display
+- fixed a corrupted line in `docs/API_REFERENCE.md`
+
 ## 0.1.1 - 2026-03-07
 
 Small compatibility update for the first public release.
