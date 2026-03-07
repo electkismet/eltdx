@@ -49,7 +49,7 @@ def parse_quote_payload(codes: list[str], response: ResponseFrame) -> list[Quote
         server_time_raw, offset = consume_varint(payload, offset)
         _, offset = consume_varint(payload, offset)
         total_hand, offset = consume_varint(payload, offset)
-        intuition, offset = consume_varint(payload, offset)
+        current_hand, offset = consume_varint(payload, offset)
         amount = get_volume(uint32_le(payload[offset : offset + 4]))
         offset += 4
         inside_dish, offset = consume_varint(payload, offset)
@@ -105,7 +105,7 @@ def parse_quote_payload(codes: list[str], response: ResponseFrame) -> list[Quote
                 last_close_price=milli_to_float(quote_prices["last_close"] // divisor),
                 last_close_price_milli=quote_prices["last_close"] // divisor,
                 total_hand=total_hand,
-                intuition=intuition,
+                current_hand=current_hand,
                 amount=amount,
                 inside_dish=inside_dish,
                 outer_disc=outer_disc,

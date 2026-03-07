@@ -62,6 +62,7 @@ with TdxClient() as client:
     print(quote.code)
     print(quote.last_price)
     print(quote.last_close_price)
+    print(quote.current_hand)
     print(quote.call_auction_amount, quote.call_auction_rate)
     print(quote.open_price, quote.high_price, quote.low_price)
     print(quote.total_hand, quote.amount)
@@ -75,6 +76,7 @@ with TdxClient() as client:
 - `high_price`：最高
 - `low_price`：最低
 - `last_close_price`：昨收 / 前收价
+- `current_hand`：现手数（现量）
 - `call_auction_amount`：竞价额
 - `call_auction_rate`：竞价涨幅
 - `total_hand`：总手

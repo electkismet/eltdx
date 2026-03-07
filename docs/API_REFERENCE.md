@@ -198,6 +198,7 @@ with TdxClient() as client:
 - `low_price`、`low_price_milli`
 - `last_close_price`、`last_close_price_milli`：昨收 / 前收价
 - `total_hand`：总手数
+- `current_hand`：现手数（现量）
 - `amount`：成交额
 - `call_auction_amount`：竞价额，仅在集合竞价阶段更有参考意义
 - `call_auction_rate`：竞价涨幅，按 `(open_price - last_close_price) / last_close_price * 100` 计算

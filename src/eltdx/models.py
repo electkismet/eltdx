@@ -212,7 +212,7 @@ class Quote:
     last_close_price: float
     last_close_price_milli: int
     total_hand: int
-    intuition: int
+    current_hand: int
     amount: float
     inside_dish: int
     outer_disc: int

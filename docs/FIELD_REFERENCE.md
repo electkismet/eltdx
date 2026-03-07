@@ -98,7 +98,7 @@ K 线里会保留成交额双形态：
 典型例子：
 
 - `Quote.active1` / `Quote.active2`：当前实现按活跃度字段处理，但业务算法口径仍未冻结
-- `Quote.intuition`：当前实现按现量 / 当前成交量口径保守解释
+- `Quote.current_hand`：现手数（现量）
 - `Quote.rate`：当前实现按涨速口径保守解释，样本中常见 `0.0`
 - `SecurityCode.multiple` / `SecurityCode.decimal`：当前实现按“倍数 / 小数位”使用，但业务层通常不直接使用
 
@@ -316,7 +316,7 @@ K 线里会保留成交额双形态：
 | `last_close_price` | `float` | 昨收 / 前收价 | 浮点值 |
 | `last_close_price_milli` | `int` | 昨收整数毫厘值 | 精确对拍用 |
 | `total_hand` | `int` | 总手数 | 快照累计成交量字段 |
-| `intuition` | `int` | 现量 / 当前成交量 | 当前实现按现量口径保守解释 |
+| `current_hand` | `int` | 现手数（现量） | 表示当前一笔 / 当前撮合显示的手数，当前按现手口径解释 |
 | `amount` | `float` | 成交额 | 快照累计成交额 |
 | `call_auction_amount` | `float | None` | 竞价额 | 当前实现按 `unknown_after_outer_disc_2 * 100` 解释；集合竞价阶段更有参考意义 |
 | `call_auction_rate` | `float | None` | 竞价涨幅 | 当前实现按 `(open_price - last_close_price) / last_close_price * 100` 计算 |
@@ -545,7 +545,7 @@ K 线里会保留成交额双形态：
 
 - `get_count()` / `get_codes*()` 返回的是代码表语义，不是“股票官方分类总数”。
 - `SecurityCode.multiple`、`SecurityCode.decimal` 是协议参数，不建议业务层拿来当核心指标。
-- `Quote.active1`、`active2`、`intuition`、`rate` 已稳定返回，但业务中文口径尚未最终冻结。
+- `Quote.active1`、`active2`、`rate` 已稳定返回，但业务中文口径尚未最终冻结。
 - `Quote.server_time` 是 best-effort 解析值；若原始整数不合法，它允许为 `None`。
 - `TradeItem.order_count` 在实时逐笔里更常见，历史逐笔通常为 `None`。
 - `KlineItem.up_count` / `down_count` 更适合在指数型 K 线里理解；普通股票 K 线常为 `None`。

@@ -7,6 +7,7 @@
 ### 修改
 
 - 为 `get_quote()` 的 `Quote` 增加 `call_auction_amount` 和 `call_auction_rate` 两个集合竞价相关字段
+- 将 `Quote.intuition` 重命名为 `Quote.current_hand`，并将字段语义明确为“现手数（现量）”
 
 ## 0.2.0 - 2026-03-08
 
