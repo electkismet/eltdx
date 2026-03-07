@@ -31,10 +31,6 @@
 - 公司行为 / 股本变化 / 复权因子
 - 一些常用 helper
 
-## 项目参考
-
-- [injoyai/tdx](https://github.com/injoyai/tdx)
-
 ## 安装
 
 推荐的安装方式：
@@ -207,6 +203,11 @@ finally:
 如果你希望把 B 股也一起算进去，再试：
 
 - `get_stock_codes_all()`
+
+## 项目参考
+
+- 感谢作者[injoyai/tdx](https://github.com/injoyai/tdx)
+
 
 ## 联系方式
 
