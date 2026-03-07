@@ -55,7 +55,7 @@ def parse_quote_payload(codes: list[str], response: ResponseFrame) -> list[Quote
         inside_dish, offset = consume_varint(payload, offset)
         outer_disc, offset = consume_varint(payload, offset)
         _, offset = consume_varint(payload, offset)
-        _, offset = consume_varint(payload, offset)
+        call_auction_amount_base, offset = consume_varint(payload, offset)
 
         buy_levels: list[QuoteLevel] = []
         sell_levels: list[QuoteLevel] = []
@@ -80,6 +80,11 @@ def parse_quote_payload(codes: list[str], response: ResponseFrame) -> list[Quote
         rate = uint16_le(payload[offset : offset + 2]) / 100.0
         active2 = uint16_le(payload[offset + 2 : offset + 4])
         offset += 4
+
+        last_close_raw = quote_prices["last_close"]
+        call_auction_rate = None
+        if last_close_raw > 0:
+            call_auction_rate = ((quote_prices["open"] - last_close_raw) / last_close_raw) * 100.0
 
         quotes.append(
             Quote(
@@ -107,6 +112,8 @@ def parse_quote_payload(codes: list[str], response: ResponseFrame) -> list[Quote
                 buy_levels=buy_levels,
                 sell_levels=sell_levels,
                 rate=rate,
+                call_auction_amount=float(call_auction_amount_base * 100),
+                call_auction_rate=call_auction_rate,
             )
         )
 

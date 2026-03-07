@@ -219,6 +219,8 @@ class Quote:
     buy_levels: list[QuoteLevel]
     sell_levels: list[QuoteLevel]
     rate: float
+    call_auction_amount: float | None = None
+    call_auction_rate: float | None = None
 
 
 Code = SecurityCode

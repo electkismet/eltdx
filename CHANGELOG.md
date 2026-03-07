@@ -2,6 +2,12 @@
 
 这里记录 `eltdx` 的公开版本变化。
 
+## Unreleased
+
+### 修改
+
+- 为 `get_quote()` 的 `Quote` 增加 `call_auction_amount` 和 `call_auction_rate` 两个集合竞价相关字段
+
 ## 0.2.0 - 2026-03-08
 
 ### 修改

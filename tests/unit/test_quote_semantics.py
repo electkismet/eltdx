@@ -36,12 +36,16 @@ def test_quote_uses_last_price_and_last_close_price_fields() -> None:
         buy_levels=[],
         sell_levels=[],
         rate=0.0,
+        call_auction_amount=123400.0,
+        call_auction_rate=-0.2775208140610546,
     )
 
     assert quote.last_price == 10.82
     assert quote.last_price_milli == 10820
     assert quote.last_close_price == 10.81
     assert quote.last_close_price_milli == 10810
+    assert quote.call_auction_amount == 123400.0
+    assert quote.call_auction_rate == pytest.approx(-0.2775208140610546)
     assert not hasattr(quote, "close_price")
     assert not hasattr(quote, "latest_price")
 
@@ -87,8 +91,8 @@ def test_parse_quote_payload_maps_current_and_last_close_correctly(monkeypatch: 
             6768,
             206012,
             270565,
-            0,
-            0,
+            7,
+            1234,
             6320,
             6878,
             6980,
@@ -120,6 +124,8 @@ def test_parse_quote_payload_maps_current_and_last_close_correctly(monkeypatch: 
 
     assert quote.last_price == 10.82
     assert quote.last_close_price == 10.81
+    assert quote.call_auction_amount == 123400.0
+    assert quote.call_auction_rate == pytest.approx(-0.2775208140610546)
     assert not hasattr(quote, "close_price")
     assert quote.buy_levels[0].price == 10.82
     assert quote.sell_levels[0].price == 10.83

@@ -318,6 +318,8 @@ K 线里会保留成交额双形态：
 | `total_hand` | `int` | 总手数 | 快照累计成交量字段 |
 | `intuition` | `int` | 现量 / 当前成交量 | 当前实现按现量口径保守解释 |
 | `amount` | `float` | 成交额 | 快照累计成交额 |
+| `call_auction_amount` | `float | None` | 竞价额 | 当前实现按 `unknown_after_outer_disc_2 * 100` 解释；集合竞价阶段更有参考意义 |
+| `call_auction_rate` | `float | None` | 竞价涨幅 | 当前实现按 `(open_price - last_close_price) / last_close_price * 100` 计算 |
 | `inside_dish` | `int` | 内盘 | 当前实现按内盘口径保守解释，不承诺与第三方软件逐项一致 |
 | `outer_disc` | `int` | 外盘 | 当前实现按外盘口径保守解释，不承诺与第三方软件逐项一致 |
 | `buy_levels` | `list[QuoteLevel]` | 买盘五档 | `buy1 ~ buy5` |
@@ -337,6 +339,8 @@ K 线里会保留成交额双形态：
 - `high_price_milli = 10840 -> high_price = 10.84`
 - `low_price_milli = 10770 -> low_price = 10.77`
 - `last_close_price_milli = 10810 -> last_close_price = 10.81`
+- `call_auction_amount = 123400.0`
+- `call_auction_rate = -0.2775208140610546`
 - `total_hand = 476576`
 - `amount = 514733536.0`
 - `inside_dish = 206012`
@@ -351,6 +355,7 @@ K 线里会保留成交额双形态：
 - 如果 `server_time_raw` 不合法，`server_time` 会是 `None`；这时应优先保留和核对 `server_time_raw`。
 - 快照协议里的盘口价差是围绕“当前价 / 最新价”展开的，不是围绕昨收展开。
 - 当前快照字段约定是：`last_price` 表示最新价，`last_close_price` 表示昨收 / 前收价。
+- `call_auction_amount` 和 `call_auction_rate` 是集合竞价场景字段；离开集合竞价阶段后不一定仍然具备同样解释力。
 
 ## 7. `CallAuctionItem` / `CallAuctionResponse`
 
