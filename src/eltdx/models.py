@@ -209,8 +209,8 @@ class Quote:
     high_price_milli: int
     low_price: float
     low_price_milli: int
-    close_price: float
-    close_price_milli: int
+    last_close_price: float
+    last_close_price_milli: int
     total_hand: int
     intuition: int
     amount: float

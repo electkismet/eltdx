@@ -45,7 +45,7 @@ def parse_quote_payload(codes: list[str], response: ResponseFrame) -> list[Quote
         active1 = uint16_le(payload[offset + 7 : offset + 9])
         offset += 9
 
-        k_values, offset = decode_k(payload, offset)
+        quote_prices, offset = decode_k(payload, offset)
         server_time_raw, offset = consume_varint(payload, offset)
         _, offset = consume_varint(payload, offset)
         total_hand, offset = consume_varint(payload, offset)
@@ -59,7 +59,7 @@ def parse_quote_payload(codes: list[str], response: ResponseFrame) -> list[Quote
 
         buy_levels: list[QuoteLevel] = []
         sell_levels: list[QuoteLevel] = []
-        close_milli = k_values["close"]
+        current_milli = quote_prices["current"]
         divisor = price_divisor(expected_code)
 
         for _ in range(5):
@@ -67,8 +67,8 @@ def parse_quote_payload(codes: list[str], response: ResponseFrame) -> list[Quote
             sell_delta, offset = consume_price(payload, offset)
             buy_number, offset = consume_varint(payload, offset)
             sell_number, offset = consume_varint(payload, offset)
-            buy_milli = (buy_delta * 10 + close_milli) // divisor
-            sell_milli = (sell_delta * 10 + close_milli) // divisor
+            buy_milli = (buy_delta * 10 + current_milli) // divisor
+            sell_milli = (sell_delta * 10 + current_milli) // divisor
             buy_levels.append(QuoteLevel(buy=True, price=milli_to_float(buy_milli), price_milli=buy_milli, number=buy_number))
             sell_levels.append(QuoteLevel(buy=False, price=milli_to_float(sell_milli), price_milli=sell_milli, number=sell_number))
 
@@ -89,16 +89,16 @@ def parse_quote_payload(codes: list[str], response: ResponseFrame) -> list[Quote
                 active2=active2,
                 server_time_raw=server_time_raw,
                 server_time=decode_quote_datetime(server_time_raw),
-                last_price=milli_to_float(k_values["last"] // divisor),
-                last_price_milli=k_values["last"] // divisor,
-                open_price=milli_to_float(k_values["open"] // divisor),
-                open_price_milli=k_values["open"] // divisor,
-                high_price=milli_to_float(k_values["high"] // divisor),
-                high_price_milli=k_values["high"] // divisor,
-                low_price=milli_to_float(k_values["low"] // divisor),
-                low_price_milli=k_values["low"] // divisor,
-                close_price=milli_to_float(k_values["close"] // divisor),
-                close_price_milli=k_values["close"] // divisor,
+                last_price=milli_to_float(quote_prices["current"] // divisor),
+                last_price_milli=quote_prices["current"] // divisor,
+                open_price=milli_to_float(quote_prices["open"] // divisor),
+                open_price_milli=quote_prices["open"] // divisor,
+                high_price=milli_to_float(quote_prices["high"] // divisor),
+                high_price_milli=quote_prices["high"] // divisor,
+                low_price=milli_to_float(quote_prices["low"] // divisor),
+                low_price_milli=quote_prices["low"] // divisor,
+                last_close_price=milli_to_float(quote_prices["last_close"] // divisor),
+                last_close_price_milli=quote_prices["last_close"] // divisor,
                 total_hand=total_hand,
                 intuition=intuition,
                 amount=amount,

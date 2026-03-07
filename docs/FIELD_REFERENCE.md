@@ -36,7 +36,7 @@
 真实例子：
 
 - `price_milli = 10820 -> price = 10.82`
-- `last_price_milli = 10810 -> last_price = 10.81`
+- `last_price_milli = 10820 -> last_price = 10.82`
 - `buy1.price_milli = 10820 -> buy1.price = 10.82`
 
 ### 1.2 成交额双形态：`amount_milli -> amount`
@@ -313,8 +313,8 @@ K 线里会保留成交额双形态：
 | `high_price_milli` | `int` | 最高整数毫厘值 | 精确对拍用 |
 | `low_price` | `float` | 最低 | 浮点值 |
 | `low_price_milli` | `int` | 最低整数毫厘值 | 精确对拍用 |
-| `close_price` | `float` | 昨收 / 基准收价 | 快照解码基准价 |
-| `close_price_milli` | `int` | 昨收整数毫厘值 | 精确对拍用 |
+| `last_close_price` | `float` | 昨收 / 前收价 | 浮点值 |
+| `last_close_price_milli` | `int` | 昨收整数毫厘值 | 精确对拍用 |
 | `total_hand` | `int` | 总手数 | 快照累计成交量字段 |
 | `intuition` | `int` | 现量 / 当前成交量 | 当前实现按现量口径保守解释 |
 | `amount` | `float` | 成交额 | 快照累计成交额 |
@@ -332,11 +332,11 @@ K 线里会保留成交额双形态：
 - `code = 000001`
 - `server_time_raw = 15330719`
 - `server_time = 2026-03-07T15:33:07.190000+08:00`
-- `last_price_milli = 10810 -> last_price = 10.81`
+- `last_price_milli = 10820 -> last_price = 10.82`
 - `open_price_milli = 10780 -> open_price = 10.78`
 - `high_price_milli = 10840 -> high_price = 10.84`
 - `low_price_milli = 10770 -> low_price = 10.77`
-- `close_price_milli = 10820 -> close_price = 10.82`
+- `last_close_price_milli = 10810 -> last_close_price = 10.81`
 - `total_hand = 476576`
 - `amount = 514733536.0`
 - `inside_dish = 206012`
@@ -349,6 +349,8 @@ K 线里会保留成交额双形态：
 补充说明：
 
 - 如果 `server_time_raw` 不合法，`server_time` 会是 `None`；这时应优先保留和核对 `server_time_raw`。
+- 快照协议里的盘口价差是围绕“当前价 / 最新价”展开的，不是围绕昨收展开。
+- 当前快照字段约定是：`last_price` 表示最新价，`last_close_price` 表示昨收 / 前收价。
 
 ## 7. `CallAuctionItem` / `CallAuctionResponse`
 
@@ -511,7 +513,7 @@ K 线里会保留成交额双形态：
 ### 9.1 价格类
 
 - `price_milli = 10820 -> price = 10.82`
-- `last_price_milli = 10810 -> last_price = 10.81`
+- `last_price_milli = 10820 -> last_price = 10.82`
 - `open_price_milli = 10780 -> open_price = 10.78`
 - `buy1.price_milli = 10820 -> buy1.price = 10.82`
 

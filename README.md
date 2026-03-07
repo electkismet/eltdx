@@ -65,7 +65,7 @@ from eltdx import TdxClient
 with TdxClient() as client:
     quotes = client.get_quote(["sz000001", "sh600000"])
     for quote in quotes:
-        print(quote.code, quote.last_price, quote.server_time)
+        print(quote.code, quote.last_price, quote.last_close_price, quote.server_time)
 ```
 
 如果你想看原始协议数据：

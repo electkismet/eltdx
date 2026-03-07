@@ -192,11 +192,11 @@ with TdxClient() as client:
 - `exchange`、`code`
 - `server_time_raw`：服务端原始时间整数
 - `server_time`：解析后的 Python `datetime | None`
-- `last_price`、`last_price_milli`
+- `last_price`、`last_price_milli`：最新价
 - `open_price`、`open_price_milli`
 - `high_price`、`high_price_milli`
 - `low_price`、`low_price_milli`
-- `close_price`、`close_price_milli`
+- `last_close_price`、`last_close_price_milli`：昨收 / 前收价
 - `total_hand`：总手数
 - `amount`：成交额
 - `inside_dish`、`outer_disc`
@@ -206,6 +206,7 @@ with TdxClient() as client:
 说明：
 
 - `server_time` 是 best-effort 解析结果；若原始值非法，`server_time` 可能是 `None`，这时应以 `server_time_raw` 为准。
+- 当前快照字段约定是：`last_price` 表示最新价，`last_close_price` 表示昨收 / 前收价。
 - 更完整的字段中文映射见 [`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md#6-quote--quotelevel-行情快照)
 
 ## 5. 分时

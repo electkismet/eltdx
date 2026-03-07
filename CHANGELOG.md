@@ -2,6 +2,14 @@
 
 这里记录 `eltdx` 的公开版本变化。
 
+## Unreleased
+
+### 修改
+
+- 修正 `get_quote()` 中快照价格字段的语义映射：`last_price` 对应最新价，`last_close_price` 对应昨收 / 前收价
+- 将 `Quote.close_price` / `Quote.close_price_milli` 重命名为 `Quote.last_close_price` / `Quote.last_close_price_milli`
+- 同步更新快照相关代码、测试、示例和字段说明，统一快照命名口径
+
 ## 0.1.4 - 2026-03-07
 
 主要修正 PyPI 展示和发布元数据。

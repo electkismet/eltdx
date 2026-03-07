@@ -16,7 +16,7 @@ from eltdx import TdxClient
 
 with TdxClient() as client:
     quote = client.get_quote("sz000001")[0]
-    print(quote.code, quote.last_price, quote.server_time)
+    print(quote.code, quote.last_price, quote.last_close_price, quote.server_time)
 ```
 
 如果这一步都不通，先别急着看复杂字段，先确认连接和地址是不是正常。

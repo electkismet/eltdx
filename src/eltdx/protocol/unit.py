@@ -444,21 +444,21 @@ def consume_price(payload: bytes, offset: int) -> tuple[int, int]:
 
 
 def decode_k(payload: bytes, offset: int) -> tuple[dict[str, int], int]:
-    close_delta, offset = consume_price(payload, offset)
-    last_delta, offset = consume_price(payload, offset)
+    current_delta, offset = consume_price(payload, offset)
+    last_close_delta, offset = consume_price(payload, offset)
     open_delta, offset = consume_price(payload, offset)
     high_delta, offset = consume_price(payload, offset)
     low_delta, offset = consume_price(payload, offset)
 
-    close_milli = close_delta * 10
-    last_milli = (last_delta + close_delta) * 10
-    open_milli = (open_delta + close_delta) * 10
-    high_milli = (high_delta + close_delta) * 10
-    low_milli = (low_delta + close_delta) * 10
+    current_milli = current_delta * 10
+    last_close_milli = (last_close_delta + current_delta) * 10
+    open_milli = (open_delta + current_delta) * 10
+    high_milli = (high_delta + current_delta) * 10
+    low_milli = (low_delta + current_delta) * 10
 
     return {
-        "close": close_milli,
-        "last": last_milli,
+        "current": current_milli,
+        "last_close": last_close_milli,
         "open": open_milli,
         "high": high_milli,
         "low": low_milli,

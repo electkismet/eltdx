@@ -61,6 +61,7 @@ with TdxClient() as client:
     quote = client.get_quote("sz000001")[0]
     print(quote.code)
     print(quote.last_price)
+    print(quote.last_close_price)
     print(quote.open_price, quote.high_price, quote.low_price)
     print(quote.total_hand, quote.amount)
 ```
@@ -72,7 +73,7 @@ with TdxClient() as client:
 - `open_price`：今开
 - `high_price`：最高
 - `low_price`：最低
-- `close_price`：昨收 / 基准收价
+- `last_close_price`：昨收 / 前收价
 - `total_hand`：总手
 - `amount`：成交额
 - `buy_levels` / `sell_levels`：五档盘口
@@ -115,9 +116,9 @@ with TdxClient() as client:
 
 - `server_time_raw = 15330719`
 - `server_time = 2026-03-07T15:33:07.190000+08:00`
-- `last_price_milli = 10810 -> last_price = 10.81`
+- `last_price_milli = 10820 -> last_price = 10.82`
 - `open_price_milli = 10780 -> open_price = 10.78`
-- `close_price_milli = 10820 -> close_price = 10.82`
+- `last_close_price_milli = 10810 -> last_close_price = 10.81`
 - `total_hand = 476576`
 - `inside_dish = 206012`
 - `outer_disc = 270565`
