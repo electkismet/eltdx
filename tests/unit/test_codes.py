@@ -6,6 +6,7 @@ from unittest.mock import Mock, call
 from eltdx.client import TdxClient
 from eltdx.models import SecurityCode
 from eltdx.protocol.frame import ResponseFrame
+from eltdx.protocol import unit as protocol_unit
 from eltdx.protocol.model_code import parse_code_payload
 from eltdx.protocol.unit import add_prefix, is_a_share_entry, is_b_share_entry, is_etf_entry, is_index, is_stock_entry
 
@@ -37,6 +38,26 @@ def test_parse_code_payload() -> None:
     assert parsed[0].last_price == 1491.0
     assert parsed[1].code == "395002"
     assert parsed[1].name == "主板Ｂ股"
+    assert parsed[1].last_price == 38.0
+
+
+def test_parse_code_payload_without_math_exp2(monkeypatch) -> None:
+    monkeypatch.delattr(protocol_unit.math, "exp2", raising=False)
+
+    payload = bytes.fromhex("0200" + RECORD_1_HEX + RECORD_2_HEX)
+    response = ResponseFrame(
+        control=0x1C,
+        msg_id=2,
+        msg_type=0x0450,
+        zip_length=len(payload),
+        length=len(payload),
+        data=payload,
+        raw=b"\xB1\xCB\x74\x00",
+    )
+
+    parsed = parse_code_payload("sz", response)
+
+    assert parsed[0].last_price == 1491.0
     assert parsed[1].last_price == 38.0
 
 

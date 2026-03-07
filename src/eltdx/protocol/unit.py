@@ -10,6 +10,13 @@ from ..exceptions import ProtocolError
 SHANGHAI_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
 
 
+def _exp2(value: float) -> float:
+    exp2 = getattr(math, "exp2", None)
+    if exp2 is not None:
+        return exp2(value)
+    return math.pow(2.0, value)
+
+
 EXCHANGE_TO_WIRE = {
     Exchange.SZ: 0,
     Exchange.SH: 1,
@@ -507,7 +514,7 @@ def get_volume2(value: int) -> float:
     lheax = (signed >> 8) & 0xFF
     lleax = signed & 0xFF
 
-    dbl_xmm6 = math.exp2(float(logpoint * 2 - 0x7F))
+    dbl_xmm6 = _exp2(float(logpoint * 2 - 0x7F))
     if hleax > 0x80:
         dbl_xmm4 = dbl_xmm6 * (64.0 + float(hleax & 0x7F)) / 64.0
     else:
