@@ -49,6 +49,10 @@
 
 看：[`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md)
 
+### 我想直接运行仓库附带的 smoke / validation 脚本
+
+看：[`../scripts/README.md`](../scripts/README.md)
+
 ## 文档地图
 
 | 文档 | 作用 |
@@ -58,3 +62,4 @@
 | [`EXAMPLES.md`](./EXAMPLES.md) | 可直接运行的示例 |
 | [`FIELD_REFERENCE.md`](./FIELD_REFERENCE.md) | 字段说明 |
 | [`DEBUG_GUIDE.md`](./DEBUG_GUIDE.md) | 调试指南 |
+| [`../scripts/README.md`](../scripts/README.md) | 仓库附带脚本说明 |

@@ -2,6 +2,8 @@
 
 这里放的是仓库附带的辅助脚本，按用途分成两类。
 
+如果你想先看库本身怎么安装、怎么调用 API、怎么查字段，可以先看：[`../docs/README.md`](../docs/README.md)
+
 ## smoke
 
 - 目录：`scripts/smoke/`
