@@ -462,17 +462,17 @@ with TdxClient() as client:
 ## 12. 推荐 smoke 命令
 
 ```bash
-python scripts/smoke_codes.py
-python scripts/smoke_minute.py
-python scripts/smoke_trade.py
-python scripts/smoke_kline.py
-python scripts/smoke_call_auction.py
-python scripts/smoke_live_all.py
-python scripts/export_live_validation.py
+python scripts/smoke/smoke_codes.py
+python scripts/smoke/smoke_minute.py
+python scripts/smoke/smoke_trade.py
+python scripts/smoke/smoke_kline.py
+python scripts/smoke/smoke_call_auction.py
+python scripts/smoke/smoke_live_all.py
+python scripts/validation/export_live_validation.py
 ```
 
 用途：
 
 - 前几个 smoke：快速看单个模块是否正常
-- `smoke_live_all.py`：总链路快速检查
-- `export_live_validation.py`：导出一整套联网验证样本
+- `scripts/smoke/smoke_live_all.py`：总链路快速检查
+- `scripts/validation/export_live_validation.py`：导出一整套联网验证样本

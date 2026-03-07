@@ -10,7 +10,7 @@ import tempfile
 import venv
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / "pyproject.toml").exists())
 DIST = ROOT / "dist"
 ABOUT = ROOT / "src" / "eltdx" / "__about__.py"
 

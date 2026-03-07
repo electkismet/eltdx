@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / "pyproject.toml").exists())
 ARTIFACTS_DIR = ROOT / "artifacts"
 
 
@@ -367,9 +367,9 @@ def build_api_key_sample_rows(api_samples: dict[str, Any]) -> list[dict[str, Any
         if isinstance(parsed_fields, dict):
             parsed_fields = dict(parsed_fields)
             parsed_fields.pop("meaning", None)
-            if parsed_fields.get("flag_meaning") in {"????", ""} and raw_fields.get("flag") == -1:
+            if parsed_fields.get("flag_meaning") in {None, ""} and raw_fields.get("flag") == -1:
                 parsed_fields["flag_meaning"] = "卖未撮合"
-            if parsed_fields.get("flag_meaning") in {"????", ""} and raw_fields.get("flag") == 1:
+            if parsed_fields.get("flag_meaning") in {None, ""} and raw_fields.get("flag") == 1:
                 parsed_fields["flag_meaning"] = "买未撮合"
         rows.append(
             {

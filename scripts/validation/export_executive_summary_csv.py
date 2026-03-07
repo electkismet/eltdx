@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / "pyproject.toml").exists())
 ARTIFACTS_DIR = ROOT / "artifacts"
 
 
