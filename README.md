@@ -211,7 +211,6 @@ finally:
 
 ## 联系方式
 
-- QQ 群：复盘软件交流群（群号：`982691484`）
 - 加群链接：[点击链接加入群聊](https://qm.qq.com/q/zAjpZsvfzy)
 - 邮箱：`dapaoxixixi@163.com`
 
