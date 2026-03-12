@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eltdx"
-version = "0.3.0"
+version = "0.3.1"
 description = "通达信行情协议 Python 库，支持快照、分时、逐笔、K 线、集合竞价等接口"
 readme = "README.md"
 requires-python = ">=3.10"

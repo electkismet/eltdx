@@ -136,6 +136,10 @@ def little_i16(data: bytes) -> int:
     return int.from_bytes(data, "little", signed=True)
 
 
+def little_i32(data: bytes) -> int:
+    return int.from_bytes(data, "little", signed=True)
+
+
 uint16_le = little_u16
 uint32_le = little_u32
 

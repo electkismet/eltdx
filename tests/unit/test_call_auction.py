@@ -36,9 +36,8 @@ PAYLOAD_HEX = (
 )
 
 
-def test_parse_call_auction_payload() -> None:
-    payload = bytes.fromhex(PAYLOAD_HEX)
-    response = ResponseFrame(
+def build_response(payload: bytes) -> ResponseFrame:
+    return ResponseFrame(
         control=0x1C,
         msg_id=2,
         msg_type=0x056A,
@@ -47,6 +46,11 @@ def test_parse_call_auction_payload() -> None:
         data=payload,
         raw=b"\xB1\xCB\x74\x00" + b"\x1C\x02\x00\x00\x00\x00\x6A\x05" + len(payload).to_bytes(2, "little") + len(payload).to_bytes(2, "little") + payload,
     )
+
+
+def test_parse_call_auction_payload() -> None:
+    payload = bytes.fromhex(PAYLOAD_HEX)
+    response = build_response(payload)
     parsed = parse_call_auction_payload(
         "sz000001",
         response,
@@ -61,3 +65,23 @@ def test_parse_call_auction_payload() -> None:
     assert parsed.items[0].unmatched == 24
     assert parsed.items[0].flag == -1
     assert parsed.items[0].raw_hex == "2b02c3f52c4113000000e8ffffff0000"
+
+
+def test_parse_call_auction_payload_with_large_unmatched_volume() -> None:
+    payload = bytes.fromhex("010034029a99814159b7000026e403000027")
+    response = build_response(payload)
+
+    parsed = parse_call_auction_payload(
+        "sz002455",
+        response,
+        include_raw=True,
+        now=datetime(2026, 3, 12, 9, 30, 0, tzinfo=SHANGHAI_TZ),
+    )
+
+    assert parsed.count == 1
+    assert parsed.items[0].time.strftime("%H:%M:%S") == "09:24:39"
+    assert parsed.items[0].price_milli == 16200
+    assert parsed.items[0].match == 46937
+    assert parsed.items[0].unmatched == 255014
+    assert parsed.items[0].flag == 1
+    assert parsed.items[0].raw_hex == "34029a99814159b7000026e403000027"

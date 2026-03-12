@@ -5,7 +5,7 @@ from datetime import datetime
 from ..models import CallAuctionItem, CallAuctionResponse
 from .constants import TYPE_CALL_AUCTION
 from .frame import RequestFrame, ResponseFrame
-from .unit import SHANGHAI_TZ, decode_code, little_f32, little_i16, little_u16
+from .unit import SHANGHAI_TZ, decode_code, little_f32, little_i32, little_u16, little_u32
 
 
 def build_call_auction_frame(code: str, msg_id: int) -> RequestFrame:
@@ -63,8 +63,9 @@ def parse_call_auction_payload(
         minute = minutes % 60
         second = record[15]
         price_milli = int(round(little_f32(record[2:6]) * 1000))
-        match = little_u16(record[6:8])
-        unmatched_signed = little_i16(record[10:12])
+        # TDX uses 4-byte fields for both matched and unmatched volume here.
+        match = little_u32(record[6:10])
+        unmatched_signed = little_i32(record[10:14])
         flag = 1 if unmatched_signed >= 0 else -1
         unmatched = abs(unmatched_signed)
 
