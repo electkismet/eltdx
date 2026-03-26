@@ -206,7 +206,7 @@ finally:
 
 ## 项目参考
 
-- 感谢作者[injoyai/tdx](https://github.com/injoyai/tdx)
+- 感谢[injoyai/tdx](https://github.com/injoyai/tdx)启发
 
 
 ## 联系方式
