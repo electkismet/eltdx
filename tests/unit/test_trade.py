@@ -94,7 +94,27 @@ def test_parse_history_trade_probe_payload_accepts_empty_header_only_payload() -
     assert parsed.item_0925 is None
 
 
-@pytest.mark.parametrize("payload_hex", ["", "0000", "00000000"])
+def test_parse_history_trade_probe_payload_accepts_two_byte_empty_payload() -> None:
+    payload = bytes.fromhex("0000")
+    response = ResponseFrame(
+        control=0x1C,
+        msg_id=7,
+        msg_type=0x0FB5,
+        zip_length=len(payload),
+        length=len(payload),
+        data=payload,
+        raw=b"\xB1\xCB\x74\x00",
+    )
+
+    parsed = parse_history_trade_probe_payload("sh600068", "20200102", response)
+
+    assert parsed.count == 0
+    assert parsed.trading_date == date(2020, 1, 2)
+    assert parsed.first_item is None
+    assert parsed.item_0925 is None
+
+
+@pytest.mark.parametrize("payload_hex", ["", "00000000"])
 def test_parse_history_trade_probe_payload_rejects_truncated_header(payload_hex: str) -> None:
     payload = bytes.fromhex(payload_hex)
     response = ResponseFrame(

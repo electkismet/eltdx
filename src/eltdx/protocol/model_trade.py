@@ -45,6 +45,14 @@ def parse_history_trade_payload(code: str, trading_date, response: ResponseFrame
 
 def parse_history_trade_probe_payload(code: str, trading_date, response: ResponseFrame) -> TradeProbe:
     payload = response.data
+    if len(payload) == 2 and payload == b"\x00\x00":
+        _, trading_day = normalize_trading_date(trading_date)
+        return TradeProbe(
+            count=0,
+            trading_date=trading_day,
+            first_item=None,
+            item_0925=None,
+        )
     if len(payload) < 6:
         raise ProtocolError(f"history trade probe payload too short: {len(payload)}")
     count = little_u16(payload[:2])

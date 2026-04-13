@@ -56,14 +56,44 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download distributions
         uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist/
 
+      - name: Extract release notes from changelog
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os
+
+          version = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          changelog = Path("CHANGELOG.md").read_text(encoding="utf-8").splitlines()
+          target_header = f"## {version} - "
+          collected: list[str] = []
+          capture = False
+
+          for line in changelog:
+            if line.startswith(target_header):
+              capture = True
+            elif capture and line.startswith("## "):
+              break
+
+            if capture:
+              collected.append(line)
+
+          if not collected:
+            raise SystemExit(f"Unable to find changelog section for {version}")
+
+          Path("RELEASE_NOTES.md").write_text("\n".join(collected).strip() + "\n", encoding="utf-8")
+          PY
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
