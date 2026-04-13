@@ -304,6 +304,37 @@ with TdxClient() as client:
 - 不传 `date` 时返回实时全量逐笔。
 - 传入 `date` 时返回指定交易日全量逐笔。
 
+### `get_auction_0925(code: str, date) -> Auction0925Result`
+
+快速定位指定交易日历史逐笔里的 `09:25` 那一笔。
+
+```python
+with TdxClient() as client:
+    row = client.get_auction_0925("000001", "2026-04-09")
+    print(row.code, row.trading_date, row.has_auction_0925)
+    print(row.price, row.volume, row.amount)
+```
+
+说明：
+
+- 这是**历史逐笔专用 helper**，只用于找 `09:25`，不替代 `get_trades()` / `get_trades_all()`
+- 返回的 `code` 会统一规范成完整代码，例如 `sz000001`
+- 如果这天没有 `09:25` 成交，返回 `has_auction_0925=False`，其余数值字段为 `None`
+- `pages_used` 表示这次定位一共探测了多少页
+- `source_mode` 是内部路径标记，适合调试或统计，不建议当成业务主键
+
+`Auction0925Result` 关键字段：
+
+- `code`
+- `trading_date`
+- `has_auction_0925`
+- `price`、`price_milli`：`09:25` 这笔成交价
+- `volume`：`09:25` 这笔成交量，当前按“手”口径解释
+- `amount`：按 `price * volume * 100` 计算得到的成交额
+- `status`、`side`
+- `pages_used`
+- `source_mode`
+
 ### 逐笔别名
 
 - `get_trade()`：`get_trades()` 的实时别名

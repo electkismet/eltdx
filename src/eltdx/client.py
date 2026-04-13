@@ -9,9 +9,10 @@ from .bse import fetch_bj_codes
 from .equity import compute_turnover, filter_equity_items, pick_equity
 from .exceptions import ProtocolError
 from .hosts import DEFAULT_HOSTS
-from .models import CodePage, EquityResponse, FactorResponse, KlineResponse, SecurityCode, TradeResponse
+from .models import Auction0925Result, CodePage, EquityResponse, FactorResponse, KlineResponse, SecurityCode, TradeResponse
 from .protocol.constants import CODE_PAGE_SIZE, HISTORY_TRADE_PAGE_SIZE, KLINE_PAGE_SIZE, TRADE_PAGE_SIZE
 from .protocol.unit import (
+    add_prefix,
     is_a_share_entry,
     is_etf_entry,
     is_index,
@@ -263,6 +264,67 @@ class TdxClient:
     def get_history_trade(self, code: str, date, *, start: int = 0, count: int = HISTORY_TRADE_PAGE_SIZE, include_raw: bool = False):
         return self.get_trades(code, date, start=start, count=count, include_raw=include_raw)
 
+    def get_auction_0925(self, code: str, date) -> Auction0925Result:
+        resolved_code = add_prefix(code)
+        self.connect()
+        pages_used = 0
+        for start in (4000, 2000, 0):
+            probe = self._pick_connection().request_history_trade_probe(resolved_code, date, start, HISTORY_TRADE_PAGE_SIZE)
+            pages_used += 1
+            if probe.count == 0:
+                continue
+            if probe.item_0925 is not None:
+                return self._build_auction_0925_result(resolved_code, probe.trading_date, probe.item_0925, pages_used, f"fast_hit@{start}")
+            if probe.count < HISTORY_TRADE_PAGE_SIZE:
+                return Auction0925Result(
+                    code=resolved_code,
+                    trading_date=probe.trading_date,
+                    has_auction_0925=False,
+                    price=None,
+                    price_milli=None,
+                    volume=None,
+                    amount=None,
+                    status=None,
+                    side=None,
+                    pages_used=pages_used,
+                    source_mode=f"fast_no_0925@{start}",
+                )
+
+        for start in range(0, 65536, HISTORY_TRADE_PAGE_SIZE):
+            probe = self._pick_connection().request_history_trade_probe(resolved_code, date, start, HISTORY_TRADE_PAGE_SIZE)
+            pages_used += 1
+            if probe.count == 0:
+                return Auction0925Result(
+                    code=resolved_code,
+                    trading_date=probe.trading_date,
+                    has_auction_0925=False,
+                    price=None,
+                    price_milli=None,
+                    volume=None,
+                    amount=None,
+                    status=None,
+                    side=None,
+                    pages_used=pages_used,
+                    source_mode="fallback_empty",
+                )
+            if probe.item_0925 is not None:
+                return self._build_auction_0925_result(resolved_code, probe.trading_date, probe.item_0925, pages_used, "fallback_scan")
+            if probe.count < HISTORY_TRADE_PAGE_SIZE:
+                return Auction0925Result(
+                    code=resolved_code,
+                    trading_date=probe.trading_date,
+                    has_auction_0925=False,
+                    price=None,
+                    price_milli=None,
+                    volume=None,
+                    amount=None,
+                    status=None,
+                    side=None,
+                    pages_used=pages_used,
+                    source_mode="fallback_no_0925",
+                )
+        raise ProtocolError("history trade probe exceeded protocol page limit")
+
     def get_trade_all(self, code: str):
         return self.get_trades_all(code)
 
@@ -358,6 +420,21 @@ class TdxClient:
         if first_is_period and second_is_period:
             return arg1, arg2
         raise ValueError("one of the first two positional arguments must be a valid kline frequency")
+
+    def _build_auction_0925_result(self, code: str, trading_date, item, pages_used: int, source_mode: str) -> Auction0925Result:
+        return Auction0925Result(
+            code=code,
+            trading_date=trading_date,
+            has_auction_0925=True,
+            price=item.price,
+            price_milli=item.price_milli,
+            volume=item.volume,
+            amount=round(item.price * item.volume * 100, 2),
+            status=item.status,
+            side=item.side,
+            pages_used=pages_used,
+            source_mode=source_mode,
+        )
 
     def _is_kline_period(self, value) -> bool:
         try:

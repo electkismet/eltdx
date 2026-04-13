@@ -227,6 +227,28 @@ K 线里会保留成交额双形态：
 - `get_trades(code, date)`：历史逐笔分页
 - `get_trades_all(...)`：自动翻页拿完整逐笔
 
+### 4.3 `Auction0925Result`
+
+| 字段 | 类型 | 中文含义 | 说明 |
+| --- | --- | --- | --- |
+| `code` | `str` | 完整证券代码 | 统一规范成 `sh` / `sz` 前缀加六码 |
+| `trading_date` | `date` | 交易日 | Python `date` |
+| `has_auction_0925` | `bool` | 是否找到 `09:25` 那一笔 | `True` 表示命中，`False` 表示这天没有 `09:25` 成交 |
+| `price` | `float \| None` | `09:25` 成交价 | 未命中时为 `None` |
+| `price_milli` | `int \| None` | `09:25` 成交价整数毫厘值 | 精确对拍用 |
+| `volume` | `int \| None` | `09:25` 成交量 | 当前按“手”口径解释 |
+| `amount` | `float \| None` | `09:25` 成交额 | 当前按 `price * volume * 100` 计算 |
+| `status` | `int \| None` | 方向状态码 | 与 `TradeItem.status` 口径一致 |
+| `side` | `str \| None` | 买卖方向 | 由 `status` 解析得到 |
+| `pages_used` | `int` | 本次定位探测页数 | 用于性能诊断 |
+| `source_mode` | `str` | 命中路径标记 | 用于调试，不建议当成业务字段 |
+
+说明：
+
+- `get_auction_0925(code, date)` 只用于历史逐笔场景。
+- 没找到 `09:25` 时，只需要看 `has_auction_0925=False` 即可，其余数值字段会统一留空。
+- 当前实现会优先做快速探测，不会默认把整天逐笔都拉下来。
+
 ## 5. `KlineItem` / `KlineResponse`
 
 ### 5.1 `KlineItem`

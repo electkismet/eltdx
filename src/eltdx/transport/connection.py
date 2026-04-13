@@ -16,7 +16,7 @@ from eltdx.protocol.model_gbbq import build_gbbq_frame, filter_xdxr_items, parse
 from eltdx.protocol.model_kline import build_kline_frame, parse_kline_payload
 from eltdx.protocol.model_minute import build_history_minute_frame, build_minute_frame, parse_history_minute_payload, parse_minute_payload
 from eltdx.protocol.model_quote import build_quote_frame, parse_quote_payload
-from eltdx.protocol.model_trade import build_history_trade_frame, build_trade_frame, parse_history_trade_payload, parse_trade_payload
+from eltdx.protocol.model_trade import build_history_trade_frame, build_trade_frame, parse_history_trade_payload, parse_history_trade_probe_payload, parse_trade_payload
 from eltdx.transport.heartbeat import HeartbeatLoop
 from eltdx.transport.reader import ResponseReader
 from eltdx.transport.router import ResponseRouter
@@ -96,6 +96,10 @@ class TdxConnection:
     def request_history_trade(self, code: str, trading_date, start: int, count: int, *, include_raw: bool = False):
         response = self._request(build_history_trade_frame(code, trading_date, start, count, self._next_msg_id()), TYPE_HISTORY_TRADE)
         return parse_history_trade_payload(code, trading_date, response, include_raw=include_raw)
+
+    def request_history_trade_probe(self, code: str, trading_date, start: int, count: int):
+        response = self._request(build_history_trade_frame(code, trading_date, start, count, self._next_msg_id()), TYPE_HISTORY_TRADE)
+        return parse_history_trade_probe_payload(code, trading_date, response)
 
     def request_call_auction(self, code: str, *, include_raw: bool = False):
         response = self._request(build_call_auction_frame(code, self._next_msg_id()), TYPE_CALL_AUCTION)

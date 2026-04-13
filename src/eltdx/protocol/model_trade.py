@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from ..models import TradeItem, TradeResponse
+from ..models import TradeItem, TradeProbe, TradeResponse
+from ..exceptions import ProtocolError
 from .constants import TYPE_HISTORY_TRADE, TYPE_TRADE
 from .frame import RequestFrame, ResponseFrame
 from .unit import (
@@ -40,6 +41,58 @@ def parse_trade_payload(code: str, trading_date, response: ResponseFrame, *, inc
 
 def parse_history_trade_payload(code: str, trading_date, response: ResponseFrame, *, include_raw: bool = False) -> TradeResponse:
     return _parse_trade_response(code, trading_date, response, include_raw=include_raw, history=True)
+
+
+def parse_history_trade_probe_payload(code: str, trading_date, response: ResponseFrame) -> TradeProbe:
+    payload = response.data
+    if len(payload) < 6:
+        raise ProtocolError(f"history trade probe payload too short: {len(payload)}")
+    count = little_u16(payload[:2])
+    offset = 6
+    _, trading_day = normalize_trading_date(trading_date)
+    divisor = price_divisor(code)
+    price_accumulator = 0
+    first_item: TradeItem | None = None
+    item_0925: TradeItem | None = None
+    target_minutes = 9 * 60 + 25
+
+    for index in range(count):
+        total_minutes = little_u16(payload[offset : offset + 2])
+        offset += 2
+        price_delta, offset = consume_price(payload, offset)
+        price_accumulator += price_delta * 10
+        price_milli = price_accumulator // divisor
+        volume, offset = consume_varint(payload, offset)
+        status, offset = consume_varint(payload, offset)
+        _, offset = consume_varint(payload, offset)
+        if index == 0:
+            first_item = TradeItem(
+                time=clock_minutes_to_datetime(trading_day, total_minutes),
+                price=milli_to_float(price_milli),
+                price_milli=price_milli,
+                volume=volume,
+                status=status,
+                side=_status_to_side(status),
+                order_count=None,
+            )
+        if total_minutes == target_minutes:
+            item_0925 = TradeItem(
+                time=clock_minutes_to_datetime(trading_day, total_minutes),
+                price=milli_to_float(price_milli),
+                price_milli=price_milli,
+                volume=volume,
+                status=status,
+                side=_status_to_side(status),
+                order_count=None,
+            )
+            break
+
+    return TradeProbe(
+        count=count,
+        trading_date=trading_day,
+        first_item=first_item,
+        item_0925=item_0925,
+    )
 
 
 def _parse_trade_response(code: str, trading_date, response: ResponseFrame, *, include_raw: bool, history: bool) -> TradeResponse:

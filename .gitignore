@@ -10,3 +10,11 @@ dist/
 venv/
 .venv-release-check/
 artifacts/
+output/
+
+# Local benchmark / profiling scratch scripts.
+scripts/smoke/benchmark_auction_925.py
+scripts/smoke/benchmark_multi_host_auction.py
+scripts/smoke/profile_auction_strategy.py
+scripts/smoke/profile_monthly_trade_distribution.py
+scripts/smoke/profile_trade_pages.py

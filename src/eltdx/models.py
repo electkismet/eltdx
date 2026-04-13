@@ -153,6 +153,29 @@ class TradeResponse:
 
 
 @dataclass(slots=True)
+class TradeProbe:
+    count: int
+    trading_date: date
+    first_item: TradeItem | None
+    item_0925: TradeItem | None
+
+
+@dataclass(slots=True)
+class Auction0925Result:
+    code: str
+    trading_date: date
+    has_auction_0925: bool
+    price: float | None
+    price_milli: int | None
+    volume: int | None
+    amount: float | None
+    status: int | None
+    side: str | None
+    pages_used: int
+    source_mode: str
+
+
+@dataclass(slots=True)
 class SecurityCode:
     exchange: str
     code: str

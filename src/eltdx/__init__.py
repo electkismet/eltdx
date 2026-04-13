@@ -2,6 +2,7 @@
 from .client import TdxClient
 from .enums import AdjustMode, Exchange, KlinePeriod
 from .models import (
+    Auction0925Result,
     CallAuctionItem,
     CallAuctionResponse,
     Code,
@@ -32,6 +33,7 @@ from .models import (
 __all__ = [
     "__version__",
     "AdjustMode",
+    "Auction0925Result",
     "CallAuctionItem",
     "CallAuctionResponse",
     "Code",

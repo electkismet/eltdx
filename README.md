@@ -1,7 +1,7 @@
 <div align="center">
   <h1>eltdx</h1>
   <p><strong>通达信行情协议的 Python 库</strong></p>
-  <p>安装后就能直接调快照、分时、逐笔、K 线、集合竞价等接口，返回结果统一、字段清楚，也支持查看原始十六进制数据。主要用于个人行情研究，请勿用于任何商业或违法用途。</p>
+  <p>安装后就能直接调快照、分时、逐笔、K 线、集合竞价、历史 09:25 竞价结果等接口，返回结果统一、字段清楚，也支持查看原始十六进制数据。主要用于个人行情研究，请勿用于任何商业或违法用途。</p>
   <p>
     <a href="https://pypi.org/project/eltdx/"><img alt="PyPI" src="https://img.shields.io/pypi/v/eltdx?cacheSeconds=300&logo=pypi&v=0.1.4"></a>
     <a href="https://pypi.org/project/eltdx/"><img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-blue"></a>
@@ -15,7 +15,7 @@
 `eltdx` 优点：
 
 - 一个统一入口：`TdxClient`
-- 让常用接口直接就能调：`get_quote()`、`get_minute()`、`get_trades()`、`get_kline()` 等
+- 让常用接口直接就能调：`get_quote()`、`get_minute()`、`get_trades()`、`get_kline()`、`get_auction_0925()` 等
 - 返回结果尽量好懂：统一 dataclass，不直接丢一堆裸 `dict`
 - 时间字段给 Python 原生 `date` / `datetime`
 - 价格字段同时保留浮点值和 `*_milli` 整数值
@@ -28,6 +28,7 @@
 - 逐笔
 - K 线
 - 集合竞价
+- 历史 `09:25` 竞价结果
 - 公司行为 / 股本变化 / 复权因子
 - 一些常用 helper
 
@@ -79,6 +80,17 @@ with TdxClient() as client:
     print(minute.raw_payload_hex)
 ```
 
+如果你只想快速拿某个交易日 `09:25` 那一笔：
+
+```python
+from eltdx import TdxClient
+
+with TdxClient() as client:
+    row = client.get_auction_0925("000001", "2026-04-09")
+    print(row.code, row.trading_date, row.has_auction_0925)
+    print(row.price, row.volume, row.amount)
+```
+
 如果你想自己指定服务器地址：
 
 ```python
@@ -106,6 +118,7 @@ with TdxClient(
 - `get_quote()`：拿快照行情
 - `get_minute()` / `get_history_minute()`：拿分时
 - `get_trades()` / `get_trades_all()`：拿逐笔
+- `get_auction_0925()`：快速拿历史 `09:25` 那一笔
 - `get_kline()` / `get_kline_all()`：拿 K 线
 - `get_call_auction()`：拿集合竞价
 - `get_gbbq()` / `get_xdxr()` / `get_equity()` / `get_factors()`：拿公司行为、股本和复权相关数据
@@ -116,6 +129,7 @@ with TdxClient(
 - `get_quote()` 自带自动分批，不用你自己切列表
 - 默认支持多连接分发，批量取快照会更稳一些
 - 返回字段统一，做展示、落库、计算都比较顺手
+- `get_auction_0925()` 只扫历史逐笔里的目标记录，批量导出比全量逐笔更省
 
 ## 注意
 

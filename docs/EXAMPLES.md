@@ -260,6 +260,23 @@ with TdxClient() as client:
 - `status = 0 -> side = buy`
 - `order_count = 7`
 
+### 6.5 历史 `09:25` 快速提取
+
+```python
+from eltdx import TdxClient
+
+with TdxClient() as client:
+    row = client.get_auction_0925("000001", "2026-04-09")
+    print(row.code, row.trading_date)
+    print(row.has_auction_0925, row.price, row.volume, row.amount)
+```
+
+适合场景：
+
+- 只关心某天 `09:25` 有没有成交
+- 批量导出 `日期 / 代码 / 竞价价 / 竞价量 / 竞价额`
+- 不想为了找一条 `09:25` 记录去把整天逐笔都拉回来
+
 ## 7. K 线 `get_kline()` / `get_kline_all()` / 复权 K 线
 
 ### 7.1 普通股票 K 线
@@ -474,6 +491,7 @@ python scripts/smoke/smoke_trade.py
 python scripts/smoke/smoke_kline.py
 python scripts/smoke/smoke_call_auction.py
 python scripts/smoke/smoke_live_all.py
+python scripts/smoke/export_auction_925_daily.py --start 2026-04-01 --end 2026-04-09 --export-dir output/auction_0925
 python scripts/validation/export_live_validation.py
 ```
 
@@ -481,4 +499,5 @@ python scripts/validation/export_live_validation.py
 
 - 前几个 smoke：快速看单个模块是否正常
 - `scripts/smoke/smoke_live_all.py`：总链路快速检查
+- `scripts/smoke/export_auction_925_daily.py`：按交易日导出 `09:25` CSV
 - `scripts/validation/export_live_validation.py`：导出一整套联网验证样本
