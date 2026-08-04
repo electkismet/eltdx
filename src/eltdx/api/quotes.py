@@ -22,7 +22,7 @@ class QuoteApi(ApiBase):
         return self._execute("legacy_quotes", codes=code_list)
 
     def get_depth(self, codes: str | Sequence[str]):
-        """Query five-level quote depth via the 0x0547 refresh interface."""
+        """Query five-level quote depth for up to 100 codes via 0x0547."""
 
         return self.refresh(codes, cursors={})
 
@@ -45,6 +45,8 @@ class QuoteApi(ApiBase):
         )
 
     def refresh(self, codes: str | Sequence[str] | None = None, cursors: dict[str, int] | None = None):
+        """Refresh up to 100 codes in one 0x0547 request."""
+
         code_list = None if codes is None else ([codes] if isinstance(codes, str) else list(codes))
         return self._execute("refresh_stream", codes=code_list or [], cursors=dict(cursors or {}))
 

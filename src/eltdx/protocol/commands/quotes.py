@@ -57,6 +57,8 @@ SORT_ALIASES = {
     "攻击": 0x011F,
 }
 
+MAX_REFRESH_CODES = 100
+
 
 def build_snapshots_frame(payload: dict, msg_id: int) -> RequestFrame:
     codes = _normalize_codes(payload.get("codes", []))
@@ -90,6 +92,8 @@ def build_legacy_quotes_frame(payload: dict, msg_id: int) -> RequestFrame:
 
 def build_refresh_stream_frame(payload: dict, msg_id: int) -> RequestFrame:
     codes = _normalize_codes(payload.get("codes", []))
+    if len(codes) > MAX_REFRESH_CODES:
+        raise ValueError(f"refresh_stream accepts at most {MAX_REFRESH_CODES} codes per request")
     cursors = payload.get("cursors", {}) or {}
     data = bytearray(len(codes).to_bytes(2, "little"))
     for code in codes:

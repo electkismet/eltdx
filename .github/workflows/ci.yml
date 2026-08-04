@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .[dev]
+          python -m pip install -e .[dev,mcp]
 
       - name: Run tests
         run: python -m pytest -q
@@ -33,6 +33,14 @@ jobs:
       - name: Build package
         if: matrix.python-version == '3.13'
         run: python -m build
+
+      - name: Test built wheel and stdio entry point
+        if: matrix.python-version == '3.13'
+        run: |
+          python -m venv .wheel-venv
+          .wheel-venv/bin/python -m pip install --upgrade pip
+          .wheel-venv/bin/python -m pip install "$(find dist -name 'eltdx-*.whl' -print -quit)[mcp]"
+          .wheel-venv/bin/python scripts/smoke/mcp_stdio_check.py
 
   windows-actor:
     runs-on: windows-latest
@@ -53,7 +61,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .[dev]
+          python -m pip install -e .[dev,mcp]
 
       - name: Run full test suite
         run: python -m pytest -q

@@ -32,7 +32,7 @@
 
 通达信在线行情协议 Python 库。可以拿 A 股的行情、分时、成交明细、K 线、竞价、公司信息、题材信息等信息，支持 MCP 工具。
 
-> `v1.2.0` 新增时间安全的短线指标 Helper，组合 TDX 统计资源与实时行情，返回流通市值Z、开盘换手Z、竞价昨比、昨封比、封流比、几天几板等 21 个字段。完整口径见 [v1.2.0 发布说明](docs/releases/v1.2.0.md)。
+> `v1.3.0` 将 MCP 服务迁移到 MCP Python SDK 2，扩充行情、竞价、短线指标和 F10 工具，并修正五档盘口与并发客户端生命周期。完整说明见 [v1.3.0 发布说明](docs/releases/v1.3.0.md)。
 
 1. 本项目仅以个人学习、协议研究和非商业研究为目的进行开发。
 2. 本项目基于互联网公开信息搜集开发。
@@ -74,7 +74,7 @@ pip install "eltdx[mcp]"
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
-pip install -e .
+pip install -e ".[dev,mcp]"
 ```
 
 源码开发时建议始终先安装到当前虚拟环境；否则本机如果已有旧版 `eltdx`，`python -m eltdx...` 可能导入 site-packages 里的旧包。
@@ -151,9 +151,9 @@ print(f10.company_profile("000034").rows[0])
 | 代码表          | `client.codes.list()` / `get_codes_all()`                  | [`0x044d`](docs/COMMANDS_7709.md#cmd-0x044d)                                                | 返回代码、名称、市场、价格精度、昨收、A 股 / ETF / 指数等本地分类                         | [文档](docs/methods/7709-代码表.md)        |
 | 批量快照         | `client.quotes.get_snapshots()` / `get_quote()`            | [`0x054c`](docs/COMMANDS_7709.md#cmd-0x054c) + [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 按代码列表返回现价、涨跌幅、成交量额、内外盘和盘口；`get_quote()` 补齐五档盘口                   | [文档](docs/methods/7709-批量快照.md)       |
 | 旧版批量行情       | `client.quotes.legacy()` / `get_legacy_quotes()`            | [`0x053e`](docs/COMMANDS_7709.md#cmd-0x053e)                                                | 按代码列表返回旧版行情、五档盘口和协议状态原始字段；便捷入口自动按 80 个代码拆批                    | [文档](docs/methods/7709-旧版批量行情.md)     |
-| 五档盘口         | `client.get_quote_depth()` / `client.quotes.get_depth()`   | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547)                                                | 用刷新接口按代码列表直接返回买一到买五 / 卖一到卖五                                         | [文档](docs/methods/7709-增量刷新推送队列.md) |
+| 五档盘口         | `client.get_quote_depth()` / `client.quotes.get_depth()`   | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547)                                                | 用刷新接口按代码列表直接返回买一到买五 / 卖一到卖五，单次最多 100 只                           | [文档](docs/methods/7709-增量刷新推送队列.md) |
 | 分类行情         | `client.quotes.list_by_category()`                         | [`0x054b`](docs/COMMANDS_7709.md#cmd-0x054b)                                                | 按市场或板块分页返回行情列表；可按涨幅、价格、成交额等服务端排序                               | [文档](docs/methods/7709-分类行情.md)       |
-| 增量刷新 / 推送队列  | `client.quotes.refresh()` / `poll_push()`                  | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547)                                                | 返回关注代码的增量行情；未配对推送帧进入 push queue 供调用方读取                         | [文档](docs/methods/7709-增量刷新推送队列.md)   |
+| 增量刷新 / 推送队列  | `client.quotes.refresh()` / `poll_push()`                  | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547)                                                | 单次刷新最多 100 只；未配对推送帧进入 push queue 供调用方读取                           | [文档](docs/methods/7709-增量刷新推送队列.md)   |
 | K 线 / 周期线    | `client.bars.get()` / `get_kline()`                        | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d)                                                | 返回 OHLC、成交量额、前收等 K 线；支持 1/5/15/30/60 分钟、日、周、月、季、年线和服务端复权/不复权参数 | [文档](docs/methods/7709-K线周期线.md)      |
 | 全量 K 线分页     | `client.bars.all()` / `get_kline_all()`                    | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d)                                                | 自动按页拉取 K 线并合并；适合补历史日线或分钟线数据                                    | [文档](docs/methods/7709-全量K线分页.md)     |
 | 当日分时         | `client.minutes.today()` / `get_minute()`                  | [`0x0537`](docs/COMMANDS_7709.md#cmd-0x0537)                                                | 返回当前交易日每分钟价格、成交量、均价等分时序列                                       | [文档](docs/methods/7709-当日分时.md)       |
@@ -303,7 +303,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | ------------ | ---------------------------------------------------- | -------------------------- |
 | 快速总览         | 本 README                                             | 这个库能查什么、用哪个方法、底层接口是什么      |
 | 常用问题         | [docs/helpers/README.md](docs/helpers/README.md)     | 按问题进入对应调用说明             |
-| 当前版本         | [docs/releases/v1.2.0.md](docs/releases/v1.2.0.md)   | `v1.2.0` 短线指标、时间对齐与缓存说明 |
+| 当前版本         | [docs/releases/v1.3.0.md](docs/releases/v1.3.0.md)   | `v1.3.0` MCP SDK 2、工具扩展与并发复用说明 |
 | 变更记录         | [docs/CHANGELOG.md](docs/CHANGELOG.md)               | 当前版本和未发布改动               |
 | 历史升级         | [docs/UPDATE_FROM_0_5_1.md](docs/UPDATE_FROM_0_5_1.md) | 从 `v0.5.1` 到 `v1.0.0` 的更新说明 |
 | 方法字段手册       | [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md) | 每个调用方法怎么传参、返回哪些解析字段        |
@@ -316,6 +316,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | -------------------------------------------------------- | ---------------------- |
 | [docs/README.md](docs/README.md)                         | 文档入口                   |
 | [docs/PRODUCT.md](docs/PRODUCT.md)                       | 产品定位和能力总览              |
+| [docs/releases/v1.3.0.md](docs/releases/v1.3.0.md)       | `v1.3.0` 正式发布说明          |
 | [docs/releases/v1.2.0.md](docs/releases/v1.2.0.md)       | `v1.2.0` 正式发布说明          |
 | [docs/releases/v1.1.0.md](docs/releases/v1.1.0.md)       | `v1.1.0` 正式发布说明          |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md)                   | 版本变更记录                 |

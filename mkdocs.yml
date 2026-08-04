@@ -59,7 +59,7 @@ nav:
   - 接口目录: index.md
   - 使用指南:
       - 产品与能力: PRODUCT.md
-      - v1.2.0 发布说明: releases/v1.2.0.md
+      - v1.3.0 发布说明: releases/v1.3.0.md
       - 调用方法: METHOD_REFERENCE.md
       - API 参考: API_REFERENCE.md
       - 调用示例: EXAMPLES.md

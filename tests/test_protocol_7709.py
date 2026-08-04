@@ -80,6 +80,13 @@ def test_build_snapshots_frame() -> None:
     )
 
 
+def test_refresh_stream_rejects_more_than_100_codes() -> None:
+    codes = [f"sz{index:06d}" for index in range(101)]
+
+    with pytest.raises(ValueError, match="at most 100 codes"):
+        build_command_frame(TYPE_REFRESH_STREAM, {"codes": codes, "cursors": {}}, 10)
+
+
 def test_build_legacy_quotes_and_file_content_frames() -> None:
     legacy = build_command_frame(TYPE_LEGACY_QUOTES, {"codes": ["sz000001", "sh600000"]}, 10)
     resource = build_command_frame(

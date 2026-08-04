@@ -220,7 +220,7 @@ class TdxClient:
         return results
 
     def get_quote_depth(self, codes: str | Sequence[str]):
-        """按代码列表查询五档盘口，直接使用 0x0547 首次刷新接口。"""
+        """按代码列表查询五档盘口，0x0547 单次最多接受 100 个代码。"""
 
         return self.quotes.get_depth(codes)
 

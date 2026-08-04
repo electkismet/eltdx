@@ -88,7 +88,7 @@ client.get_quote(["sz000001", "sh600000"])
 
 ### `get_quote_depth(codes)`
 
-按代码列表直接查询五档盘口，对应 `client.quotes.get_depth()` / `0x0547` 首次刷新。
+按代码列表直接查询五档盘口，对应 `client.quotes.get_depth()` / `0x0547` 首次刷新，单次最多 100 个代码。主站对超过 100 个代码的请求只返回前 100 条，因此接口会直接拒绝超限请求，不会返回静默截断的数据。
 
 ```python
 client.get_quote_depth(["sz000001", "sh600000"])
@@ -351,7 +351,7 @@ client.quotes.list_by_category("沪深A股", sort_by="涨幅", count=100)
 
 ### `refresh(codes=None, cursors=None)`
 
-行情增量刷新协议，对应 `0x0547`。
+行情增量刷新协议，对应 `0x0547`，单次最多 100 个代码。
 
 ```python
 client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
@@ -361,7 +361,7 @@ client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
 
 ### `get_depth(codes)`
 
-按代码列表直接发起一次 `0x0547` 首次刷新，返回 `QuoteRefreshPage`，适合只关心买一到买五 / 卖一到卖五的场景。
+按代码列表直接发起一次 `0x0547` 首次刷新，返回 `QuoteRefreshPage`，适合只关心买一到买五 / 卖一到卖五的场景。单次最多 100 个代码；超过上限会抛出 `ValueError`。
 
 ```python
 client.quotes.get_depth(["sz000001", "sh600000"])

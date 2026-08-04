@@ -273,7 +273,7 @@ quotes = client.get_legacy_quotes(["sz000001", "sh600000"])
 
 ### `client.quotes.get_depth(codes)` / `client.get_quote_depth(codes)`
 
-按代码列表直接查询五档盘口，对应 `0x0547` 首次刷新。这个入口不经过 `0x054c` 快照，适合只关心买一到买五 / 卖一到卖五的场景。
+按代码列表直接查询五档盘口，对应 `0x0547` 首次刷新。这个入口不经过 `0x054c` 快照，适合只关心买一到买五 / 卖一到卖五的场景。单次最多 100 个代码；主站会截断更大的请求，所以客户端在构包前直接拒绝超限参数。
 
 ```python
 depth = client.quotes.get_depth(["sz000001", "sh600000"])
@@ -343,7 +343,7 @@ page = client.quotes.list_by_category("沪深A股", sort_by="涨幅", count=100)
 
 ### `client.quotes.refresh(codes=None, cursors=None)`
 
-行情增量刷新，对应 `0x0547`。
+行情增量刷新，对应 `0x0547`，单次最多 100 个代码。
 
 ```python
 page = client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
@@ -351,7 +351,7 @@ page = client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
 
 | 参数        | 含义                  |
 | --------- | ------------------- |
-| `codes`   | 关注代码列表              |
+| `codes`   | 关注代码列表，单次最多 100 个代码 |
 | `cursors` | 每个代码的增量游标，通常首次传 `0` |
 
 | 返回模型               | 说明     |
