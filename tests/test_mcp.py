@@ -129,6 +129,23 @@ def test_mcp_quote_depth_rejects_more_than_100_codes() -> None:
         quote_depth([f"sz{index:06d}" for index in range(101)])
 
 
+def test_mcp_tool_validates_codes_before_connecting(monkeypatch) -> None:
+    registry = _ClientRegistry()
+    tools = _McpTools(registry)
+    connect_calls = []
+
+    monkeypatch.setattr(TdxClient, "connect", lambda self: connect_calls.append(id(self)))
+
+    with pytest.raises(ValueError, match="at most 200 securities"):
+        tools.quote([f"sz{index:06d}" for index in range(201)])
+    with pytest.raises(ValueError, match="at most 100 securities"):
+        tools.quote_depth([f"sz{index:06d}" for index in range(101)])
+
+    assert connect_calls == []
+    assert not registry._clients
+    registry.close()
+
+
 def test_mcp_registry_initializes_different_keys_concurrently(monkeypatch) -> None:
     registry = _ClientRegistry()
     first_connecting = threading.Event()

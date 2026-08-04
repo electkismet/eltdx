@@ -554,8 +554,9 @@ class _McpTools:
     ) -> list[dict[str, Any]]:
         """Query quote snapshots for up to 200 securities."""
 
+        code_list = _validate_codes(codes)
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.get_quote(_validate_codes(codes)))
+            return _json(client.get_quote(code_list))
 
     def quote_depth(
         self,
@@ -565,8 +566,9 @@ class _McpTools:
     ) -> dict[str, Any]:
         """Query five-level quote depth for up to 100 securities."""
 
+        code_list = _validate_codes(codes, maximum=_MAX_DEPTH_CODES)
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.get_quote_depth(_validate_codes(codes, maximum=_MAX_DEPTH_CODES)))
+            return _json(client.get_quote_depth(code_list))
 
     def kline(
         self,
@@ -696,10 +698,11 @@ class _McpTools:
     ) -> dict[str, Any]:
         """Return quote, code-table and finance fields in one table."""
 
+        code_list = _validate_codes(codes)
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(
                 client.helpers.stock_profile_table(
-                    _validate_codes(codes),
+                    code_list,
                     include_security=include_security,
                     include_finance=include_finance,
                 )
@@ -715,10 +718,11 @@ class _McpTools:
     ) -> dict[str, Any]:
         """Return the 21 trading-date-safe shortline indicator fields."""
 
+        code_list = _validate_codes(codes)
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(
                 client.helpers.shortline_indicators(
-                    _validate_codes(codes),
+                    code_list,
                     stats_path=stats_path,
                     refresh_stats=refresh_stats,
                 )
