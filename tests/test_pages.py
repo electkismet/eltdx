@@ -459,3 +459,30 @@ def test_trade_docs_describe_mixed_records_instead_of_only_trades() -> None:
     assert "竞价快照时是虚拟匹配量" in fields
     assert "竞价快照仅为估算，不代表实际成交金额" in methods
     assert 'client.trades.all_history("sz000001", "2026-05-20")' in methods
+
+
+def test_split_trade_detail_docs_include_return_fields_and_examples() -> None:
+    docs = {
+        "当日竞价": REPO_ROOT / "docs" / "methods" / "7709-当日成交明细竞价记录.md",
+        "历史竞价": REPO_ROOT / "docs" / "methods" / "7709-历史成交明细竞价记录.md",
+        "当日撮合": REPO_ROOT / "docs" / "methods" / "7709-当日0925正式撮合.md",
+        "历史撮合": REPO_ROOT / "docs" / "methods" / "7709-历史0925正式撮合.md",
+    }
+    for path in docs.values():
+        text = path.read_text(encoding="utf-8")
+        assert "## 返回示例" in text
+        assert "## 返回字段" in text
+        assert "示例结果" in text
+        assert "TradeTick" in text
+
+    for key in ("当日竞价", "历史竞价"):
+        text = docs[key].read_text(encoding="utf-8")
+        assert "auction_matched_volume" in text
+        assert "auction_unmatched_signed_volume" in text
+        assert "只有分钟，不含秒" in text
+
+    for key in ("当日撮合", "历史撮合"):
+        text = docs[key].read_text(encoding="utf-8")
+        assert "event_kind" in text
+        assert "opening_match" in text
+        assert "is_opening_match" in text
