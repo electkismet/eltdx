@@ -11,6 +11,10 @@ hide:
       <span class="catalog-sidebar-icon" aria-hidden="true">&lt;/&gt;</span>
       <strong>接口目录</strong>
     </div>
+    <div class="catalog-view-switch" role="group" aria-label="目录分类方式">
+      <button type="button" data-catalog-view="function" aria-pressed="true">按功能</button>
+      <button type="button" data-catalog-view="interface" aria-pressed="false">按接口</button>
+    </div>
     <nav class="catalog-tree" data-interface-tree aria-label="接口层级"></nav>
     <nav class="catalog-reference-links" aria-label="参考文档">
       <span>参考文档</span>
@@ -24,10 +28,10 @@ hide:
     <header class="catalog-heading">
       <p class="catalog-kicker">接口目录</p>
       <h1 data-interface-heading>接口文档</h1>
-      <p data-interface-lead>当前公开的 7709 原生协议接口、7615 原生 Entry 接口和 Helpers 封装。每项均链接到参数、返回字段和示例说明。</p>
+      <p data-interface-lead>默认按功能浏览，也可以切换到按 7709 原生协议接口、7615 原生 Entry 接口和 Helpers 封装浏览。</p>
     </header>
 
-    <div class="interface-stats" data-interface-stats aria-label="接口来源统计"></div>
+    <div class="interface-stats" data-interface-stats aria-label="目录分类统计"></div>
 
     <div class="interface-controls">
       <div class="interface-control-field interface-search-field">

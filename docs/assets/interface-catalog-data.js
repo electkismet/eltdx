@@ -1,5 +1,5 @@
 window.ELTDX_CATALOG = {
-  "schema_version": 6,
+  "schema_version": 7,
   "taxonomy": {
     "layers": [
       {
@@ -25,6 +25,66 @@ window.ELTDX_CATALOG = {
         "stat_label": "Helpers 封装",
         "description": "15 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
         "source": "Helper"
+      }
+    ],
+    "functional_groups": [
+      {
+        "id": "basics",
+        "label": "基础与会话",
+        "description": "连接主站、保活，以及证券代码表和市场规模。",
+        "categories": ["会话", "证券代码", "网关"]
+      },
+      {
+        "id": "quotes",
+        "label": "实时行情",
+        "description": "快照、五档、分时、逐笔成交和面向行情的组合能力。",
+        "categories": ["行情", "行情封装", "分时", "逐笔成交"],
+        "item_ids": ["helper-stock-profile", "helper-quote-table", "helper-shortline-indicators"]
+      },
+      {
+        "id": "bars",
+        "label": "K 线与复权",
+        "description": "周期 K 线、历史分页，以及前复权、后复权和定点复权。",
+        "categories": ["K 线"],
+        "item_ids": ["helper-adjusted-kline"]
+      },
+      {
+        "id": "auction",
+        "label": "集合竞价",
+        "description": "竞价过程、09:25 成交快照和开盘数据整理。",
+        "categories": ["集合竞价"],
+        "item_ids": ["helper-auction-data"]
+      },
+      {
+        "id": "company",
+        "label": "公司与财务",
+        "description": "股本、除权、财务基础信息和公司资料。",
+        "categories": ["公司基础", "公司资料", "经营财务", "股东与融资", "公司治理"]
+      },
+      {
+        "id": "topics",
+        "label": "题材与排名",
+        "description": "题材行情、概念成分、估值和市场/行业排名。",
+        "categories": ["题材行情", "题材与概念", "评价排名", "估值行情"],
+        "item_ids": ["helper-stock-topics", "helper-topic-stocks"]
+      },
+      {
+        "id": "news",
+        "label": "资讯公告",
+        "description": "新闻、公告、研报、路演和详情正文。",
+        "categories": ["资讯公告"]
+      },
+      {
+        "id": "limits",
+        "label": "交易限制",
+        "description": "特殊品种的涨跌停限制数据。",
+        "categories": ["交易限制"]
+      },
+      {
+        "id": "resources",
+        "label": "服务器资源",
+        "description": "服务器文件分块读取、完整下载和统计资源解析。",
+        "categories": ["服务器资源"]
       }
     ]
   },

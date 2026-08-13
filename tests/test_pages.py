@@ -60,7 +60,7 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     catalog = _catalog()
     items = catalog["items"]
 
-    assert catalog["schema_version"] == 6
+    assert catalog["schema_version"] == 7
     assert len(items) == 57
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
@@ -137,6 +137,26 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
     assert assignments["helper-server-stats"] == ("helpers", None)
     assert all(item["source"] != "MCP" for item in catalog["items"])
     assert (REPO_ROOT / "docs" / "MCP.md").is_file()
+
+
+def test_pages_catalog_has_complete_function_menus() -> None:
+    catalog = _catalog()
+    groups = catalog["taxonomy"]["functional_groups"]
+    items = catalog["items"]
+    assigned: dict[str, str] = {}
+    for group in groups:
+        for item_id in group.get("item_ids", []):
+            assert item_id not in assigned
+            assigned[item_id] = group["id"]
+    for group in groups:
+        for item in items:
+            if item["id"] not in assigned and item["category"] in group.get("categories", []):
+                assigned[item["id"]] = group["id"]
+
+    assert set(assigned) == {item["id"] for item in items}
+    assert len({group["id"] for group in groups}) == len(groups)
+    assert sum(1 for group_id in assigned.values() if group_id == "quotes") == 15
+    assert sum(1 for group_id in assigned.values() if group_id == "company") == 17
 
 
 def test_pages_catalog_covers_every_registered_7709_command() -> None:
@@ -249,6 +269,10 @@ def test_pages_catalog_ui_exposes_taxonomy_navigation() -> None:
 
     assert "data-interface-tree" in page
     assert "data-interface-scope-select" in page
+    assert 'data-catalog-view="function"' in page
+    assert 'data-catalog-view="interface"' in page
+    assert 'function/all' in app
+    assert 'catalogView' in app
     assert "window.location.hash" in app
     assert '"wrapper/helpers": "helpers"' in app
     assert '"7709/commands": "7709"' in app

@@ -55,6 +55,7 @@
 
   var items = catalog.items;
   var layers = catalog.taxonomy.layers;
+  var functionalGroups = catalog.taxonomy.functional_groups || [];
   var sourceLabels = {
     "7709": "7709 原生协议接口",
     "F10": "7615 原生 Entry 接口",
@@ -64,6 +65,7 @@
   var scopeSelect = root.querySelector("[data-interface-scope-select]");
   var tree = root.querySelector("[data-interface-tree]");
   var stats = root.querySelector("[data-interface-stats]");
+  var viewButtons = root.querySelectorAll("[data-catalog-view]");
   var rows = root.querySelector("[data-interface-rows]");
   var resultCount = root.querySelector("[data-interface-result-count]");
   var empty = root.querySelector("[data-interface-empty]");
@@ -71,7 +73,9 @@
   var lead = root.querySelector("[data-interface-lead]");
   var itemById = Object.create(null);
   var itemMeta = Object.create(null);
+  var functionalMeta = Object.create(null);
   var scopes = Object.create(null);
+  var functionScopes = Object.create(null);
   var taxonomyErrors = [];
   var scopeAliases = {
     "binary": "7709",
@@ -122,6 +126,38 @@
 
   items.forEach(function (item) {
     itemById[item.id] = item;
+  });
+
+  function registerFunctionalItem(itemId, group) {
+    if (!itemById[itemId]) {
+      taxonomyErrors.push("功能目录引用了不存在的接口：" + itemId);
+      return;
+    }
+    if (functionalMeta[itemId]) {
+      taxonomyErrors.push("接口被重复归入功能分类：" + itemId);
+      return;
+    }
+    functionalMeta[itemId] = group;
+  }
+
+  functionalGroups.forEach(function (group) {
+    (group.item_ids || []).forEach(function (itemId) {
+      registerFunctionalItem(itemId, group);
+    });
+  });
+  functionalGroups.forEach(function (group) {
+    (group.categories || []).forEach(function (category) {
+      items.forEach(function (item) {
+        if (!functionalMeta[item.id] && item.category === category) {
+          registerFunctionalItem(item.id, group);
+        }
+      });
+    });
+  });
+  items.forEach(function (item) {
+    if (!functionalMeta[item.id]) {
+      taxonomyErrors.push("接口尚未归入功能分类：" + item.id);
+    }
   });
 
   layers.forEach(function (layer) {
@@ -208,6 +244,27 @@
     });
   }
 
+  function buildFunctionScopes() {
+    functionScopes["function/all"] = {
+      id: "function/all",
+      label: "全部功能",
+      description: "共 " + items.length + " 项公开能力，默认按业务功能组织。",
+      count: items.length
+    };
+    functionalGroups.forEach(function (group) {
+      var scopeId = "function/" + group.id;
+      functionScopes[scopeId] = {
+        id: scopeId,
+        groupId: group.id,
+        label: group.label,
+        description: group.description,
+        count: items.filter(function (item) {
+          return functionalMeta[item.id] === group;
+        }).length
+      };
+    });
+  }
+
   function scopeLink(scopeId, label, count, className) {
     var link = createElement("a", className || "catalog-tree-link");
     link.href = "#" + scopeId;
@@ -217,7 +274,16 @@
     return link;
   }
 
-  function renderTree() {
+  function renderTree(view) {
+    tree.textContent = "";
+    if (view === "function") {
+      tree.appendChild(scopeLink("function/all", "全部功能", items.length, "catalog-tree-all"));
+      functionalGroups.forEach(function (group) {
+        var scopeId = "function/" + group.id;
+        tree.appendChild(scopeLink(scopeId, group.label, functionScopes[scopeId].count, "catalog-tree-leaf"));
+      });
+      return;
+    }
     tree.appendChild(scopeLink("all", "全部接口", items.length, "catalog-tree-all"));
     layers.forEach(function (layer) {
       if (!(layer.groups || []).length) {
@@ -243,10 +309,21 @@
     });
   }
 
-  function renderScopeSelect() {
-    var allOption = createElement("option", "", "全部接口 (" + items.length + ")");
-    allOption.value = "all";
+  function renderScopeSelect(view) {
+    scopeSelect.textContent = "";
+    var allOption = createElement("option", "", (view === "function" ? "全部功能" : "全部接口") + " (" + items.length + ")");
+    allOption.value = view === "function" ? "function/all" : "all";
     scopeSelect.appendChild(allOption);
+
+    if (view === "function") {
+      functionalGroups.forEach(function (group) {
+        var scopeId = "function/" + group.id;
+        var option = createElement("option", "", group.label + " (" + functionScopes[scopeId].count + ")");
+        option.value = scopeId;
+        scopeSelect.appendChild(option);
+      });
+      return;
+    }
 
     layers.forEach(function (layer) {
       if (!(layer.groups || []).length) {
@@ -270,7 +347,21 @@
     });
   }
 
-  function renderStats() {
+  function renderStats(view) {
+    stats.textContent = "";
+    if (view === "function") {
+      functionalGroups.forEach(function (group) {
+        var scopeId = "function/" + group.id;
+        var stat = scopeLink(scopeId, group.label, functionScopes[scopeId].count, "interface-stat");
+        var count = stat.querySelector("em");
+        var label = stat.querySelector("span");
+        stat.textContent = "";
+        stat.appendChild(createElement("strong", "", count.textContent));
+        stat.appendChild(createElement("span", "", label.textContent));
+        stats.appendChild(stat);
+      });
+      return;
+    }
     layers.forEach(function (layer) {
       var stat = scopeLink(layer.id, layer.stat_label || layer.label, scopes[layer.id].count, "interface-stat");
       var count = stat.querySelector("em");
@@ -312,6 +403,7 @@
       row.dataset.layer = meta.layer.id;
       row.dataset.group = meta.group ? meta.group.id : "";
       row.dataset.source = item.source;
+      row.dataset.functionalGroup = functionalMeta[item.id].id;
       row.dataset.search = searchText(item, meta);
 
       var name = createElement("div", "interface-cell interface-name");
@@ -372,6 +464,9 @@
     } catch (error) {
       raw = "";
     }
+    if (functionScopes[raw]) {
+      return raw;
+    }
     if (scopes[raw]) {
       return raw;
     }
@@ -381,10 +476,24 @@
     if (raw.indexOf("binary/") === 0) {
       return "7709";
     }
-    return "all";
+    return currentView() === "function" ? "function/all" : "all";
+  }
+
+  function currentView() {
+    var raw = window.location.hash.replace(/^#/, "");
+    if (functionScopes[raw]) {
+      return "function";
+    }
+    if (scopes[raw] || scopeAliases[raw]) {
+      return "interface";
+    }
+    return "function";
   }
 
   function rowMatchesScope(row, scope) {
+    if (scope.id.indexOf("function/") === 0) {
+      return scope.id === "function/all" || row.dataset.functionalGroup === scope.groupId;
+    }
     if (!scope.layerId) {
       return true;
     }
@@ -409,9 +518,21 @@
     scopeSelect.value = activeScopeId;
   }
 
+  function renderView(view) {
+    root.dataset.catalogView = view;
+    Array.prototype.forEach.call(viewButtons, function (button) {
+      button.setAttribute("aria-pressed", button.dataset.catalogView === view ? "true" : "false");
+    });
+    renderTree(view);
+    renderScopeSelect(view);
+    renderStats(view);
+  }
+
   function applyFilters() {
+    var view = currentView();
     var activeScopeId = currentScopeId();
-    var activeScope = scopes[activeScopeId];
+    var activeScopes = view === "function" ? functionScopes : scopes;
+    var activeScope = activeScopes[activeScopeId] || activeScopes[view === "function" ? "function/all" : "all"];
     var terms = normalize(searchInput.value).split(" ").filter(Boolean);
     var visible = 0;
 
@@ -430,19 +551,25 @@
     empty.hidden = visible !== 0;
     heading.textContent = activeScope.label;
     lead.textContent = activeScope.description;
+    renderView(view);
+    activeScopeId = currentScopeId();
+    activeScope = activeScopes[activeScopeId] || activeScopes[view === "function" ? "function/all" : "all"];
     updateNavigation(activeScopeId);
     root.dataset.catalogReady = "true";
   }
 
   buildScopes();
-  renderTree();
-  renderScopeSelect();
-  renderStats();
+  buildFunctionScopes();
   renderRows();
 
   searchInput.addEventListener("input", applyFilters);
   scopeSelect.addEventListener("change", function () {
     window.location.hash = scopeSelect.value;
+  });
+  Array.prototype.forEach.call(viewButtons, function (button) {
+    button.addEventListener("click", function () {
+      window.location.hash = button.dataset.catalogView === "function" ? "function/all" : "all";
+    });
   });
   window.addEventListener("hashchange", applyFilters);
   applyFilters();
