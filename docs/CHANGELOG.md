@@ -4,9 +4,10 @@
 
 ## v2.0.2 - 2026-08-14
 
-- 重新整理成交明细、成交明细竞价记录和 09:25 正式撮合文档，为各个公开入口提供独立说明和示例。
-- 重新整理服务器文件分块读取、完整下载和统计文件解析文档，分别说明三者的调用边界和返回模型。
-- 同步更新 README、方法索引、接口目录、命令对照和 GitHub Pages 映射；本版本不改变 Python API 和协议解析行为。
+- 新增 `client.trades.auction_today()` / `auction_history()`，分别查询当日和历史成交明细中的集合竞价记录。
+- 新增 `client.trades.opening_match_today()` / `opening_match_history()`，分别查询当日和历史 09:25 正式撮合。
+- 删除原先合并查询的 `client.trades.auction_snapshots()` 和 `client.helpers.auction_0925()` 入口；`client.auctions.series()` 继续用于 `0x056a` 集合竞价过程快照。
+- 为拆分后的接口补充独立文档和示例，并整理服务器文件相关文档。
 
 ## v2.0.1 - 2026-08-14
 
