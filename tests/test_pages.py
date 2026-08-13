@@ -60,7 +60,7 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     catalog = _catalog()
     items = catalog["items"]
 
-    assert catalog["schema_version"] == 8
+    assert catalog["schema_version"] == 9
     assert len(items) == 57
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
@@ -81,6 +81,12 @@ def test_catalog_labels_every_multi_call_entry() -> None:
 
     items = {item["id"]: item for item in catalog["items"]}
     assert items["7709-code-count"]["api"] == "client.codes.count(market)"
+    assert [call["label"] for call in items["7709-code-count"]["calls"]] == ["市场全部代码数", "仅 A 股数量"]
+    assert [call["label"] for call in items["7709-code-list"]["calls"]] == [
+        "推荐 · 市场全量",
+        "常用 · 沪深北 A 股",
+        "手动分页",
+    ]
     assert [call["label"] for call in items["7709-special-limits"]["calls"]] == ["单页读取", "连续扫描"]
 
 
@@ -337,6 +343,10 @@ def test_current_docs_match_v2_pagination_and_parameter_contracts() -> None:
     finance = (REPO_ROOT / "docs" / "methods" / "7709-财务基础信息.md").read_text(encoding="utf-8")
 
     assert "client.codes.count()" not in readme
+    assert "不需要先查数量" in code_count
+    assert "不需要先调用 `client.codes.count(market)`" in code_table
+    assert "不限 A 股" in code_count
+    assert "client.codes.a_share_count(market)" in code_count
     assert "`refresh`" not in code_count
     assert "`refresh`" not in code_table
     assert "不接受 `refresh` 参数" in finance

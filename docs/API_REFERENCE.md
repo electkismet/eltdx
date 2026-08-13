@@ -273,12 +273,13 @@ client.session.heartbeat()
 
 ### `count(market)`
 
-查询某市场代码数量，对应 `0x044e`。
+查询某市场完整代码表条数，对应 `0x044e`。结果不限于 A 股；仅统计 A 股时使用 `a_share_count(market)`。
 
 ```python
 client.codes.count("sz")
 client.codes.count("sh")
 client.codes.count("bj")
+client.codes.a_share_count("sh")
 ```
 
 ### `list(market, start=0, limit=1600)`
@@ -291,10 +292,12 @@ client.codes.list("sz", start=0, limit=1600)
 
 ### `all(market)`
 
-拉取某市场全量代码表。
+自动分页拉取某市场全量代码表，不需要先调用 `count()`。
 
 ```python
 client.codes.all("bj")
+client.codes.a_shares("bj")
+client.codes.all_a_shares()
 ```
 
 ## `client.quotes`

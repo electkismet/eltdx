@@ -1,5 +1,5 @@
 window.ELTDX_CATALOG = {
-  "schema_version": 8,
+  "schema_version": 9,
   "taxonomy": {
     "layers": [
       {
@@ -177,16 +177,28 @@ window.ELTDX_CATALOG = {
     },
     {
       "id": "7709-code-count",
-      "title": "代码数量",
+      "title": "市场代码数量",
       "source": "7709",
       "category": "证券代码",
       "api": "client.codes.count(market)",
+      "calls": [
+        {
+          "label": "市场全部代码数",
+          "api": "client.codes.count(market)"
+        },
+        {
+          "label": "仅 A 股数量",
+          "api": "client.codes.a_share_count(market)"
+        }
+      ],
       "aliases": [
-        "count"
+        "count",
+        "a_share_count",
+        "A 股数量"
       ],
       "protocol": "0x044e",
-      "kind": "底层协议",
-      "summary": "返回沪、深、北某个市场的证券数量，常用于拉取全量代码表前确定规模。",
+      "kind": "底层协议 / 便捷筛选",
+      "summary": "count() 返回整个市场代码表条数，不限 A 股；a_share_count() 拉取代码表后只统计 A 股。",
       "return_model": "int",
       "doc": "methods/7709-代码数量.md"
     },
@@ -198,12 +210,16 @@ window.ELTDX_CATALOG = {
       "api": "client.codes.list() / client.codes.all()",
       "calls": [
         {
-          "label": "主要调用 · 分页",
-          "api": "client.codes.list(market, ...)"
+          "label": "推荐 · 市场全量",
+          "api": "client.codes.all(market, ...)"
         },
         {
-          "label": "主要调用 · 全量",
-          "api": "client.codes.all(market, ...)"
+          "label": "常用 · 沪深北 A 股",
+          "api": "client.codes.all_a_shares()"
+        },
+        {
+          "label": "手动分页",
+          "api": "client.codes.list(market, ...)"
         }
       ],
       "aliases": [
@@ -214,7 +230,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x044d",
       "kind": "底层协议",
-      "summary": "返回代码、名称、市场、价格精度、昨收，以及 A 股、ETF、指数等本地分类。",
+      "summary": "推荐用 all() 自动翻页；也可直接取某市场或沪深北全部 A 股、ETF、指数。",
       "return_model": "list[SecurityCode]",
       "doc": "methods/7709-代码表.md"
     },

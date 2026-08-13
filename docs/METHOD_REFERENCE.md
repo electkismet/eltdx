@@ -119,7 +119,7 @@ ack = client.session.heartbeat()
 
 ### `client.codes.count(market)`
 
-查询某个市场的证券数量，对应 `0x044e`。
+查询某个市场的完整代码表条数，对应 `0x044e`。这个数字不限于 A 股，还包括 B 股、ETF、指数、债券及主站代码表中的其他证券代码。
 
 ```python
 count = client.codes.count("sz")
@@ -131,7 +131,9 @@ count = client.codes.count("sz")
 
 | 返回    | 含义      |
 | ----- | ------- |
-| `int` | 该市场代码数量 |
+| `int` | 该市场完整代码表条数 |
+
+只统计 A 股时使用 `client.codes.a_share_count(market)`；要具体代码时直接使用 `client.codes.all(market)`，不需要先调用 `count()`。
 
 <a id="method-codes-list"></a>
 
@@ -186,6 +188,9 @@ client.codes.all_stocks()
 client.codes.all_a_shares()
 client.codes.all_etfs()
 client.codes.all_indices()
+client.codes.a_shares("sz")
+client.codes.etfs("sh")
+client.codes.indices("sh")
 client.codes.stock_count("sz")
 client.codes.a_share_count("sz")
 ```
@@ -196,6 +201,9 @@ client.codes.a_share_count("sz")
 | `all_a_shares()`            | A 股完整代码列表       |
 | `all_etfs()`                | ETF 完整代码列表       |
 | `all_indices()`             | 指数完整代码列表       |
+| `a_shares(market)`          | 某市场 A 股代码对象列表   |
+| `etfs(market)`              | 某市场 ETF 代码对象列表   |
+| `indices(market)`           | 某市场指数代码对象列表    |
 | `stock_count(market)`       | 某市场股票数量         |
 | `a_share_count(market)`     | 某市场 A 股数量         |
 
