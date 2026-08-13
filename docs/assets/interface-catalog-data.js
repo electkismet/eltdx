@@ -520,7 +520,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x056a",
       "kind": "底层协议",
-      "summary": "0x056A 专用集合竞价过程快照，正文说明其秒字段和通常几秒一条的返回特点；即使出现 09:25:00 也不是正式成交。",
+      "summary": "返回带秒字段的集合竞价过程快照，通常几秒一条；即使出现 09:25:00 也不是正式成交。",
       "return_model": "AuctionSeries",
       "doc": "methods/7709-集合竞价明细.md"
     },
@@ -532,7 +532,7 @@ window.ELTDX_CATALOG = {
       "api": "client.trades.auction_today(code, ...)",
       "protocol": "0x0fc5",
       "kind": "组合接口",
-      "summary": "从 0x0FC5 当日成交明细中筛出 status=8 竞价事件；正文说明该记录只有分钟时间，不含秒字段。",
+      "summary": "从 0x0FC5 当日成交明细中筛选 status=8 的竞价事件；时间字段只有分钟，不含秒。",
       "return_model": "tuple[TradeTick, ...]",
       "doc": "methods/7709-当日成交明细竞价记录.md"
     },
@@ -544,7 +544,7 @@ window.ELTDX_CATALOG = {
       "api": "client.trades.auction_history(code, date, ...)",
       "protocol": "0x0fc6",
       "kind": "组合接口",
-      "summary": "从 0x0FC6 历史成交明细中筛出 status=8 竞价事件；正文说明该记录只有分钟时间，不含秒字段。",
+      "summary": "从 0x0FC6 历史成交明细中筛选 status=8 的竞价事件；时间字段只有分钟，不含秒。",
       "return_model": "tuple[TradeTick, ...]",
       "doc": "methods/7709-历史成交明细竞价记录.md"
     },
@@ -556,7 +556,7 @@ window.ELTDX_CATALOG = {
       "api": "client.trades.opening_match_today(code, ...)",
       "protocol": "0x0fc5",
       "kind": "组合接口",
-      "summary": "从当日成交明细中提取 09:25 opening_match；没有记录时返回 None。",
+      "summary": "从当日成交明细中提取 09:25 正式撮合记录；无记录时返回 None。",
       "return_model": "TradeTick | None",
       "doc": "methods/7709-当日0925正式撮合.md"
     },
@@ -568,7 +568,7 @@ window.ELTDX_CATALOG = {
       "api": "client.trades.opening_match_history(code, date, ...)",
       "protocol": "0x0fc6",
       "kind": "组合接口",
-      "summary": "从历史成交明细中提取指定日期 09:25 opening_match；没有记录时返回 None。",
+      "summary": "从指定日期的历史成交明细中提取 09:25 正式撮合记录；无记录时返回 None。",
       "return_model": "TradeTick | None",
       "doc": "methods/7709-历史0925正式撮合.md"
     },
