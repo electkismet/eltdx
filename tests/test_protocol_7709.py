@@ -32,13 +32,19 @@ from eltdx.protocol.constants import (
     TYPE_TODAY_TICKS,
 )
 from eltdx.protocol.frame import RequestFrame, ResponseFrame
-from eltdx.protocol.unit import get_volume
+from eltdx.protocol.unit import get_volume, normalize_code
 
 
 def test_request_frame_bytes_match_7709_header() -> None:
     frame = RequestFrame(msg_id=123, msg_type=TYPE_SECURITY_COUNT, data=bytes.fromhex("0000a7263501"))
 
     assert frame.to_bytes().hex() == "0c7b00000001080008004e040000a7263501"
+
+
+def test_normalize_code_infers_bse_92_prefix_before_shanghai_9_prefix() -> None:
+    assert normalize_code("920001") == "bj920001"
+    assert normalize_code("900901") == "sh900901"
+    assert normalize_code("bj920001") == "bj920001"
 
 
 def test_all_current_7709_queries_explicitly_allow_one_safe_retry() -> None:

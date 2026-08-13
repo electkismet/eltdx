@@ -146,6 +146,35 @@ def test_mcp_tool_validates_codes_before_connecting(monkeypatch) -> None:
     registry.close()
 
 
+def test_mcp_registry_rejects_invalid_host_before_registering_pending_key() -> None:
+    registry = _ClientRegistry()
+
+    for _ in range(2):
+        with pytest.raises(ValueError, match="host:port"):
+            _use_registry_once(registry, timeout=1, host="invalid-host")
+        assert not registry._clients
+        assert not registry._pending_keys
+
+    registry.close()
+
+
+def test_mcp_registry_rolls_back_pending_key_when_client_construction_fails(monkeypatch) -> None:
+    registry = _ClientRegistry()
+
+    def fail_client_construction(**_kwargs):
+        raise RuntimeError("construction failed")
+
+    monkeypatch.setattr("eltdx.mcp.TdxClient", fail_client_construction)
+
+    for _ in range(2):
+        with pytest.raises(RuntimeError, match="construction failed"):
+            _use_registry_once(registry, timeout=1, host="valid.example:7709")
+        assert not registry._clients
+        assert not registry._pending_keys
+
+    registry.close()
+
+
 def test_mcp_registry_initializes_different_keys_concurrently(monkeypatch) -> None:
     registry = _ClientRegistry()
     first_connecting = threading.Event()

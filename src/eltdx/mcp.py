@@ -14,6 +14,7 @@ from typing import Any, TypeVar
 from . import __version__
 from .client import TdxClient
 from .f10 import F10Client
+from .hosts import normalize_host
 from .serialization import to_jsonable
 
 _MAX_CODES = 200
@@ -411,13 +412,20 @@ class _ClientRegistry:
                         owns_key = True
 
                 if entry is None and len(self._clients) < _MAX_CLIENTS:
-                    owner = _ClientEntry(
-                        client=TdxClient(
+                    try:
+                        client = TdxClient(
                             host=host,
                             timeout=timeout,
                             pool_size=_MCP_POOL_SIZE,
                             heartbeat_interval=None,
-                        ),
+                        )
+                    except BaseException:
+                        self._pending_keys.discard(key)
+                        owns_key = False
+                        self._condition.notify_all()
+                        raise
+                    owner = _ClientEntry(
+                        client=client,
                         active_calls=1,
                         connecting=True,
                     )
@@ -945,7 +953,10 @@ def _normalize_host(host: str | None) -> str | None:
     host = host.strip()
     if not host:
         raise ValueError("host must not be empty")
-    return host
+    normalized = normalize_host(host)
+    if normalized is None:
+        raise ValueError("host must use host:port with a port between 1 and 65535")
+    return normalized
 
 
 def _bounded_int(name: str, value: int, *, minimum: int, maximum: int) -> int:

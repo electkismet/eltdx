@@ -7,7 +7,7 @@
 | 顺序 | 文档 | 用途 |
 | --- | --- | --- |
 | 1 | [PRODUCT.md](PRODUCT.md) | 看这个库能查什么、适合怎么用 |
-| 2 | [releases/v1.3.0.md](releases/v1.3.0.md) | 看当前版本的 MCP SDK 2、工具扩展、五档边界和并发复用说明 |
+| 2 | [releases/v1.3.1.md](releases/v1.3.1.md) | 看当前版本的北交所代码推断与 MCP 主站校验修复说明 |
 | 3 | [UPDATE_FROM_0_5_1.md](UPDATE_FROM_0_5_1.md) | 看从 `v0.5.1` 到 `v1.0.0` 更新了什么 |
 | 4 | [helpers/README.md](helpers/README.md) | 按常用问题进入调用说明 |
 | 5 | [METHOD_REFERENCE.md](METHOD_REFERENCE.md) | 按调用方法看参数、底层接口和解析字段 |

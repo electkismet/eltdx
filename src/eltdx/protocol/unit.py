@@ -66,11 +66,13 @@ def normalize_code(code: str) -> str:
         return text
     if len(text) != 6 or not text.isdigit():
         raise ProtocolError(f"invalid code: {code!r}")
+    if text.startswith("92"):
+        return "bj" + text
     if text.startswith(("6", "9")):
         return "sh" + text
     if text.startswith(("0", "1", "2", "3")):
         return "sz" + text
-    if text.startswith(("8", "92")):
+    if text.startswith("8"):
         return "bj" + text
     raise ProtocolError(f"unable to infer market for code: {code!r}")
 

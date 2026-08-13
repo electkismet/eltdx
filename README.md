@@ -32,7 +32,7 @@
 
 通达信在线行情协议 Python 库。可以拿 A 股的行情、分时、成交明细、K 线、竞价、公司信息、题材信息等信息，支持 MCP 工具。
 
-> `v1.3.0` 将 MCP 服务迁移到 MCP Python SDK 2，扩充行情、竞价、短线指标和 F10 工具，并修正五档盘口与并发客户端生命周期。完整说明见 [v1.3.0 发布说明](docs/releases/v1.3.0.md)。
+> `v1.3.1` 修复北交所 `92xxxx` 无前缀代码的市场推断，并补全 MCP 自定义主站校验和客户端注册失败回滚。完整说明见 [v1.3.1 发布说明](docs/releases/v1.3.1.md)。
 
 1. 本项目仅以个人学习、协议研究和非商业研究为目的进行开发。
 2. 本项目基于互联网公开信息搜集开发。
@@ -303,7 +303,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | ------------ | ---------------------------------------------------- | -------------------------- |
 | 快速总览         | 本 README                                             | 这个库能查什么、用哪个方法、底层接口是什么      |
 | 常用问题         | [docs/helpers/README.md](docs/helpers/README.md)     | 按问题进入对应调用说明             |
-| 当前版本         | [docs/releases/v1.3.0.md](docs/releases/v1.3.0.md)   | `v1.3.0` MCP SDK 2、工具扩展与并发复用说明 |
+| 当前版本         | [docs/releases/v1.3.1.md](docs/releases/v1.3.1.md)   | `v1.3.1` 北交所代码推断与 MCP 主站校验修复 |
 | 变更记录         | [docs/CHANGELOG.md](docs/CHANGELOG.md)               | 当前版本和未发布改动               |
 | 历史升级         | [docs/UPDATE_FROM_0_5_1.md](docs/UPDATE_FROM_0_5_1.md) | 从 `v0.5.1` 到 `v1.0.0` 的更新说明 |
 | 方法字段手册       | [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md) | 每个调用方法怎么传参、返回哪些解析字段        |
@@ -316,6 +316,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | -------------------------------------------------------- | ---------------------- |
 | [docs/README.md](docs/README.md)                         | 文档入口                   |
 | [docs/PRODUCT.md](docs/PRODUCT.md)                       | 产品定位和能力总览              |
+| [docs/releases/v1.3.1.md](docs/releases/v1.3.1.md)       | `v1.3.1` 正式发布说明          |
 | [docs/releases/v1.3.0.md](docs/releases/v1.3.0.md)       | `v1.3.0` 正式发布说明          |
 | [docs/releases/v1.2.0.md](docs/releases/v1.2.0.md)       | `v1.2.0` 正式发布说明          |
 | [docs/releases/v1.1.0.md](docs/releases/v1.1.0.md)       | `v1.1.0` 正式发布说明          |
