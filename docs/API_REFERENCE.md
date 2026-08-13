@@ -304,7 +304,7 @@ client.codes.all_a_shares()
 
 ### `client.quotes.get_snapshots(codes)`
 
-按显式代码列表查询批量行情快照，对应 `0x054c`。当前实盘响应只稳定确认买一 / 卖一；需要实时完整五档时用 `client.helpers.full_quotes()` 或 `client.quotes.get_depth()`。
+按显式代码列表查询一次 `0x054c` 基础快照。当前实盘响应只稳定确认买一 / 卖一；普通业务需要完整行情时使用 `client.helpers.full_quotes()`，直接操作原生五档刷新时才使用 `client.quotes.get_depth()`。
 
 ```python
 client.quotes.get_snapshots(["sz000001", "sh600000"])
@@ -338,7 +338,7 @@ client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
 
 ### `client.quotes.get_depth(codes)`
 
-按代码列表直接发起一次 `0x0547` 刷新，返回 `QuoteRefreshPage`。首次刷新用于建立实时五档，后续可由推送队列增量更新；单次最多 100 个代码。
+按代码列表直接发起一次 `0x0547` 刷新，等价于 `refresh(codes, cursors={})`，返回 `QuoteRefreshPage`。首次刷新用于建立实时五档，后续可由推送队列增量更新；单次最多 100 个代码。
 
 ```python
 client.quotes.get_depth(["sz000001", "sh600000"])

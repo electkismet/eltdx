@@ -60,7 +60,7 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     catalog = _catalog()
     items = catalog["items"]
 
-    assert catalog["schema_version"] == 10
+    assert catalog["schema_version"] == 11
     assert len(items) == 57
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
@@ -111,7 +111,7 @@ hide:
 [← 返回接口目录](../index.md){ .interface-detail-back }
 """
 
-    assert len(detail_docs) == 55
+    assert len(detail_docs) == 56
     for relative_path in detail_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert detail.startswith(expected_header), relative_path
@@ -220,6 +220,30 @@ def test_quote_command_docs_explain_the_three_distinct_roles() -> None:
     assert "一次性基础快照" in items["7709-quote-snapshots"]["summary"]
     assert "旧版完整快照" in items["7709-legacy-quotes"]["summary"]
     assert "代码和游标" in items["7709-quote-refresh"]["summary"]
+
+
+def test_quote_catalog_keeps_each_public_entry_in_one_primary_doc() -> None:
+    items = {item["id"]: item for item in _catalog()["items"]}
+    snapshot = items["7709-quote-snapshots"]
+    complete = items["7709-quote-depth"]
+    refresh = items["7709-quote-refresh"]
+
+    assert snapshot["api"] == "client.quotes.get_snapshots(codes)"
+    assert snapshot["doc"] == "methods/7709-批量快照.md"
+    assert complete["api"] == "client.helpers.full_quotes(codes)"
+    assert complete["doc"] == "helpers/完整行情.md"
+    assert "get_depth" not in complete["api"]
+    assert "client.quotes.get_depth()" in refresh["api"]
+    assert refresh["doc"] == "methods/7709-增量刷新推送队列.md"
+
+    snapshot_doc = (REPO_ROOT / "docs" / snapshot["doc"]).read_text(encoding="utf-8")
+    complete_doc = (REPO_ROOT / "docs" / complete["doc"]).read_text(encoding="utf-8")
+    assert snapshot_doc.count("client.helpers.full_quotes(") == 1
+    assert snapshot_doc.count("client.quotes.get_depth(") == 1
+    assert "主要调用 | `client.quotes.get_snapshots(codes)`" in snapshot_doc
+    assert "from eltdx import TdxClient" in snapshot_doc
+    assert "quotes = client.quotes.get_snapshots(" in snapshot_doc
+    assert "client.helpers.full_quotes(codes)" in complete_doc
 
 
 def test_file_resource_catalog_documents_download_and_stats_parsing() -> None:

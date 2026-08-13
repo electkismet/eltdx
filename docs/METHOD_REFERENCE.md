@@ -211,14 +211,12 @@ client.codes.a_share_count("sz")
 
 <a id="method-quotes-snapshots"></a>
 
-### `client.quotes.get_snapshots(codes)` / `client.helpers.full_quotes(codes)`
+### `client.quotes.get_snapshots(codes)`
 
-按显式代码列表查询行情。`client.quotes.get_snapshots()` 直接对应 `0x054c`，当前实盘只稳定确认买一 / 卖一；`client.helpers.full_quotes()` 组合 `0x054c + 0x0547` 返回实时完整五档。
+按显式代码列表直接查询一次 `0x054c` 基础快照，当前实盘只稳定确认买一 / 卖一。它不会自动调用 `0x0547`。
 
 ```python
 quotes = client.quotes.get_snapshots(["sz000001", "sh600000"])
-quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
-quote = client.helpers.full_quotes("sz000001")[0]
 ```
 
 | 参数      | 含义        |
@@ -241,7 +239,7 @@ quote = client.helpers.full_quotes("sz000001")[0]
 | `amount`                                  | 成交额           |
 | `inside_dish` / `outer_disc`              | 内盘 / 外盘       |
 | `open_amount_yuan`                        | 开盘金额，单位元      |
-| `buy_levels` / `sell_levels`              | `get_snapshots()` 为已确认一档；`client.helpers.full_quotes()` 通过 `0x0547` 补齐买一到买五 / 卖一到卖五 |
+| `buy_levels` / `sell_levels`              | 当前实盘稳定确认为买一 / 卖一 |
 | `tail_raw`                                | 尾部扩展原始字段      |
 
 | 派生字段           | 计算方式                             |
@@ -259,6 +257,17 @@ quote = client.helpers.full_quotes("sz000001")[0]
 | `volume`          | 档位委托量     |
 | `price_delta_raw` | 协议价格差分原始值 |
 
+### `client.helpers.full_quotes(codes)`
+
+普通业务查询完整行情的推荐入口。它按批次组合 `0x054c` 基础快照与 `0x0547` 五档数据，返回统一的 `list[QuoteSnapshot]`。
+
+```python
+quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
+quote = client.helpers.full_quotes("sz000001")[0]
+```
+
+完整字段、降级行为和与其他入口的区别见 [完整行情 / 五档盘口](helpers/完整行情.md)。
+
 ### `client.quotes.legacy(codes)`
 
 查询 `0x053e` 旧版批量行情。该入口直接发送一次原生请求，调用方需要自行按服务端限制分批。接口返回五档盘口和交易状态原始字段，不做股票筛选或状态分类。
@@ -275,7 +284,7 @@ quotes = client.quotes.legacy(["sz000001", "sh600000"])
 
 ### `client.quotes.get_depth(codes)`
 
-按代码列表直接发起一次原生 `0x0547` 刷新，首次刷新建立实时五档，后续由推送队列增量更新。
+按代码列表直接发起一次原生 `0x0547` 刷新，是 `refresh(codes, cursors={})` 的五档快捷入口。首次刷新建立实时五档，后续由推送队列增量更新。
 
 ```python
 depth = client.quotes.get_depth(["sz000001", "sh600000"])

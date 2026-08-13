@@ -1,5 +1,5 @@
 window.ELTDX_CATALOG = {
-  "schema_version": 10,
+  "schema_version": 11,
   "taxonomy": {
     "layers": [
       {
@@ -274,17 +274,7 @@ window.ELTDX_CATALOG = {
       "title": "完整行情 / 五档盘口",
       "source": "Helper",
       "category": "行情封装",
-      "api": "client.helpers.full_quotes(codes) / client.quotes.get_depth(codes)",
-      "calls": [
-        {
-          "label": "Helpers 完整行情",
-          "api": "client.helpers.full_quotes(codes)"
-        },
-        {
-          "label": "原生五档盘口",
-          "api": "client.quotes.get_depth(codes)"
-        }
-      ],
+      "api": "client.helpers.full_quotes(codes)",
       "aliases": [
         "level2",
         "买五",
@@ -294,9 +284,9 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x054c + 0x0547",
       "kind": "协议封装",
-      "summary": "组合 0x054c 基础快照和 0x0547 刷新推送，返回实时完整五档行情。",
-      "return_model": "list[QuoteSnapshot] / QuoteRefreshPage",
-      "doc": "methods/7709-批量快照.md"
+      "summary": "普通用户的推荐入口：自动组合 0x054c 基础快照与 0x0547 五档数据，返回完整行情。",
+      "return_model": "list[QuoteSnapshot]",
+      "doc": "helpers/完整行情.md"
     },
     {
       "id": "7709-category-quotes",
@@ -320,8 +310,12 @@ window.ELTDX_CATALOG = {
       "title": "增量刷新 / 推送队列",
       "source": "7709",
       "category": "行情",
-      "api": "client.quotes.refresh() / client.quotes.poll_push() / client.quotes.drain_pushes()",
+      "api": "client.quotes.get_depth() / client.quotes.refresh() / client.quotes.poll_push() / client.quotes.drain_pushes()",
       "calls": [
+        {
+          "label": "五档快捷入口",
+          "api": "client.quotes.get_depth(codes)"
+        },
         {
           "label": "行情刷新",
           "api": "client.quotes.refresh(...)"
@@ -337,6 +331,7 @@ window.ELTDX_CATALOG = {
       ],
       "aliases": [
         "refresh",
+        "get_depth",
         "poll_push",
         "drain_pushes",
         "push queue"
