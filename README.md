@@ -302,7 +302,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | ------------ | ---------------------------------------------------- | -------------------------- |
 | 快速总览         | 本 README                                             | 这个库能查什么、用哪个方法、底层接口是什么      |
 | 常用问题         | [docs/helpers/README.md](docs/helpers/README.md)     | 按问题进入对应调用说明             |
-| 当前版本         | [docs/releases/v1.3.1.md](docs/releases/v1.3.1.md)   | `v1.3.1` 北交所代码推断与 MCP 主站校验修复 |
+| 当前版本         | [docs/releases/v2.0.0.md](docs/releases/v2.0.0.md)   | `v2.0.0` 模块化 API、旧兼容入口清理与实时五档推送 |
 | 变更记录         | [docs/CHANGELOG.md](docs/CHANGELOG.md)               | 当前版本和未发布改动               |
 | 历史升级         | [docs/UPDATE_FROM_0_5_1.md](docs/UPDATE_FROM_0_5_1.md) | 从 `v0.5.1` 到 `v1.0.0` 的更新说明 |
 | 方法字段手册       | [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md) | 每个调用方法怎么传参、返回哪些解析字段        |
@@ -315,6 +315,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | -------------------------------------------------------- | ---------------------- |
 | [docs/README.md](docs/README.md)                         | 文档入口                   |
 | [docs/PRODUCT.md](docs/PRODUCT.md)                       | 产品定位和能力总览              |
+| [docs/releases/v2.0.0.md](docs/releases/v2.0.0.md)       | `v2.0.0` 正式发布说明          |
 | [docs/releases/v1.3.1.md](docs/releases/v1.3.1.md)       | `v1.3.1` 正式发布说明          |
 | [docs/releases/v1.3.0.md](docs/releases/v1.3.0.md)       | `v1.3.0` 正式发布说明          |
 | [docs/releases/v1.2.0.md](docs/releases/v1.2.0.md)       | `v1.2.0` 正式发布说明          |
