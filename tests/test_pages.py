@@ -60,7 +60,7 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     catalog = _catalog()
     items = catalog["items"]
 
-    assert catalog["schema_version"] == 11
+    assert catalog["schema_version"] == 12
     assert len(items) == 57
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
@@ -155,19 +155,44 @@ def test_pages_catalog_has_complete_function_menus() -> None:
         for item in items:
             if item["id"] not in assigned and item["category"] in group.get("categories", []):
                 assigned[item["id"]] = group["id"]
+    fallback_groups = [group for group in groups if group.get("fallback")]
+    assert len(fallback_groups) == 1
+    for item in items:
+        if item["id"] not in assigned:
+            assigned[item["id"]] = fallback_groups[0]["id"]
 
     assert set(assigned) == {item["id"] for item in items}
     assert len({group["id"] for group in groups}) == len(groups)
-    assert [(group["id"], group["label"]) for group in groups[:3]] == [
+    assert [(group["id"], group["label"]) for group in groups] == [
         ("basics", "基础接口（非手动调用）"),
         ("codes", "证券代码"),
-        ("entry", "高级调用（需手动指定 Entry 和参数）"),
+        ("realtime", "实时行情"),
+        ("history", "历史行情"),
+        ("bars", "K 线与复权"),
+        ("auction-shortline", "集合竞价与短线"),
+        ("f10", "F10"),
+        ("common", "常用封装"),
     ]
-    assert sum(1 for group_id in assigned.values() if group_id == "basics") == 2
-    assert sum(1 for group_id in assigned.values() if group_id == "codes") == 2
-    assert sum(1 for group_id in assigned.values() if group_id == "entry") == 1
-    assert sum(1 for group_id in assigned.values() if group_id == "quotes") == 15
-    assert sum(1 for group_id in assigned.values() if group_id == "company") == 17
+    assert Counter(assigned.values()) == {
+        "basics": 2,
+        "codes": 2,
+        "realtime": 10,
+        "history": 3,
+        "bars": 7,
+        "auction-shortline": 5,
+        "f10": 23,
+        "common": 5,
+    }
+    assert assigned["f10-stock-info"] == "f10"
+    assert assigned["7709-minute-history"] == "history"
+    assert assigned["7709-special-limits"] == "common"
+
+
+def test_function_catalog_assigns_unknown_items_to_common_fallback() -> None:
+    app = (REPO_ROOT / "docs" / "assets" / "interface-catalog.js").read_text(encoding="utf-8")
+
+    assert "fallbackFunctionalGroups" in app
+    assert 'taxonomyErrors.push("功能目录只能设置一个兜底分类")' in app
 
 
 def test_pages_catalog_wraps_long_mobile_labels() -> None:

@@ -1,5 +1,5 @@
 window.ELTDX_CATALOG = {
-  "schema_version": 11,
+  "schema_version": 12,
   "taxonomy": {
     "layers": [
       {
@@ -32,85 +32,87 @@ window.ELTDX_CATALOG = {
         "id": "basics",
         "label": "基础接口（非手动调用）",
         "description": "连接时自动握手，长连接由后台定时保活，一般不需要手动调用。",
-        "categories": [
-          "会话"
+        "item_ids": [
+          "7709-handshake",
+          "7709-heartbeat"
         ]
       },
       {
         "id": "codes",
         "label": "证券代码",
         "description": "查询市场证券数量，以及分页或全量读取证券代码表。",
-        "categories": [
-          "证券代码"
-        ]
-      },
-      {
-        "id": "entry",
-        "label": "高级调用（需手动指定 Entry 和参数）",
-        "description": "用户主动指定 Entry 和参数，直接调用 7615/TQLEX HTTP 网关；适合调试或访问尚未封装的资料功能。",
-        "categories": [
-          "网关"
-        ]
-      },
-      {
-        "id": "quotes",
-        "label": "实时行情",
-        "description": "快照、五档、分时、逐笔成交和面向行情的组合能力。",
-        "categories": [
-          "行情",
-          "行情封装",
-          "分时",
-          "逐笔成交"
-        ],
         "item_ids": [
-          "helper-stock-profile",
-          "helper-quote-table",
-          "helper-shortline-indicators"
+          "7709-code-count",
+          "7709-code-list"
+        ]
+      },
+      {
+        "id": "realtime",
+        "label": "实时行情",
+        "description": "当前行情快照、五档盘口、当日分时、当日成交和实时走势。",
+        "item_ids": [
+          "7709-quote-snapshots",
+          "7709-legacy-quotes",
+          "7709-quote-depth",
+          "7709-category-quotes",
+          "7709-quote-refresh",
+          "7709-minute-today",
+          "7709-minute-aux",
+          "7709-sparkline",
+          "7709-trades-today",
+          "helper-quote-table"
+        ]
+      },
+      {
+        "id": "history",
+        "label": "历史行情",
+        "description": "指定日期或近期的历史分时与历史成交明细。",
+        "item_ids": [
+          "7709-minute-history",
+          "7709-minute-recent",
+          "7709-trades-history"
         ]
       },
       {
         "id": "bars",
         "label": "K 线与复权",
-        "description": "周期 K 线、历史分页，以及前复权、后复权和定点复权。",
-        "categories": [
-          "K 线"
-        ],
+        "description": "周期 K 线、全量分页、复权 K 线，以及复权所需的股本和除权数据。",
         "item_ids": [
+          "7709-kline",
+          "7709-kline-all",
+          "7709-gbbq",
+          "7709-xdxr",
+          "7709-equity",
+          "7709-local-factors",
           "helper-adjusted-kline"
         ]
       },
       {
-        "id": "auction",
-        "label": "集合竞价",
-        "description": "竞价过程、09:25 成交快照和开盘数据整理。",
-        "categories": [
-          "集合竞价"
-        ],
+        "id": "auction-shortline",
+        "label": "集合竞价与短线",
+        "description": "集合竞价过程、09:25 正式撮合、竞价整理、换手率和短线指标。",
         "item_ids": [
+          "7709-auction-series",
+          "7709-auction-0925",
+          "7709-turnover",
+          "helper-shortline-indicators",
           "helper-auction-data"
         ]
       },
       {
-        "id": "company",
-        "label": "公司与财务",
-        "description": "股本、除权、财务基础信息和公司资料。",
+        "id": "f10",
+        "label": "F10",
+        "description": "F10 公司资料、财务、股东、题材、排名和资讯，以及相关的便捷查询。",
         "categories": [
-          "公司基础",
+          "网关",
           "公司资料",
           "经营财务",
           "股东与融资",
-          "公司治理"
-        ]
-      },
-      {
-        "id": "topics",
-        "label": "题材与排名",
-        "description": "题材行情、概念成分、估值和市场/行业排名。",
-        "categories": [
+          "公司治理",
           "题材行情",
-          "题材与概念",
           "评价排名",
-          "估值行情"
+          "估值行情",
+          "资讯公告"
         ],
         "item_ids": [
           "helper-stock-topics",
@@ -118,27 +120,16 @@ window.ELTDX_CATALOG = {
         ]
       },
       {
-        "id": "news",
-        "label": "资讯公告",
-        "description": "新闻、公告、研报、路演和详情正文。",
-        "categories": [
-          "资讯公告"
-        ]
-      },
-      {
-        "id": "limits",
-        "label": "交易限制",
-        "description": "特殊品种的涨跌停限制数据。",
-        "categories": [
-          "交易限制"
-        ]
-      },
-      {
-        "id": "resources",
-        "label": "服务器资源",
-        "description": "服务器文件分块读取、完整下载和统计资源解析。",
-        "categories": [
-          "服务器资源"
+        "id": "common",
+        "label": "常用封装",
+        "description": "跨多个数据源的组合查询、特殊能力和暂未归入其他功能的新增接口。",
+        "fallback": true,
+        "item_ids": [
+          "7709-special-limits",
+          "7709-finance",
+          "7709-file-content",
+          "helper-stock-profile",
+          "helper-server-stats"
         ]
       }
     ]

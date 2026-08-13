@@ -154,6 +154,19 @@
       });
     });
   });
+  var fallbackFunctionalGroups = functionalGroups.filter(function (group) {
+    return group.fallback;
+  });
+  if (fallbackFunctionalGroups.length > 1) {
+    taxonomyErrors.push("功能目录只能设置一个兜底分类");
+  }
+  if (fallbackFunctionalGroups.length === 1) {
+    items.forEach(function (item) {
+      if (!functionalMeta[item.id]) {
+        registerFunctionalItem(item.id, fallbackFunctionalGroups[0]);
+      }
+    });
+  }
   items.forEach(function (item) {
     if (!functionalMeta[item.id]) {
       taxonomyErrors.push("接口尚未归入功能分类：" + item.id);
