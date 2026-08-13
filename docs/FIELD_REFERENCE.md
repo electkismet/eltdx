@@ -156,14 +156,14 @@ K 线响应和单根 K 线。
 | `trading_date`      | 交易日                           |
 | `start`             | 请求起始位置                        |
 | `request_count`     | 请求条数                          |
-| `ticks`             | 成交明细                          |
+| `ticks`             | 混合记录，包含普通成交、竞价快照和 09:25 正式撮合                          |
 | `auction_snapshots` | `status=8` 竞价快照                |
 | `opening_matches`   | 09:25 正式开盘撮合                  |
 | `time_label`        | 时间文本                          |
 | `trade_datetime`    | 成交时间                          |
 | `price`             | 成交价                           |
-| `volume`            | 成交量，单位手                       |
-| `order_count`       | 单笔包含的订单数                      |
+| `volume`            | 原始数量字段；普通成交/正式撮合时是成交量，竞价快照时是虚拟匹配量                       |
+| `order_count`       | 原始笔数字段；竞价快照时是带符号未匹配量                      |
 | `event_kind`        | `trade`、`auction_snapshot`、`opening_match` |
 | `is_auction_snapshot` | 是否为竞价快照                    |
 | `is_opening_match`   | 是否为 09:25 正式撮合              |
@@ -172,8 +172,8 @@ K 线响应和单根 K 线。
 | `auction_unmatched_signed_volume` | 竞价快照带符号未匹配量       |
 | `auction_unmatched_volume` | 竞价快照未匹配量绝对值           |
 | `side`              | 方向，`buy` / `sell` / `neutral` |
-| `trade_amount_yuan` | 成交金额，派生字段                     |
-| `has_more`          | 是否可能还有下一页，派生字段                |
+| `trade_amount_yuan` | `price * volume * 100`；竞价快照仅为估算，不代表实际成交金额                     |
+| `has_more`          | 单页结果是否可能还有下一页，派生字段                |
 
 分类规则：`status_raw == 8` 为 `auction_snapshot`；时间为 `09:25` 且不是 `status=8` 为 `opening_match`；其余为 `trade`。竞价快照的 `volume` / `order_count` 保留原始协议字段，分别按虚拟匹配量 / 带符号未匹配量解释。
 
@@ -371,6 +371,8 @@ K 线响应和单根 K 线。
 
 ## 缓存口径
 
-默认缓存低频数据：代码数量、全量代码表、股本变迁、财务完整结果和已验证的短线统计资源。实时快照、分时、成交明细、K 线不缓存。
+当前客户端只缓存部分 Helper 组合查询使用的低频数据：`client.helpers.capital_changes()` 的股本变迁结果、`client.helpers.stock_profile_table()` 内部使用的财务批次，以及已验证的短线统计资源。
 
-强制刷新用 `refresh=True`，清空全部缓存用 `client.clear_cache()`。
+`client.codes.count()`、`client.codes.all()` 和 `client.corporate.finance_batch()` 都会直接请求主站，不做缓存。实时快照、分时、成交明细和 K 线也不缓存。
+
+股本变迁 Helper 可用 `refresh=True` 强制刷新，短线统计资源可用 `refresh_stats=True` 强制刷新；清空上述全部 Helper 缓存使用 `client.clear_cache()`。

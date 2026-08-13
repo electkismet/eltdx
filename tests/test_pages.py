@@ -319,3 +319,51 @@ def test_readme_shows_the_astlane_sponsor_banner() -> None:
     assert catalog_position < sponsor_position
     assert 'href="https://api.astlane.com/"' in readme
     assert '<title id="title">Astlane 赞助 eltdx token</title>' in sponsor
+
+
+def test_current_docs_match_v2_pagination_and_parameter_contracts() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    code_count = (REPO_ROOT / "docs" / "methods" / "7709-代码数量.md").read_text(encoding="utf-8")
+    code_table = (REPO_ROOT / "docs" / "methods" / "7709-代码表.md").read_text(encoding="utf-8")
+    all_bars = (REPO_ROOT / "docs" / "methods" / "7709-全量K线分页.md").read_text(encoding="utf-8")
+    finance = (REPO_ROOT / "docs" / "methods" / "7709-财务基础信息.md").read_text(encoding="utf-8")
+
+    assert "client.codes.count()" not in readme
+    assert "`refresh`" not in code_count
+    assert "`refresh`" not in code_table
+    assert "不接受 `refresh` 参数" in finance
+    assert "| 停止条件 | 主站返回空页 |" in code_table
+    assert "| 停止条件 | 主站返回空页 |" in all_bars
+    assert "短页不代表数据已经结束" in code_table
+    assert "短页不代表数据已经结束" in all_bars
+
+
+def test_current_docs_match_v2_cache_and_migration_contracts() -> None:
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    fields = (REPO_ROOT / "docs" / "FIELD_REFERENCE.md").read_text(encoding="utf-8")
+    methods = (REPO_ROOT / "docs" / "METHOD_REFERENCE.md").read_text(encoding="utf-8")
+    migration = (REPO_ROOT / "docs" / "FIELD_MIGRATION.md").read_text(encoding="utf-8")
+    historical_update = (REPO_ROOT / "docs" / "UPDATE_FROM_0_5_1.md").read_text(encoding="utf-8")
+
+    for text in (readme, fields, methods):
+        assert "代码数量、全量代码表、股本变迁、财务" not in text
+    assert "`client.codes.count()`、`client.codes.all()` 和 `client.corporate.finance_batch()` 都会直接请求主站" in fields
+    assert 'client.bars.get("sz000001", period="day", include_raw=True)' in migration
+    assert 'client.helpers.factors("sz000001")' in migration
+    assert 'client.helpers.capital_changes("sz000001", refresh=True)' in migration
+    assert 'warning "历史版本文档"' in historical_update
+    assert "当前 `v2.0.1` 已移除这些入口" in historical_update
+
+
+def test_trade_docs_describe_mixed_records_instead_of_only_trades() -> None:
+    fields = (REPO_ROOT / "docs" / "FIELD_REFERENCE.md").read_text(encoding="utf-8")
+    methods = (REPO_ROOT / "docs" / "METHOD_REFERENCE.md").read_text(encoding="utf-8")
+    today = (REPO_ROOT / "docs" / "methods" / "7709-当日成交明细.md").read_text(encoding="utf-8")
+    history = (REPO_ROOT / "docs" / "methods" / "7709-历史成交明细.md").read_text(encoding="utf-8")
+
+    for text in (methods, today, history):
+        assert "实际成交条数" not in text
+        assert "混合记录条数" in text
+    assert "竞价快照时是虚拟匹配量" in fields
+    assert "竞价快照仅为估算，不代表实际成交金额" in methods
+    assert 'client.trades.all_history("sz000001", "2026-05-20")' in methods

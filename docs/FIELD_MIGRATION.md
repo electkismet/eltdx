@@ -1,6 +1,6 @@
 # 历史字段对照
 
-这份文档给从历史版本接入 `eltdx 1.0` 的用户看。当前版本优先保持字段语义清楚。
+这份文档给从历史版本迁移到 `eltdx 2.0.1` 的用户看。`2.0` 已移除 `TdxClient` 上旧版扁平 `get_*` 入口；完整方法迁移表见 [迁移到 eltdx 2.0](MIGRATION_FROM_OLD.md)。
 
 ## raw 调试字段
 
@@ -12,10 +12,10 @@ print(data.raw_frame_hex)
 print(data.raw_payload_hex)
 ```
 
-新版模型主要保留 payload 和单条记录原文：
+`2.0.1` 模型主要保留 payload 和单条记录原文：
 
 ```python
-data = client.get_kline("day", "sz000001", include_raw=True)
+data = client.bars.get("sz000001", period="day", include_raw=True)
 print(data.raw_payload.hex())
 print(data.bars[0].record_hex)
 ```
@@ -60,7 +60,7 @@ print(data.bars[0].record_hex)
 | 市场 | `exchange` |
 | 六位代码 | `code` |
 
-新版更推荐内部拆开保存：
+`2.0.1` 推荐内部拆开保存：
 
 ```python
 item.exchange   # "sz"
@@ -70,38 +70,37 @@ item.full_code  # "sz000001"
 
 ## 复权
 
-旧版普通复权更多依赖本地因子计算。新版优先使用 `0x052d` 服务端复权参数：
+旧版普通复权更多依赖本地因子计算。`2.0.1` 优先使用 `0x052d` 服务端复权参数：
 
 ```python
-client.get_adjusted_kline("day", "sz000001", adjust="qfq")
-client.get_adjusted_kline("day", "sz000001", adjust="hfq")
+client.bars.get("sz000001", period="day", adjust="qfq")
+client.bars.get("sz000001", period="day", adjust="hfq")
 ```
 
 本地复权因子仍保留：
 
 ```python
-client.get_factors("sz000001")
-client.get_local_adjusted_kline_all("day", "sz000001", adjust="qfq")
+client.helpers.factors("sz000001")
+client.helpers.local_adjusted_kline("sz000001", period="day", adjust="qfq")
 ```
 
 ## 缓存
 
-新版会缓存低频数据：
+`2.0.1` 只缓存部分 Helper 组合查询使用的低频数据：
 
 | 数据 | 默认缓存 |
 | --- | --- |
-| 代码数量 | 是 |
-| 全量代码表 | 是 |
-| 股本变迁 / GBBQ | 是，不缓存 `include_raw=True` 的结果 |
-| 财务批量完整结果 | 是 |
+| `client.helpers.capital_changes()` 股本变迁结果 | 是，不缓存 `include_raw=True` 的结果 |
+| `client.helpers.stock_profile_table()` 内部财务批次 | 是 |
+| 已验证的短线统计资源 | 是 |
+| 代码数量、全量代码表、直接财务查询 | 否 |
 | 行情快照、分时、成交明细、K 线 | 否 |
 
-需要强制重新请求：
+股本变迁和短线统计资源可分别强制重新请求：
 
 ```python
-client.get_codes_all("sz", refresh=True)
-client.get_gbbq("sz000001", refresh=True)
-client.get_finance_batch(["sz000001"], refresh=True)
+client.helpers.capital_changes("sz000001", refresh=True)
+client.helpers.shortline_indicators("sz000001", refresh_stats=True)
 ```
 
 需要清空全部缓存：

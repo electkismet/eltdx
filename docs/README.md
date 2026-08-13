@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 1 | [PRODUCT.md](PRODUCT.md) | 看这个库能查什么、适合怎么用 |
 | 2 | [releases/v2.0.1.md](releases/v2.0.1.md) | 看当前版本的竞价记录解析、09:25 选源和分页修复说明 |
-| 3 | [UPDATE_FROM_0_5_1.md](UPDATE_FROM_0_5_1.md) | 看从 `v0.5.1` 到 `v1.0.0` 更新了什么 |
+| 3 | [MIGRATION_FROM_OLD.md](MIGRATION_FROM_OLD.md) | 从 1.x 迁移到当前 2.0 模块化 API |
 | 4 | [helpers/README.md](helpers/README.md) | 按常用问题进入调用说明 |
 | 5 | [METHOD_REFERENCE.md](METHOD_REFERENCE.md) | 按调用方法看参数、底层接口和解析字段 |
 | 6 | [methods/README.md](methods/README.md) | 按单个调用方法看独立说明页 |
@@ -21,8 +21,8 @@
 | 13 | [COMMANDS_7709.md](COMMANDS_7709.md) | 看每个业务 API 对应哪个 `7709` 命令 |
 | 14 | [ARCHITECTURE.md](ARCHITECTURE.md) | 看项目分层和实现结构 |
 | 15 | [FIELD_MIGRATION.md](FIELD_MIGRATION.md) | 看历史字段和当前字段怎么对应 |
-| 16 | [MIGRATION_FROM_OLD.md](MIGRATION_FROM_OLD.md) | 看历史代码整理记录 |
-| 17 | [ROADMAP.md](ROADMAP.md) | 看 1.0 的实现顺序 |
+| 16 | [UPDATE_FROM_0_5_1.md](UPDATE_FROM_0_5_1.md) | 历史归档：从 `v0.5.1` 到 `v1.0.0` 的更新说明 |
+| 17 | [ROADMAP.md](ROADMAP.md) | 历史归档：1.0 实现记录 |
 
 ## 文档说明
 

@@ -158,7 +158,7 @@ class TdxClient:
         return self.session.ping()
 
     def clear_cache(self) -> None:
-        """清空代码表、股本变迁和财务信息等低频数据缓存。"""
+        """清空 Helpers 持有的股本、财务组合和短线统计内存缓存。"""
 
         self.helpers.clear_cache()
 

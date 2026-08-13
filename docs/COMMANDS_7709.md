@@ -6,8 +6,8 @@
 | <a id="cmd-0x000d"></a>`0x000d` | `0x000d-连接握手接口.md`        | 连接握手        | `client.session.handshake()`                            | 核心           |
 | <a id="cmd-0x000f"></a>`0x000f` | `0x000f-股本变迁查询接口.md`      | 股本变迁 / 除权基础 | `client.corporate.capital_changes()`                    | 已接入          |
 | <a id="cmd-0x0010"></a>`0x0010` | `0x0010-财务信息批量查询&下发接口.md` | 财务信息批量查询    | `client.corporate.finance_batch()`                      | 已接入          |
-| <a id="cmd-0x044d"></a>`0x044d` | `0x044d-代码表分页接口.md`       | 代码表分页       | `client.codes.list()`                                   | 核心           |
-| <a id="cmd-0x044e"></a>`0x044e` | `0x044e-代码数量接口.md`        | 代码数量        | `client.codes.count()`                                  | 核心           |
+| <a id="cmd-0x044d"></a>`0x044d` | `0x044d-代码表分页接口.md`       | 代码表分页       | `client.codes.list(market, ...)`                                   | 核心           |
+| <a id="cmd-0x044e"></a>`0x044e` | `0x044e-代码数量接口.md`        | 代码数量        | `client.codes.count(market)`                                  | 核心           |
 | <a id="cmd-0x0452"></a>`0x0452` | `0x0452-特殊品种涨跌停限制表接口.md`  | 特殊品种涨跌停限制   | `client.limits.special()`                               | 已接入          |
 | <a id="cmd-0x051b"></a>`0x051b` | `0x051b-个股分时副图数据接口.md`    | 分时副图        | `client.minutes.aux()`                                  | 已接入          |
 | <a id="cmd-0x052d"></a>`0x052d` | `0x052d-K线周期数据接口.md`      | K线 / 周期线    | `client.bars.get()`                                     | 核心           |

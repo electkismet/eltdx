@@ -215,13 +215,13 @@ client.helpers.local_adjusted_kline("sz000001", period="day", adjust="qfq")
 
 ### 低频数据缓存
 
-Helpers 会缓存股本变迁和财务基础信息等低频组合结果；实时行情、分时、成交明细、K 线每次按请求读取。
+Helpers 会缓存股本变迁、`stock_profile_table()` 内部使用的财务批次和已验证的短线统计资源；代码数量、代码表、直接财务查询、实时行情、分时、成交明细和 K 线每次按请求读取。
 
 强制刷新：
 
 ```python
 client.helpers.capital_changes("sz000001", refresh=True)
-client.corporate.finance_batch(["sz000001"])
+client.helpers.shortline_indicators("sz000001", refresh_stats=True)
 ```
 
 清空全部缓存：

@@ -11,7 +11,7 @@
 | `code`        | 支持 `sz000001`、`sh600000`、`bj920001` 这类完整代码；部分场景也支持只传六位代码并自动推断市场 |
 | `market`      | 市场，常用 `sz`、`sh`、`bj`，也可用 `0`、`1`、`2`                            |
 | `include_raw` | 是否保留原始 payload / record hex，用于抓包对照和协议字段排查                       |
-| `refresh`     | 是否跳过内存缓存重新请求服务端                                                 |
+| `refresh`     | 部分 Helper 支持；用于跳过对应的内存缓存重新请求服务端，是否可用以具体方法签名为准                                                 |
 | `full_code`   | 返回模型属性，等于 `exchange + code`                                     |
 | `*_raw`       | 协议原始值或原始 bytes，主要用于排查解析                                         |
 | `*_milli`     | 毫厘价格，通常 `price = price_milli / 1000`                            |
@@ -640,8 +640,8 @@ page = client.trades.all_history("sz000001", "2026-05-20")
 | `ticks`                                         | 原始混合记录                                       |
 | `auction_snapshots`                             | `status=8` 集合竞价快照                           |
 | `opening_matches`                               | 09:25 正式开盘撮合                                |
-| `count`                                         | 实际成交条数                                       |
-| `has_more`                                      | `count >= request_count` 时为 `True`，表示可能还有下一页 |
+| `count`                                         | 混合记录条数                                       |
+| `has_more`                                      | 单页结果中 `count >= request_count` 时为 `True`，表示可能还有下一页 |
 
 ### `client.trades.auction_snapshots(code, trading_date=None, ...)`
 
@@ -658,8 +658,8 @@ history_snapshots = client.trades.auction_snapshots("sz000001", "2026-05-20")
 | `time_minutes` / `time_label` | 分钟数 / 时间文本                     |
 | `trade_datetime`              | 成交时间                           |
 | `price` / `price_milli`       | 成交价 / 毫厘价                      |
-| `volume`                      | 成交量，单位手                        |
-| `order_count`                 | 该笔包含的订单数，历史增强接口更常见             |
+| `volume`                      | 原始数量字段；普通成交/正式撮合时是成交量，竞价快照时是虚拟匹配量                        |
+| `order_count`                 | 原始笔数字段；竞价快照时是带符号未匹配量             |
 | `event_kind`                  | `trade`、`auction_snapshot` 或 `opening_match` |
 | `is_auction_snapshot`         | 是否为集合竞价快照                               |
 | `is_opening_match`            | 是否为 09:25 正式开盘撮合                         |
@@ -669,17 +669,18 @@ history_snapshots = client.trades.auction_snapshots("sz000001", "2026-05-20")
 | `auction_unmatched_volume`    | 竞价快照未匹配量绝对值                           |
 | `side`                        | 方向，`buy`、`sell`、`neutral` 或状态名 |
 | `status_raw`                  | 方向 / 状态原始值                     |
-| `trade_amount_yuan`           | 成交金额，`price * volume * 100`    |
+| `trade_amount_yuan`           | `price * volume * 100`；竞价快照仅为估算，不代表实际成交金额    |
 
 分类规则：`status_raw == 8` 为 `auction_snapshot`；时间为 `09:25` 且不是 `status=8` 为 `opening_match`；其余为 `trade`。竞价快照的 `volume` / `order_count` 仍保留原始字段，不应按实际成交解释。
 
 成交明细完整分页入口：
 
 ```python
-client.trades.today("sz000001")
 client.trades.all_today("sz000001")
-client.trades.history("sz000001", "2026-05-20")
+client.trades.all_history("sz000001", "2026-05-20")
 ```
+
+`client.trades.today()` 和 `client.trades.history()` 每次只返回一页，用于手动分页、抽样或控制单次请求量。
 
 ## 集合竞价
 
@@ -1060,7 +1061,9 @@ text = to_json(data, indent=2)
 client.clear_cache()
 ```
 
-当前默认缓存：代码数量、全量代码表、股本变迁、财务基础信息。实时行情、分时、成交明细、K 线默认不缓存。
+当前缓存仅用于部分 Helper 组合查询：股本变迁结果、`stock_profile_table()` 内部使用的财务批次和已验证的短线统计资源。`client.codes.count()`、`client.codes.all()`、`client.corporate.finance_batch()`、实时行情、分时、成交明细和 K 线均不缓存。
+
+股本变迁 Helper 使用 `refresh=True` 强制刷新，短线统计资源使用 `refresh_stats=True`；`client.clear_cache()` 清空上述全部 Helper 缓存。
 
 ## 常用问题
 

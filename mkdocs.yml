@@ -74,10 +74,10 @@ nav:
       - 架构: ARCHITECTURE.md
       - 调试: DEBUG_GUIDE.md
       - 变更记录: CHANGELOG.md
-      - 字段迁移: FIELD_MIGRATION.md
-      - 历史迁移: MIGRATION_FROM_OLD.md
-      - 版本升级: UPDATE_FROM_0_5_1.md
-      - 路线图: ROADMAP.md
+      - 字段迁移到 2.0: FIELD_MIGRATION.md
+      - API 迁移到 2.0: MIGRATION_FROM_OLD.md
+      - 历史 v1.0 升级说明: UPDATE_FROM_0_5_1.md
+      - 历史 v1.0 实现记录: ROADMAP.md
       - GitHub Pages: GITHUB_PAGES.md
 
 not_in_nav: |
