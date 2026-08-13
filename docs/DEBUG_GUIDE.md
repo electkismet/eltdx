@@ -23,14 +23,14 @@ from eltdx import TdxClient
 
 with TdxClient(probe_hosts=True, timeout=3) as client:
     print(client.transport.hosts[:5])
-    print(client.get_quote("sz000001")[0].last_price)
+    print(client.helpers.full_quotes("sz000001")[0].last_price)
 ```
 
 也可以手动指定主站：
 
 ```python
 with TdxClient(host="116.205.183.150:7709", timeout=3) as client:
-    print(client.get_count("sz"))
+    print(client.codes.count("sz"))
 ```
 
 ## 主站列表
@@ -84,7 +84,7 @@ client = TdxClient(heartbeat_interval=None)
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    kline = client.get_kline("day", "sz000001", count=5, include_raw=True)
+    kline = client.bars.get("sz000001", period="day", count=5, include_raw=True)
 
 print(kline.raw_payload.hex())
 print(kline.bars[0].record_hex)
@@ -108,7 +108,7 @@ print(kline.bars[0].record_hex)
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    client.get_quote("sz000001")
+    client.helpers.full_quotes("sz000001")
     print(client.transport.pending_push_count)
     print(client.transport.drain_pushes(parse=True))
 ```

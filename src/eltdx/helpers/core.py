@@ -8,10 +8,19 @@ parsing protocol frames directly. Low-level command ownership stays in
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 from eltdx.protocol.unit import ID_TO_MARKET, normalize_code
+from eltdx.equity import (
+    apply_factors_to_kline,
+    build_factor_response,
+    compute_turnover,
+    filter_equity_records,
+    filter_xdxr_records,
+    pick_equity,
+)
+from eltdx.models import Auction0925Result, QuoteRefreshRecord, QuoteSnapshot
 
 from .shortline import (
     ShortlineIndicator,
@@ -139,9 +148,142 @@ class HelperApi:
     def __init__(self, client: TdxClient) -> None:
         self._client = client
         self._shortline = ShortlineIndicatorService(client)
+        self._capital_cache: dict[str, Any] = {}
+        self._finance_cache: dict[tuple[str, ...], Any] = {}
 
     def clear_cache(self) -> None:
         self._shortline.clear_cache()
+        self._capital_cache.clear()
+        self._finance_cache.clear()
+
+    def full_quotes(self, codes: str | Sequence[str]):
+        """Return complete quotes by combining ``0x054c`` snapshots with ``0x0547`` depth."""
+        full_codes = _code_list(codes)
+        if not full_codes:
+            return []
+        results = []
+        for start in range(0, len(full_codes), 80):
+            batch = full_codes[start : start + 80]
+            page = self._client.quotes.get_snapshots(batch)
+            if isinstance(page, (list, tuple)):
+                results.extend(self._merge_quote_depths(list(page), batch))
+            else:
+                return page
+        return results
+
+    def _merge_quote_depths(self, snapshots: list[Any], codes: Sequence[str]) -> list[Any]:
+        """Merge a 0x0547 refresh page into 0x054c snapshots when five levels exist."""
+        if not snapshots or not all(isinstance(item, QuoteSnapshot) for item in snapshots):
+            return snapshots
+        try:
+            refresh = self._client.quotes.get_depth(codes)
+        except Exception:
+            return snapshots
+        records = getattr(refresh, "records", ())
+        depth_by_code = {
+            record.full_code: record
+            for record in records
+            if isinstance(record, QuoteRefreshRecord)
+            and len(record.buy_levels) >= 5
+            and len(record.sell_levels) >= 5
+        }
+        if not depth_by_code:
+            return snapshots
+        merged: list[Any] = []
+        for snapshot in snapshots:
+            depth = depth_by_code.get(snapshot.full_code)
+            if depth is None:
+                merged.append(snapshot)
+                continue
+            merged.append(
+                replace(
+                    snapshot,
+                    buy_levels=depth.buy_levels,
+                    sell_levels=depth.sell_levels,
+                    open_amount_raw=depth.open_amount_raw,
+                    open_amount_yuan=depth.open_amount_yuan,
+                )
+            )
+        return merged
+
+    def capital_changes(self, code: str, *, include_raw: bool = False, refresh: bool = False):
+        full_code = normalize_code(code)
+        if not include_raw and not refresh and full_code in self._capital_cache:
+            return self._capital_cache[full_code]
+        result = self._client.corporate.capital_changes(full_code, include_raw=include_raw)
+        if not include_raw:
+            self._capital_cache[full_code] = result
+        return result
+
+    def xdxr(self, code: str, *, refresh: bool = False):
+        return filter_xdxr_records(self.capital_changes(code, refresh=refresh))
+
+    def equity_changes(self, code: str, *, refresh: bool = False):
+        return filter_equity_records(self.capital_changes(code, refresh=refresh))
+
+    def equity(self, code: str, on=None, *, refresh: bool = False):
+        return pick_equity(self.equity_changes(code, refresh=refresh).items, on)
+
+    def turnover(self, code: str, volume: int | float, *, on=None, unit: str = "hand", refresh: bool = False) -> float:
+        return compute_turnover(self.equity(code, on=on, refresh=refresh), volume, unit=unit)
+
+    def factors(self, code: str, *, refresh: bool = False):
+        return build_factor_response(
+            self._client.bars.all(code, period="day", adjust="none"),
+            self.xdxr(code, refresh=refresh),
+        )
+
+    def local_adjusted_kline(self, code: str, *, period: str = "day", adjust: str = "qfq"):
+        base = self._client.bars.all(code, period=period, adjust="none")
+        return apply_factors_to_kline(base, self.factors(code), adjust=adjust)
+
+    def auction_0925(
+        self,
+        code: str,
+        date,
+        *,
+        page_size: int = 2000,
+        max_pages: int | None = 100,
+    ) -> Auction0925Result:
+        if page_size <= 0 or page_size > 0xFFFF:
+            raise ValueError("page_size must be between 1 and 65535")
+        if max_pages is not None and max_pages <= 0:
+            raise ValueError("max_pages must be positive or None")
+        full_code = normalize_code(code)
+        for page_number, start in enumerate(range(0, 0x10000, page_size), start=1):
+            page = self._client.trades.history(full_code, date, start=start, count=page_size)
+            tick = next((item for item in getattr(page, "ticks", ()) if item.time_minutes == 9 * 60 + 25), None)
+            if tick is not None:
+                return Auction0925Result(
+                    code=full_code,
+                    trading_date=getattr(page, "trading_date", None),
+                    has_auction_0925=True,
+                    price=tick.price,
+                    price_milli=tick.price_milli,
+                    volume=tick.volume,
+                    amount=round(tick.trade_amount_yuan, 2),
+                    status=tick.status_raw,
+                    side=tick.side,
+                    pages_used=page_number,
+                    source_mode="history_ticks_scan",
+                )
+            if not hasattr(page, "count") or page.count < page_size:
+                return Auction0925Result(
+                    code=full_code,
+                    trading_date=getattr(page, "trading_date", None),
+                    has_auction_0925=False,
+                    price=None,
+                    price_milli=None,
+                    volume=None,
+                    amount=None,
+                    status=None,
+                    side=None,
+                    pages_used=page_number,
+                    source_mode="history_ticks_no_0925",
+                )
+            if max_pages is not None and page_number >= max_pages:
+                raise RuntimeError("helpers.auction_0925 reached max_pages before a short page")
+        raise RuntimeError("helpers.auction_0925 exceeded protocol page limit")
 
     def shortline_indicators(
         self,
@@ -158,13 +300,6 @@ class HelperApi:
             refresh_stats=refresh_stats,
         )
 
-    def get_shortline_indicators(
-        self,
-        codes: str | Sequence[str],
-        **kwargs: Any,
-    ) -> ShortlineIndicatorTable:
-        return self.shortline_indicators(codes, **kwargs)
-
     def stock_profile_table(
         self,
         codes: str | Sequence[str],
@@ -175,7 +310,7 @@ class HelperApi:
         """Return quote, code-table and finance fields as one table."""
 
         full_codes = _code_list(codes)
-        quote_map = _by_full_code(self._client.get_quote(full_codes))
+        quote_map = _by_full_code(self.full_quotes(full_codes))
         security_map = self._security_map(full_codes) if include_security else {}
         finance_map = self._finance_map(full_codes) if include_finance else {}
         rows = tuple(
@@ -189,16 +324,10 @@ class HelperApi:
         )
         return StockProfileTable(codes=tuple(full_codes), rows=rows)
 
-    def get_stock_profile_table(self, codes: str | Sequence[str], **kwargs: Any) -> StockProfileTable:
-        return self.stock_profile_table(codes, **kwargs)
-
     def quote_table(self, codes: str | Sequence[str], *, include_security: bool = True) -> StockProfileTable:
         """Lightweight quote table without finance fields."""
 
         return self.stock_profile_table(codes, include_security=include_security, include_finance=False)
-
-    def get_quote_table(self, codes: str | Sequence[str], **kwargs: Any) -> StockProfileTable:
-        return self.quote_table(codes, **kwargs)
 
     def stock_topics(self, code: str) -> StockTopics:
         """Return all topics for one stock, merging topic IDs and details."""
@@ -246,9 +375,6 @@ class HelperApi:
         topics = tuple(_build_stock_topic(merged[key]) for key in order)
         return StockTopics(code=full_code, topics=topics)
 
-    def get_stock_topics(self, code: str) -> StockTopics:
-        return self.stock_topics(code)
-
     def topic_stocks(
         self,
         seed_code: str,
@@ -280,9 +406,6 @@ class HelperApi:
             rows=rows,
         )
 
-    def get_topic_stocks(self, seed_code: str, **kwargs: Any) -> TopicStockTable:
-        return self.topic_stocks(seed_code, **kwargs)
-
     def auction_data(
         self,
         code: str,
@@ -298,8 +421,8 @@ class HelperApi:
         full_code = normalize_code(code)
         trading_date = self._client.workdays.normalize(date)
         is_today = self._same_day(trading_date, None)
-        series = self._client.get_call_auction(full_code) if include_series and is_today else None
-        snapshot = self._client.get_auction_0925(full_code, trading_date) if include_snapshot else None
+        series = self._client.auctions.series(full_code) if include_series and is_today else None
+        snapshot = self.auction_0925(full_code, trading_date) if include_snapshot else None
         quote = self._first_quote(full_code) if include_quote and is_today else None
 
         resolved_pre_close = pre_close_price
@@ -329,9 +452,6 @@ class HelperApi:
             open_change_pct=_pct(open_price, resolved_pre_close),
         )
 
-    def get_auction_data(self, code: str, date=None, **kwargs: Any) -> AuctionData:
-        return self.auction_data(code, date, **kwargs)
-
     def adjusted_kline(
         self,
         code: str,
@@ -349,18 +469,18 @@ class HelperApi:
         """Fetch K-line data with plain adjust arguments."""
 
         if all_pages:
-            return self._client.get_kline_all(
-                period,
+            return self._client.bars.all(
                 code,
+                period=period,
                 adjust=adjust,
                 anchor_date=anchor_date,
                 page_size=page_size,
                 max_pages=max_pages,
                 include_raw=include_raw,
             )
-        return self._client.get_kline(
-            period,
+        return self._client.bars.get(
             code,
+            period=period,
             adjust=adjust,
             anchor_date=anchor_date,
             start=start,
@@ -368,23 +488,24 @@ class HelperApi:
             include_raw=include_raw,
         )
 
-    def get_adjusted_kline(self, code: str, **kwargs: Any):
-        return self.adjusted_kline(code, **kwargs)
-
     def _security_map(self, full_codes: Sequence[str]) -> dict[str, Any]:
         markets = sorted({code[:2] for code in full_codes})
         result: dict[str, Any] = {}
         for market in markets:
-            for item in self._client.get_codes_all(market):
+            for item in self._client.codes.all(market):
                 result[getattr(item, "full_code", f"{item.exchange}{item.code}")] = item
         return result
 
     def _finance_map(self, full_codes: Sequence[str]) -> dict[str, Any]:
-        batch = self._client.get_finance_batch(full_codes)
+        key = tuple(full_codes)
+        batch = self._finance_cache.get(key)
+        if batch is None:
+            batch = self._client.corporate.finance_batch(full_codes)
+            self._finance_cache[key] = batch
         return _by_full_code(getattr(batch, "records", ()))
 
     def _first_quote(self, full_code: str) -> Any | None:
-        quotes = self._client.get_quote(full_code)
+        quotes = self.full_quotes(full_code)
         if isinstance(quotes, Sequence) and not isinstance(quotes, (str, bytes, bytearray)):
             return quotes[0] if quotes else None
         return quotes

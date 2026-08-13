@@ -8,9 +8,6 @@ from .base import ApiBase
 
 
 class QuoteApi(ApiBase):
-    def get(self, codes: str | Sequence[str]):
-        return self.get_snapshots(codes)
-
     def get_snapshots(self, codes: str | Sequence[str]):
         code_list = [codes] if isinstance(codes, str) else list(codes)
         return self._execute("snapshots", codes=code_list)
@@ -22,7 +19,7 @@ class QuoteApi(ApiBase):
         return self._execute("legacy_quotes", codes=code_list)
 
     def get_depth(self, codes: str | Sequence[str]):
-        """Query five-level quote depth for up to 100 codes via 0x0547."""
+        """Refresh five-level quote depth through native 0x0547."""
 
         return self.refresh(codes, cursors={})
 

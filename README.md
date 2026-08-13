@@ -32,7 +32,7 @@
 
 通达信在线行情协议 Python 库。可以拿 A 股的行情、分时、成交明细、K 线、竞价、公司信息、题材信息等信息，支持 MCP 工具。
 
-> `v1.3.1` 修复北交所 `92xxxx` 无前缀代码的市场推断，并补全 MCP 自定义主站校验和客户端注册失败回滚。完整说明见 [v1.3.1 发布说明](docs/releases/v1.3.1.md)。
+> `v2.0.0` 移除 `TdxClient` 的旧版扁平旧版入口，统一使用模块化 API 和 Helpers。升级前请阅读 [v2.0.0 迁移说明](docs/releases/v2.0.0.md)。
 
 1. 本项目仅以个人学习、协议研究和非商业研究为目的进行开发。
 2. 本项目基于互联网公开信息搜集开发。
@@ -108,10 +108,10 @@ python -m pytest
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    quote = client.get_quote(["sz000001", "sh600000"])
-    bars = client.get_kline("day", "sz000001", count=30)
-    minute = client.get_minute("sz000001")
-    ticks = client.get_history_trade_day("sz000001", "2026-05-20")
+    quote = client.quotes.get_snapshots(["sz000001", "sh600000"])
+    bars = client.bars.get("sz000001", period="day", count=30)
+    minute = client.minutes.today("sz000001")
+    ticks = client.trades.all_history("sz000001", "2026-05-20")
 
 print(quote[0])
 print(bars.bars[-1])
@@ -147,30 +147,30 @@ print(f10.company_profile("000034").rows[0])
 | ------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------- |
 | 握手           | `client.session.handshake()`                               | [`0x000d`](docs/COMMANDS_7709.md#cmd-0x000d)                                                | 返回服务端日期时间、交易时段、主站名、产品标识；通常连接后自动使用                              | [文档](docs/methods/7709-握手.md)         |
 | 心跳           | `client.session.heartbeat()`                               | [`0x0004`](docs/COMMANDS_7709.md#cmd-0x0004)                                                | 返回服务端心跳响应；长连接默认后台 30 秒保活，也可手动调用                                | [文档](docs/methods/7709-心跳.md)         |
-| 代码数量         | `client.codes.count("sz")` / `get_count()`                 | [`0x044e`](docs/COMMANDS_7709.md#cmd-0x044e)                                                | 返回沪、深、北某个市场的证券数量；常用于全量拉代码表前确定规模                                | [文档](docs/methods/7709-代码数量.md)       |
-| 代码表          | `client.codes.list()` / `get_codes_all()`                  | [`0x044d`](docs/COMMANDS_7709.md#cmd-0x044d)                                                | 返回代码、名称、市场、价格精度、昨收、A 股 / ETF / 指数等本地分类                         | [文档](docs/methods/7709-代码表.md)        |
-| 批量快照         | `client.quotes.get_snapshots()` / `get_quote()`            | [`0x054c`](docs/COMMANDS_7709.md#cmd-0x054c) + [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 按代码列表返回现价、涨跌幅、成交量额、内外盘和盘口；`get_quote()` 补齐五档盘口                   | [文档](docs/methods/7709-批量快照.md)       |
-| 旧版批量行情       | `client.quotes.legacy()` / `get_legacy_quotes()`            | [`0x053e`](docs/COMMANDS_7709.md#cmd-0x053e)                                                | 按代码列表返回旧版行情、五档盘口和协议状态原始字段；便捷入口自动按 80 个代码拆批                    | [文档](docs/methods/7709-旧版批量行情.md)     |
-| 五档盘口         | `client.get_quote_depth()` / `client.quotes.get_depth()`   | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547)                                                | 用刷新接口按代码列表直接返回买一到买五 / 卖一到卖五，单次最多 100 只                           | [文档](docs/methods/7709-增量刷新推送队列.md) |
+| 代码数量         | `client.codes.count("sz")` / `client.codes.count()`                 | [`0x044e`](docs/COMMANDS_7709.md#cmd-0x044e)                                                | 返回沪、深、北某个市场的证券数量；常用于全量拉代码表前确定规模                                | [文档](docs/methods/7709-代码数量.md)       |
+| 代码表          | `client.codes.list()` / `client.codes.all()`                  | [`0x044d`](docs/COMMANDS_7709.md#cmd-0x044d)                                                | 返回代码、名称、市场、价格精度、昨收、A 股 / ETF / 指数等本地分类                         | [文档](docs/methods/7709-代码表.md)        |
+| 批量快照         | `client.quotes.get_snapshots()` / `client.helpers.full_quotes()`            | [`0x054c`](docs/COMMANDS_7709.md#cmd-0x054c) + [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 基础快照走新版接口；Helpers 组合刷新推送补齐实时五档                   | [文档](docs/methods/7709-批量快照.md)       |
+| 原生批量行情       | `client.quotes.legacy()`                              | [`0x053e`](docs/COMMANDS_7709.md#cmd-0x053e)                                                | 原生旧版完整快照，保留五档盘口和协议状态原始字段                    | [文档](docs/methods/7709-旧版批量行情.md)     |
+| 五档盘口         | `client.quotes.get_depth()`   | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547)                                                | 原生刷新接口首次请求建立五档，后续通过推送增量更新                           | [文档](docs/methods/7709-增量刷新推送队列.md) |
 | 分类行情         | `client.quotes.list_by_category()`                         | [`0x054b`](docs/COMMANDS_7709.md#cmd-0x054b)                                                | 按市场或板块分页返回行情列表；可按涨幅、价格、成交额等服务端排序                               | [文档](docs/methods/7709-分类行情.md)       |
 | 增量刷新 / 推送队列  | `client.quotes.refresh()` / `poll_push()`                  | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547)                                                | 单次刷新最多 100 只；未配对推送帧进入 push queue 供调用方读取                           | [文档](docs/methods/7709-增量刷新推送队列.md)   |
-| K 线 / 周期线    | `client.bars.get()` / `get_kline()`                        | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d)                                                | 返回 OHLC、成交量额、前收等 K 线；支持 1/5/15/30/60 分钟、日、周、月、季、年线和服务端复权/不复权参数 | [文档](docs/methods/7709-K线周期线.md)      |
-| 全量 K 线分页     | `client.bars.all()` / `get_kline_all()`                    | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d)                                                | 自动按页拉取 K 线并合并；适合补历史日线或分钟线数据                                    | [文档](docs/methods/7709-全量K线分页.md)     |
-| 当日分时         | `client.minutes.today()` / `get_minute()`                  | [`0x0537`](docs/COMMANDS_7709.md#cmd-0x0537)                                                | 返回当前交易日每分钟价格、成交量、均价等分时序列                                       | [文档](docs/methods/7709-当日分时.md)       |
-| 指定日期历史分时     | `client.minutes.history()` / `get_history_minute()`        | [`0x0fb4`](docs/COMMANDS_7709.md#cmd-0x0fb4)                                                | 按日期返回某天的分时价格和分钟成交量，适合补单日历史分时                                   | [文档](docs/methods/7709-指定日期历史分时.md)   |
+| K 线 / 周期线    | `client.bars.get()` / `client.bars.get()`                        | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d)                                                | 返回 OHLC、成交量额、前收等 K 线；支持 1/5/15/30/60 分钟、日、周、月、季、年线和服务端复权/不复权参数 | [文档](docs/methods/7709-K线周期线.md)      |
+| 全量 K 线分页     | `client.bars.all()`                    | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d)                                                | 自动按页拉取 K 线并合并；适合补历史日线或分钟线数据                                    | [文档](docs/methods/7709-全量K线分页.md)     |
+| 当日分时         | `client.minutes.today()`                  | [`0x0537`](docs/COMMANDS_7709.md#cmd-0x0537)                                                | 返回当前交易日每分钟价格、成交量、均价等分时序列                                       | [文档](docs/methods/7709-当日分时.md)       |
+| 指定日期历史分时     | `client.minutes.history()`        | [`0x0fb4`](docs/COMMANDS_7709.md#cmd-0x0fb4)                                                | 按日期返回某天的分时价格和分钟成交量，适合补单日历史分时                                   | [文档](docs/methods/7709-指定日期历史分时.md)   |
 | 近期历史分时       | `client.minutes.recent()`                                  | [`0x0feb`](docs/COMMANDS_7709.md#cmd-0x0feb)                                                | 返回服务端近期窗口内的历史分时；适合查较近交易日的分钟走势                                  | [文档](docs/methods/7709-近期历史分时.md)     |
 | 分时副图         | `client.minutes.aux()`                                     | [`0x051b`](docs/COMMANDS_7709.md#cmd-0x051b)                                                | 返回分时页下方副图数据，例如买卖力道、成交对比等序列                                     | [文档](docs/methods/7709-分时副图.md)       |
 | 小走势图         | `client.minutes.sparkline()`                               | [`0x0fd1`](docs/COMMANDS_7709.md#cmd-0x0fd1)                                                | 返回单标的小型价格走势序列，适合列表页或概览页的小图                                     | [文档](docs/methods/7709-小走势图.md)       |
-| 当日成交明细       | `client.trades.today()` / `get_trades()`                   | [`0x0fc5`](docs/COMMANDS_7709.md#cmd-0x0fc5)                                                | 返回当前交易日一条条成交记录：时间、价格、成交量、方向、状态等                                | [文档](docs/methods/7709-当日成交明细.md)     |
-| 历史成交明细       | `client.trades.history()` / `get_history_trade_day()`      | [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6)                                                | 返回指定日期一条条成交记录；支持分页拉全，包含委托笔数等扩展字段                               | [文档](docs/methods/7709-历史成交明细.md)     |
-| 集合竞价明细       | `client.auctions.series()` / `get_call_auction()`          | [`0x056a`](docs/COMMANDS_7709.md#cmd-0x056a)                                                | 返回当前交易日集合竞价阶段的价格、虚拟成交量、买卖盘等明细记录                                | [文档](docs/methods/7709-集合竞价明细.md)     |
-| 09:25 竞价成交快照 | `client.get_auction_0925()`                                | [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6)                                                | 从历史成交明细里扫描 09:25 最终成交，返回价格、成交量、成交额和方向状态                        | [文档](docs/methods/7709-0925竞价成交快照.md) |
-| 股本变迁 / GBBQ  | `client.corporate.capital_changes()` / `get_gbbq()`        | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 返回除权除息、股本变化、增发、回购等股本事件记录                                       | [文档](docs/methods/7709-股本变迁GBBQ.md)   |
-| 除权除息整理       | `client.get_xdxr()`                                        | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 从股本变迁里筛出除权除息事件，整理分红、送转、配股等字段                                   | [文档](docs/methods/7709-除权除息整理.md)     |
-| 指定日期股本       | `client.get_equity()`                                      | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 从股本变化记录中取某日期之前最近一次流通股本和总股本                                     | [文档](docs/methods/7709-指定日期股本.md)     |
-| 换手率          | `client.get_turnover()`                                    | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 用成交量和流通股本本地计算换手率；服务器不直接返回这个结果                                  | [文档](docs/methods/7709-换手率.md)        |
-| 本地复权因子       | `client.get_factors()`                                     | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d) + [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f) | 用不复权日 K 和除权除息记录计算本地前复权 / 后复权因子                                 | [文档](docs/methods/7709-本地复权因子.md)     |
-| 财务基础信息       | `client.corporate.finance_batch()` / `get_finance_batch()` | [`0x0010`](docs/COMMANDS_7709.md#cmd-0x0010)                                                | 批量返回流通股本、总股本、EPS、资产、负债、收入、利润等基础财务字段                            | [文档](docs/methods/7709-财务基础信息.md)     |
+| 当日成交明细       | `client.trades.today()` / `client.trades.all_today()`                   | [`0x0fc5`](docs/COMMANDS_7709.md#cmd-0x0fc5)                                                | 返回当前交易日成交记录，支持单页和全日分页                                | [文档](docs/methods/7709-当日成交明细.md)     |
+| 历史成交明细       | `client.trades.history()` / `client.trades.all_history()`      | [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6)                                                | 返回指定日期成交记录，支持单页和全日分页                               | [文档](docs/methods/7709-历史成交明细.md)     |
+| 集合竞价明细       | `client.auctions.series()`          | [`0x056a`](docs/COMMANDS_7709.md#cmd-0x056a)                                                | 返回当前交易日集合竞价阶段的价格、虚拟成交量、买卖盘等明细记录                                | [文档](docs/methods/7709-集合竞价明细.md)     |
+| 09:25 竞价成交快照 | `client.helpers.auction_0925()`                                | [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6)                                                | 从历史成交明细里扫描 09:25 最终成交，返回价格、成交量、成交额和方向状态                        | [文档](docs/methods/7709-0925竞价成交快照.md) |
+| 股本变迁 / GBBQ  | `client.corporate.capital_changes()` / `client.helpers.capital_changes()`        | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 返回除权除息、股本变化、增发、回购等股本事件记录                                       | [文档](docs/methods/7709-股本变迁GBBQ.md)   |
+| 除权除息整理       | `client.helpers.xdxr()`                                        | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 从股本变迁里筛出除权除息事件，整理分红、送转、配股等字段                                   | [文档](docs/methods/7709-除权除息整理.md)     |
+| 指定日期股本       | `client.helpers.equity()`                                      | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 从股本变化记录中取某日期之前最近一次流通股本和总股本                                     | [文档](docs/methods/7709-指定日期股本.md)     |
+| 换手率          | `client.helpers.turnover()`                                    | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 用成交量和流通股本本地计算换手率；服务器不直接返回这个结果                                  | [文档](docs/methods/7709-换手率.md)        |
+| 本地复权因子       | `client.helpers.factors()`                                     | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d) + [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f) | 用不复权日 K 和除权除息记录计算本地前复权 / 后复权因子                                 | [文档](docs/methods/7709-本地复权因子.md)     |
+| 财务基础信息       | `client.corporate.finance_batch()` / `client.corporate.finance_batch()` | [`0x0010`](docs/COMMANDS_7709.md#cmd-0x0010)                                                | 批量返回流通股本、总股本、EPS、资产、负债、收入、利润等基础财务字段                            | [文档](docs/methods/7709-财务基础信息.md)     |
 | 特殊品种涨跌停限制    | `client.limits.special()`                                  | [`0x0452`](docs/COMMANDS_7709.md#cmd-0x0452)                                                | 返回特殊品种涨跌停限制表；需要按表扫描后本地索引到具体代码                                  | [文档](docs/methods/7709-特殊品种涨跌停限制.md)  |
 | 服务器文件读取      | `client.resources.read()` / `download_file()` / `read_stats()` | [`0x06b9`](docs/COMMANDS_7709.md#cmd-0x06b9)                                              | 读取文件块或下载整文件，并可解析 `zhb.zip` 中的 `tdxstat.cfg` / `tdxstat2.cfg`              | [文档](docs/methods/7709-服务器文件读取.md)    |
 | 短线指标（Helper） | `client.helpers.shortline_indicators()`                    | `0x06b9 + 0x054c + 0x0547 + 0x044d + 0x052d`                                             | 按交易日对齐统计资源和实时行情，返回流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比、几天几板等 21 个字段 | [文档](docs/helpers/短线指标.md)              |
@@ -237,7 +237,7 @@ F10 返回统一是 `F10Response`。常用结果在 `response.rows`，多表结�
 from eltdx import TdxClient
 
 with TdxClient(host="116.205.183.150:7709", timeout=3) as client:
-    print(client.get_quote("sz000001"))
+    print(client.helpers.full_quotes("sz000001"))
 
 with TdxClient.from_hosts(pool_size=4, probe_hosts=True, timeout=3) as client:
     print(client.codes.count("sz"))
@@ -255,11 +255,10 @@ with TdxClient.from_hosts(pool_size=4, probe_hosts=True, timeout=3) as client:
 client = TdxClient(heartbeat_interval=None)
 ```
 
-低频数据会缓存到内存里，包括代码数量、全量代码表、股本变迁和财务基础信息。实时行情、分时、成交明细、K 线默认不缓存。
+Helpers 会把股本变迁等低频组合结果缓存到内存里；实时行情、分时、成交明细、K 线默认不缓存。
 
 ```python
-client.get_codes_all("sz", refresh=True)
-client.get_gbbq("sz000001", refresh=True)
+client.helpers.capital_changes("sz000001", refresh=True)
 client.clear_cache()
 ```
 
@@ -268,9 +267,9 @@ client.clear_cache()
 部分接口支持 `include_raw=True`，用于保留原始 payload 或单条记录 hex，方便排查字段解析问题。
 
 ```python
-gbbq = client.get_gbbq("sz000001", include_raw=True)
-bars = client.get_kline("day", "sz000001", include_raw=True)
-ticks = client.get_history_trade("sz000001", "2026-05-20", include_raw=True)
+gbbq = client.corporate.capital_changes("sz000001", include_raw=True)
+bars = client.bars.get("sz000001", period="day", include_raw=True)
+ticks = client.trades.history("sz000001", "2026-05-20", include_raw=True)
 ```
 
 返回模型可以直接转 JSON：
@@ -278,7 +277,7 @@ ticks = client.get_history_trade("sz000001", "2026-05-20", include_raw=True)
 ```python
 from eltdx import to_json, to_jsonable
 
-data = to_jsonable(client.get_quote("sz000001"))
+data = to_jsonable(client.helpers.full_quotes("sz000001"))
 text = to_json(data, indent=2)
 ```
 

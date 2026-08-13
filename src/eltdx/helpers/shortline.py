@@ -123,7 +123,10 @@ class ShortlineIndicatorService:
             previous=context.previous_trade_date,
         )
 
-        quote_map = _by_full_code(self._client.get_quote(full_codes))
+        # Shortline metrics use the same complete quote shape as the former
+        # flat helper: the snapshot is followed by a best-effort five-level
+        # refresh.
+        quote_map = _by_full_code(self._client.helpers.full_quotes(full_codes))
         security_map = _security_map(self._client, full_codes)
         rows = tuple(
             _build_indicator(
@@ -432,7 +435,7 @@ def _empty_alignment(status: str) -> dict[str, Any]:
 def _security_map(client: TdxClient, full_codes: Sequence[str]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for market in sorted({code[:2] for code in full_codes}):
-        for item in client.get_codes_all(market):
+        for item in client.codes.all(market):
             item_code = getattr(item, "full_code", None)
             if item_code in full_codes:
                 result[str(item_code)] = item

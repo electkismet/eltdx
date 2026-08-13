@@ -1413,8 +1413,14 @@ def _resource_count() -> int | None:
         if get_count(kernel32.GetCurrentProcess(), ctypes.byref(count)):
             return int(count.value)
         return None
-    fd_path = Path("/proc/self/fd")
-    return len(tuple(fd_path.iterdir())) if fd_path.exists() else None
+    # Linux exposes descriptors through /proc; macOS exposes the same view at /dev/fd.
+    for fd_path in (Path("/proc/self/fd"), Path("/dev/fd")):
+        if fd_path.exists():
+            try:
+                return len(tuple(fd_path.iterdir()))
+            except OSError:
+                continue
+    return None
 
 
 def _resource_after_gc() -> int | None:

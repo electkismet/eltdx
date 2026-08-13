@@ -212,12 +212,18 @@ class FakeClient:
         self.transport = None
         self.workdays = FakeWorkdays()
         self.quote_calls = 0
+        self.quotes = self
+        self.codes = self
+        self.helpers = self
 
-    def get_quote(self, codes):
+    def get_snapshots(self, codes):
         self.quote_calls += 1
         return [_quote()]
 
-    def get_codes_all(self, market: str):
+    def full_quotes(self, codes):
+        return self.get_snapshots(codes)
+
+    def all(self, market: str):
         return [_security()] if market == "sz" else []
 
 

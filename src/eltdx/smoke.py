@@ -64,9 +64,9 @@ def smoke_session(client: TdxClient) -> None:
 
 
 def smoke_codes(client: TdxClient) -> None:
-    counts = {market: client.get_count(market) for market in ("sh", "sz", "bj")}
+    counts = {market: client.codes.count(market) for market in ("sh", "sz", "bj")}
     assert_true(all(value > 0 for value in counts.values()), f"invalid code counts: {counts}")
-    page = client.get_codes("sz", limit=5)
+    page = client.codes.list("sz", limit=5)
     assert_true(len(page) > 0, "empty sz code page")
     ok(f"codes sh={counts['sh']} sz={counts['sz']} bj={counts['bj']} first_sz={page[0].full_code}")
 
@@ -74,10 +74,10 @@ def smoke_codes(client: TdxClient) -> None:
 def smoke_quotes(client: TdxClient, quote_count: int) -> None:
     candidates = ["sz000001", "sh600000"]
     if quote_count > len(candidates):
-        candidates.extend(client.get_a_share_codes_all())
+        candidates.extend(client.codes.all_a_shares())
     codes = list(dict.fromkeys(candidates))[:quote_count]
     assert_true(codes, "no quote test codes")
-    quotes = client.get_quote(codes)
+    quotes = client.helpers.full_quotes(codes)
     assert_true(len(quotes) == len(codes), f"quote count mismatch: {len(quotes)} != {len(codes)}")
     first = quotes[0]
     assert_true(first.full_code == codes[0], "first quote code mismatch")
@@ -87,11 +87,11 @@ def smoke_quotes(client: TdxClient, quote_count: int) -> None:
 
 
 def smoke_klines(client: TdxClient, code: str, count: int, history_date: str | None) -> str:
-    day = client.get_kline("day", code, count=count, include_raw=True)
+    day = client.bars.get(code, period="day", count=count, include_raw=True)
     assert_true(day.count > 0, "empty day kline")
     assert_true(day.raw_payload, "day kline raw payload missing")
     assert_true(day.bars[-1].record_hex, "day kline record hex missing")
-    qfq = client.get_adjusted_kline("day", code, adjust="qfq", count=count)
+    qfq = client.bars.get(code, period="day", adjust="qfq", count=count)
     assert_true(qfq.count > 0, "empty qfq kline")
     selected_date = history_date or day.bars[-1].time.date().isoformat()
     ok(f"kline day={day.count} qfq={qfq.count} history_date={selected_date}")
@@ -99,9 +99,9 @@ def smoke_klines(client: TdxClient, code: str, count: int, history_date: str | N
 
 
 def smoke_minutes(client: TdxClient, code: str, history_date: str) -> None:
-    today = client.get_minute(code, include_raw=True)
+    today = client.minutes.today(code, include_raw=True)
     assert_true(today.raw_payload, "today minute raw payload missing")
-    history = client.get_history_minute(code, history_date, include_raw=True)
+    history = client.minutes.history(code, history_date, include_raw=True)
     assert_true(history.raw_payload, "history minute raw payload missing")
     recent = client.minutes.recent(code, history_date)
     assert_true(hasattr(recent, "count"), "recent minute response missing count")
@@ -109,17 +109,17 @@ def smoke_minutes(client: TdxClient, code: str, history_date: str) -> None:
 
 
 def smoke_trades(client: TdxClient, code: str, history_date: str, count: int) -> None:
-    today = client.get_trades(code, count=count, include_raw=True)
+    today = client.trades.today(code, count=count, include_raw=True)
     assert_true(today.raw_payload, "today trade raw payload missing")
-    history = client.get_history_trade(code, history_date, count=count, include_raw=True)
+    history = client.trades.history(code, history_date, count=count, include_raw=True)
     assert_true(history.raw_payload, "history trade raw payload missing")
     ok(f"trades today={today.count} history={history.count}")
 
 
 def smoke_auctions(client: TdxClient, code: str, history_date: str) -> None:
-    series = client.get_call_auction(code, include_raw=True)
+    series = client.auctions.series(code, include_raw=True)
     assert_true(series.raw_payload, "auction raw payload missing")
-    auction_0925 = client.get_auction_0925(code, history_date, max_pages=5)
+    auction_0925 = client.helpers.auction_0925(code, history_date, max_pages=5)
     ok(f"auction series={series.count} 0925={auction_0925.has_auction_0925}")
 
 
@@ -130,24 +130,24 @@ def smoke_limits(client: TdxClient) -> None:
 
 
 def smoke_corporate(client: TdxClient, code: str) -> None:
-    gbbq = client.get_gbbq(code, include_raw=True)
+    gbbq = client.corporate.capital_changes(code, include_raw=True)
     assert_true(gbbq.raw_payload, "gbbq raw payload missing")
     finance = client.corporate.finance_batch([code])
     assert_true(finance.count == 1, "finance batch should return one record")
-    xdxr = client.get_xdxr(code)
-    equity_changes = client.get_equity_changes(code)
+    xdxr = client.helpers.xdxr(code)
+    equity_changes = client.helpers.equity_changes(code)
     ok(f"corporate gbbq={gbbq.count} finance={finance.count} xdxr={len(xdxr)} equity={equity_changes.count}")
 
 
 def smoke_deep(client: TdxClient, code: str, history_date: str) -> None:
-    all_day = client.get_kline_all("day", code, max_pages=3)
+    all_day = client.bars.all(code, period="day", max_pages=3)
     assert_true(all_day.count > 0, "empty all day kline")
-    all_trades = client.get_trades_all(code, history_date, max_pages=3)
+    all_trades = client.trades.all_history(code, history_date, max_pages=3)
     assert_true(all_trades.count > 0, "empty all history trades")
-    a_share_codes = client.get_a_share_codes_all()
-    etf_codes = client.get_etf_codes_all()
-    index_codes = client.get_index_codes_all()
-    factors = client.get_factors(code)
+    a_share_codes = client.codes.all_a_shares()
+    etf_codes = client.codes.all_etfs()
+    index_codes = client.codes.all_indices()
+    factors = client.helpers.factors(code)
     sparkline = client.minutes.sparkline(code)
     aux = client.minutes.aux(code)
     assert_true(a_share_codes and etf_codes and index_codes, "code helpers returned empty lists")

@@ -78,4 +78,4 @@ series = client.helpers.adjusted_kline(
 )
 ```
 
-`all_pages=True` 时，Helper 会调用 `client.get_kline_all()` 自动分页合并。
+`all_pages=True` 时，Helper 会调用 `client.bars.all()` 自动分页合并。

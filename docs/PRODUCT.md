@@ -56,7 +56,7 @@ with TdxClient(timeout=3) as client:
 
 ```python
 with TdxClient(host="116.205.183.150:7709", timeout=3) as client:
-    quote = client.get_quote("sz000001")
+    quote = client.helpers.full_quotes("sz000001")
 
 with TdxClient.from_hosts(pool_size=2, probe_hosts=True, timeout=3) as client:
     count = client.codes.count("sz")

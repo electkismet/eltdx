@@ -24,14 +24,14 @@ with TdxClient.in_memory() as client:
 
 ```python
 with TdxClient(host="116.205.183.150:7709", timeout=3) as client:
-    quotes = client.get_quote(["sz000001", "sh600000"])
+    quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
 ```
 
 也可以使用连接池和主站测速：
 
 ```python
 with TdxClient.from_hosts(pool_size=2, probe_hosts=True, timeout=3) as client:
-    quotes = client.get_quote(["sz000001", "sh600000"])
+    quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
 ```
 
 `probe_hosts=True` 会先用 TCP connect 测一遍候选主站，把连得上的、延迟低的排在前面。默认不开测速，避免启动时等待过久。
@@ -53,7 +53,6 @@ TdxClient(heartbeat_interval=None)
 | `hosts` | `None` | 指定多个 7709 主站 |
 | `timeout` | `8.0` | 数字 IP 或已缓存 endpoint 的端到端请求上限，覆盖排队、连接、握手、发送、响应和一次 retry |
 | `pool_size` | `1` | 连接池连接数，必须是正整数 |
-| `batch_size` | `80` | `get_quote()` 自动拆批大小 |
 | `probe_hosts` | `False` | 启动时是否先测速排序 |
 | `heartbeat_interval` | `30.0` | 后台心跳秒数；`None` 或小于等于 0 表示关闭 |
 | `max_pending_requests` | `256` | pool 中等待空闲 slot 的最大请求数；满时抛 `PoolBusyError` |
@@ -74,52 +73,36 @@ with client.transport.pin() as pinned:
 
 pin context 独占一个 slot；context 退出或 proxy `close()` 会取消未完成 wire request 并归还 lease。它不会关闭共享 pool，也不能在 pool close/reopen 后继续使用。
 
-## 便捷兼容方法
+## 组合与便捷方法
 
-这一组方法是旧版常用入口的外层包装，底层仍然调用下面的分组 API。
+这一组方法组合底层分组 API，提供分页、五档补齐、解析和本地计算等常用能力。
 
-### `get_quote(codes)`
+### `client.helpers.full_quotes(codes)`
 
-批量查询行情快照，自动按 80 个代码拆批。底层先取 `client.quotes.get_snapshots()`，再用 `0x0547` 首次刷新补齐五档盘口。
+批量查询完整五档行情，自动按 80 个代码拆批，底层组合 `0x054c` 基础快照和 `0x0547` 首次刷新。
 
 ```python
-client.get_quote(["sz000001", "sh600000"])
+client.helpers.full_quotes(["sz000001", "sh600000"])
 ```
 
-### `get_quote_depth(codes)`
+### `client.quotes.get_depth(codes)`
 
-按代码列表直接查询五档盘口，对应 `client.quotes.get_depth()` / `0x0547` 首次刷新，单次最多 100 个代码。主站对超过 100 个代码的请求只返回前 100 条，因此接口会直接拒绝超限请求，不会返回静默截断的数据。
-
-```python
-client.get_quote_depth(["sz000001", "sh600000"])
-```
-
-### `get_legacy_quotes(codes)`
-
-查询 `0x053e` 旧版批量行情，并自动按 80 个代码拆批。
+按代码列表直接发起一次 `0x0547` 刷新，首次刷新用于建立实时五档，后续可通过推送增量更新。
 
 ```python
-client.get_legacy_quotes(["sz000001", "sh600000"])
-```
-
-### `read_server_file(path, offset=0, size=30000)`
-
-通过 `0x06b9` 读取一个服务器文件块。完整文件下载和 `zhb.zip` 解析见 `client.resources`。
-
-```python
-client.read_server_file("zhb.zip", offset=0, size=30000)
+client.quotes.get_depth(["sz000001", "sh600000"])
 ```
 
 ### 代码表便捷方法
 
 ```python
-client.get_count("sz")
-client.get_codes("sz", start=0, limit=1600)
-client.get_codes_all("sz")
-client.get_a_share_codes_all()
-client.get_stock_codes_all()
-client.get_etf_codes_all()
-client.get_index_codes_all()
+client.codes.count("sz")
+client.codes.list("sz", start=0, limit=1600)
+client.codes.all("sz")
+client.codes.all_a_shares()
+client.codes.all_stocks()
+client.codes.all_etfs()
+client.codes.all_indices()
 ```
 
 其中 A 股、股票、ETF、指数过滤使用 `0x044d` 代码表解析出的 `category` 派生字段。
@@ -127,16 +110,15 @@ client.get_index_codes_all()
 ### K 线便捷方法
 
 ```python
-client.get_kline("day", "sz000001", count=30)
-client.get_kline("sz000001", "day", count=30)
-client.get_kline_all("day", "sz000001")
-client.get_adjusted_kline("day", "sz000001", adjust="qfq")
-client.get_adjusted_kline("week", "sz000001", adjust="hfq")
-client.get_adjusted_kline("day", "sz000001", adjust="fixed_qfq", anchor_date="2024-06-03")
-client.get_kline("1m", "sz000001", count=240)
+client.bars.get("sz000001", period="day", count=30)
+client.bars.all("sz000001", period="day")
+client.bars.get("sz000001", period="day", adjust="qfq")
+client.bars.get("sz000001", period="week", adjust="hfq")
+client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
+client.bars.get("sz000001", period="1m", count=240)
 ```
 
-`get_kline()` 同时支持旧版常见的 `(period, code)` 和 `(code, period)` 参数顺序。`get_adjusted_kline()` 直接使用 `0x052d` 的服务端复权参数，也可传 `anchor_date` 做定点复权；本地复权因子可用 `get_factors()` 查看。
+`client.bars.get()` 使用 `code` 位置参数和 `period` 关键字参数，直接对应 `0x052d` 的服务端复权参数；本地复权因子可用 `client.helpers.factors()` 查看。
 
 常用周期：
 
@@ -163,54 +145,54 @@ client.get_kline("1m", "sz000001", count=240)
 定点复权示例：
 
 ```python
-client.get_kline("day", "sz000001", adjust="fixed_qfq", anchor_date="2024-06-03")
-client.get_kline("day", "sz000001", adjust="fixed_hfq", anchor_date=20240603)
+client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
+client.bars.get("sz000001", period="day", adjust="fixed_hfq", anchor_date=20240603)
 ```
 
 ### 分时和成交明细便捷方法
 
 ```python
-client.get_minute("sz000001")
-client.get_history_minute("sz000001", "2026-05-20")
-client.get_trades("sz000001")
-client.get_trades("sz000001", "2026-05-20")
-client.get_trades_all("sz000001", "2026-05-20")
+client.minutes.today("sz000001")
+client.minutes.history("sz000001", "2026-05-20")
+client.trades.today("sz000001")
+client.trades.history("sz000001", "2026-05-20")
+client.trades.all_history("sz000001", "2026-05-20")
 ```
 
 成交明细别名也保留：
 
 ```python
-client.get_trade("sz000001")
-client.get_trade_all("sz000001")
-client.get_history_trade("sz000001", "2026-05-20")
-client.get_history_trade_day("sz000001", "2026-05-20")
+client.trades.today("sz000001")
+client.trades.all_today("sz000001")
+client.trades.history("sz000001", "2026-05-20")
+client.trades.all_history("sz000001", "2026-05-20")
 ```
 
 ### 集合竞价便捷方法
 
 ```python
-client.get_call_auction("sz000001")
-client.get_auction_0925("sz000001", "2026-05-20")
+client.auctions.series("sz000001")
+client.helpers.auction_0925("sz000001", "2026-05-20")
 ```
 
-`get_call_auction()` 返回 `0x056a` 当前交易日集合竞价明细。`get_auction_0925()` 从历史成交明细接口里扫描 09:25 竞价成交快照。
+`client.auctions.series()` 返回 `0x056a` 当前交易日集合竞价明细。`client.helpers.auction_0925()` 从历史成交明细接口里扫描 09:25 竞价成交快照。
 
 ### 股本变迁便捷方法
 
 ```python
-client.get_gbbq("sz000001")
-client.get_xdxr("sz000001")
-client.get_equity_changes("sz000001")
-client.get_equity("sz000001", "2026-05-20")
-client.get_turnover("sz000001", 123456, unit="hand")
-client.get_factors("sz000001")
+client.corporate.capital_changes("sz000001")
+client.helpers.xdxr("sz000001")
+client.helpers.equity_changes("sz000001")
+client.helpers.equity("sz000001", "2026-05-20")
+client.helpers.turnover("sz000001", 123456, unit="hand")
+client.helpers.factors("sz000001")
 ```
 
-`get_gbbq()` 是旧版名称，新版底层调用 `client.corporate.capital_changes()`，对应 `0x000f`。
+`client.helpers.capital_changes()` 是旧版名称，新版底层调用 `client.corporate.capital_changes()`，对应 `0x000f`。
 
-`get_xdxr()`、`get_equity_changes()`、`get_equity()` 是从 `0x000f` 返回的股本变迁记录里本地整理出来的。
+`client.helpers.xdxr()`、`client.helpers.equity_changes()`、`client.helpers.equity()` 是从 `0x000f` 返回的股本变迁记录里本地整理出来的。
 
-`get_turnover()` 使用成交量和流通股本计算换手率：
+`client.helpers.turnover()` 使用成交量和流通股本计算换手率：
 
 ```text
 换手率 = 成交股数 / 流通股本 * 100
@@ -218,30 +200,28 @@ client.get_factors("sz000001")
 
 `unit="hand"` 表示传入成交量单位是手，`unit="share"` 表示传入成交量单位是股。
 
-`get_factors()` 用不复权日 K 和除权除息记录计算本地复权因子。普通取复权 K 线时，仍推荐直接使用服务端复权参数：
+`client.helpers.factors()` 用不复权日 K 和除权除息记录计算本地复权因子。普通取复权 K 线时，仍推荐直接使用服务端复权参数：
 
 ```python
-client.get_adjusted_kline("day", "sz000001", adjust="qfq")
+client.bars.get("sz000001", period="day", adjust="qfq")
 client.bars.get("sz000001", period="day", adjust="hfq")
 ```
 
 需要研究或校验本地复权时，可以用：
 
 ```python
-client.get_local_adjusted_kline_all("day", "sz000001", adjust="qfq")
+client.helpers.local_adjusted_kline("sz000001", period="day", adjust="qfq")
 ```
 
 ### 低频数据缓存
 
-客户端默认缓存低频数据：代码数量、全量代码表、股本变迁和财务基础信息。实时行情、分时、成交明细、K 线每次按请求读取。
+Helpers 会缓存股本变迁和财务基础信息等低频组合结果；实时行情、分时、成交明细、K 线每次按请求读取。
 
 强制刷新：
 
 ```python
-client.get_count("sz", refresh=True)
-client.get_codes_all("sz", refresh=True)
-client.get_gbbq("sz000001", refresh=True)
-client.get_finance_batch(["sz000001"], refresh=True)
+client.helpers.capital_changes("sz000001", refresh=True)
+client.corporate.finance_batch(["sz000001"])
 ```
 
 清空全部缓存：
@@ -255,9 +235,9 @@ client.clear_cache()
 部分调试场景可以传 `include_raw=True`：
 
 ```python
-client.get_gbbq("sz000001", include_raw=True)
-client.get_kline("day", "sz000001", include_raw=True)
-client.get_history_trade("sz000001", "2026-05-20", include_raw=True)
+client.corporate.capital_changes("sz000001", include_raw=True)
+client.bars.get("sz000001", period="day", include_raw=True)
+client.trades.history("sz000001", "2026-05-20", include_raw=True)
 ```
 
 大多数返回模型已经保留 `raw_payload` 或单条记录的 `record_hex`，用于抓包对照和协议解析排查。
@@ -267,7 +247,7 @@ client.get_history_trade("sz000001", "2026-05-20", include_raw=True)
 ```python
 from eltdx import to_json, to_jsonable
 
-data = to_jsonable(client.get_quote("sz000001"))
+data = to_jsonable(client.helpers.full_quotes("sz000001"))
 text = to_json(data, indent=2)
 ```
 
@@ -319,18 +299,12 @@ client.codes.all("bj")
 
 ## `client.quotes`
 
-### `get_snapshots(codes)`
+### `client.quotes.get_snapshots(codes)`
 
-按显式代码列表查询批量行情快照，对应 `0x054c`。当前实盘响应只稳定确认买一 / 卖一；需要完整五档时用 `client.get_quote()`。
+按显式代码列表查询批量行情快照，对应 `0x054c`。当前实盘响应只稳定确认买一 / 卖一；需要实时完整五档时用 `client.helpers.full_quotes()` 或 `client.quotes.get_depth()`。
 
 ```python
 client.quotes.get_snapshots(["sz000001", "sh600000"])
-```
-
-别名：
-
-```python
-client.quotes.get(["sz000001", "sh600000"])
 ```
 
 ### `legacy(codes)`
@@ -359,9 +333,9 @@ client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
 
 `refresh()` 发起一次增量刷新请求。服务端主动推送帧会进入 transport 的 push queue，可用下面两个方法读取。
 
-### `get_depth(codes)`
+### `client.quotes.get_depth(codes)`
 
-按代码列表直接发起一次 `0x0547` 首次刷新，返回 `QuoteRefreshPage`，适合只关心买一到买五 / 卖一到卖五的场景。单次最多 100 个代码；超过上限会抛出 `ValueError`。
+按代码列表直接发起一次 `0x0547` 刷新，返回 `QuoteRefreshPage`。首次刷新用于建立实时五档，后续可由推送队列增量更新；单次最多 100 个代码。
 
 ```python
 client.quotes.get_depth(["sz000001", "sh600000"])

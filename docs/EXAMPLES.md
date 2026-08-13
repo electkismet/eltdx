@@ -8,7 +8,7 @@
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    quotes = client.get_quote(["sz000001", "sh600000"])
+    quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
 
 for item in quotes:
     print(item.full_code, item.last_price, item.change_pct, item.total_hand)
@@ -20,9 +20,9 @@ for item in quotes:
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    print(client.get_count("sz"))
-    print(client.get_codes("sz", start=0, limit=5))
-    print(client.get_a_share_codes_all()[:10])
+    print(client.codes.count("sz"))
+    print(client.codes.list("sz", start=0, limit=5))
+    print(client.codes.all_a_shares()[:10])
 ```
 
 ## K 线和复权 K 线
@@ -31,8 +31,8 @@ with TdxClient(timeout=3) as client:
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    day = client.get_kline("day", "sz000001", count=5)
-    qfq = client.get_adjusted_kline("day", "sz000001", adjust="qfq", count=5)
+    day = client.bars.get("sz000001", period="day", count=5)
+    qfq = client.bars.get("sz000001", period="day", adjust="qfq", count=5)
     hfq = client.bars.get("sz000001", period="day", adjust="hfq", count=5)
 
 print(day.bars[-1].time, day.bars[-1].close)
@@ -46,8 +46,8 @@ print(hfq.adjust_mode, hfq.bars[-1].close)
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    today = client.get_minute("sz000001")
-    history = client.get_history_minute("sz000001", "2026-05-20")
+    today = client.minutes.today("sz000001")
+    history = client.minutes.history("sz000001", "2026-05-20")
 
 print(today.trading_date, today.count)
 print(history.trading_date, history.points[-1].price)
@@ -59,8 +59,8 @@ print(history.trading_date, history.points[-1].price)
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    ticks = client.get_trades("sz000001", count=20)
-    auction = client.get_auction_0925("sz000001", "2026-05-20")
+    ticks = client.trades.today("sz000001", count=20)
+    auction = client.helpers.auction_0925("sz000001", "2026-05-20")
 
 print(ticks.count, ticks.ticks[0].time_label, ticks.ticks[0].price)
 print(auction.has_auction_0925, auction.price, auction.volume)
@@ -72,10 +72,10 @@ print(auction.has_auction_0925, auction.price, auction.volume)
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    gbbq = client.get_gbbq("sz000001")
-    equity = client.get_equity("sz000001", "2026-05-20")
-    turnover = client.get_turnover("sz000001", 123456, on="2026-05-20", unit="hand")
-    factors = client.get_factors("sz000001")
+    gbbq = client.corporate.capital_changes("sz000001")
+    equity = client.helpers.equity("sz000001", "2026-05-20")
+    turnover = client.helpers.turnover("sz000001", 123456, on="2026-05-20", unit="hand")
+    factors = client.helpers.factors("sz000001")
 
 print(gbbq.count)
 print(equity.float_shares, equity.total_shares)
@@ -90,7 +90,7 @@ from eltdx import TdxClient
 
 with TdxClient.from_hosts(pool_size=2, probe_hosts=True, timeout=3) as client:
     print(client.transport.hosts[:3])
-    print(client.get_quote("sz000001")[0].last_price)
+    print(client.helpers.full_quotes("sz000001")[0].last_price)
 ```
 
 ## JSON 输出
@@ -99,7 +99,7 @@ with TdxClient.from_hosts(pool_size=2, probe_hosts=True, timeout=3) as client:
 from eltdx import TdxClient, to_json
 
 with TdxClient(timeout=3) as client:
-    quotes = client.get_quote(["sz000001", "sh600000"])
+    quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
 
 print(to_json(quotes, indent=2))
 ```
@@ -127,7 +127,7 @@ print(auction.open_price, auction.open_change_pct, auction.open_amount)
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    minute = client.get_minute("sz000001", include_raw=True)
+    minute = client.minutes.today("sz000001", include_raw=True)
 
 print(minute.raw_payload.hex())
 print(minute.points[0].record_hex)

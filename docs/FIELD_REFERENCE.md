@@ -51,8 +51,8 @@
 | `inside_dish`      | 内盘          |
 | `outer_disc`       | 外盘          |
 | `open_amount_yuan` | 开盘金额，单位元    |
-| `buy_levels`       | 买盘档位；`get_quote()` 补齐五档，直接 `get_snapshots()` 为已确认一档 |
-| `sell_levels`      | 卖盘档位；`get_quote()` 补齐五档，直接 `get_snapshots()` 为已确认一档 |
+| `buy_levels`       | 买盘档位；`client.helpers.full_quotes()` 补齐五档，直接 `get_snapshots()` 为已确认一档 |
+| `sell_levels`      | 卖盘档位；`client.helpers.full_quotes()` 补齐五档，直接 `get_snapshots()` 为已确认一档 |
 | `change`           | 涨跌额，派生字段    |
 | `change_pct`       | 涨跌幅百分比，派生字段 |
 | `sum_buy_vol`      | 五档买量合计，派生字段 |

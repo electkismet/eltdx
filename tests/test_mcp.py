@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 
 from eltdx import TdxClient
+from eltdx.api.bars import BarApi
+from eltdx.api.quotes import QuoteApi
 from eltdx.f10 import F10Client
 from eltdx.mcp import (
     _ClientRegistry,
@@ -59,7 +61,7 @@ def test_mcp_quote_returns_jsonable_snapshot_and_closes(monkeypatch) -> None:
 
     monkeypatch.setattr(TdxClient, "connect", lambda self: calls.append("connect"))
     monkeypatch.setattr(TdxClient, "close", lambda self: calls.append("close"))
-    monkeypatch.setattr(TdxClient, "get_quote", lambda self, codes: [snapshot])
+    monkeypatch.setattr(QuoteApi, "get_snapshots", lambda self, codes: [snapshot])
 
     result = quote("sz000001", timeout=1)
 
@@ -110,7 +112,7 @@ def test_mcp_kline_returns_jsonable_series(monkeypatch) -> None:
 
     monkeypatch.setattr(TdxClient, "connect", lambda self: None)
     monkeypatch.setattr(TdxClient, "close", lambda self: None)
-    monkeypatch.setattr(TdxClient, "get_kline", lambda self, *args, **kwargs: series)
+    monkeypatch.setattr(BarApi, "get", lambda self, *args, **kwargs: series)
 
     result = kline("sz000001", timeout=1)
 
@@ -588,8 +590,8 @@ def test_mcp_sdk2_reuses_and_closes_client(monkeypatch) -> None:
     monkeypatch.setattr(TdxClient, "connect", lambda self: calls.append(("connect", id(self))))
     monkeypatch.setattr(TdxClient, "close", lambda self: calls.append(("close", id(self))))
     monkeypatch.setattr(
-        TdxClient,
-        "get_quote",
+        QuoteApi,
+        "get_snapshots",
         lambda self, codes: quote_clients.append(id(self)) or [{"code": codes[0]}],
     )
 

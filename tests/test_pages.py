@@ -80,10 +80,7 @@ def test_catalog_labels_every_multi_call_entry() -> None:
         assert all(set(call) == {"label", "api"} for call in item["calls"])
 
     items = {item["id"]: item for item in catalog["items"]}
-    assert items["7709-code-count"]["calls"] == [
-        {"label": "主要调用", "api": "client.codes.count(market)"},
-        {"label": "旧版兼容", "api": "client.get_count(market, refresh=False)"},
-    ]
+    assert items["7709-code-count"]["api"] == "client.codes.count(market)"
     assert [call["label"] for call in items["7709-special-limits"]["calls"]] == ["单页读取", "连续扫描"]
 
 
@@ -181,7 +178,7 @@ def test_quote_command_docs_explain_the_three_distinct_roles() -> None:
     command_map = (REPO_ROOT / "docs" / "COMMANDS_7709.md").read_text(encoding="utf-8")
     assert "## 三个行情命令的边界" in command_map
     assert "不能互换解析器" in command_map
-    assert "client.get_quote(codes)" in command_map
+    assert "client.helpers.full_quotes(codes)" in command_map
 
     expected_roles = {
         "7709-批量快照.md": "无游标的一次性基础快照",
@@ -208,7 +205,7 @@ def test_file_resource_catalog_documents_download_and_stats_parsing() -> None:
     method_doc = (REPO_ROOT / "docs" / resource["doc"]).read_text(encoding="utf-8")
 
     assert resource["protocol"].lower() == "0x06b9"
-    assert "read()" in resource["api"] and "download_file()" not in resource["api"]
+    assert "read(" in resource["api"] and "download_file()" not in resource["api"]
     assert resource["return_model"] == "FileContentChunk"
     assert helper["source"] == "Helper"
     assert all(name in helper["api"] for name in ("download_file()", "read_stats()"))

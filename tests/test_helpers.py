@@ -220,17 +220,20 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
 
     class FakeClient:
         workdays = FakeWorkdays()
+        def __init__(self):
+            self.auctions = type("Auctions", (), {"series": lambda _, code: series})()
+            self.quotes = type(
+                "Quotes",
+                (),
+                {
+                    "get_snapshots": lambda _, code: [quote],
+                    "get_depth": lambda _, code: type("Page", (), {"records": ()})(),
+                },
+            )()
 
-        def get_call_auction(self, code):
-            return series
-
-        def get_auction_0925(self, code, trading_date):
-            return snapshot
-
-        def get_quote(self, code):
-            return [quote]
-
-    result = HelperApi(FakeClient()).auction_data("000001", "2026-05-20")
+    helpers = HelperApi(FakeClient())
+    helpers.auction_0925 = lambda code, trading_date: snapshot
+    result = helpers.auction_data("000001", "2026-05-20")
 
     assert result.series is series
     assert result.snapshot_0925 is snapshot
@@ -293,17 +296,19 @@ def test_auction_data_does_not_use_today_quote_for_history_date() -> None:
 
     class FakeClient:
         workdays = FakeWorkdays()
+        def __init__(self):
+            self.quotes = type(
+                "Quotes",
+                (),
+                {
+                    "get_snapshots": lambda _, code: [quote],
+                    "get_depth": lambda _, code: type("Page", (), {"records": ()})(),
+                },
+            )()
 
-        def get_call_auction(self, code):
-            raise AssertionError("history date must not request current auction series")
-
-        def get_auction_0925(self, code, trading_date):
-            return snapshot
-
-        def get_quote(self, code):
-            return [quote]
-
-    result = HelperApi(FakeClient()).auction_data("000001", "2026-05-19")
+    helpers = HelperApi(FakeClient())
+    helpers.auction_0925 = lambda code, trading_date: snapshot
+    result = helpers.auction_data("000001", "2026-05-19")
 
     assert result.series is None
     assert result.pre_close_price is None
@@ -311,32 +316,40 @@ def test_auction_data_does_not_use_today_quote_for_history_date() -> None:
     assert result.open_amount == 135300.0
     assert result.open_change_pct is None
 
-    with_base = HelperApi(FakeClient()).auction_data("000001", "2026-05-19", pre_close_price=10.0)
+    helpers = HelperApi(FakeClient())
+    helpers.auction_0925 = lambda code, trading_date: snapshot
+    with_base = helpers.auction_data("000001", "2026-05-19", pre_close_price=10.0)
     assert with_base.open_change_pct == 10.0
 
 
 def test_adjusted_kline_helper_forwards_plain_arguments() -> None:
-    class FakeClient(TdxClient):
-        def __init__(self) -> None:
-            super().__init__(transport=None)
+    class FakeBars:
+        def __init__(self):
             self.called = None
 
-        def get_kline(self, *args, **kwargs):
+        def get(self, *args, **kwargs):
             self.called = ("get", args, kwargs)
             return "one-page"
 
-        def get_kline_all(self, *args, **kwargs):
+        def all(self, *args, **kwargs):
             self.called = ("all", args, kwargs)
             return "all-pages"
 
+    class FakeClient:
+        def __init__(self):
+            self.bars = FakeBars()
+            self.called = None
+
     client = FakeClient()
+    client.helpers = HelperApi(client)
 
     assert client.helpers.adjusted_kline("000001", period="week", adjust="hfq", count=20) == "one-page"
-    assert client.called == ("get", ("week", "000001"), {"adjust": "hfq", "anchor_date": None, "start": 0, "count": 20, "include_raw": False})
+    assert client.bars.called == ("get", ("000001",), {"period": "week", "adjust": "hfq", "anchor_date": None, "start": 0, "count": 20, "include_raw": False})
     assert client.helpers.adjusted_kline("000001", period="day", all_pages=True, page_size=100) == "all-pages"
-    assert client.called[0] == "all"
-    assert client.called[1] == ("day", "000001")
-    assert client.called[2]["page_size"] == 100
+    assert client.bars.called[0] == "all"
+    assert client.bars.called[1] == ("000001",)
+    assert client.bars.called[2]["period"] == "day"
+    assert client.bars.called[2]["page_size"] == 100
 
 
 def _finance_record() -> FinanceRecord:

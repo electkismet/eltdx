@@ -27,7 +27,7 @@
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
-    quote = client.get_quote("sz000001")
+    quote = client.helpers.full_quotes("sz000001")
 ```
 
 | 参数                   | 含义                               |
@@ -36,7 +36,6 @@ with TdxClient(timeout=3) as client:
 | `hosts`              | 多个主站，客户端按顺序尝试                    |
 | `timeout`            | 单次 socket 请求等待秒数                 |
 | `pool_size`          | 连接池连接数                           |
-| `batch_size`         | `get_quote()` 自动拆批大小，最大按 80 控制   |
 | `probe_hosts`        | 是否启动时测速主站                        |
 | `heartbeat_interval` | 自动心跳间隔秒数；传 `None` 关闭             |
 
@@ -46,7 +45,7 @@ with TdxClient(timeout=3) as client:
 
 ```python
 with TdxClient.from_hosts(pool_size=2, probe_hosts=True, timeout=3) as client:
-    quotes = client.get_quote(["sz000001", "sh600000"])
+    quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
 ```
 
 ### `TdxClient.in_memory()`
@@ -118,19 +117,17 @@ ack = client.session.heartbeat()
 
 <a id="method-codes-count"></a>
 
-### `client.codes.count(market)` / `client.get_count(market)`
+### `client.codes.count(market)`
 
 查询某个市场的证券数量，对应 `0x044e`。
 
 ```python
 count = client.codes.count("sz")
-count = client.get_count("sz")
 ```
 
 | 参数        | 含义                                |
 | --------- | --------------------------------- |
 | `market`  | `sz`、`sh`、`bj`                    |
-| `refresh` | 仅 `get_count()` 支持；为 `True` 时跳过缓存 |
 
 | 返回    | 含义      |
 | ----- | ------- |
@@ -138,13 +135,12 @@ count = client.get_count("sz")
 
 <a id="method-codes-list"></a>
 
-### `client.codes.list(market, start=0, limit=1600)` / `client.get_codes(...)`
+### `client.codes.list(market, start=0, limit=1600)`
 
 分页查询代码表，对应 `0x044d`。
 
 ```python
 items = client.codes.list("sz", start=0, limit=1600)
-items = client.get_codes("sz", start=0, limit=1600)
 ```
 
 | 参数       | 含义       |
@@ -155,13 +151,12 @@ items = client.get_codes("sz", start=0, limit=1600)
 
 <a id="method-codes-all"></a>
 
-### `client.codes.all(market)` / `client.get_codes_all(market)`
+### `client.codes.all(market)`
 
 自动分页拉取某市场全量代码表。
 
 ```python
 items = client.codes.all("sz")
-items = client.get_codes_all("sz")
 ```
 
 | 返回模型                 | 说明      |
@@ -187,35 +182,35 @@ items = client.get_codes_all("sz")
 这些方法都基于 `0x044d` 代码表的 `category` 派生字段过滤。
 
 ```python
-client.get_stock_codes_all()
-client.get_a_share_codes_all()
-client.get_etf_codes_all()
-client.get_index_codes_all()
-client.get_stock_count("sz")
-client.get_a_share_count("sz")
+client.codes.all_stocks()
+client.codes.all_a_shares()
+client.codes.all_etfs()
+client.codes.all_indices()
+client.codes.stock_count("sz")
+client.codes.a_share_count("sz")
 ```
 
 | 方法                          | 返回              |
 | --------------------------- | --------------- |
-| `get_stock_codes_all()`     | A 股 + B 股完整代码列表 |
-| `get_a_share_codes_all()`   | A 股完整代码列表       |
-| `get_etf_codes_all()`       | ETF 完整代码列表      |
-| `get_index_codes_all()`     | 指数完整代码列表        |
-| `get_stock_count(market)`   | 某市场股票数量         |
-| `get_a_share_count(market)` | 某市场 A 股数量       |
+| `all_stocks()`              | A 股 + B 股完整代码列表 |
+| `all_a_shares()`            | A 股完整代码列表       |
+| `all_etfs()`                | ETF 完整代码列表       |
+| `all_indices()`             | 指数完整代码列表       |
+| `stock_count(market)`       | 某市场股票数量         |
+| `a_share_count(market)`     | 某市场 A 股数量         |
 
 ## 行情快照和列表
 
 <a id="method-quotes-snapshots"></a>
 
-### `client.quotes.get_snapshots(codes)` / `client.get_quote(codes)`
+### `client.quotes.get_snapshots(codes)` / `client.helpers.full_quotes(codes)`
 
-按显式代码列表查询行情快照。`client.quotes.get_snapshots()` 直接对应 `0x054c`，当前实盘只稳定确认买一 / 卖一；`client.get_quote()` 会额外用 `0x0547` 首次刷新补齐五档盘口。
+按显式代码列表查询行情。`client.quotes.get_snapshots()` 直接对应 `0x054c`，当前实盘只稳定确认买一 / 卖一；`client.helpers.full_quotes()` 组合 `0x054c + 0x0547` 返回实时完整五档。
 
 ```python
 quotes = client.quotes.get_snapshots(["sz000001", "sh600000"])
-quotes = client.get_quote(["sz000001", "sh600000"])
-quote = client.get_quote("sz000001")[0]
+quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
+quote = client.helpers.full_quotes("sz000001")[0]
 ```
 
 | 参数      | 含义        |
@@ -238,7 +233,7 @@ quote = client.get_quote("sz000001")[0]
 | `amount`                                  | 成交额           |
 | `inside_dish` / `outer_disc`              | 内盘 / 外盘       |
 | `open_amount_yuan`                        | 开盘金额，单位元      |
-| `buy_levels` / `sell_levels`              | `get_snapshots()` 为已确认一档；`get_quote()` 补齐买一到买五 / 卖一到卖五 |
+| `buy_levels` / `sell_levels`              | `get_snapshots()` 为已确认一档；`client.helpers.full_quotes()` 通过 `0x0547` 补齐买一到买五 / 卖一到卖五 |
 | `tail_raw`                                | 尾部扩展原始字段      |
 
 | 派生字段           | 计算方式                             |
@@ -256,13 +251,12 @@ quote = client.get_quote("sz000001")[0]
 | `volume`          | 档位委托量     |
 | `price_delta_raw` | 协议价格差分原始值 |
 
-### `client.quotes.legacy(codes)` / `client.get_legacy_quotes(codes)`
+### `client.quotes.legacy(codes)`
 
-查询 `0x053e` 旧版批量行情。直接入口发送一次请求；客户端便捷入口自动按 80 个代码拆批。接口返回五档盘口和交易状态原始字段，不做股票筛选或状态分类。
+查询 `0x053e` 旧版批量行情。该入口直接发送一次原生请求，调用方需要自行按服务端限制分批。接口返回五档盘口和交易状态原始字段，不做股票筛选或状态分类。
 
 ```python
 quotes = client.quotes.legacy(["sz000001", "sh600000"])
-quotes = client.get_legacy_quotes(["sz000001", "sh600000"])
 ```
 
 | 返回模型 | 说明 |
@@ -271,13 +265,13 @@ quotes = client.get_legacy_quotes(["sz000001", "sh600000"])
 
 `LegacyQuote` 包含行情价、成交量额、内外盘、五档盘口、`trading_status_raw`、四个尾部原始指标以及可选的旧版尾部字段。
 
-### `client.quotes.get_depth(codes)` / `client.get_quote_depth(codes)`
+### `client.quotes.get_depth(codes)`
 
-按代码列表直接查询五档盘口，对应 `0x0547` 首次刷新。这个入口不经过 `0x054c` 快照，适合只关心买一到买五 / 卖一到卖五的场景。单次最多 100 个代码；主站会截断更大的请求，所以客户端在构包前直接拒绝超限参数。
+按代码列表直接发起一次原生 `0x0547` 刷新，首次刷新建立实时五档，后续由推送队列增量更新。
 
 ```python
 depth = client.quotes.get_depth(["sz000001", "sh600000"])
-depth = client.get_quote_depth("sz000001")
+depth = client.quotes.get_depth("sz000001")
 ```
 
 | 返回模型               | 说明             |
@@ -366,7 +360,7 @@ page = client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
 | `raw_payload`     | 原始 payload   |
 | `count`           | 记录数          |
 
-`QuoteRefreshRecord` 的主要字段和 `QuoteSnapshot` 接近：最新价、昨收、开高低、成交量额、内外盘、开盘金额、五档盘口。
+`QuoteRefreshRecord` 的主要字段和 `QuoteSnapshot` 接近；它属于增量刷新协议，档位内容以主站实际返回为准。
 
 <a id="method-quotes-push"></a>
 
@@ -384,15 +378,12 @@ page = client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
 
 <a id="method-bars-get"></a>
 
-### `client.bars.get(...)` / `client.get_kline(...)`
+### `client.bars.get(code, period="day", ...)`
 
 查询一页 K 线，对应 `0x052d`。
 
 ```python
 series = client.bars.get("sz000001", period="day", count=800)
-series = client.get_kline("day", "sz000001", count=30)
-series = client.get_kline("sz000001", "day", count=30)
-series = client.bars.get("sz000001", period="day", adjust="qfq")
 ```
 
 | 参数            | 含义                                    |
@@ -446,13 +437,12 @@ series = client.bars.get("sz000001", period="day", adjust="qfq")
 
 <a id="method-bars-all"></a>
 
-### `client.bars.all(...)` / `client.get_kline_all(...)`
+### `client.bars.all(code, period="day", ...)`
 
 自动分页拉取 K 线，直到服务端返回短页。
 
 ```python
 series = client.bars.all("sz000001", period="day")
-series = client.get_kline_all("day", "sz000001")
 ```
 
 | 参数          | 含义                |
@@ -464,14 +454,14 @@ series = client.get_kline_all("day", "sz000001")
 
 <a id="method-bars-adjusted"></a>
 
-### `client.get_adjusted_kline(...)` / `client.get_adjusted_kline_all(...)`
+### `client.bars.get(..., adjust=...)` / `client.bars.all(..., adjust=...)`
 
-兼容旧名称，实际直接调用 `0x052d` 的服务端复权参数。
+直接使用 `0x052d` 的服务端复权参数。
 
 ```python
-client.get_adjusted_kline("day", "sz000001", adjust="qfq")
-client.get_adjusted_kline_all("day", "sz000001", adjust="hfq")
-client.get_adjusted_kline("day", "sz000001", adjust="fixed_qfq", anchor_date="2024-06-03")
+client.bars.get("sz000001", period="day", adjust="qfq")
+client.bars.all("sz000001", period="day", adjust="hfq")
+client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
 ```
 
 `anchor_date` 会透传给 `0x052d`，可用于定点前复权 / 定点后复权。
@@ -480,13 +470,12 @@ client.get_adjusted_kline("day", "sz000001", adjust="fixed_qfq", anchor_date="20
 
 <a id="method-minutes-today"></a>
 
-### `client.minutes.today(code)` / `client.get_minute(code)`
+### `client.minutes.today(code)`
 
 查询当前交易日分时，对应 `0x0537`。
 
 ```python
 series = client.minutes.today("sz000001")
-series = client.get_minute("sz000001")
 ```
 
 | 返回模型           | 说明   |
@@ -515,13 +504,13 @@ series = client.get_minute("sz000001")
 
 <a id="method-minutes-history"></a>
 
-### `client.minutes.history(code, trading_date)` / `client.get_history_minute(...)`
+### `client.minutes.history(code, trading_date)`
 
 查询指定日期历史分时，对应 `0x0fb4`。
 
 ```python
 series = client.minutes.history("sz000001", "2026-05-20")
-series = client.get_history_minute("sz000001", "2026-05-20")
+series = client.minutes.history("sz000001", "2026-05-20")
 ```
 
 | 参数             | 含义                                    |
@@ -603,13 +592,13 @@ series = client.minutes.sparkline("sz000001", selector=1, window=20)
 
 <a id="method-trades-today"></a>
 
-### `client.trades.today(code, start=0, count=1800)` / `client.get_trades(code)`
+### `client.trades.today(code, start=0, count=1800)`
 
 查询当日成交明细，对应 `0x0fc5`。
 
 ```python
 page = client.trades.today("sz000001", start=0, count=1800)
-page = client.get_trades("sz000001")
+page = client.trades.today("sz000001")
 ```
 
 | 参数            | 含义             |
@@ -626,18 +615,17 @@ page = client.get_trades("sz000001")
 
 ```python
 page = client.trades.history("sz000001", "2026-05-20")
-page = client.get_trades("sz000001", "2026-05-20")
 ```
 
 <a id="method-trades-all"></a>
 
-### `client.get_trades_all(...)` / `client.get_history_trade_day(...)`
+### `client.trades.all_today(...)` / `client.trades.all_history(...)`
 
 自动分页拉取成交明细，直到服务端返回短页。
 
 ```python
-page = client.get_trades_all("sz000001")
-page = client.get_history_trade_day("sz000001", "2026-05-20")
+page = client.trades.all_today("sz000001")
+page = client.trades.all_history("sz000001", "2026-05-20")
 ```
 
 | 返回模型        | 说明          |
@@ -668,22 +656,22 @@ page = client.get_history_trade_day("sz000001", "2026-05-20")
 成交明细兼容别名：
 
 ```python
-client.get_trade("sz000001")
-client.get_trade_all("sz000001")
-client.get_history_trade("sz000001", "2026-05-20")
+client.trades.today("sz000001")
+client.trades.all_today("sz000001")
+client.trades.history("sz000001", "2026-05-20")
 ```
 
 ## 集合竞价
 
 <a id="method-auctions-series"></a>
 
-### `client.auctions.series(code)` / `client.get_call_auction(code)`
+### `client.auctions.series(code)` / `client.auctions.series(code)`
 
 查询当前交易日集合竞价明细，对应 `0x056a`。
 
 ```python
 series = client.auctions.series("sz000001")
-series = client.get_call_auction("sz000001")
+series = client.auctions.series("sz000001")
 ```
 
 | 返回模型            | 说明     |
@@ -702,12 +690,12 @@ series = client.get_call_auction("sz000001")
 
 <a id="method-auction-0925"></a>
 
-### `client.get_auction_0925(code, date)`
+### `client.helpers.auction_0925(code, date)`
 
 从历史成交明细 `0x0fc6` 里扫描 09:25 竞价成交快照。
 
 ```python
-result = client.get_auction_0925("sz000001", "2026-05-20")
+result = client.helpers.auction_0925("sz000001", "2026-05-20")
 ```
 
 | 返回模型                | 说明           |
@@ -728,20 +716,18 @@ result = client.get_auction_0925("sz000001", "2026-05-20")
 
 <a id="method-corporate-capital-changes"></a>
 
-### `client.corporate.capital_changes(code)` / `client.get_gbbq(code)`
+### `client.corporate.capital_changes(code)`
 
 查询股本变迁 / 除权相关事件，对应 `0x000f`。
 
 ```python
 block = client.corporate.capital_changes("sz000001")
-block = client.get_gbbq("sz000001")
 ```
 
 | 参数            | 含义                     |
 | ------------- | ---------------------- |
 | `code`        | 证券代码                   |
 | `include_raw` | 是否保留原始 payload         |
-| `refresh`     | 仅 `get_gbbq()` 支持；跳过缓存 |
 
 | 返回模型                 | 说明     |
 | -------------------- | ------ |
@@ -758,12 +744,12 @@ block = client.get_gbbq("sz000001")
 
 <a id="method-corporate-xdxr"></a>
 
-### `client.get_xdxr(code)`
+### `client.helpers.xdxr(code)`
 
 从 `0x000f` 股本变迁里筛出除权除息记录。
 
 ```python
-records = client.get_xdxr("sz000001")
+records = client.helpers.xdxr("sz000001")
 ```
 
 | 返回模型               | 字段                                                                           |
@@ -779,13 +765,13 @@ records = client.get_xdxr("sz000001")
 
 <a id="method-corporate-equity"></a>
 
-### `client.get_equity_changes(code)` / `client.get_equity(code, on=None)`
+### `client.helpers.equity_changes(code)` / `client.helpers.equity(code, on=None)`
 
 从股本变迁里整理股本变化记录，并取某日之前最近一条。
 
 ```python
-changes = client.get_equity_changes("sz000001")
-equity = client.get_equity("sz000001", on="2026-05-20")
+changes = client.helpers.equity_changes("sz000001")
+equity = client.helpers.equity("sz000001", on="2026-05-20")
 ```
 
 | 返回模型             | 字段                                                              |
@@ -795,12 +781,12 @@ equity = client.get_equity("sz000001", on="2026-05-20")
 
 <a id="method-corporate-turnover"></a>
 
-### `client.get_turnover(code, volume, on=None, unit="hand")`
+### `client.helpers.turnover(code, volume, on=None, unit="hand")`
 
 用成交量和流通股本计算换手率。
 
 ```python
-turnover = client.get_turnover("sz000001", 123456, on="2026-05-20", unit="hand")
+turnover = client.helpers.turnover("sz000001", 123456, on="2026-05-20", unit="hand")
 ```
 
 | 参数       | 含义                     |
@@ -814,13 +800,13 @@ turnover = client.get_turnover("sz000001", 123456, on="2026-05-20", unit="hand")
 
 <a id="method-corporate-factors"></a>
 
-### `client.get_factors(code)` / `client.get_local_adjusted_kline_all(...)`
+### `client.helpers.factors(code)` / `client.helpers.local_adjusted_kline(...)`
 
 用不复权日 K 和除权除息记录计算本地复权因子；普通取复权 K 线优先用 `0x052d` 服务端复权参数。
 
 ```python
-factors = client.get_factors("sz000001")
-local_qfq = client.get_local_adjusted_kline_all("day", "sz000001", adjust="qfq")
+factors = client.helpers.factors("sz000001")
+local_qfq = client.helpers.local_adjusted_kline("sz000001", period="day", adjust="qfq")
 ```
 
 | 返回模型             | 字段                                                                         |
@@ -832,14 +818,13 @@ local_qfq = client.get_local_adjusted_kline_all("day", "sz000001", adjust="qfq")
 
 <a id="method-corporate-finance-batch"></a>
 
-### `client.corporate.finance_batch(codes, fields=None)` / `client.get_finance_batch(codes)`
+### `client.corporate.finance_batch(codes, fields=None)`
 
 批量查询财务基础信息，对应 `0x0010`。
 
 ```python
 batch = client.corporate.finance_batch(["sz000001", "sh600000"])
 selected = client.corporate.finance_batch(["sz000001"], fields=["流通股本", "total_shares"])
-batch = client.get_finance_batch(["sz000001"])
 ```
 
 | 参数            | 含义                              |
@@ -847,7 +832,6 @@ batch = client.get_finance_batch(["sz000001"])
 | `codes`       | 单个代码或代码列表                       |
 | `fields`      | 本地字段过滤；不改变服务端请求                 |
 | `include_raw` | 是否保留原始 payload                  |
-| `refresh`     | 仅 `get_finance_batch()` 支持；跳过缓存 |
 
 | 返回模型           | 说明       |
 | -------------- | -------- |
@@ -897,12 +881,12 @@ records = client.limits.scan_special()
 
 ## 服务器文件
 
-### `client.resources.read(path, offset=0, size=30000)` / `client.read_server_file(...)`
+### `client.resources.read(path, offset=0, size=30000)`
 
 通过 `0x06b9` 读取一个服务器文件块。`path` 必须为最长 300 字节的 ASCII 路径。
 
 ```python
-chunk = client.read_server_file("zhb.zip", offset=0, size=30000)
+chunk = client.resources.read("zhb.zip", offset=0, size=30000)
 ```
 
 | 返回模型 | 说明 |
@@ -1038,7 +1022,7 @@ client.workdays.range("2026-05-01", "2026-05-31")
 ```python
 from eltdx import to_json, to_jsonable
 
-data = to_jsonable(client.get_quote("sz000001"))
+data = to_jsonable(client.helpers.full_quotes("sz000001"))
 text = to_json(data, indent=2)
 ```
 

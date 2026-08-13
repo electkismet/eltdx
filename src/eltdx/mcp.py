@@ -42,14 +42,14 @@ def quote(codes: str | Sequence[str], *, timeout: float = 8.0, host: str | None 
     """Query quote snapshots."""
 
     code_list = _validate_codes(codes)
-    return _call_once(lambda client: client.get_quote(code_list), timeout=timeout, host=host)
+    return _call_once(lambda client: client.quotes.get_snapshots(code_list), timeout=timeout, host=host)
 
 
 def quote_depth(codes: str | Sequence[str], *, timeout: float = 8.0, host: str | None = None) -> Any:
     """Query five-level quote depth."""
 
     code_list = _validate_codes(codes, maximum=_MAX_DEPTH_CODES)
-    return _call_once(lambda client: client.get_quote_depth(code_list), timeout=timeout, host=host)
+    return _call_once(lambda client: client.quotes.get_depth(code_list), timeout=timeout, host=host)
 
 
 def kline(
@@ -69,9 +69,9 @@ def kline(
     count = _bounded_int("count", count, minimum=1, maximum=_MAX_KLINE_COUNT)
     start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
     return _call_once(
-        lambda client: client.get_kline(
-            period,
+        lambda client: client.bars.get(
             code,
+            period=period,
             start=start,
             count=count,
             adjust=adjust,
@@ -94,7 +94,9 @@ def minute(
     """Query today's or one historical day's minute series."""
 
     return _call_once(
-        lambda client: client.get_minute(code, trading_date, include_raw=include_raw),
+        lambda client: client.minutes.today(code, include_raw=include_raw)
+        if trading_date is None
+        else client.minutes.history(code, trading_date, include_raw=include_raw),
         timeout=timeout,
         host=host,
     )
@@ -115,7 +117,9 @@ def trades(
     start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
     count = _bounded_int("count", count, minimum=1, maximum=_MAX_TRADE_COUNT)
     return _call_once(
-        lambda client: client.get_trades(
+        lambda client: client.trades.today(code, start=start, count=count, include_raw=include_raw)
+        if trading_date is None
+        else client.trades.history(
             code,
             trading_date,
             start=start,
@@ -137,7 +141,7 @@ def call_auction(
     """Query the current call-auction series."""
 
     return _call_once(
-        lambda client: client.get_call_auction(code, include_raw=include_raw),
+        lambda client: client.auctions.series(code, include_raw=include_raw),
         timeout=timeout,
         host=host,
     )
@@ -155,7 +159,7 @@ def auction_0925(
 
     max_pages = _optional_bounded_int("max_pages", max_pages, minimum=1, maximum=100)
     return _call_once(
-        lambda client: client.get_auction_0925(code, trading_date, max_pages=max_pages),
+        lambda client: client.helpers.auction_0925(code, trading_date, max_pages=max_pages),
         timeout=timeout,
         host=host,
     )
@@ -564,7 +568,7 @@ class _McpTools:
 
         code_list = _validate_codes(codes)
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.get_quote(code_list))
+            return _json(client.quotes.get_snapshots(code_list))
 
     def quote_depth(
         self,
@@ -572,11 +576,11 @@ class _McpTools:
         timeout: float = 8.0,
         host: str | None = None,
     ) -> dict[str, Any]:
-        """Query five-level quote depth for up to 100 securities."""
+        """Query native five-level quotes for up to 100 securities."""
 
         code_list = _validate_codes(codes, maximum=_MAX_DEPTH_CODES)
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.get_quote_depth(code_list))
+            return _json(client.quotes.get_depth(code_list))
 
     def kline(
         self,
@@ -596,9 +600,9 @@ class _McpTools:
         start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(
-                client.get_kline(
-                    period,
+                client.bars.get(
                     code,
+                    period=period,
                     start=start,
                     count=count,
                     adjust=adjust,
@@ -618,7 +622,11 @@ class _McpTools:
         """Query today's or one historical day's minute series."""
 
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.get_minute(code, trading_date, include_raw=include_raw))
+            return _json(
+                client.minutes.today(code, include_raw=include_raw)
+                if trading_date is None
+                else client.minutes.history(code, trading_date, include_raw=include_raw)
+            )
 
     def trades(
         self,
@@ -636,13 +644,9 @@ class _McpTools:
         count = _bounded_int("count", count, minimum=1, maximum=_MAX_TRADE_COUNT)
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(
-                client.get_trades(
-                    code,
-                    trading_date,
-                    start=start,
-                    count=count,
-                    include_raw=include_raw,
-                )
+                client.trades.today(code, start=start, count=count, include_raw=include_raw)
+                if trading_date is None
+                else client.trades.history(code, trading_date, start=start, count=count, include_raw=include_raw)
             )
 
     def call_auction(
@@ -655,7 +659,7 @@ class _McpTools:
         """Query the current call-auction series."""
 
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.get_call_auction(code, include_raw=include_raw))
+            return _json(client.auctions.series(code, include_raw=include_raw))
 
     def auction_0925(
         self,
@@ -669,7 +673,7 @@ class _McpTools:
 
         max_pages = _optional_bounded_int("max_pages", max_pages, minimum=1, maximum=100)
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.get_auction_0925(code, trading_date, max_pages=max_pages))
+            return _json(client.helpers.auction_0925(code, trading_date, max_pages=max_pages))
 
     def auction_data(
         self,
