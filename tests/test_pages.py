@@ -61,11 +61,11 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     items = catalog["items"]
 
     assert catalog["schema_version"] == 12
-    assert len(items) == 59
+    assert len(items) == 60
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
         "F10": 21,
-        "Helper": 17,
+        "Helper": 18,
     }
     assert len({item["id"] for item in items}) == len(items)
 
@@ -111,7 +111,7 @@ hide:
 [← 返回接口目录](../index.md){ .interface-detail-back }
 """
 
-    assert len(detail_docs) == 54
+    assert len(detail_docs) == 60
     for relative_path in detail_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert detail.startswith(expected_header), relative_path
@@ -131,13 +131,14 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
     assert Counter(layer_id for layer_id, _ in assignments.values()) == {
         "7709": 21,
         "7615": 21,
-        "helpers": 17,
+        "helpers": 18,
     }
     assert all("groups" not in layer for layer in ordered_layers)
     assert {layer["source"] for layer in ordered_layers} == {"7709", "F10", "Helper"}
     assert assignments["f10-generic-entry"] == ("7615", None)
     assert assignments["7709-turnover"] == ("helpers", None)
     assert assignments["helper-server-stats"] == ("helpers", None)
+    assert assignments["helper-server-download"] == ("helpers", None)
     assert all(item["source"] != "MCP" for item in catalog["items"])
     assert (REPO_ROOT / "docs" / "MCP.md").is_file()
 
@@ -181,7 +182,7 @@ def test_pages_catalog_has_complete_function_menus() -> None:
         "bars": 7,
         "auction-shortline": 8,
         "f10": 23,
-        "common": 5,
+        "common": 6,
     }
     assert assigned["f10-stock-info"] == "f10"
     assert assigned["7709-minute-history"] == "history"
@@ -203,6 +204,15 @@ def test_pages_catalog_wraps_long_mobile_labels() -> None:
     assert "overflow-wrap: anywhere" in mobile
     assert ".interface-stat span" in mobile
     assert "white-space: normal" in mobile
+
+
+def test_function_view_uses_function_group_instead_of_internal_category() -> None:
+    app = (REPO_ROOT / "docs" / "assets" / "interface-catalog.js").read_text(encoding="utf-8")
+
+    assert 'currentView() === "function"' in app
+    assert "functionalMeta[item.id].label" in app
+    assert 'item.category' in app
+    assert "data-directory-detail" in app
 
 
 def test_pages_catalog_covers_every_registered_7709_command() -> None:
@@ -274,18 +284,23 @@ def test_quote_catalog_keeps_each_public_entry_in_one_primary_doc() -> None:
 def test_file_resource_catalog_documents_download_and_stats_parsing() -> None:
     items = {item["id"]: item for item in _catalog()["items"]}
     resource = items["7709-file-content"]
+    download = items["helper-server-download"]
     helper = items["helper-server-stats"]
     method_doc = (REPO_ROOT / "docs" / resource["doc"]).read_text(encoding="utf-8")
 
     assert resource["protocol"].lower() == "0x06b9"
     assert "read(" in resource["api"] and "download_file()" not in resource["api"]
     assert resource["return_model"] == "FileContentChunk"
+    assert download["api"].startswith("client.resources.download_file(")
+    assert download["return_model"] == "bytes"
     assert helper["source"] == "Helper"
-    assert all(name in helper["api"] for name in ("download_file()", "read_stats()"))
+    assert helper["api"].startswith("client.resources.read_stats(")
     assert "TdxStatsResource" in helper["return_model"]
+    stats_doc = (REPO_ROOT / "docs" / helper["doc"]).read_text(encoding="utf-8")
     assert helper["doc_anchor"] == "stats-resource"
-    assert "不是新的二进制命令" in method_doc
-    assert all(name in method_doc for name in ("tdxstat.cfg", "tdxstat2.cfg", "free_float_shares_10k", "open_amount_10k"))
+    assert "不是新的二进制命令" in stats_doc
+    assert all(name in stats_doc for name in ("tdxstat.cfg", "tdxstat2.cfg"))
+    assert all(name in method_doc for name in ("FileContentChunk", "content", "chunk_len"))
 
 
 def test_shortline_indicator_docs_explain_all_field_meanings() -> None:

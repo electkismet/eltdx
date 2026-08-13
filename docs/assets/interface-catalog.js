@@ -442,8 +442,9 @@
       var layerTag = createElement("span", "interface-layer-tag", meta.layer.tag_label || meta.layer.label);
       layerTag.dataset.layer = meta.layer.id;
       directory.appendChild(layerTag);
-      var directoryDetail = meta.group ? meta.group.label : item.category;
-      directory.appendChild(createElement("small", "", directoryDetail));
+      var directoryDetail = createElement("small", "", item.category);
+      directoryDetail.dataset.directoryDetail = item.id;
+      directory.appendChild(directoryDetail);
 
       var protocol = createElement("div", "interface-cell interface-protocol");
       protocol.setAttribute("role", "cell");
@@ -539,6 +540,10 @@
     renderTree(view);
     renderScopeSelect(view);
     renderStats(view);
+    Array.prototype.forEach.call(rows.querySelectorAll("[data-directory-detail]"), function (detail) {
+      var item = itemById[detail.dataset.directoryDetail];
+      detail.textContent = view === "function" ? functionalMeta[item.id].label : item.category;
+    });
   }
 
   function applyFilters() {

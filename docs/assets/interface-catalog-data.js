@@ -131,6 +131,7 @@ window.ELTDX_CATALOG = {
           "7709-finance",
           "7709-file-content",
           "helper-stock-profile",
+          "helper-server-download",
           "helper-server-stats"
         ]
       }
@@ -509,7 +510,7 @@ window.ELTDX_CATALOG = {
     },
     {
       "id": "7709-auction-series",
-      "title": "当日集合竞价明细",
+      "title": "当日集合竞价过程快照",
       "source": "7709",
       "category": "集合竞价",
       "api": "client.auctions.series(code)",
@@ -519,33 +520,33 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x056a",
       "kind": "底层协议",
-      "summary": "返回主站当前保存的集合竞价过程快照；即使出现 09:25:00 也不是逐笔成交。",
+      "summary": "0x056A 专用集合竞价过程快照，正文说明其秒字段和通常几秒一条的返回特点；即使出现 09:25:00 也不是正式成交。",
       "return_model": "AuctionSeries",
       "doc": "methods/7709-集合竞价明细.md"
     },
     {
       "id": "7709-auction-today",
-      "title": "当日集合竞价记录",
+      "title": "当日成交明细竞价记录",
       "source": "Helper",
       "category": "集合竞价",
       "api": "client.trades.auction_today(code, ...)",
       "protocol": "0x0fc5",
       "kind": "组合接口",
-      "summary": "从当日成交明细中筛出 status=8 的集合竞价记录。",
+      "summary": "从 0x0FC5 当日成交明细中筛出 status=8 竞价事件；正文说明该记录只有分钟时间，不含秒字段。",
       "return_model": "tuple[TradeTick, ...]",
-      "doc": "methods/7709-当日成交明细.md"
+      "doc": "methods/7709-当日成交明细竞价记录.md"
     },
     {
       "id": "7709-auction-history",
-      "title": "历史集合竞价记录",
+      "title": "历史成交明细竞价记录",
       "source": "Helper",
       "category": "集合竞价",
       "api": "client.trades.auction_history(code, date, ...)",
       "protocol": "0x0fc6",
       "kind": "组合接口",
-      "summary": "从历史成交明细中筛出 status=8 的集合竞价记录。",
+      "summary": "从 0x0FC6 历史成交明细中筛出 status=8 竞价事件；正文说明该记录只有分钟时间，不含秒字段。",
       "return_model": "tuple[TradeTick, ...]",
-      "doc": "methods/7709-历史成交明细.md"
+      "doc": "methods/7709-历史成交明细竞价记录.md"
     },
     {
       "id": "7709-opening-match-today",
@@ -557,7 +558,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合接口",
       "summary": "从当日成交明细中提取 09:25 opening_match；没有记录时返回 None。",
       "return_model": "TradeTick | None",
-      "doc": "methods/7709-当日成交明细.md"
+      "doc": "methods/7709-当日0925正式撮合.md"
     },
     {
       "id": "7709-opening-match-history",
@@ -569,7 +570,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合接口",
       "summary": "从历史成交明细中提取指定日期 09:25 opening_match；没有记录时返回 None。",
       "return_model": "TradeTick | None",
-      "doc": "methods/7709-历史成交明细.md"
+      "doc": "methods/7709-历史0925正式撮合.md"
     },
     {
       "id": "7709-gbbq",
@@ -1268,33 +1269,38 @@ window.ELTDX_CATALOG = {
       "doc": "helpers/竞价数据.md"
     },
     {
-      "id": "helper-server-stats",
-      "title": "服务器文件下载与统计解析",
+      "id": "helper-server-download",
+      "title": "服务器文件下载",
       "source": "Helper",
       "category": "服务器资源",
-      "api": "client.resources.download_file() / client.resources.read_stats()",
-      "calls": [
-        {
-          "label": "完整下载",
-          "api": "client.resources.download_file(path, ...)"
-        },
-        {
-          "label": "下载并解析",
-          "api": "client.resources.read_stats(...)"
-        }
-      ],
+      "api": "client.resources.download_file(path, ...)",
       "aliases": [
         "download_file",
-        "read_stats",
-        "zhb.zip",
-        "tdxstat",
-        "服务器文件"
+        "服务器文件下载"
       ],
       "protocol": "基于 0x06b9",
       "kind": "协议封装",
-      "summary": "循环下载完整服务器文件，并可解析 zhb.zip 中的 tdxstat.cfg 与 tdxstat2.cfg。",
-      "return_model": "bytes / TdxStatsResource",
-      "doc": "methods/7709-服务器文件读取.md",
+      "summary": "循环读取服务器文件块并合并为完整 bytes。",
+      "return_model": "bytes",
+      "doc": "methods/7709-服务器文件下载.md"
+    },
+    {
+      "id": "helper-server-stats",
+      "title": "服务器统计文件解析",
+      "source": "Helper",
+      "category": "服务器资源",
+      "api": "client.resources.read_stats(path=..., ...)",
+      "aliases": [
+        "read_stats",
+        "zhb.zip",
+        "tdxstat",
+        "统计文件"
+      ],
+      "protocol": "基于 0x06b9",
+      "kind": "协议封装",
+      "summary": "下载并解析 zhb.zip 中的 tdxstat.cfg 与 tdxstat2.cfg。",
+      "return_model": "TdxStatsResource",
+      "doc": "methods/7709-服务器统计文件解析.md",
       "doc_anchor": "stats-resource"
     }
   ]

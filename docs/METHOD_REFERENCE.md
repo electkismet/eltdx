@@ -662,7 +662,7 @@ page = client.trades.all_history("sz000001", "2026-05-20")
 
 ### `client.trades.auction_today(code, ...)` / `auction_history(code, date, ...)`
 
-分别从当日 `0x0fc5` 和历史 `0x0fc6` 成交明细中筛出 `status=8` 的集合竞价记录，返回 `tuple[TradeTick, ...]`。
+分别从当日 `0x0fc5` 和历史 `0x0fc6` 成交明细中筛出 `status=8` 的集合竞价记录，返回 `tuple[TradeTick, ...]`。详细参数、时间粒度和示例见 [当日成交明细竞价记录](methods/7709-当日成交明细竞价记录.md) 与 [历史成交明细竞价记录](methods/7709-历史成交明细竞价记录.md)。
 
 ```python
 today_auction = client.trades.auction_today("sz000001")
@@ -729,7 +729,7 @@ series = client.auctions.series("sz000001")
 
 ### `client.trades.opening_match_today(code, ...)` / `opening_match_history(code, date, ...)`
 
-分别从当日 `0x0fc5` 和历史 `0x0fc6` 成交明细中筛选 09:25 的 `opening_match`。找到时返回 `TradeTick`，没有记录时返回 `None`；`status=8` 的竞价快照不会被选中。
+分别从当日 `0x0fc5` 和历史 `0x0fc6` 成交明细中筛选 09:25 的 `opening_match`。找到时返回 `TradeTick`，没有记录时返回 `None`；`status=8` 的竞价快照不会被选中。详细说明见 [当日 09:25 正式撮合](methods/7709-当日0925正式撮合.md) 与 [历史 09:25 正式撮合](methods/7709-历史0925正式撮合.md)。
 
 ```python
 today_opening = client.trades.opening_match_today("sz000001")
@@ -942,7 +942,7 @@ chunk = client.resources.read("zhb.zip", offset=0, size=30000)
 | `TdxStatRow` | 60 日 Beta、PE TTM、自由流通股本、年内涨停数和连板统计字段 |
 | `TdxStat2Row` | 当日/前一日/前两日成交额、封单额，以及当日/前一日开盘量额 |
 
-完整列号、单位和校验边界见[服务器文件读取](methods/7709-服务器文件读取.md)。
+完整列号、单位和校验边界见[服务器统计文件解析](methods/7709-服务器统计文件解析.md)。
 
 ## F10 / 资料接口
 

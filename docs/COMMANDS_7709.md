@@ -16,7 +16,7 @@
 | <a id="cmd-0x0547"></a>`0x0547` | `0x0547-行情增量刷新推送接口.md`    | 行情增量刷新 / 推送 | `client.quotes.refresh()` / `client.quotes.poll_push()` | 单次刷新和推送队列已接入 |
 | <a id="cmd-0x054b"></a>`0x054b` | `0x054b-分类行情列表分页接口.md`    | 分类行情列表      | `client.quotes.list_by_category()`                      | 核心           |
 | <a id="cmd-0x054c"></a>`0x054c` | `0x054c-显式代码批量行情快照接口.md`  | 批量行情快照      | `client.quotes.get_snapshots()`                         | 核心           |
-| <a id="cmd-0x056a"></a>`0x056a` | `0x056a-集合竞价明细接口.md`      | 当日集合竞价明细      | `client.auctions.series()` | 已接入          |
+| <a id="cmd-0x056a"></a>`0x056a` | `0x056a-集合竞价明细接口.md`      | 当日集合竞价过程快照      | `client.auctions.series()` | 已接入          |
 | <a id="cmd-0x06b9"></a>`0x06b9` | `0x06b9-服务器文件读取接口.md`     | 服务器文件读取     | `client.resources.read()` / `download_file()` / `read_stats()` | 已接入          |
 | <a id="cmd-0x0fb4"></a>`0x0fb4` | `0x0fb4-历史分时数据接口.md`      | 指定日期历史分时    | `client.minutes.history()`                              | 核心           |
 | <a id="cmd-0x0fc5"></a>`0x0fc5` | `0x0fc5-当日成交明细分页接口.md`    | 当日成交明细      | `client.trades.today()`                                   | 核心           |
