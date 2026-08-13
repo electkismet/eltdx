@@ -121,9 +121,9 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
     assignments = _taxonomy_assignments(catalog)
 
     assert [(layer["id"], layer["label"]) for layer in ordered_layers] == [
-        ("7709", "7709"),
-        ("7615", "7615"),
-        ("helpers", "Helpers"),
+        ("7709", "7709 原生协议接口"),
+        ("7615", "7615 原生 Entry 接口"),
+        ("helpers", "Helpers 封装"),
     ]
     assert Counter(layer_id for layer_id, _ in assignments.values()) == {
         "7709": 21,
@@ -255,7 +255,7 @@ def test_pages_catalog_ui_exposes_taxonomy_navigation() -> None:
     assert '"7615/features": "7615"' in app
     assert 'return "7709";' in app
     assert "catalog-tree-leaf" in app
-    assert "按 7709、7615 和 Helpers 组织" in app
+    assert "按 7709 原生协议接口、7615 原生 Entry 接口和 Helpers 封装组织" in app
     assert 'classList.toggle("interface-catalog-page"' in app
     assert ".interface-catalog-page .md-grid" in styles
     assert "\n.md-grid {\n" not in styles

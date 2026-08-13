@@ -24,7 +24,7 @@ hide:
     <header class="catalog-heading">
       <p class="catalog-kicker">接口目录</p>
       <h1 data-interface-heading>接口文档</h1>
-      <p data-interface-lead>当前公开的 7709、7615 和 Helpers 接口。每项均链接到参数、返回字段和示例说明。</p>
+      <p data-interface-lead>当前公开的 7709 原生协议接口、7615 原生 Entry 接口和 Helpers 封装。每项均链接到参数、返回字段和示例说明。</p>
     </header>
 
     <div class="interface-stats" data-interface-stats aria-label="接口来源统计"></div>
@@ -60,9 +60,9 @@ hide:
 
     <section class="catalog-scope" aria-labelledby="catalog-scope-title">
       <h2 id="catalog-scope-title">统计口径</h2>
-      <p><code>7709</code> 收录 21 个二进制命令，每项对应一个实际命令号。</p>
-      <p><code>7615</code> 将通用 Entry 和 20 个功能调用平铺在同一目录；它使用 HTTP POST 与 JSON，不属于二进制协议。</p>
-      <p><code>Helpers</code> 收录协议封装与功能接口，包括分页、拆批、协议组合、内容解析、本地整理和计算；短线指标可返回流通市值Z、开盘换手Z、竞价昨比、昨封比、封流比、几天几板等 21 个字段。</p>
+      <p><code>7709 原生协议接口</code> 收录 21 个二进制原生命令映射，每项对应一个实际命令号。</p>
+      <p><code>7615 原生 Entry 接口</code> 将通用 Entry 和 20 个功能调用平铺在同一目录；它使用 HTTP POST 与 JSON，是 7615/TQLEX 的原生调用入口。</p>
+      <p><code>Helpers 封装</code> 收录组合协议调用、分页、拆批、内容解析、本地整理和计算；短线指标可返回流通市值Z、开盘换手Z、竞价昨比、昨封比、封流比、几天几板等 21 个字段。</p>
       <p><code>MCP</code> 是面向 Agent 的工具服务，保留独立文档，但不计入接口目录分类。</p>
       <p>目录数据随静态页面发布，打开后不会连接行情主站、F10 网关或任何 eltdx 后台服务。</p>
     </section>

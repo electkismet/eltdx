@@ -56,9 +56,9 @@
   var items = catalog.items;
   var layers = catalog.taxonomy.layers;
   var sourceLabels = {
-    "7709": "7709",
-    "F10": "7615",
-    "Helper": "Helpers"
+    "7709": "7709 原生协议接口",
+    "F10": "7615 原生 Entry 接口",
+    "Helper": "Helpers 封装"
   };
   var searchInput = root.querySelector("[data-interface-search]");
   var scopeSelect = root.querySelector("[data-interface-scope-select]");
@@ -181,7 +181,7 @@
     scopes.all = {
       id: "all",
       label: "接口文档",
-      description: "共 " + items.length + " 项公开能力，按 7709、7615 和 Helpers 组织。",
+      description: "共 " + items.length + " 项公开能力，按 7709 原生协议接口、7615 原生 Entry 接口和 Helpers 封装组织。",
       count: items.length
     };
     layers.forEach(function (layer) {

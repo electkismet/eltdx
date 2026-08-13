@@ -4,26 +4,26 @@ window.ELTDX_CATALOG = {
     "layers": [
       {
         "id": "7709",
-        "label": "7709",
-        "tag_label": "7709",
-        "stat_label": "7709",
-        "description": "21 个 7709 二进制命令，每项对应一个实际命令号。",
+        "label": "7709 原生协议接口",
+        "tag_label": "7709 原生",
+        "stat_label": "7709 原生协议接口",
+        "description": "21 个 7709 原生协议接口，每项对应一个实际二进制命令。",
         "source": "7709"
       },
       {
         "id": "7615",
-        "label": "7615",
-        "tag_label": "7615",
-        "stat_label": "7615",
-        "description": "21 项 7615 / F10 调用，通用 Entry 与功能调用在同一目录平铺展示。",
+        "label": "7615 原生 Entry 接口",
+        "tag_label": "7615 原生 Entry",
+        "stat_label": "7615 原生 Entry 接口",
+        "description": "21 个 7615 原生 Entry 接口，对应 TQLEX/F10 的 HTTP Entry 与功能调用。",
         "source": "F10"
       },
       {
         "id": "helpers",
-        "label": "Helpers",
+        "label": "Helpers 封装",
         "tag_label": "Helpers",
-        "stat_label": "Helpers",
-        "description": "14 项协议封装与功能接口，包括分页、组合、整理和本地计算。",
+        "stat_label": "Helpers 封装",
+        "description": "15 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
         "source": "Helper"
       }
     ]
