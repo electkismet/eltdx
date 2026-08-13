@@ -80,6 +80,15 @@ jobs:
           else:
             notes = f"# {tag}\n\n请参考仓库文档和提交记录查看本次更新。\n"
 
+          # GitHub already displays the release name above the body. Keep the
+          # heading in the documentation page, but avoid repeating it here.
+          lines = notes.splitlines()
+          if lines and lines[0].strip() == f"# {tag}":
+            lines = lines[1:]
+            while lines and not lines[0].strip():
+              lines.pop(0)
+            notes = "\n".join(lines)
+
           Path("RELEASE_NOTES.md").write_text(notes.strip() + "\n", encoding="utf-8")
           PY
 
