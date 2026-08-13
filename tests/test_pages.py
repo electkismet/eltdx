@@ -60,7 +60,7 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     catalog = _catalog()
     items = catalog["items"]
 
-    assert catalog["schema_version"] == 7
+    assert catalog["schema_version"] == 8
     assert len(items) == 57
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
@@ -152,6 +152,14 @@ def test_pages_catalog_has_complete_function_menus() -> None:
 
     assert set(assigned) == {item["id"] for item in items}
     assert len({group["id"] for group in groups}) == len(groups)
+    assert [(group["id"], group["label"]) for group in groups[:3]] == [
+        ("basics", "基础接口（非手动调用）"),
+        ("codes", "证券代码"),
+        ("entry", "通用 Entry 调用"),
+    ]
+    assert sum(1 for group_id in assigned.values() if group_id == "basics") == 2
+    assert sum(1 for group_id in assigned.values() if group_id == "codes") == 2
+    assert sum(1 for group_id in assigned.values() if group_id == "entry") == 1
     assert sum(1 for group_id in assigned.values() if group_id == "quotes") == 15
     assert sum(1 for group_id in assigned.values() if group_id == "company") == 17
 

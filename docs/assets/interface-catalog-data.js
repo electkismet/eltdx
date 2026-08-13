@@ -1,5 +1,5 @@
 window.ELTDX_CATALOG = {
-  "schema_version": 7,
+  "schema_version": 8,
   "taxonomy": {
     "layers": [
       {
@@ -30,11 +30,25 @@ window.ELTDX_CATALOG = {
     "functional_groups": [
       {
         "id": "basics",
-        "label": "基础与会话",
-        "description": "连接主站、保活，以及证券代码表和市场规模。",
+        "label": "基础接口（非手动调用）",
+        "description": "连接时自动握手，长连接由后台定时保活，一般不需要手动调用。",
         "categories": [
-          "会话",
-          "证券代码",
+          "会话"
+        ]
+      },
+      {
+        "id": "codes",
+        "label": "证券代码",
+        "description": "查询市场证券数量，以及分页或全量读取证券代码表。",
+        "categories": [
+          "证券代码"
+        ]
+      },
+      {
+        "id": "entry",
+        "label": "通用 Entry 调用",
+        "description": "直接调用 7615/TQLEX HTTP 网关的 Entry，适合访问尚未封装的资料功能。",
+        "categories": [
           "网关"
         ]
       },
