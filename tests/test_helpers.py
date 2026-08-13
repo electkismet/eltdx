@@ -4,14 +4,12 @@ from datetime import date
 from eltdx import HelperApi, TdxClient
 from eltdx.f10 import F10Client, parse_tqlex_response
 from eltdx.models import (
-    Auction0925Result,
     AuctionSeries,
     FinanceBatch,
     FinanceRecord,
     QuoteSnapshot,
     SecurityCode,
 )
-from eltdx.protocol.constants import MAX_TRADE_PAGE_SIZE
 
 
 def test_stock_profile_table_combines_quote_security_and_finance() -> None:
@@ -197,19 +195,8 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
         limit_or_count_raw=0,
         points=(),
     )
-    snapshot = Auction0925Result(
-        code="sz000001",
-        trading_date=date(2026, 5, 20),
-        has_auction_0925=True,
-        price=11.0,
-        price_milli=11000,
-        volume=123,
-        amount=135300.0,
-        status=2,
-        side="neutral",
-        pages_used=1,
-        source_mode="history_ticks_scan",
-    )
+    from eltdx.models import TradeTick
+    snapshot = TradeTick(0, 0, 565, "09:25", None, 11.0, 11000, 123, 1, 2, "neutral", 0, 1100, event_kind="opening_match")
 
     @dataclass
     class FakeWorkdays:
@@ -223,6 +210,7 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
         workdays = FakeWorkdays()
         def __init__(self):
             self.auctions = type("Auctions", (), {"series": lambda _, code: series})()
+            self.trades = type("Trades", (), {"opening_match_today": lambda _, code: snapshot})()
             self.quotes = type(
                 "Quotes",
                 (),
@@ -234,7 +222,6 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
 
     helpers = HelperApi(FakeClient())
     helpers._current_market_date = lambda: date(2026, 5, 20)
-    helpers._auction_0925 = lambda code, trading_date, **kwargs: snapshot
     result = helpers.auction_data("000001", "2026-05-20")
 
     assert result.series is series
@@ -242,47 +229,25 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
     assert result.pre_close_price == 10.0
     assert result.open_price == 11.0
     assert result.open_volume == 123
-    assert result.open_amount == 135300.0
+    assert result.open_amount == 123 * 11.0 * 100
     assert result.open_change_pct == 10.0
 
 
 def test_auction_data_reuses_current_market_date_for_snapshot() -> None:
     from eltdx.models import TradePage
 
-    calls = []
-
     class FakeWorkdays:
         @staticmethod
-        def normalize(value=None):
-            return date(2026, 5, 20)
-
-    class FakeSession:
-        @staticmethod
-        def handshake():
-            calls.append("handshake")
-            return type(
-                "Handshake",
-                (),
-                {"server_date_1": date(2026, 5, 20), "server_date_2": date(2026, 5, 20)},
-            )()
+        def normalize(value=None): return date(2026, 5, 20)
 
     class FakeTrades:
         @staticmethod
-        def today(code, *, start, count):
-            calls.append(("today", code, start, count))
-            return TradePage(
-                exchange="sz",
-                market_id=0,
-                code="000001",
-                start=start,
-                request_count=count,
-                ticks=(),
-            )
+        def opening_match_today(code): return None
 
     class FakeClient:
         workdays = FakeWorkdays()
-        session = FakeSession()
         trades = FakeTrades()
+        session = type("Session", (), {"handshake": staticmethod(lambda: type("Handshake", (), {"server_date_1": date(2026, 5, 20), "server_date_2": date(2026, 5, 20)})())})()
 
     result = HelperApi(FakeClient()).auction_data(
         "000001",
@@ -290,9 +255,8 @@ def test_auction_data_reuses_current_market_date_for_snapshot() -> None:
         include_quote=False,
     )
 
-    assert calls == ["handshake", ("today", "sz000001", 0, MAX_TRADE_PAGE_SIZE)]
     assert result.trading_date == date(2026, 5, 20)
-    assert result.snapshot_0925.source_mode == "today_ticks_no_0925"
+    assert result.snapshot_0925 is None
 
 
 def test_auction_data_does_not_use_current_quote_for_history_date() -> None:
@@ -321,19 +285,8 @@ def test_auction_data_does_not_use_current_quote_for_history_date() -> None:
         sell_levels=(),
         tail_raw=b"",
     )
-    snapshot = Auction0925Result(
-        code="sz000001",
-        trading_date=date(2026, 5, 19),
-        has_auction_0925=True,
-        price=11.0,
-        price_milli=11000,
-        volume=123,
-        amount=135300.0,
-        status=2,
-        side="neutral",
-        pages_used=1,
-        source_mode="history_ticks_scan",
-    )
+    from eltdx.models import TradeTick
+    snapshot = TradeTick(0, 0, 565, "09:25", None, 11.0, 11000, 123, 1, 2, "neutral", 0, 1100, event_kind="opening_match")
 
     @dataclass
     class FakeWorkdays:
@@ -356,10 +309,10 @@ def test_auction_data_does_not_use_current_quote_for_history_date() -> None:
                     "get_depth": lambda _, code: type("Page", (), {"records": ()})(),
                 },
             )()
+            self.trades = type("Trades", (), {"opening_match_history": lambda _, code, trading_date: snapshot})()
 
     helpers = HelperApi(FakeClient())
     helpers._current_market_date = lambda: date(2026, 5, 20)
-    helpers._auction_0925 = lambda code, trading_date, **kwargs: snapshot
     result = helpers.auction_data("000001", "2026-05-19")
 
     assert result.series is None
@@ -370,7 +323,6 @@ def test_auction_data_does_not_use_current_quote_for_history_date() -> None:
 
     helpers = HelperApi(FakeClient())
     helpers._current_market_date = lambda: date(2026, 5, 20)
-    helpers._auction_0925 = lambda code, trading_date, **kwargs: snapshot
     with_base = helpers.auction_data("000001", "2026-05-19", pre_close_price=10.0)
     assert with_base.open_change_pct == 10.0
 

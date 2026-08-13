@@ -29,7 +29,7 @@ eltdx 2.0 移除了 `TdxClient` 上的旧版扁平 `get_*` 兼容入口。安装
 | 1.x 旧入口 | 2.0 入口 |
 | --- | --- |
 | `client.get_quote(codes)` | `client.helpers.full_quotes(codes)` |
-| `client.get_auction_0925(code, date)` | `client.helpers.auction_0925(code, date)` |
+| `client.get_auction_0925(code, date)` | `client.trades.opening_match_today(code)` 或 `client.trades.opening_match_history(code, date)` |
 | `client.get_xdxr(code)` | `client.helpers.xdxr(code)` |
 | `client.get_equity_changes(code)` | `client.helpers.equity_changes(code)` |
 | `client.get_equity(code, on=...)` | `client.helpers.equity(code, on=...)` |
@@ -39,6 +39,6 @@ eltdx 2.0 移除了 `TdxClient` 上的旧版扁平 `get_*` 兼容入口。安装
 | `client.get_adjusted_kline(...)` | `client.bars.get(..., adjust=...)` |
 | `client.get_adjusted_kline_all(...)` | `client.bars.all(..., adjust=...)` |
 
-`client.helpers.get_shortline_indicators()` 等带 `get_` 的 Helper 别名也已删除，直接使用 `client.helpers.shortline_indicators()`、`stock_profile_table()`、`quote_table()`、`stock_topics()`、`topic_stocks()`、`auction_data()` 和 `adjusted_kline()`。
+`client.helpers.get_shortline_indicators()` 等带 `get_` 的 Helper 别名也已删除，直接使用 `client.helpers.shortline_indicators()`、`stock_profile_table()`、`stock_topics()`、`topic_stocks()`、`auction_data()` 和 `adjusted_kline()`。
 
 `client.quotes.legacy()` 是原生 `0x053e` 协议接口，`client.resources.read()` 是原生 `0x06b9` 协议接口；它们不是旧版 Python 兼容层，2.0 继续保留。

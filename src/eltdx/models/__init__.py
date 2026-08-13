@@ -1,7 +1,7 @@
 """Data models exposed by eltdx."""
 
 from .response import Response
-from .auction import Auction0925Result, AuctionPoint, AuctionSeries
+from .auction import AuctionPoint, AuctionSeries
 from .corporate import (
     CapitalChangeBlock,
     CapitalChangeRecord,
@@ -32,7 +32,6 @@ from .trade import TradePage, TradeTick
 
 __all__ = [
     "AuctionPoint",
-    "Auction0925Result",
     "AuctionSeries",
     "CapitalChangeBlock",
     "CapitalChangeRecord",

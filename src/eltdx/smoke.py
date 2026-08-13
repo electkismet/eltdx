@@ -119,8 +119,8 @@ def smoke_trades(client: TdxClient, code: str, history_date: str, count: int) ->
 def smoke_auctions(client: TdxClient, code: str, history_date: str) -> None:
     series = client.auctions.series(code, include_raw=True)
     assert_true(series.raw_payload, "auction raw payload missing")
-    auction_0925 = client.helpers.auction_0925(code, history_date, max_pages=5)
-    ok(f"auction series={series.count} 0925={auction_0925.has_auction_0925}")
+    auction_0925 = client.trades.opening_match_history(code, history_date, max_pages=5)
+    ok(f"auction series={series.count} 0925={auction_0925 is not None}")
 
 
 def smoke_limits(client: TdxClient) -> None:

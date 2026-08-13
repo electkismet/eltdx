@@ -660,13 +660,13 @@ page = client.trades.all_history("sz000001", "2026-05-20")
 | `count`                                         | 混合记录条数                                       |
 | `has_more`                                      | 单页结果中 `count >= request_count` 时为 `True`，表示可能还有下一页 |
 
-### `client.trades.auction_snapshots(code, trading_date=None, ...)`
+### `client.trades.auction_today(code, ...)` / `auction_history(code, date, ...)`
 
-从当前或历史成交明细分页结果中筛出 `status=8` 的集合竞价过程快照。`trading_date=None` 使用 `0x0fc5`，传入日期使用 `0x0fc6`。
+分别从当日 `0x0fc5` 和历史 `0x0fc6` 成交明细中筛出 `status=8` 的集合竞价记录，返回 `tuple[TradeTick, ...]`。
 
 ```python
-current_snapshots = client.trades.auction_snapshots("sz000001")
-history_snapshots = client.trades.auction_snapshots("sz000001", "2026-05-20")
+today_auction = client.trades.auction_today("sz000001")
+history_auction = client.trades.auction_history("sz000001", "2026-05-20")
 ```
 
 | `TradeTick` 字段                | 含义                             |
@@ -727,27 +727,25 @@ series = client.auctions.series("sz000001")
 
 <a id="method-auction-0925"></a>
 
-### `client.helpers.auction_0925(code, date)`
+### `client.trades.opening_match_today(code, ...)` / `opening_match_history(code, date, ...)`
 
-扫描成交明细中的 09:25 正式开盘撮合：目标日期等于主站当前交易日时使用 `0x0fc5`，其他日期使用 `0x0fc6`；`status=8` 的竞价快照不会被选中。
+分别从当日 `0x0fc5` 和历史 `0x0fc6` 成交明细中筛选 09:25 的 `opening_match`。找到时返回 `TradeTick`，没有记录时返回 `None`；`status=8` 的竞价快照不会被选中。
 
 ```python
-result = client.helpers.auction_0925("sz000001", "2026-05-20")
+today_opening = client.trades.opening_match_today("sz000001")
+history_opening = client.trades.opening_match_history("sz000001", "2026-05-20")
 ```
 
 | 返回模型                | 说明           |
 | ------------------- | ------------ |
-| `Auction0925Result` | 09:25 正式撮合结果 |
+| `TradeTick | None` | 09:25 正式撮合记录；没有记录时为 `None` |
 
 | 字段                      | 含义            |
 | ----------------------- | ------------- |
-| `has_auction_0925`      | 是否找到 09:25 成交 |
-| `price` / `price_milli` | 竞价成交价         |
-| `volume`                | 成交量，单位手       |
-| `amount`                | 成交额           |
-| `status` / `side`       | 原始状态 / 方向     |
-| `pages_used`            | 扫描了几页成交明细       |
-| `source_mode`           | 数据来源说明        |
+| `price` / `price_milli` | 竞价成交价 |
+| `volume` | 成交量，单位手 |
+| `trade_amount_yuan` | 按成交量计算的成交额 |
+| `status_raw` / `side` | 原始状态 / 方向 |
 
 ## 股本变迁、除权除息和复权因子
 
@@ -1090,6 +1088,5 @@ client.clear_cache()
 - [想查询某个股票都有哪些概念板块怎么办？](helpers/个股概念板块.md)
 - [想查询某个概念板块都有哪些股票怎么办？](helpers/概念板块成分股.md)
 - [想拿集合竞价数据怎么办？](helpers/竞价数据.md)
-- [想给一批股票整理行情表怎么办？](helpers/批量行情表.md)
 - [想拿流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比和几天几板怎么办？](helpers/短线指标.md)
 - [想拿复权或不复权 K 线怎么办？](helpers/复权K线.md)

@@ -55,7 +55,10 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | `eltdx_minute` | 查询当前或指定日期分时 |
 | `eltdx_trades` | 查询一页当前或历史成交明细 |
 | `eltdx_call_auction` | 查询当前集合竞价序列 |
-| `eltdx_auction_0925` | 查询指定日期 09:25 竞价成交快照 |
+| `eltdx_auction_today` | 查询当日成交明细中的集合竞价记录 |
+| `eltdx_auction_history` | 查询历史成交明细中的集合竞价记录 |
+| `eltdx_opening_match_today` | 查询当日 09:25 正式撮合 |
+| `eltdx_opening_match_history` | 查询历史 09:25 正式撮合 |
 | `eltdx_auction_data` | 汇总竞价序列、09:25 快照和实时行情 |
 
 ### 汇总与短线指标

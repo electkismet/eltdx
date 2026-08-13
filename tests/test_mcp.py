@@ -536,7 +536,7 @@ def test_mcp_sdk2_lists_tools_and_reads_resources() -> None:
         async with Client(create_mcp_server()) as client:
             tools = await client.list_tools()
             tool_names = {tool.name for tool in tools.tools}
-            assert len(tool_names) == 17
+            assert len(tool_names) == 20
             assert {
                 "eltdx_quote",
                 "eltdx_kline",
@@ -544,7 +544,12 @@ def test_mcp_sdk2_lists_tools_and_reads_resources() -> None:
                 "eltdx_trades",
                 "eltdx_shortline_indicators",
                 "eltdx_docs_index",
+                "eltdx_auction_today",
+                "eltdx_auction_history",
+                "eltdx_opening_match_today",
+                "eltdx_opening_match_history",
             } <= tool_names
+            assert "eltdx_auction_0925" not in tool_names
             assert all("self" not in tool.input_schema.get("properties", {}) for tool in tools.tools)
             assert all(tool.output_schema is not None for tool in tools.tools)
 
@@ -578,7 +583,7 @@ def test_mcp_sdk2_real_stdio_process() -> None:
         )
         async with Client(stdio_client(parameters), mode="legacy") as client:
             tools = await client.list_tools()
-            assert len(tools.tools) == 17
+            assert len(tools.tools) == 20
             result = await client.call_tool("eltdx_docs_index", {})
             assert result.structured_content["MCP"] == "eltdx://docs/mcp"
             document = await client.read_resource("eltdx://docs/mcp")

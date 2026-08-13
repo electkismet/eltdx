@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,18 +44,3 @@ class AuctionSeries:
     @property
     def count(self) -> int:
         return len(self.points)
-
-
-@dataclass(frozen=True, slots=True)
-class Auction0925Result:
-    code: str
-    trading_date: date | None
-    has_auction_0925: bool
-    price: float | None
-    price_milli: int | None
-    volume: int | None
-    amount: float | None
-    status: int | None
-    side: str | None
-    pages_used: int
-    source_mode: str

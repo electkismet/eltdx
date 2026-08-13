@@ -51,7 +51,7 @@
 | 成交数据   | 当日成交明细、历史成交明细、当日集合竞价明细、09:25 正式撮合           | `client.trades`、`client.auctions`  |
 | 公司基础   | 股本变迁、除权除息、财务基础信息、特殊品种涨跌停限制                  | `client.corporate`、`client.limits` |
 | F10 资料 | 公司概况、热点题材、公告、新闻、研报、财务报表、估值、主营构成             | `client.f10` 或 `F10Client`         |
-| 常用场景   | 股票信息汇总、短线指标（流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比、几天几板等）、个股概念板块、概念板块成分股、竞价数据、批量行情表、复权/不复权 K 线 | `client.helpers`                   |
+| 常用场景   | 股票信息汇总、短线指标（流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比、几天几板等）、个股概念板块、概念板块成分股、竞价数据、复权/不复权 K 线 | `client.helpers`                   |
 | 工具能力   | 连接池、主站测速、自动心跳、低频数据缓存、JSON 序列化、交易日工具、MCP 工具服务 | `TdxClient`、`WorkdayService`、`eltdx-mcp` |
 
 完整接口目录见 [GitHub Pages](https://electkismet.github.io/eltdx/)。调用方法和返回字段看 [METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md)，常用问题入口看 [docs/helpers/README.md](docs/helpers/README.md)，完整 API 看 [API_REFERENCE.md](docs/API_REFERENCE.md)，字段总表看 [FIELD_REFERENCE.md](docs/FIELD_REFERENCE.md)，F10 资料看 [F10_7615.md](docs/F10_7615.md)，MCP 工具看 [MCP.md](docs/MCP.md)。
@@ -164,7 +164,7 @@ print(f10.company_profile("000034").rows[0])
 | 当日成交明细       | `client.trades.today(code, ...)` / `client.trades.all_today(code, ...)`                   | [`0x0fc5`](docs/COMMANDS_7709.md#cmd-0x0fc5)                                                | `today()` 返回一页，`all_today()` 自动翻页返回完整明细；均包含普通成交、竞价快照和 09:25 正式撮合                       | [文档](docs/methods/7709-当日成交明细.md)     |
 | 历史成交明细       | `client.trades.history(code, date, ...)` / `client.trades.all_history(code, date, ...)`      | [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6)                                                | `history()` 返回一页，`all_history()` 自动翻页返回指定交易日完整明细                      | [文档](docs/methods/7709-历史成交明细.md)     |
 | 当日集合竞价明细   | `client.auctions.series()`          | [`0x056a`](docs/COMMANDS_7709.md#cmd-0x056a)                                                | 返回主站当前保存的竞价过程快照；可能覆盖到 `09:25:00`，但仍不是逐笔成交                       | [文档](docs/methods/7709-集合竞价明细.md)     |
-| 09:25 正式撮合     | `client.helpers.auction_0925()`                                | [`0x0fc5`/`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc5)                                                | 目标日期等于主站当前交易日时扫描 `0x0fc5`，否则扫描 `0x0fc6`，只取 `opening_match` | [文档](docs/methods/7709-0925竞价成交快照.md) |
+| 当日 / 历史 09:25 正式撮合 | `client.trades.opening_match_today()` / `opening_match_history()` | [`0x0fc5`](docs/COMMANDS_7709.md#cmd-0x0fc5) / [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6) | 分别从当日或历史成交明细中提取 `opening_match` | [文档](docs/methods/7709-0925竞价成交快照.md) |
 | 股本变迁 / GBBQ  | `client.corporate.capital_changes()` / `client.helpers.capital_changes()`        | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 返回除权除息、股本变化、增发、回购等股本事件记录                                       | [文档](docs/methods/7709-股本变迁GBBQ.md)   |
 | 除权除息整理       | `client.helpers.xdxr()`                                        | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 从股本变迁里筛出除权除息事件，整理分红、送转、配股等字段                                   | [文档](docs/methods/7709-除权除息整理.md)     |
 | 指定日期股本       | `client.helpers.equity()`                                      | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 从股本变化记录中取某日期之前最近一次流通股本和总股本                                     | [文档](docs/methods/7709-指定日期股本.md)     |
@@ -346,7 +346,6 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 - [想查询某个股票都有哪些概念板块怎么办？](docs/helpers/个股概念板块.md)
 - [想查询某个概念板块都有哪些股票怎么办？](docs/helpers/概念板块成分股.md)
 - [想拿集合竞价数据怎么办？](docs/helpers/竞价数据.md)
-- [想给一批股票整理行情表怎么办？](docs/helpers/批量行情表.md)
 - [想拿流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比和几天几板怎么办？](docs/helpers/短线指标.md)
 - [想拿复权或不复权 K 线怎么办？](docs/helpers/复权K线.md)
 

@@ -23,7 +23,7 @@ window.ELTDX_CATALOG = {
         "label": "Helpers 封装",
         "tag_label": "Helpers",
         "stat_label": "Helpers 封装",
-        "description": "15 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
+        "description": "17 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
         "source": "Helper"
       }
     ],
@@ -59,8 +59,7 @@ window.ELTDX_CATALOG = {
           "7709-minute-today",
           "7709-minute-aux",
           "7709-sparkline",
-          "7709-trades-today",
-          "helper-quote-table"
+          "7709-trades-today"
         ]
       },
       {
@@ -93,7 +92,10 @@ window.ELTDX_CATALOG = {
         "description": "集合竞价过程、09:25 正式撮合、竞价整理、换手率和短线指标。",
         "item_ids": [
           "7709-auction-series",
-          "7709-auction-0925",
+          "7709-auction-today",
+          "7709-auction-history",
+          "7709-opening-match-today",
+          "7709-opening-match-history",
           "7709-turnover",
           "helper-shortline-indicators",
           "helper-auction-data"
@@ -522,20 +524,52 @@ window.ELTDX_CATALOG = {
       "doc": "methods/7709-集合竞价明细.md"
     },
     {
-      "id": "7709-auction-0925",
-      "title": "09:25 正式撮合",
+      "id": "7709-auction-today",
+      "title": "当日集合竞价记录",
       "source": "Helper",
       "category": "集合竞价",
-      "api": "client.helpers.auction_0925(code, date)",
-      "aliases": [
-        "开盘竞价",
-        "925"
-      ],
-      "protocol": "主站当前交易日 0x0fc5，其他日期 0x0fc6",
-      "kind": "功能接口",
-      "summary": "从当前或历史成交明细中扫描 09:25 opening_match，忽略 status=8 竞价快照。",
-      "return_model": "Auction0925Result",
-      "doc": "methods/7709-0925竞价成交快照.md"
+      "api": "client.trades.auction_today(code, ...)",
+      "protocol": "0x0fc5",
+      "kind": "组合接口",
+      "summary": "从当日成交明细中筛出 status=8 的集合竞价记录。",
+      "return_model": "tuple[TradeTick, ...]",
+      "doc": "methods/7709-当日成交明细.md"
+    },
+    {
+      "id": "7709-auction-history",
+      "title": "历史集合竞价记录",
+      "source": "Helper",
+      "category": "集合竞价",
+      "api": "client.trades.auction_history(code, date, ...)",
+      "protocol": "0x0fc6",
+      "kind": "组合接口",
+      "summary": "从历史成交明细中筛出 status=8 的集合竞价记录。",
+      "return_model": "tuple[TradeTick, ...]",
+      "doc": "methods/7709-历史成交明细.md"
+    },
+    {
+      "id": "7709-opening-match-today",
+      "title": "当日 09:25 正式撮合",
+      "source": "Helper",
+      "category": "集合竞价",
+      "api": "client.trades.opening_match_today(code, ...)",
+      "protocol": "0x0fc5",
+      "kind": "组合接口",
+      "summary": "从当日成交明细中提取 09:25 opening_match；没有记录时返回 None。",
+      "return_model": "TradeTick | None",
+      "doc": "methods/7709-当日成交明细.md"
+    },
+    {
+      "id": "7709-opening-match-history",
+      "title": "历史 09:25 正式撮合",
+      "source": "Helper",
+      "category": "集合竞价",
+      "api": "client.trades.opening_match_history(code, date, ...)",
+      "protocol": "0x0fc6",
+      "kind": "组合接口",
+      "summary": "从历史成交明细中提取指定日期 09:25 opening_match；没有记录时返回 None。",
+      "return_model": "TradeTick | None",
+      "doc": "methods/7709-历史成交明细.md"
     },
     {
       "id": "7709-gbbq",
@@ -1142,22 +1176,6 @@ window.ELTDX_CATALOG = {
       "summary": "合并行情快照、代码表和财务基础信息，形成股票表头信息。",
       "return_model": "StockProfileTable",
       "doc": "helpers/股票信息汇总.md"
-    },
-    {
-      "id": "helper-quote-table",
-      "title": "批量行情表",
-      "source": "Helper",
-      "category": "股票与行情",
-      "api": "client.helpers.quote_table(codes)",
-      "aliases": [
-        "quote_table",
-        "行情表"
-      ],
-      "protocol": "0x054c + 0x044d",
-      "kind": "组合能力",
-      "summary": "合并批量行情快照和代码表，快速整理一组证券的行情表。",
-      "return_model": "StockProfileTable",
-      "doc": "helpers/批量行情表.md"
     },
     {
       "id": "helper-shortline-indicators",

@@ -836,7 +836,7 @@ def test_trades_all_history_uses_server_page_limit_without_losing_early_ticks() 
     assert page.opening_matches == (opening,)
 
 
-def test_auction_0925_from_history_trades() -> None:
+def test_trade_event_specific_helpers_split_today_and_history_sources() -> None:
     from eltdx.models import TradePage, TradeTick
 
     tick = TradeTick(
@@ -884,16 +884,11 @@ def test_auction_0925_from_history_trades() -> None:
                 trading_date=date(2026, 5, 20),
             )
 
-    result = TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-05-20")
-
-    assert result.code == "sz000001"
-    assert result.has_auction_0925 is True
-    assert result.price == 11.11
-    assert result.amount == 11.11 * 123 * 100
-    assert result.source_mode == "history_ticks_scan"
+    result = TdxClient(transport=FakeTransport()).trades.opening_match_history("000001", "2026-05-20")
+    assert result is tick
 
 
-def test_auction_0925_uses_current_ticks_for_current_market_date() -> None:
+def test_trade_event_specific_helpers_return_none_when_no_opening_match() -> None:
     from eltdx.models import TradePage, TradeTick
 
     tick = TradeTick(
@@ -924,12 +919,6 @@ def test_auction_0925_uses_current_ticks_for_current_market_date() -> None:
             return "pong"
 
         def execute(self, command: int, payload=None):
-            if command == 0x000D:
-                return type(
-                    "Handshake",
-                    (),
-                    {"server_date_1": date(2026, 5, 20), "server_date_2": date(2026, 5, 20)},
-                )()
             assert command == 0x0FC5
             return TradePage(
                 exchange="sz",
@@ -937,20 +926,15 @@ def test_auction_0925_uses_current_ticks_for_current_market_date() -> None:
                 code="000001",
                 start=payload["start"],
                 request_count=payload["count"],
-                ticks=(tick,),
+                ticks=(),
             )
 
-    result = TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-05-20")
-
-    assert result.has_auction_0925 is True
-    assert result.source_mode == "today_ticks_scan"
-    assert result.trading_date == date(2026, 5, 20)
+    result = TdxClient(transport=FakeTransport()).trades.opening_match_today("000001")
+    assert result is None
 
 
-def test_auction_0925_does_not_treat_calendar_today_as_current_market_date() -> None:
+def test_trade_event_specific_helpers_use_status_8_and_opening_match_filters() -> None:
     from eltdx.models import TradePage
-
-    calls = []
 
     class FakeTransport:
         def connect(self) -> None:
@@ -963,15 +947,7 @@ def test_auction_0925_does_not_treat_calendar_today_as_current_market_date() -> 
             return "pong"
 
         def execute(self, command: int, payload=None):
-            calls.append((command, payload))
-            if command == 0x000D:
-                return type(
-                    "Handshake",
-                    (),
-                    {"server_date_1": date(2026, 8, 13), "server_date_2": date(2026, 8, 13)},
-                )()
             assert command == 0x0FC6
-            assert payload["trading_date"] == date(2026, 8, 14)
             return TradePage(
                 exchange="sz",
                 market_id=0,
@@ -982,34 +958,10 @@ def test_auction_0925_does_not_treat_calendar_today_as_current_market_date() -> 
                 trading_date=date(2026, 8, 14),
             )
 
-    result = TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-08-14")
-
-    assert [command for command, _ in calls] == [0x000D, 0x0FC6]
-    assert result.has_auction_0925 is False
-    assert result.source_mode == "history_ticks_no_0925"
-    assert result.trading_date == date(2026, 8, 14)
+    assert TdxClient(transport=FakeTransport()).trades.auction_history("000001", "2026-08-14") == ()
 
 
-def test_auction_0925_does_not_hide_handshake_failure() -> None:
-    class FakeTransport:
-        def connect(self) -> None:
-            pass
-
-        def close(self) -> None:
-            pass
-
-        def request(self, command: str) -> str:
-            return "pong"
-
-        def execute(self, command: int, payload=None):
-            assert command == 0x000D
-            raise RuntimeError("handshake unavailable")
-
-    with pytest.raises(RuntimeError, match="handshake unavailable"):
-        TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-08-14")
-
-
-def test_auction_0925_paginates_past_a_full_1800_tick_page() -> None:
+def test_trade_event_specific_helpers_paginate_to_opening_match() -> None:
     from eltdx.models import TradePage, TradeTick
 
     regular = TradeTick(
@@ -1066,14 +1018,13 @@ def test_auction_0925_paginates_past_a_full_1800_tick_page() -> None:
                 trading_date=date(2026, 5, 20),
             )
 
-    result = TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-05-20")
+    result = TdxClient(transport=FakeTransport()).trades.opening_match_history("000001", "2026-05-20")
 
     assert starts == [0, 1800]
-    assert result.has_auction_0925 is True
-    assert result.pages_used == 2
+    assert result is opening
 
 
-def test_auction_0925_ignores_status_8_snapshot() -> None:
+def test_trade_page_keeps_snapshot_and_opening_match_properties() -> None:
     from eltdx.models import TradePage, TradeTick
 
     snapshot = TradeTick(
@@ -1142,9 +1093,6 @@ def test_auction_0925_ignores_status_8_snapshot() -> None:
     assert page.auction_snapshots == (snapshot,)
     assert page.opening_matches == (opening,)
 
-    result = TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-05-20")
-    assert result.price == 11.11
-    assert result.volume == 123
 
 
 def test_json_helpers_handle_models_and_bytes() -> None:

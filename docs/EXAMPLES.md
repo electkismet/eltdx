@@ -60,10 +60,10 @@ from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
     ticks = client.trades.today("sz000001", count=20)
-    auction = client.helpers.auction_0925("sz000001", "2026-05-20")
+    auction = client.trades.opening_match_history("sz000001", "2026-05-20")
 
 print(ticks.count, ticks.ticks[0].time_label, ticks.ticks[0].price)
-print(auction.has_auction_0925, auction.price, auction.volume)
+print(auction is not None, auction.price if auction else None, auction.volume if auction else None)
 ```
 
 ## 股本、换手率和复权因子

@@ -31,23 +31,75 @@ class TradeApi(ApiBase):
     def all_history(self, code: str, trading_date, *, page_size: int = 1800, max_pages: int | None = 100, include_raw: bool = False):
         return self._all(code, trading_date, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
 
-    def auction_snapshots(
+    def auction_today(
         self,
         code: str,
-        trading_date=None,
         *,
         page_size: int = 1800,
         max_pages: int | None = 100,
         include_raw: bool = False,
     ):
-        """Return embedded ``status=8`` auction snapshots from 0x0fc5/0x0fc6."""
+        """Return today's embedded auction records from ``0x0fc5``."""
 
-        page = (
-            self.all_today(code, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
-            if trading_date is None
-            else self.all_history(code, trading_date, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
-        )
+        page = self.all_today(code, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
         return tuple(page.auction_snapshots) if hasattr(page, "auction_snapshots") else ()
+
+    def auction_history(
+        self,
+        code: str,
+        trading_date,
+        *,
+        page_size: int = 1800,
+        max_pages: int | None = 100,
+        include_raw: bool = False,
+    ):
+        """Return a historical day's embedded auction records from ``0x0fc6``."""
+
+        page = self.all_history(code, trading_date, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
+        return tuple(page.auction_snapshots) if hasattr(page, "auction_snapshots") else ()
+
+    def opening_match_today(
+        self,
+        code: str,
+        *,
+        page_size: int = 1800,
+        max_pages: int | None = 100,
+        include_raw: bool = False,
+    ):
+        """Return today's 09:25 formal opening match from ``0x0fc5``."""
+
+        return self._find_opening_match(code, None, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
+
+    def opening_match_history(
+        self,
+        code: str,
+        trading_date,
+        *,
+        page_size: int = 1800,
+        max_pages: int | None = 100,
+        include_raw: bool = False,
+    ):
+        """Return a historical day's 09:25 formal opening match from ``0x0fc6``."""
+
+        return self._find_opening_match(code, trading_date, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
+
+    def _find_opening_match(self, code: str, trading_date, *, page_size: int, max_pages: int | None, include_raw: bool):
+        _validate_page_size(page_size)
+        if max_pages is not None and max_pages <= 0:
+            raise ValueError("max_pages must be positive or None")
+        start = 0
+        pages = 0
+        while True:
+            page = self.today(code, start=start, count=page_size, include_raw=include_raw) if trading_date is None else self.history(code, trading_date, start=start, count=page_size, include_raw=include_raw)
+            matches = getattr(page, "opening_matches", ())
+            if matches:
+                return matches[0]
+            if not hasattr(page, "count") or page.count == 0:
+                return None
+            pages += 1
+            if max_pages is not None and pages >= max_pages:
+                raise RuntimeError("trade pagination reached max_pages before an empty page")
+            start += page.count
 
     def _all(self, code: str, trading_date, *, page_size: int, max_pages: int | None, include_raw: bool):
         _validate_page_size(page_size)

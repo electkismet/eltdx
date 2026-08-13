@@ -172,10 +172,10 @@ client.trades.all_history("sz000001", "2026-05-20")
 
 ```python
 client.auctions.series("sz000001")
-client.helpers.auction_0925("sz000001", "2026-05-20")
+client.trades.opening_match_history("sz000001", "2026-05-20")
 ```
 
-`client.auctions.series()` 返回 `0x056a` 主站当前保存的集合竞价过程快照。`client.helpers.auction_0925()` 查询主站当前交易日时扫描 `0x0fc5`，其他日期扫描 `0x0fc6`，只取 09:25 正式开盘撮合。
+`client.auctions.series()` 返回 `0x056a` 主站当前保存的集合竞价过程快照。`client.trades.opening_match_today()` 和 `opening_match_history()` 分别从 `0x0fc5`、`0x0fc6` 只取 09:25 正式开盘撮合。
 
 ### 股本变迁便捷方法
 
@@ -583,6 +583,5 @@ with TdxClient(timeout=3) as client:
 - [想查询某个股票都有哪些概念板块怎么办？](helpers/个股概念板块.md)
 - [想查询某个概念板块都有哪些股票怎么办？](helpers/概念板块成分股.md)
 - [想拿集合竞价数据怎么办？](helpers/竞价数据.md)
-- [想给一批股票整理行情表怎么办？](helpers/批量行情表.md)
 - [想拿流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比和几天几板怎么办？](helpers/短线指标.md)
 - [想拿复权或不复权 K 线怎么办？](helpers/复权K线.md)

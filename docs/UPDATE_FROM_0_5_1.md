@@ -36,7 +36,7 @@ with TdxClient(timeout=3) as client:
 | 分时副图、小走势图      | `client.minutes.aux()` / `sparkline()`              | 查询分时页副图序列和小型走势序列           |
 | 当日成交明细、历史成交明细  | `client.trades`                                     | 查询逐条成交记录，包含时间、价格、成交量、方向等字段 |
 | 集合竞价明细         | `client.auctions.series()`                          | 查询主站当前保存的集合竞价阶段明细          |
-| 09:25 竞价成交快照   | `client.get_auction_0925()`                         | 从成交明细中提取 09:25 最终竞价成交      |
+| 09:25 竞价成交快照   | `client.trades.opening_match_today()` / `opening_match_history()` | 从当日或历史成交明细中提取 09:25 最终竞价成交 |
 | 股本变迁 / GBBQ    | `client.corporate.capital_changes()` / `get_gbbq()` | 查询除权除息、股本变化、增发、回购等事件       |
 | 财务基础信息         | `client.corporate.finance_batch()`                  | 查询流通股本、总股本、EPS、资产、收入、利润等字段 |
 | 特殊品种涨跌停限制      | `client.limits.special()`                           | 查询特殊品种涨跌停限制表               |
@@ -73,7 +73,6 @@ with TdxClient(timeout=3) as client:
 | 想查询某个股票都有哪些概念板块怎么办？ | `client.helpers.stock_topics()`        | [个股概念板块](https://github.com/electkismet/eltdx/blob/v1.0.0/docs/helpers/个股概念板块.md)   |
 | 想查询某个概念板块都有哪些股票怎么办？ | `client.helpers.topic_stocks()`        | [概念板块成分股](https://github.com/electkismet/eltdx/blob/v1.0.0/docs/helpers/概念板块成分股.md) |
 | 想拿集合竞价数据怎么办？        | `client.helpers.auction_data()`        | [竞价数据](https://github.com/electkismet/eltdx/blob/v1.0.0/docs/helpers/竞价数据.md)       |
-| 想给一批股票整理行情表怎么办？     | `client.helpers.quote_table()`         | [批量行情表](https://github.com/electkismet/eltdx/blob/v1.0.0/docs/helpers/批量行情表.md)     |
 | 想拿复权或不复权 K 线怎么办？    | `client.helpers.adjusted_kline()`      | [复权K线](https://github.com/electkismet/eltdx/blob/v1.0.0/docs/helpers/复权K线.md)       |
 
 常用问题入口见 [helpers/README.md](https://github.com/electkismet/eltdx/blob/v1.0.0/docs/helpers/README.md)。

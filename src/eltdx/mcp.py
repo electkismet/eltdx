@@ -148,22 +148,20 @@ def call_auction(
     )
 
 
-def auction_0925(
-    code: str,
-    trading_date: str | int,
-    *,
-    timeout: float = 8.0,
-    host: str | None = None,
-    max_pages: int | None = 100,
-) -> Any:
-    """Query today's hosted data or a historical day's formal 09:25 opening match."""
+def auction_today(code: str, *, timeout: float = 8.0, host: str | None = None) -> Any:
+    return _call_once(lambda client: client.trades.auction_today(code), timeout=timeout, host=host)
 
-    max_pages = _optional_bounded_int("max_pages", max_pages, minimum=1, maximum=100)
-    return _call_once(
-        lambda client: client.helpers.auction_0925(code, trading_date, max_pages=max_pages),
-        timeout=timeout,
-        host=host,
-    )
+
+def auction_history(code: str, trading_date: str | int, *, timeout: float = 8.0, host: str | None = None) -> Any:
+    return _call_once(lambda client: client.trades.auction_history(code, trading_date), timeout=timeout, host=host)
+
+
+def opening_match_today(code: str, *, timeout: float = 8.0, host: str | None = None) -> Any:
+    return _call_once(lambda client: client.trades.opening_match_today(code), timeout=timeout, host=host)
+
+
+def opening_match_history(code: str, trading_date: str | int, *, timeout: float = 8.0, host: str | None = None) -> Any:
+    return _call_once(lambda client: client.trades.opening_match_history(code, trading_date), timeout=timeout, host=host)
 
 
 def auction_data(
@@ -662,19 +660,21 @@ class _McpTools:
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(client.auctions.series(code, include_raw=include_raw))
 
-    def auction_0925(
-        self,
-        code: str,
-        trading_date: str | int,
-        timeout: float = 8.0,
-        host: str | None = None,
-        max_pages: int | None = 100,
-    ) -> dict[str, Any]:
-        """Query today's hosted data or a historical day's formal 09:25 opening match."""
-
-        max_pages = _optional_bounded_int("max_pages", max_pages, minimum=1, maximum=100)
+    def auction_today(self, code: str, timeout: float = 8.0, host: str | None = None) -> dict[str, Any]:
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.helpers.auction_0925(code, trading_date, max_pages=max_pages))
+            return _json(client.trades.auction_today(code))
+
+    def auction_history(self, code: str, trading_date: str | int, timeout: float = 8.0, host: str | None = None) -> dict[str, Any]:
+        with self._clients.use(timeout=timeout, host=host) as client:
+            return _json(client.trades.auction_history(code, trading_date))
+
+    def opening_match_today(self, code: str, timeout: float = 8.0, host: str | None = None) -> dict[str, Any]:
+        with self._clients.use(timeout=timeout, host=host) as client:
+            return _json(client.trades.opening_match_today(code))
+
+    def opening_match_history(self, code: str, trading_date: str | int, timeout: float = 8.0, host: str | None = None) -> dict[str, Any]:
+        with self._clients.use(timeout=timeout, host=host) as client:
+            return _json(client.trades.opening_match_history(code, trading_date))
 
     def auction_data(
         self,
@@ -854,7 +854,10 @@ def create_mcp_server():
         ("eltdx_minute", tools.minute),
         ("eltdx_trades", tools.trades),
         ("eltdx_call_auction", tools.call_auction),
-        ("eltdx_auction_0925", tools.auction_0925),
+        ("eltdx_auction_today", tools.auction_today),
+        ("eltdx_auction_history", tools.auction_history),
+        ("eltdx_opening_match_today", tools.opening_match_today),
+        ("eltdx_opening_match_history", tools.opening_match_history),
         ("eltdx_auction_data", tools.auction_data),
         ("eltdx_stock_profile", tools.stock_profile),
         ("eltdx_shortline_indicators", tools.shortline_indicators),
