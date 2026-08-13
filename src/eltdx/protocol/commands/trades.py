@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from eltdx.exceptions import ProtocolError
 from eltdx.models import TradePage, TradeTick
-from eltdx.protocol.constants import TYPE_HISTORICAL_TICKS, TYPE_TODAY_TICKS
+from eltdx.protocol.constants import MAX_TRADE_PAGE_SIZE, TYPE_HISTORICAL_TICKS, TYPE_TODAY_TICKS
 from eltdx.protocol.frame import RequestFrame, ResponseFrame
 from eltdx.protocol.unit import (
     consume_price,
@@ -23,7 +23,7 @@ from eltdx.protocol.unit import (
 def build_today_ticks_frame(payload: dict, msg_id: int) -> RequestFrame:
     market_id, _, number = split_code(payload["code"])
     start = _u16(payload.get("start", 0), "start")
-    count = _u16(payload.get("count", 115), "count")
+    count = _trade_count(payload.get("count", 115))
     data = bytes([market_id, 0]) + number.encode("ascii") + start.to_bytes(2, "little") + count.to_bytes(2, "little")
     return RequestFrame(msg_id=msg_id, msg_type=TYPE_TODAY_TICKS, data=data)
 
@@ -32,7 +32,7 @@ def build_historical_ticks_frame(payload: dict, msg_id: int) -> RequestFrame:
     market_id, _, number = split_code(payload["code"])
     trading_date_raw = yyyymmdd(payload.get("trading_date"))
     start = _u16(payload.get("start", 0), "start")
-    count = _u16(payload.get("count", 900), "count")
+    count = _trade_count(payload.get("count", 900))
     data = (
         trading_date_raw.to_bytes(4, "little")
         + market_id.to_bytes(2, "little")
@@ -156,6 +156,9 @@ def _parse_tick_records(
                 unknown_tail_raw=tail_value if tail_field_name == "unknown_tail_raw" else None,
                 reserved_zero=tail_value if tail_field_name == "reserved_zero" else None,
                 record_hex=payload[record_start:offset].hex(),
+                event_kind=trade_event_kind(status_raw, time_minutes),
+                auction_matched_volume=volume if status_raw == 8 else None,
+                auction_unmatched_signed_volume=order_count if status_raw == 8 else None,
             )
         )
     return ticks, offset
@@ -181,8 +184,25 @@ def trade_side(status_raw: int) -> str:
     return {0: "buy", 1: "sell", 2: "neutral"}.get(status_raw, f"status_{status_raw}")
 
 
+def trade_event_kind(status_raw: int, time_minutes: int) -> str:
+    """Classify the shared trade wire record without discarding raw fields."""
+
+    if status_raw == 8:
+        return "auction_snapshot"
+    if time_minutes == 9 * 60 + 25:
+        return "opening_match"
+    return "trade"
+
+
 def _u16(value, name: str) -> int:
     parsed = int(value)
     if parsed < 0 or parsed > 0xFFFF:
         raise ValueError(f"{name} must be between 0 and 65535")
+    return parsed
+
+
+def _trade_count(value) -> int:
+    parsed = int(value)
+    if parsed <= 0 or parsed > MAX_TRADE_PAGE_SIZE:
+        raise ValueError(f"count must be between 1 and {MAX_TRADE_PAGE_SIZE}")
     return parsed

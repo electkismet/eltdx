@@ -15,12 +15,13 @@ from . import __version__
 from .client import TdxClient
 from .f10 import F10Client
 from .hosts import normalize_host
+from .protocol.constants import MAX_KLINE_PAGE_SIZE, MAX_TRADE_PAGE_SIZE
 from .serialization import to_jsonable
 
 _MAX_CODES = 200
 _MAX_DEPTH_CODES = 100
-_MAX_KLINE_COUNT = 800
-_MAX_TRADE_COUNT = 2000
+_MAX_KLINE_COUNT = MAX_KLINE_PAGE_SIZE
+_MAX_TRADE_COUNT = MAX_TRADE_PAGE_SIZE
 _MAX_CLIENTS = 16
 _MCP_POOL_SIZE = 4
 
@@ -91,7 +92,7 @@ def minute(
     timeout: float = 8.0,
     host: str | None = None,
 ) -> Any:
-    """Query today's or one historical day's minute series."""
+    """Query today's hosted data or one historical day's minute series."""
 
     return _call_once(
         lambda client: client.minutes.today(code, include_raw=include_raw)
@@ -112,7 +113,7 @@ def trades(
     timeout: float = 8.0,
     host: str | None = None,
 ) -> Any:
-    """Query one bounded page of current or historical trades."""
+    """Query one bounded page of today's hosted data or historical trades."""
 
     start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
     count = _bounded_int("count", count, minimum=1, maximum=_MAX_TRADE_COUNT)
@@ -138,7 +139,7 @@ def call_auction(
     timeout: float = 8.0,
     host: str | None = None,
 ) -> Any:
-    """Query the current call-auction series."""
+    """Query today's hosted call-auction series."""
 
     return _call_once(
         lambda client: client.auctions.series(code, include_raw=include_raw),
@@ -155,7 +156,7 @@ def auction_0925(
     host: str | None = None,
     max_pages: int | None = 100,
 ) -> Any:
-    """Query the 09:25 final tick from historical trade details."""
+    """Query today's hosted data or a historical day's formal 09:25 opening match."""
 
     max_pages = _optional_bounded_int("max_pages", max_pages, minimum=1, maximum=100)
     return _call_once(
@@ -176,7 +177,7 @@ def auction_data(
     timeout: float = 8.0,
     host: str | None = None,
 ) -> Any:
-    """Return a combined current or historical auction view."""
+    """Return a combined today or historical auction view."""
 
     return _call_once(
         lambda client: client.helpers.auction_data(
@@ -619,7 +620,7 @@ class _McpTools:
         timeout: float = 8.0,
         host: str | None = None,
     ) -> dict[str, Any]:
-        """Query today's or one historical day's minute series."""
+        """Query today's hosted data or one historical day's minute series."""
 
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(
@@ -638,7 +639,7 @@ class _McpTools:
         timeout: float = 8.0,
         host: str | None = None,
     ) -> dict[str, Any]:
-        """Query one trade page; count is limited to 2000 ticks."""
+        """Query one trade page; count is limited to 1800 ticks."""
 
         start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
         count = _bounded_int("count", count, minimum=1, maximum=_MAX_TRADE_COUNT)
@@ -656,7 +657,7 @@ class _McpTools:
         timeout: float = 8.0,
         host: str | None = None,
     ) -> dict[str, Any]:
-        """Query the current call-auction series."""
+        """Query today's hosted call-auction series."""
 
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(client.auctions.series(code, include_raw=include_raw))
@@ -669,7 +670,7 @@ class _McpTools:
         host: str | None = None,
         max_pages: int | None = 100,
     ) -> dict[str, Any]:
-        """Query the 09:25 final tick for one historical trading date."""
+        """Query today's hosted data or a historical day's formal 09:25 opening match."""
 
         max_pages = _optional_bounded_int("max_pages", max_pages, minimum=1, maximum=100)
         with self._clients.use(timeout=timeout, host=host) as client:
@@ -686,7 +687,7 @@ class _McpTools:
         timeout: float = 8.0,
         host: str | None = None,
     ) -> dict[str, Any]:
-        """Return a combined current or historical auction view."""
+        """Return a combined today or historical auction view."""
 
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(

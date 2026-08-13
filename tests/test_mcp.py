@@ -19,6 +19,7 @@ from eltdx.mcp import (
     kline,
     quote,
     quote_depth,
+    trades,
 )
 from eltdx.models import KlineBar, KlineSeries, QuoteSnapshot
 
@@ -124,6 +125,11 @@ def test_mcp_kline_returns_jsonable_series(monkeypatch) -> None:
 def test_mcp_kline_rejects_unbounded_result() -> None:
     with pytest.raises(ValueError, match="count must be between 1 and 800"):
         kline("sz000001", count=801)
+
+
+def test_mcp_trades_rejects_count_above_server_limit() -> None:
+    with pytest.raises(ValueError, match="count must be between 1 and 1800"):
+        trades("sz000001", count=1801)
 
 
 def test_mcp_quote_depth_rejects_more_than_100_codes() -> None:

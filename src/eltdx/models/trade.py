@@ -24,6 +24,30 @@ class TradeTick:
     unknown_tail_raw: int | None = None
     reserved_zero: int | None = None
     record_hex: str = ""
+    # ``0x0fc5``/``0x0fc6`` share one wire record shape for auction snapshots
+    # and real trades.  Keep the raw-compatible fields above and expose the
+    # semantic interpretation separately.
+    event_kind: str = "trade"
+    auction_matched_volume: int | None = None
+    auction_unmatched_signed_volume: int | None = None
+
+    @property
+    def is_auction_snapshot(self) -> bool:
+        return self.event_kind == "auction_snapshot"
+
+    @property
+    def is_opening_match(self) -> bool:
+        return self.event_kind == "opening_match"
+
+    @property
+    def is_trade(self) -> bool:
+        return self.event_kind == "trade"
+
+    @property
+    def auction_unmatched_volume(self) -> int | None:
+        if self.auction_unmatched_signed_volume is None:
+            return None
+        return abs(self.auction_unmatched_signed_volume)
 
     @property
     def trade_amount_yuan(self) -> float:
@@ -53,3 +77,15 @@ class TradePage:
     @property
     def has_more(self) -> bool:
         return self.count >= self.request_count
+
+    @property
+    def auction_snapshots(self) -> tuple[TradeTick, ...]:
+        """Return embedded ``status=8`` auction snapshots from this page."""
+
+        return tuple(tick for tick in self.ticks if tick.is_auction_snapshot)
+
+    @property
+    def opening_matches(self) -> tuple[TradeTick, ...]:
+        """Return formal 09:25 opening matches from this page."""
+
+        return tuple(tick for tick in self.ticks if tick.is_opening_match)

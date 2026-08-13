@@ -439,7 +439,7 @@ series = client.bars.get("sz000001", period="day", count=800)
 
 ### `client.bars.all(code, period="day", ...)`
 
-自动分页拉取 K 线，直到服务端返回短页。
+自动分页拉取 K 线，直到服务端返回空页。
 
 ```python
 series = client.bars.all("sz000001", period="day")
@@ -472,7 +472,7 @@ client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-
 
 ### `client.minutes.today(code)`
 
-查询当前交易日分时，对应 `0x0537`。
+查询主站当前保存的分时，对应 `0x0537`。凌晨、周末或节假日可能返回最近交易日数据。
 
 ```python
 series = client.minutes.today("sz000001")
@@ -485,7 +485,7 @@ series = client.minutes.today("sz000001")
 | `MinuteSeries` 字段                               | 含义              |
 | ----------------------------------------------- | --------------- |
 | `exchange` / `market_id` / `code` / `full_code` | 市场和代码           |
-| `trading_date`                                  | 交易日；当日分时可能为空    |
+| `trading_date`                                  | 原始当日分时响应不带日期，通常为空    |
 | `prev_close`                                    | 昨收；历史 / 近期接口通常有 |
 | `open_price`                                    | 今开；近期接口通常有      |
 | `points`                                        | 分时点列表           |
@@ -496,7 +496,7 @@ series = client.minutes.today("sz000001")
 | ---------------- | --------------- |
 | `index`          | 分时序号            |
 | `time_label`     | 时间文本            |
-| `time`           | 带日期的时间；当日分时可能为空 |
+| `time`           | 带日期的时间；当日分时通常为空 |
 | `price`          | 当前价格            |
 | `avg_price`      | 均价              |
 | `volume`         | 该分钟成交量，单位手      |
@@ -594,7 +594,7 @@ series = client.minutes.sparkline("sz000001", selector=1, window=20)
 
 ### `client.trades.today(code, start=0, count=1800)`
 
-查询当日成交明细，对应 `0x0fc5`。
+查询主站当前保存的混合明细，对应 `0x0fc5`。凌晨、周末或节假日可能返回最近交易日数据。返回普通成交、`status=8` 集合竞价快照和 09:25 正式开盘撮合。
 
 ```python
 page = client.trades.today("sz000001", start=0, count=1800)
@@ -609,9 +609,9 @@ page = client.trades.today("sz000001")
 
 <a id="method-trades-history"></a>
 
-### `client.trades.history(code, trading_date, start=0, count=2000)`
+### `client.trades.history(code, trading_date, start=0, count=1800)`
 
-查询历史成交明细增强接口，对应 `0x0fc6`。
+查询历史混合明细增强接口，对应 `0x0fc6`。返回普通成交、`status=8` 集合竞价快照和 09:25 正式开盘撮合。
 
 ```python
 page = client.trades.history("sz000001", "2026-05-20")
@@ -621,7 +621,7 @@ page = client.trades.history("sz000001", "2026-05-20")
 
 ### `client.trades.all_today(...)` / `client.trades.all_history(...)`
 
-自动分页拉取成交明细，直到服务端返回短页。
+自动分页拉取成交明细，直到服务端返回空页。
 
 ```python
 page = client.trades.all_today("sz000001")
@@ -635,11 +635,22 @@ page = client.trades.all_history("sz000001", "2026-05-20")
 | `TradePage` 字段                                  | 含义                                           |
 | ----------------------------------------------- | -------------------------------------------- |
 | `exchange` / `market_id` / `code` / `full_code` | 市场和代码                                        |
-| `trading_date`                                  | 历史成交日期；当日成交明细可能为空                            |
+| `trading_date`                                  | 历史成交日期；当前 `0x0fc5` 原始响应不带日期，因此保持为空 |
 | `start` / `request_count`                       | 请求起点 / 请求条数                                  |
-| `ticks`                                         | 成交明细                                         |
+| `ticks`                                         | 原始混合记录                                       |
+| `auction_snapshots`                             | `status=8` 集合竞价快照                           |
+| `opening_matches`                               | 09:25 正式开盘撮合                                |
 | `count`                                         | 实际成交条数                                       |
 | `has_more`                                      | `count >= request_count` 时为 `True`，表示可能还有下一页 |
+
+### `client.trades.auction_snapshots(code, trading_date=None, ...)`
+
+从当前或历史成交明细分页结果中筛出 `status=8` 的集合竞价过程快照。`trading_date=None` 使用 `0x0fc5`，传入日期使用 `0x0fc6`。
+
+```python
+current_snapshots = client.trades.auction_snapshots("sz000001")
+history_snapshots = client.trades.auction_snapshots("sz000001", "2026-05-20")
+```
 
 | `TradeTick` 字段                | 含义                             |
 | ----------------------------- | ------------------------------ |
@@ -649,11 +660,20 @@ page = client.trades.all_history("sz000001", "2026-05-20")
 | `price` / `price_milli`       | 成交价 / 毫厘价                      |
 | `volume`                      | 成交量，单位手                        |
 | `order_count`                 | 该笔包含的订单数，历史增强接口更常见             |
+| `event_kind`                  | `trade`、`auction_snapshot` 或 `opening_match` |
+| `is_auction_snapshot`         | 是否为集合竞价快照                               |
+| `is_opening_match`            | 是否为 09:25 正式开盘撮合                         |
+| `is_trade`                     | 是否为普通成交                                   |
+| `auction_matched_volume`      | 竞价快照虚拟匹配量                               |
+| `auction_unmatched_signed_volume` | 竞价快照带符号未匹配量                         |
+| `auction_unmatched_volume`    | 竞价快照未匹配量绝对值                           |
 | `side`                        | 方向，`buy`、`sell`、`neutral` 或状态名 |
 | `status_raw`                  | 方向 / 状态原始值                     |
 | `trade_amount_yuan`           | 成交金额，`price * volume * 100`    |
 
-成交明细兼容别名：
+分类规则：`status_raw == 8` 为 `auction_snapshot`；时间为 `09:25` 且不是 `status=8` 为 `opening_match`；其余为 `trade`。竞价快照的 `volume` / `order_count` 仍保留原始字段，不应按实际成交解释。
+
+成交明细完整分页入口：
 
 ```python
 client.trades.today("sz000001")
@@ -665,12 +685,11 @@ client.trades.history("sz000001", "2026-05-20")
 
 <a id="method-auctions-series"></a>
 
-### `client.auctions.series(code)` / `client.auctions.series(code)`
+### `client.auctions.series(code)`
 
-查询当前交易日集合竞价明细，对应 `0x056a`。
+查询主站当前保存的集合竞价快照明细，对应 `0x056a`。该接口专门返回竞价过程，不是逐笔成交；记录通常从 `09:15:00` 到 `09:24:57`，也可能到 `09:24:59` 或 `09:25:00`，尾盘还可能有 `14:57` 到 `15:00`。
 
 ```python
-series = client.auctions.series("sz000001")
 series = client.auctions.series("sz000001")
 ```
 
@@ -692,7 +711,7 @@ series = client.auctions.series("sz000001")
 
 ### `client.helpers.auction_0925(code, date)`
 
-从历史成交明细 `0x0fc6` 里扫描 09:25 竞价成交快照。
+扫描成交明细中的 09:25 正式开盘撮合：目标日期等于主站当前交易日时使用 `0x0fc5`，其他日期使用 `0x0fc6`；`status=8` 的竞价快照不会被选中。
 
 ```python
 result = client.helpers.auction_0925("sz000001", "2026-05-20")
@@ -700,7 +719,7 @@ result = client.helpers.auction_0925("sz000001", "2026-05-20")
 
 | 返回模型                | 说明           |
 | ------------------- | ------------ |
-| `Auction0925Result` | 09:25 竞价成交快照 |
+| `Auction0925Result` | 09:25 正式撮合结果 |
 
 | 字段                      | 含义            |
 | ----------------------- | ------------- |
@@ -709,7 +728,7 @@ result = client.helpers.auction_0925("sz000001", "2026-05-20")
 | `volume`                | 成交量，单位手       |
 | `amount`                | 成交额           |
 | `status` / `side`       | 原始状态 / 方向     |
-| `pages_used`            | 扫描了几页历史成交明细   |
+| `pages_used`            | 扫描了几页成交明细       |
 | `source_mode`           | 数据来源说明        |
 
 ## 股本变迁、除权除息和复权因子

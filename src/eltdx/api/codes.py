@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from eltdx.protocol.constants import DEFAULT_CODE_PAGE_SIZE
+from eltdx.protocol.constants import DEFAULT_CODE_PAGE_SIZE, MAX_CODE_PAGE_SIZE
 
 from .base import ApiBase
 
@@ -12,17 +12,19 @@ class CodeApi(ApiBase):
         return self._execute("security_count", market=market)
 
     def list(self, market: str, *, start: int = 0, limit: int = 1600):
+        _validate_limit(limit)
         return self._execute("security_list", market=market, start=start, limit=limit)
 
     def all(self, market: str, *, page_size: int = DEFAULT_CODE_PAGE_SIZE):
+        _validate_page_size(page_size)
         start = 0
         items = []
         while True:
             page = self.list(market, start=start, limit=page_size)
             items.extend(page)
-            if len(page) < page_size:
+            if not page:
                 return items
-            start += page_size
+            start += len(page)
 
     def stock_count(self, market: str) -> int:
         return sum(item.category in {"a_share", "b_share"} for item in self.all(market))
@@ -59,3 +61,13 @@ class CodeApi(ApiBase):
 
     def all_indices(self) -> list[str]:
         return [item.full_code for item in self.all_markets() if item.category == "index"]
+
+
+def _validate_page_size(value: int) -> None:
+    if value <= 0 or value > MAX_CODE_PAGE_SIZE:
+        raise ValueError(f"page size must be between 1 and {MAX_CODE_PAGE_SIZE}")
+
+
+def _validate_limit(value: int) -> None:
+    if value < 0 or value > MAX_CODE_PAGE_SIZE:
+        raise ValueError(f"limit must be between 0 and {MAX_CODE_PAGE_SIZE}")

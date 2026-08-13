@@ -11,7 +11,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
-from eltdx.protocol.unit import ID_TO_MARKET, normalize_code
 from eltdx.equity import (
     apply_factors_to_kline,
     build_factor_response,
@@ -21,6 +20,8 @@ from eltdx.equity import (
     pick_equity,
 )
 from eltdx.models import Auction0925Result, QuoteRefreshRecord, QuoteSnapshot
+from eltdx.protocol.constants import MAX_TRADE_PAGE_SIZE
+from eltdx.protocol.unit import ID_TO_MARKET, normalize_code
 
 from .shortline import (
     ShortlineIndicator,
@@ -242,21 +243,55 @@ class HelperApi:
         code: str,
         date,
         *,
-        page_size: int = 2000,
+        page_size: int = MAX_TRADE_PAGE_SIZE,
         max_pages: int | None = 100,
     ) -> Auction0925Result:
-        if page_size <= 0 or page_size > 0xFFFF:
-            raise ValueError("page_size must be between 1 and 65535")
+        if page_size <= 0 or page_size > MAX_TRADE_PAGE_SIZE:
+            raise ValueError(f"page_size must be between 1 and {MAX_TRADE_PAGE_SIZE}")
         if max_pages is not None and max_pages <= 0:
             raise ValueError("max_pages must be positive or None")
         full_code = normalize_code(code)
-        for page_number, start in enumerate(range(0, 0x10000, page_size), start=1):
-            page = self._client.trades.history(full_code, date, start=start, count=page_size)
-            tick = next((item for item in getattr(page, "ticks", ()) if item.time_minutes == 9 * 60 + 25), None)
+        trading_date = self._client.workdays.normalize(date)
+        return self._auction_0925(
+            full_code,
+            trading_date,
+            current_market_date=self._current_market_date(),
+            page_size=page_size,
+            max_pages=max_pages,
+        )
+
+    def _auction_0925(
+        self,
+        full_code: str,
+        trading_date,
+        *,
+        current_market_date,
+        page_size: int,
+        max_pages: int | None,
+    ) -> Auction0925Result:
+        is_current_market_date = current_market_date == trading_date
+        fetch = self._client.trades.today if is_current_market_date else self._client.trades.history
+        start = 0
+        page_number = 0
+        while start <= 0xFFFF:
+            page_number += 1
+            page = (
+                fetch(full_code, start=start, count=page_size)
+                if is_current_market_date
+                else fetch(full_code, trading_date, start=start, count=page_size)
+            )
+            tick = next(
+                (
+                    item
+                    for item in getattr(page, "ticks", ())
+                    if item.time_minutes == 9 * 60 + 25 and getattr(item, "event_kind", "trade") == "opening_match"
+                ),
+                None,
+            )
             if tick is not None:
                 return Auction0925Result(
                     code=full_code,
-                    trading_date=getattr(page, "trading_date", None),
+                    trading_date=trading_date,
                     has_auction_0925=True,
                     price=tick.price,
                     price_milli=tick.price_milli,
@@ -265,12 +300,12 @@ class HelperApi:
                     status=tick.status_raw,
                     side=tick.side,
                     pages_used=page_number,
-                    source_mode="history_ticks_scan",
+                    source_mode="today_ticks_scan" if is_current_market_date else "history_ticks_scan",
                 )
-            if not hasattr(page, "count") or page.count < page_size:
+            if not hasattr(page, "count") or page.count == 0:
                 return Auction0925Result(
                     code=full_code,
-                    trading_date=getattr(page, "trading_date", None),
+                    trading_date=trading_date,
                     has_auction_0925=False,
                     price=None,
                     price_milli=None,
@@ -279,10 +314,11 @@ class HelperApi:
                     status=None,
                     side=None,
                     pages_used=page_number,
-                    source_mode="history_ticks_no_0925",
+                    source_mode="today_ticks_no_0925" if is_current_market_date else "history_ticks_no_0925",
                 )
             if max_pages is not None and page_number >= max_pages:
-                raise RuntimeError("helpers.auction_0925 reached max_pages before a short page")
+                raise RuntimeError("helpers.auction_0925 reached max_pages before an empty page")
+            start += page.count
         raise RuntimeError("helpers.auction_0925 exceeded protocol page limit")
 
     def shortline_indicators(
@@ -419,11 +455,22 @@ class HelperApi:
         """Return current auction detail and the 09:25 final snapshot together."""
 
         full_code = normalize_code(code)
-        trading_date = self._client.workdays.normalize(date)
-        is_today = self._same_day(trading_date, None)
-        series = self._client.auctions.series(full_code) if include_series and is_today else None
-        snapshot = self.auction_0925(full_code, trading_date) if include_snapshot else None
-        quote = self._first_quote(full_code) if include_quote and is_today else None
+        current_market_date = self._current_market_date()
+        trading_date = current_market_date if date is None and current_market_date is not None else self._client.workdays.normalize(date)
+        is_current_market_date = trading_date == current_market_date
+        series = self._client.auctions.series(full_code) if include_series and is_current_market_date else None
+        snapshot = (
+            self._auction_0925(
+                full_code,
+                trading_date,
+                current_market_date=current_market_date,
+                page_size=MAX_TRADE_PAGE_SIZE,
+                max_pages=100,
+            )
+            if include_snapshot
+            else None
+        )
+        quote = self._first_quote(full_code) if include_quote and is_current_market_date else None
 
         resolved_pre_close = pre_close_price
         if resolved_pre_close is None and quote is not None:
@@ -510,11 +557,19 @@ class HelperApi:
             return quotes[0] if quotes else None
         return quotes
 
-    def _same_day(self, left: Any, right: Any) -> bool:
-        same_day = getattr(self._client.workdays, "same_day", None)
-        if same_day is not None:
-            return bool(same_day(left, right))
-        return self._client.workdays.normalize(left) == self._client.workdays.normalize(right)
+    def _current_market_date(self):
+        handshake = self._client.session.handshake()
+        dates = [
+            value
+            for value in (
+                getattr(handshake, "server_date_1", None),
+                getattr(handshake, "server_date_2", None),
+            )
+            if value is not None
+        ]
+        if not dates:
+            raise RuntimeError("server handshake did not provide a current market date")
+        return max(dates)
 
     def _resolve_topic(self, full_seed: str, topic_id: str | None, topic_name: str | None) -> StockTopic:
         topics = self.stock_topics(full_seed).topics

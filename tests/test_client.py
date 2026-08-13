@@ -16,7 +16,7 @@ from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, Quote
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "2.0.0"
+    assert __version__ == "2.0.1"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -78,6 +78,17 @@ def test_business_api_uses_command_numbers() -> None:
     assert client.bars.get("sz000001", period="day")["payload"]["period"] == "day"
     assert client.minutes.today("sz000001")["command"] == "0x0537"
     assert client.resources.read("zhb.zip", offset=10, size=20)["command"] == "0x06b9"
+
+
+def test_today_entrypoints_replace_current_names() -> None:
+    client = TdxClient.in_memory()
+
+    assert hasattr(client.minutes, "today")
+    assert not hasattr(client.minutes, "current")
+    assert hasattr(client.trades, "today")
+    assert hasattr(client.trades, "all_today")
+    assert not hasattr(client.trades, "current")
+    assert not hasattr(client.trades, "all_current")
 
 
 def test_new_binary_client_entrypoints_keep_exact_payloads() -> None:
@@ -743,7 +754,7 @@ def test_trades_all_pages_until_short_page() -> None:
 
         def execute(self, command: int, payload=None):
             assert command == 0x0FC5
-            count = 2 if payload["start"] == 0 else 1
+            count = 2 if payload["start"] == 0 else 1 if payload["start"] == 2 else 0
             return TradePage(
                 exchange="sz",
                 market_id=0,
@@ -758,6 +769,71 @@ def test_trades_all_pages_until_short_page() -> None:
     assert page.start == 0
     assert page.request_count == 3
     assert page.count == 3
+
+
+def test_trades_all_history_uses_server_page_limit_without_losing_early_ticks() -> None:
+    from eltdx.models import TradePage, TradeTick
+
+    regular = TradeTick(
+        index=0,
+        absolute_index=0,
+        time_minutes=15 * 60,
+        time_label="15:00",
+        trade_datetime=datetime(2026, 5, 20, 15, 0),
+        price=10.0,
+        price_milli=10000,
+        volume=1,
+        order_count=1,
+        status_raw=0,
+        side="buy",
+        price_delta_raw=0,
+        price_acc_raw=1000,
+    )
+    opening = replace(
+        regular,
+        time_minutes=9 * 60 + 25,
+        time_label="09:25",
+        trade_datetime=datetime(2026, 5, 20, 9, 25),
+        event_kind="opening_match",
+    )
+    starts = []
+
+    class FakeTransport:
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            assert command == 0x0FC6
+            assert payload["count"] == 1800
+            starts.append(payload["start"])
+            ticks = (
+                tuple(regular for _ in range(1800))
+                if payload["start"] == 0
+                else (opening,)
+                if payload["start"] == 1800
+                else ()
+            )
+            return TradePage(
+                exchange="sz",
+                market_id=0,
+                code="000001",
+                start=payload["start"],
+                request_count=payload["count"],
+                ticks=ticks,
+                trading_date=date(2026, 5, 20),
+            )
+
+    page = TdxClient(transport=FakeTransport()).trades.all_history("sz000001", "2026-05-20")
+
+    assert starts == [0, 1800, 1801]
+    assert page.count == 1801
+    assert page.opening_matches == (opening,)
 
 
 def test_auction_0925_from_history_trades() -> None:
@@ -777,6 +853,7 @@ def test_auction_0925_from_history_trades() -> None:
         side="neutral",
         price_delta_raw=0,
         price_acc_raw=1111,
+        event_kind="opening_match",
     )
 
     class FakeTransport:
@@ -790,6 +867,12 @@ def test_auction_0925_from_history_trades() -> None:
             return "pong"
 
         def execute(self, command: int, payload=None):
+            if command == 0x000D:
+                return type(
+                    "Handshake",
+                    (),
+                    {"server_date_1": date(2026, 5, 21), "server_date_2": date(2026, 5, 21)},
+                )()
             assert command == 0x0FC6
             return TradePage(
                 exchange="sz",
@@ -808,6 +891,260 @@ def test_auction_0925_from_history_trades() -> None:
     assert result.price == 11.11
     assert result.amount == 11.11 * 123 * 100
     assert result.source_mode == "history_ticks_scan"
+
+
+def test_auction_0925_uses_current_ticks_for_current_market_date() -> None:
+    from eltdx.models import TradePage, TradeTick
+
+    tick = TradeTick(
+        index=0,
+        absolute_index=0,
+        time_minutes=9 * 60 + 25,
+        time_label="09:25",
+        trade_datetime=None,
+        price=11.11,
+        price_milli=11110,
+        volume=123,
+        order_count=1,
+        status_raw=2,
+        side="neutral",
+        price_delta_raw=0,
+        price_acc_raw=1111,
+        event_kind="opening_match",
+    )
+
+    class FakeTransport:
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            if command == 0x000D:
+                return type(
+                    "Handshake",
+                    (),
+                    {"server_date_1": date(2026, 5, 20), "server_date_2": date(2026, 5, 20)},
+                )()
+            assert command == 0x0FC5
+            return TradePage(
+                exchange="sz",
+                market_id=0,
+                code="000001",
+                start=payload["start"],
+                request_count=payload["count"],
+                ticks=(tick,),
+            )
+
+    result = TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-05-20")
+
+    assert result.has_auction_0925 is True
+    assert result.source_mode == "today_ticks_scan"
+    assert result.trading_date == date(2026, 5, 20)
+
+
+def test_auction_0925_does_not_treat_calendar_today_as_current_market_date() -> None:
+    from eltdx.models import TradePage
+
+    calls = []
+
+    class FakeTransport:
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            calls.append((command, payload))
+            if command == 0x000D:
+                return type(
+                    "Handshake",
+                    (),
+                    {"server_date_1": date(2026, 8, 13), "server_date_2": date(2026, 8, 13)},
+                )()
+            assert command == 0x0FC6
+            assert payload["trading_date"] == date(2026, 8, 14)
+            return TradePage(
+                exchange="sz",
+                market_id=0,
+                code="000001",
+                start=payload["start"],
+                request_count=payload["count"],
+                ticks=(),
+                trading_date=date(2026, 8, 14),
+            )
+
+    result = TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-08-14")
+
+    assert [command for command, _ in calls] == [0x000D, 0x0FC6]
+    assert result.has_auction_0925 is False
+    assert result.source_mode == "history_ticks_no_0925"
+    assert result.trading_date == date(2026, 8, 14)
+
+
+def test_auction_0925_does_not_hide_handshake_failure() -> None:
+    class FakeTransport:
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            assert command == 0x000D
+            raise RuntimeError("handshake unavailable")
+
+    with pytest.raises(RuntimeError, match="handshake unavailable"):
+        TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-08-14")
+
+
+def test_auction_0925_paginates_past_a_full_1800_tick_page() -> None:
+    from eltdx.models import TradePage, TradeTick
+
+    regular = TradeTick(
+        index=0,
+        absolute_index=0,
+        time_minutes=15 * 60,
+        time_label="15:00",
+        trade_datetime=datetime(2026, 5, 20, 15, 0),
+        price=10.0,
+        price_milli=10000,
+        volume=1,
+        order_count=1,
+        status_raw=0,
+        side="buy",
+        price_delta_raw=0,
+        price_acc_raw=1000,
+    )
+    opening = replace(
+        regular,
+        time_minutes=9 * 60 + 25,
+        time_label="09:25",
+        trade_datetime=datetime(2026, 5, 20, 9, 25),
+        event_kind="opening_match",
+    )
+    starts = []
+
+    class FakeTransport:
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            if command == 0x000D:
+                return type(
+                    "Handshake",
+                    (),
+                    {"server_date_1": date(2026, 5, 21), "server_date_2": date(2026, 5, 21)},
+                )()
+            assert command == 0x0FC6
+            starts.append(payload["start"])
+            ticks = tuple(regular for _ in range(1800)) if payload["start"] == 0 else (opening,)
+            return TradePage(
+                exchange="sz",
+                market_id=0,
+                code="000001",
+                start=payload["start"],
+                request_count=payload["count"],
+                ticks=ticks,
+                trading_date=date(2026, 5, 20),
+            )
+
+    result = TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-05-20")
+
+    assert starts == [0, 1800]
+    assert result.has_auction_0925 is True
+    assert result.pages_used == 2
+
+
+def test_auction_0925_ignores_status_8_snapshot() -> None:
+    from eltdx.models import TradePage, TradeTick
+
+    snapshot = TradeTick(
+        index=0,
+        absolute_index=0,
+        time_minutes=9 * 60 + 25,
+        time_label="09:25",
+        trade_datetime=None,
+        price=11.10,
+        price_milli=11100,
+        volume=999,
+        order_count=-12,
+        status_raw=8,
+        side="status_8",
+        price_delta_raw=0,
+        price_acc_raw=1110,
+        event_kind="auction_snapshot",
+        auction_matched_volume=999,
+        auction_unmatched_signed_volume=-12,
+    )
+    opening = TradeTick(
+        index=1,
+        absolute_index=1,
+        time_minutes=9 * 60 + 25,
+        time_label="09:25",
+        trade_datetime=None,
+        price=11.11,
+        price_milli=11110,
+        volume=123,
+        order_count=1,
+        status_raw=2,
+        side="neutral",
+        price_delta_raw=0,
+        price_acc_raw=1111,
+        event_kind="opening_match",
+    )
+
+    class FakeTransport:
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            if command == 0x000D:
+                return type(
+                    "Handshake",
+                    (),
+                    {"server_date_1": date(2026, 5, 20), "server_date_2": date(2026, 5, 20)},
+                )()
+            assert command == 0x0FC5
+            return TradePage(
+                exchange="sz",
+                market_id=0,
+                code="000001",
+                start=payload["start"],
+                request_count=payload["count"],
+                ticks=(snapshot, opening),
+            )
+
+    page = TdxClient(transport=FakeTransport()).trades.today("sz000001", count=2)
+    assert page.auction_snapshots == (snapshot,)
+    assert page.opening_matches == (opening,)
+
+    result = TdxClient(transport=FakeTransport()).helpers.auction_0925("000001", "2026-05-20")
+    assert result.price == 11.11
+    assert result.volume == 123
 
 
 def test_json_helpers_handle_models_and_bytes() -> None:
@@ -841,6 +1178,8 @@ def test_codes_all_pages_until_short_page() -> None:
                 return ["a", "b"]
             if start == 2:
                 return ["c"]
+            if start == 3:
+                return []
             raise AssertionError(f"unexpected start: {start}")
 
     assert TdxClient(transport=FakeTransport()).codes.all("sz", page_size=2) == ["a", "b", "c"]
@@ -863,7 +1202,7 @@ def test_bars_all_pages_until_short_page() -> None:
             assert command == 0x052D
             start = payload["start"]
             count = payload["count"]
-            bars = tuple(range(count if start == 0 else 1))
+            bars = tuple(range(count)) if start == 0 else (0,) if start == 2 else ()
             return KlineSeries(
                 exchange="sz",
                 market_id=0,
@@ -885,6 +1224,18 @@ def test_bars_all_pages_until_short_page() -> None:
     assert page.start == 0
     assert page.request_count == 3
     assert page.bars == (0, 1, 0)
+
+
+def test_server_page_limits_are_validated_before_request() -> None:
+    client = TdxClient.in_memory()
+
+    with pytest.raises(ValueError, match="between 1 and 1800"):
+        client.trades.history("sz000001", "2026-05-20", count=1801)
+    with pytest.raises(ValueError, match="between 1 and 800"):
+        client.bars.get("sz000001", count=801)
+    with pytest.raises(ValueError, match="between 0 and 1600"):
+        client.codes.list("sz", limit=1601)
+    assert client.codes.list("sz", limit=0)["payload"]["limit"] == 0
 
 
 def test_finance_batch_field_filter_is_local() -> None:

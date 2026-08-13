@@ -367,7 +367,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x0537",
       "kind": "底层协议",
-      "summary": "返回当前交易日每分钟价格、成交量和均价等分时序列。",
+      "summary": "返回主站当前保存的每分钟价格、成交量和均价等分时序列。",
       "return_model": "MinuteSeries",
       "doc": "methods/7709-当日分时.md"
     },
@@ -448,7 +448,7 @@ window.ELTDX_CATALOG = {
           "api": "client.trades.today(code, ...)"
         },
         {
-          "label": "全日分页",
+          "label": "完整分页",
           "api": "client.trades.all_today(code, ...)"
         }
       ],
@@ -459,7 +459,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x0fc5",
       "kind": "底层协议",
-      "summary": "返回当前交易日逐条成交的时间、价格、成交量、方向和状态。",
+      "summary": "返回主站当前保存的混合记录：普通成交、status=8 竞价快照和 09:25 正式撮合。",
       "return_model": "TradePage",
       "doc": "methods/7709-当日成交明细.md"
     },
@@ -475,7 +475,7 @@ window.ELTDX_CATALOG = {
           "api": "client.trades.history(code, date, ...)"
         },
         {
-          "label": "全日分页",
+          "label": "完整分页",
           "api": "client.trades.all_history(code, date, ...)"
         }
       ],
@@ -485,13 +485,13 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x0fc6",
       "kind": "底层协议",
-      "summary": "返回指定日期的逐条成交记录，支持分页拉全和委托笔数等扩展字段。",
+      "summary": "返回指定日期混合记录：普通成交、status=8 竞价快照和 09:25 正式撮合。",
       "return_model": "TradePage",
       "doc": "methods/7709-历史成交明细.md"
     },
     {
       "id": "7709-auction-series",
-      "title": "集合竞价明细",
+      "title": "当日集合竞价明细",
       "source": "7709",
       "category": "集合竞价",
       "api": "client.auctions.series(code)",
@@ -501,13 +501,13 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x056a",
       "kind": "底层协议",
-      "summary": "返回集合竞价阶段的价格、虚拟成交量、买卖盘和未匹配量变化。",
+      "summary": "返回主站当前保存的集合竞价过程快照；即使出现 09:25:00 也不是逐笔成交。",
       "return_model": "AuctionSeries",
       "doc": "methods/7709-集合竞价明细.md"
     },
     {
       "id": "7709-auction-0925",
-      "title": "09:25 竞价成交快照",
+      "title": "09:25 正式撮合",
       "source": "Helper",
       "category": "集合竞价",
       "api": "client.helpers.auction_0925(code, date)",
@@ -515,9 +515,9 @@ window.ELTDX_CATALOG = {
         "开盘竞价",
         "925"
       ],
-      "protocol": "基于 0x0fc6",
+      "protocol": "主站当前交易日 0x0fc5，其他日期 0x0fc6",
       "kind": "功能接口",
-      "summary": "从历史成交明细中扫描 09:25 最终成交，整理价格、成交量、成交额和方向。",
+      "summary": "从当前或历史成交明细中扫描 09:25 opening_match，忽略 status=8 竞价快照。",
       "return_model": "Auction0925Result",
       "doc": "methods/7709-0925竞价成交快照.md"
     },
@@ -1227,7 +1227,7 @@ window.ELTDX_CATALOG = {
         "开盘涨幅",
         "开盘金额"
       ],
-      "protocol": "0x056a + 0x0fc6 + 0x054c",
+      "protocol": "0x056a + (0x0fc5/0x0fc6) + 0x054c",
       "kind": "组合能力",
       "summary": "合并竞价序列、09:25 成交快照和昨收，计算开盘价、开盘金额及涨幅。",
       "return_model": "AuctionData",

@@ -159,7 +159,7 @@ client.trades.history("sz000001", "2026-05-20")
 client.trades.all_history("sz000001", "2026-05-20")
 ```
 
-成交明细别名也保留：
+成交明细提供单页和完整分页两组入口：
 
 ```python
 client.trades.today("sz000001")
@@ -175,7 +175,7 @@ client.auctions.series("sz000001")
 client.helpers.auction_0925("sz000001", "2026-05-20")
 ```
 
-`client.auctions.series()` 返回 `0x056a` 当前交易日集合竞价明细。`client.helpers.auction_0925()` 从历史成交明细接口里扫描 09:25 竞价成交快照。
+`client.auctions.series()` 返回 `0x056a` 主站当前保存的集合竞价过程快照。`client.helpers.auction_0925()` 查询主站当前交易日时扫描 `0x0fc5`，其他日期扫描 `0x0fc6`，只取 09:25 正式开盘撮合。
 
 ### 股本变迁便捷方法
 
@@ -423,7 +423,7 @@ client.bars.get("sz000001", period="day", adjust="qfq", count=800)
 
 ### `all(code, period="day", adjust=None, page_size=800, max_pages=200, include_raw=False)`
 
-分页拉取 K 线，直到服务端返回短页。`max_pages` 用来避免异常情况下无限循环。
+分页拉取 K 线，直到服务端返回空页。`max_pages` 用来避免异常情况下无限循环。
 
 ```python
 client.bars.all("sz000001", period="day")
@@ -433,7 +433,7 @@ client.bars.all("sz000001", period="day")
 
 ### `today(code, include_raw=False)`
 
-查询当日分时，对应 `0x0537`。
+查询主站当前保存的分时，对应 `0x0537`。凌晨、周末或节假日可能返回最近交易日数据。
 
 ```python
 client.minutes.today("sz000001")
@@ -476,15 +476,15 @@ client.minutes.sparkline("sz000001", selector=1)
 
 ### `today(code, start=0, count=1800, include_raw=False)`
 
-查询当日成交明细，对应 `0x0fc5`。
+查询主站当前保存的混合明细，对应 `0x0fc5`。凌晨、周末或节假日可能返回最近交易日数据。记录中的 `status=8` 是竞价快照，09:25 的其他状态是正式开盘撮合，其余是普通成交。
 
 ```python
 client.trades.today("sz000001", start=0, count=1800)
 ```
 
-### `history(code, trading_date, start=0, count=2000, include_raw=False)`
+### `history(code, trading_date, start=0, count=1800, include_raw=False)`
 
-查询历史成交明细增强接口，对应 `0x0fc6`。
+查询历史混合明细增强接口，对应 `0x0fc6`。记录中的 `status=8` 是竞价快照，09:25 的其他状态是正式开盘撮合，其余是普通成交。
 
 ```python
 client.trades.history("sz000001", "2026-05-20")
@@ -494,7 +494,7 @@ client.trades.history("sz000001", "2026-05-20")
 
 ### `series(code, include_raw=False)`
 
-查询当前交易日集合竞价明细，对应 `0x056a`。
+查询主站当前保存的集合竞价过程快照，对应 `0x056a`；它不是逐笔成交接口，即使返回 `09:25:00` 也仍按快照解释。
 
 ```python
 client.auctions.series("sz000001")

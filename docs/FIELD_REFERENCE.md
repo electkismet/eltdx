@@ -142,14 +142,14 @@ K 线响应和单根 K 线。
 | `open_price`   | 今开           |
 | `index`        | 分时序号         |
 | `time_label`   | 时间文本         |
-| `price`        | 当前分时价格       |
+| `price`        | 当日分时价格       |
 | `avg_price`    | 均价           |
 | `volume`       | 分钟成交量，单位手    |
 | `volume_sum`   | 分时成交量合计，派生字段 |
 
 ## TradePage / TradeTick
 
-成交明细响应和单笔成交。
+成交明细响应和单条混合事件。`0x0fc5`（当前）与 `0x0fc6`（历史）可能同时返回普通成交、竞价快照和 09:25 正式撮合。
 
 | 字段                  | 含义                            |
 | ------------------- | ----------------------------- |
@@ -157,14 +157,25 @@ K 线响应和单根 K 线。
 | `start`             | 请求起始位置                        |
 | `request_count`     | 请求条数                          |
 | `ticks`             | 成交明细                          |
+| `auction_snapshots` | `status=8` 竞价快照                |
+| `opening_matches`   | 09:25 正式开盘撮合                  |
 | `time_label`        | 时间文本                          |
 | `trade_datetime`    | 成交时间                          |
 | `price`             | 成交价                           |
 | `volume`            | 成交量，单位手                       |
 | `order_count`       | 单笔包含的订单数                      |
+| `event_kind`        | `trade`、`auction_snapshot`、`opening_match` |
+| `is_auction_snapshot` | 是否为竞价快照                    |
+| `is_opening_match`   | 是否为 09:25 正式撮合              |
+| `is_trade`           | 是否为普通成交                     |
+| `auction_matched_volume` | 竞价快照虚拟匹配量               |
+| `auction_unmatched_signed_volume` | 竞价快照带符号未匹配量       |
+| `auction_unmatched_volume` | 竞价快照未匹配量绝对值           |
 | `side`              | 方向，`buy` / `sell` / `neutral` |
 | `trade_amount_yuan` | 成交金额，派生字段                     |
 | `has_more`          | 是否可能还有下一页，派生字段                |
+
+分类规则：`status_raw == 8` 为 `auction_snapshot`；时间为 `09:25` 且不是 `status=8` 为 `opening_match`；其余为 `trade`。竞价快照的 `volume` / `order_count` 保留原始协议字段，分别按虚拟匹配量 / 带符号未匹配量解释。
 
 ## AuctionSeries / AuctionPoint
 

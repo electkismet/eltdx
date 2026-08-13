@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from eltdx.exceptions import ProtocolError
 from eltdx.models import SecurityCode
-from eltdx.protocol.constants import TYPE_SECURITY_COUNT, TYPE_SECURITY_LIST
+from eltdx.protocol.constants import MAX_CODE_PAGE_SIZE, TYPE_SECURITY_COUNT, TYPE_SECURITY_LIST
 from eltdx.protocol.frame import RequestFrame, ResponseFrame
 from eltdx.protocol.unit import decode_gbk_text, little_f32, little_u16, market_to_id, normalize_market, yyyymmdd
 
@@ -29,8 +29,8 @@ def build_security_list_frame(payload: dict, msg_id: int) -> RequestFrame:
     limit = int(payload.get("limit", 1600))
     if start < 0 or start > 0xFFFFFFFF:
         raise ValueError("start must be between 0 and 4294967295")
-    if limit < 0 or limit > 0xFFFFFFFF:
-        raise ValueError("limit must be between 0 and 4294967295")
+    if limit < 0 or limit > MAX_CODE_PAGE_SIZE:
+        raise ValueError(f"limit must be between 0 and {MAX_CODE_PAGE_SIZE}")
 
     market_id = market_to_id(payload.get("market", payload.get("market_id", "sz")))
     data = (

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE
+
 from .base import ApiBase
 
 
@@ -20,6 +22,7 @@ class BarApi(ApiBase):
         kind: str = "stock",
         include_raw: bool = False,
     ):
+        _validate_page_size(count)
         return self._execute(
             "klines",
             code=code,
@@ -44,8 +47,7 @@ class BarApi(ApiBase):
         max_pages: int | None = 200,
         include_raw: bool = False,
     ):
-        if page_size <= 0 or page_size > 0xFFFF:
-            raise ValueError("page_size must be between 1 and 65535")
+        _validate_page_size(page_size)
         if max_pages is not None and max_pages <= 0:
             raise ValueError("max_pages must be positive or None")
 
@@ -70,8 +72,13 @@ class BarApi(ApiBase):
                 first_page = page
             bars.extend(page.bars)
             pages += 1
-            if page.count < page_size:
+            if page.count == 0:
                 return replace(first_page, request_count=len(bars), bars=tuple(bars))
             if max_pages is not None and pages >= max_pages:
-                raise RuntimeError("bars.all reached max_pages before the server returned a short page")
-            start += page_size
+                raise RuntimeError("bars.all reached max_pages before the server returned an empty page")
+            start += page.count
+
+
+def _validate_page_size(value: int) -> None:
+    if value <= 0 or value > MAX_KLINE_PAGE_SIZE:
+        raise ValueError(f"page size must be between 1 and {MAX_KLINE_PAGE_SIZE}")

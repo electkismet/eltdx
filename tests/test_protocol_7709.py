@@ -152,6 +152,21 @@ def test_build_klines_frame_uses_7709_period_mapping() -> None:
     assert second5.data[8:12].hex() == "0d000500"
 
 
+def test_protocol_builders_reject_counts_above_observed_server_limits() -> None:
+    with pytest.raises(ValueError, match="between 1 and 800"):
+        build_command_frame(TYPE_KLINES, {"code": "sz000001", "count": 801}, 1)
+    with pytest.raises(ValueError, match="between 0 and 1600"):
+        build_command_frame(TYPE_SECURITY_LIST, {"market": "sz", "limit": 1601}, 1)
+    with pytest.raises(ValueError, match="between 1 and 1800"):
+        build_command_frame(TYPE_TODAY_TICKS, {"code": "sz000001", "count": 1801}, 1)
+    with pytest.raises(ValueError, match="between 1 and 1800"):
+        build_command_frame(
+            TYPE_HISTORICAL_TICKS,
+            {"code": "sz000001", "trading_date": "2026-05-20", "count": 1801},
+            1,
+        )
+
+
 def test_build_intraday_frames() -> None:
     today = build_command_frame(TYPE_TODAY_INTRADAY, {"code": "sz000988"}, 14)
     history = build_command_frame(TYPE_HISTORICAL_INTRADAY, {"code": "sz300308", "trading_date": 20260511}, 15)
@@ -293,6 +308,18 @@ def test_parse_trade_and_auction_payloads() -> None:
     assert today.ticks[0].price == pytest.approx(0.1)
     assert today.ticks[0].volume == 20
     assert today.ticks[0].side == "buy"
+
+    auction_tick_payload = bytes.fromhex("0100 2b02 00 8f0f 9603 08 00")
+    auction_tick = parse_command_response(
+        TYPE_TODAY_TICKS,
+        ResponseFrame(0, 2, TYPE_TODAY_TICKS, len(auction_tick_payload), len(auction_tick_payload), auction_tick_payload, b""),
+        {"code": "sz000001", "start": 0, "count": 115},
+    )
+    assert auction_tick.ticks[0].event_kind == "auction_snapshot"
+    assert auction_tick.ticks[0].auction_matched_volume == 975
+    assert auction_tick.ticks[0].auction_unmatched_signed_volume == 214
+    assert auction_tick.ticks[0].volume == 975
+    assert auction_tick.ticks[0].order_count == 214
 
     history_payload = (1).to_bytes(2, "little") + struct.pack("<f", 35.5) + bytes.fromhex("5003 0a 14 03 05 00")
     history = parse_command_response(

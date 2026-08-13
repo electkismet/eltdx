@@ -11,6 +11,7 @@ from eltdx.models import (
     QuoteSnapshot,
     SecurityCode,
 )
+from eltdx.protocol.constants import MAX_TRADE_PAGE_SIZE
 
 
 def test_stock_profile_table_combines_quote_security_and_finance() -> None:
@@ -232,7 +233,8 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
             )()
 
     helpers = HelperApi(FakeClient())
-    helpers.auction_0925 = lambda code, trading_date: snapshot
+    helpers._current_market_date = lambda: date(2026, 5, 20)
+    helpers._auction_0925 = lambda code, trading_date, **kwargs: snapshot
     result = helpers.auction_data("000001", "2026-05-20")
 
     assert result.series is series
@@ -244,7 +246,56 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
     assert result.open_change_pct == 10.0
 
 
-def test_auction_data_does_not_use_today_quote_for_history_date() -> None:
+def test_auction_data_reuses_current_market_date_for_snapshot() -> None:
+    from eltdx.models import TradePage
+
+    calls = []
+
+    class FakeWorkdays:
+        @staticmethod
+        def normalize(value=None):
+            return date(2026, 5, 20)
+
+    class FakeSession:
+        @staticmethod
+        def handshake():
+            calls.append("handshake")
+            return type(
+                "Handshake",
+                (),
+                {"server_date_1": date(2026, 5, 20), "server_date_2": date(2026, 5, 20)},
+            )()
+
+    class FakeTrades:
+        @staticmethod
+        def today(code, *, start, count):
+            calls.append(("today", code, start, count))
+            return TradePage(
+                exchange="sz",
+                market_id=0,
+                code="000001",
+                start=start,
+                request_count=count,
+                ticks=(),
+            )
+
+    class FakeClient:
+        workdays = FakeWorkdays()
+        session = FakeSession()
+        trades = FakeTrades()
+
+    result = HelperApi(FakeClient()).auction_data(
+        "000001",
+        include_series=False,
+        include_quote=False,
+    )
+
+    assert calls == ["handshake", ("today", "sz000001", 0, MAX_TRADE_PAGE_SIZE)]
+    assert result.trading_date == date(2026, 5, 20)
+    assert result.snapshot_0925.source_mode == "today_ticks_no_0925"
+
+
+def test_auction_data_does_not_use_current_quote_for_history_date() -> None:
     quote = QuoteSnapshot(
         exchange="sz",
         market_id=0,
@@ -307,7 +358,8 @@ def test_auction_data_does_not_use_today_quote_for_history_date() -> None:
             )()
 
     helpers = HelperApi(FakeClient())
-    helpers.auction_0925 = lambda code, trading_date: snapshot
+    helpers._current_market_date = lambda: date(2026, 5, 20)
+    helpers._auction_0925 = lambda code, trading_date, **kwargs: snapshot
     result = helpers.auction_data("000001", "2026-05-19")
 
     assert result.series is None
@@ -317,7 +369,8 @@ def test_auction_data_does_not_use_today_quote_for_history_date() -> None:
     assert result.open_change_pct is None
 
     helpers = HelperApi(FakeClient())
-    helpers.auction_0925 = lambda code, trading_date: snapshot
+    helpers._current_market_date = lambda: date(2026, 5, 20)
+    helpers._auction_0925 = lambda code, trading_date, **kwargs: snapshot
     with_base = helpers.auction_data("000001", "2026-05-19", pre_close_price=10.0)
     assert with_base.open_change_pct == 10.0
 

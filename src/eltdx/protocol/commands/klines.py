@@ -7,7 +7,7 @@ from datetime import date, datetime
 
 from eltdx.exceptions import ProtocolError
 from eltdx.models import KlineBar, KlineSeries
-from eltdx.protocol.constants import TYPE_KLINES
+from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE, TYPE_KLINES
 from eltdx.protocol.frame import RequestFrame, ResponseFrame
 from eltdx.protocol.unit import (
     consume_price,
@@ -78,8 +78,8 @@ def build_klines_frame(payload: dict, msg_id: int) -> RequestFrame:
     count = int(payload.get("count", 800))
     if start < 0 or start > 0xFFFF:
         raise ValueError("start must be between 0 and 65535")
-    if count <= 0 or count > 0xFFFF:
-        raise ValueError("count must be between 1 and 65535")
+    if count <= 0 or count > MAX_KLINE_PAGE_SIZE:
+        raise ValueError(f"count must be between 1 and {MAX_KLINE_PAGE_SIZE}")
 
     adjust_mode_raw = normalize_adjust(payload.get("adjust"))
     anchor_date_raw = normalize_anchor_date(payload.get("anchor_date", payload.get("anchor_date_raw", 0)))

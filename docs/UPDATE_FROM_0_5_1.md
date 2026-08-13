@@ -29,10 +29,10 @@ with TdxClient(timeout=3) as client:
 | 分类行情           | `client.quotes.list_by_category()`                  | 按市场、板块和排序字段分页查询行情列表        |
 | 增量刷新 / 推送队列    | `client.quotes.refresh()` / `poll_push()`           | 支持关注代码刷新和未配对推送帧读取          |
 | K 线 / 周期线      | `client.bars.get()` / `get_kline()`                 | 支持分钟、日、周、月、季、年线和服务端复权参数    |
-| 当日分时、历史分时、近期分时 | `client.minutes`                                    | 查询日内分时和历史分钟走势              |
+| 当日分时、历史分时、近期分时 | `client.minutes`                                    | 查询主站当日分时和历史分钟走势              |
 | 分时副图、小走势图      | `client.minutes.aux()` / `sparkline()`              | 查询分时页副图序列和小型走势序列           |
 | 当日成交明细、历史成交明细  | `client.trades`                                     | 查询逐条成交记录，包含时间、价格、成交量、方向等字段 |
-| 集合竞价明细         | `client.auctions.series()`                          | 查询当前交易日集合竞价阶段明细            |
+| 集合竞价明细         | `client.auctions.series()`                          | 查询主站当前保存的集合竞价阶段明细          |
 | 09:25 竞价成交快照   | `client.get_auction_0925()`                         | 从成交明细中提取 09:25 最终竞价成交      |
 | 股本变迁 / GBBQ    | `client.corporate.capital_changes()` / `get_gbbq()` | 查询除权除息、股本变化、增发、回购等事件       |
 | 财务基础信息         | `client.corporate.finance_batch()`                  | 查询流通股本、总股本、EPS、资产、收入、利润等字段 |
