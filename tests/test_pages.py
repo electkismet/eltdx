@@ -60,7 +60,7 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     catalog = _catalog()
     items = catalog["items"]
 
-    assert catalog["schema_version"] == 9
+    assert catalog["schema_version"] == 10
     assert len(items) == 57
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
@@ -161,13 +161,23 @@ def test_pages_catalog_has_complete_function_menus() -> None:
     assert [(group["id"], group["label"]) for group in groups[:3]] == [
         ("basics", "基础接口（非手动调用）"),
         ("codes", "证券代码"),
-        ("entry", "通用 Entry 调用"),
+        ("entry", "高级调用（需手动指定 Entry 和参数）"),
     ]
     assert sum(1 for group_id in assigned.values() if group_id == "basics") == 2
     assert sum(1 for group_id in assigned.values() if group_id == "codes") == 2
     assert sum(1 for group_id in assigned.values() if group_id == "entry") == 1
     assert sum(1 for group_id in assigned.values() if group_id == "quotes") == 15
     assert sum(1 for group_id in assigned.values() if group_id == "company") == 17
+
+
+def test_pages_catalog_wraps_long_mobile_labels() -> None:
+    styles = (REPO_ROOT / "docs" / "assets" / "interface-catalog.css").read_text(encoding="utf-8")
+
+    mobile = styles.split("@media screen and (max-width: 38rem)", 1)[1]
+    assert ".catalog-heading h1" in mobile
+    assert "overflow-wrap: anywhere" in mobile
+    assert ".interface-stat span" in mobile
+    assert "white-space: normal" in mobile
 
 
 def test_pages_catalog_covers_every_registered_7709_command() -> None:

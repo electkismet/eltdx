@@ -5,11 +5,11 @@ hide:
 
 [← 返回接口目录](../index.md){ .interface-detail-back }
 
-# F10-通用Entry调用
+# F10-高级调用（需手动指定 Entry 和参数）
 
 ## 作用
 
-直接调用任意 `7615/TQLEX` Entry。适合临时验证新 Entry，或调用 SDK 还没有单独封装的方法。
+由用户手动指定 Entry 和参数，直接调用任意 `7615/TQLEX` Entry。它不会由 SDK 自动执行，适合调试、临时验证新 Entry，或调用 SDK 还没有单独封装的方法。普通业务查询优先使用 `client.f10.company_profile()`、`client.f10.finance_report()` 等具名方法。
 
 | 项目 | 内容 |
 | --- | --- |

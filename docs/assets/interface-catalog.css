@@ -750,6 +750,7 @@
 @media screen and (max-width: 38rem) {
   .catalog-heading h1 {
     font-size: 1.75rem;
+    overflow-wrap: anywhere;
   }
 
   .catalog-heading > p:last-child {
@@ -766,8 +767,11 @@
   }
 
   .interface-stat span {
+    flex: 1 1 auto;
     font-size: 0.64rem;
     line-height: 1.35;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
 }

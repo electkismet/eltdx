@@ -1,5 +1,5 @@
 window.ELTDX_CATALOG = {
-  "schema_version": 9,
+  "schema_version": 10,
   "taxonomy": {
     "layers": [
       {
@@ -46,8 +46,8 @@ window.ELTDX_CATALOG = {
       },
       {
         "id": "entry",
-        "label": "通用 Entry 调用",
-        "description": "直接调用 7615/TQLEX HTTP 网关的 Entry，适合访问尚未封装的资料功能。",
+        "label": "高级调用（需手动指定 Entry 和参数）",
+        "description": "用户主动指定 Entry 和参数，直接调用 7615/TQLEX HTTP 网关；适合调试或访问尚未封装的资料功能。",
         "categories": [
           "网关"
         ]
@@ -716,7 +716,7 @@ window.ELTDX_CATALOG = {
     },
     {
       "id": "f10-generic-entry",
-      "title": "通用 Entry 调用",
+      "title": "高级调用（需手动指定 Entry 和参数）",
       "source": "F10",
       "category": "网关",
       "api": "client.f10.call(...) / client.f10.params(...)",
@@ -736,8 +736,8 @@ window.ELTDX_CATALOG = {
         "TQLEX"
       ],
       "protocol": "7615 / TQLEX",
-      "kind": "通用调用",
-      "summary": "直接调用任意 TQLEX Entry，用于验证资料函数或补充调用特殊 Entry。",
+      "kind": "高级调用",
+      "summary": "由用户手动指定 Entry 和参数；用于调试、验证资料函数或调用 SDK 尚未封装的 Entry，不会由 SDK 自动执行。",
       "return_model": "F10Response",
       "doc": "methods/F10-通用Entry调用.md"
     },
