@@ -1,6 +1,6 @@
 # 历史字段对照
 
-这份文档给从历史版本迁移到 `eltdx 2.0.3` 的用户看。`2.0` 已移除 `TdxClient` 上旧版扁平 `get_*` 入口；完整方法迁移表见 [迁移到 eltdx 2.0](MIGRATION_FROM_OLD.md)。
+这份文档给从历史版本迁移到 `eltdx 2.0.4` 的用户看。`2.0` 已移除 `TdxClient` 上旧版扁平 `get_*` 入口；完整方法迁移表见 [迁移到 eltdx 2.0](MIGRATION_FROM_OLD.md)。
 
 ## raw 调试字段
 

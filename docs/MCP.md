@@ -59,7 +59,7 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | `eltdx_auction_history` | 查询历史成交明细中的集合竞价记录 |
 | `eltdx_opening_match_today` | 查询当日 09:25 正式撮合 |
 | `eltdx_opening_match_history` | 查询历史 09:25 正式撮合 |
-| `eltdx_auction_data` | 汇总竞价序列、09:25 快照和实时行情 |
+| `eltdx_auction_data` | 不传日期汇总当日竞价过程、09:25 正式撮合和昨收；传日期时从历史成交明细汇总同类数据 |
 
 ### 汇总与短线指标
 

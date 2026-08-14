@@ -134,6 +134,7 @@ class AuctionData:
     code: str
     trading_date: Any
     series: Any | None
+    auction_records: tuple[Any, ...]
     snapshot_0925: Any | None
     pre_close_price: float | None
     open_price: float | None
@@ -363,25 +364,41 @@ class HelperApi:
         include_quote: bool = True,
         pre_close_price: float | None = None,
     ) -> AuctionData:
-        """Return current auction detail and the 09:25 final snapshot together."""
+        """Aggregate current or historical auction process and opening match data."""
 
         full_code = normalize_code(code)
-        current_market_date = self._current_market_date()
-        trading_date = current_market_date if date is None and current_market_date is not None else self._client.workdays.normalize(date)
-        is_current_market_date = trading_date == current_market_date
-        series = self._client.auctions.series(full_code) if include_series and is_current_market_date else None
+        is_history = date is not None
+        trading_date = self._client.workdays.normalize(date) if is_history else self._current_market_date()
+
+        series = None
+        auction_records: tuple[Any, ...] = ()
         snapshot = None
-        if include_snapshot:
-            snapshot = (
-                self._client.trades.opening_match_today(full_code)
-                if is_current_market_date
-                else self._client.trades.opening_match_history(full_code, trading_date)
-            )
-        quote = self._first_quote(full_code) if include_quote and is_current_market_date else None
+        historical_page = None
+        if is_history:
+            if include_series or include_snapshot or (include_quote and pre_close_price is None):
+                historical_page = self._client.trades.all_history(full_code, trading_date)
+                if include_series:
+                    auction_records = tuple(getattr(historical_page, "auction_snapshots", ()))
+                if include_snapshot:
+                    opening_matches = tuple(getattr(historical_page, "opening_matches", ()))
+                    snapshot = opening_matches[0] if opening_matches else None
+        else:
+            if include_series:
+                series = self._client.auctions.series(full_code)
+            if include_snapshot:
+                snapshot = self._client.trades.opening_match_today(full_code)
+
+        quote = None
+        if not is_history and include_quote and pre_close_price is None:
+            quote = self._first_quote(full_code)
 
         resolved_pre_close = pre_close_price
-        if resolved_pre_close is None and quote is not None:
-            resolved_pre_close = getattr(quote, "pre_close_price", None)
+        if resolved_pre_close is None and include_quote:
+            if historical_page is not None:
+                price_base = getattr(historical_page, "price_base_raw_f32", None)
+                resolved_pre_close = round(float(price_base), 3) if price_base not in (None, 0) else None
+            elif quote is not None:
+                resolved_pre_close = getattr(quote, "pre_close_price", None)
 
         open_price = None
         open_volume = None
@@ -390,14 +407,12 @@ class HelperApi:
             open_price = getattr(snapshot, "price", None)
             open_volume = getattr(snapshot, "volume", None)
             open_amount = round(snapshot.trade_amount_yuan, 2)
-        elif quote is not None:
-            open_price = getattr(quote, "open_price", None)
-            open_amount = getattr(quote, "open_amount_yuan", None)
 
         return AuctionData(
             code=full_code,
             trading_date=trading_date,
             series=series,
+            auction_records=auction_records,
             snapshot_0925=snapshot,
             pre_close_price=resolved_pre_close,
             open_price=open_price,
@@ -459,7 +474,7 @@ class HelperApi:
         return _by_full_code(getattr(batch, "records", ()))
 
     def _first_quote(self, full_code: str) -> Any | None:
-        quotes = self.full_quotes(full_code)
+        quotes = self._client.quotes.get_snapshots(full_code)
         if isinstance(quotes, Sequence) and not isinstance(quotes, (str, bytes, bytearray)):
             return quotes[0] if quotes else None
         return quotes

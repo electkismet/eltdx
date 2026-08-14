@@ -1256,15 +1256,15 @@ window.ELTDX_CATALOG = {
       "title": "竞价数据",
       "source": "Helper",
       "category": "集合竞价",
-      "api": "client.helpers.auction_data(code, date)",
+      "api": "client.helpers.auction_data(code, date=None)",
       "aliases": [
         "auction_data",
         "开盘涨幅",
         "开盘金额"
       ],
-      "protocol": "0x056a + (0x0fc5/0x0fc6) + 0x054c",
+      "protocol": "当日 0x056a + 0x0fc5 + 0x054c / 历史 0x0fc6",
       "kind": "组合能力",
-      "summary": "合并竞价序列、09:25 成交快照和昨收，计算开盘价、开盘金额及涨幅。",
+      "summary": "不传日期时合并 0x056A 竞价过程、0x0FC5 正式撮合和 0x054C 昨收；传日期时只使用 0x0FC6 自动分页，从历史成交明细中筛选竞价记录和正式撮合，并读取昨收。",
       "return_model": "AuctionData",
       "doc": "helpers/竞价数据.md"
     },

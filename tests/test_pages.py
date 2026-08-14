@@ -446,7 +446,7 @@ def test_current_docs_match_v2_cache_and_migration_contracts() -> None:
     assert 'client.helpers.factors("sz000001")' in migration
     assert 'client.helpers.capital_changes("sz000001", refresh=True)' in migration
     assert 'warning "历史版本文档"' in historical_update
-    assert "当前 `v2.0.3` 已移除这些入口" in historical_update
+    assert "当前 `v2.0.4` 已移除这些入口" in historical_update
 
 
 def test_trade_docs_describe_mixed_records_instead_of_only_trades() -> None:
