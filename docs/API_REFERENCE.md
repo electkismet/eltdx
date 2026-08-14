@@ -200,7 +200,13 @@ client.helpers.factors("sz000001")
 
 `unit="hand"` 表示传入成交量单位是手，`unit="share"` 表示传入成交量单位是股。
 
-`client.helpers.factors()` 用不复权日 K 和除权除息记录计算本地复权因子。普通取复权 K 线时，仍推荐直接使用服务端复权参数：
+`client.helpers.factors()` 用不复权日 K 和除权除息记录计算本地复权因子。可传 `anchor_date`，把指定日期或此前最近交易日的前复权因子归一为 `1`：
+
+```python
+factors = client.helpers.factors("sz000001", anchor_date="2024-05-31")
+```
+
+普通取复权 K 线时，仍推荐直接使用服务端复权参数：
 
 ```python
 client.bars.get("sz000001", period="day", adjust="qfq")
@@ -212,6 +218,8 @@ client.bars.get("sz000001", period="day", adjust="hfq")
 ```python
 client.helpers.local_adjusted_kline("sz000001", period="day", adjust="qfq")
 ```
+
+本地复权 K 线只支持日 K，锚点只支持前复权。周线、月线等周期直接使用服务端复权参数。
 
 ### 低频数据缓存
 

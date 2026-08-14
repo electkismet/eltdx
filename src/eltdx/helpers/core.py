@@ -228,15 +228,43 @@ class HelperApi:
     def turnover(self, code: str, volume: int | float, *, on=None, unit: str = "hand", refresh: bool = False) -> float:
         return compute_turnover(self.equity(code, on=on, refresh=refresh), volume, unit=unit)
 
-    def factors(self, code: str, *, refresh: bool = False):
+    def factors(self, code: str, *, anchor_date=None, refresh: bool = False):
         return build_factor_response(
             self._client.bars.all(code, period="day", adjust="none"),
             self.xdxr(code, refresh=refresh),
+            anchor_date=anchor_date,
         )
 
-    def local_adjusted_kline(self, code: str, *, period: str = "day", adjust: str = "qfq"):
-        base = self._client.bars.all(code, period=period, adjust="none")
-        return apply_factors_to_kline(base, self.factors(code), adjust=adjust)
+    def local_adjusted_kline(
+        self,
+        code: str,
+        *,
+        period: str = "day",
+        adjust: str = "qfq",
+        anchor_date=None,
+        refresh: bool = False,
+    ):
+        period_key = str(period).strip().lower()
+        is_daily_period = period_key in {"day", "1d", "d", "daily"} or (
+            isinstance(period, tuple) and len(period) == 2 and tuple(map(int, period)) == (4, 1)
+        )
+        if not is_daily_period:
+            raise ValueError("local_adjusted_kline only supports daily K-lines; use client.bars for other periods")
+        adjust_key = str(adjust).strip().lower()
+        qfq_modes = {"qfq", "front", "forward", "pre"}
+        hfq_modes = {"hfq", "back", "backward", "post"}
+        if adjust_key not in qfq_modes | hfq_modes:
+            raise ValueError(f"invalid adjust mode: {adjust!r}")
+        if anchor_date not in (None, "") and adjust_key in hfq_modes:
+            raise ValueError("anchor_date is only supported for qfq")
+
+        base = self._client.bars.all(code, period="day", adjust="none")
+        factors = build_factor_response(
+            base,
+            self.xdxr(code, refresh=refresh),
+            anchor_date=anchor_date,
+        )
+        return apply_factors_to_kline(base, factors, adjust=adjust, anchor_date=anchor_date)
 
     def shortline_indicators(
         self,

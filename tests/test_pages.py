@@ -446,7 +446,7 @@ def test_current_docs_match_v2_cache_and_migration_contracts() -> None:
     assert 'client.helpers.factors("sz000001")' in migration
     assert 'client.helpers.capital_changes("sz000001", refresh=True)' in migration
     assert 'warning "历史版本文档"' in historical_update
-    assert "当前 `v2.0.4` 已移除这些入口" in historical_update
+    assert "当前 `v2.0.5` 已移除这些入口" in historical_update
 
 
 def test_trade_docs_describe_mixed_records_instead_of_only_trades() -> None:
@@ -488,3 +488,13 @@ def test_split_trade_detail_docs_include_return_fields_and_examples() -> None:
         assert "event_kind" in text
         assert "opening_match" in text
         assert "is_opening_match" in text
+
+
+def test_local_factor_docs_explain_anchor_and_daily_only_scope() -> None:
+    detail = (REPO_ROOT / "docs" / "methods" / "7709-本地复权因子.md").read_text(encoding="utf-8")
+    fields = (REPO_ROOT / "docs" / "FIELD_REFERENCE.md").read_text(encoding="utf-8")
+
+    assert "anchor_date=\"2024-05-31\"" in detail
+    assert "本地调整 K 线只支持日 K" in detail
+    assert "锚点只改变因子和复权价格的绝对尺度" in detail
+    assert "`anchor_date`" in fields

@@ -16,7 +16,7 @@ from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, Quote
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "2.0.4"
+    assert __version__ == "2.0.5"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -717,10 +717,34 @@ def test_local_factor_response_and_adjustment() -> None:
     assert factors.count == 2
     assert factors.items[1].pre_last_close_price_milli == 8250
     assert factors.items[0].qfq_factor == 0.825
+    assert factors.items[1].qfq_factor == 1.0
+
+    anchored = build_factor_response(series, [xdxr], anchor_date="2024-05-31")
+    assert factors.anchor_date is None
+    assert anchored.anchor_date == date(2024, 5, 31)
+    assert anchored.items[0].qfq_factor == 1.0
+    assert anchored.items[1].qfq_factor == pytest.approx(1.0 / 0.825)
+    assert anchored.items[0].hfq_factor == factors.items[0].hfq_factor
+    assert anchored.items[1].hfq_factor == factors.items[1].hfq_factor
 
     adjusted = apply_factors_to_kline(series, factors, adjust="qfq")
     assert adjusted.adjust_mode == "local_qfq"
     assert adjusted.bars[0].close_price_milli == 8250
+
+    anchored_adjusted = apply_factors_to_kline(
+        series,
+        anchored,
+        adjust="qfq",
+        anchor_date="2024-05-31",
+    )
+    assert anchored_adjusted.anchor_date == date(2024, 5, 31)
+    assert anchored_adjusted.anchor_date_raw == 20240531
+    assert anchored_adjusted.bars[0].close_price_milli == 10000
+
+    with pytest.raises(ValueError, match="earlier than the first available"):
+        build_factor_response(series, [xdxr], anchor_date="2024-05-01")
+    with pytest.raises(ValueError, match="only supported for qfq"):
+        apply_factors_to_kline(series, factors, adjust="hfq", anchor_date="2024-05-31")
 
 
 def test_trades_all_pages_until_short_page() -> None:

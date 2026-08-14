@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v2.0.5 - 2026-08-14
+
+- `client.helpers.factors(code, anchor_date=...)` 支持把指定日期或此前最近交易日的前复权因子归一为 `1`；不传锚点时保持原有结果。
+- `FactorResponse` 新增 `anchor_date`，明确返回因子采用的前复权基准日期；后复权因子不受锚点影响。
+- `client.helpers.local_adjusted_kline()` 同步支持前复权锚点，并在返回的 `KlineSeries` 中记录锚点日期。
+- 本地复权 K 线明确只支持日 K，避免周线、月线按日因子精确日期匹配时静默产生不正确结果；其他周期继续使用 `client.bars` 服务端复权。
+- 本地日 K 复权复用同一次不复权日 K 查询，不再重复请求完整日 K 历史。
+- 补充锚点计算、返回字段、示例和周期限制文档。
+
 ## v2.0.4 - 2026-08-14
 
 - `client.helpers.auction_data()` 现在按是否传入日期使用明确的数据源：当日使用 `0x056a + 0x0fc5 + 0x054c`，历史只使用 `0x0fc6` 自动分页。

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import date
 
+import pytest
+
 from eltdx import HelperApi, TdxClient
 from eltdx.f10 import F10Client, parse_tqlex_response
 from eltdx.models import (
@@ -424,6 +426,67 @@ def test_adjusted_kline_helper_forwards_plain_arguments() -> None:
     assert client.bars.called[1] == ("000001",)
     assert client.bars.called[2]["period"] == "day"
     assert client.bars.called[2]["page_size"] == 100
+
+
+def test_local_adjusted_kline_uses_one_daily_kline_request_and_supports_anchor() -> None:
+    from datetime import datetime
+
+    from eltdx.models import CapitalChangeBlock, KlineBar, KlineSeries
+
+    bar = KlineBar(
+        time=datetime(2024, 5, 31, 15, 0),
+        open=10.0,
+        close=10.0,
+        high=10.0,
+        low=10.0,
+        open_price_milli=10000,
+        close_price_milli=10000,
+        high_price_milli=10000,
+        low_price_milli=10000,
+        last_close_price_milli=10000,
+        volume_raw=0,
+        amount_raw=0,
+        volume_wire_value=0,
+        volume_lots=0,
+        amount=0,
+        open_delta_raw=0,
+        close_delta_raw=0,
+        high_delta_raw=0,
+        low_delta_raw=0,
+    )
+
+    class FakeBars:
+        def __init__(self):
+            self.calls = []
+
+        def all(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+            return KlineSeries("sz", 0, "000001", 4, 1, "day", 0, 1, 0, "none", 0, None, (bar,))
+
+    class FakeCorporate:
+        @staticmethod
+        def capital_changes(code, include_raw=False):
+            return CapitalChangeBlock("sz", 0, "000001", 0, ())
+
+    class FakeClient:
+        def __init__(self):
+            self.bars = FakeBars()
+            self.corporate = FakeCorporate()
+
+    client = FakeClient()
+    helpers = HelperApi(client)
+    result = helpers.local_adjusted_kline("000001", anchor_date="2024-05-31")
+
+    assert client.bars.calls == [(('000001',), {"period": "day", "adjust": "none"})]
+    assert result.anchor_date == date(2024, 5, 31)
+
+    helpers.local_adjusted_kline("000001", period=(4, 1))
+    assert len(client.bars.calls) == 2
+
+    with pytest.raises(ValueError, match="only supports daily"):
+        helpers.local_adjusted_kline("000001", period="week")
+    with pytest.raises(ValueError, match="only supported for qfq"):
+        helpers.local_adjusted_kline("000001", adjust="hfq", anchor_date="2024-05-31")
 
 
 def _finance_record() -> FinanceRecord:

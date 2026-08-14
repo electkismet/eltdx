@@ -308,7 +308,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | ------------ | ---------------------------------------------------- | -------------------------- |
 | 快速总览         | 本 README                                             | 这个库能查什么、用哪个方法、底层接口是什么      |
 | 常用问题         | [docs/helpers/README.md](docs/helpers/README.md)     | 按问题进入对应调用说明             |
-| 当前版本         | [docs/releases/v2.0.4.md](docs/releases/v2.0.4.md)   | `v2.0.4` 明确当日与历史竞价聚合的数据来源 |
+| 当前版本         | [docs/releases/v2.0.5.md](docs/releases/v2.0.5.md)   | `v2.0.5` 增加本地前复权锚点并明确日 K 范围 |
 | 变更记录         | [docs/CHANGELOG.md](docs/CHANGELOG.md)               | 当前版本和未发布改动               |
 | 迁移到 2.0       | [docs/MIGRATION_FROM_OLD.md](docs/MIGRATION_FROM_OLD.md) | 把 1.x 的旧 `get_*` 调用迁移到当前模块化 API |
 | 方法字段手册       | [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md) | 每个调用方法怎么传参、返回哪些解析字段        |
@@ -321,6 +321,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | -------------------------------------------------------- | ---------------------- |
 | [docs/README.md](docs/README.md)                         | 文档入口                   |
 | [docs/PRODUCT.md](docs/PRODUCT.md)                       | 产品定位和能力总览              |
+| [docs/releases/v2.0.5.md](docs/releases/v2.0.5.md)       | `v2.0.5` 正式发布说明          |
 | [docs/releases/v2.0.4.md](docs/releases/v2.0.4.md)       | `v2.0.4` 正式发布说明          |
 | [docs/releases/v2.0.3.md](docs/releases/v2.0.3.md)       | `v2.0.3` 正式发布说明          |
 | [docs/releases/v2.0.2.md](docs/releases/v2.0.2.md)       | `v2.0.2` 正式发布说明          |
@@ -343,7 +344,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | [docs/COMMANDS_7709.md](docs/COMMANDS_7709.md)           | 21 个 `7709` 命令和 API 映射 |
 | [docs/DEBUG_GUIDE.md](docs/DEBUG_GUIDE.md)               | 连接、主站和协议排查             |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | 项目分层和实现结构              |
-| [docs/FIELD_MIGRATION.md](docs/FIELD_MIGRATION.md)       | 历史字段迁移到当前 2.0.4 模型       |
+| [docs/FIELD_MIGRATION.md](docs/FIELD_MIGRATION.md)       | 历史字段迁移到当前 2.0.5 模型       |
 | [docs/MIGRATION_FROM_OLD.md](docs/MIGRATION_FROM_OLD.md) | 1.x API 迁移到 2.0 模块化 API  |
 | [docs/ROADMAP.md](docs/ROADMAP.md)                       | 历史归档：1.0 实现记录          |
 | [scripts/README.md](scripts/README.md)                   | smoke / live 脚本说明      |

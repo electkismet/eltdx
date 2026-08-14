@@ -1,7 +1,7 @@
 # 从 v0.5.1 到 v1.0.0 的更新说明
 
 !!! warning "历史版本文档"
-    本页归档的是 `v1.0.0` 发布时相对 `v0.5.1` 的变化，文中的 `client.get_*()` 示例只适用于当时的 1.x API。当前 `v2.0.4` 已移除这些入口，请按 [迁移到 eltdx 2.0](MIGRATION_FROM_OLD.md) 使用模块化 API。
+    本页归档的是 `v1.0.0` 发布时相对 `v0.5.1` 的变化，文中的 `client.get_*()` 示例只适用于当时的 1.x API。当前 `v2.0.5` 已移除这些入口，请按 [迁移到 eltdx 2.0](MIGRATION_FROM_OLD.md) 使用模块化 API。
 
 `eltdx v1.0.0`相比 `v0.5.1`，把行情协议、F10 资料接口、常用场景封装、MCP 工具和中文文档重新整理为一个完整的 Python 客户端。
 
@@ -127,7 +127,7 @@ eltdx-mcp
 
 ## v1.0.0 当时的迁移建议
 
-以下示例保留当时发布内容，不适用于当前 `v2.0.4`。当前代码请查看 [迁移到 eltdx 2.0](MIGRATION_FROM_OLD.md)。
+以下示例保留当时发布内容，不适用于当前 `v2.0.5`。当前代码请查看 [迁移到 eltdx 2.0](MIGRATION_FROM_OLD.md)。
 
 ```python
 from eltdx import TdxClient

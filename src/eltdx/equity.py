@@ -87,7 +87,12 @@ def compute_turnover(equity: EquityRecord | None, volume: int | float, *, unit: 
     return shares / float(equity.float_shares) * 100.0
 
 
-def build_factor_response(day_kline: KlineSeries, xdxr_records: list[XdxrRecord] | tuple[XdxrRecord, ...]) -> FactorResponse:
+def build_factor_response(
+    day_kline: KlineSeries,
+    xdxr_records: list[XdxrRecord] | tuple[XdxrRecord, ...],
+    *,
+    anchor_date=None,
+) -> FactorResponse:
     bars = sorted(day_kline.bars, key=lambda item: item.time)
     xdxr_sorted = sorted((item for item in xdxr_records if item.date is not None), key=lambda item: item.date)
     overrides: dict[date, int | None] = {}
@@ -123,7 +128,11 @@ def build_factor_response(day_kline: KlineSeries, xdxr_records: list[XdxrRecord]
             qfq_cumulative *= _qfq_step(current.last_close_price_milli, current.pre_last_close_price_milli)
             factors[index - 1] = _replace_factor_qfq(factors[index - 1], qfq_cumulative)
 
-    return FactorResponse(count=len(factors), items=tuple(factors))
+    resolved_anchor = _normalize_date(anchor_date) if anchor_date not in (None, "") else None
+    if resolved_anchor is not None:
+        factors = _normalize_qfq_anchor(factors, resolved_anchor)
+
+    return FactorResponse(count=len(factors), items=tuple(factors), anchor_date=resolved_anchor)
 
 
 def apply_xdxr_to_last_close(last_close_milli: int | None, xdxr: XdxrRecord | None) -> int | None:
@@ -137,12 +146,21 @@ def apply_xdxr_to_last_close(last_close_milli: int | None, xdxr: XdxrRecord | No
     return int((numerator / denominator) * 1000.0)
 
 
-def apply_factors_to_kline(response: KlineSeries, factors: FactorResponse, adjust: str = "qfq") -> KlineSeries:
+def apply_factors_to_kline(
+    response: KlineSeries,
+    factors: FactorResponse,
+    adjust: str = "qfq",
+    *,
+    anchor_date=None,
+) -> KlineSeries:
     key = str(adjust).strip().lower()
     if key not in {"qfq", "front", "forward", "pre", "hfq", "back", "backward", "post"}:
         raise ValueError(f"invalid adjust mode: {adjust!r}")
     factor_by_day = {item.time.date(): item for item in factors.items}
     use_qfq = key in {"qfq", "front", "forward", "pre"}
+    if anchor_date not in (None, "") and not use_qfq:
+        raise ValueError("anchor_date is only supported for qfq")
+    resolved_anchor = _normalize_date(anchor_date) if anchor_date not in (None, "") else factors.anchor_date if use_qfq else None
     bars = tuple(_adjust_bar(bar, factor_by_day.get(bar.time.date()), use_qfq=use_qfq) for bar in response.bars)
     return KlineSeries(
         exchange=response.exchange,
@@ -155,8 +173,8 @@ def apply_factors_to_kline(response: KlineSeries, factors: FactorResponse, adjus
         request_count=response.request_count,
         adjust_mode_raw=response.adjust_mode_raw,
         adjust_mode=f"local_{'qfq' if use_qfq else 'hfq'}",
-        anchor_date_raw=response.anchor_date_raw,
-        anchor_date=response.anchor_date,
+        anchor_date_raw=yyyymmdd(resolved_anchor) if resolved_anchor is not None else response.anchor_date_raw,
+        anchor_date=resolved_anchor if resolved_anchor is not None else response.anchor_date,
         bars=bars,
         raw_payload=response.raw_payload,
     )
@@ -226,6 +244,20 @@ def _replace_factor_qfq(item: FactorRecord, qfq_factor: float) -> FactorRecord:
         qfq_factor=qfq_factor,
         hfq_factor=item.hfq_factor,
     )
+
+
+def _normalize_qfq_anchor(factors: list[FactorRecord], anchor_date: date) -> list[FactorRecord]:
+    anchor = None
+    for item in factors:
+        if item.time.date() <= anchor_date:
+            anchor = item
+        else:
+            break
+    if anchor is None:
+        raise ValueError("anchor_date is earlier than the first available trade date")
+    if anchor.qfq_factor == 0:
+        raise ValueError("anchor_date qfq factor is zero")
+    return [_replace_factor_qfq(item, item.qfq_factor / anchor.qfq_factor) for item in factors]
 
 
 def _normalize_date(value) -> date:

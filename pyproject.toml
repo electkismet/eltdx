@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eltdx"
-version = "2.0.4"
+version = "2.0.5"
 description = "通达信 7709 行情与 7615 F10 资料 Python 客户端"
 readme = "README.md"
 requires-python = ">=3.10"

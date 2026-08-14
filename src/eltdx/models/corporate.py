@@ -138,6 +138,7 @@ class FactorRecord:
 class FactorResponse:
     count: int
     items: tuple[FactorRecord, ...]
+    anchor_date: date | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -7,7 +7,7 @@
 | 顺序 | 文档 | 用途 |
 | --- | --- | --- |
 | 1 | [PRODUCT.md](PRODUCT.md) | 看这个库能查什么、适合怎么用 |
-| 2 | [releases/v2.0.4.md](releases/v2.0.4.md) | 看当日与历史竞价聚合的数据来源和返回字段 |
+| 2 | [releases/v2.0.5.md](releases/v2.0.5.md) | 看本地前复权锚点、返回字段和日 K 使用范围 |
 | 3 | [MIGRATION_FROM_OLD.md](MIGRATION_FROM_OLD.md) | 从 1.x 迁移到当前 2.0 模块化 API |
 | 4 | [helpers/README.md](helpers/README.md) | 按常用问题进入调用说明 |
 | 5 | [METHOD_REFERENCE.md](METHOD_REFERENCE.md) | 按调用方法看参数、底层接口和解析字段 |

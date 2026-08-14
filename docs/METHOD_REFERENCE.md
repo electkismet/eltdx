@@ -835,19 +835,22 @@ turnover = client.helpers.turnover("sz000001", 123456, on="2026-05-20", unit="ha
 
 <a id="method-corporate-factors"></a>
 
-### `client.helpers.factors(code)` / `client.helpers.local_adjusted_kline(...)`
+### `client.helpers.factors(code, anchor_date=None)` / `client.helpers.local_adjusted_kline(...)`
 
-用不复权日 K 和除权除息记录计算本地复权因子；普通取复权 K 线优先用 `0x052d` 服务端复权参数。
+用不复权日 K 和除权除息记录计算本地复权因子；`anchor_date` 可把指定日期或此前最近交易日的前复权因子归一为 `1`。普通取复权 K 线优先用 `0x052d` 服务端复权参数。
 
 ```python
 factors = client.helpers.factors("sz000001")
+anchored = client.helpers.factors("sz000001", anchor_date="2024-05-31")
 local_qfq = client.helpers.local_adjusted_kline("sz000001", period="day", adjust="qfq")
 ```
 
 | 返回模型             | 字段                                                                         |
 | ---------------- | -------------------------------------------------------------------------- |
-| `FactorResponse` | `count`、`items`                                                            |
+| `FactorResponse` | `count`、`items`、`anchor_date`                                             |
 | `FactorRecord`   | `time`、`last_close_price`、`pre_last_close_price`、`qfq_factor`、`hfq_factor` |
+
+`local_adjusted_kline()` 只支持日 K；周线、月线等周期使用 `client.bars.get(..., adjust="qfq")`。锚点只支持前复权，后复权传锚点会报错。
 
 ## 财务基础信息
 

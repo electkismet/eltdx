@@ -314,6 +314,20 @@ K 线响应和单根 K 线。
 | `trading_date`                      | 统计日期               |
 | `raw`                               | F10 原始行            |
 
+### FactorResponse / FactorRecord
+
+本地复权因子结果。
+
+| 字段 | 含义 |
+| --- | --- |
+| `count` / `items` | 因子数量 / 因子记录 |
+| `anchor_date` | 前复权锚点日期；未指定时为 `None` |
+| `time` | 因子对应的日 K 日期 |
+| `last_close_price` / `last_close_price_milli` | 原上一收盘价 |
+| `pre_last_close_price` / `pre_last_close_price_milli` | 除权除息调整后的上一收盘价 |
+| `qfq_factor` | 前复权因子；指定锚点时按锚点归一 |
+| `hfq_factor` | 后复权因子，不受锚点影响 |
+
 ### AuctionData
 
 竞价组合结果。

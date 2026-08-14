@@ -651,11 +651,11 @@ window.ELTDX_CATALOG = {
       "title": "本地复权因子",
       "source": "Helper",
       "category": "公司基础",
-      "api": "client.helpers.factors(code) / client.helpers.local_adjusted_kline(code, ...)",
+      "api": "client.helpers.factors(code, anchor_date=None) / client.helpers.local_adjusted_kline(code, ...)",
       "calls": [
         {
           "label": "复权因子",
-          "api": "client.helpers.factors(code)"
+          "api": "client.helpers.factors(code, anchor_date=None)"
         },
         {
           "label": "本地复权 K 线",
@@ -668,7 +668,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x052d + 0x000f",
       "kind": "功能接口",
-      "summary": "根据不复权日 K 和除权除息记录计算本地前复权、后复权因子及 K 线。",
+      "summary": "根据不复权日 K 和除权除息记录计算本地前复权、后复权因子；前复权支持指定锚点日期，本地复权 K 线仅支持日 K。",
       "return_model": "FactorResponse / KlineSeries",
       "doc": "methods/7709-本地复权因子.md"
     },
