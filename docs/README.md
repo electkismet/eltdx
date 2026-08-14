@@ -7,7 +7,7 @@
 | 顺序 | 文档 | 用途 |
 | --- | --- | --- |
 | 1 | [PRODUCT.md](PRODUCT.md) | 看这个库能查什么、适合怎么用 |
-| 2 | [releases/v2.0.2.md](releases/v2.0.2.md) | 看当前版本的竞价过程、竞价记录和 09:25 正式撮合接口说明 |
+| 2 | [releases/v2.0.3.md](releases/v2.0.3.md) | 看当前修复版的竞价开关、成交分页和发布检查说明 |
 | 3 | [MIGRATION_FROM_OLD.md](MIGRATION_FROM_OLD.md) | 从 1.x 迁移到当前 2.0 模块化 API |
 | 4 | [helpers/README.md](helpers/README.md) | 按常用问题进入调用说明 |
 | 5 | [METHOD_REFERENCE.md](METHOD_REFERENCE.md) | 按调用方法看参数、底层接口和解析字段 |

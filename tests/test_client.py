@@ -16,7 +16,7 @@ from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, Quote
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "2.0.2"
+    assert __version__ == "2.0.3"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
