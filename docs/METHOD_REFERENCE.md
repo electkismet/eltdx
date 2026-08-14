@@ -658,7 +658,7 @@ page = client.trades.all_history("sz000001", "2026-05-20")
 | `auction_snapshots`                             | `status=8` 集合竞价快照                           |
 | `opening_matches`                               | 09:25 正式开盘撮合                                |
 | `count`                                         | 混合记录条数                                       |
-| `has_more`                                      | 单页结果中 `count >= request_count` 时为 `True`，表示可能还有下一页 |
+| `has_more`                                      | 单页结果非空时为 `True`，表示仍可能有下一页；空页才确认结束 |
 
 ### `client.trades.auction_today(code, ...)` / `auction_history(code, date, ...)`
 

@@ -259,6 +259,34 @@ def test_auction_data_reuses_current_market_date_for_snapshot() -> None:
     assert result.snapshot_0925 is None
 
 
+def test_auction_data_skips_current_snapshot_when_disabled() -> None:
+    class FakeWorkdays:
+        @staticmethod
+        def normalize(value=None):
+            return date(2026, 5, 20)
+
+    class FakeTrades:
+        @staticmethod
+        def opening_match_today(code):
+            raise AssertionError("opening_match_today must not be called")
+
+    class FakeClient:
+        workdays = FakeWorkdays()
+        trades = FakeTrades()
+
+    helpers = HelperApi(FakeClient())
+    helpers._current_market_date = lambda: date(2026, 5, 20)
+
+    result = helpers.auction_data(
+        "000001",
+        include_series=False,
+        include_snapshot=False,
+        include_quote=False,
+    )
+
+    assert result.snapshot_0925 is None
+
+
 def test_auction_data_does_not_use_current_quote_for_history_date() -> None:
     quote = QuoteSnapshot(
         exchange="sz",

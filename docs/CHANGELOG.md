@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- 修复 `v2.0.2` 版本测试仍断言 `2.0.1` 导致 CI 失败的问题。
+- `client.helpers.auction_data(include_snapshot=False)` 不再在当前交易日额外请求 09:25 正式撮合。
+- `TradePage.has_more` 与空页终止的分页规则保持一致，短页不再被误判为已经结束。
+- 更新 README 接口目录横幅和当前版本导航，并修正 Helpers 目录说明数量。
+
 ## v2.0.2 - 2026-08-14
 
 - 新增 `client.trades.auction_today()` / `auction_history()`，分别查询当日和历史成交明细中的集合竞价记录。

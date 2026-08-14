@@ -23,7 +23,7 @@ window.ELTDX_CATALOG = {
         "label": "Helpers 封装",
         "tag_label": "Helpers",
         "stat_label": "Helpers 封装",
-        "description": "17 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
+        "description": "18 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
         "source": "Helper"
       }
     ],

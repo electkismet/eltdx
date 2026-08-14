@@ -321,6 +321,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | -------------------------------------------------------- | ---------------------- |
 | [docs/README.md](docs/README.md)                         | 文档入口                   |
 | [docs/PRODUCT.md](docs/PRODUCT.md)                       | 产品定位和能力总览              |
+| [docs/releases/v2.0.2.md](docs/releases/v2.0.2.md)       | `v2.0.2` 正式发布说明          |
 | [docs/releases/v2.0.1.md](docs/releases/v2.0.1.md)       | `v2.0.1` 正式发布说明          |
 | [docs/releases/v2.0.0.md](docs/releases/v2.0.0.md)       | `v2.0.0` 正式发布说明          |
 | [docs/releases/v1.3.1.md](docs/releases/v1.3.1.md)       | `v1.3.1` 正式发布说明          |
@@ -340,7 +341,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | [docs/COMMANDS_7709.md](docs/COMMANDS_7709.md)           | 21 个 `7709` 命令和 API 映射 |
 | [docs/DEBUG_GUIDE.md](docs/DEBUG_GUIDE.md)               | 连接、主站和协议排查             |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | 项目分层和实现结构              |
-| [docs/FIELD_MIGRATION.md](docs/FIELD_MIGRATION.md)       | 历史字段迁移到当前 2.0.1 模型       |
+| [docs/FIELD_MIGRATION.md](docs/FIELD_MIGRATION.md)       | 历史字段迁移到当前 2.0.2 模型       |
 | [docs/MIGRATION_FROM_OLD.md](docs/MIGRATION_FROM_OLD.md) | 1.x API 迁移到 2.0 模块化 API  |
 | [docs/ROADMAP.md](docs/ROADMAP.md)                       | 历史归档：1.0 实现记录          |
 | [scripts/README.md](scripts/README.md)                   | smoke / live 脚本说明      |

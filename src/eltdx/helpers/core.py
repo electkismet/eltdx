@@ -370,13 +370,13 @@ class HelperApi:
         trading_date = current_market_date if date is None and current_market_date is not None else self._client.workdays.normalize(date)
         is_current_market_date = trading_date == current_market_date
         series = self._client.auctions.series(full_code) if include_series and is_current_market_date else None
-        snapshot = (
-            self._client.trades.opening_match_today(full_code)
-            if is_current_market_date
-            else self._client.trades.opening_match_history(full_code, trading_date)
-            if include_snapshot
-            else None
-        )
+        snapshot = None
+        if include_snapshot:
+            snapshot = (
+                self._client.trades.opening_match_today(full_code)
+                if is_current_market_date
+                else self._client.trades.opening_match_history(full_code, trading_date)
+            )
         quote = self._first_quote(full_code) if include_quote and is_current_market_date else None
 
         resolved_pre_close = pre_close_price

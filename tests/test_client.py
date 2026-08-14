@@ -16,7 +16,7 @@ from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, Quote
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "2.0.1"
+    assert __version__ == "2.0.2"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -1094,6 +1094,29 @@ def test_trade_page_keeps_snapshot_and_opening_match_properties() -> None:
     assert page.opening_matches == (opening,)
 
 
+def test_trade_page_has_more_until_an_empty_page_confirms_completion() -> None:
+    from eltdx.models import TradePage, TradeTick
+
+    tick = TradeTick(
+        index=0,
+        absolute_index=0,
+        time_minutes=15 * 60,
+        time_label="15:00",
+        trade_datetime=None,
+        price=10.0,
+        price_milli=10000,
+        volume=1,
+        order_count=1,
+        status_raw=0,
+        side="buy",
+        price_delta_raw=0,
+        price_acc_raw=1000,
+    )
+    short_page = TradePage("sz", 0, "000001", 0, 1800, (tick,))
+    empty_page = TradePage("sz", 0, "000001", 1, 1800, ())
+
+    assert short_page.has_more is True
+    assert empty_page.has_more is False
 
 def test_json_helpers_handle_models_and_bytes() -> None:
     from eltdx.models import QuoteLevel

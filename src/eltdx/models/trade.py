@@ -76,7 +76,7 @@ class TradePage:
 
     @property
     def has_more(self) -> bool:
-        return self.count >= self.request_count
+        return self.count > 0
 
     @property
     def auction_snapshots(self) -> tuple[TradeTick, ...]:

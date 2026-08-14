@@ -133,6 +133,8 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
         "7615": 21,
         "helpers": 18,
     }
+    expected_counts = {"7709": 21, "7615": 21, "helpers": 18}
+    assert all(layer["description"].startswith(f"{expected_counts[layer['id']]} 个") for layer in ordered_layers)
     assert all("groups" not in layer for layer in ordered_layers)
     assert {layer["source"] for layer in ordered_layers} == {"7709", "F10", "Helper"}
     assert assignments["f10-generic-entry"] == ("7615", None)
@@ -444,7 +446,7 @@ def test_current_docs_match_v2_cache_and_migration_contracts() -> None:
     assert 'client.helpers.factors("sz000001")' in migration
     assert 'client.helpers.capital_changes("sz000001", refresh=True)' in migration
     assert 'warning "历史版本文档"' in historical_update
-    assert "当前 `v2.0.1` 已移除这些入口" in historical_update
+    assert "当前 `v2.0.2` 已移除这些入口" in historical_update
 
 
 def test_trade_docs_describe_mixed_records_instead_of_only_trades() -> None:
