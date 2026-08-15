@@ -11,6 +11,9 @@ import pytest
 from scripts.verification.verify_sdist import REQUIRED_FILES, REQUIRED_PREFIXES, inspect_sdist
 
 
+ROOT = Path(__file__).resolve().parents[2]
+
+
 def _write_sdist(
     path: Path,
     *,
@@ -66,3 +69,12 @@ def test_sdist_rejects_python_bytecode(tmp_path: Path) -> None:
     _write_sdist(sdist, bytecode=True)
     with pytest.raises(ValueError, match="contains Python bytecode"):
         inspect_sdist(sdist)
+
+
+def test_native_workflow_uses_the_supported_locked_sdist_boundary() -> None:
+    workflow = (ROOT / ".github/workflows/native-wheels.yml").read_text(encoding="utf-8")
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert "python -m maturin sdist --out dist" in workflow
+    assert "maturin sdist --locked" not in workflow
+    assert "[tool.maturin]" in pyproject
+    assert "locked = true" in pyproject
