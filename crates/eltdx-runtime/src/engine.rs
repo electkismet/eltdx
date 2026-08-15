@@ -327,6 +327,12 @@ struct RuntimeThread {
 }
 
 #[derive(Debug)]
+struct RuntimeLaunch {
+    config: EngineConfig,
+    epoch_seed: u64,
+}
+
+#[derive(Debug)]
 struct Completion<T> {
     value: Mutex<Option<T>>,
     changed: Condvar,
@@ -1683,13 +1689,13 @@ fn spawn_runtime(
     let thread_startup = Arc::clone(&startup);
     let thread_startup_fallback = Arc::clone(&startup);
     let thread_exited = Arc::clone(&exited);
+    let launch = RuntimeLaunch { config, epoch_seed };
     let join = thread::Builder::new()
         .name("eltdx-runtime".to_owned())
         .spawn(move || {
             let result = catch_unwind(AssertUnwindSafe(|| {
                 runtime_thread_main(
-                    config,
-                    epoch_seed,
+                    launch,
                     command_rx,
                     thread_control,
                     thread_startup,
@@ -1721,8 +1727,7 @@ fn spawn_runtime(
 }
 
 fn runtime_thread_main(
-    config: EngineConfig,
-    epoch_seed: u64,
+    launch: RuntimeLaunch,
     command_rx: mpsc::Receiver<RuntimeCommand>,
     control: Arc<ControlCell>,
     startup: Arc<Completion<Result<(), RuntimeError>>>,
@@ -1730,6 +1735,7 @@ fn runtime_thread_main(
     diagnostics: Arc<Mutex<DiagnosticsCache>>,
     sessions: Arc<Mutex<SessionCache>>,
 ) -> Result<(), RuntimeError> {
+    let RuntimeLaunch { config, epoch_seed } = launch;
     let runtime = Builder::new_current_thread()
         .enable_all()
         .build()
