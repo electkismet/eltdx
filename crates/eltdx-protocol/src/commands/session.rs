@@ -134,11 +134,11 @@ mod tests {
 
         assert!(matches!(
             handshake,
-            Ok(raw) if raw.as_ref() == &[0x0c, 1, 0, 0, 0, 1, 3, 0, 3, 0, 0x0d, 0, 1]
+            Ok(raw) if raw.as_ref() == [0x0c, 1, 0, 0, 0, 1, 3, 0, 3, 0, 0x0d, 0, 1]
         ));
         assert!(matches!(
             heartbeat,
-            Ok(raw) if raw.as_ref() == &[0x0c, 2, 0, 0, 0, 1, 2, 0, 2, 0, 4, 0]
+            Ok(raw) if raw.as_ref() == [0x0c, 2, 0, 0, 0, 1, 2, 0, 2, 0, 4, 0]
         ));
     }
 

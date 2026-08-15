@@ -50,6 +50,7 @@ impl KlinesRequest {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn with_include_raw(
         code: NormalizedCode,
         period: KlinePeriod,

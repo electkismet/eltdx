@@ -705,6 +705,7 @@ pub fn parse_sparkline_payload(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn relative_minute_point(
     index: usize,
     time: Option<DateTimeParts>,

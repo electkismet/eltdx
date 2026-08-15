@@ -1120,7 +1120,7 @@ fn is_legacy_record_marker(data: &[u8], offset: usize) -> bool {
     let Some(header) = data.get(offset..offset.saturating_add(9)) else {
         return false;
     };
-    matches!(header[0], 0 | 1 | 2) && header[1..7].iter().all(u8::is_ascii_digit)
+    matches!(header[0], 0..=2) && header[1..7].iter().all(u8::is_ascii_digit)
 }
 
 fn read_u16(data: &[u8], offset: usize, message: &'static str) -> Result<u16, ProtocolError> {
@@ -1224,7 +1224,7 @@ mod tests {
         assert!(matches!(
             snapshot,
             Ok(frame)
-                if frame.data.as_ref() == &[
+                if frame.data.as_ref() == [
                     5, 0, 0, 0, 0, 0, 0, 0, 3, 0,
                     0, b'0', b'0', b'0', b'0', b'0', b'1',
                     1, b'6', b'0', b'0', b'0', b'0', b'0',
@@ -1240,7 +1240,7 @@ mod tests {
         .frame(1);
         assert!(matches!(
             refresh,
-            Ok(frame) if frame.data.as_ref() == &[1, 0, 0, b'0', b'0', b'0', b'0', b'0', b'1', 0, 0, 0, 0]
+            Ok(frame) if frame.data.as_ref() == [1, 0, 0, b'0', b'0', b'0', b'0', b'0', b'1', 0, 0, 0, 0]
         ));
 
         let category = CategoryQuotesRequest::new(6, 0, 0, 42, false, None, 0).frame(1);
