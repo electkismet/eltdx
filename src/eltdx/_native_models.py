@@ -317,10 +317,10 @@ def response_from_dto(dto: Any) -> Any:
         fields[7] = _records(fields[7], tag, _category_quote)
         return CategoryQuotePage(*fields)
     if tag == "snapshots":
-        fields = _flat_records(payload, tag, _SNAPSHOT_STRIDE)
+        snapshot_fields = _flat_records(payload, tag, _SNAPSHOT_STRIDE)
         return [
-            _quote_snapshot_at(fields, offset)
-            for offset in range(0, len(fields), _SNAPSHOT_STRIDE)
+            _quote_snapshot_at(snapshot_fields, offset)
+            for offset in range(0, len(snapshot_fields), _SNAPSHOT_STRIDE)
         ]
     if tag == "auction_series":
         exchange, market_id, code, mode, start, limit, points, raw_payload = _tuple(payload, tag, 8)
