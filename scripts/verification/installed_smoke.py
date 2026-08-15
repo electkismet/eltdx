@@ -27,17 +27,6 @@ def installed_smoke(expected_version: str) -> None:
             f"native ABI mismatch: native={_native.ABI_VERSION}, expected={EXPECTED_NATIVE_ABI_VERSION}"
         )
 
-    distribution_files = importlib.metadata.files("eltdx")
-    if distribution_files is None:
-        raise AssertionError("installed eltdx distribution has no file inventory")
-    bytecode = sorted(
-        str(path)
-        for path in distribution_files
-        if "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo"}
-    )
-    if bytecode:
-        raise AssertionError(f"installed wheel contains Python bytecode: {bytecode!r}")
-
     package = importlib.resources.files("eltdx")
     for relative in (
         "py.typed",

@@ -106,17 +106,23 @@ def _current_platform() -> str:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Smoke one native eltdx wheel")
     parser.add_argument("--artifact-dir", type=Path, required=True)
-    parser.add_argument("--platform", required=True)
-    parser.add_argument("--python-version", required=True)
+    parser.add_argument("--platform")
+    parser.add_argument("--python-version")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    target_platform = args.platform if args.platform is not None else _current_platform()
+    target_python = (
+        args.python_version
+        if args.python_version is not None
+        else f"{sys.version_info.major}.{sys.version_info.minor}"
+    )
     verify_wheel(
         args.artifact_dir,
-        platform=args.platform,
-        python_version=args.python_version,
+        platform=target_platform,
+        python_version=target_python,
     )
     return 0
 

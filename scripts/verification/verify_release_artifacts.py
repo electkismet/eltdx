@@ -8,7 +8,8 @@ import json
 import os
 import re
 import subprocess
-from pathlib import Path
+import zipfile
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 
@@ -77,6 +78,7 @@ def verify_artifacts(artifact_dir: Path, *, candidate: str | None) -> dict[str, 
         match = WHEEL_PATTERN.fullmatch(wheel.name)
         if match is None:
             raise ValueError(f"wheel is not eltdx cp310-abi3: {wheel.name}")
+        _verify_wheel_archive(wheel)
         platform = classify_platform(match.group("platform"))
         if platform in platforms:
             raise ValueError(f"duplicate release wheel platform {platform}: {wheel.name}")
@@ -125,6 +127,25 @@ def _record(path: Path, *, kind: str, platform: str | None) -> dict[str, Any]:
         "size": path.stat().st_size,
         "sha256": _sha256(path),
     }
+
+
+def _verify_wheel_archive(path: Path) -> None:
+    try:
+        with zipfile.ZipFile(path) as archive:
+            bytecode = sorted(
+                member.filename
+                for member in archive.infolist()
+                if _is_python_bytecode(member.filename)
+            )
+    except zipfile.BadZipFile as error:
+        raise ValueError(f"invalid wheel archive: {path.name}") from error
+    if bytecode:
+        raise ValueError(f"wheel contains Python bytecode: {path.name}: {bytecode!r}")
+
+
+def _is_python_bytecode(name: str) -> bool:
+    member = PurePosixPath(name)
+    return "__pycache__" in member.parts or member.suffix in {".pyc", ".pyo"}
 
 
 def _write_json(path: Path, value: Any) -> None:
