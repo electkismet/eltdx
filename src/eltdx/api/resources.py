@@ -5,6 +5,7 @@ from __future__ import annotations
 import operator
 from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import SupportsIndex, cast
 
 from eltdx.exceptions import ProtocolError, TransportError
 from eltdx.models import FileContentChunk, TdxStatsResource
@@ -87,7 +88,7 @@ def _bounded_int(value: object, name: str, *, minimum: int, maximum: int) -> int
     if isinstance(value, bool):
         raise ProtocolError(f"file content {name} must be an integer")
     try:
-        number = operator.index(value)
+        number = operator.index(cast(SupportsIndex, value))
     except (TypeError, ValueError) as exc:
         raise ProtocolError(f"file content {name} must be an integer") from exc
     if not minimum <= number <= maximum:

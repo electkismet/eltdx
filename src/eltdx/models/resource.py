@@ -86,11 +86,13 @@ class TdxStatsResource:
 
     @property
     def stats_date_counts(self) -> dict[str, int]:
-        values = [
-            row.stats_date
-            for row in (*self.stat.values(), *self.stat2.values())
-            if row.stats_date
-        ]
+        values: list[str] = []
+        for row in self.stat.values():
+            if row.stats_date:
+                values.append(row.stats_date)
+        for row in self.stat2.values():
+            if row.stats_date:
+                values.append(row.stats_date)
         return dict(Counter(values))
 
     @property

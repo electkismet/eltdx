@@ -40,7 +40,7 @@ _PUBLIC_ERROR_TYPES: dict[str, type[Exception]] = {
 def _parts(error: BaseException) -> tuple[str, str, tuple[tuple[str, str], ...]]:
     """Read the tuple payload emitted by PyO3's private ``NativeError``."""
 
-    raw = getattr(error, "args", ())
+    raw: tuple[Any, ...] = error.args
     if len(raw) == 1 and isinstance(raw[0], tuple) and len(raw[0]) == 3:
         raw = raw[0]
     if len(raw) != 3:

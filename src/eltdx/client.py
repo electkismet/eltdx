@@ -138,11 +138,13 @@ class TdxClient:
     def connect(self) -> None:
         """打开底层连接。"""
 
+        assert self.transport is not None
         self.transport.connect()
 
     def close(self) -> None:
         """关闭底层连接。"""
 
+        assert self.transport is not None
         self.transport.close()
 
     def __enter__(self) -> TdxClient:

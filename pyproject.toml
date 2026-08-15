@@ -38,7 +38,7 @@ dev = [
   "maturin>=1.14,<2",
   "mkdocs>=1.6",
   "mkdocs-material>=9.6",
-  "mypy>=1.15",
+  "mypy>=1.15,<2",
   "packaging>=24.2",
   "psutil>=6.1",
   "pytest>=8.0",
@@ -80,6 +80,15 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = ["src", "."]
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["scripts.*", "tests.*"]
+ignore_errors = true
 
 [tool.ruff]
 target-version = "py310"

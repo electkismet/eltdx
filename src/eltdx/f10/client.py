@@ -277,6 +277,7 @@ class F10Client:
 
         market_id, _, code6 = split_code(code)
         req_id_text = str(req_id)
+        payload: dict[str, Any]
         if req_id_text in {"200191", "200192"}:
             payload = {
                 "ReqId": req_id_text,
