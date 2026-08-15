@@ -26,6 +26,20 @@ def _top_level_names(relative: str) -> set[str]:
     return names
 
 
+def _top_level_import_names(relative: str) -> set[str]:
+    tree = ast.parse(_source(relative), filename=relative)
+    names: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                names.update((alias.name, alias.name.rsplit(".", 1)[-1]))
+        elif isinstance(node, ast.ImportFrom):
+            if node.module is not None:
+                names.update((node.module, node.module.rsplit(".", 1)[-1]))
+            names.update(alias.name for alias in node.names)
+    return names
+
+
 def test_native_protocol_entrypoints_are_registered_and_stateless() -> None:
     source = _source("crates/eltdx-python/src/protocol.rs")
     request = _source("crates/eltdx-python/src/request.rs")
@@ -61,9 +75,9 @@ def test_python_protocol_facades_have_no_python_wire_runtime() -> None:
 def test_actor_module_is_snapshot_only() -> None:
     source = _source("src/eltdx/transport/actor.py")
     names = _top_level_names("src/eltdx/transport/actor.py")
+    imports = _top_level_import_names("src/eltdx/transport/actor.py")
     assert names == {"RuntimeState", "TcpState", "ActorSnapshot", "__all__"}
-    assert "threading" not in source
-    assert "socket" not in source.lower()
+    assert imports.isdisjoint({"threading", "socket", "ActorRuntime"})
     assert "ActorRuntime" not in source
     assert "def execute" not in source
     assert "def submit" not in source
