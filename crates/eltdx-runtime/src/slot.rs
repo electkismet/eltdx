@@ -1067,6 +1067,7 @@ fn nonzero_identity(name: &'static str, value: u64) -> Result<u64, RuntimeError>
 mod tests {
     use std::time::{Duration, Instant};
 
+    use eltdx_protocol::frame::RESPONSE_PREFIX;
     use proptest::prelude::*;
 
     use super::{
@@ -1109,7 +1110,7 @@ mod tests {
         let length = u16::try_from(payload.len())
             .map_err(|_| RuntimeError::internal("test response payload is too large"))?;
         let mut raw = vec![0_u8; 16 + payload.len()];
-        raw[..4].copy_from_slice(&[0xb1, 0x49, 0x53, 0x68]);
+        raw[..4].copy_from_slice(&RESPONSE_PREFIX);
         raw[5..9].copy_from_slice(&message.to_le_bytes());
         raw[10..12].copy_from_slice(&message_type.to_le_bytes());
         raw[12..14].copy_from_slice(&length.to_le_bytes());

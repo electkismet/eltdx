@@ -5147,7 +5147,7 @@ mod tests {
             attempt: Arc::clone(&attempt),
             terminal: None,
         };
-        assert_eq!(first.wait_timeout(Duration::ZERO)?, PendingPoll::Pending);
+        assert_eq!(attempt.completion.wait(Duration::ZERO)?, None);
         attempt.completion.publish(Ok(()));
         assert_eq!(first.wait_timeout(Duration::ZERO)?, PendingPoll::Ready(()));
         assert_eq!(second.wait_timeout(Duration::ZERO)?, PendingPoll::Ready(()));

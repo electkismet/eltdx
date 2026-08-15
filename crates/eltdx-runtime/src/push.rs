@@ -232,7 +232,7 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
-    use eltdx_protocol::frame::{ResponseFrame, ResponseHeader};
+    use eltdx_protocol::frame::{ResponseFrame, ResponseHeader, RESPONSE_PREFIX};
 
     use super::{PushBuffer, PushFrame};
     use crate::error::RuntimeError;
@@ -254,7 +254,7 @@ mod tests {
             length,
         };
         let mut raw = vec![0_u8; 16 + payload_size];
-        raw[..4].copy_from_slice(&[0xb1, 0x49, 0x53, 0x68]);
+        raw[..4].copy_from_slice(&RESPONSE_PREFIX);
         raw[5..9].copy_from_slice(&message.to_le_bytes());
         raw[10..12].copy_from_slice(&0x0547_u16.to_le_bytes());
         raw[12..14].copy_from_slice(&length.to_le_bytes());
