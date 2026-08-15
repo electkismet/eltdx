@@ -734,7 +734,7 @@ fn bool_field(payload: Payload<'_, '_>, name: &'static str, default: bool) -> Py
 
 fn u8_field(
     payload: Payload<'_, '_>,
-    names: &[&str],
+    names: &[&'static str],
     default: u8,
     minimum: u8,
     maximum: u8,
@@ -747,7 +747,7 @@ fn u8_field(
 
 fn u16_field(
     payload: Payload<'_, '_>,
-    names: &[&str],
+    names: &[&'static str],
     default: u16,
     minimum: u16,
     maximum: u16,
@@ -760,7 +760,7 @@ fn u16_field(
 
 fn u32_field(
     payload: Payload<'_, '_>,
-    names: &[&str],
+    names: &[&'static str],
     default: u32,
     minimum: u32,
     maximum: u32,

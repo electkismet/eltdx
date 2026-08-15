@@ -24,6 +24,7 @@ use eltdx_protocol::unit::{DateParts, DateTimeParts, Market};
 use eltdx_runtime::push::PushFrame;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList, PyString, PyTuple};
+use pyo3::IntoPyObjectExt;
 
 type Obj = Py<PyAny>;
 
@@ -861,7 +862,7 @@ fn minute_aux_point<'py>(
                 none(py),
                 record_hex(py, include_raw, raw_hex),
             ],
-        )?,
+        ),
         MinuteAuxPoint::VolumeComparison {
             index,
             time_label,
@@ -886,7 +887,7 @@ fn minute_aux_point<'py>(
                 )?,
                 record_hex(py, include_raw, raw_hex),
             ],
-        )?,
+        ),
     }
 }
 
