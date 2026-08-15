@@ -3324,7 +3324,7 @@ impl RuntimeCore {
             let lease = promotion.active_lease;
             if let Err(error) = self.start_pin_connection(request_id, lease, lease.deadline) {
                 let batch = self.fail_pin_reservation(request_id, error)?;
-                self.process_terminal_batch(batch).await?;
+                return Ok(Some(batch));
             }
             return Ok(None);
         }
