@@ -111,20 +111,12 @@ fn tagged<'py>(py: Python<'py>, name: &'static str, payload: Obj) -> PyResult<Ob
     tuple(py, vec![any(py, name)?, payload])
 }
 
-fn raw_payload<'py>(py: Python<'py>, include_raw: bool, payload: &[u8]) -> Obj {
-    if include_raw {
-        bytes(py, payload)
-    } else {
-        bytes(py, &[])
-    }
+fn raw_payload<'py>(py: Python<'py>, _include_raw: bool, payload: &[u8]) -> Obj {
+    bytes(py, payload)
 }
 
-fn record_hex<'py>(py: Python<'py>, include_raw: bool, value: &str) -> Obj {
-    if include_raw {
-        PyString::new(py, value).into_any().unbind()
-    } else {
-        PyString::new(py, "").into_any().unbind()
-    }
+fn record_hex<'py>(py: Python<'py>, _include_raw: bool, value: &str) -> Obj {
+    PyString::new(py, value).into_any().unbind()
 }
 
 fn level<'py>(py: Python<'py>, value: &QuoteLevel) -> PyResult<Obj> {
@@ -856,8 +848,8 @@ fn minute_aux_point<'py>(
                 any(py, time_label.as_str())?,
                 any(py, *series_a)?,
                 any(py, *series_b)?,
-                none(py),
-                none(py),
+                any(py, *series_a)?,
+                any(py, *series_b)?,
                 none(py),
                 none(py),
                 none(py),

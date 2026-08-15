@@ -88,6 +88,7 @@ def test_kline_dto_rebuilds_aware_datetime_and_nested_tuple() -> None:
     assert isinstance(result, KlineSeries)
     assert result.anchor_date == date(2026, 8, 15)
     assert result.bars[0].time == datetime(2026, 8, 15, 9, 30, tzinfo=timezone(timedelta(hours=8)))
+    assert result.bars[0].time.tzname() == "Asia/Shanghai"
 
 
 def test_snapshot_dto_rebuilds_nested_quote_levels() -> None:

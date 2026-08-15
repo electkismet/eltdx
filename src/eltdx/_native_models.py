@@ -45,6 +45,10 @@ if TYPE_CHECKING:
     from eltdx.protocol.frame import ResponseFrame
 
 
+_SHANGHAI_OFFSET_SECONDS = 8 * 60 * 60
+_SHANGHAI_TZ = timezone(timedelta(seconds=_SHANGHAI_OFFSET_SECONDS), name="Asia/Shanghai")
+
+
 def _tuple(value: Any, name: str, size: int | None = None) -> tuple[Any, ...]:
     if not isinstance(value, tuple):
         raise TypeError(f"native DTO {name} must be a tuple")
@@ -72,7 +76,12 @@ def _datetime(value: Any) -> datetime | None:
     year, month, day, hour, minute, second, offset = _tuple(value, "datetime", 7)
     if offset is None:
         return datetime(int(year), int(month), int(day), int(hour), int(minute), int(second))
-    tz = timezone(timedelta(seconds=int(offset)))
+    offset_seconds = int(offset)
+    tz = (
+        _SHANGHAI_TZ
+        if offset_seconds == _SHANGHAI_OFFSET_SECONDS
+        else timezone(timedelta(seconds=offset_seconds))
+    )
     return datetime(int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=tz)
 
 
