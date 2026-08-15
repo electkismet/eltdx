@@ -163,9 +163,18 @@ def test_hot_record_dtos_use_flat_fixed_stride_aggregates() -> None:
     assert "_SNAPSHOT_STRIDE = 27" in models_source
     assert "_TRADE_TICK_STRIDE = 19" in models_source
     assert "def _flat_records(" in models_source
+    today_tick_body = models_source.split("def _today_trade_ticks", 1)[1].split(
+        "\ndef ", 1
+    )[0]
+    assert "zip(*((iterator,) * _TRADE_TICK_STRIDE), strict=True)" in today_tick_body
+    assert "starmap(TradeTick, records)" in today_tick_body
     tick_body = models_source.split("def _trade_tick_at", 1)[1].split("\ndef ", 1)[0]
     assert "return TradeTick(" in tick_body
     assert "_tuple(" not in tick_body
+    trade_page_body = models_source.split("def _trade_page", 1)[1].split("\ndef ", 1)[0]
+    assert "if fields[6] is None:" in trade_page_body
+    assert "parsed_ticks = _today_trade_ticks(ticks)" in trade_page_body
+    assert "parsed_ticks = tuple(" in trade_page_body
     snapshot_body = models_source.split("def _quote_snapshot_at", 1)[1].split("\ndef ", 1)[0]
     assert "return QuoteSnapshot(" in snapshot_body
     assert "QuoteLevel(fields[offset + 20]" in snapshot_body

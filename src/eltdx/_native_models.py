@@ -8,6 +8,7 @@ become the public dataclasses again.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from itertools import starmap
 from typing import TYPE_CHECKING, Any
 
 from eltdx.models import (
@@ -179,6 +180,12 @@ def _trade_tick_at(fields: tuple[Any, ...], offset: int) -> TradeTick:
     )
 
 
+def _today_trade_ticks(fields: tuple[Any, ...]) -> tuple[TradeTick, ...]:
+    iterator = iter(fields)
+    records = zip(*((iterator,) * _TRADE_TICK_STRIDE), strict=True)
+    return tuple(starmap(TradeTick, records))
+
+
 def _quote_snapshot_at(fields: tuple[Any, ...], offset: int) -> QuoteSnapshot:
     return QuoteSnapshot(
         fields[offset],
@@ -228,16 +235,20 @@ def _minute_series(value: Any) -> MinuteSeries:
 def _trade_page(value: Any) -> TradePage:
     fields = _tuple(value, "trade page", 9)
     ticks = _flat_records(fields[5], "trade ticks", _TRADE_TICK_STRIDE)
+    if fields[6] is None:
+        parsed_ticks = _today_trade_ticks(ticks)
+    else:
+        parsed_ticks = tuple(
+            _trade_tick_at(ticks, offset)
+            for offset in range(0, len(ticks), _TRADE_TICK_STRIDE)
+        )
     return TradePage(
         fields[0],
         fields[1],
         fields[2],
         fields[3],
         fields[4],
-        tuple(
-            _trade_tick_at(ticks, offset)
-            for offset in range(0, len(ticks), _TRADE_TICK_STRIDE)
-        ),
+        parsed_ticks,
         _date(fields[6]),
         fields[7],
         fields[8],

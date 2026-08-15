@@ -157,12 +157,65 @@ def test_today_tick_dto_reuses_none_datetime_tuple_without_field_drift() -> None
         None,
         None,
     )
-    payload = ("sz", 0, "000001", 5, 1800, tick, None, None, b"payload")
+    second_tick = (
+        1,
+        6,
+        571,
+        "09:31",
+        None,
+        1.26,
+        1260,
+        200,
+        3,
+        1,
+        "sell",
+        1,
+        126,
+        0,
+        None,
+        "51010406010000",
+        "trade",
+        None,
+        None,
+    )
+    payload = (
+        "sz",
+        0,
+        "000001",
+        5,
+        1800,
+        tick + second_tick,
+        None,
+        None,
+        b"payload",
+    )
     result = response_from_dto(("today_ticks", payload))
     assert isinstance(result, TradePage)
-    assert result.ticks == (TradeTick(*tick),)
+    assert result.ticks == (TradeTick(*tick), TradeTick(*second_tick))
     assert result.trading_date is None
     assert result.raw_payload == b"payload"
+
+    raw_datetime = (2026, 8, 15, 9, 30, 0, None)
+    historical_tick = tick[:4] + (raw_datetime,) + tick[5:]
+    historical_payload = (
+        "sz",
+        0,
+        "000001",
+        5,
+        1800,
+        historical_tick,
+        (2026, 8, 15),
+        35.5,
+        b"history",
+    )
+    history = response_from_dto(("historical_ticks", historical_payload))
+    expected_tick = TradeTick(
+        *historical_tick[:4],
+        datetime(2026, 8, 15, 9, 30),
+        *tick[5:],
+    )
+    assert history.ticks == (expected_tick,)
+    assert history.trading_date == date(2026, 8, 15)
 
 
 def test_flat_record_dtos_reject_partial_strides() -> None:
