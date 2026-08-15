@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
 RESPONSE = ROOT / "crates" / "eltdx-python" / "src" / "response.rs"
+TRADES = ROOT / "crates" / "eltdx-protocol" / "src" / "commands" / "trades.rs"
 
 EXPECTED_TAGS = {
     "heartbeat",
@@ -180,3 +181,41 @@ def test_hot_record_dtos_use_flat_fixed_stride_aggregates() -> None:
     assert "QuoteLevel(fields[offset + 20]" in snapshot_body
     assert "QuoteLevel(fields[offset + 23]" in snapshot_body
     assert "_records(" not in snapshot_body
+
+
+def test_trade_semantic_names_are_borrowed_and_response_local() -> None:
+    response_source = RESPONSE.read_text(encoding="utf-8")
+    trades_source = TRADES.read_text(encoding="utf-8")
+    assert "pub fn canonical_name(&self) -> Cow<'static, str>" in trades_source
+    for name in ("buy", "sell", "neutral"):
+        assert f'Cow::Borrowed("{name}")' in trades_source
+    assert 'Cow::Owned(format!("status_{value}"))' in trades_source
+
+    names_body = response_source.split("struct TradeSemanticNames", 1)[1].split(
+        "fn extend_trade_tick", 1
+    )[0]
+    assert "HashMap" not in names_body
+    assert names_body.count("clone_ref(py)") == 6
+    for name in (
+        "buy",
+        "sell",
+        "neutral",
+        "trade",
+        "opening_match",
+        "auction_snapshot",
+    ):
+        assert f'{name}: any(py, "{name}")?' in names_body
+
+    tick_body = response_source.split("fn extend_trade_tick", 1)[1].split(
+        "\nfn ", 1
+    )[0]
+    assert "semantic_names.side(py, &value.side)?" in tick_body
+    assert "semantic_names.event_kind(py, value.event_kind)" in tick_body
+    assert "any(py, value.side.canonical_name())?" not in tick_body
+    assert "any(py, value.event_kind.canonical_name())?" not in tick_body
+
+    aggregate_body = response_source.split("fn trade_ticks", 1)[1].split("\nfn ", 1)[0]
+    assert aggregate_body.count("TradeSemanticNames::new(py)?") == 1
+    assert "extend_trade_tick(py, &mut fields, value, include_raw, &semantic_names)?" in (
+        aggregate_body
+    )

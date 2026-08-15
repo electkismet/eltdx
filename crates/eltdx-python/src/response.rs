@@ -17,7 +17,7 @@ use eltdx_protocol::commands::{
     resources::FileContentChunk,
     security::SecurityCode,
     session::{HandshakeInfo, HeartbeatAck},
-    trades::{TradePage, TradeTick},
+    trades::{TradeEventKind, TradePage, TradeSide, TradeTick},
 };
 use eltdx_protocol::response::CommandResponse;
 use eltdx_protocol::unit::{DateParts, DateTimeParts, Market};
@@ -31,6 +31,45 @@ type Obj = Py<PyAny>;
 
 const SNAPSHOT_STRIDE: usize = 27;
 const TRADE_TICK_STRIDE: usize = 19;
+
+struct TradeSemanticNames {
+    buy: Obj,
+    sell: Obj,
+    neutral: Obj,
+    trade: Obj,
+    opening_match: Obj,
+    auction_snapshot: Obj,
+}
+
+impl TradeSemanticNames {
+    fn new(py: Python<'_>) -> PyResult<Self> {
+        Ok(Self {
+            buy: any(py, "buy")?,
+            sell: any(py, "sell")?,
+            neutral: any(py, "neutral")?,
+            trade: any(py, "trade")?,
+            opening_match: any(py, "opening_match")?,
+            auction_snapshot: any(py, "auction_snapshot")?,
+        })
+    }
+
+    fn side(&self, py: Python<'_>, value: &TradeSide) -> PyResult<Obj> {
+        match value {
+            TradeSide::Buy => Ok(self.buy.clone_ref(py)),
+            TradeSide::Sell => Ok(self.sell.clone_ref(py)),
+            TradeSide::Neutral => Ok(self.neutral.clone_ref(py)),
+            TradeSide::Status(_) => any(py, value.canonical_name().as_ref()),
+        }
+    }
+
+    fn event_kind(&self, py: Python<'_>, value: TradeEventKind) -> Obj {
+        match value {
+            TradeEventKind::Trade => self.trade.clone_ref(py),
+            TradeEventKind::OpeningMatch => self.opening_match.clone_ref(py),
+            TradeEventKind::AuctionSnapshot => self.auction_snapshot.clone_ref(py),
+        }
+    }
+}
 
 fn any<'py, T>(py: Python<'py>, value: T) -> PyResult<Obj>
 where
@@ -363,6 +402,7 @@ fn extend_trade_tick<'py>(
     fields: &mut Vec<Obj>,
     value: &TradeTick,
     include_raw: bool,
+    semantic_names: &TradeSemanticNames,
 ) -> PyResult<()> {
     fields.extend([
         any(py, value.index)?,
@@ -375,7 +415,7 @@ fn extend_trade_tick<'py>(
         any(py, value.volume)?,
         any(py, value.order_count)?,
         any(py, value.status_raw)?,
-        any(py, value.side.canonical_name())?,
+        semantic_names.side(py, &value.side)?,
         any(py, value.price_delta_raw)?,
         any(py, value.price_acc_raw)?,
         value
@@ -385,7 +425,7 @@ fn extend_trade_tick<'py>(
             .reserved_zero
             .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
         record_hex(py, include_raw, &value.record_hex),
-        any(py, value.event_kind.canonical_name())?,
+        semantic_names.event_kind(py, value.event_kind),
         value
             .auction_matched_volume
             .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
@@ -402,8 +442,9 @@ fn trade_ticks<'py>(py: Python<'py>, values: &[TradeTick], include_raw: bool) ->
         .checked_mul(TRADE_TICK_STRIDE)
         .ok_or_else(|| PyValueError::new_err("native trade tick DTO length overflow"))?;
     let mut fields = Vec::with_capacity(capacity);
+    let semantic_names = TradeSemanticNames::new(py)?;
     for value in values {
-        extend_trade_tick(py, &mut fields, value, include_raw)?;
+        extend_trade_tick(py, &mut fields, value, include_raw, &semantic_names)?;
     }
     tuple(py, fields)
 }

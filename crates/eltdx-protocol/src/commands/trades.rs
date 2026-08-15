@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use bytes::Bytes;
 
 use crate::error::ProtocolError;
@@ -126,12 +128,12 @@ impl TradeSide {
         }
     }
 
-    pub fn canonical_name(&self) -> String {
+    pub fn canonical_name(&self) -> Cow<'static, str> {
         match self {
-            Self::Buy => "buy".to_owned(),
-            Self::Sell => "sell".to_owned(),
-            Self::Neutral => "neutral".to_owned(),
-            Self::Status(value) => format!("status_{value}"),
+            Self::Buy => Cow::Borrowed("buy"),
+            Self::Sell => Cow::Borrowed("sell"),
+            Self::Neutral => Cow::Borrowed("neutral"),
+            Self::Status(value) => Cow::Owned(format!("status_{value}")),
         }
     }
 }
@@ -458,6 +460,8 @@ fn encode_hex(data: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use super::{
         parse_historical_ticks_payload, parse_today_ticks_payload, python_round_to_i64,
         HistoricalTicksRequest, TodayTicksRequest, TradeEventKind, TradeSide,
@@ -555,6 +559,23 @@ mod tests {
             Some(value) if value.utc_offset_seconds.is_none()
         ));
         Ok(())
+    }
+
+    #[test]
+    fn known_trade_side_names_are_borrowed() {
+        for (side, expected) in [
+            (TradeSide::Buy, "buy"),
+            (TradeSide::Sell, "sell"),
+            (TradeSide::Neutral, "neutral"),
+        ] {
+            let name = side.canonical_name();
+            assert_eq!(name.as_ref(), expected);
+            assert!(matches!(name, Cow::Borrowed(_)));
+        }
+
+        let status = TradeSide::Status(5).canonical_name();
+        assert_eq!(status.as_ref(), "status_5");
+        assert!(matches!(status, Cow::Owned(_)));
     }
 
     #[test]
