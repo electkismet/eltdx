@@ -22,10 +22,11 @@ EXPECTED_ROUND_10_STEPS = [
     "testpypi-plan-only",
     "publish-workflow-dry-run-no-upload",
 ]
+EXCLUDED_EXECUTION_ROOTS = frozenset({"baseline-venv"})
 MUTABLE_LOCAL_PATHS = frozenset(
     {
         "state.json",
-        "round-10-docs-release/07-evidence-index.log",
+        "round-10-documentation-and-release/07-evidence-index.log",
     }
 )
 
@@ -101,6 +102,8 @@ def build_index(candidate: str, evidence_root: Path) -> dict:
     files = []
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root).as_posix()
+        if relative.split("/", 1)[0] in EXCLUDED_EXECUTION_ROOTS:
+            continue
         if path.is_symlink():
             raise ValueError(f"release evidence must not contain symlinks: {relative}")
         if not path.is_file():
@@ -125,6 +128,7 @@ def build_index(candidate: str, evidence_root: Path) -> dict:
         "file_count": len(files),
         "state_summary": state_summary,
         "external_evidence": external_evidence,
+        "excluded_execution_roots": sorted(EXCLUDED_EXECUTION_ROOTS),
         "excluded_mutable_paths": sorted(MUTABLE_LOCAL_PATHS),
     }
 
