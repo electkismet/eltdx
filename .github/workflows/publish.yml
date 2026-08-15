@@ -29,11 +29,20 @@ jobs:
           name: release-dist
           path: dist
       - name: Verify tag, version, candidate, and artifact identity
+        if: github.event_name == 'push'
         run: >-
           python scripts/verification/check_release_metadata.py
           --artifact-dir dist/packages
           --ref "${{ github.ref }}"
           --sha "${{ github.sha }}"
+      - name: Verify branch dry-run candidate and artifact identity
+        if: github.event_name == 'workflow_dispatch'
+        run: >-
+          python scripts/verification/check_release_metadata.py
+          --artifact-dir dist/packages
+          --ref "${{ github.ref }}"
+          --sha "${{ github.sha }}"
+          --allow-dry-run-ref
       - name: Upload dry-run evidence
         uses: actions/upload-artifact@v7
         with:

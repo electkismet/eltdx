@@ -74,6 +74,7 @@ def check(
     artifact_dir: Path | None = None,
     ref: str | None = None,
     sha: str | None = None,
+    allow_dry_run_ref: bool = False,
 ) -> list[str]:
     errors: list[str] = []
     cargo = _cargo_version()
@@ -102,7 +103,7 @@ def check(
             errors.append("artifact-dir, ref, and sha must be supplied together")
         else:
             expected_ref = f"refs/tags/v{TARGET_PYTHON_VERSION}"
-            if ref != expected_ref:
+            if ref != expected_ref and not allow_dry_run_ref:
                 errors.append(f"release ref differs: expected {expected_ref!r}, got {ref!r}")
             try:
                 inventory = verify_artifacts(artifact_dir, candidate=sha)
@@ -119,8 +120,18 @@ def main() -> int:
     parser.add_argument("--artifact-dir", type=Path)
     parser.add_argument("--ref")
     parser.add_argument("--sha")
+    parser.add_argument(
+        "--allow-dry-run-ref",
+        action="store_true",
+        help="allow a non-tag ref for workflow_dispatch verification only",
+    )
     args = parser.parse_args()
-    errors = check(artifact_dir=args.artifact_dir, ref=args.ref, sha=args.sha)
+    errors = check(
+        artifact_dir=args.artifact_dir,
+        ref=args.ref,
+        sha=args.sha,
+        allow_dry_run_ref=args.allow_dry_run_ref,
+    )
     for error in errors:
         print(error)
     return 1 if errors else 0
