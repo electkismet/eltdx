@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use bytes::Bytes;
 
@@ -170,7 +170,7 @@ pub struct TradeTick {
     pub index: u16,
     pub absolute_index: u32,
     pub time_minutes: u16,
-    pub time_label: String,
+    pub time_label: Arc<str>,
     pub trade_datetime: Option<DateTimeParts>,
     pub price: f64,
     pub price_milli: i64,
@@ -182,7 +182,7 @@ pub struct TradeTick {
     pub price_acc_raw: i64,
     pub unknown_tail_raw: Option<i64>,
     pub reserved_zero: Option<i64>,
-    pub record_hex: String,
+    pub record_hex: Arc<str>,
     pub event_kind: TradeEventKind,
     pub auction_matched_volume: Option<i64>,
     pub auction_unmatched_signed_volume: Option<i64>,
@@ -280,6 +280,8 @@ fn parse_tick_records(
 ) -> Result<(Vec<TradeTick>, usize), ProtocolError> {
     let mut price_acc_raw = 0_i64;
     let mut ticks = Vec::with_capacity(record_count);
+    let mut last_time_label: Option<(u16, Arc<str>)> = None;
+    let mut last_record: Option<(&[u8], Arc<str>)> = None;
     for index in 0..record_count {
         let record_start = offset;
         let time_end = offset.saturating_add(2);
@@ -312,11 +314,32 @@ fn parse_tick_records(
             .map(|date| trade_datetime(date, time_minutes))
             .transpose()?;
         let event_kind = TradeEventKind::classify(status_raw, time_minutes);
+        let time_label = match &last_time_label {
+            Some((previous_minutes, previous_label)) if *previous_minutes == time_minutes => {
+                Arc::clone(previous_label)
+            }
+            _ => {
+                let label: Arc<str> = Arc::from(minute_of_day_label(time_minutes, None));
+                last_time_label = Some((time_minutes, Arc::clone(&label)));
+                label
+            }
+        };
+        let record = &payload[record_start..offset];
+        let record_hex = match &last_record {
+            Some((previous_record, previous_hex)) if *previous_record == record => {
+                Arc::clone(previous_hex)
+            }
+            _ => {
+                let hex: Arc<str> = Arc::from(encode_hex(record));
+                last_record = Some((record, Arc::clone(&hex)));
+                hex
+            }
+        };
         ticks.push(TradeTick {
             index: point_index,
             absolute_index,
             time_minutes,
-            time_label: minute_of_day_label(time_minutes, None),
+            time_label,
             trade_datetime,
             price,
             price_milli,
@@ -334,7 +357,7 @@ fn parse_tick_records(
                 TickTailKind::Unknown => None,
                 TickTailKind::Reserved => Some(tail_value),
             },
-            record_hex: encode_hex(&payload[record_start..offset]),
+            record_hex,
             event_kind,
             auction_matched_volume: if event_kind == TradeEventKind::AuctionSnapshot {
                 Some(volume)
@@ -460,7 +483,7 @@ fn encode_hex(data: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow;
+    use std::{borrow::Cow, sync::Arc};
 
     use super::{
         parse_historical_ticks_payload, parse_today_ticks_payload, python_round_to_i64,
@@ -527,7 +550,7 @@ mod tests {
             &[1, 0, 0x50, 0x03, 0x0a, 0x14, 0x03, 0x00, 0x00],
             TodayTicksRequest::new(NormalizedCode::parse("sz000001")?, 0, 115)?,
         )?;
-        assert_eq!(regular.ticks[0].time_label, "14:08");
+        assert_eq!(regular.ticks[0].time_label.as_ref(), "14:08");
         assert_eq!(regular.ticks[0].price_milli, 100);
         assert_eq!(regular.ticks[0].side, TradeSide::Buy);
 
@@ -576,6 +599,28 @@ mod tests {
         let status = TradeSide::Status(5).canonical_name();
         assert_eq!(status.as_ref(), "status_5");
         assert!(matches!(status, Cow::Owned(_)));
+    }
+
+    #[test]
+    fn consecutive_equal_tick_strings_share_storage() -> Result<(), ProtocolError> {
+        let record = [0x50, 0x03, 0x0a, 0x14, 0x03, 0x00, 0x00];
+        let mut payload = vec![2, 0];
+        payload.extend_from_slice(&record);
+        payload.extend_from_slice(&record);
+        let parsed = parse_today_ticks_payload(
+            &payload,
+            TodayTicksRequest::new(NormalizedCode::parse("sz000001")?, 0, 2)?,
+        )?;
+
+        assert!(Arc::ptr_eq(
+            &parsed.ticks[0].time_label,
+            &parsed.ticks[1].time_label
+        ));
+        assert!(Arc::ptr_eq(
+            &parsed.ticks[0].record_hex,
+            &parsed.ticks[1].record_hex
+        ));
+        Ok(())
     }
 
     #[test]

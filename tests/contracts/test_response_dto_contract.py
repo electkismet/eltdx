@@ -192,7 +192,7 @@ def test_trade_semantic_names_are_borrowed_and_response_local() -> None:
     assert 'Cow::Owned(format!("status_{value}"))' in trades_source
 
     names_body = response_source.split("struct TradeSemanticNames", 1)[1].split(
-        "fn extend_trade_tick", 1
+        "struct TradeTickObjects", 1
     )[0]
     assert "HashMap" not in names_body
     assert names_body.count("clone_ref(py)") == 6
@@ -209,13 +209,48 @@ def test_trade_semantic_names_are_borrowed_and_response_local() -> None:
     tick_body = response_source.split("fn extend_trade_tick", 1)[1].split(
         "\nfn ", 1
     )[0]
-    assert "semantic_names.side(py, &value.side)?" in tick_body
-    assert "semantic_names.event_kind(py, value.event_kind)" in tick_body
+    assert "objects.semantic_names.side(py, &value.side)?" in tick_body
+    assert "objects.semantic_names.event_kind(py, value.event_kind)" in tick_body
     assert "any(py, value.side.canonical_name())?" not in tick_body
     assert "any(py, value.event_kind.canonical_name())?" not in tick_body
 
     aggregate_body = response_source.split("fn trade_ticks", 1)[1].split("\nfn ", 1)[0]
-    assert aggregate_body.count("TradeSemanticNames::new(py)?") == 1
-    assert "extend_trade_tick(py, &mut fields, value, include_raw, &semantic_names)?" in (
+    assert aggregate_body.count("TradeTickObjects::new(py)?") == 1
+    assert "extend_trade_tick(py, &mut fields, value, include_raw, &mut objects)?" in (
         aggregate_body
     )
+
+
+def test_trade_tick_repeated_objects_are_shared_and_response_local() -> None:
+    response_source = RESPONSE.read_text(encoding="utf-8")
+    trades_source = TRADES.read_text(encoding="utf-8")
+
+    assert "pub time_label: Arc<str>" in trades_source
+    assert "pub record_hex: Arc<str>" in trades_source
+    parser_body = trades_source.split("fn parse_tick_records", 1)[1].split(
+        "\npub fn minute_of_day_label", 1
+    )[0]
+    assert "last_time_label: Option<(u16, Arc<str>)>" in parser_body
+    assert "last_record: Option<(&[u8], Arc<str>)>" in parser_body
+    assert parser_body.count("Arc::clone(") == 4
+    tests_body = trades_source.split("#[cfg(test)]", 1)[1]
+    assert tests_body.count("Arc::ptr_eq(") == 2
+
+    objects_body = response_source.split("struct TradeTickObjects", 1)[1].split(
+        "\nfn any", 1
+    )[0]
+    for field in ("last_time_minutes", "last_time_label", "last_record_hex"):
+        assert field in objects_body
+    assert objects_body.count("Arc::ptr_eq(") == 2
+    assert "HashMap" not in objects_body
+
+    tick_body = response_source.split("fn extend_trade_tick", 1)[1].split(
+        "\nfn ", 1
+    )[0]
+    assert "u32::from(value.index) == value.absolute_index" in tick_body
+    assert "index.clone_ref(py)" in tick_body
+    assert "objects.time_minutes(py, value.time_minutes)?" in tick_body
+    assert "objects.time_label(py, &value.time_label)" in tick_body
+    assert "objects.record_hex(py, include_raw, &value.record_hex)" in tick_body
+    assert "any(py, value.time_label.as_str())?" not in tick_body
+    assert "\n        record_hex(py, include_raw, &value.record_hex)," not in tick_body

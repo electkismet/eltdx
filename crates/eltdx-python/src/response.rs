@@ -4,6 +4,8 @@
 //! scalars, `bytes`, `None`, lists, and tuples. Python model construction remains in
 //! `_native_models.py`; no Rust protocol type crosses the extension boundary.
 
+use std::sync::Arc;
+
 use eltdx_protocol::commands::{
     auctions::{AuctionPoint, AuctionSeries},
     corporate::{CapitalChangeBlock, CapitalChangeRecord, FinanceBatch, FinanceRecord},
@@ -68,6 +70,57 @@ impl TradeSemanticNames {
             TradeEventKind::OpeningMatch => self.opening_match.clone_ref(py),
             TradeEventKind::AuctionSnapshot => self.auction_snapshot.clone_ref(py),
         }
+    }
+}
+
+struct TradeTickObjects {
+    semantic_names: TradeSemanticNames,
+    last_time_minutes: Option<(u16, Obj)>,
+    last_time_label: Option<(Arc<str>, Obj)>,
+    last_record_hex: Option<(Arc<str>, Obj)>,
+}
+
+impl TradeTickObjects {
+    fn new(py: Python<'_>) -> PyResult<Self> {
+        Ok(Self {
+            semantic_names: TradeSemanticNames::new(py)?,
+            last_time_minutes: None,
+            last_time_label: None,
+            last_record_hex: None,
+        })
+    }
+
+    fn time_minutes(&mut self, py: Python<'_>, value: u16) -> PyResult<Obj> {
+        if let Some((previous, object)) = &self.last_time_minutes {
+            if *previous == value {
+                return Ok(object.clone_ref(py));
+            }
+        }
+        let object = any(py, value)?;
+        self.last_time_minutes = Some((value, object.clone_ref(py)));
+        Ok(object)
+    }
+
+    fn time_label(&mut self, py: Python<'_>, value: &Arc<str>) -> Obj {
+        if let Some((previous, object)) = &self.last_time_label {
+            if Arc::ptr_eq(previous, value) {
+                return object.clone_ref(py);
+            }
+        }
+        let object = PyString::new(py, value.as_ref()).into_any().unbind();
+        self.last_time_label = Some((Arc::clone(value), object.clone_ref(py)));
+        object
+    }
+
+    fn record_hex(&mut self, py: Python<'_>, include_raw: bool, value: &Arc<str>) -> Obj {
+        if let Some((previous, object)) = &self.last_record_hex {
+            if Arc::ptr_eq(previous, value) {
+                return object.clone_ref(py);
+            }
+        }
+        let object = record_hex(py, include_raw, value.as_ref());
+        self.last_record_hex = Some((Arc::clone(value), object.clone_ref(py)));
+        object
     }
 }
 
@@ -402,20 +455,29 @@ fn extend_trade_tick<'py>(
     fields: &mut Vec<Obj>,
     value: &TradeTick,
     include_raw: bool,
-    semantic_names: &TradeSemanticNames,
+    objects: &mut TradeTickObjects,
 ) -> PyResult<()> {
+    let index = any(py, value.index)?;
+    let absolute_index = if u32::from(value.index) == value.absolute_index {
+        index.clone_ref(py)
+    } else {
+        any(py, value.absolute_index)?
+    };
+    let time_minutes = objects.time_minutes(py, value.time_minutes)?;
+    let time_label = objects.time_label(py, &value.time_label);
+    let record_hex = objects.record_hex(py, include_raw, &value.record_hex);
     fields.extend([
-        any(py, value.index)?,
-        any(py, value.absolute_index)?,
-        any(py, value.time_minutes)?,
-        any(py, value.time_label.as_str())?,
+        index,
+        absolute_index,
+        time_minutes,
+        time_label,
         datetime(py, value.trade_datetime)?,
         any(py, value.price)?,
         any(py, value.price_milli)?,
         any(py, value.volume)?,
         any(py, value.order_count)?,
         any(py, value.status_raw)?,
-        semantic_names.side(py, &value.side)?,
+        objects.semantic_names.side(py, &value.side)?,
         any(py, value.price_delta_raw)?,
         any(py, value.price_acc_raw)?,
         value
@@ -424,8 +486,8 @@ fn extend_trade_tick<'py>(
         value
             .reserved_zero
             .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
-        record_hex(py, include_raw, &value.record_hex),
-        semantic_names.event_kind(py, value.event_kind),
+        record_hex,
+        objects.semantic_names.event_kind(py, value.event_kind),
         value
             .auction_matched_volume
             .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
@@ -442,9 +504,9 @@ fn trade_ticks<'py>(py: Python<'py>, values: &[TradeTick], include_raw: bool) ->
         .checked_mul(TRADE_TICK_STRIDE)
         .ok_or_else(|| PyValueError::new_err("native trade tick DTO length overflow"))?;
     let mut fields = Vec::with_capacity(capacity);
-    let semantic_names = TradeSemanticNames::new(py)?;
+    let mut objects = TradeTickObjects::new(py)?;
     for value in values {
-        extend_trade_tick(py, &mut fields, value, include_raw, &semantic_names)?;
+        extend_trade_tick(py, &mut fields, value, include_raw, &mut objects)?;
     }
     tuple(py, fields)
 }
