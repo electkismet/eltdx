@@ -23,6 +23,9 @@ PLAN_SHA256 = "d74a81850c90d9e781a47a5350203f9357e4a218a287f075acca6120b5e85e73"
 BASELINE_COMMIT = "6486a1692dd4aca5339001b2de22e88bb29e16ec"
 ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE_ROOT = ROOT / "artifacts" / "release-evidence"
+EDITABLE_NATIVE_RELATIVE = Path(
+    "src/eltdx/_native.pyd" if os.name == "nt" else "src/eltdx/_native.abi3.so"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -358,13 +361,31 @@ def _git(*args: str) -> str:
     return result.stdout.strip()
 
 
-def _assert_candidate(candidate: str) -> None:
+def _state_allows_editable_native(state: dict[str, Any]) -> bool:
+    completed = state.get("round_progress", {}).get("1", {}).get("completed_steps", ())
+    return "maturin-develop" in completed
+
+
+def _assert_candidate(candidate: str, *, allow_editable_native: bool = False) -> None:
     head = _git("rev-parse", "HEAD")
     if head != candidate:
         raise RuntimeError(f"candidate mismatch: state={candidate}, HEAD={head}")
     status = _git("status", "--porcelain", "--untracked-files=all")
-    if status:
-        raise RuntimeError(f"candidate worktree is not clean:\n{status}")
+    status_lines = status.splitlines()
+    if allow_editable_native:
+        editable_status = f"?? {EDITABLE_NATIVE_RELATIVE.as_posix()}"
+        editable_path = ROOT / EDITABLE_NATIVE_RELATIVE
+        status_lines = [
+            line
+            for line in status_lines
+            if not (
+                line == editable_status
+                and editable_path.is_file()
+                and not editable_path.is_symlink()
+            )
+        ]
+    if status_lines:
+        raise RuntimeError(f"candidate worktree is not clean:\n{os.linesep.join(status_lines)}")
 
 
 def _candidate_dir(candidate: str) -> Path:
@@ -421,8 +442,11 @@ def initialize(candidate: str, *, attested_never_tested: bool) -> Path:
 
 
 def record_external_evidence(candidate: str, key: str, evidence: Path) -> None:
-    _assert_candidate(candidate)
     state = _load_state(candidate)
+    _assert_candidate(
+        candidate,
+        allow_editable_native=_state_allows_editable_native(state),
+    )
     if state["failure"] is not None:
         raise RuntimeError("cannot add evidence to a failed candidate")
     allowed_keys = {
@@ -505,7 +529,15 @@ def _check_gate(step: Step, state: dict[str, Any]) -> None:
         )
 
 
-def _run_command(argv: tuple[str, ...], log: Path, *, working_fixtures: str) -> int:
+def _virtualenv_for_executable(executable: str) -> Path | None:
+    path = Path(executable)
+    if not path.is_absolute():
+        return None
+    virtualenv = path.parent.parent
+    return virtualenv if (virtualenv / "pyvenv.cfg").is_file() else None
+
+
+def _command_environment(argv: tuple[str, ...], *, working_fixtures: str) -> dict[str, str]:
     environment = dict(os.environ)
     environment.update(
         {
@@ -514,6 +546,21 @@ def _run_command(argv: tuple[str, ...], log: Path, *, working_fixtures: str) -> 
             "ELTDX_FIXTURES_ROOT": working_fixtures,
         }
     )
+    virtualenv = _virtualenv_for_executable(argv[0])
+    if virtualenv is not None:
+        executable_dir = str(Path(argv[0]).parent)
+        path_entries = [
+            entry
+            for entry in environment.get("PATH", "").split(os.pathsep)
+            if entry and entry != executable_dir
+        ]
+        environment["VIRTUAL_ENV"] = str(virtualenv)
+        environment["PATH"] = os.pathsep.join((executable_dir, *path_entries))
+    return environment
+
+
+def _run_command(argv: tuple[str, ...], log: Path, *, working_fixtures: str) -> int:
+    environment = _command_environment(argv, working_fixtures=working_fixtures)
     with log.open("ab") as stream:
         stream.write(("$ " + " ".join(argv) + "\n").encode("utf-8"))
         stream.flush()
@@ -535,8 +582,11 @@ def run_next_round(
     baseline_wheel: Path | None,
     artifact_dir: Path | None,
 ) -> int:
-    _assert_candidate(candidate)
     state = _load_state(candidate)
+    _assert_candidate(
+        candidate,
+        allow_editable_native=_state_allows_editable_native(state),
+    )
     if state["failure"] is not None:
         raise RuntimeError("candidate has failed; fix, freeze, commit, and restart from round 1 with a new SHA")
     number = int(state["next_round"])
@@ -572,8 +622,11 @@ def run_next_round(
     for index, step in enumerate(round_spec.steps, start=1):
         if step.name in progress["completed_steps"]:
             continue
-        _assert_candidate(candidate)
         try:
+            _assert_candidate(
+                candidate,
+                allow_editable_native=_state_allows_editable_native(state),
+            )
             if step.kind == "external_evidence":
                 _check_gate(step, state)
             else:

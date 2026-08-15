@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import os
 import re
 from pathlib import Path
 
@@ -152,6 +153,94 @@ def test_candidate_check_requires_exact_head_and_clean_worktree(monkeypatch: pyt
     monkeypatch.setattr(unified_test, "_git", lambda *_args: next(answers))
     with pytest.raises(RuntimeError, match="candidate mismatch"):
         unified_test._assert_candidate("abc")
+
+
+def test_candidate_check_allows_only_completed_editable_native(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    relative = unified_test.EDITABLE_NATIVE_RELATIVE
+    native = tmp_path / relative
+    native.parent.mkdir(parents=True)
+    native.write_bytes(b"native")
+    monkeypatch.setattr(unified_test, "ROOT", tmp_path)
+
+    status = f"?? {relative.as_posix()}"
+    answers = iter(["abc", status])
+    monkeypatch.setattr(unified_test, "_git", lambda *_args: next(answers))
+    unified_test._assert_candidate("abc", allow_editable_native=True)
+
+    answers = iter(["abc", status])
+    monkeypatch.setattr(unified_test, "_git", lambda *_args: next(answers))
+    with pytest.raises(RuntimeError, match="candidate worktree is not clean"):
+        unified_test._assert_candidate("abc")
+
+    answers = iter(["abc", status + "\n?? unexpected.txt"])
+    monkeypatch.setattr(unified_test, "_git", lambda *_args: next(answers))
+    with pytest.raises(RuntimeError, match="unexpected.txt"):
+        unified_test._assert_candidate("abc", allow_editable_native=True)
+
+
+def test_editable_native_allowance_requires_completed_maturin() -> None:
+    state = {"round_progress": {"1": {"completed_steps": ["python-mypy"]}}}
+    assert not unified_test._state_allows_editable_native(state)
+    state["round_progress"]["1"]["completed_steps"].append("maturin-develop")
+    assert unified_test._state_allows_editable_native(state)
+
+
+def test_command_environment_follows_explicit_python_virtualenv(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    virtualenv = tmp_path / "runner-venv"
+    executable_dir = virtualenv / ("Scripts" if os.name == "nt" else "bin")
+    executable = executable_dir / ("python.exe" if os.name == "nt" else "python")
+    executable_dir.mkdir(parents=True)
+    (virtualenv / "pyvenv.cfg").write_text("version = test\n", encoding="utf-8")
+    monkeypatch.setenv("VIRTUAL_ENV", str(tmp_path / "wrong-venv"))
+    monkeypatch.setenv("PATH", os.pathsep.join(("first", "second")))
+
+    environment = unified_test._command_environment(
+        (str(executable), "-m", "maturin"),
+        working_fixtures="fixtures",
+    )
+
+    assert environment["VIRTUAL_ENV"] == str(virtualenv)
+    assert environment["PATH"].split(os.pathsep)[0] == str(executable_dir)
+    assert environment["ELTDX_FIXTURES_ROOT"] == "fixtures"
+
+
+def test_step_cleanliness_failure_is_recorded(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    state = {
+        "next_round": 1,
+        "completed_rounds": [],
+        "failure": None,
+        "external_evidence": {},
+        "round_progress": {},
+    }
+    checks = 0
+
+    def assert_candidate(_candidate: str, *, allow_editable_native: bool = False) -> None:
+        nonlocal checks
+        del allow_editable_native
+        checks += 1
+        if checks == 2:
+            raise RuntimeError("candidate worktree is not clean: unexpected.txt")
+
+    monkeypatch.setattr(unified_test, "EVIDENCE_ROOT", tmp_path)
+    monkeypatch.setattr(unified_test, "_load_state", lambda _candidate: state)
+    monkeypatch.setattr(unified_test, "_assert_candidate", assert_candidate)
+    monkeypatch.setattr(unified_test, "_write_json", lambda _path, _value: None)
+
+    with pytest.raises(RuntimeError, match="unexpected.txt"):
+        unified_test.run_next_round("abc", baseline_wheel=None, artifact_dir=None)
+
+    assert state["active_round"] is None
+    assert state["failure"]["round"] == 1
+    assert state["failure"]["step"] == "cargo-fmt"
 
 
 def test_external_evidence_is_content_addressed(tmp_path: Path) -> None:
