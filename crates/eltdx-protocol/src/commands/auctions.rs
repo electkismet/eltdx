@@ -136,7 +136,7 @@ pub fn parse_auction_series_payload(
     }
 
     let mut points = Vec::with_capacity(count);
-    let mut offset = 2;
+    let mut offset = 2_usize;
     for index in 0..count {
         let end = offset.saturating_add(AUCTION_RECORD_SIZE);
         let record = payload.get(offset..end).ok_or_else(|| {

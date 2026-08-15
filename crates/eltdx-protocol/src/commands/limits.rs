@@ -80,7 +80,7 @@ pub fn parse_special_limits_payload(
         ));
     }
     let mut records = Vec::with_capacity(count);
-    let mut offset = 2;
+    let mut offset = 2_usize;
     for _ in 0..count {
         let end = offset.saturating_add(LIMIT_RECORD_SIZE);
         let record = payload.get(offset..end).ok_or_else(|| {

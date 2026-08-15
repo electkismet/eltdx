@@ -157,7 +157,7 @@ pub fn parse_klines_payload(
         ));
     }
 
-    let mut offset = 2;
+    let mut offset = 2_usize;
     let mut last_close_milli = 0_i64;
     let mut bars = Vec::with_capacity(count);
     for _ in 0..count {

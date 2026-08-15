@@ -212,7 +212,7 @@ pub fn parse_capital_changes_payload(
         ));
     }
     let mut records = Vec::with_capacity(record_count);
-    let mut offset = 11;
+    let mut offset = 11_usize;
     for _ in 0..record_count {
         let end = offset.saturating_add(CAPITAL_CHANGE_RECORD_SIZE);
         let record = payload.get(offset..end).ok_or_else(|| {
@@ -271,7 +271,7 @@ pub fn parse_finance_batch_payload(
         ));
     }
     let mut records = Vec::with_capacity(record_count);
-    let mut offset = 2;
+    let mut offset = 2_usize;
     for _ in 0..record_count {
         let end = offset.saturating_add(FINANCE_RECORD_SIZE);
         let record = payload.get(offset..end).ok_or_else(|| {
