@@ -941,12 +941,13 @@ mod tests {
             engine_epoch: EngineEpoch::new(2)?,
             ..identity
         };
+        let now = Instant::now();
         assert!(pins
             .can_admit_direct(
                 stale,
                 RequestId::new(2)?,
-                Deadline::at(Instant::now() + Duration::from_secs(1)),
-                Instant::now(),
+                now,
+                Deadline::at(now + Duration::from_secs(1)),
             )
             .is_err());
         Ok(())

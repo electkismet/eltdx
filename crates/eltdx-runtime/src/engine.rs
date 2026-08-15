@@ -2225,7 +2225,9 @@ impl RuntimeCore {
                         );
                         let _ = admission.send(Ok(()));
                         if matches!(accepted, Admission::Active(_)) {
-                            self.complete_pin_reservation(request_id).await?;
+                            if let Some(batch) = self.complete_pin_reservation(request_id)? {
+                                self.process_terminal_batch(batch).await?;
+                            }
                         }
                     }
                     Err(error) => {
@@ -3104,13 +3106,21 @@ impl RuntimeCore {
         }
     }
 
-    async fn process_terminal_batch(&mut self, batch: TerminalBatch) -> Result<(), RuntimeError> {
-        let promotion = batch.promotion;
-        self.process_notifications(batch.notifications).await?;
-        if let Some(promotion) = promotion {
-            self.apply_promotion(promotion).await?;
+    async fn process_terminal_batch(
+        &mut self,
+        mut batch: TerminalBatch,
+    ) -> Result<(), RuntimeError> {
+        loop {
+            let promotion = batch.promotion;
+            self.process_notifications(batch.notifications).await?;
+            let Some(promotion) = promotion else {
+                return Ok(());
+            };
+            let Some(next_batch) = self.apply_promotion(promotion).await? else {
+                return Ok(());
+            };
+            batch = next_batch;
         }
-        Ok(())
     }
 
     async fn process_pin_terminal_batch(
@@ -3126,7 +3136,9 @@ impl RuntimeCore {
             self.apply_pin_promotion(promotion).await?;
         }
         if let Some(promotion) = ordinary_promotion {
-            self.apply_promotion(promotion).await?;
+            if let Some(batch) = self.apply_promotion(promotion).await? {
+                self.process_terminal_batch(batch).await?;
+            }
         }
         if pin_released {
             if let Some(waiters) = self.pin_close_waiters.remove(&pin.pin_id.get()) {
@@ -3231,7 +3243,10 @@ impl RuntimeCore {
         Ok(())
     }
 
-    async fn apply_promotion(&mut self, promotion: Promotion) -> Result<(), RuntimeError> {
+    async fn apply_promotion(
+        &mut self,
+        promotion: Promotion,
+    ) -> Result<Option<TerminalBatch>, RuntimeError> {
         let request_id = promotion.active_lease.request_id;
         if let Some(reservation) = self.pin_reservations.get_mut(&request_id) {
             if reservation.admission != Admission::Waiting(promotion.returned_permit) {
@@ -3240,7 +3255,7 @@ impl RuntimeCore {
                 ));
             }
             reservation.admission = Admission::Active(promotion.active_lease);
-            return self.complete_pin_reservation(request_id).await;
+            return self.complete_pin_reservation(request_id);
         }
         let pending = self
             .pending
@@ -3252,7 +3267,8 @@ impl RuntimeCore {
             ));
         }
         pending.admission = Admission::Active(promotion.active_lease);
-        self.dispatch_initial(request_id).await
+        self.dispatch_initial(request_id).await?;
+        Ok(None)
     }
 
     async fn apply_pin_promotion(
@@ -3277,10 +3293,10 @@ impl RuntimeCore {
         self.dispatch_initial(promotion.request_id).await
     }
 
-    async fn complete_pin_reservation(
+    fn complete_pin_reservation(
         &mut self,
         request_id: RequestId,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<Option<TerminalBatch>, RuntimeError> {
         let identity = match self.supervisor.open_pin(request_id) {
             Ok(identity) => identity,
             Err(error) => {
@@ -3303,7 +3319,7 @@ impl RuntimeCore {
                         Instant::now(),
                     )?
                     .ok_or_else(|| RuntimeError::internal("failed pin reservation was stale"))?;
-                return self.process_terminal_batch(batch).await;
+                return Ok(Some(batch));
             }
         };
         let reservation = self
@@ -3311,7 +3327,7 @@ impl RuntimeCore {
             .remove(&request_id)
             .ok_or_else(|| RuntimeError::internal("opened pin reservation disappeared"))?;
         let _ = reservation.result.send(Ok(identity));
-        Ok(())
+        Ok(None)
     }
 
     async fn close_pin(
@@ -5078,6 +5094,7 @@ mod tests {
             Arc::new(ControlCell::new()),
             Arc::new(AtomicUsize::new(0)),
             Arc::new(std::sync::Mutex::new(super::DiagnosticsCache::stopped(1))),
+            Arc::new(std::sync::Mutex::new(super::SessionCache::default())),
         )?;
         let first = runtime.next_internal_request_id()?;
         let second = runtime.next_internal_request_id()?;
