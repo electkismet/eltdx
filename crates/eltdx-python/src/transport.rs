@@ -106,9 +106,14 @@ impl NativeEngine {
         payload: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Py<PyAny>> {
         let request = request::from_python(py, command, payload)?;
-        let pending = py.detach(|| self.engine.begin_execute(request));
+        let initial = py.detach(|| {
+            self.engine.begin_execute(request).map(|mut pending| {
+                let polled = pending.wait_timeout(SIGNAL_POLL_INTERVAL);
+                (pending, polled)
+            })
+        });
         if let Err(signal_error) = py.check_signals() {
-            if let Ok(pending) = pending {
+            if let Ok((pending, _)) = initial {
                 let cleanup = py.detach(move || pending.cancel_and_confirm(CANCEL_CONFIRM_TIMEOUT));
                 if let Err(cleanup_error) = cleanup {
                     signal_error.set_cause(py, Some(error::from_runtime(cleanup_error)));
@@ -116,20 +121,24 @@ impl NativeEngine {
             }
             return Err(signal_error);
         }
-        let mut pending = pending.map_err(error::from_runtime)?;
-        let result = loop {
-            let polled = py.detach(|| pending.wait_timeout(SIGNAL_POLL_INTERVAL));
-            if let Err(signal_error) = py.check_signals() {
-                let cleanup = py.detach(move || pending.cancel_and_confirm(CANCEL_CONFIRM_TIMEOUT));
-                if let Err(cleanup_error) = cleanup {
-                    signal_error.set_cause(py, Some(error::from_runtime(cleanup_error)));
+        let (mut pending, initial_poll) = initial.map_err(error::from_runtime)?;
+        let result = match initial_poll.map_err(error::from_runtime)? {
+            PendingPoll::Ready(response) => response,
+            PendingPoll::Pending => loop {
+                let polled = py.detach(|| pending.wait_timeout(SIGNAL_POLL_INTERVAL));
+                if let Err(signal_error) = py.check_signals() {
+                    let cleanup =
+                        py.detach(move || pending.cancel_and_confirm(CANCEL_CONFIRM_TIMEOUT));
+                    if let Err(cleanup_error) = cleanup {
+                        signal_error.set_cause(py, Some(error::from_runtime(cleanup_error)));
+                    }
+                    return Err(signal_error);
                 }
-                return Err(signal_error);
-            }
-            match polled.map_err(error::from_runtime)? {
-                PendingPoll::Ready(response) => break response,
-                PendingPoll::Pending => {}
-            }
+                match polled.map_err(error::from_runtime)? {
+                    PendingPoll::Ready(response) => break response,
+                    PendingPoll::Pending => {}
+                }
+            },
         };
         response::to_python(py, result)
     }

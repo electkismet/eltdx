@@ -127,3 +127,20 @@ def test_native_execute_and_push_dtos_reconstruct_public_values() -> None:
     assert socket_source.count("response_from_dto(") >= 3
     assert "_push_value" in pool_source
     assert pool_source.count("response_from_dto(") >= 3
+
+
+def test_native_execute_combines_admission_with_first_signal_poll() -> None:
+    binding = _source("crates/eltdx-python/src/transport.rs")
+    execute = binding.split("    fn execute(\n", 1)[1].split("\n    fn pin(", 1)[0]
+    begin = "self.engine.begin_execute(request).map(|mut pending| {"
+    first_poll = "let polled = pending.wait_timeout(SIGNAL_POLL_INTERVAL);"
+    signal_check = "if let Err(signal_error) = py.check_signals() {"
+    assert "let initial = py.detach(|| {" in execute
+    assert begin in execute
+    assert first_poll in execute
+    assert execute.index(begin) < execute.index(first_poll) < execute.index(signal_check)
+    assert "if let Ok((pending, _)) = initial" in execute
+    assert "pending.cancel_and_confirm(CANCEL_CONFIRM_TIMEOUT)" in execute
+    assert "let (mut pending, initial_poll) = initial.map_err(error::from_runtime)?;" in execute
+    assert "PendingPoll::Ready(response) => response" in execute
+    assert "let pending = py.detach(|| self.engine.begin_execute(request));" not in execute

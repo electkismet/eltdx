@@ -143,16 +143,31 @@ def test_response_tuple_shapes_and_raw_policy_are_frozen() -> None:
     assert ".map(|v| category_quote(py, v, true))" in source
 
 
-def test_hot_record_dtos_avoid_dynamic_field_vectors() -> None:
+def test_hot_record_dtos_use_flat_fixed_stride_aggregates() -> None:
     response_source = RESPONSE.read_text(encoding="utf-8")
     models_source = (ROOT / "src" / "eltdx" / "_native_models.py").read_text(
         encoding="utf-8"
     )
-    for function_name in ("level", "trade_tick", "quote_snapshot"):
+    level_body = response_source.split("fn level", 1)[1].split("\nfn ", 1)[0]
+    assert "tuple_array(" in level_body
+    assert "vec![" not in level_body
+    for function_name in ("extend_trade_tick", "extend_quote_snapshot"):
         body = response_source.split(f"fn {function_name}", 1)[1].split("\nfn ", 1)[0]
-        assert "tuple_array(" in body
+        assert "fields.extend([" in body
+        assert "tuple_array(" not in body
         assert "vec![" not in body
-    assert 'if fields[4] is None:\n        return TradeTick(*fields)' in models_source
-    snapshot_body = models_source.split("def _quote_snapshot", 1)[1].split("\ndef ", 1)[0]
-    assert "fields = list(" not in snapshot_body
+    assert "const SNAPSHOT_STRIDE: usize = 27;" in response_source
+    assert "const TRADE_TICK_STRIDE: usize = 19;" in response_source
+    assert "quote_snapshots(py, &values)?" in response_source
+    assert response_source.count("trade_ticks(py, &value.ticks, req.include_raw)?") == 2
+    assert "_SNAPSHOT_STRIDE = 27" in models_source
+    assert "_TRADE_TICK_STRIDE = 19" in models_source
+    assert "def _flat_records(" in models_source
+    tick_body = models_source.split("def _trade_tick_at", 1)[1].split("\ndef ", 1)[0]
+    assert "return TradeTick(" in tick_body
+    assert "_tuple(" not in tick_body
+    snapshot_body = models_source.split("def _quote_snapshot_at", 1)[1].split("\ndef ", 1)[0]
     assert "return QuoteSnapshot(" in snapshot_body
+    assert "QuoteLevel(fields[offset + 20]" in snapshot_body
+    assert "QuoteLevel(fields[offset + 23]" in snapshot_body
+    assert "_records(" not in snapshot_body

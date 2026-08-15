@@ -22,11 +22,15 @@ use eltdx_protocol::commands::{
 use eltdx_protocol::response::CommandResponse;
 use eltdx_protocol::unit::{DateParts, DateTimeParts, Market};
 use eltdx_runtime::push::PushFrame;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList, PyString, PyTuple};
 use pyo3::IntoPyObjectExt;
 
 type Obj = Py<PyAny>;
+
+const SNAPSHOT_STRIDE: usize = 27;
+const TRADE_TICK_STRIDE: usize = 19;
 
 fn any<'py, T>(py: Python<'py>, value: T) -> PyResult<Obj>
 where
@@ -354,70 +358,113 @@ fn minute_series<'py, R>(
     )
 }
 
-fn trade_tick<'py>(py: Python<'py>, value: &TradeTick, include_raw: bool) -> PyResult<Obj> {
-    tuple_array(
-        py,
-        [
-            any(py, value.index)?,
-            any(py, value.absolute_index)?,
-            any(py, value.time_minutes)?,
-            any(py, value.time_label.as_str())?,
-            datetime(py, value.trade_datetime)?,
-            any(py, value.price)?,
-            any(py, value.price_milli)?,
-            any(py, value.volume)?,
-            any(py, value.order_count)?,
-            any(py, value.status_raw)?,
-            any(py, value.side.canonical_name())?,
-            any(py, value.price_delta_raw)?,
-            any(py, value.price_acc_raw)?,
-            value
-                .unknown_tail_raw
-                .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
-            value
-                .reserved_zero
-                .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
-            record_hex(py, include_raw, &value.record_hex),
-            any(py, value.event_kind.canonical_name())?,
-            value
-                .auction_matched_volume
-                .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
-            value
-                .auction_unmatched_signed_volume
-                .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
-        ],
-    )
+fn extend_trade_tick<'py>(
+    py: Python<'py>,
+    fields: &mut Vec<Obj>,
+    value: &TradeTick,
+    include_raw: bool,
+) -> PyResult<()> {
+    fields.extend([
+        any(py, value.index)?,
+        any(py, value.absolute_index)?,
+        any(py, value.time_minutes)?,
+        any(py, value.time_label.as_str())?,
+        datetime(py, value.trade_datetime)?,
+        any(py, value.price)?,
+        any(py, value.price_milli)?,
+        any(py, value.volume)?,
+        any(py, value.order_count)?,
+        any(py, value.status_raw)?,
+        any(py, value.side.canonical_name())?,
+        any(py, value.price_delta_raw)?,
+        any(py, value.price_acc_raw)?,
+        value
+            .unknown_tail_raw
+            .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
+        value
+            .reserved_zero
+            .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
+        record_hex(py, include_raw, &value.record_hex),
+        any(py, value.event_kind.canonical_name())?,
+        value
+            .auction_matched_volume
+            .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
+        value
+            .auction_unmatched_signed_volume
+            .map_or_else(|| Ok(none(py)), |v| any(py, v))?,
+    ]);
+    Ok(())
 }
 
-fn quote_snapshot<'py>(py: Python<'py>, value: &QuoteSnapshot) -> PyResult<Obj> {
-    tuple_array(
-        py,
-        [
-            any(py, market_id_name(value.market_id))?,
-            any(py, value.market_id)?,
-            any(py, value.code.as_str())?,
-            any(py, value.active1)?,
-            any(py, value.last_price)?,
-            any(py, value.pre_close_price)?,
-            any(py, value.open_price)?,
-            any(py, value.high_price)?,
-            any(py, value.low_price)?,
-            any(py, value.time_raw)?,
-            any(py, value.unknown_after_time_raw)?,
-            any(py, value.total_hand)?,
-            any(py, value.current_hand)?,
-            any(py, value.amount)?,
-            any(py, value.amount_raw)?,
-            any(py, value.inside_dish)?,
-            any(py, value.outer_disc)?,
-            any(py, value.unknown_after_outer_raw)?,
-            any(py, value.open_amount_raw)?,
-            any(py, value.open_amount_yuan)?,
-            levels(py, &value.buy_levels)?,
-            levels(py, &value.sell_levels)?,
-            bytes(py, &value.tail_raw),
-        ],
-    )
+fn trade_ticks<'py>(py: Python<'py>, values: &[TradeTick], include_raw: bool) -> PyResult<Obj> {
+    let capacity = values
+        .len()
+        .checked_mul(TRADE_TICK_STRIDE)
+        .ok_or_else(|| PyValueError::new_err("native trade tick DTO length overflow"))?;
+    let mut fields = Vec::with_capacity(capacity);
+    for value in values {
+        extend_trade_tick(py, &mut fields, value, include_raw)?;
+    }
+    tuple(py, fields)
+}
+
+fn extend_quote_snapshot<'py>(
+    py: Python<'py>,
+    fields: &mut Vec<Obj>,
+    value: &QuoteSnapshot,
+) -> PyResult<()> {
+    let [buy_level] = value.buy_levels.as_slice() else {
+        return Err(PyValueError::new_err(
+            "native snapshot must contain exactly one buy level",
+        ));
+    };
+    let [sell_level] = value.sell_levels.as_slice() else {
+        return Err(PyValueError::new_err(
+            "native snapshot must contain exactly one sell level",
+        ));
+    };
+    fields.extend([
+        any(py, market_id_name(value.market_id))?,
+        any(py, value.market_id)?,
+        any(py, value.code.as_str())?,
+        any(py, value.active1)?,
+        any(py, value.last_price)?,
+        any(py, value.pre_close_price)?,
+        any(py, value.open_price)?,
+        any(py, value.high_price)?,
+        any(py, value.low_price)?,
+        any(py, value.time_raw)?,
+        any(py, value.unknown_after_time_raw)?,
+        any(py, value.total_hand)?,
+        any(py, value.current_hand)?,
+        any(py, value.amount)?,
+        any(py, value.amount_raw)?,
+        any(py, value.inside_dish)?,
+        any(py, value.outer_disc)?,
+        any(py, value.unknown_after_outer_raw)?,
+        any(py, value.open_amount_raw)?,
+        any(py, value.open_amount_yuan)?,
+        any(py, buy_level.price)?,
+        any(py, buy_level.volume)?,
+        any(py, buy_level.price_delta_raw)?,
+        any(py, sell_level.price)?,
+        any(py, sell_level.volume)?,
+        any(py, sell_level.price_delta_raw)?,
+        bytes(py, &value.tail_raw),
+    ]);
+    Ok(())
+}
+
+fn quote_snapshots<'py>(py: Python<'py>, values: &[QuoteSnapshot]) -> PyResult<Obj> {
+    let capacity = values
+        .len()
+        .checked_mul(SNAPSHOT_STRIDE)
+        .ok_or_else(|| PyValueError::new_err("native snapshot DTO length overflow"))?;
+    let mut fields = Vec::with_capacity(capacity);
+    for value in values {
+        extend_quote_snapshot(py, &mut fields, value)?;
+    }
+    tuple(py, fields)
 }
 
 fn market_id_name(value: u8) -> &'static str {
@@ -662,17 +709,9 @@ pub fn to_python(py: Python<'_>, response: CommandResponse) -> PyResult<Py<PyAny
         CommandResponse::CategoryQuotes(value) => {
             tagged(py, "category_quotes", category_quotes(py, &value)?)?
         }
-        CommandResponse::Snapshots(values) => tagged(
-            py,
-            "snapshots",
-            list(
-                py,
-                values
-                    .iter()
-                    .map(|v| quote_snapshot(py, v))
-                    .collect::<PyResult<Vec<_>>>()?,
-            )?,
-        )?,
+        CommandResponse::Snapshots(values) => {
+            tagged(py, "snapshots", quote_snapshots(py, &values)?)?
+        }
         CommandResponse::AuctionSeries(value) => {
             tagged(py, "auction_series", auction_series(py, &value)?)?
         }
@@ -1062,14 +1101,7 @@ fn today_ticks<'py>(
             any(py, req.code.number())?,
             any(py, req.start)?,
             any(py, req.count)?,
-            tuple(
-                py,
-                value
-                    .ticks
-                    .iter()
-                    .map(|v| trade_tick(py, v, req.include_raw))
-                    .collect::<PyResult<Vec<_>>>()?,
-            )?,
+            trade_ticks(py, &value.ticks, req.include_raw)?,
             none(py),
             value
                 .price_base_raw_f32
@@ -1091,14 +1123,7 @@ fn historical_ticks<'py>(
             any(py, req.code.number())?,
             any(py, req.start)?,
             any(py, req.count)?,
-            tuple(
-                py,
-                value
-                    .ticks
-                    .iter()
-                    .map(|v| trade_tick(py, v, req.include_raw))
-                    .collect::<PyResult<Vec<_>>>()?,
-            )?,
+            trade_ticks(py, &value.ticks, req.include_raw)?,
             date(py, Some(req.trading_date))?,
             value
                 .price_base_raw_f32

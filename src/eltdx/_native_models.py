@@ -47,6 +47,8 @@ if TYPE_CHECKING:
 
 _SHANGHAI_OFFSET_SECONDS = 8 * 60 * 60
 _SHANGHAI_TZ = timezone(timedelta(seconds=_SHANGHAI_OFFSET_SECONDS), name="Asia/Shanghai")
+_SNAPSHOT_STRIDE = 27
+_TRADE_TICK_STRIDE = 19
 
 
 def _tuple(value: Any, name: str, size: int | None = None) -> tuple[Any, ...]:
@@ -146,59 +148,62 @@ def _refresh_quote(value: Any) -> QuoteRefreshRecord:
     return QuoteRefreshRecord(*fields)
 
 
-def _trade_tick(value: Any) -> TradeTick:
-    fields = _tuple(value, "trade tick", 19)
-    if fields[4] is None:
-        return TradeTick(*fields)
+def _flat_records(value: Any, name: str, stride: int) -> tuple[Any, ...]:
+    fields = _tuple(value, name)
+    if len(fields) % stride != 0:
+        raise ValueError(f"native DTO {name} length must be a multiple of {stride}")
+    return fields
+
+
+def _trade_tick_at(fields: tuple[Any, ...], offset: int) -> TradeTick:
     return TradeTick(
-        fields[0],
-        fields[1],
-        fields[2],
-        fields[3],
-        _datetime(fields[4]),
-        fields[5],
-        fields[6],
-        fields[7],
-        fields[8],
-        fields[9],
-        fields[10],
-        fields[11],
-        fields[12],
-        fields[13],
-        fields[14],
-        fields[15],
-        fields[16],
-        fields[17],
-        fields[18],
+        fields[offset],
+        fields[offset + 1],
+        fields[offset + 2],
+        fields[offset + 3],
+        _datetime(fields[offset + 4]) if fields[offset + 4] is not None else None,
+        fields[offset + 5],
+        fields[offset + 6],
+        fields[offset + 7],
+        fields[offset + 8],
+        fields[offset + 9],
+        fields[offset + 10],
+        fields[offset + 11],
+        fields[offset + 12],
+        fields[offset + 13],
+        fields[offset + 14],
+        fields[offset + 15],
+        fields[offset + 16],
+        fields[offset + 17],
+        fields[offset + 18],
     )
 
 
-def _quote_snapshot(value: Any) -> QuoteSnapshot:
-    fields = _tuple(value, "snapshot", 23)
+def _quote_snapshot_at(fields: tuple[Any, ...], offset: int) -> QuoteSnapshot:
     return QuoteSnapshot(
-        fields[0],
-        fields[1],
-        fields[2],
-        fields[3],
-        fields[4],
-        fields[5],
-        fields[6],
-        fields[7],
-        fields[8],
-        fields[9],
-        fields[10],
-        fields[11],
-        fields[12],
-        fields[13],
-        fields[14],
-        fields[15],
-        fields[16],
-        fields[17],
-        fields[18],
-        fields[19],
-        _records(fields[20], "snapshot buy levels", _quote_level),
-        _records(fields[21], "snapshot sell levels", _quote_level),
-        fields[22],
+        fields[offset],
+        fields[offset + 1],
+        fields[offset + 2],
+        fields[offset + 3],
+        fields[offset + 4],
+        fields[offset + 5],
+        fields[offset + 6],
+        fields[offset + 7],
+        fields[offset + 8],
+        fields[offset + 9],
+        fields[offset + 10],
+        fields[offset + 11],
+        fields[offset + 12],
+        fields[offset + 13],
+        fields[offset + 14],
+        fields[offset + 15],
+        fields[offset + 16],
+        fields[offset + 17],
+        fields[offset + 18],
+        fields[offset + 19],
+        (QuoteLevel(fields[offset + 20], fields[offset + 21], fields[offset + 22]),),
+        (QuoteLevel(fields[offset + 23], fields[offset + 24], fields[offset + 25]),),
+        fields[offset + 26],
     )
 
 
@@ -221,10 +226,22 @@ def _minute_series(value: Any) -> MinuteSeries:
 
 
 def _trade_page(value: Any) -> TradePage:
-    fields = list(_tuple(value, "trade page", 9))
-    fields[5] = _records(fields[5], "trade ticks", _trade_tick)
-    fields[6] = _date(fields[6])
-    return TradePage(*fields)
+    fields = _tuple(value, "trade page", 9)
+    ticks = _flat_records(fields[5], "trade ticks", _TRADE_TICK_STRIDE)
+    return TradePage(
+        fields[0],
+        fields[1],
+        fields[2],
+        fields[3],
+        fields[4],
+        tuple(
+            _trade_tick_at(ticks, offset)
+            for offset in range(0, len(ticks), _TRADE_TICK_STRIDE)
+        ),
+        _date(fields[6]),
+        fields[7],
+        fields[8],
+    )
 
 
 def response_from_dto(dto: Any) -> Any:
@@ -300,7 +317,11 @@ def response_from_dto(dto: Any) -> Any:
         fields[7] = _records(fields[7], tag, _category_quote)
         return CategoryQuotePage(*fields)
     if tag == "snapshots":
-        return [_quote_snapshot(item) for item in _list(payload, tag)]
+        fields = _flat_records(payload, tag, _SNAPSHOT_STRIDE)
+        return [
+            _quote_snapshot_at(fields, offset)
+            for offset in range(0, len(fields), _SNAPSHOT_STRIDE)
+        ]
     if tag == "auction_series":
         exchange, market_id, code, mode, start, limit, points, raw_payload = _tuple(payload, tag, 8)
         return AuctionSeries(

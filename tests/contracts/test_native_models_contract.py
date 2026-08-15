@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone, timedelta
 
+import pytest
+
 from eltdx._native_models import response_from_dto
 from eltdx.models import (
     HeartbeatAck,
@@ -120,11 +122,15 @@ def test_snapshot_dto_rebuilds_nested_quote_levels() -> None:
         0,
         0,
         0.0,
-        ((1.0, 2, 0),),
-        ((1.1, 3, 0),),
+        1.0,
+        2,
+        0,
+        1.1,
+        3,
+        0,
         b"",
     ]
-    result = response_from_dto(("snapshots", [tuple(fields)]))
+    result = response_from_dto(("snapshots", tuple(fields)))
     assert isinstance(result[0], QuoteSnapshot)
     assert result[0].buy_levels[0].volume == 2
 
@@ -151,9 +157,17 @@ def test_today_tick_dto_reuses_none_datetime_tuple_without_field_drift() -> None
         None,
         None,
     )
-    payload = ("sz", 0, "000001", 5, 1800, (tick,), None, None, b"payload")
+    payload = ("sz", 0, "000001", 5, 1800, tick, None, None, b"payload")
     result = response_from_dto(("today_ticks", payload))
     assert isinstance(result, TradePage)
     assert result.ticks == (TradeTick(*tick),)
     assert result.trading_date is None
     assert result.raw_payload == b"payload"
+
+
+def test_flat_record_dtos_reject_partial_strides() -> None:
+    with pytest.raises(ValueError, match="snapshots length must be a multiple of 27"):
+        response_from_dto(("snapshots", ("partial",)))
+    payload = ("sz", 0, "000001", 0, 1800, ("partial",), None, None, b"")
+    with pytest.raises(ValueError, match="trade ticks length must be a multiple of 19"):
+        response_from_dto(("today_ticks", payload))
