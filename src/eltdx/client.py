@@ -18,7 +18,7 @@ from .api.trades import TradeApi
 from .f10 import F10Client
 from .helpers import HelperApi
 from .hosts import DEFAULT_PROBE_TIMEOUT, DEFAULT_PROBE_WORKERS
-from .transport import InMemoryTransport, PooledSocketTransport, SocketTransport, Transport
+from .transport import InMemoryTransport, PooledSocketTransport, Transport
 from .transport.pool import DEFAULT_POOL_SIZE, validate_pool_size
 from .workday import WorkdayService
 

@@ -80,3 +80,14 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/release/prepare_testpypi_plan.py" = ["E402"]
+"scripts/smoke/*.py" = ["E402"]
+"scripts/verification/check_release_metadata.py" = ["E402"]

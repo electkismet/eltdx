@@ -253,8 +253,6 @@ def _public_contract_snapshot() -> dict[str, Any]:
         path: [f"{base.__module__}:{base.__qualname__}" for base in _resolve(path).__bases__]
         for path in dataclasses_contract["exceptions"]
     }
-    distribution = importlib.metadata.distribution("eltdx")
-    distribution_root = Path(distribution.locate_file("")).resolve()
     return {
         "module_exports": modules,
         "signatures": signatures,
@@ -359,6 +357,8 @@ def assert_baseline_distribution(wheel: Path) -> dict[str, str]:
             f"distribution={installed_version!r}, module={module.__version__!r}"
         )
     module_path = Path(module.__file__).resolve()
+    distribution = importlib.metadata.distribution("eltdx")
+    distribution_root = Path(distribution.locate_file("")).resolve()
     source_root = (REPOSITORY_ROOT / "src").resolve()
     if module_path.is_relative_to(source_root):
         raise RuntimeError(f"baseline exporter imported the development source tree: {module_path}")

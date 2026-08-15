@@ -911,24 +911,7 @@ def test_trade_event_specific_helpers_split_today_and_history_sources() -> None:
 
 
 def test_trade_event_specific_helpers_return_none_when_no_opening_match() -> None:
-    from eltdx.models import TradePage, TradeTick
-
-    tick = TradeTick(
-        index=0,
-        absolute_index=0,
-        time_minutes=9 * 60 + 25,
-        time_label="09:25",
-        trade_datetime=None,
-        price=11.11,
-        price_milli=11110,
-        volume=123,
-        order_count=1,
-        status_raw=2,
-        side="neutral",
-        price_delta_raw=0,
-        price_acc_raw=1111,
-        event_kind="opening_match",
-    )
+    from eltdx.models import TradePage
 
     class FakeTransport:
         def connect(self) -> None:

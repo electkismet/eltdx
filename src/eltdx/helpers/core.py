@@ -23,7 +23,6 @@ from eltdx.models import QuoteRefreshRecord, QuoteSnapshot
 from eltdx.protocol.unit import ID_TO_MARKET, normalize_code
 
 from .shortline import (
-    ShortlineIndicator,
     ShortlineIndicatorService,
     ShortlineIndicatorTable,
 )
