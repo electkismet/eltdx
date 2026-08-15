@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import statistics
 import subprocess
 from collections.abc import Mapping, Sequence
@@ -14,6 +15,9 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
+EDITABLE_NATIVE_RELATIVE = Path(
+    "src/eltdx/_native.pyd" if os.name == "nt" else "src/eltdx/_native.abi3.so"
+)
 EXPECTED_SCHEDULE = ["baseline", "current", "current", "baseline"]
 EXPECTED_BASELINE_COMMIT = "6486a1692dd4aca5339001b2de22e88bb29e16ec"
 EXPECTED_POOLS = {"1", "4", "8"}
@@ -59,6 +63,20 @@ def _git_output(*arguments: str) -> str:
         capture_output=True,
         text=True,
     ).stdout.strip()
+
+
+def _unexpected_worktree_status(status: str) -> list[str]:
+    editable_status = f"?? {EDITABLE_NATIVE_RELATIVE.as_posix()}"
+    editable_path = ROOT / EDITABLE_NATIVE_RELATIVE
+    return [
+        line
+        for line in status.splitlines()
+        if not (
+            line == editable_status
+            and editable_path.is_file()
+            and not editable_path.is_symlink()
+        )
+    ]
 
 
 def _is_positive_int(value: Any) -> bool:
@@ -290,7 +308,8 @@ def _validate_campaign(bundle: Any) -> list[str]:
         errors.append("bundle: candidate SHA does not match HEAD")
     if bundle.get("baseline_commit") != EXPECTED_BASELINE_COMMIT:
         errors.append("bundle: baseline commit mismatch")
-    if _git_output("status", "--porcelain"):
+    status = _git_output("status", "--porcelain", "--untracked-files=all")
+    if _unexpected_worktree_status(status):
         errors.append("bundle: candidate worktree is dirty")
     benchmark = ROOT / "scripts" / "benchmark_native.py"
     if bundle.get("workload_sha256") != _sha256(benchmark):

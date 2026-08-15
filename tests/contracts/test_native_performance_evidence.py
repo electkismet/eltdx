@@ -4,6 +4,8 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
+
 from scripts import benchmark_native
 from scripts.verification import (
     build_stress_evidence,
@@ -104,6 +106,29 @@ def test_benchmark_gate_thresholds_are_not_report_only() -> None:
     p95 = next(gate for gate in failed["gates"] if gate["gate"] == "single_request_p95")
     assert not p95["passed"]
     assert not failed["passed"]
+
+
+def test_benchmark_gate_allows_only_the_editable_native(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    relative = check_benchmark_gates.EDITABLE_NATIVE_RELATIVE
+    native = tmp_path / relative
+    native.parent.mkdir(parents=True)
+    native.write_bytes(b"native")
+    monkeypatch.setattr(check_benchmark_gates, "ROOT", tmp_path)
+
+    status = f"?? {relative.as_posix()}"
+    assert check_benchmark_gates._unexpected_worktree_status(status) == []
+
+    native.unlink()
+    assert check_benchmark_gates._unexpected_worktree_status(status) == [status]
+
+    native.write_bytes(b"native")
+    unexpected = "?? unexpected.txt"
+    assert check_benchmark_gates._unexpected_worktree_status(
+        f"{status}\n{unexpected}"
+    ) == [unexpected]
 
 
 def test_external_stress_evidence_requires_both_candidate_bound_systems() -> None:
