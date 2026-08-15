@@ -4263,16 +4263,15 @@ impl SlotWorker {
             .start_connect(attempt.request_id, attempt.deadline, Instant::now())?
             .ok_or_else(|| RuntimeError::timeout(TimeoutPhase::Connect))?;
         let wire = request_wire(attempt, start.identity, None);
-        if publish_connect_transition {
-            if self
+        if publish_connect_transition
+            && self
                 .publish_transition(attempt.request_id, RequestState::Connecting, wire)
                 .await
                 .is_err()
-            {
-                return Ok(ConnectForRequest::Outcome(WorkOutcome::Interrupted {
-                    wire,
-                }));
-            }
+        {
+            return Ok(ConnectForRequest::Outcome(WorkOutcome::Interrupted {
+                wire,
+            }));
         }
         let stream = match self
             .connect_stream(
