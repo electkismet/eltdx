@@ -86,7 +86,7 @@ def _datetime(value: Any) -> datetime | None:
 
 
 def _records(value: Any, name: str, convert: Any) -> tuple[Any, ...]:
-    return tuple(convert(item) for item in _tuple(value, name))
+    return tuple(map(convert, _tuple(value, name)))
 
 
 def _quote_level(value: Any) -> QuoteLevel:
@@ -147,9 +147,59 @@ def _refresh_quote(value: Any) -> QuoteRefreshRecord:
 
 
 def _trade_tick(value: Any) -> TradeTick:
-    fields = list(_tuple(value, "trade tick", 19))
-    fields[4] = _datetime(fields[4])
-    return TradeTick(*fields)
+    fields = _tuple(value, "trade tick", 19)
+    if fields[4] is None:
+        return TradeTick(*fields)
+    return TradeTick(
+        fields[0],
+        fields[1],
+        fields[2],
+        fields[3],
+        _datetime(fields[4]),
+        fields[5],
+        fields[6],
+        fields[7],
+        fields[8],
+        fields[9],
+        fields[10],
+        fields[11],
+        fields[12],
+        fields[13],
+        fields[14],
+        fields[15],
+        fields[16],
+        fields[17],
+        fields[18],
+    )
+
+
+def _quote_snapshot(value: Any) -> QuoteSnapshot:
+    fields = _tuple(value, "snapshot", 23)
+    return QuoteSnapshot(
+        fields[0],
+        fields[1],
+        fields[2],
+        fields[3],
+        fields[4],
+        fields[5],
+        fields[6],
+        fields[7],
+        fields[8],
+        fields[9],
+        fields[10],
+        fields[11],
+        fields[12],
+        fields[13],
+        fields[14],
+        fields[15],
+        fields[16],
+        fields[17],
+        fields[18],
+        fields[19],
+        _records(fields[20], "snapshot buy levels", _quote_level),
+        _records(fields[21], "snapshot sell levels", _quote_level),
+        fields[22],
+    )
 
 
 def _security(value: Any) -> SecurityCode:
@@ -250,13 +300,7 @@ def response_from_dto(dto: Any) -> Any:
         fields[7] = _records(fields[7], tag, _category_quote)
         return CategoryQuotePage(*fields)
     if tag == "snapshots":
-        snapshots = []
-        for item in _list(payload, tag):
-            fields = list(_tuple(item, tag, 23))
-            fields[20] = _records(fields[20], tag, _quote_level)
-            fields[21] = _records(fields[21], tag, _quote_level)
-            snapshots.append(QuoteSnapshot(*fields))
-        return snapshots
+        return [_quote_snapshot(item) for item in _list(payload, tag)]
     if tag == "auction_series":
         exchange, market_id, code, mode, start, limit, points, raw_payload = _tuple(payload, tag, 8)
         return AuctionSeries(

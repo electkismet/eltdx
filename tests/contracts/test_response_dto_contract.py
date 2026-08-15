@@ -141,3 +141,18 @@ def test_response_tuple_shapes_and_raw_policy_are_frozen() -> None:
     assert ".map(|v| legacy_quote(py, v, true))" in source
     assert ".map(|v| refresh_quote(py, v, true))" in source
     assert ".map(|v| category_quote(py, v, true))" in source
+
+
+def test_hot_record_dtos_avoid_dynamic_field_vectors() -> None:
+    response_source = RESPONSE.read_text(encoding="utf-8")
+    models_source = (ROOT / "src" / "eltdx" / "_native_models.py").read_text(
+        encoding="utf-8"
+    )
+    for function_name in ("level", "trade_tick", "quote_snapshot"):
+        body = response_source.split(f"fn {function_name}", 1)[1].split("\nfn ", 1)[0]
+        assert "tuple_array(" in body
+        assert "vec![" not in body
+    assert 'if fields[4] is None:\n        return TradeTick(*fields)' in models_source
+    snapshot_body = models_source.split("def _quote_snapshot", 1)[1].split("\ndef ", 1)[0]
+    assert "fields = list(" not in snapshot_body
+    assert "return QuoteSnapshot(" in snapshot_body

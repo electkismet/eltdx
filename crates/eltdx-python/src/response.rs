@@ -47,6 +47,10 @@ fn tuple<'py>(py: Python<'py>, values: Vec<Obj>) -> PyResult<Obj> {
     Ok(PyTuple::new(py, values)?.into_any().unbind())
 }
 
+fn tuple_array<'py, const N: usize>(py: Python<'py>, values: [Obj; N]) -> PyResult<Obj> {
+    Ok(PyTuple::new(py, values)?.into_any().unbind())
+}
+
 fn list<'py>(py: Python<'py>, values: Vec<Obj>) -> PyResult<Obj> {
     Ok(PyList::new(py, values)?.into_any().unbind())
 }
@@ -120,9 +124,9 @@ fn record_hex<'py>(py: Python<'py>, _include_raw: bool, value: &str) -> Obj {
 }
 
 fn level<'py>(py: Python<'py>, value: &QuoteLevel) -> PyResult<Obj> {
-    tuple(
+    tuple_array(
         py,
-        vec![
+        [
             any(py, value.price)?,
             any(py, value.volume)?,
             any(py, value.price_delta_raw)?,
@@ -351,9 +355,9 @@ fn minute_series<'py, R>(
 }
 
 fn trade_tick<'py>(py: Python<'py>, value: &TradeTick, include_raw: bool) -> PyResult<Obj> {
-    tuple(
+    tuple_array(
         py,
-        vec![
+        [
             any(py, value.index)?,
             any(py, value.absolute_index)?,
             any(py, value.time_minutes)?,
@@ -386,35 +390,34 @@ fn trade_tick<'py>(py: Python<'py>, value: &TradeTick, include_raw: bool) -> PyR
 }
 
 fn quote_snapshot<'py>(py: Python<'py>, value: &QuoteSnapshot) -> PyResult<Obj> {
-    let mut fields = code_parts(
+    tuple_array(
         py,
-        market_id_name(value.market_id),
-        value.market_id,
-        &value.code,
-    )?;
-    fields.extend([
-        any(py, value.active1)?,
-        any(py, value.last_price)?,
-        any(py, value.pre_close_price)?,
-        any(py, value.open_price)?,
-        any(py, value.high_price)?,
-        any(py, value.low_price)?,
-        any(py, value.time_raw)?,
-        any(py, value.unknown_after_time_raw)?,
-        any(py, value.total_hand)?,
-        any(py, value.current_hand)?,
-        any(py, value.amount)?,
-        any(py, value.amount_raw)?,
-        any(py, value.inside_dish)?,
-        any(py, value.outer_disc)?,
-        any(py, value.unknown_after_outer_raw)?,
-        any(py, value.open_amount_raw)?,
-        any(py, value.open_amount_yuan)?,
-        levels(py, &value.buy_levels)?,
-        levels(py, &value.sell_levels)?,
-        bytes(py, &value.tail_raw),
-    ]);
-    tuple(py, fields)
+        [
+            any(py, market_id_name(value.market_id))?,
+            any(py, value.market_id)?,
+            any(py, value.code.as_str())?,
+            any(py, value.active1)?,
+            any(py, value.last_price)?,
+            any(py, value.pre_close_price)?,
+            any(py, value.open_price)?,
+            any(py, value.high_price)?,
+            any(py, value.low_price)?,
+            any(py, value.time_raw)?,
+            any(py, value.unknown_after_time_raw)?,
+            any(py, value.total_hand)?,
+            any(py, value.current_hand)?,
+            any(py, value.amount)?,
+            any(py, value.amount_raw)?,
+            any(py, value.inside_dish)?,
+            any(py, value.outer_disc)?,
+            any(py, value.unknown_after_outer_raw)?,
+            any(py, value.open_amount_raw)?,
+            any(py, value.open_amount_yuan)?,
+            levels(py, &value.buy_levels)?,
+            levels(py, &value.sell_levels)?,
+            bytes(py, &value.tail_raw),
+        ],
+    )
 }
 
 fn market_id_name(value: u8) -> &'static str {

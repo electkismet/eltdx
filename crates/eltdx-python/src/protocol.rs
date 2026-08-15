@@ -85,7 +85,6 @@ pub fn parse_command_response(
     payload: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<Py<PyAny>> {
     let request = request::from_python(py, command, payload)?;
-    let frame = decode_frame(response, 0xFFFF).map_err(protocol_error)?;
-    let parsed = CommandResponse::parse(request, &frame.data).map_err(protocol_error)?;
+    let parsed = CommandResponse::parse(request, response).map_err(protocol_error)?;
     response::to_python(py, parsed)
 }

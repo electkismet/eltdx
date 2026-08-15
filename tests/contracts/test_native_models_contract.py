@@ -5,7 +5,14 @@ from __future__ import annotations
 from datetime import date, datetime, timezone, timedelta
 
 from eltdx._native_models import response_from_dto
-from eltdx.models import HeartbeatAck, KlineSeries, QuoteSnapshot, SecurityCode
+from eltdx.models import (
+    HeartbeatAck,
+    KlineSeries,
+    QuoteSnapshot,
+    SecurityCode,
+    TradePage,
+    TradeTick,
+)
 
 
 def test_heartbeat_dto_rebuilds_date_and_bytes() -> None:
@@ -120,3 +127,33 @@ def test_snapshot_dto_rebuilds_nested_quote_levels() -> None:
     result = response_from_dto(("snapshots", [tuple(fields)]))
     assert isinstance(result[0], QuoteSnapshot)
     assert result[0].buy_levels[0].volume == 2
+
+
+def test_today_tick_dto_reuses_none_datetime_tuple_without_field_drift() -> None:
+    tick = (
+        0,
+        5,
+        570,
+        "09:30",
+        None,
+        1.25,
+        1250,
+        100,
+        2,
+        0,
+        "buy",
+        125,
+        125,
+        0,
+        None,
+        "50030a14030000",
+        "trade",
+        None,
+        None,
+    )
+    payload = ("sz", 0, "000001", 5, 1800, (tick,), None, None, b"payload")
+    result = response_from_dto(("today_ticks", payload))
+    assert isinstance(result, TradePage)
+    assert result.ticks == (TradeTick(*tick),)
+    assert result.trading_date is None
+    assert result.raw_payload == b"payload"

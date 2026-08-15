@@ -57,6 +57,9 @@ def test_native_protocol_entrypoints_are_registered_and_stateless() -> None:
     assert "PyResult<CommandRequest>" in request
     assert "CommandRequest::Heartbeat" in request
     assert "CommandResponse::parse" in source
+    parse_body = source.split("pub fn parse_command_response", 1)[1]
+    assert "decode_frame(response" not in parse_body
+    assert "CommandResponse::parse(request, response)" in parse_body
 
 
 def test_python_protocol_facades_have_no_python_wire_runtime() -> None:
@@ -70,6 +73,8 @@ def test_python_protocol_facades_have_no_python_wire_runtime() -> None:
     assert "struct.pack" not in frame
     assert "build_command_frame" in commands
     assert "parse_command_response" in commands
+    assert "response.data" in commands
+    assert "response.raw" not in commands
 
 
 def test_actor_module_is_snapshot_only() -> None:

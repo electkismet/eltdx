@@ -26,7 +26,7 @@ def parse_command_response(
     dto = call_native(
         native_module().parse_command_response,
         command,
-        response.raw,
+        response.data,
         request_payload or {},
     )
     return response_from_dto(dto)
