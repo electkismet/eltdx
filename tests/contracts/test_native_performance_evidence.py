@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from scripts import benchmark_native
 from scripts.verification import (
@@ -47,6 +48,22 @@ def test_benchmark_protocol_freezes_all_plan_workloads() -> None:
         "klines_800": 800,
         "ticks_1800": 1_800,
     }
+
+
+def test_benchmark_snapshot_record_matches_frozen_fixture() -> None:
+    fixture = (
+        Path(__file__).parents[1]
+        / "fixtures"
+        / "7709"
+        / "snapshots"
+        / "normal"
+        / "response.bin"
+    )
+    response = fixture.read_bytes()
+
+    assert len(response) == 124
+    assert len(benchmark_native.SNAPSHOT_RECORD) == 104
+    assert benchmark_native.SNAPSHOT_RECORD == response[20:]
 
 
 def test_benchmark_gate_thresholds_are_not_report_only() -> None:
