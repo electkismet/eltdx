@@ -341,7 +341,6 @@ def test_low_priority_heartbeat_recovers_after_request_pressure() -> None:
             [server.host],
             timeout=10,
             heartbeat_interval=0.01,
-            max_pending_requests=128,
         )
         try:
             with ThreadPoolExecutor(max_workers=100) as executor:

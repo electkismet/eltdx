@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{mpsc as std_mpsc, Arc, Condvar, Mutex, MutexGuard, TryLockError};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -34,6 +34,9 @@ use crate::slot::{
     ReconnectAck, RequestId, RoutedResponse, Slot, SlotId, SlotState,
 };
 use crate::supervisor::{CloseClaim, EngineState, PinTerminalBatch, StartClaim, Supervisor};
+
+static PROCESS_ORIGIN_PID: AtomicU32 = AtomicU32::new(0);
+const FORK_CHILD_POLL_INTERVAL: Duration = Duration::from_millis(1);
 
 pub const CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
 pub const CANCEL_CONFIRM_TIMEOUT: Duration = Duration::from_secs(1);
@@ -519,7 +522,7 @@ impl PendingExecution {
         if let Some(result) = self.terminal.take() {
             return result.map(PendingPoll::Ready);
         }
-        match self.result_rx.recv_timeout(timeout) {
+        match receive_std_timeout(&self.result_rx, timeout) {
             Ok(Ok(raw)) => {
                 let parsed = CommandResponse::parse(raw.request, &raw.response.data)
                     .map_err(RuntimeError::from)?;
@@ -566,7 +569,7 @@ impl PendingPin {
         timeout: Duration,
     ) -> Result<PendingPoll<PinHandle>, RuntimeError> {
         check_pid(self.created_pid)?;
-        match self.result_rx.recv_timeout(timeout) {
+        match receive_std_timeout(&self.result_rx, timeout) {
             Ok(Ok(identity)) => Ok(PendingPoll::Ready(PinHandle {
                 engine: self.engine.clone(),
                 identity,
@@ -612,7 +615,7 @@ impl PendingPinClose {
         if let Some(result) = self.terminal.as_ref().cloned() {
             return result.map(|()| PendingPoll::Ready(()));
         }
-        match self.result_rx.recv_timeout(timeout) {
+        match receive_std_timeout(&self.result_rx, timeout) {
             Ok(result) => {
                 self.terminal = Some(result.clone());
                 result.map(|()| PendingPoll::Ready(()))
@@ -765,6 +768,7 @@ impl PendingClose {
 
 impl Engine {
     pub fn new(config: EngineConfig) -> Result<Self, RuntimeError> {
+        let _ = process_origin_pid();
         config.total_capacity()?;
         let diagnostics = DiagnosticsCache::stopped(config.pool_size);
         Ok(Self {
@@ -893,7 +897,7 @@ impl Engine {
         runtime.command_tx.blocking_send(command).map_err(|_| {
             RuntimeError::connection_closed("7709 runtime command channel is closed")
         })?;
-        admission_rx.recv().map_err(|_| {
+        receive_std(&admission_rx).map_err(|_| {
             RuntimeError::connection_closed("7709 runtime stopped before admission")
         })??;
         Ok(PendingExecution {
@@ -927,7 +931,7 @@ impl Engine {
             .map_err(|_| {
                 RuntimeError::connection_closed("7709 runtime command channel is closed")
             })?;
-        admission_rx.recv().map_err(|_| {
+        receive_std(&admission_rx).map_err(|_| {
             RuntimeError::connection_closed("7709 runtime stopped before pin admission")
         })??;
         Ok(PendingPin {
@@ -967,7 +971,7 @@ impl Engine {
             .map_err(|_| {
                 RuntimeError::connection_closed("7709 runtime command channel is closed")
             })?;
-        admission_rx.recv().map_err(|_| {
+        receive_std(&admission_rx).map_err(|_| {
             RuntimeError::connection_closed("7709 runtime stopped before pinned admission")
         })??;
         Ok(PendingExecution {
@@ -1018,8 +1022,7 @@ impl Engine {
             .map_err(|_| {
                 RuntimeError::connection_closed("7709 runtime command channel is closed")
             })?;
-        reply_rx
-            .recv()
+        receive_std(&reply_rx)
             .map_err(|_| RuntimeError::connection_closed("7709 runtime stopped during push poll"))?
     }
 
@@ -1036,7 +1039,7 @@ impl Engine {
             .map_err(|_| {
                 RuntimeError::connection_closed("7709 runtime command channel is closed")
             })?;
-        reply_rx.recv().map_err(|_| {
+        receive_std(&reply_rx).map_err(|_| {
             RuntimeError::connection_closed("7709 runtime stopped during push drain")
         })?
     }
@@ -1050,7 +1053,7 @@ impl Engine {
                 .blocking_send(RuntimeCommand::PoolDiagnostics { reply })
                 .is_ok()
             {
-                if let Ok(result) = received.recv() {
+                if let Ok(result) = receive_std(&received) {
                     return result.and_then(|value| self.overlay_pool_diagnostics(value));
                 }
             }
@@ -1075,7 +1078,7 @@ impl Engine {
                 .blocking_send(RuntimeCommand::TransportDiagnostics { reply })
                 .is_ok()
             {
-                if let Ok(result) = received.recv() {
+                if let Ok(result) = receive_std(&received) {
                     return result.and_then(|value| self.overlay_transport_diagnostics(value));
                 }
             }
@@ -1773,6 +1776,61 @@ fn duration_from_seconds(
     })
 }
 
+fn process_origin_pid() -> u32 {
+    let origin = PROCESS_ORIGIN_PID.load(Ordering::Acquire);
+    if origin != 0 {
+        return origin;
+    }
+    let current = std::process::id();
+    match PROCESS_ORIGIN_PID.compare_exchange(0, current, Ordering::AcqRel, Ordering::Acquire) {
+        Ok(_) => current,
+        Err(origin) => origin,
+    }
+}
+
+fn is_post_fork_process() -> bool {
+    process_origin_pid() != std::process::id()
+}
+
+fn receive_std<T>(receiver: &std_mpsc::Receiver<T>) -> Result<T, std_mpsc::RecvError> {
+    if !is_post_fork_process() {
+        return receiver.recv();
+    }
+    loop {
+        match receiver.try_recv() {
+            Ok(value) => return Ok(value),
+            Err(std_mpsc::TryRecvError::Empty) => thread::sleep(FORK_CHILD_POLL_INTERVAL),
+            Err(std_mpsc::TryRecvError::Disconnected) => return Err(std_mpsc::RecvError),
+        }
+    }
+}
+
+fn receive_std_timeout<T>(
+    receiver: &std_mpsc::Receiver<T>,
+    timeout: Duration,
+) -> Result<T, std_mpsc::RecvTimeoutError> {
+    if !is_post_fork_process() {
+        return receiver.recv_timeout(timeout);
+    }
+    let deadline = Instant::now()
+        .checked_add(timeout)
+        .ok_or(std_mpsc::RecvTimeoutError::Timeout)?;
+    loop {
+        match receiver.try_recv() {
+            Ok(value) => return Ok(value),
+            Err(std_mpsc::TryRecvError::Disconnected) => {
+                return Err(std_mpsc::RecvTimeoutError::Disconnected);
+            }
+            Err(std_mpsc::TryRecvError::Empty) => {}
+        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(std_mpsc::RecvTimeoutError::Timeout);
+        }
+        thread::sleep(remaining.min(FORK_CHILD_POLL_INTERVAL));
+    }
+}
+
 fn check_pid(created_pid: u32) -> Result<(), RuntimeError> {
     let current_pid = std::process::id();
     if current_pid == created_pid {
@@ -2115,6 +2173,7 @@ impl RuntimeCore {
     }
 
     async fn begin_runtime_fatal(&mut self, error: RuntimeError) -> Result<(), RuntimeError> {
+        self.flush_pending_push_drops();
         if self.exit_error.is_none() {
             self.exit_error = Some(error.clone());
         }
@@ -2181,6 +2240,7 @@ impl RuntimeCore {
     }
 
     async fn handle_command(&mut self, command: RuntimeCommand) -> Result<(), RuntimeError> {
+        self.flush_pending_push_drops();
         if self.closing {
             return self.reject_command_after_close(command);
         }
@@ -3511,6 +3571,7 @@ impl RuntimeCore {
     }
 
     async fn handle_control(&mut self) -> Result<(), RuntimeError> {
+        self.flush_pending_push_drops();
         let snapshot = self.control.take_snapshot()?;
         if snapshot.close_timed_out {
             if let Some(attempt) = self.close_attempt.take() {
@@ -3746,16 +3807,21 @@ impl RuntimeCore {
     }
 
     async fn handle_tick(&mut self) -> Result<(), RuntimeError> {
-        let dropped = self.push_dropped.swap(0, Ordering::AcqRel);
-        if dropped != 0 {
-            if let Some(epoch) = self.supervisor.active_epoch() {
-                self.supervisor.record_push_drop(epoch, dropped);
-            }
-        }
+        self.flush_pending_push_drops();
         let notifications = self.supervisor.expire_waiting_terminals(Instant::now())?;
         self.process_notifications(notifications).await?;
         self.fulfill_push_waiters();
         Ok(())
+    }
+
+    fn flush_pending_push_drops(&mut self) {
+        let Some(epoch) = self.supervisor.active_epoch() else {
+            return;
+        };
+        let dropped = self.push_dropped.swap(0, Ordering::AcqRel);
+        if dropped != 0 {
+            self.supervisor.record_push_drop(epoch, dropped);
+        }
     }
 
     fn fulfill_push_waiters(&mut self) {

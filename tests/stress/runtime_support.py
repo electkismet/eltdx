@@ -162,6 +162,7 @@ class NativeStressServer:
                             self.max_active_requests,
                             self._active_requests,
                         )
+                        self._condition.notify_all()
                     try:
                         if self.response_delay:
                             time.sleep(self.response_delay)
