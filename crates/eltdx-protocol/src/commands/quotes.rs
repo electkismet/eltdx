@@ -365,12 +365,6 @@ pub fn parse_snapshots_payload(
             },
         ));
     }
-    if count > payload.len().saturating_sub(4) / 30 {
-        return Err(ProtocolError::invalid_data(
-            "snapshots",
-            "truncated snapshot record",
-        ));
-    }
     let records = split_snapshot_records(&payload[4..], &requested_codes[..count])?;
     records
         .iter()
@@ -1274,6 +1268,29 @@ mod tests {
         payload.extend_from_slice(&record);
         let snapshots = parse_snapshots_payload(&payload, &requested);
         assert!(matches!(snapshots, Ok(values) if values.len() == 1));
+        Ok(())
+    }
+
+    #[test]
+    fn snapshot_marker_error_precedes_record_length_check() -> Result<(), ProtocolError> {
+        let requested = vec![NormalizedCode::parse("sz000001")?];
+        let missing_marker =
+            parse_snapshots_payload(&[0, 0, 1, 0, 0, b'0', b'0', b'0'], &requested);
+        assert!(matches!(
+            missing_marker,
+            Err(ProtocolError::InvalidData { context: "snapshot", message })
+                if message == "snapshot record marker not found: sz000001"
+        ));
+
+        let marker_only = parse_snapshots_payload(
+            &[0, 0, 1, 0, 0, b'0', b'0', b'0', b'0', b'0', b'1'],
+            &requested,
+        );
+        assert!(matches!(
+            marker_only,
+            Err(ProtocolError::InvalidData { context: "snapshot", message })
+                if message == "truncated snapshot record"
+        ));
         Ok(())
     }
 }

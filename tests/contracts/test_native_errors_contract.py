@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).parents[2]
 ABI = ROOT / "src" / "eltdx" / "_native_abi.py"
@@ -57,8 +59,50 @@ def test_native_error_mapping_covers_every_structured_kind() -> None:
     ):
         assert exception_name in source
     assert "_native_context" in source
-    assert "mapped.__cause__ = error.__cause__" in source
-    assert "raise mapped\n" in source
+    assert "raise mapped from None" in source
+    assert "raise mapped from error.__cause__" in source
+
+
+class NativeError(Exception):
+    """Test double matching the private PyO3 exception name and payload."""
+
+
+def _raise_native(error: BaseException) -> None:
+    raise error
+
+
+def test_native_error_without_cause_does_not_expose_private_wrapper() -> None:
+    from eltdx.exceptions import ProtocolError
+    from eltdx.transport.native import call_native
+
+    private = NativeError(
+        "Protocol",
+        "invalid response",
+        [("context", "test"), ("code", "invalid_data")],
+    )
+    with pytest.raises(ProtocolError) as raised:
+        call_native(_raise_native, private)
+
+    assert raised.value.__cause__ is None
+    assert raised.value.__suppress_context__ is True
+
+
+def test_native_error_preserves_genuine_existing_cause() -> None:
+    from eltdx.exceptions import ProtocolError
+    from eltdx.transport.native import call_native
+
+    cleanup_error = RuntimeError("cleanup failed")
+    private = NativeError(
+        "Protocol",
+        "invalid response",
+        [("context", "test"), ("code", "invalid_data")],
+    )
+    private.__cause__ = cleanup_error
+    with pytest.raises(ProtocolError) as raised:
+        call_native(_raise_native, private)
+
+    assert raised.value.__cause__ is cleanup_error
+    assert raised.value.__suppress_context__ is True
 
 
 def test_native_adapter_does_not_translate_unrelated_exceptions() -> None:

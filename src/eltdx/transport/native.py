@@ -87,8 +87,9 @@ def call_native(function: Callable[..., T], /, *args: Any, **kwargs: Any) -> T:
         if error.__class__.__name__ != "NativeError":
             raise
         mapped = map_native_error(error)
-        mapped.__cause__ = error.__cause__ if error.__cause__ is not None else error
-        raise mapped
+        if error.__cause__ is None:
+            raise mapped from None
+        raise mapped from error.__cause__
 
 
 def native_module() -> ModuleType:
