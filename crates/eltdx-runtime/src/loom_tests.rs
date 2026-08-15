@@ -66,11 +66,15 @@ fn loom_submit_and_close_share_one_linearization_gate() {
         assert!(submitter.join().is_ok());
         assert!(closer.join().is_ok());
         let outcome = submit_outcome.load(Ordering::SeqCst);
-        let supervisor = lock(&supervisor);
+        let mut supervisor = lock(&supervisor);
         assert!(matches!(outcome, 1 | 2));
         assert_eq!(supervisor.state(), EngineState::Closing);
         assert_eq!(supervisor.waiting_count(), 0);
-        assert_eq!(supervisor.active_count(), usize::from(outcome == 1));
+        assert_eq!(supervisor.active_count(), 0);
+        assert_eq!(
+            supervisor.take_lifecycle_notifications().len(),
+            usize::from(outcome == 1)
+        );
         assert!(supervisor.check_admission_invariants().is_ok());
     });
 }
