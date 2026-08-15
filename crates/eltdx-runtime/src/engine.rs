@@ -1879,6 +1879,7 @@ struct RuntimeCore {
     sessions: Arc<Mutex<SessionCache>>,
     pending: BTreeMap<RequestId, PendingRequest>,
     pin_reservations: BTreeMap<RequestId, PendingPinReservation>,
+    pin_connects: BTreeMap<SlotId, RequestId>,
     pin_close_waiters: BTreeMap<u64, Vec<std_mpsc::SyncSender<Result<(), RuntimeError>>>>,
     internal_request_counter: u64,
     heartbeat_requests: BTreeSet<RequestId>,
@@ -1931,6 +1932,7 @@ impl RuntimeCore {
             sessions,
             pending: BTreeMap::new(),
             pin_reservations: BTreeMap::new(),
+            pin_connects: BTreeMap::new(),
             pin_close_waiters: BTreeMap::new(),
             internal_request_counter: 0,
             heartbeat_requests: BTreeSet::new(),
@@ -2244,6 +2246,11 @@ impl RuntimeCore {
                 );
                 match accepted {
                     Ok(accepted) => {
+                        let active_lease = if let Admission::Active(lease) = accepted {
+                            Some(lease)
+                        } else {
+                            None
+                        };
                         self.pin_reservations.insert(
                             request_id,
                             PendingPinReservation {
@@ -2252,10 +2259,22 @@ impl RuntimeCore {
                                 admission: accepted,
                             },
                         );
-                        let _ = admission.send(Ok(()));
-                        if matches!(accepted, Admission::Active(_)) {
-                            if let Some(batch) = self.complete_pin_reservation(request_id)? {
+                        let dispatch_result = if let Some(lease) = active_lease {
+                            self.start_pin_connection(request_id, lease, deadline)
+                        } else {
+                            Ok(())
+                        };
+                        match dispatch_result {
+                            Ok(()) => {
+                                let _ = admission.send(Ok(()));
+                            }
+                            Err(error) => {
+                                if let Some(lease) = active_lease {
+                                    self.pin_connects.remove(&lease.slot_id);
+                                }
+                                let batch = self.fail_pin_reservation(request_id, error.clone())?;
                                 self.process_terminal_batch(batch).await?;
+                                let _ = admission.send(Err(error));
                             }
                         }
                     }
@@ -2969,7 +2988,25 @@ impl RuntimeCore {
             }
             SlotEvent::Retired { acknowledgement } => self.handle_retired(acknowledgement).await,
             SlotEvent::ConnectFinished { slot_id, result } => {
-                self.handle_connect_finished(slot_id, result).await
+                if let Some(request_id) = self.pin_connects.remove(&slot_id) {
+                    if !self.pin_reservations.contains_key(&request_id) {
+                        return Ok(());
+                    }
+                    match result {
+                        Ok(()) => {
+                            if let Some(batch) = self.complete_pin_reservation(request_id)? {
+                                self.process_terminal_batch(batch).await?;
+                            }
+                        }
+                        Err(error) => {
+                            let batch = self.fail_pin_reservation(request_id, error)?;
+                            self.process_terminal_batch(batch).await?;
+                        }
+                    }
+                    Ok(())
+                } else {
+                    self.handle_connect_finished(slot_id, result).await
+                }
             }
             SlotEvent::Stopped { slot_id, result } => {
                 let handle = self
@@ -3275,7 +3312,7 @@ impl RuntimeCore {
     async fn apply_promotion(
         &mut self,
         promotion: Promotion,
-    ) -> Result<Option<TerminalBatch>, RuntimeError> {
+    ) -> Result<TerminalBatch, RuntimeError> {
         let request_id = promotion.active_lease.request_id;
         if let Some(reservation) = self.pin_reservations.get_mut(&request_id) {
             if reservation.admission != Admission::Waiting(promotion.returned_permit) {
@@ -3284,7 +3321,12 @@ impl RuntimeCore {
                 ));
             }
             reservation.admission = Admission::Active(promotion.active_lease);
-            return self.complete_pin_reservation(request_id);
+            let lease = promotion.active_lease;
+            if let Err(error) = self.start_pin_connection(request_id, lease, lease.deadline) {
+                let batch = self.fail_pin_reservation(request_id, error)?;
+                self.process_terminal_batch(batch).await?;
+            }
+            return Ok(None);
         }
         let pending = self
             .pending
@@ -3357,6 +3399,56 @@ impl RuntimeCore {
             .ok_or_else(|| RuntimeError::internal("opened pin reservation disappeared"))?;
         let _ = reservation.result.send(Ok(identity));
         Ok(None)
+    }
+
+    fn start_pin_connection(
+        &mut self,
+        request_id: RequestId,
+        lease: crate::request::ActiveLease,
+        deadline: Deadline,
+    ) -> Result<(), RuntimeError> {
+        self.ensure_slot(lease.engine_epoch, lease.slot_id)?;
+        if self
+            .pin_connects
+            .insert(lease.slot_id, request_id)
+            .is_some()
+        {
+            return Err(RuntimeError::internal(
+                "a Slot already owns a lazy pin connection attempt",
+            ));
+        }
+        if let Err(error) =
+            self.send_slot_work(lease.slot_id, SlotWork::EnsureConnected { deadline })
+        {
+            self.pin_connects.remove(&lease.slot_id);
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    fn fail_pin_reservation(
+        &mut self,
+        request_id: RequestId,
+        error: RuntimeError,
+    ) -> Result<TerminalBatch, RuntimeError> {
+        let admission = self
+            .pin_reservations
+            .get(&request_id)
+            .map(|reservation| reservation.admission)
+            .ok_or_else(|| RuntimeError::internal("pin reservation disappeared during failure"))?;
+        let Admission::Active(lease) = admission else {
+            return Err(RuntimeError::internal(
+                "failed lazy pin reservation is not actively assigned",
+            ));
+        };
+        self.supervisor
+            .terminal_active(
+                wire_without_generation(lease),
+                TerminalKind::Failed,
+                Some(error),
+                Instant::now(),
+            )?
+            .ok_or_else(|| RuntimeError::internal("failed lazy pin reservation was stale"))
     }
 
     async fn close_pin(
