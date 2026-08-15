@@ -35,6 +35,11 @@ def test_native_abi_is_explicit_and_fail_fast() -> None:
 
 def test_native_error_mapping_covers_every_structured_kind() -> None:
     source = _source(ADAPTER)
+    string_literals = {
+        node.value
+        for node in ast.walk(ast.parse(source, filename=str(ADAPTER)))
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
     for kind in (
         "InvalidArgument",
         "Protocol",
@@ -46,7 +51,7 @@ def test_native_error_mapping_covers_every_structured_kind() -> None:
         "UnsupportedCommand",
         "Internal",
     ):
-        assert repr(kind) in source
+        assert kind in string_literals
     for exception_name in (
         "ProtocolError",
         "ConnectionClosedError",

@@ -18,7 +18,10 @@ def _gate_trial(role: str) -> dict:
     parse_elapsed = 100 if is_current else 120
     return {
         "role": role,
-        "single_request": {"latency_ns": [100 if is_current else 100]},
+        "single_request": {
+            "latency_ns": [100 if is_current else 100],
+            "rss_observed_bytes": 1,
+        },
         "pool_throughput": {
             pool: {"requests": 1, "elapsed_ns": pool_elapsed, "rss_observed_bytes": 1}
             for pool in check_benchmark_gates.EXPECTED_POOLS

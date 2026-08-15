@@ -36,7 +36,7 @@ def test_first_compile_and_first_import_exist_only_in_round_one() -> None:
     assert commands[1][0] == ("cargo", "fmt", "--check")
     assert commands[1][1] == ("cargo", "check", "--workspace", "--all-targets")
     assert any("maturin" in command for command in commands[1])
-    assert any("check_native_abi.py" in command for command in commands[1])
+    assert ("{python}", "scripts/verification/check_native_abi.py") in commands[1]
     for number in range(2, 11):
         assert all("cargo check" not in " ".join(command) for command in commands[number])
         assert all("maturin develop" not in " ".join(command) for command in commands[number])

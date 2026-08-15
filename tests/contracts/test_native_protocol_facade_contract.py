@@ -28,6 +28,7 @@ def _top_level_names(relative: str) -> set[str]:
 
 def test_native_protocol_entrypoints_are_registered_and_stateless() -> None:
     source = _source("crates/eltdx-python/src/protocol.rs")
+    request = _source("crates/eltdx-python/src/request.rs")
     lib = _source("crates/eltdx-python/src/lib.rs")
     for name in (
         "build_command_frame",
@@ -38,7 +39,9 @@ def test_native_protocol_entrypoints_are_registered_and_stateless() -> None:
         assert f"pub fn {name}" in source
         assert f'wrap_pyfunction!(protocol::{name}' in lib
     assert "NativeEngine" not in source
-    assert "CommandRequest" in source
+    assert source.count("request::from_python") == 2
+    assert "PyResult<CommandRequest>" in request
+    assert "CommandRequest::Heartbeat" in request
     assert "CommandResponse::parse" in source
 
 
@@ -58,7 +61,7 @@ def test_python_protocol_facades_have_no_python_wire_runtime() -> None:
 def test_actor_module_is_snapshot_only() -> None:
     source = _source("src/eltdx/transport/actor.py")
     names = _top_level_names("src/eltdx/transport/actor.py")
-    assert names == {"RuntimeState", "TcpState", "ActorSnapshot"}
+    assert names == {"RuntimeState", "TcpState", "ActorSnapshot", "__all__"}
     assert "threading" not in source
     assert "socket" not in source.lower()
     assert "ActorRuntime" not in source
