@@ -188,6 +188,22 @@ impl Supervisor {
         push_max_frames: usize,
         push_max_bytes: usize,
     ) -> Result<Self, RuntimeError> {
+        Self::with_limits_from_epoch(
+            pool_size,
+            max_pending_requests,
+            push_max_frames,
+            push_max_bytes,
+            0,
+        )
+    }
+
+    pub(crate) fn with_limits_from_epoch(
+        pool_size: usize,
+        max_pending_requests: usize,
+        push_max_frames: usize,
+        push_max_bytes: usize,
+        epoch_seed: u64,
+    ) -> Result<Self, RuntimeError> {
         if pool_size == 0 {
             return Err(RuntimeError::invalid_argument(
                 "ValueError",
@@ -209,8 +225,8 @@ impl Supervisor {
         Ok(Self {
             pool_size,
             state: EngineState::Stopped,
-            epoch_counter: 0,
-            diagnostic_epoch: 0,
+            epoch_counter: epoch_seed,
+            diagnostic_epoch: epoch_seed,
             active_epoch: None,
             attempt_counter: 0,
             pin_counter: 0,
@@ -2173,6 +2189,21 @@ mod tests {
                 Err(RuntimeError::internal("expected waiting permit"))
             }
         }
+    }
+
+    #[test]
+    fn seeded_supervisor_continues_the_host_epoch_sequence() -> Result<(), RuntimeError> {
+        let mut supervisor = Supervisor::with_limits_from_epoch(
+            1,
+            1,
+            DEFAULT_PUSH_MAX_FRAMES,
+            DEFAULT_PUSH_MAX_BYTES,
+            2,
+        )?;
+        assert_eq!(supervisor.epoch(), 2);
+        assert_eq!(supervisor.diagnostic_epoch(), 2);
+        assert_eq!(start(&mut supervisor)?.get(), 3);
+        Ok(())
     }
 
     #[test]

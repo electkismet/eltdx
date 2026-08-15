@@ -49,7 +49,7 @@ def test_explicit_connect_failure_joins_every_started_slot_before_publication() 
         engine = native_engine(server.host, pool_size=2)
         with pytest.raises(Exception) as raised:
             engine.connect()
-        assert successful_socket_closed.is_set()
+        assert successful_socket_closed.wait(timeout=1)
         assert "connect" in str(raised.value).lower() or "closed" in str(raised.value).lower()
         engine.close()
 
@@ -68,7 +68,7 @@ def test_malformed_handshake_rolls_back_the_complete_unpublished_epoch() -> None
         engine = native_engine(server.host)
         with pytest.raises(Exception, match="handshake"):
             engine.connect()
-        assert socket_closed.is_set()
+        assert socket_closed.wait(timeout=1)
         engine.close()
 
 

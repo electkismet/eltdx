@@ -260,6 +260,7 @@ enum HostLifecycle {
 #[derive(Debug)]
 struct HostState {
     lifecycle: HostLifecycle,
+    runtime_epoch_seed: u64,
     request_counter: u64,
     connect_counter: u64,
     connect_attempt: Option<Arc<HostConnectAttempt>>,
@@ -268,6 +269,13 @@ struct HostState {
     fully_connected: bool,
     runtime: Option<RuntimeThread>,
     failed_close_lineage: bool,
+}
+
+fn runtime_epoch_reservation(current: u64) -> Result<(u64, u64), RuntimeError> {
+    current
+        .checked_add(2)
+        .map(|next| (current, next))
+        .ok_or_else(|| RuntimeError::internal("runtime epoch identity space exhausted"))
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -759,6 +767,7 @@ impl Engine {
                 config,
                 host: Mutex::new(HostState {
                     lifecycle: HostLifecycle::Stopped,
+                    runtime_epoch_seed: 0,
                     request_counter: 0,
                     connect_counter: 0,
                     connect_attempt: None,
@@ -811,12 +820,16 @@ impl Engine {
                     });
                 }
                 HostLifecycle::Stopped => {
+                    let (epoch_seed, next_epoch_seed) =
+                        runtime_epoch_reservation(host.runtime_epoch_seed)?;
                     let runtime = spawn_runtime(
                         self.inner.config.clone(),
+                        epoch_seed,
                         Arc::clone(&self.inner.ingress_owned),
                         Arc::clone(&self.inner.diagnostics),
                         Arc::clone(&self.inner.sessions),
                     )?;
+                    host.runtime_epoch_seed = next_epoch_seed;
                     host.runtime = Some(runtime);
                     host.fully_connected = false;
                 }
@@ -1417,13 +1430,17 @@ impl Engine {
                         .map(|runtime| Arc::clone(&runtime.startup))
                         .ok_or_else(|| RuntimeError::internal("starting Engine has no runtime"))?,
                     HostLifecycle::Stopped => {
+                        let (epoch_seed, next_epoch_seed) =
+                            runtime_epoch_reservation(host.runtime_epoch_seed)?;
                         let runtime = spawn_runtime(
                             self.inner.config.clone(),
+                            epoch_seed,
                             Arc::clone(&self.inner.ingress_owned),
                             Arc::clone(&self.inner.diagnostics),
                             Arc::clone(&self.inner.sessions),
                         )?;
                         let startup = Arc::clone(&runtime.startup);
+                        host.runtime_epoch_seed = next_epoch_seed;
                         host.runtime = Some(runtime);
                         host.lifecycle = HostLifecycle::Starting;
                         host.fully_connected = false;
@@ -1652,6 +1669,7 @@ enum RuntimeCommand {
 
 fn spawn_runtime(
     config: EngineConfig,
+    epoch_seed: u64,
     ingress_owned: Arc<AtomicUsize>,
     diagnostics: Arc<Mutex<DiagnosticsCache>>,
     sessions: Arc<Mutex<SessionCache>>,
@@ -1671,6 +1689,7 @@ fn spawn_runtime(
             let result = catch_unwind(AssertUnwindSafe(|| {
                 runtime_thread_main(
                     config,
+                    epoch_seed,
                     command_rx,
                     thread_control,
                     thread_startup,
@@ -1703,6 +1722,7 @@ fn spawn_runtime(
 
 fn runtime_thread_main(
     config: EngineConfig,
+    epoch_seed: u64,
     command_rx: mpsc::Receiver<RuntimeCommand>,
     control: Arc<ControlCell>,
     startup: Arc<Completion<Result<(), RuntimeError>>>,
@@ -1719,6 +1739,7 @@ fn runtime_thread_main(
     runtime.block_on(
         RuntimeCore::new(
             config,
+            epoch_seed,
             command_rx,
             control,
             ingress_owned,
@@ -1874,6 +1895,7 @@ struct RuntimeCore {
 impl RuntimeCore {
     fn new(
         config: EngineConfig,
+        epoch_seed: u64,
         command_rx: mpsc::Receiver<RuntimeCommand>,
         control: Arc<ControlCell>,
         ingress_owned: Arc<AtomicUsize>,
@@ -1887,11 +1909,12 @@ impl RuntimeCore {
         let (slot_event_tx, slot_event_rx) = mpsc::channel(event_capacity.max(1));
         let (push_tx, push_rx) = mpsc::channel(config.push_queue_size);
         Ok(Self {
-            supervisor: Supervisor::with_limits(
+            supervisor: Supervisor::with_limits_from_epoch(
                 config.pool_size,
                 config.max_pending_requests,
                 config.push_queue_size,
                 config.push_queue_bytes,
+                epoch_seed,
             )?,
             slots: (0..config.pool_size).map(|_| None).collect(),
             config,
@@ -5089,6 +5112,7 @@ mod tests {
         let (_command_tx, command_rx) = tokio::sync::mpsc::channel(1);
         let mut runtime = RuntimeCore::new(
             config(1, 1)?,
+            0,
             command_rx,
             Arc::new(ControlCell::new()),
             Arc::new(AtomicUsize::new(0)),
@@ -5164,6 +5188,9 @@ mod tests {
         assert!(ConnectAttemptId::next(u64::MAX).is_err());
         assert_eq!(HostCloseAttemptId::next(0)?, HostCloseAttemptId(1));
         assert!(HostCloseAttemptId::next(u64::MAX).is_err());
+        assert_eq!(runtime_epoch_reservation(0)?, (0, 2));
+        assert_eq!(runtime_epoch_reservation(2)?, (2, 4));
+        assert!(runtime_epoch_reservation(u64::MAX - 1).is_err());
         Ok(())
     }
 

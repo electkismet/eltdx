@@ -141,8 +141,9 @@ def test_concurrent_close_waits_for_the_same_connect_rollback() -> None:
         close_thread.start()
         connect_thread.join(timeout=3)
         close_thread.join(timeout=3)
+        close_elapsed = time.monotonic() - close_started
         assert not connect_thread.is_alive() and not close_thread.is_alive()
         assert len(connect_results) == 1 and isinstance(connect_results[0], Exception)
         assert close_results == [None]
-        assert successful_socket_closed.is_set()
-        assert time.monotonic() - close_started < 1.25
+        assert successful_socket_closed.wait(timeout=1)
+        assert close_elapsed < 1.25
