@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import math
 import struct
+import sys
+import types
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -19,8 +21,14 @@ from scripts.fixtures.export_v205_baseline import (
     _fixture_cases,
     annotation_shape,
     canonical_exception,
+    export_fixture_case,
     from_canonical,
     to_canonical,
+)
+from scripts.fixtures.differential import (
+    DifferentialCase,
+    assert_request_case,
+    parse_actual,
 )
 
 
@@ -147,6 +155,100 @@ def test_fixture_discovery_is_command_case_ordered(tmp_path: Path) -> None:
         "handshake/compressed",
         "today_ticks/normal",
     ]
+
+
+def _protocol_probe(monkeypatch: pytest.MonkeyPatch, calls: list[tuple[str, int]]) -> None:
+    module = types.ModuleType("eltdx.protocol")
+
+    class Frame:
+        control = 0x01
+        msg_id = 7
+        msg_type = 4
+        data = b"payload"
+        raw = b"response"
+
+        def to_bytes(self) -> bytes:
+            return b"request"
+
+    def build(command: int, _payload: object, _message_id: int) -> Frame:
+        calls.append(("build", command))
+        return Frame()
+
+    def decode(_raw: bytes) -> Frame:
+        return Frame()
+
+    def parse(command: int, _response: object, _payload: object) -> int:
+        calls.append(("parse", command))
+        return 1
+
+    module.build_command_frame = build  # type: ignore[attr-defined]
+    module.decode_response = decode  # type: ignore[attr-defined]
+    module.parse_command_response = parse  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "eltdx.protocol", module)
+
+
+def test_fixture_export_uses_numeric_command_code(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls: list[tuple[str, int]] = []
+    _protocol_probe(monkeypatch, calls)
+    case = tmp_path / "heartbeat" / "normal"
+    case.mkdir(parents=True)
+    (case / "request.json").write_text(
+        json.dumps(to_canonical({})),
+        encoding="utf-8",
+    )
+    (case / "response.bin").write_bytes(b"response")
+    (case / "metadata.json").write_text(
+        json.dumps(
+            {
+                "registry_key": "heartbeat",
+                "command_code": 4,
+                "message_id": 7,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    export_fixture_case(case, {"wheel_sha256": "0" * 64}, force=False)
+
+    assert calls == [("build", 4), ("parse", 4)]
+    assert json.loads((case / "metadata.json").read_text(encoding="utf-8"))[
+        "expected_exception"
+    ] is None
+
+
+def test_differential_uses_numeric_command_code(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, int]] = []
+    _protocol_probe(monkeypatch, calls)
+    case = DifferentialCase(
+        root=Path("heartbeat/normal"),
+        case_id="heartbeat/normal",
+        command="heartbeat",
+        command_code=4,
+        message_id=7,
+        request_payload={},
+        request_bytes=b"request",
+        response_bytes=b"response",
+        expected=to_canonical(1),
+        expected_exception=None,
+        metadata={
+            "frame_header": to_canonical(
+                {
+                    "control": 0x01,
+                    "message_id": 7,
+                    "message_type": 4,
+                    "zip_length": 9,
+                    "length": 9,
+                }
+            )
+        },
+    )
+
+    assert_request_case(case, {})
+    assert parse_actual(case) == to_canonical(1)
+    assert calls == [("build", 4), ("parse", 4)]
 
 
 def test_baseline_identity_is_immutable() -> None:

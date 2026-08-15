@@ -423,7 +423,6 @@ def export_fixture_case(case: Path, provenance: dict[str, str], *, force: bool) 
             raise FileNotFoundError(f"incomplete fixture case {case}: missing {required.name}")
 
     metadata = _load_json(metadata_path)
-    command = metadata["registry_key"]
     command_code = int(metadata["command_code"])
     message_id = int(metadata["message_id"])
     if not 1 <= message_id <= 0xFFFFFFFF:
@@ -435,7 +434,7 @@ def export_fixture_case(case: Path, provenance: dict[str, str], *, force: bool) 
 
     expected_exception = None
     try:
-        request_frame = build_command_frame(command, request_payload, message_id)
+        request_frame = build_command_frame(command_code, request_payload, message_id)
         request_bytes = request_frame.to_bytes()
         metadata["frame_header"] = to_canonical(_frame_header(request_frame))
     except Exception as error:
@@ -454,7 +453,7 @@ def export_fixture_case(case: Path, provenance: dict[str, str], *, force: bool) 
                 raise ValueError(
                     f"response message type {response.msg_type} does not match command {command_code}"
                 )
-            parsed = parse_command_response(command, response, request_payload)
+            parsed = parse_command_response(command_code, response, request_payload)
             expected = to_canonical(parsed)
         except Exception as error:
             expected_exception = canonical_exception(error, phase="parse")

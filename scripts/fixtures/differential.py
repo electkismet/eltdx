@@ -213,7 +213,7 @@ def assert_request_case(
     from eltdx.protocol import build_command_frame
 
     override = applicable_override(case, overrides)
-    frame = build_command_frame(case.command, dict(case.request_payload), case.message_id)
+    frame = build_command_frame(case.command_code, dict(case.request_payload), case.message_id)
     _assert_bytes(
         target_request_bytes(case, override),
         frame.to_bytes(),
@@ -238,7 +238,7 @@ def parse_actual(case: DifferentialCase) -> dict[str, Any]:
         raise ValueError(
             f"response message type {response.msg_type} does not match command {case.command_code}"
         )
-    parsed = parse_command_response(case.command, response, dict(case.request_payload))
+    parsed = parse_command_response(case.command_code, response, dict(case.request_payload))
     return to_canonical(parsed)
 
 
@@ -264,7 +264,7 @@ def assert_error_case(
     phase = expected_exception.get("phase")
     try:
         if phase == "build":
-            build_command_frame(case.command, dict(case.request_payload), case.message_id)
+            build_command_frame(case.command_code, dict(case.request_payload), case.message_id)
         elif phase == "parse":
             assert_request_case(case, overrides)
             parse_actual(case)
