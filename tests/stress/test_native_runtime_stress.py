@@ -327,7 +327,7 @@ def test_push_capacity_reports_one_gap_and_retains_newest_frames() -> None:
                 transport.poll_push(timeout=0, parse=False)
             retained = transport.drain_pushes(parse=False)
             assert len(retained) == 2
-            assert len({frame.message_id for frame in retained}) == 2
+            assert len({frame.msg_id for frame in retained}) == 2
             assert transport.drain_pushes(parse=False) == []
         finally:
             transport.close()
