@@ -8,7 +8,7 @@ become the public dataclasses again.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from eltdx.models import (
     AuctionPoint,
@@ -40,7 +40,9 @@ from eltdx.models import (
     TradePage,
     TradeTick,
 )
-from eltdx.protocol.frame import ResponseFrame
+
+if TYPE_CHECKING:
+    from eltdx.protocol.frame import ResponseFrame
 
 
 def _tuple(value: Any, name: str, size: int | None = None) -> tuple[Any, ...]:
@@ -146,6 +148,8 @@ def _security(value: Any) -> SecurityCode:
 
 
 def _response_frame(value: Any) -> ResponseFrame:
+    from eltdx.protocol.frame import ResponseFrame
+
     fields = _tuple(value, "response frame", 8)
     return ResponseFrame(*fields)
 
