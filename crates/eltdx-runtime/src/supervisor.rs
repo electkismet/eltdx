@@ -2088,7 +2088,7 @@ mod tests {
     use crate::deadline::Deadline;
     use crate::endpoint::{Endpoint, EndpointRotation};
     use crate::error::RuntimeError;
-    use crate::push::PushFrame;
+    use crate::push::{PushFrame, DEFAULT_PUSH_MAX_BYTES, DEFAULT_PUSH_MAX_FRAMES};
     use crate::request::{
         Admission, RequestState, RequestWireIdentity, RetryDecision, RetryPolicy, RetryStopReason,
         TerminalKind,

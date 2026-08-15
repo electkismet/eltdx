@@ -5060,9 +5060,9 @@ mod tests {
     use std::time::Duration;
 
     use super::{
-        check_pid, keyed_permutation, ConnectAttemptId, ControlCell, Engine, EngineConfig,
-        HostCloseAttemptId, HostConnectAttempt, HostLifecycle, IngressOwnership, PendingConnect,
-        PendingPoll, RuntimeCore, CLOSE_TIMEOUT,
+        check_pid, keyed_permutation, runtime_epoch_reservation, ConnectAttemptId, ControlCell,
+        Engine, EngineConfig, HostCloseAttemptId, HostConnectAttempt, HostLifecycle,
+        IngressOwnership, PendingConnect, PendingPoll, RuntimeCore, CLOSE_TIMEOUT,
     };
     use crate::diagnostics::PoolState;
     use crate::endpoint::Endpoint;
