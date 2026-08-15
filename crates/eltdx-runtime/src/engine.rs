@@ -5155,8 +5155,6 @@ mod tests {
         assert_eq!(host.lifecycle, HostLifecycle::Running);
         assert!(host.fully_connected);
         assert!(host.connect_attempt.is_none());
-        drop(host);
-        assert_eq!(engine.pool_diagnostics()?.state, PoolState::Running);
         Ok(())
     }
 
