@@ -69,7 +69,7 @@ def _push_value(dto: Any, parse: bool) -> Any:
     parsed = call_native(
         native_module().parse_command_response,
         response.msg_type,
-        response.raw,
+        response.data,
         {},
     )
     return response_from_dto(parsed)

@@ -122,6 +122,8 @@ def test_native_execute_and_push_dtos_reconstruct_public_values() -> None:
     pool_source = _source("src/eltdx/transport/pool.py")
     assert "push_frame_from_dto" in socket_source
     assert "native_module().parse_command_response" in socket_source
+    assert "response.data" in socket_source
+    assert "response.raw" not in socket_source
     assert socket_source.count("response_from_dto(") >= 3
     assert "_push_value" in pool_source
     assert pool_source.count("response_from_dto(") >= 3
