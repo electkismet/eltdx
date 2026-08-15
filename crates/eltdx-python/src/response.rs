@@ -313,6 +313,7 @@ fn minute_point<'py>(py: Python<'py>, value: &MinutePoint, include_raw: bool) ->
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn minute_series<'py, R>(
     py: Python<'py>,
     value: &MinuteSeries<R>,
