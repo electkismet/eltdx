@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "baseline_tag": "v2.0.5",
+  "baseline_commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec",
+  "registry_key": "snapshots",
+  "command_code": 1356,
+  "message_id": 822083590,
+  "request_context": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "codes"
+        },
+        {
+          "$type": "list",
+          "items": [
+            {
+              "$type": "str",
+              "value": "sh510300"
+            },
+            {
+              "$type": "str",
+              "value": "sh000001"
+            }
+          ]
+        }
+      ]
+    ]
+  },
+  "push_generation": null,
+  "push_host": null,
+  "expected_exception": null
+}

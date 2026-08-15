@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "baseline_tag": "v2.0.5",
+  "baseline_commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec",
+  "registry_key": "klines",
+  "command_code": 1325,
+  "message_id": 822083594,
+  "request_context": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "code"
+        },
+        {
+          "$type": "str",
+          "value": "sz300308"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "period"
+        },
+        {
+          "$type": "str",
+          "value": "day"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "start"
+        },
+        {
+          "$type": "int",
+          "value": "0"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "count"
+        },
+        {
+          "$type": "int",
+          "value": "420"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "include_raw"
+        },
+        {
+          "$type": "bool",
+          "value": false
+        }
+      ]
+    ]
+  },
+  "push_generation": null,
+  "push_host": null,
+  "expected_exception": null
+}

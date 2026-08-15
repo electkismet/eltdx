@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eltdx.invalid/schemas/7709-canonical-fixture-v1.json",
+  "title": "eltdx 7709 typed canonical fixture",
+  "oneOf": [{"$ref": "#/$defs/value"}, {"$ref": "#/$defs/metadata"}],
+  "$defs": {
+    "value": {
+      "oneOf": [
+        {"$ref": "#/$defs/none"}, {"$ref": "#/$defs/missing"}, {"$ref": "#/$defs/bool"},
+        {"$ref": "#/$defs/int"}, {"$ref": "#/$defs/string"}, {"$ref": "#/$defs/float"},
+        {"$ref": "#/$defs/bytes"}, {"$ref": "#/$defs/date"}, {"$ref": "#/$defs/datetime"},
+        {"$ref": "#/$defs/tuple"}, {"$ref": "#/$defs/list"}, {"$ref": "#/$defs/dict"},
+        {"$ref": "#/$defs/dataclass"}
+      ]
+    },
+    "none": {"type": "object", "properties": {"$type": {"const": "none"}}, "required": ["$type"], "additionalProperties": false},
+    "missing": {"type": "object", "properties": {"$type": {"const": "missing"}}, "required": ["$type"], "additionalProperties": false},
+    "bool": {"type": "object", "properties": {"$type": {"const": "bool"}, "value": {"type": "boolean"}}, "required": ["$type", "value"], "additionalProperties": false},
+    "int": {"type": "object", "properties": {"$type": {"const": "int"}, "value": {"type": "string", "pattern": "^-?[0-9]+$"}}, "required": ["$type", "value"], "additionalProperties": false},
+    "string": {"type": "object", "properties": {"$type": {"const": "str"}, "value": {"type": "string"}}, "required": ["$type", "value"], "additionalProperties": false},
+    "float": {"type": "object", "properties": {"$type": {"const": "float"}, "f64_bits": {"type": "string", "pattern": "^[0-9a-f]{16}$"}, "readable_hex": {"type": "string"}, "wire_f32_bits": {"type": ["string", "null"], "pattern": "^[0-9a-f]{8}$"}}, "required": ["$type", "f64_bits", "readable_hex"], "additionalProperties": false},
+    "bytes": {"type": "object", "properties": {"$type": {"const": "bytes"}, "hex": {"type": "string", "pattern": "^(?:[0-9a-f]{2})*$"}}, "required": ["$type", "hex"], "additionalProperties": false},
+    "date": {"type": "object", "properties": {"$type": {"const": "date"}, "value": {"type": "string", "format": "date"}}, "required": ["$type", "value"], "additionalProperties": false},
+    "datetime": {"type": "object", "properties": {"$type": {"const": "datetime"}, "value": {"type": "string"}, "timezone": {"type": ["string", "null"]}, "fold": {"enum": [0, 1]}}, "required": ["$type", "value", "timezone", "fold"], "additionalProperties": false},
+    "tuple": {"type": "object", "properties": {"$type": {"const": "tuple"}, "items": {"type": "array", "items": {"$ref": "#/$defs/value"}}}, "required": ["$type", "items"], "additionalProperties": false},
+    "list": {"type": "object", "properties": {"$type": {"const": "list"}, "items": {"type": "array", "items": {"$ref": "#/$defs/value"}}}, "required": ["$type", "items"], "additionalProperties": false},
+    "dict": {"type": "object", "properties": {"$type": {"const": "dict"}, "items": {"type": "array", "items": {"type": "array", "prefixItems": [{"$ref": "#/$defs/value"}, {"$ref": "#/$defs/value"}], "minItems": 2, "maxItems": 2}}}, "required": ["$type", "items"], "additionalProperties": false},
+    "dataclass": {"type": "object", "properties": {"$type": {"const": "dataclass"}, "module": {"type": "string"}, "qualname": {"type": "string"}, "fields": {"type": "array", "items": {"type": "array", "prefixItems": [{"type": "string"}, {"$ref": "#/$defs/value"}], "minItems": 2, "maxItems": 2}}}, "required": ["$type", "module", "qualname", "fields"], "additionalProperties": false},
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "schema_version": {"const": 1}, "baseline_tag": {"const": "v2.0.5"},
+        "baseline_commit": {"const": "6486a1692dd4aca5339001b2de22e88bb29e16ec"},
+        "baseline_wheel_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "registry_key": {"type": "string"}, "command_code": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "message_id": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "request_context": {"$ref": "#/$defs/value"}, "frame_header": {"$ref": "#/$defs/value"},
+        "push_generation": {"type": ["integer", "null"]}, "push_host": {"type": ["string", "null"]},
+        "expected_exception": {"type": ["object", "null"]}
+      },
+      "required": ["schema_version", "baseline_tag", "baseline_commit", "baseline_wheel_sha256", "registry_key", "command_code", "message_id", "request_context", "frame_header", "push_generation", "push_host", "expected_exception"],
+      "additionalProperties": false
+    }
+  }
+}

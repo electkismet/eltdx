@@ -1,0 +1,198 @@
+name: Native wheels
+
+on:
+  workflow_call:
+    outputs:
+      artifact-name:
+        description: Aggregated release artifact name
+        value: ${{ jobs.aggregate.outputs.artifact-name }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+
+jobs:
+  wheel-windows:
+    name: Windows x86_64 ABI3
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - name: Build wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b
+        with:
+          target: x86_64-pc-windows-msvc
+          args: --release --locked --out dist
+      - name: Upload wheel
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheel-windows-x86_64
+          path: dist/*.whl
+          if-no-files-found: error
+
+  wheel-linux:
+    name: Linux ${{ matrix.arch }} manylinux2014 ABI3
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            target: x86_64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - name: Build wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b
+        with:
+          target: ${{ matrix.target }}
+          manylinux: "2014"
+          args: --release --locked --out dist
+      - name: Upload wheel
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheel-linux-${{ matrix.arch }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  wheel-macos:
+    name: macOS ${{ matrix.arch }} ABI3
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            deployment-target: "10.12"
+          - arch: arm64
+            runner: macos-15
+            target: aarch64-apple-darwin
+            deployment-target: "11.0"
+    runs-on: ${{ matrix.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment-target }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - name: Build wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b
+        with:
+          target: ${{ matrix.target }}
+          args: --release --locked --out dist
+      - name: Upload wheel
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheel-macos-${{ matrix.arch }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  sdist:
+    name: Source distribution
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install maturin
+        run: python -m pip install "maturin>=1.14,<2"
+      - name: Build sdist
+        run: python -m maturin sdist --locked --out dist
+      - name: Upload sdist
+        uses: actions/upload-artifact@v7
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  aggregate:
+    name: Aggregate exact 5+1 artifacts
+    needs: [wheel-windows, wheel-linux, wheel-macos, sdist]
+    runs-on: ubuntu-24.04
+    outputs:
+      artifact-name: release-dist
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: wheel-*
+          path: dist/packages
+          merge-multiple: true
+      - name: Download sdist
+        uses: actions/download-artifact@v8
+        with:
+          name: sdist
+          path: dist/packages
+      - name: Verify exact artifact set
+        run: >-
+          python scripts/verification/verify_release_artifacts.py
+          --artifact-dir dist/packages
+          --candidate "${{ github.sha }}"
+          --output dist/artifacts.json
+      - name: Record hashes
+        run: cd dist/packages && sha256sum *.whl *.tar.gz > ../SHA256SUMS
+      - name: Upload aggregate
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-dist
+          path: dist/
+          if-no-files-found: error
+
+  wheel-smoke:
+    name: Smoke ${{ matrix.platform }} on CPython ${{ matrix.python }}
+    needs: aggregate
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - windows-x86_64
+          - linux-x86_64
+          - linux-aarch64
+          - macos-x86_64
+          - macos-arm64
+        python: ["3.10", "3.14"]
+        include:
+          - platform: windows-x86_64
+            runner: windows-2025
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+          - platform: macos-x86_64
+            runner: macos-15-intel
+          - platform: macos-arm64
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+      - name: Install and smoke matching wheel
+        run: >-
+          python scripts/verification/verify_wheel_matrix.py
+          --artifact-dir dist/packages
+          --platform ${{ matrix.platform }}
+          --python-version ${{ matrix.python }}

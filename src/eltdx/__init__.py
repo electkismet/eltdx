@@ -1,5 +1,7 @@
 """Public package interface for eltdx."""
 
+from importlib.metadata import PackageNotFoundError, version
+
 from .client import Client, TdxClient
 from .f10 import F10Client, F10Response, F10ResultSet
 from .helpers import (
@@ -38,4 +40,7 @@ __all__ = [
     "to_json",
     "to_jsonable",
 ]
-__version__ = "2.0.5"
+try:
+    __version__ = version("eltdx")
+except PackageNotFoundError:
+    __version__ = "0+unknown"

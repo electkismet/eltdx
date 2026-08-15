@@ -6,94 +6,130 @@ on:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  native-dist:
+    uses: ./.github/workflows/native-wheels.yml
+
+  verify-release:
+    name: Verify release candidate metadata
+    needs: native-dist
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
         with:
-          python-version: "3.12"
-
-      - name: Install build tool
-        run: python -m pip install --upgrade build
-
-      - name: Build distributions
-        run: python -m build
-
-      - name: Upload distributions
-        uses: actions/upload-artifact@v4
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
         with:
-          name: dist
-          path: dist/
+          python-version: "3.14"
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+      - name: Verify tag, version, candidate, and artifact identity
+        run: >-
+          python scripts/verification/check_release_metadata.py
+          --artifact-dir dist/packages
+          --ref "${{ github.ref }}"
+          --sha "${{ github.sha }}"
+      - name: Upload dry-run evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-verification
+          path: |
+            dist/artifacts.json
+            dist/SHA256SUMS
+          if-no-files-found: error
 
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
+  testpypi:
+    name: Upload exact artifacts to TestPyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [native-dist, verify-release]
+    runs-on: ubuntu-24.04
     environment:
-      name: pypi
+      name: testpypi
+      url: https://test.pypi.org/p/eltdx
     permissions:
       id-token: write
     steps:
-      - name: Download distributions
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
-          name: dist
-          path: dist/
-
-      - name: Publish to PyPI
+          name: release-dist
+          path: dist
+      - name: Upload to TestPyPI after environment approval
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/packages/
+          skip-existing: false
+
+  testpypi-smoke:
+    name: Install exact version from TestPyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [verify-release, testpypi]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+      - name: Verify TestPyPI installation and entry points
+        run: >-
+          python scripts/verification/verify_testpypi.py
+          --tag "${{ github.ref_name }}"
+          --candidate "${{ github.sha }}"
+          --artifact-manifest dist/artifacts.json
+
+  pypi:
+    name: Upload exact artifacts to PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [native-dist, verify-release, testpypi-smoke]
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/eltdx
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-dist
+          path: dist
+      - name: Upload to PyPI after independent environment approval
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/packages/
+          skip-existing: false
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs:
-      - build
-      - publish
-    runs-on: ubuntu-latest
+    name: Create GitHub Release from exact artifacts
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [native-dist, verify-release, pypi]
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download distributions
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
-          name: dist
-          path: dist/
-
+          name: release-dist
+          path: dist
       - name: Prepare release notes
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import os
-
-          tag = os.environ["GITHUB_REF_NAME"]
-          release_notes = Path("docs/releases") / f"{tag}.md"
-          if release_notes.exists():
-            notes = release_notes.read_text(encoding="utf-8")
-          elif tag == "v1.0.0":
-            notes = Path("docs/UPDATE_FROM_0_5_1.md").read_text(encoding="utf-8")
-          else:
-            notes = f"# {tag}\n\n请参考仓库文档和提交记录查看本次更新。\n"
-
-          # GitHub already displays the release name above the body. Keep the
-          # heading in the documentation page, but avoid repeating it here.
-          lines = notes.splitlines()
-          if lines and lines[0].strip() == f"# {tag}":
-            lines = lines[1:]
-            while lines and not lines[0].strip():
-              lines.pop(0)
-            notes = "\n".join(lines)
-
-          Path("RELEASE_NOTES.md").write_text(notes.strip() + "\n", encoding="utf-8")
-          PY
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*
-          body_path: RELEASE_NOTES.md
+        run: >-
+          python scripts/release/prepare_release_notes.py
+          --tag "${{ github.ref_name }}"
+          --output RELEASE_NOTES.md
+      - name: Create release without rebuilding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${{ github.ref_name }}" dist/packages/* dist/SHA256SUMS
+          --verify-tag
+          --title "${{ github.ref_name }}"
+          --notes-file RELEASE_NOTES.md

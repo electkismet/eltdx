@@ -1,0 +1,448 @@
+{
+  "schema_version": 1,
+  "baseline": {
+    "tag": "v2.0.5",
+    "commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec"
+  },
+  "policy": {
+    "legacy_test_function_total": 422,
+    "legacy_files_must_be_absent_at_static_freeze": true,
+    "required_replacement_kinds": [
+      "rust_unit_property",
+      "import_free_contract",
+      "loopback_fault",
+      "public_native_integration"
+    ]
+  },
+  "entries": [
+    {
+      "legacy_file": "tests/test_protocol_7709.py",
+      "legacy_test_functions": 27,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "request frame headers and all 21 command payloads",
+        "normalization, bounds, retry metadata, and unsupported commands",
+        "typed response parsing, raw fields, precision, and malformed payloads"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-protocol/src/frame.rs",
+          "anchors": [
+            "request_frame_matches_the_frozen_python_header",
+            "incremental_decoder_accepts_every_single_byte_fragment"
+          ]
+        },
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-protocol/src/request.rs",
+          "anchors": [
+            "exact_twenty_one_command_codes_are_registered",
+            "every_request_variant_builds_its_registered_type"
+          ]
+        },
+        {
+          "kind": "import_free_contract",
+          "path": "tests/contracts/test_command_contract_manifest.py",
+          "anchors": ["test_command_manifest_covers_exact_registry"]
+        },
+        {
+          "kind": "import_free_contract",
+          "path": "tests/contracts/test_native_protocol_facade_contract.py",
+          "anchors": ["test_native_protocol_entrypoints_are_registered_and_stateless"]
+        },
+        {
+          "kind": "public_native_integration",
+          "path": "tests/integration/test_native_transport.py",
+          "anchors": ["test_socket_execute_push_diagnostics_and_session_models"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_socket_transport.py",
+      "legacy_test_functions": 6,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "single-Slot matching, reconnect, serialization, and parser handoff",
+        "heartbeat on the active connection",
+        "bounded push delivery, overflow, and fairness"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/slot.rs",
+          "anchors": [
+            "full_handshake_and_business_lifecycle_is_explicit",
+            "decoded_queue_overflow_retires_only_the_current_generation"
+          ]
+        },
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/test_loopback_faults.py",
+          "anchors": ["test_malformed_handshake_rolls_back_the_complete_unpublished_epoch"]
+        },
+        {
+          "kind": "public_native_integration",
+          "path": "tests/integration/test_native_transport.py",
+          "anchors": ["test_socket_execute_push_diagnostics_and_session_models"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_transport_actor.py",
+      "legacy_test_functions": 24,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "connection, endpoint, handshake, send, response, retry, and cancellation",
+        "generation identity, exact terminal ownership, and close cleanup",
+        "old Actor mailbox and selector implementation details"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/slot.rs",
+          "anchors": [
+            "retirement_is_the_only_path_back_to_disconnected",
+            "stale_generation_cannot_advance_the_slot"
+          ]
+        },
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/engine.rs",
+          "anchors": ["internal_request_identities_are_even_and_disjoint_from_public_ids"]
+        },
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/test_loopback_faults.py",
+          "anchors": ["test_connect_keyboard_interrupt_preserves_the_original_exception"]
+        },
+        {
+          "kind": "public_native_integration",
+          "path": "tests/integration/test_native_transport.py",
+          "anchors": ["test_socket_execute_push_diagnostics_and_session_models"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_transport_actor_regressions.py",
+      "legacy_test_functions": 66,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "receive and send boundaries, stale batches, fairness, and decoded backlog",
+        "cancel, close, deadline, heartbeat, and completion races",
+        "old IdentityGate, callback, selector, and Condition internals"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/slot.rs",
+          "anchors": [
+            "decode_and_route_turns_stop_at_sixty_four_frames",
+            "retry_cannot_start_before_exact_retirement_ack"
+          ]
+        },
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/supervisor.rs",
+          "anchors": [
+            "wire_terminal_requires_exact_identity_and_is_accepted_once",
+            "first_failure_retries_on_next_generation_and_old_terminal_is_stale"
+          ]
+        },
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/push.rs",
+          "anchors": ["fatal_has_priority_over_gap_and_frame"]
+        },
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/test_loopback_concurrency.py",
+          "anchors": ["test_concurrent_close_waits_for_the_same_connect_rollback"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_transport_failover_regressions.py",
+      "legacy_test_functions": 9,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "handshake and business endpoint failover",
+        "partial response, send failure, and one absolute deadline",
+        "malformed handshake rotation and platform endpoint behavior"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/endpoint.rs",
+          "anchors": ["retry_starts_after_the_last_selected_endpoint"]
+        },
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/supervisor.rs",
+          "anchors": ["first_failure_retries_on_next_generation_and_old_terminal_is_stale"]
+        },
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/test_loopback_faults.py",
+          "anchors": ["test_explicit_connect_failure_joins_every_started_slot_before_publication"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_transport_lifecycle.py",
+      "legacy_test_functions": 30,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "normal close/reopen, failed close, fatal propagation, and finalization",
+        "DNS preflight publication, sharing, failure, and close races",
+        "pool and standalone lifecycle observability"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/supervisor.rs",
+          "anchors": [
+            "normal_close_reopens_with_a_fresh_candidate_epoch",
+            "close_timeout_creates_permanent_failed_lineage"
+          ]
+        },
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/test_loopback_concurrency.py",
+          "anchors": ["test_public_runtime_gate_stays_unpublished_until_all_handshakes_succeed"]
+        },
+        {
+          "kind": "public_native_integration",
+          "path": "tests/integration/test_native_transport.py",
+          "anchors": ["test_close_reopen_invalidates_the_old_pinned_proxy"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_transport_lifecycle_regressions.py",
+      "legacy_test_functions": 90,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "startup, close, fatal, publication, cleanup, and retry linearization",
+        "single-deadline lock and waiter behavior",
+        "old lifecycle callback, lock, Event, and Condition implementation details"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/supervisor.rs",
+          "anchors": [
+            "close_seal_and_admission_share_one_supervisor_transition",
+            "first_fatal_wins_and_successful_cleanup_ends_failed_closed"
+          ]
+        },
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/engine.rs",
+          "anchors": [
+            "idempotent_connect_success_cannot_survive_close_publication",
+            "concurrent_close_callers_share_one_host_attempt_and_deadline"
+          ]
+        },
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/test_loopback_concurrency.py",
+          "anchors": ["test_concurrent_explicit_connect_callers_share_one_attempt_and_result"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_transport_pool.py",
+      "legacy_test_functions": 13,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "bounded FIFO admission, idle Slot selection, and parser handoff",
+        "pin affinity, local FIFO, shared waiting capacity, and invalidation",
+        "heartbeat pressure and complete explicit-connect rollback"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/request.rs",
+          "anchors": ["release_atomically_promotes_fifo_and_returns_waiting_permit"]
+        },
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/pin.rs",
+          "anchors": ["local_fifo_reuses_pin_lease_and_skips_expired_head"]
+        },
+        {
+          "kind": "public_native_integration",
+          "path": "tests/integration/test_native_transport.py",
+          "anchors": ["test_pool_reuses_slots_and_pin_keeps_connection_affinity"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_transport_pool_regressions.py",
+      "legacy_test_functions": 77,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "exact FIFO permit and lease publication under cancellation and timeout",
+        "pin reservation, local waiter, terminal, close, and cleanup races",
+        "old LeaseBroker, completion callback, and Condition internals"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/request.rs",
+          "anchors": [
+            "waiting_capacity_is_exact_and_does_not_double_for_ingress",
+            "expired_fifo_head_is_removed_before_live_promotion"
+          ]
+        },
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/supervisor.rs",
+          "anchors": [
+            "pin_local_waiter_timeout_returns_exact_shared_permit",
+            "pin_close_waits_for_exact_started_wire_terminal_before_releasing_slot"
+          ]
+        },
+        {
+          "kind": "public_native_integration",
+          "path": "tests/integration/test_native_transport.py",
+          "anchors": [
+            "test_pool_reuses_slots_and_pin_keeps_connection_affinity",
+            "test_close_reopen_invalidates_the_old_pinned_proxy"
+          ]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_transport_retirement_regressions.py",
+      "legacy_test_functions": 39,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "retirement wins over admission, pin, heartbeat, and push publication",
+        "fatal reason priority, epoch identity, and cleanup retry",
+        "old broker and push Condition contention details"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/supervisor.rs",
+          "anchors": ["close_retains_started_owner_until_exact_generation_retirement"]
+        },
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/push.rs",
+          "anchors": ["wrong_epoch_and_close_never_republish_frames"]
+        },
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/test_loopback_faults.py",
+          "anchors": ["test_explicit_connect_failure_joins_every_started_slot_before_publication"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_transport_stress.py",
+      "legacy_test_functions": 24,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "heartbeat admission, quiescence, fencing, and cleanup",
+        "generation churn, mixed concurrency, resource plateau, and close latency",
+        "old Actor thread-count and barrier implementation details"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/supervisor.rs",
+          "anchors": [
+            "heartbeat_yields_to_business_pressure_but_not_other_heartbeats",
+            "exact_heartbeat_terminal_updates_ack_and_promotes_business_fifo"
+          ]
+        },
+        {
+          "kind": "public_native_integration",
+          "path": "tests/integration/test_native_transport.py",
+          "anchors": ["test_socket_execute_push_diagnostics_and_session_models"]
+        },
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/test_loopback_concurrency.py",
+          "anchors": ["test_concurrent_explicit_connect_callers_share_one_attempt_and_result"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_push_buffer.py",
+      "legacy_test_functions": 7,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "bounded frame and byte capacity with sticky overflow gaps",
+        "fatal-before-gap-before-frame priority and close wakeup",
+        "old Python Condition and publication interleavings"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-runtime/src/push.rs",
+          "anchors": [
+            "frame_and_byte_limits_drop_oldest_and_report_one_gap",
+            "fatal_has_priority_over_gap_and_frame",
+            "wrong_epoch_and_close_never_republish_frames"
+          ]
+        },
+        {
+          "kind": "public_native_integration",
+          "path": "tests/integration/test_native_transport.py",
+          "anchors": ["test_socket_execute_push_diagnostics_and_session_models"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_frame_stream.py",
+      "legacy_test_functions": 9,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "incremental prefix/header/payload fragmentation and resynchronization",
+        "bounded staging and truncated EOF",
+        "zlib exactness, malformed streams, and decoded output limits"
+      ],
+      "replacements": [
+        {
+          "kind": "rust_unit_property",
+          "path": "crates/eltdx-protocol/src/frame.rs",
+          "anchors": [
+            "response_decoder_handles_zlib_and_rejects_trailing_data",
+            "incremental_decoder_accepts_every_single_byte_fragment",
+            "decoder_resynchronizes_and_honors_per_turn_budgets",
+            "decoder_keeps_partial_prefix_and_reports_truncated_eof"
+          ]
+        },
+        {
+          "kind": "import_free_contract",
+          "path": "tests/contracts/test_native_protocol_facade_contract.py",
+          "anchors": ["test_native_protocol_entrypoints_are_registered_and_stateless"]
+        }
+      ]
+    },
+    {
+      "legacy_file": "tests/test_actor_support.py",
+      "legacy_test_functions": 1,
+      "disposition": "delete_after_replacement",
+      "behavior_families": [
+        "deterministic multi-connection loopback worker coordination"
+      ],
+      "replacements": [
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/loopback_support.py",
+          "anchors": ["class ScriptedServer", "wait_for_connections", "wait_for_handlers"]
+        },
+        {
+          "kind": "loopback_fault",
+          "path": "tests/integration/test_loopback_concurrency.py",
+          "anchors": ["test_concurrent_explicit_connect_callers_share_one_attempt_and_result"]
+        }
+      ]
+    }
+  ]
+}

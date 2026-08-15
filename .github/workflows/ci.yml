@@ -2,66 +2,151 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  rust-quality:
+    name: Rust quality and unit/property tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.89.0 --profile minimal --component rustfmt,clippy
+      - run: cargo +1.89.0 fmt --check
+      - run: cargo +1.89.0 check --workspace --all-targets --locked
+      - run: cargo +1.89.0 clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo +1.89.0 test --workspace --locked
+
+  python-contract:
+    name: Python ${{ matrix.python }} public contracts
+    needs: rust-quality
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python }}
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.89.0 --profile minimal
+      - name: Install project
+        run: python -m pip install -e ".[dev,mcp]"
+      - run: python -m pytest -q tests/contracts tests/test_client.py tests/test_helpers.py tests/test_f10.py tests/test_mcp.py
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[dev,mcp]
+  wire-golden:
+    name: 21-command wire golden differential
+    needs: rust-quality
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.89.0 --profile minimal
+      - run: python -m pip install -e ".[dev,mcp]"
+      - run: python scripts/ci/run_wire_golden.py
 
-      - name: Run tests
-        run: python -m pytest -q
-
-      - name: Build package
-        if: matrix.python-version == '3.13'
-        run: python -m build
-
-      - name: Test built wheel and stdio entry point
-        if: matrix.python-version == '3.13'
-        run: |
-          python -m venv .wheel-venv
-          .wheel-venv/bin/python -m pip install --upgrade pip
-          .wheel-venv/bin/python -m pip install "$(find dist -name 'eltdx-*.whl' -print -quit)[mcp]"
-          .wheel-venv/bin/python scripts/smoke/mcp_stdio_check.py
-
-  windows-actor:
-    runs-on: windows-latest
-    timeout-minutes: 15
+  runtime-loopback:
+    name: Runtime loopback fault injection
+    needs: rust-quality
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.13"]
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.14"
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.89.0 --profile minimal
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q tests/integration/test_loopback_faults.py tests/integration/test_loopback_concurrency.py
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[dev,mcp]
+  runtime-stress:
+    name: Runtime stress and resource cleanup
+    needs: runtime-loopback
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.89.0 --profile minimal
+      - run: python -m pip install -e ".[dev]"
+      - name: Run and record candidate-bound stress evidence
+        run: >-
+          python scripts/verification/build_stress_evidence.py run
+          --candidate "${{ github.sha }}"
+          --system "${{ runner.os }}"
+          --runner "${{ github.run_id }}/${{ github.run_attempt }}/${{ runner.name }}"
+          --output artifacts/stress/stress-run.json
+      - name: Upload stress run evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stress-run-${{ runner.os }}
+          path: artifacts/stress
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Run full test suite
-        run: python -m pytest -q
+  runtime-stress-evidence:
+    name: Aggregate Windows and Linux stress evidence
+    needs: runtime-stress
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: stress-run-*
+          path: artifacts/stress-runs
+      - name: Aggregate exact two-system evidence
+        run: >-
+          python scripts/verification/build_stress_evidence.py aggregate
+          --candidate "${{ github.sha }}"
+          --inputs artifacts/stress-runs
+          --output artifacts/stress-evidence.json
+      - name: Upload combined stress evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: stress-evidence
+          path: artifacts/stress-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
+  docs:
+    name: Strict documentation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: python -m pip install ".[dev]"
+      - run: python scripts/package/sync_docs.py --check
+      - run: python -m mkdocs build --strict
+      - run: python scripts/verification/check_pages_links.py site
+
+  native-dist:
+    name: Five wheels, sdist, and install smoke
+    uses: ./.github/workflows/native-wheels.yml

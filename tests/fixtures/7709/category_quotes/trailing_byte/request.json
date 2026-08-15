@@ -1,0 +1,54 @@
+{
+  "$type": "dict",
+  "items": [
+    [
+      {
+        "$type": "str",
+        "value": "category"
+      },
+      {
+        "$type": "int",
+        "value": "6"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "sort_by"
+      },
+      {
+        "$type": "none"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "start"
+      },
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "count"
+      },
+      {
+        "$type": "int",
+        "value": "80"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "ascending"
+      },
+      {
+        "$type": "bool",
+        "value": false
+      }
+    ]
+  ]
+}

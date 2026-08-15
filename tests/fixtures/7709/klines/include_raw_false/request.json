@@ -1,0 +1,55 @@
+{
+  "$type": "dict",
+  "items": [
+    [
+      {
+        "$type": "str",
+        "value": "code"
+      },
+      {
+        "$type": "str",
+        "value": "sz300308"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "period"
+      },
+      {
+        "$type": "str",
+        "value": "day"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "start"
+      },
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "count"
+      },
+      {
+        "$type": "int",
+        "value": "420"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "include_raw"
+      },
+      {
+        "$type": "bool",
+        "value": false
+      }
+    ]
+  ]
+}

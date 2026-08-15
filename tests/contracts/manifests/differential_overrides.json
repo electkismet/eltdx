@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "baseline": {
+    "tag": "v2.0.5",
+    "commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec"
+  },
+  "overrides": {
+    "today_ticks": {
+      "when_request_field_missing": "count",
+      "baseline_default": 115,
+      "target_default": 1800,
+      "request_patch": {
+        "encoding": "uint16_le",
+        "offset_from_end": 2
+      },
+      "expected_dataclass_fields": {
+        "request_count": 1800
+      },
+      "authority": "RUST_3_0_DEVELOPMENT_PLAN.md section 9",
+      "reason": "The sole plan and public TradeApi contract require count=1800."
+    },
+    "historical_ticks": {
+      "when_request_field_missing": "count",
+      "baseline_default": 900,
+      "target_default": 1800,
+      "request_patch": {
+        "encoding": "uint16_le",
+        "offset_from_end": 2
+      },
+      "expected_dataclass_fields": {
+        "request_count": 1800
+      },
+      "authority": "RUST_3_0_DEVELOPMENT_PLAN.md section 9",
+      "reason": "The sole plan and public TradeApi contract require count=1800."
+    }
+  }
+}

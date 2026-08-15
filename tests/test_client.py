@@ -10,13 +10,11 @@ from eltdx.hosts import FALLBACK_HOSTS, DEFAULT_HOSTS, load_server_config, load_
 from eltdx.protocol.constants import TYPE_REFRESH_STREAM
 from eltdx.protocol import COMMANDS, decode, encode, required_commands
 from eltdx.transport import InMemoryTransport, PooledSocketTransport, SocketTransport
-from eltdx.transport.push import PushBuffer, PushFrame
-from eltdx.protocol.frame import ResponseFrame
 from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, QuoteSnapshot
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "2.0.5"
+    assert __version__ == "3.0.0a1"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -1297,27 +1295,6 @@ def test_finance_batch_field_filter_is_local() -> None:
     selected = TdxClient(transport=FakeTransport()).corporate.finance_batch(["sz000001"], fields=["流通股本", "total_shares"])
 
     assert selected == [{"full_code": "sz000001", "流通股本": 1_000_000.0, "total_shares": 2_000_000.0}]
-
-
-def test_socket_transport_routes_unmatched_push_frames() -> None:
-    transport = SocketTransport(hosts=["127.0.0.1:1"], timeout=0.1)
-    response = ResponseFrame(
-        control=0,
-        msg_id=0x290000,
-        msg_type=TYPE_REFRESH_STREAM,
-        zip_length=2,
-        length=2,
-        data=bytes.fromhex("9393"),
-        raw=b"",
-    )
-
-    transport._push_buffer = PushBuffer(1)
-    transport._push_buffer.offer_nowait(PushFrame(1, 1, "127.0.0.1:1", response))
-
-    assert transport.pending_push_count == 1
-    parsed = transport.poll_push(parse=True)
-    assert parsed.count == 0
-    assert parsed.decoded_payload == b"\x00\x00"
 
 
 def test_socket_transport_has_no_legacy_reader_or_socket_owner_paths() -> None:

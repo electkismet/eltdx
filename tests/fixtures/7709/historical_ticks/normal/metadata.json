@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "baseline_tag": "v2.0.5",
+  "baseline_commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec",
+  "registry_key": "historical_ticks",
+  "command_code": 4038,
+  "message_id": 805306387,
+  "request_context": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "code"
+        },
+        {
+          "$type": "str",
+          "value": "sz300308"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "trading_date"
+        },
+        {
+          "$type": "int",
+          "value": "20260511"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "start"
+        },
+        {
+          "$type": "int",
+          "value": "0"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "count"
+        },
+        {
+          "$type": "int",
+          "value": "1800"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "include_raw"
+        },
+        {
+          "$type": "bool",
+          "value": true
+        }
+      ]
+    ]
+  },
+  "push_generation": null,
+  "push_host": null,
+  "expected_exception": null
+}

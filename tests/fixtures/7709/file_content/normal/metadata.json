@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "baseline_tag": "v2.0.5",
+  "baseline_commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec",
+  "registry_key": "file_content",
+  "command_code": 1721,
+  "message_id": 805306384,
+  "request_context": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "path"
+        },
+        {
+          "$type": "str",
+          "value": "zhb.zip"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "offset"
+        },
+        {
+          "$type": "int",
+          "value": "10"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "size"
+        },
+        {
+          "$type": "int",
+          "value": "30000"
+        }
+      ]
+    ]
+  },
+  "push_generation": null,
+  "push_host": null,
+  "expected_exception": null
+}

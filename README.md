@@ -1,7 +1,7 @@
 <h1 align="center">eltdx</h1>
 
 <p align="center">
-  <strong>极简的通达信在线行情协议 Python 客户端</strong>
+  <strong>Python API，Rust 驱动的通达信 7709 行情客户端</strong>
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@
 
 > 如果需要多数据源可以关注新项目 [AxData](https://github.com/electkismet/AxData)：AxData 基于 eltdx 迭代开发，除通达信体系外，AxData 还通过插件机制整理接入交易所、巨潮、腾讯财经、新浪财经、东方财富、财联社、开盘红等公开源接口，并扩展了自由流通市值、开盘换手、开盘量比、开盘抢筹、竞价昨比、连板天梯、题材强度等更适合本地量化研究和短线数据分析的指标能力，但如果是用单一源的话，仍推荐eltdx，受制于架构axdata性能不如裸协议路径的eltdx。
 
-通达信在线行情协议 Python 库。可以拿 A 股的行情、分时、成交明细、K 线、竞价、公司信息、题材信息等信息，支持 MCP 工具。
+通达信在线行情协议 Python 库。可以拿 A 股的行情、分时、成交明细、K 线、竞价、公司信息、题材信息等信息，支持 MCP 工具。`3.0` 保留现有 Python API 和返回模型，将 21 个 7709 命令的构包、解析、连接池、pin、push、心跳和关闭核心统一迁入 Rust。
 
 > `v2.0.0` 移除 `TdxClient` 的旧版扁平旧版入口，统一使用模块化 API 和 Helpers。升级前请阅读 [v2.0.0 迁移说明](docs/releases/v2.0.0.md)。
 
@@ -62,6 +62,8 @@
 pip install eltdx
 ```
 
+`3.0` 为 CPython 3.10-3.14 提供 Windows x64、manylinux x64/ARM64、macOS x64/ARM64 五个 `cp310-abi3` wheel。匹配 wheel 时不需要安装 Rust。没有匹配 wheel 的平台会尝试从 sdist 编译，需要 Rust 1.89 工具链；3.0 不提供纯 Python 7709 fallback。PyPy、free-threaded CPython、musllinux 和其他未列出的组合不在首发支持范围。
+
 如果需要启动 MCP stdio 工具服务，安装可选依赖：
 
 ```bash
@@ -76,6 +78,8 @@ python -m venv .venv
 python -m pip install -U pip
 pip install -e ".[dev,mcp]"
 ```
+
+源码安装会编译私有扩展 `eltdx._native`。Python 文件与 native 二进制的 ABI 不一致时，导入会立即失败，不会静默切换到旧实现。
 
 源码开发时建议始终先安装到当前虚拟环境；否则本机如果已有旧版 `eltdx`，`python -m eltdx...` 可能导入 site-packages 里的旧包。
 
@@ -248,11 +252,11 @@ with TdxClient.from_hosts(pool_size=4, probe_hosts=True, timeout=3) as client:
     print(client.codes.count("sz"))
 ```
 
-`pool_size` 默认是 `1`。`pool_size=N` 表示创建 N 个长期 `ConnectionActor` 和 N 条 TCP 连接，最多允许 N 个行情网络请求同时在途；它不表示连接 N 个行情服务器。传入多个主站时，每个连接槽位会按不同顺序尝试这些候选主站，连接失败或断开后自动尝试后续主站。
+`pool_size` 默认是 `1`。`pool_size=N` 表示 native Engine 最多拥有 N 个 Rust Slot 和 N 条 TCP 连接，最多允许 N 个行情 wire request 同时在途；它不表示连接 N 个行情服务器。Supervisor 使用有界 FIFO admission，传入多个主站时每个 Slot 会按不同顺序尝试候选主站，连接失败或断开后自动尝试后续主站。
 
 普通顺序调用保持默认 `1` 即可；需要同时发起多个行情请求时，可以根据实际并发量设置 `pool_size=4`、`pool_size=8` 等正整数。`0`、负数、float、字符串、bool 和 `None` 会直接抛出 `ValueError`，不会被自动修改。
 
-每个连接槽位的 Actor 在线程生命周期内持续复用。网络重连只替换它持有的 TCP socket，不会为每次重连再创建一条 reader 线程。建议始终使用 `with TdxClient(...) as client:`；退出 `with` 时会关闭 Actor、socket、selector 和 wakeup。手动创建客户端时，需要在 `finally` 中调用 `client.close()`。
+每个 Engine 只创建一个后台 runtime 线程，每个 Slot task 独占自己的 socket、decoder 和 TCP generation。网络重连只 retirement 当前 generation。建议始终使用 `with TdxClient(...) as client:`；退出 `with` 时会停止 admission、清理 pin/push、关闭 socket 并 join runtime。手动创建客户端时，需要在 `finally` 中调用 `client.close()`。
 
 真实 socket 连接默认每 30 秒自动心跳保活。关闭后台心跳：
 
@@ -308,7 +312,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | ------------ | ---------------------------------------------------- | -------------------------- |
 | 快速总览         | 本 README                                             | 这个库能查什么、用哪个方法、底层接口是什么      |
 | 常用问题         | [docs/helpers/README.md](docs/helpers/README.md)     | 按问题进入对应调用说明             |
-| 当前版本         | [docs/releases/v2.0.5.md](docs/releases/v2.0.5.md)   | `v2.0.5` 增加本地前复权锚点并明确日 K 范围 |
+| 当前候选         | [docs/releases/v3.0.0a1.md](docs/releases/v3.0.0a1.md) | Rust 7709 协议与传输核心预发布候选 |
 | 变更记录         | [docs/CHANGELOG.md](docs/CHANGELOG.md)               | 当前版本和未发布改动               |
 | 迁移到 2.0       | [docs/MIGRATION_FROM_OLD.md](docs/MIGRATION_FROM_OLD.md) | 把 1.x 的旧 `get_*` 调用迁移到当前模块化 API |
 | 方法字段手册       | [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md) | 每个调用方法怎么传参、返回哪些解析字段        |
@@ -321,6 +325,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | -------------------------------------------------------- | ---------------------- |
 | [docs/README.md](docs/README.md)                         | 文档入口                   |
 | [docs/PRODUCT.md](docs/PRODUCT.md)                       | 产品定位和能力总览              |
+| [docs/releases/v3.0.0a1.md](docs/releases/v3.0.0a1.md)   | `v3.0.0a1` 预发布说明          |
 | [docs/releases/v2.0.5.md](docs/releases/v2.0.5.md)       | `v2.0.5` 正式发布说明          |
 | [docs/releases/v2.0.4.md](docs/releases/v2.0.4.md)       | `v2.0.4` 正式发布说明          |
 | [docs/releases/v2.0.3.md](docs/releases/v2.0.3.md)       | `v2.0.3` 正式发布说明          |
@@ -344,7 +349,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | [docs/COMMANDS_7709.md](docs/COMMANDS_7709.md)           | 21 个 `7709` 命令和 API 映射 |
 | [docs/DEBUG_GUIDE.md](docs/DEBUG_GUIDE.md)               | 连接、主站和协议排查             |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | 项目分层和实现结构              |
-| [docs/FIELD_MIGRATION.md](docs/FIELD_MIGRATION.md)       | 历史字段迁移到当前 2.0.5 模型       |
+| [docs/FIELD_MIGRATION.md](docs/FIELD_MIGRATION.md)       | 历史字段迁移到当前公开模型          |
 | [docs/MIGRATION_FROM_OLD.md](docs/MIGRATION_FROM_OLD.md) | 1.x API 迁移到 2.0 模块化 API  |
 | [docs/ROADMAP.md](docs/ROADMAP.md)                       | 历史归档：1.0 实现记录          |
 | [scripts/README.md](scripts/README.md)                   | smoke / live 脚本说明      |

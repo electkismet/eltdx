@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import asyncio
-import sys
+import shutil
 
 from mcp import Client, StdioServerParameters, stdio_client
 
 
 async def _check() -> None:
+    executable = shutil.which("eltdx-mcp")
+    if executable is None:
+        raise RuntimeError("installed eltdx-mcp console script is unavailable")
     parameters = StdioServerParameters(
-        command=sys.executable,
-        args=["-m", "eltdx.mcp"],
+        command=executable,
+        args=[],
     )
     async with Client(stdio_client(parameters), mode="legacy") as client:
         tools = await client.list_tools()
@@ -26,4 +29,4 @@ async def _check() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(_check())
+    asyncio.run(asyncio.wait_for(_check(), timeout=20.0))
