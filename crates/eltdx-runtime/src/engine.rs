@@ -3312,7 +3312,7 @@ impl RuntimeCore {
     async fn apply_promotion(
         &mut self,
         promotion: Promotion,
-    ) -> Result<TerminalBatch, RuntimeError> {
+    ) -> Result<Option<TerminalBatch>, RuntimeError> {
         let request_id = promotion.active_lease.request_id;
         if let Some(reservation) = self.pin_reservations.get_mut(&request_id) {
             if reservation.admission != Admission::Waiting(promotion.returned_permit) {
