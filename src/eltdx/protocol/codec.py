@@ -1,4 +1,4 @@
-"""Placeholder protocol codec."""
+"""Public text codec compatibility helpers."""
 
 
 def encode(message: str) -> bytes:

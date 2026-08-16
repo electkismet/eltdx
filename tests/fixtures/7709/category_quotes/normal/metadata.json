@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "baseline_tag": "v2.0.5",
+  "baseline_commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec",
+  "registry_key": "category_quotes",
+  "command_code": 1355,
+  "message_id": 805306381,
+  "request_context": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "category"
+        },
+        {
+          "$type": "int",
+          "value": "6"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "sort_by"
+        },
+        {
+          "$type": "none"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "start"
+        },
+        {
+          "$type": "int",
+          "value": "0"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "count"
+        },
+        {
+          "$type": "int",
+          "value": "80"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "ascending"
+        },
+        {
+          "$type": "bool",
+          "value": false
+        }
+      ]
+    ]
+  },
+  "push_generation": null,
+  "push_host": null,
+  "expected_exception": null
+}

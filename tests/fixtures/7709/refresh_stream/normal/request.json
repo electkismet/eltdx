@@ -1,0 +1,30 @@
+{
+  "$type": "dict",
+  "items": [
+    [
+      {
+        "$type": "str",
+        "value": "codes"
+      },
+      {
+        "$type": "list",
+        "items": [
+          {
+            "$type": "str",
+            "value": "sz000001"
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "cursors"
+      },
+      {
+        "$type": "dict",
+        "items": []
+      }
+    ]
+  ]
+}

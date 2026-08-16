@@ -7,7 +7,7 @@ parsing protocol frames directly. Low-level command ownership stays in
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
@@ -23,7 +23,7 @@ from eltdx.models import QuoteRefreshRecord, QuoteSnapshot
 from eltdx.protocol.unit import ID_TO_MARKET, normalize_code
 
 from .shortline import (
-    ShortlineIndicator,
+    ShortlineIndicator as ShortlineIndicator,
     ShortlineIndicatorService,
     ShortlineIndicatorTable,
 )
@@ -424,7 +424,11 @@ class HelperApi:
         if resolved_pre_close is None and include_quote:
             if historical_page is not None:
                 price_base = getattr(historical_page, "price_base_raw_f32", None)
-                resolved_pre_close = round(float(price_base), 3) if price_base not in (None, 0) else None
+                resolved_pre_close = (
+                    round(float(price_base), 3)
+                    if price_base is not None and price_base != 0
+                    else None
+                )
             elif quote is not None:
                 resolved_pre_close = getattr(quote, "pre_close_price", None)
 
@@ -544,6 +548,7 @@ def _code_list(codes: str | Sequence[str]) -> list[str]:
 
 def _by_full_code(items: Any) -> dict[str, Any]:
     result: dict[str, Any] = {}
+    iterable: Iterable[Any]
     if isinstance(items, Mapping):
         iterable = items.values()
     else:

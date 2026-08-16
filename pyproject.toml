@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.25"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.14,<2"]
+build-backend = "maturin"
 
 [project]
 name = "eltdx"
-version = "2.0.5"
+dynamic = ["version"]
 description = "通达信 7709 行情与 7615 F10 资料 Python 客户端"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,13 +14,14 @@ authors = [
 ]
 keywords = ["tongdaxin", "tdx", "market-data", "a-share", "protocol", "f10"]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Office/Business :: Financial :: Investment",
   "Typing :: Typed",
 ]
@@ -33,8 +34,16 @@ Issues = "https://github.com/electkismet/eltdx/issues"
 
 [project.optional-dependencies]
 dev = [
-  "build>=1.2",
+  "hypothesis>=6.130",
+  "maturin>=1.14,<2",
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.6",
+  "mypy>=1.15,<2",
+  "packaging>=24.2",
+  "psutil>=6.1",
   "pytest>=8.0",
+  "pytest-timeout>=2.3",
+  "ruff>=0.11",
 ]
 mcp = [
   "mcp>=2.0,<3",
@@ -45,24 +54,49 @@ eltdx-smoke = "eltdx.cli:smoke"
 eltdx-f10-smoke = "eltdx.cli:f10_smoke"
 eltdx-mcp = "eltdx.mcp:main"
 
-[tool.hatch.build.targets.sdist]
+[tool.maturin]
+manifest-path = "crates/eltdx-python/Cargo.toml"
+python-source = "src"
+module-name = "eltdx._native"
+bindings = "pyo3"
+locked = true
 include = [
-  "/README.md",
-  "/LICENSE",
-  "/docs",
-  "/scripts",
-  "/src",
-  "/tests",
-  "/pyproject.toml",
+  { path = "Cargo.toml", format = "sdist" },
+  { path = "Cargo.lock", format = "sdist" },
+  { path = "rust-toolchain.toml", format = "sdist" },
+  { path = "README.md", format = "sdist" },
+  { path = "LICENSE", format = "sdist" },
+  { path = "crates/**/*", format = "sdist" },
+  { path = "docs/**/*", format = "sdist" },
+  { path = "scripts/**/*", format = "sdist" },
+  { path = "tests/**/*", format = "sdist" },
 ]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/eltdx"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"src/eltdx/tdx_server.json" = "eltdx/tdx_server.json"
-"docs" = "eltdx/docs"
+exclude = [
+  { path = "**/__pycache__/**", format = ["sdist", "wheel"] },
+  { path = "**/*.pyc", format = ["sdist", "wheel"] },
+  { path = "**/*.pyo", format = ["sdist", "wheel"] },
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = ["src", "."]
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["scripts.*", "tests.*"]
+ignore_errors = true
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/release/prepare_testpypi_plan.py" = ["E402"]
+"scripts/smoke/*.py" = ["E402"]
+"scripts/verification/check_release_metadata.py" = ["E402"]

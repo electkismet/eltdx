@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "baseline_tag": "v2.0.5",
+  "baseline_commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec",
+  "registry_key": "refresh_stream",
+  "command_code": 1351,
+  "message_id": 805306380,
+  "request_context": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "codes"
+        },
+        {
+          "$type": "list",
+          "items": [
+            {
+              "$type": "str",
+              "value": "sz000001"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "cursors"
+        },
+        {
+          "$type": "dict",
+          "items": []
+        }
+      ]
+    ]
+  },
+  "push_generation": 1,
+  "push_host": "127.0.0.1:7709",
+  "expected_exception": null
+}

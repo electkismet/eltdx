@@ -1,0 +1,35 @@
+{
+  "$type": "dict",
+  "items": [
+    [
+      {
+        "$type": "str",
+        "value": "market"
+      },
+      {
+        "$type": "str",
+        "value": "bj"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "start"
+      },
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "limit"
+      },
+      {
+        "$type": "int",
+        "value": "1600"
+      }
+    ]
+  ]
+}

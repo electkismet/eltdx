@@ -1,0 +1,35 @@
+{
+  "$type": "dict",
+  "items": [
+    [
+      {
+        "$type": "str",
+        "value": "path"
+      },
+      {
+        "$type": "str",
+        "value": "zhb.zip"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "offset"
+      },
+      {
+        "$type": "int",
+        "value": "10"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "size"
+      },
+      {
+        "$type": "int",
+        "value": "30000"
+      }
+    ]
+  ]
+}

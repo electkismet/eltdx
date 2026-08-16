@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 
 from eltdx.models import (
     CapitalChangeBlock,
-    CapitalChangeRecord,
     EquityRecord,
     EquityResponse,
     FactorRecord,
@@ -64,7 +63,10 @@ def filter_equity_records(block: CapitalChangeBlock) -> EquityResponse:
 
 def pick_equity(records: list[EquityRecord] | tuple[EquityRecord, ...], on=None) -> EquityRecord | None:
     target = _normalize_date(on)
-    ordered = sorted((record for record in records if record.date is not None), key=lambda record: record.date)
+    ordered = sorted(
+        (record for record in records if record.date is not None),
+        key=lambda record: record.date or date.min,
+    )
     for record in reversed(ordered):
         assert record.date is not None
         if record.date <= target:
@@ -94,7 +96,10 @@ def build_factor_response(
     anchor_date=None,
 ) -> FactorResponse:
     bars = sorted(day_kline.bars, key=lambda item: item.time)
-    xdxr_sorted = sorted((item for item in xdxr_records if item.date is not None), key=lambda item: item.date)
+    xdxr_sorted = sorted(
+        (item for item in xdxr_records if item.date is not None),
+        key=lambda item: item.date or date.min,
+    )
     overrides: dict[date, int | None] = {}
 
     for xdxr in xdxr_sorted:
@@ -136,7 +141,7 @@ def build_factor_response(
 
 
 def apply_xdxr_to_last_close(last_close_milli: int | None, xdxr: XdxrRecord | None) -> int | None:
-    if last_close_milli in (None, 0) or xdxr is None:
+    if last_close_milli is None or last_close_milli == 0 or xdxr is None:
         return last_close_milli
 
     numerator = ((last_close_milli / 1000.0) * 10.0 - xdxr.fenhong) + (xdxr.peigu * xdxr.peigujia)
@@ -223,13 +228,25 @@ def _adjust_price_milli(value: int | None, factor: float) -> int:
 
 
 def _qfq_step(last_close_milli: int | None, pre_last_close_milli: int | None) -> float:
-    if last_close_milli in (None, 0) or pre_last_close_milli in (None, 0) or last_close_milli == pre_last_close_milli:
+    if (
+        last_close_milli is None
+        or last_close_milli == 0
+        or pre_last_close_milli is None
+        or pre_last_close_milli == 0
+        or last_close_milli == pre_last_close_milli
+    ):
         return 1.0
     return pre_last_close_milli / last_close_milli
 
 
 def _hfq_step(last_close_milli: int | None, pre_last_close_milli: int | None) -> float:
-    if last_close_milli in (None, 0) or pre_last_close_milli in (None, 0) or last_close_milli == pre_last_close_milli:
+    if (
+        last_close_milli is None
+        or last_close_milli == 0
+        or pre_last_close_milli is None
+        or pre_last_close_milli == 0
+        or last_close_milli == pre_last_close_milli
+    ):
         return 1.0
     return last_close_milli / pre_last_close_milli
 

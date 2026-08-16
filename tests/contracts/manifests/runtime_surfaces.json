@@ -1,0 +1,321 @@
+{
+  "schema_version": 1,
+  "baseline": {
+    "tag": "v2.0.5",
+    "commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec"
+  },
+  "protocol": {
+    "module_exports": {
+      "eltdx.protocol": [
+        "COMMANDS",
+        "CommandSpec",
+        "RequestFrame",
+        "ResponseFrame",
+        "build_command_frame",
+        "command_code",
+        "decode",
+        "decode_response",
+        "encode",
+        "parse_command_response",
+        "required_commands"
+      ],
+      "eltdx.protocol.commands": [
+        "COMMANDS",
+        "CommandSpec",
+        "build_command_frame",
+        "command_code",
+        "parse_command_response",
+        "required_commands"
+      ]
+    },
+    "callables": {
+      "eltdx.protocol.codec:encode": "(message)",
+      "eltdx.protocol.codec:decode": "(payload)",
+      "eltdx.protocol.frame:decode_response": "(raw, *, max_payload_size=65535)",
+      "eltdx.protocol.commands.codec:build_command_frame": "(command, payload, msg_id)",
+      "eltdx.protocol.commands.codec:parse_command_response": "(command, response, request_payload=None)",
+      "eltdx.protocol.commands.registry:command_code": "(name)",
+      "eltdx.protocol.commands.registry:required_commands": "()"
+    },
+    "native_wire_entrypoints": [
+      "eltdx.protocol.frame:decode_response",
+      "eltdx.protocol.commands.codec:build_command_frame",
+      "eltdx.protocol.commands.codec:parse_command_response"
+    ],
+    "forbidden_runtime_modules": [
+      "eltdx.protocol.commands.auctions",
+      "eltdx.protocol.commands.corporate",
+      "eltdx.protocol.commands.klines",
+      "eltdx.protocol.commands.limits",
+      "eltdx.protocol.commands.minutes",
+      "eltdx.protocol.commands.quotes",
+      "eltdx.protocol.commands.resources",
+      "eltdx.protocol.commands.security",
+      "eltdx.protocol.commands.session",
+      "eltdx.protocol.commands.trades"
+    ]
+  },
+  "diagnostics": {
+    "enums": {
+      "eltdx.transport.actor:RuntimeState": [
+        "STARTING",
+        "RUNNING",
+        "CLOSING",
+        "STOPPED",
+        "FAILED",
+        "FAILED_CLOSING",
+        "FAILED_CLOSED"
+      ],
+      "eltdx.transport.actor:TcpState": [
+        "DOWN",
+        "CONNECTING",
+        "CONNECTED_UNHANDSHAKEN",
+        "HANDSHAKING",
+        "READY",
+        "RETIRING"
+      ],
+      "eltdx.transport.pool:PoolState": [
+        "STOPPED",
+        "STARTING",
+        "RUNNING",
+        "CLOSING",
+        "FAILED",
+        "FAILED_CLOSING",
+        "FAILED_CLOSED"
+      ]
+    },
+    "dataclasses": {
+      "eltdx.transport.actor:ActorSnapshot": [
+        "runtime_epoch",
+        "state",
+        "tcp_state",
+        "tcp_generation",
+        "connected_host",
+        "actor_alive",
+        "pending_depth",
+        "reconnect_count",
+        "stale_event_count",
+        "last_error"
+      ],
+      "eltdx.transport.pool:BrokerSnapshot": [
+        "pool_epoch",
+        "idle_slots",
+        "waiter_count",
+        "pin_waiter_count",
+        "active_leases",
+        "closed"
+      ],
+      "eltdx.transport.pool:PoolDiagnostics": [
+        "epoch",
+        "state",
+        "broker",
+        "actors",
+        "push_frames",
+        "push_bytes",
+        "push_dropped",
+        "runtime_workers",
+        "pool_size",
+        "server_count",
+        "max_connections_per_host",
+        "connect_concurrency",
+        "connect_concurrency_per_host",
+        "raw_bytes",
+        "raw_max_bytes",
+        "raw_peak_bytes",
+        "decoded_bytes",
+        "decoded_max_bytes",
+        "decoded_peak_bytes",
+        "push_max_bytes"
+      ],
+      "eltdx.transport.socket:TransportDiagnostics": [
+        "epoch",
+        "actor",
+        "push_frames",
+        "push_bytes",
+        "push_dropped",
+        "push_max_frames",
+        "push_max_bytes",
+        "runtime_workers",
+        "raw_bytes",
+        "raw_max_bytes",
+        "raw_peak_bytes",
+        "decoded_bytes",
+        "decoded_max_bytes",
+        "decoded_peak_bytes"
+      ]
+    }
+  },
+  "transports": {
+    "eltdx.transport.socket:SocketTransport": {
+      "constructor": "(hosts=None, *, timeout=8.0, heartbeat_interval=30.0, push_queue_size=1024, push_queue_bytes=8388608)",
+      "methods": {
+        "connect": "(self)",
+        "close": "(self)",
+        "execute": "(self, command, payload=None)",
+        "request": "(self, command)",
+        "poll_push": "(self, timeout=0.0, *, parse=False)",
+        "drain_pushes": "(self, *, parse=False)"
+      },
+      "properties": [
+        "connected_host",
+        "diagnostics",
+        "last_handshake",
+        "last_heartbeat",
+        "pending_push_count"
+      ]
+    },
+    "eltdx.transport.pool:PooledSocketTransport": {
+      "constructor": "(hosts=None, *, timeout=8.0, pool_size=None, server_count=2, connections_per_server=None, runtime_workers=None, max_connections_per_host=None, connect_concurrency=None, connect_concurrency_per_host=None, global_raw_bytes=None, global_decoded_bytes=None, probe_hosts=True, probe_timeout=1.2, probe_workers=32, heartbeat_interval=30.0, max_pending_requests=256, push_queue_size=1024, push_queue_bytes=67108864)",
+      "methods": {
+        "connect": "(self)",
+        "close": "(self)",
+        "execute": "(self, command, payload=None)",
+        "pin": "(self)",
+        "request": "(self, command)",
+        "poll_push": "(self, timeout=0.0, *, parse=False)",
+        "drain_pushes": "(self, *, parse=False)"
+      },
+      "properties": [
+        "connected_host",
+        "connected_hosts",
+        "connections_per_server",
+        "diagnostics",
+        "heartbeat_interval",
+        "hosts",
+        "max_pending_requests",
+        "pending_push_count",
+        "pool_size",
+        "push_queue_bytes",
+        "push_queue_size",
+        "server_count"
+      ]
+    },
+    "eltdx.transport.pool:PinnedTransportProxy": {
+      "methods": {
+        "connect": "(self)",
+        "close": "(self)",
+        "execute": "(self, command, payload=None)",
+        "request": "(self, command)",
+        "poll_push": "(self, timeout=0.0, *, parse=False)",
+        "drain_pushes": "(self, *, parse=False)"
+      },
+      "properties": [
+        "connected_host",
+        "last_handshake",
+        "last_heartbeat",
+        "pending_push_count"
+      ],
+      "context_manager_owner": "eltdx.transport.pool:PooledSocketTransport.pin",
+      "close_shared_pool": false,
+      "old_epoch_invalid": true
+    }
+  },
+  "mcp": {
+    "server": {
+      "name": "eltdx",
+      "title": "eltdx A-share data",
+      "description": "TongdaXin 7709 market data and 7615 F10 tools."
+    },
+    "pool_size": 4,
+    "max_clients": 16,
+    "tools": {
+      "eltdx_quote": {"method": "quote", "signature": "(codes, timeout=8.0, host=None)", "output": "array"},
+      "eltdx_quote_depth": {"method": "quote_depth", "signature": "(codes, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_kline": {"method": "kline", "signature": "(code, period='day', count=120, start=0, adjust=None, anchor_date=None, include_raw=False, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_minute": {"method": "minute", "signature": "(code, trading_date=None, include_raw=False, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_trades": {"method": "trades", "signature": "(code, trading_date=None, start=0, count=500, include_raw=False, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_call_auction": {"method": "call_auction", "signature": "(code, include_raw=False, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_auction_today": {"method": "auction_today", "signature": "(code, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_auction_history": {"method": "auction_history", "signature": "(code, trading_date, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_opening_match_today": {"method": "opening_match_today", "signature": "(code, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_opening_match_history": {"method": "opening_match_history", "signature": "(code, trading_date, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_auction_data": {"method": "auction_data", "signature": "(code, trading_date=None, include_series=True, include_snapshot=True, include_quote=True, pre_close_price=None, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_stock_profile": {"method": "stock_profile", "signature": "(codes, include_security=True, include_finance=True, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_shortline_indicators": {"method": "shortline_indicators", "signature": "(codes, stats_path='zhb.zip', refresh_stats=False, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_stock_topics": {"method": "stock_topics", "signature": "(code, timeout=8.0)", "output": "object"},
+      "eltdx_topic_stocks": {"method": "topic_stocks", "signature": "(seed_code, topic_id=None, topic_name=None, sort_by='zdf', section='gndbzfsj', timeout=8.0)", "output": "object"},
+      "eltdx_company_profile": {"method": "company_profile", "signature": "(code, section='8', timeout=8.0)", "output": "object"},
+      "eltdx_hot_topics": {"method": "hot_topics", "signature": "(code, section='zttzbkz', timeout=8.0)", "output": "object"},
+      "eltdx_finance_report": {"method": "finance_report", "signature": "(code, report_type='zcfzb', timeout=8.0)", "output": "object"},
+      "eltdx_company_news": {"method": "company_news", "signature": "(code, section='gsyj', keyword='', rating='0', page=1, page_size=20, timeout=8.0)", "output": "object"},
+      "eltdx_docs_index": {"method": "docs_index", "signature": "()", "output": "object"}
+    },
+    "resources": {
+      "eltdx://docs/overview": {"name": "eltdx_docs_overview", "title": "eltdx overview documentation", "mime_type": "text/markdown", "path": "index.md"},
+      "eltdx://docs/api": {"name": "eltdx_docs_api", "title": "eltdx api documentation", "mime_type": "text/markdown", "path": "API_REFERENCE.md"},
+      "eltdx://docs/methods": {"name": "eltdx_docs_methods", "title": "eltdx methods documentation", "mime_type": "text/markdown", "path": "METHOD_REFERENCE.md"},
+      "eltdx://docs/fields": {"name": "eltdx_docs_fields", "title": "eltdx fields documentation", "mime_type": "text/markdown", "path": "FIELD_REFERENCE.md"},
+      "eltdx://docs/commands": {"name": "eltdx_docs_commands", "title": "eltdx commands documentation", "mime_type": "text/markdown", "path": "COMMANDS_7709.md"},
+      "eltdx://docs/f10": {"name": "eltdx_docs_f10", "title": "eltdx f10 documentation", "mime_type": "text/markdown", "path": "F10_7615.md"},
+      "eltdx://docs/helpers": {"name": "eltdx_docs_helpers", "title": "eltdx helpers documentation", "mime_type": "text/markdown", "path": "helpers/README.md"},
+      "eltdx://docs/mcp": {"name": "eltdx_docs_mcp", "title": "eltdx mcp documentation", "mime_type": "text/markdown", "path": "MCP.md"}
+    }
+  },
+  "cli": {
+    "entry_points": {
+      "eltdx-smoke": "eltdx.cli:smoke",
+      "eltdx-f10-smoke": "eltdx.cli:f10_smoke",
+      "eltdx-mcp": "eltdx.mcp:main"
+    },
+    "eltdx-smoke": {
+      "main": "eltdx.smoke:main",
+      "options": {
+        "--host": {"default": null, "action": "store"},
+        "--code": {"default": "sz000001", "action": "store"},
+        "--history-date": {"default": null, "action": "store"},
+        "--timeout": {"default": 8.0, "action": "store", "type": "float"},
+        "--pool-size": {"default": null, "action": "store", "type": "int"},
+        "--server-count": {"default": 2, "action": "store", "type": "int"},
+        "--connections-per-server": {"default": null, "action": "store", "type": "int"},
+        "--runtime-workers": {"default": null, "action": "store", "type": "int"},
+        "--max-connections-per-host": {"default": null, "action": "store", "type": "int"},
+        "--connect-concurrency": {"default": null, "action": "store", "type": "int"},
+        "--connect-concurrency-per-host": {"default": null, "action": "store", "type": "int"},
+        "--probe-hosts": {"default": true, "action": "boolean_optional"},
+        "--heartbeat-interval": {"default": 30.0, "action": "store", "type": "float"},
+        "--no-heartbeat": {"default": false, "action": "store_true"},
+        "--quote-count": {"default": 120, "action": "store", "type": "int"},
+        "--trade-count": {"default": 20, "action": "store", "type": "int"},
+        "--kline-count": {"default": 5, "action": "store", "type": "int"},
+        "--deep": {"default": false, "action": "store_true"}
+      },
+      "exit_codes": {"success": 0, "help": 0, "parse_error": 2, "invalid_counts": 1}
+    },
+    "eltdx-f10-smoke": {
+      "main": "eltdx.f10_smoke:main",
+      "options": {
+        "--code": {"default": "000034", "action": "store"},
+        "--timeout": {"default": 8.0, "action": "store", "type": "float"}
+      },
+      "exit_codes": {"success": 0, "help": 0, "parse_error": 2}
+    },
+    "eltdx-mcp": {
+      "main": "eltdx.mcp:main",
+      "transport": "stdio",
+      "exit_codes": {"success": 0}
+    }
+  },
+  "removed_client_attributes": [
+    "get_quote",
+    "get_quote_depth",
+    "get_legacy_quotes",
+    "read_server_file",
+    "get_count",
+    "get_codes",
+    "get_codes_all",
+    "get_kline",
+    "get_kline_all",
+    "get_minute",
+    "get_history_minute",
+    "get_trades",
+    "get_trades_all",
+    "get_call_auction",
+    "get_auction_0925",
+    "get_gbbq",
+    "get_xdxr",
+    "get_equity",
+    "get_turnover",
+    "get_factors",
+    "get_finance_batch"
+  ]
+}

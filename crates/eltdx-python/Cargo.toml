@@ -1,0 +1,20 @@
+[package]
+name = "eltdx-python"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+eltdx-protocol = { path = "../eltdx-protocol" }
+eltdx-runtime = { path = "../eltdx-runtime" }
+pyo3 = { workspace = true, features = ["abi3-py310", "extension-module"] }
+thiserror.workspace = true
+
+[lints]
+workspace = true

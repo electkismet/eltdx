@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "baseline_tag": "v2.0.5",
+  "baseline_commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec",
+  "registry_key": "security_count",
+  "command_code": 1102,
+  "message_id": 805306374,
+  "request_context": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "market"
+        },
+        {
+          "$type": "str",
+          "value": "sz"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "client_date_yyyymmdd"
+        },
+        {
+          "$type": "int",
+          "value": "20260519"
+        }
+      ]
+    ]
+  },
+  "push_generation": null,
+  "push_host": null,
+  "expected_exception": null
+}

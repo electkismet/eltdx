@@ -1,0 +1,25 @@
+[package]
+name = "eltdx-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+loom = ["dep:loom"]
+
+[dependencies]
+bytes.workspace = true
+eltdx-protocol = { path = "../eltdx-protocol" }
+loom = { workspace = true, optional = true }
+rand.workspace = true
+socket2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

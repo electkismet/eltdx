@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -10,7 +12,6 @@ from eltdx.exceptions import ProtocolError, ResourceFormatError
 from eltdx.models import FileContentChunk
 from eltdx.protocol.constants import TYPE_FILE_CONTENT
 from eltdx.stats import parse_tdx_stats_archive
-from eltdx.transport import PooledSocketTransport
 
 
 class ResourceTransport:
@@ -35,6 +36,29 @@ class ResourceTransport:
         )
 
 
+class PinningResourceTransport:
+    def __init__(self, payload: bytes) -> None:
+        self.pinned = ResourceTransport(payload)
+        self.pin_entries = 0
+        self.pin_exits = 0
+
+    def execute(
+        self,
+        command: int,
+        payload: dict[str, object] | None = None,
+    ) -> FileContentChunk:
+        del command, payload
+        raise AssertionError("download must execute through the pinned transport")
+
+    @contextmanager
+    def pin(self) -> Iterator[ResourceTransport]:
+        self.pin_entries += 1
+        try:
+            yield self.pinned
+        finally:
+            self.pin_exits += 1
+
+
 def test_download_file_joins_chunks_and_probes_exact_size_boundary() -> None:
     transport = ResourceTransport(b"abcdefgh")
     resources = ResourceApi(transport)
@@ -52,53 +76,12 @@ def test_download_file_honors_max_bytes() -> None:
     assert [call["size"] for call in transport.calls] == [4, 2]
 
 
-def test_download_file_pins_pooled_transport(monkeypatch) -> None:
-    transport = PooledSocketTransport(
-        hosts=["127.0.0.1:1"],
-        timeout=0.1,
-        pool_size=2,
-        heartbeat_interval=None,
-    )
-    calls = [[], []]
-    payloads = [b"abcdefgh", b"ABCDEFGH"]
-
-    for index, item in enumerate(transport._transports):
-        def execute(
-            command,
-            payload=None,
-            *,
-            lease_id,
-            deadline,
-            completion,
-            runtime=None,
-            lock_slot=False,
-            expected_runtime_epoch=None,
-            submission_check=None,
-            index=index,
-        ):
-            if submission_check is not None:
-                submission_check()
-            assert command == TYPE_FILE_CONTENT
-            request = dict(payload or {})
-            calls[index].append(request)
-            offset = int(request["offset"])
-            size = int(request["size"])
-            content = payloads[index][offset : offset + size]
-            result = FileContentChunk(
-                path=str(request["path"]),
-                offset=offset,
-                request_size=size,
-                chunk_len=len(content),
-                content=content,
-            )
-            completion(None)
-            return result
-
-        monkeypatch.setattr(item, "_execute_with_lease", execute)
-
+def test_download_file_uses_one_public_transport_pin() -> None:
+    transport = PinningResourceTransport(b"abcdefgh")
     assert ResourceApi(transport).download_file("sample.bin", chunk_size=4) == b"abcdefgh"
-    assert [call["offset"] for call in calls[0]] == [0, 4, 8]
-    assert calls[1] == []
+    assert transport.pin_entries == 1
+    assert transport.pin_exits == 1
+    assert [call["offset"] for call in transport.pinned.calls] == [0, 4, 8]
 
 
 @pytest.mark.parametrize("value", [0, 60001, True, 1.5])

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import builtins
+
 from eltdx.protocol.constants import DEFAULT_CODE_PAGE_SIZE, MAX_CODE_PAGE_SIZE
 
 from .base import ApiBase
@@ -44,22 +46,22 @@ class CodeApi(ApiBase):
     def indices(self, market: str):
         return [item for item in self.all(market) if item.category == "index"]
 
-    def all_markets(self) -> list:
+    def all_markets(self) -> builtins.list:
         items = []
         for market in ("sh", "sz", "bj"):
             items.extend(self.all(market))
         return items
 
-    def all_stocks(self) -> list[str]:
+    def all_stocks(self) -> builtins.list[str]:
         return [item.full_code for item in self.all_markets() if item.category in {"a_share", "b_share"}]
 
-    def all_a_shares(self) -> list[str]:
+    def all_a_shares(self) -> builtins.list[str]:
         return [item.full_code for item in self.all_markets() if item.category == "a_share"]
 
-    def all_etfs(self) -> list[str]:
+    def all_etfs(self) -> builtins.list[str]:
         return [item.full_code for item in self.all_markets() if item.category == "etf"]
 
-    def all_indices(self) -> list[str]:
+    def all_indices(self) -> builtins.list[str]:
         return [item.full_code for item in self.all_markets() if item.category == "index"]
 
 

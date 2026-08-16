@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "baseline": {
+    "tag": "v2.0.5",
+    "commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec"
+  },
+  "dataclasses": {
+    "eltdx.client:TdxClient": {
+      "frozen": false,
+      "fields": ["transport", "host", "hosts", "timeout", "pool_size", "probe_hosts", "probe_timeout", "probe_workers", "heartbeat_interval", "max_pending_requests", "push_queue_size", "push_queue_bytes", "server_count", "connections_per_server", "runtime_workers", "max_connections_per_host", "connect_concurrency", "connect_concurrency_per_host", "global_raw_bytes", "global_decoded_bytes", "session", "codes", "quotes", "resources", "bars", "minutes", "trades", "auctions", "corporate", "limits", "workdays", "f10", "helpers"],
+      "defaults": {"transport": null, "host": null, "hosts": null, "timeout": 8.0, "pool_size": null, "server_count": 2, "connections_per_server": null, "runtime_workers": null, "max_connections_per_host": null, "connect_concurrency": null, "connect_concurrency_per_host": null, "global_raw_bytes": null, "global_decoded_bytes": null, "probe_hosts": true, "probe_timeout": 1.2, "probe_workers": 32, "heartbeat_interval": 30.0, "max_pending_requests": 256, "push_queue_size": 1024, "push_queue_bytes": 67108864}
+    },
+    "eltdx.models.auction:AuctionPoint": {
+      "fields": ["index", "minute_of_day_raw", "second_raw", "time_label", "time_seconds", "price", "price_milli", "matched_volume", "unmatched_signed_raw", "unmatched_volume", "unmatched_direction_raw", "reserved_zero_0e", "record_hex"],
+      "defaults": {"record_hex": ""},
+      "properties": ["matched_amount_estimated"]
+    },
+    "eltdx.models.auction:AuctionSeries": {
+      "fields": ["exchange", "market_id", "code", "mode_or_selector_raw", "start_raw", "limit_or_count_raw", "points", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count", "full_code"]
+    },
+    "eltdx.models.corporate:CapitalChangeRecord": {
+      "fields": ["exchange", "market_id", "code", "reserved_7", "date_raw", "date", "category_raw", "category_name", "c1_raw", "c2_raw", "c3_raw", "c4_raw", "c1_float", "c2_float", "c3_float", "c4_float", "c1_value", "c2_value", "c3_value", "c4_value", "record_hex"],
+      "defaults": {"record_hex": ""},
+      "properties": ["c1", "c2", "c3", "c4", "category", "full_code", "time"]
+    },
+    "eltdx.models.corporate:CapitalChangeBlock": {
+      "fields": ["exchange", "market_id", "code", "block_count", "records", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count", "full_code", "items"]
+    },
+    "eltdx.models.corporate:XdxrRecord": {
+      "fields": ["code", "date", "category", "category_name", "fenhong", "peigujia", "songzhuangu", "peigu"],
+      "properties": ["time"]
+    },
+    "eltdx.models.corporate:EquityRecord": {
+      "fields": ["code", "date", "category", "category_name", "float_shares", "total_shares"],
+      "properties": ["time"]
+    },
+    "eltdx.models.corporate:EquityResponse": {
+      "fields": ["count", "items"]
+    },
+    "eltdx.models.corporate:FactorRecord": {
+      "fields": ["time", "last_close_price", "last_close_price_milli", "pre_last_close_price", "pre_last_close_price_milli", "qfq_factor", "hfq_factor"]
+    },
+    "eltdx.models.corporate:FactorResponse": {
+      "fields": ["count", "items", "anchor_date"],
+      "defaults": {"anchor_date": null}
+    },
+    "eltdx.models.corporate:FinanceRecord": {
+      "fields": ["exchange", "market_id", "code", "finance_info_raw", "liu_tong_gu_ben_raw_float", "province_raw", "industry_raw", "updated_date_raw", "updated_date", "ipo_date_raw", "ipo_date", "zong_gu_ben_raw_float", "guo_jia_gu_raw_float", "fa_qi_ren_fa_ren_gu_raw_float", "fa_ren_gu_raw_float", "b_gu_raw_float", "h_gu_raw_float", "eps_raw", "zong_zi_chan_raw_float", "liu_dong_zi_chan_raw_float", "gu_ding_zi_chan_raw_float", "wu_xing_zi_chan_raw_float", "gu_dong_ren_shu_raw_float", "liu_dong_fu_zhai_raw_float", "chang_qi_fu_zhai_raw_float", "zi_ben_gong_ji_jin_raw_float", "jing_zi_chan_raw_float", "zhu_ying_shou_ru_raw_float", "zhu_ying_li_run_raw_float", "ying_shou_zhang_kuan_raw_float", "ying_ye_li_run_raw_float", "tou_zi_shou_yu_raw_float", "jing_ying_xian_jin_liu_raw_float", "zong_xian_jin_liu_raw_float", "cun_huo_raw_float", "li_run_zong_he_raw_float", "shui_hou_li_run_raw_float", "jing_li_run_raw_float", "wei_fen_li_run_raw_float", "mei_gu_jing_zi_chan_raw_float", "bao_liu_2_raw_float", "record_hex"],
+      "defaults": {"record_hex": ""},
+      "properties": ["circulating_shares", "full_code", "net_profit_yuan", "total_assets_yuan", "total_shares"]
+    },
+    "eltdx.models.corporate:FinanceBatch": {
+      "fields": ["records", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count"]
+    },
+    "eltdx.models.kline:KlineBar": {
+      "fields": ["time", "open", "close", "high", "low", "open_price_milli", "close_price_milli", "high_price_milli", "low_price_milli", "last_close_price_milli", "volume_raw", "amount_raw", "volume_wire_value", "volume_lots", "amount", "open_delta_raw", "close_delta_raw", "high_delta_raw", "low_delta_raw", "up_count", "down_count", "record_hex"],
+      "defaults": {"up_count": null, "down_count": null, "record_hex": ""}
+    },
+    "eltdx.models.kline:KlineSeries": {
+      "fields": ["exchange", "market_id", "code", "period_raw", "period_param_raw", "period_name", "start", "request_count", "adjust_mode_raw", "adjust_mode", "anchor_date_raw", "anchor_date", "bars", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count", "full_code"]
+    },
+    "eltdx.models.limit:SpecialLimitRecord": {
+      "fields": ["exchange", "market_id", "code_num", "code", "upper_price_raw_f32", "lower_price_raw_f32", "record_hex"],
+      "defaults": {"record_hex": ""},
+      "properties": ["full_code", "limit_down_price", "limit_up_price"]
+    },
+    "eltdx.models.limit:SpecialLimitPage": {
+      "fields": ["start_index", "records", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count"]
+    },
+    "eltdx.models.minute:MinutePoint": {
+      "fields": ["index", "time_label", "time", "price", "price_milli", "volume", "price_field", "avg_field", "avg_price", "price_raw", "avg_raw", "price_delta_raw", "aux_delta_raw", "record_hex"],
+      "defaults": {"price_field": null, "avg_field": null, "avg_price": null, "price_raw": null, "avg_raw": null, "price_delta_raw": null, "aux_delta_raw": null, "record_hex": ""}
+    },
+    "eltdx.models.minute:MinuteSeries": {
+      "fields": ["exchange", "market_id", "code", "trading_date", "points", "reserved_zero", "prev_close", "open_price", "date_selector_raw", "raw_payload"],
+      "defaults": {"reserved_zero": null, "prev_close": null, "open_price": null, "date_selector_raw": null, "raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count", "full_code", "volume_sum"]
+    },
+    "eltdx.models.minute:MinuteAuxPoint": {
+      "fields": ["index", "time_label", "series_a", "series_b", "buy_commission", "sell_commission", "previous_day_cumulative_volume", "current_day_cumulative_volume", "cumulative_volume", "record_hex"],
+      "defaults": {"buy_commission": null, "sell_commission": null, "previous_day_cumulative_volume": null, "current_day_cumulative_volume": null, "cumulative_volume": null, "record_hex": ""}
+    },
+    "eltdx.models.minute:MinuteAuxSeries": {
+      "fields": ["exchange", "market_id", "code", "selector_raw", "kind", "points", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count", "full_code"]
+    },
+    "eltdx.models.minute:SparklineSeries": {
+      "fields": ["exchange", "market_id", "code", "selector_raw", "selector_echo", "window_or_count_raw", "max_count_raw", "base_price", "prices", "reserved_param_u32", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count", "full_code"]
+    },
+    "eltdx.models.quote:QuoteLevel": {
+      "fields": ["price", "volume", "price_delta_raw"]
+    },
+    "eltdx.models.quote:QuoteSnapshot": {
+      "fields": ["exchange", "market_id", "code", "active1", "last_price", "pre_close_price", "open_price", "high_price", "low_price", "time_raw", "unknown_after_time_raw", "total_hand", "current_hand", "amount", "amount_raw", "inside_dish", "outer_disc", "unknown_after_outer_raw", "open_amount_raw", "open_amount_yuan", "buy_levels", "sell_levels", "tail_raw"],
+      "properties": ["change", "change_pct", "full_code", "sum_buy_vol", "sum_sell_vol"]
+    },
+    "eltdx.models.quote:LegacyQuote": {
+      "fields": ["exchange", "market_id", "code", "active1", "last_price", "pre_close_price", "open_price", "high_price", "low_price", "server_time_raw", "unknown_after_time_raw", "total_hand", "current_hand", "amount", "amount_raw", "inside_dish", "outer_disc", "unknown_after_outer_raw", "open_amount_raw", "open_amount_yuan", "buy_levels", "sell_levels", "trading_status_raw", "tail_metrics_raw", "rise_speed_raw", "active2", "record_hex"],
+      "defaults": {"record_hex": ""},
+      "properties": ["change", "change_pct", "full_code", "sum_buy_vol", "sum_sell_vol", "trading_status_hex"]
+    },
+    "eltdx.models.quote:CategoryQuoteRecord": {
+      "fields": ["exchange", "market_id", "code", "active1", "active2", "last_price", "pre_close_price", "open_price", "high_price", "low_price", "server_time_raw", "neg_price_raw", "total_hand", "current_hand", "amount", "amount_raw", "inside_dish", "outer_disc", "after_outer_raw", "open_amount_raw", "open_amount", "bid1", "ask1", "bid_vol1", "ask_vol1", "status_or_sort_raw", "rise_speed_raw", "rise_speed", "short_turnover_raw", "short_turnover", "min2_amount", "opening_rush_raw", "opening_rush", "extra_pair_raw", "vol_rise_speed", "depth", "extra_meta_raw", "tail_raw", "record_hex"],
+      "defaults": {"record_hex": ""},
+      "properties": ["change", "change_pct", "full_code", "locked_amount"]
+    },
+    "eltdx.models.quote:CategoryQuotePage": {
+      "fields": ["category", "sort_type", "start", "request_count", "sort_reverse", "filter_raw", "header", "records", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count"]
+    },
+    "eltdx.models.quote:QuoteRefreshRecord": {
+      "fields": ["exchange", "market_id", "code", "active", "update_time_raw", "last_price", "last_close_price", "open_price", "high_price", "low_price", "status_or_reserved_raw", "total_hand", "current_hand", "amount", "amount_raw", "inside_dish", "outer_disc", "unknown_after_outer_raw", "open_amount_raw", "open_amount_yuan", "buy_levels", "sell_levels", "tail_raw", "record_hex"],
+      "defaults": {"record_hex": ""},
+      "properties": ["full_code"]
+    },
+    "eltdx.models.quote:QuoteRefreshPage": {
+      "fields": ["requested_codes", "records", "decoded_payload", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["count"]
+    },
+    "eltdx.models.resource:FileContentChunk": {
+      "fields": ["path", "offset", "request_size", "chunk_len", "content", "raw_payload"],
+      "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["is_last"]
+    },
+    "eltdx.models.resource:TdxStatRow": {
+      "fields": ["market_id", "code", "stats_date", "beta_60d", "pe_ttm", "free_float_shares_10k", "year_limit_up_days", "limit_stat_days", "limit_up_count_in_stat_days", "limit_up_streak_days"],
+      "properties": ["key"]
+    },
+    "eltdx.models.resource:TdxStat2Row": {
+      "fields": ["market_id", "code", "stats_date", "amount_10k", "seal_amount_10k", "prev_amount_10k", "prev_seal_amount_10k", "prev2_amount_10k", "prev2_seal_amount_10k", "open_volume_hand", "prev_open_volume_hand", "open_amount_10k", "prev_open_amount_10k"],
+      "properties": ["key"]
+    },
+    "eltdx.models.resource:TdxStatsResource": {
+      "fields": ["stat", "stat2", "source_path"],
+      "properties": ["stat2_count", "stat_count", "stats_date", "stats_date_counts", "stats_date_coverage"]
+    },
+    "eltdx.models.response:Response": {
+      "fields": ["status", "payload"],
+      "defaults": {"payload": {"$type": "bytes", "hex": ""}}
+    },
+    "eltdx.models.security:SecurityCode": {
+      "fields": ["exchange", "market_id", "code", "name", "multiple", "decimal", "previous_close_price", "volume_ratio_base", "unknown0_raw", "previous_close_raw", "unknown3_raw", "category", "category_reason", "board", "board_reason"],
+      "properties": ["full_code"]
+    },
+    "eltdx.models.session:HandshakeInfo": {
+      "fields": ["server_datetime", "session_minutes_1", "session_minutes_2", "server_date_1", "server_date_2", "server_name", "product_tag", "unknown_time_1_raw", "unknown_time_2_raw", "flags_raw", "tail_control_raw", "raw_payload"]
+    },
+    "eltdx.models.session:HeartbeatAck": {
+      "fields": ["reserved", "server_date_raw", "server_date", "raw_payload"]
+    },
+    "eltdx.models.trade:TradeTick": {
+      "fields": ["index", "absolute_index", "time_minutes", "time_label", "trade_datetime", "price", "price_milli", "volume", "order_count", "status_raw", "side", "price_delta_raw", "price_acc_raw", "unknown_tail_raw", "reserved_zero", "record_hex", "event_kind", "auction_matched_volume", "auction_unmatched_signed_volume"],
+      "defaults": {"unknown_tail_raw": null, "reserved_zero": null, "record_hex": "", "event_kind": "trade", "auction_matched_volume": null, "auction_unmatched_signed_volume": null},
+      "properties": ["auction_unmatched_volume", "is_auction_snapshot", "is_opening_match", "is_trade", "trade_amount_yuan"]
+    },
+    "eltdx.models.trade:TradePage": {
+      "fields": ["exchange", "market_id", "code", "start", "request_count", "ticks", "trading_date", "price_base_raw_f32", "raw_payload"],
+      "defaults": {"trading_date": null, "price_base_raw_f32": null, "raw_payload": {"$type": "bytes", "hex": ""}},
+      "properties": ["auction_snapshots", "count", "full_code", "has_more", "opening_matches"]
+    },
+    "eltdx.helpers.core:StockProfile": {
+      "fields": ["full_code", "exchange", "market_id", "code", "name", "category", "board", "last_price", "pre_close_price", "open_price", "high_price", "low_price", "change", "change_pct", "volume_hand", "amount", "open_amount_yuan", "circulating_shares", "total_shares", "turnover_rate", "circulating_market_value", "total_market_value", "eps", "ipo_date", "updated_date", "security", "quote", "finance"],
+      "defaults": {"security": null, "quote": null, "finance": null}
+    },
+    "eltdx.helpers.core:StockProfileTable": {
+      "fields": ["codes", "rows"],
+      "properties": ["count"]
+    },
+    "eltdx.helpers.core:StockTopic": {
+      "fields": ["topic_id", "topic_name", "relation_level", "selected_date", "topic_date", "reason", "detail_id", "category_raw", "source", "raw"]
+    },
+    "eltdx.helpers.core:StockTopics": {
+      "fields": ["code", "topics"],
+      "properties": ["count"]
+    },
+    "eltdx.helpers.core:TopicStock": {
+      "fields": ["rank", "full_code", "exchange", "market_id", "code", "name", "change_pct", "change_pct_3d", "change_pct_5d", "change_pct_20d", "change_pct_60d", "change_pct_ytd", "trading_date", "raw"]
+    },
+    "eltdx.helpers.core:TopicStockTable": {
+      "fields": ["seed_code", "topic_id", "topic_name", "sort_by", "rows"],
+      "properties": ["count"]
+    },
+    "eltdx.helpers.core:AuctionData": {
+      "fields": ["code", "trading_date", "series", "auction_records", "snapshot_0925", "pre_close_price", "open_price", "open_volume", "open_amount", "open_change_pct"]
+    },
+    "eltdx.helpers.shortline:ShortlineIndicator": {
+      "fields": ["full_code", "exchange", "market_id", "code", "target_trade_date", "previous_trade_date", "stats_date", "alignment_status", "limit_status", "beta_60d", "pe_ttm", "free_float_shares", "prev_amount", "prev_seal_amount", "prev2_seal_amount", "prev_open_volume_hand", "prev_open_amount", "limit_stat_days", "limit_up_count_in_stat_days", "limit_up_streak_days", "year_limit_up_days", "free_float_market_value", "open_turnover_z", "open_prev_amount_ratio", "auction_prev_volume_ratio", "open_prev_seal_ratio", "seal_to_float_ratio", "seal_prev_ratio", "limit_board_text", "ladder_level"]
+    },
+    "eltdx.helpers.shortline:ShortlineIndicatorTable": {
+      "fields": ["codes", "target_trade_date", "previous_trade_date", "stats_date", "stats_source_path", "stats_refreshed", "rows"],
+      "properties": ["count"]
+    },
+    "eltdx.f10.models:F10Cell": {
+      "fields": ["name", "value", "index"]
+    },
+    "eltdx.f10.models:F10ResultSet": {
+      "fields": ["key", "columns", "rows", "row_cells", "raw"],
+      "repr_false_fields": ["raw"],
+      "properties": ["count"]
+    },
+    "eltdx.f10.models:F10Response": {
+      "fields": ["entry", "request_body", "error_code", "result_sets", "raw"],
+      "repr_false_fields": ["raw"],
+      "properties": ["first_table", "ok", "rows", "tables"]
+    },
+    "eltdx.protocol.frame:RequestFrame": {
+      "fields": ["msg_id", "msg_type", "data", "control"],
+      "defaults": {"data": {"$type": "bytes", "hex": ""}, "control": 1}
+    },
+    "eltdx.protocol.frame:ResponseFrame": {
+      "fields": ["control", "msg_id", "msg_type", "zip_length", "length", "data", "raw", "response_header_reserved"],
+      "defaults": {"response_header_reserved": 0}
+    },
+    "eltdx.protocol.commands.registry:CommandSpec": {
+      "fields": ["code", "name", "module", "method", "required_for_1_0", "document", "retry_safe"],
+      "defaults": {"retry_safe": false},
+      "properties": ["hex"]
+    },
+    "eltdx.transport.actor:ActorSnapshot": {
+      "fields": ["runtime_epoch", "state", "tcp_state", "tcp_generation", "connected_host", "actor_alive", "pending_depth", "reconnect_count", "stale_event_count", "last_error"]
+    },
+    "eltdx.transport.pool:BrokerSnapshot": {
+      "fields": ["pool_epoch", "idle_slots", "waiter_count", "pin_waiter_count", "active_leases", "closed"]
+    },
+    "eltdx.transport.pool:PoolDiagnostics": {
+      "fields": ["epoch", "state", "broker", "actors", "push_frames", "push_bytes", "push_dropped", "runtime_workers", "pool_size", "server_count", "max_connections_per_host", "connect_concurrency", "connect_concurrency_per_host", "raw_bytes", "raw_max_bytes", "raw_peak_bytes", "decoded_bytes", "decoded_max_bytes", "decoded_peak_bytes", "push_max_bytes"],
+      "defaults": {"runtime_workers": 0, "pool_size": 0, "server_count": 0, "max_connections_per_host": 0, "connect_concurrency": 0, "connect_concurrency_per_host": 0, "raw_bytes": 0, "raw_max_bytes": 0, "raw_peak_bytes": 0, "decoded_bytes": 0, "decoded_max_bytes": 0, "decoded_peak_bytes": 0, "push_max_bytes": 0}
+    },
+    "eltdx.transport.socket:TransportDiagnostics": {
+      "fields": ["epoch", "actor", "push_frames", "push_bytes", "push_dropped", "push_max_frames", "push_max_bytes", "runtime_workers", "raw_bytes", "raw_max_bytes", "raw_peak_bytes", "decoded_bytes", "decoded_max_bytes", "decoded_peak_bytes"],
+      "defaults": {"runtime_workers": 0, "raw_bytes": 0, "raw_max_bytes": 0, "raw_peak_bytes": 0, "decoded_bytes": 0, "decoded_max_bytes": 0, "decoded_peak_bytes": 0}
+    }
+  },
+  "exceptions": {
+    "eltdx.exceptions:EltdxError": ["builtins:Exception"],
+    "eltdx.exceptions:ProtocolError": ["eltdx.exceptions:EltdxError"],
+    "eltdx.exceptions:ResourceFormatError": ["eltdx.exceptions:EltdxError"],
+    "eltdx.exceptions:TdxStatsDateError": ["eltdx.exceptions:ResourceFormatError"],
+    "eltdx.exceptions:ShortlineIndicatorsNotReadyError": ["eltdx.exceptions:EltdxError"],
+    "eltdx.exceptions:TransportError": ["eltdx.exceptions:EltdxError"],
+    "eltdx.exceptions:ConnectionClosedError": ["eltdx.exceptions:TransportError"],
+    "eltdx.exceptions:ResponseTimeoutError": ["eltdx.exceptions:TransportError"],
+    "eltdx.exceptions:PoolBusyError": ["eltdx.exceptions:TransportError"],
+    "eltdx.exceptions:PushOverflowError": ["eltdx.exceptions:TransportError"],
+    "eltdx.exceptions:TransportCloseTimeoutError": ["eltdx.exceptions:TransportError"],
+    "eltdx.exceptions:UnsupportedCommandError": ["eltdx.exceptions:EltdxError"]
+  }
+}

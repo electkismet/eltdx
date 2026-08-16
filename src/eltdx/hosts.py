@@ -2,19 +2,30 @@
 
 from __future__ import annotations
 
-import json
 import ipaddress
+import json
+import os
 import socket
+import sys
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from functools import lru_cache
 from importlib import resources
+from pathlib import Path
+from threading import Lock, get_ident
 from typing import Any
 
 SERVER_FILE = "tdx_server.json"
+SERVER_RANKING_FILE = "tdx_server_ranking.json"
+SERVER_RANKING_SCHEMA_VERSION = 1
 DEFAULT_PROBE_TIMEOUT = 1.2
 DEFAULT_PROBE_WORKERS = 32
+DEFAULT_PROBE_HOSTS = True
+
+_RANKING_WRITE_LOCK = Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,6 +209,146 @@ def load_server_hosts() -> list[str]:
     return unique_hosts(values)
 
 
+def server_ranking_path() -> Path:
+    """Return the writable per-user server ranking path."""
+
+    override = os.environ.get("ELTDX_DATA_DIR")
+    if override:
+        data_dir = Path(override).expanduser()
+    elif os.name == "nt":
+        windows_data = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+        data_dir = Path(windows_data or Path.home()) / "eltdx"
+    elif sys.platform == "darwin":
+        data_dir = Path.home() / "Library" / "Application Support" / "eltdx"
+    else:
+        xdg_data = os.environ.get("XDG_DATA_HOME")
+        data_dir = Path(xdg_data or Path.home() / ".local" / "share") / "eltdx"
+    return data_dir / SERVER_RANKING_FILE
+
+
+def load_server_ranking() -> dict[str, Any]:
+    """Load the last complete per-user probe ranking, if available."""
+
+    try:
+        data = json.loads(server_ranking_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+    if not isinstance(data, dict) or data.get("schema_version") != SERVER_RANKING_SCHEMA_VERSION:
+        return {}
+    return data
+
+
+def rank_hosts_from_cache(hosts: list[str] | tuple[str, ...]) -> list[str]:
+    """Order candidates by the last persisted ranking without removing hosts."""
+
+    candidates = unique_hosts(list(hosts))
+    candidate_set = set(candidates)
+    records = load_server_ranking().get("hosts", [])
+    if not isinstance(records, list):
+        return candidates
+    ranked = unique_hosts(
+        [record.get("host") for record in records if isinstance(record, dict)]
+    )
+    cached = [host for host in ranked if host in candidate_set]
+    cached_set = set(cached)
+    return cached + [host for host in candidates if host not in cached_set]
+
+
+def _persist_probe_results(
+    candidates: list[str],
+    results: list[HostProbeResult],
+) -> None:
+    previous = load_server_ranking()
+    previous_records = previous.get("hosts", [])
+    if not isinstance(previous_records, list):
+        previous_records = []
+    previous_by_host = {
+        record["host"]: record
+        for record in previous_records
+        if isinstance(record, dict) and normalize_host(record.get("host")) is not None
+    }
+    previous_order = unique_hosts(
+        [record.get("host") for record in previous_records if isinstance(record, dict)]
+    )
+    result_by_host = {result.host: result for result in results}
+    reachable = sorted(
+        (result for result in results if result.ok),
+        key=lambda result: (
+            result.latency_ms if result.latency_ms is not None else float("inf"),
+            candidates.index(result.host),
+        ),
+    )
+    reachable_hosts = [result.host for result in reachable]
+    known_hosts = unique_hosts(previous_order + candidates)
+    reachable_set = set(reachable_hosts)
+    ranked_hosts = reachable_hosts + [host for host in known_hosts if host not in reachable_set]
+    probed_at = datetime.now(timezone.utc).isoformat()
+
+    records: list[dict[str, Any]] = []
+    for rank, host in enumerate(ranked_hosts, start=1):
+        prior = previous_by_host.get(host, {})
+        result = result_by_host.get(host)
+        if result is None:
+            record = dict(prior) if prior else {"host": host}
+        elif result.ok:
+            record = {
+                "host": host,
+                "ok": True,
+                "latency_ms": result.latency_ms,
+                "error": None,
+                "last_probe_at": probed_at,
+                "last_success_at": probed_at,
+                "last_success_latency_ms": result.latency_ms,
+                "consecutive_failures": 0,
+            }
+        else:
+            prior_failures = prior.get("consecutive_failures", 0)
+            if (
+                isinstance(prior_failures, bool)
+                or not isinstance(prior_failures, int)
+                or prior_failures < 0
+            ):
+                prior_failures = 0
+            record = {
+                "host": host,
+                "ok": False,
+                "latency_ms": None,
+                "error": result.error,
+                "last_probe_at": probed_at,
+                "last_success_at": prior.get("last_success_at"),
+                "last_success_latency_ms": prior.get("last_success_latency_ms"),
+                "consecutive_failures": prior_failures + 1,
+            }
+        record["host"] = host
+        record["rank"] = rank
+        records.append(record)
+
+    payload = {
+        "schema_version": SERVER_RANKING_SCHEMA_VERSION,
+        "updated_at": probed_at,
+        "hosts": records,
+    }
+    path = server_ranking_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{get_ident()}.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8") as stream:
+            json.dump(payload, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            temporary.chmod(0o600)
+        except OSError:
+            pass
+        temporary.replace(path)
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def probe_host(host: str, *, timeout: float = DEFAULT_PROBE_TIMEOUT) -> HostProbeResult:
     """Measure whether a 7709 host accepts TCP connections."""
 
@@ -221,8 +372,9 @@ def probe_hosts(
     *,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
     max_workers: int = DEFAULT_PROBE_WORKERS,
+    persist: bool = True,
 ) -> list[HostProbeResult]:
-    """Probe many hosts concurrently."""
+    """Probe many hosts concurrently and persist their ranking by default."""
 
     candidates = unique_hosts(list(hosts))
     if not candidates:
@@ -234,7 +386,31 @@ def probe_hosts(
         futures = [executor.submit(probe_host, host, timeout=timeout) for host in candidates]
         for future in as_completed(futures):
             results.append(future.result())
+    if persist:
+        try:
+            with _RANKING_WRITE_LOCK:
+                _persist_probe_results(candidates, results)
+        except OSError as exc:
+            warnings.warn(
+                f"unable to persist eltdx server ranking: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
     return results
+
+
+def refresh_server_ranking(
+    hosts: list[str] | tuple[str, ...] | None = None,
+    *,
+    timeout: float = DEFAULT_PROBE_TIMEOUT,
+    max_workers: int = DEFAULT_PROBE_WORKERS,
+) -> list[HostProbeResult]:
+    """Manually probe and persist all packaged servers, or explicit candidates."""
+
+    candidates = unique_hosts(list(hosts or load_server_hosts() or FALLBACK_HOSTS))
+    results = probe_hosts(candidates, timeout=timeout, max_workers=max_workers, persist=True)
+    by_host = {result.host: result for result in results}
+    return [by_host[host] for host in rank_hosts_from_cache(candidates) if host in by_host]
 
 
 def sort_hosts_by_latency(
@@ -246,13 +422,17 @@ def sort_hosts_by_latency(
     """Return reachable hosts first, ordered by TCP latency."""
 
     candidates = unique_hosts(list(hosts))
-    results = probe_hosts(candidates, timeout=timeout, max_workers=max_workers)
+    previous_order = rank_hosts_from_cache(candidates)
+    results = probe_hosts(candidates, timeout=timeout, max_workers=max_workers, persist=True)
     reachable = sorted(
         (result for result in results if result.ok),
-        key=lambda result: (result.latency_ms if result.latency_ms is not None else float("inf"), candidates.index(result.host)),
+        key=lambda result: (
+            result.latency_ms if result.latency_ms is not None else float("inf"),
+            candidates.index(result.host),
+        ),
     )
     reachable_hosts = {result.host for result in reachable}
-    unreachable = [host for host in candidates if host not in reachable_hosts]
+    unreachable = [host for host in previous_order if host not in reachable_hosts]
     return [result.host for result in reachable] + unreachable
 
 

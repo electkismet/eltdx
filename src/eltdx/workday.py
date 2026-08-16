@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from eltdx.protocol.unit import date_from_yyyymmdd, yyyymmdd

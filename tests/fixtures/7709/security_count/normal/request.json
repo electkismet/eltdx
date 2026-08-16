@@ -1,0 +1,25 @@
+{
+  "$type": "dict",
+  "items": [
+    [
+      {
+        "$type": "str",
+        "value": "market"
+      },
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "client_date_yyyymmdd"
+      },
+      {
+        "$type": "int",
+        "value": "20260519"
+      }
+    ]
+  ]
+}

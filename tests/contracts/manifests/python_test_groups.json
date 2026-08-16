@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "groups": {
+    "round3-golden": [
+      "tests/native/test_differential.py"
+    ],
+    "round4-local": [
+      "tests/contracts/test_baseline_exporter_contract.py",
+      "tests/contracts/test_command_contract_manifest.py",
+      "tests/contracts/test_dataclasses_exceptions.py",
+      "tests/contracts/test_legacy_test_traceability_contract.py",
+      "tests/contracts/test_native_errors_contract.py",
+      "tests/contracts/test_native_models_contract.py",
+      "tests/contracts/test_native_performance_evidence.py",
+      "tests/contracts/test_native_protocol_facade_contract.py",
+      "tests/contracts/test_public_api_contract.py",
+      "tests/contracts/test_python_test_groups.py",
+      "tests/contracts/test_release_evidence_index.py",
+      "tests/contracts/test_response_dto_contract.py",
+      "tests/contracts/test_runtime_memory_bounds.py",
+      "tests/contracts/test_runtime_surfaces_contract.py",
+      "tests/contracts/test_static_fixture_inputs.py",
+      "tests/contracts/test_unified_test_plan.py",
+      "tests/integration/test_native_transport.py",
+      "tests/packaging/test_bytecode_exclusion_contract.py",
+      "tests/packaging/test_docs_mirror.py",
+      "tests/packaging/test_release_artifacts.py",
+      "tests/packaging/test_release_metadata_contract.py",
+      "tests/packaging/test_sdist_verification.py",
+      "tests/packaging/test_testpypi_candidate_contract.py",
+      "tests/test_client.py",
+      "tests/test_f10.py",
+      "tests/test_helpers.py",
+      "tests/test_mcp.py",
+      "tests/test_pages.py",
+      "tests/test_resources.py",
+      "tests/test_shortline_helpers.py"
+    ],
+    "round5-loopback": [
+      "tests/integration/test_loopback_concurrency.py",
+      "tests/integration/test_loopback_faults.py"
+    ],
+    "round6-stress": [
+      "tests/stress/test_native_runtime_stress.py"
+    ],
+    "round8-real-host": [
+      "tests/integration/test_real_hosts.py"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$type": "dict",
+  "items": [
+    [
+      {
+        "$type": "str",
+        "value": "code"
+      },
+      {
+        "$type": "str",
+        "value": "sz000988"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "kind"
+      },
+      {
+        "$type": "str",
+        "value": "buy_sell_strength"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "include_raw"
+      },
+      {
+        "$type": "bool",
+        "value": true
+      }
+    ]
+  ]
+}
