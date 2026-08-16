@@ -22,12 +22,6 @@
   <img alt="eltdx 接口目录预览" src=".github/assets/eltdx-readme-banner.png">
 </a>
 
-<p align="center">
-  <a href="https://api.astlane.com/">
-    <img alt="Astlane token 赞助方" src="docs/assets/astlane-sponsor.svg" width="860">
-  </a>
-</p>
-
 > 如果需要多数据源可以关注新项目 [AxData](https://github.com/electkismet/AxData)：AxData 基于 eltdx 迭代开发，除通达信体系外，AxData 还通过插件机制整理接入交易所、巨潮、腾讯财经、新浪财经、东方财富、财联社、开盘红等公开源接口，并扩展了自由流通市值、开盘换手、开盘量比、开盘抢筹、竞价昨比、连板天梯、题材强度等更适合本地量化研究和短线数据分析的指标能力，但如果是用单一源的话，仍推荐eltdx，受制于架构axdata性能不如裸协议路径的eltdx。
 
 通达信在线行情协议 Python 库。可以拿 A 股的行情、分时、成交明细、K 线、竞价、公司信息、题材信息等信息，支持 MCP 工具。`3.0` 保留现有 Python API 和返回模型，将 21 个 7709 命令的构包、解析、连接池、pin、push、心跳和关闭核心统一迁入 Rust。
@@ -42,17 +36,32 @@
 
 感谢 [injoyai/tdx](https://github.com/injoyai/tdx) 及 [rainx/pytdx](https://github.com/rainx/pytdx) 的启发。
 
-## eltdx 功能简介
+## 功能地图
 
-| 类型     | 能力                                          | 入口                                 |
-| ------ | ------------------------------------------- | ---------------------------------- |
-| 行情基础   | 代码表、代码数量、批量行情查询/推送、分类行情                     | `client.codes`、`client.quotes`     |
-| 图表数据   | K 线、当日分时、历史分时、近期分时、分时副图、小走势图                | `client.bars`、`client.minutes`     |
-| 成交数据   | 当日成交明细、历史成交明细、当日集合竞价过程快照、09:25 正式撮合           | `client.trades`、`client.auctions`  |
-| 公司基础   | 股本变迁、除权除息、财务基础信息、特殊品种涨跌停限制                  | `client.corporate`、`client.limits` |
-| F10 资料 | 公司概况、热点题材、公告、新闻、研报、财务报表、估值、主营构成             | `client.f10` 或 `F10Client`         |
-| 常用场景   | 股票信息汇总、短线指标（流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比、几天几板等）、个股概念板块、概念板块成分股、竞价数据、复权/不复权 K 线 | `client.helpers`                   |
-| 工具能力   | 连接池、主站测速、自动心跳、低频数据缓存、JSON 序列化、交易日工具、MCP 工具服务 | `TdxClient`、`WorkdayService`、`eltdx-mcp` |
+eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用模块化 API 和 Helpers；只有做协议研究时，才需要直接对照 `7709` 命令或 `7615` Entry。
+
+```mermaid
+flowchart LR
+    U["Python 调用 / MCP"] --> H["Helpers<br/>常用场景组合"]
+    U --> A["模块化业务 API"]
+    H --> A
+    A --> Q["7709 原生协议<br/>行情・K 线・成交・资源"]
+    A --> F["7615 原生 Entry<br/>F10・财务・资讯・题材"]
+    Q --> R["结构化 dataclass / push / JSON"]
+    F --> R
+```
+
+| 研究任务 | 可以直接拿到 | 推荐入口 | 数据路径 |
+| --- | --- | --- | --- |
+| 市场与证券范围 | A 股、ETF、指数、市场代码数量、全量代码表、分类行情 | `client.codes`、`client.quotes.list_by_category()` | `7709 原生协议` |
+| 实时行情与盘口 | 批量快照、完整五档、游标刷新、push 队列 | `client.helpers.full_quotes()`、`client.quotes` | `7709 原生协议` + `Helpers 封装` |
+| K 线与分时 | 分钟/日/周/月/季/年 K 线、自动分页、复权、当日/历史分时、副图、小走势图 | `client.bars`、`client.minutes`、`client.helpers.factors()` | `7709 原生协议` + `Helpers 本地计算` |
+| 成交与竞价 | 当日/历史成交明细、竞价过程快照、09:25 正式撮合、竞价汇总 | `client.trades`、`client.auctions`、`client.helpers.auction_data()` | `7709 原生协议` + `Helpers 封装` |
+| 公司、股本与复权 | 股本变迁、除权除息、指定日期股本、换手率、财务基础、涨跌停限制 | `client.corporate`、`client.limits`、`client.helpers` | `7709 原生协议` + `Helpers 整理` |
+| F10 与资讯 | 公司概况、主营构成、财报、财务诊断、估值、公告、新闻、研报、治理、北向持仓 | `client.f10` 或 `F10Client` | `7615 原生 Entry` |
+| 题材与短线研究 | 热点题材、概念成分股、股票信息汇总、流通市值Z、开盘换手Z、竞价昨比、几天几板等 21 个指标 | `client.helpers.stock_topics()`、`topic_stocks()`、`stock_profile_table()`、`shortline_indicators()` | `7709` + `7615` + `Helpers 组合` |
+| 资源与协议研究 | 服务器文件分块/下载、统计资源解析、raw payload、21 个 7709 命令对照 | `client.resources`、`include_raw=True` | `7709 原生协议` |
+| 工程与集成 | 服务器测速、Rust 连接池、心跳、pin、push、缓存、JSON、交易日、MCP 服务 | `TdxClient`、`WorkdayService`、`eltdx-mcp` | `Rust Engine` + `Python / MCP` |
 
 完整接口目录见 [GitHub Pages](https://electkismet.github.io/eltdx/)。调用方法和返回字段看 [METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md)，常用问题入口看 [docs/helpers/README.md](docs/helpers/README.md)，完整 API 看 [API_REFERENCE.md](docs/API_REFERENCE.md)，字段总表看 [FIELD_REFERENCE.md](docs/FIELD_REFERENCE.md)，F10 资料看 [F10_7615.md](docs/F10_7615.md)，MCP 工具看 [MCP.md](docs/MCP.md)。
 
@@ -240,25 +249,90 @@ F10 返回统一是 `F10Response`。常用结果在 `response.rows`，多表结�
 
 ## 连接、并发和缓存
 
-默认 `TdxClient()` 使用真实 `7709` 行情主站；不传 `host` / `hosts` 时，会读取包内 `tdx_server.json`。
+默认 `TdxClient()` 使用真实 `7709` 行情主站。整个过程可以概括为：先从候选主站中测速排名，再选服务器建立多条 TCP 连接，最后由 Rust Runtime 用少量工作线程驱动这些异步连接。
+
+```mermaid
+flowchart LR
+    C["43 台候选主站<br/>tdx_server.json"] --> P["TCP connect 测速<br/>持久保存排名"]
+    P --> S["选最快 server_count 台<br/>默认 2 台"]
+    S --> T["每台 connections_per_server 条 TCP<br/>默认 4 条"]
+    T --> L["pool_size 个 Rust Slot<br/>默认 8 个"]
+    L --> W["runtime_workers 个工作线程<br/>默认按逻辑 CPU 自动取值"]
+    W --> U["Python 并发请求"]
+```
+
+> **核心关系：** `服务器数 × 每台 TCP 连接数 = Slot 总数`。Slot 数是同时可以在网络上处理的请求数，**不是线程数**。例如 20 台 × 每台 8 条 = 160 Slot；如果当前进程可用 16 个逻辑处理器，默认由 16 个 Runtime 工作线程异步驱动。
+
+### 服务器测速与排名
+
+- 不传 `host` / `hosts` 时，读取包内 `tdx_server.json` 的 43 台候选主站。
+- `probe_hosts=True` 默认开启。只创建 `TdxClient` 对象不会测速；进入 `with`、显式 `connect()` 或首次请求需要创建 Engine 时才会测。
+- 测速检查的是 TCP connect 延迟，用来快速排除连不上或延迟高的主站；它不等于完整业务请求质量测试。
+- 排名会原子写入当前用户数据目录的 `tdx_server_ranking.json`。下次启动先使用上次排名，然后重新测速刷新；升级 eltdx 不会覆盖这份用户排名。
+
+也可以手动重测全部 43 台候选主站并持久化结果：
+
+```python
+from eltdx.hosts import refresh_server_ranking
+
+ranking = refresh_server_ranking(timeout=1.2)
+for item in ranking[:10]:
+    print(item)
+```
+
+如果不想自动选站，可以直接指定一台主站：
 
 ```python
 from eltdx import TdxClient
 
 with TdxClient(host="116.205.183.150:7709", timeout=3) as client:
     print(client.helpers.full_quotes("sz000001"))
-
-with TdxClient.from_hosts(pool_size=4, probe_hosts=True, timeout=3) as client:
-    print(client.codes.count("sz"))
 ```
 
-默认从43台候选服务器的持久测速排名中使用最快2台，每台4条 TCP 连接，共8个 Rust Slot。可以用 `server_count` 和 `connections_per_server` 调整；旧的 `pool_size=N` 继续表示 TCP/Slot 总数，并在选中的服务器之间尽量平均分配。
+### 服务器、Slot 和线程怎么设
 
-`runtime_workers` 与 TCP 数量分开，默认取 `min(pool_size, 系统允许的逻辑处理器数)`，也可以手动设置。高并发可使用 `TdxClient(server_count=20, connections_per_server=8)` 配置160个 Slot；这不等于创建160个线程。
+| 场景 | 配置 | 实际含义 |
+| --- | --- | --- |
+| 默认，适合普通查询 | `TdxClient()` | 最快 2 台 × 每台 4 TCP = 8 Slot；Runtime 线程数自动 |
+| 中等并发 | `TdxClient(server_count=4, connections_per_server=8)` | 最快 4 台 × 每台 8 TCP = 32 Slot |
+| 高并发 | `TdxClient(server_count=20, connections_per_server=8)` | 最快 20 台 × 每台 8 TCP = 160 Slot |
+| 手动限制 CPU 线程 | `TdxClient(server_count=4, connections_per_server=8, runtime_workers=8)` | 仍为 32 Slot，只让 Rust Runtime 用 8 个 worker 驱动 |
+| 兼容旧配置 | `TdxClient(pool_size=16)` | `pool_size` 仅表示 TCP/Slot 总数，在选中主站之间尽量平均分配 |
 
-每个 Engine 使用一个单所有者 Supervisor 和共享的 Tokio worker；每个 Slot task 独占自己的 socket、decoder 和 TCP generation。网络重连只 retirement 当前 generation。建议始终使用 `with TdxClient(...) as client:`；退出 `with` 时会停止 admission、清理 pin/push、关闭 socket 并 join runtime。手动创建客户端时，需要在 `finally` 中调用 `client.close()`。
+`runtime_workers` 默认为 `min(pool_size, 当前进程可用的逻辑处理器数)`，会识别 Windows、Linux 和 macOS，也会尽量遵守容器或 CPU affinity 对进程的限制。自动值适合大多数情况；手动值必须在 `1..=pool_size` 内。更多 worker 只是提高同时解析/调度的 CPU 能力，不会凭空增加 TCP 连接。
 
-真实 socket 连接默认每 30 秒自动心跳保活。关闭后台心跳：
+| 参数 | 默认 | 控制什么 |
+| --- | --- | --- |
+| `server_count` | `2` | 从测速排名中取前几台服务器 |
+| `connections_per_server` | `4` | 每台选中服务器建几条 TCP，不是每台几个线程 |
+| `pool_size` | 自动为 `server_count × connections_per_server` | TCP/Slot 总数；显式同时传三者时，乘积必须一致 |
+| `runtime_workers` | 按 Slot 和逻辑 CPU 自动 | Rust Tokio Runtime 工作线程数 |
+| `max_connections_per_host` | 按初始分布自动 | 单台服务器的活动连接硬上限，重连时也遵守 |
+| `connect_concurrency` | 按 CPU/Slot 自动，最高 `32` | 全局同时建连和握手数，防止大池瞬间建连 |
+| `connect_concurrency_per_host` | 最多 `2` | 同一台服务器同时建连和握手数 |
+| `probe_hosts` | `True` | 首次建 Engine 前是否测速、持久化并排序 |
+| `heartbeat_interval` | `30.0` | 后台心跳秒数；`None` 表示关闭 |
+| `max_pending_requests` | `256` | Slot 全忙时允许等待的请求数；满后抛 `PoolBusyError` |
+| `push_queue_size` / `push_queue_bytes` | `1024` 帧 / `64 MiB` | 用户可见 push 缓冲的帧数和字节上限 |
+| `global_raw_bytes` / `global_decoded_bytes` | 随 Slot 自动增长 | Engine 全局内存预算，分别最高 `256 MiB` / `2 GiB`，防止异常流量无限增长 |
+
+160 Slot 并不会一次性拉起 160 次握手：默认全局同时建连最高 32，单台同时最多 2 条，完成一批后再继续。所有连接共享 Engine 级 raw、decoded 和 push 内存预算；达到上限时会限流、丢弃过旧 push 或关闭受影响的 Slot，不会任由队列无限占用内存。
+
+运行时可通过 diagnostics 查看真实线程数、已连主站和内存占用：
+
+```python
+with TdxClient(server_count=4, connections_per_server=8, timeout=3) as client:
+    snapshot = client.transport.diagnostics
+    print(snapshot.runtime_workers, snapshot.server_count)
+    print(client.transport.connected_hosts)
+    print(snapshot.raw_bytes, snapshot.decoded_bytes)
+```
+
+每个 Engine 使用一个单所有者 Supervisor 统一管理请求生命周期；每个 Slot task 独占自己的 socket、decoder 和 TCP generation。某条连接超时或返回异常时，只废弃当前 Slot 的连接代次，避免迟到响应污染后续请求。
+
+建议始终使用 `with TdxClient(...) as client:`。退出 `with` 时会停止接收新请求、清理 pin/push、关闭 socket 并等待 Runtime 结束。手动创建客户端时，需要在 `finally` 中调用 `client.close()`。
+
+真实 socket 默认每 30 秒自动心跳保活。关闭后台心跳：
 
 ```python
 client = TdxClient(heartbeat_interval=None)
@@ -393,3 +467,11 @@ print(auction.open_price, auction.open_change_pct, auction.open_amount)
 ## 许可证
 
 本项目仅允许个人学习、协议研究和非商业研究使用，禁止一切商业使用和滥用。详细条款见 [LICENSE](LICENSE)。
+
+## 赞助
+
+<p align="center">
+  <a href="https://api.astlane.com/">
+    <img alt="Astlane token 赞助方" src="docs/assets/astlane-sponsor.svg" width="860">
+  </a>
+</p>

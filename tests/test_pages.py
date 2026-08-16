@@ -405,8 +405,11 @@ def test_readme_shows_the_astlane_sponsor_banner() -> None:
     sponsor = SPONSOR_BANNER_PATH.read_text(encoding="utf-8")
 
     catalog_position = readme.index('src=".github/assets/eltdx-readme-banner.png"')
+    license_position = readme.index("## 许可证")
+    sponsor_heading_position = readme.index("## 赞助")
     sponsor_position = readme.index('src="docs/assets/astlane-sponsor.svg"')
-    assert catalog_position < sponsor_position
+    assert catalog_position < license_position < sponsor_heading_position < sponsor_position
+    assert readme.rstrip().endswith("</p>")
     assert 'href="https://api.astlane.com/"' in readme
     assert '<title id="title">Astlane 赞助 eltdx token</title>' in sponsor
 
