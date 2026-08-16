@@ -40,16 +40,15 @@
 
 eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用模块化 API 和 Helpers；只有做协议研究时，才需要直接对照 `7709` 命令或 `7615` Entry。
 
-```mermaid
-flowchart LR
-    U["Python 调用 / MCP"] --> H["Helpers<br/>常用场景组合"]
-    U --> A["模块化业务 API"]
-    H --> A
-    A --> Q["7709 原生协议<br/>行情・K 线・成交・资源"]
-    A --> F["7615 原生 Entry<br/>F10・财务・资讯・题材"]
-    Q --> R["结构化 dataclass / push / JSON"]
-    F --> R
-```
+<p align="center">
+  <strong>Python / MCP</strong>
+  &nbsp;→&nbsp;
+  <strong>模块化 API / Helpers</strong>
+  &nbsp;→&nbsp;
+  <strong>7709 原生协议 / 7615 原生 Entry</strong>
+  &nbsp;→&nbsp;
+  <strong>dataclass / push / JSON</strong>
+</p>
 
 | 研究任务 | 可以直接拿到 | 推荐入口 | 数据路径 |
 | --- | --- | --- | --- |
@@ -251,15 +250,19 @@ F10 返回统一是 `F10Response`。常用结果在 `response.rows`，多表结�
 
 默认 `TdxClient()` 使用真实 `7709` 行情主站。整个过程可以概括为：先从候选主站中测速排名，再选服务器建立多条 TCP 连接，最后由 Rust Runtime 用少量工作线程驱动这些异步连接。
 
-```mermaid
-flowchart LR
-    C["43 台候选主站<br/>tdx_server.json"] --> P["TCP connect 测速<br/>持久保存排名"]
-    P --> S["选最快 server_count 台<br/>默认 2 台"]
-    S --> T["每台 connections_per_server 条 TCP<br/>默认 4 条"]
-    T --> L["pool_size 个 Rust Slot<br/>默认 8 个"]
-    L --> W["runtime_workers 个工作线程<br/>默认按逻辑 CPU 自动取值"]
-    W --> U["Python 并发请求"]
-```
+<p align="center">
+  <strong>43 台候选主站</strong>
+  &nbsp;→&nbsp;
+  <strong>TCP 测速并保存排名</strong>
+  &nbsp;→&nbsp;
+  <strong>默认选最快 2 台</strong>
+  &nbsp;→&nbsp;
+  <strong>每台 4 TCP</strong>
+  &nbsp;→&nbsp;
+  <strong>8 Slot</strong>
+  &nbsp;→&nbsp;
+  <strong>Runtime 按逻辑 CPU 自动取值</strong>
+</p>
 
 > **核心关系：** `服务器数 × 每台 TCP 连接数 = Slot 总数`。Slot 数是同时可以在网络上处理的请求数，**不是线程数**。例如 20 台 × 每台 8 条 = 160 Slot；如果当前进程可用 16 个逻辑处理器，默认由 16 个 Runtime 工作线程异步驱动。
 
