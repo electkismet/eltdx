@@ -8,6 +8,7 @@
       "tests/contracts/test_baseline_exporter_contract.py",
       "tests/contracts/test_command_contract_manifest.py",
       "tests/contracts/test_dataclasses_exceptions.py",
+      "tests/contracts/test_differential_overrides_contract.py",
       "tests/contracts/test_legacy_test_traceability_contract.py",
       "tests/contracts/test_native_errors_contract.py",
       "tests/contracts/test_native_models_contract.py",

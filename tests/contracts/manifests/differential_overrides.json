@@ -5,6 +5,19 @@
     "commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec"
   },
   "overrides": {
+    "auction_series": {
+      "when_request_field_missing": "trading_date",
+      "expected_added_root_dataclass_fields": [
+        {
+          "qualname": "AuctionSeries",
+          "after": "code",
+          "name": "trading_date",
+          "value": null
+        }
+      ],
+      "authority": "docs/releases/v3.0.1.md",
+      "reason": "Historical auction-process queries expose the requested trading date without changing the default wire request."
+    },
     "today_ticks": {
       "when_request_field_missing": "count",
       "baseline_default": 115,

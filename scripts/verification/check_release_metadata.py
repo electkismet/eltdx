@@ -16,8 +16,8 @@ if str(ROOT) not in sys.path:
 from scripts.verification.verify_release_artifacts import verify_artifacts
 
 
-TARGET_CARGO_VERSION = "3.0.0"
-TARGET_PYTHON_VERSION = "3.0.0"
+TARGET_CARGO_VERSION = "3.0.1"
+TARGET_PYTHON_VERSION = "3.0.1"
 BANNER_KEYWORD = b"eltdx_release\x00" + TARGET_PYTHON_VERSION.encode("ascii")
 
 
@@ -84,12 +84,12 @@ def check(
     if 'dynamic = ["version"]' not in pyproject or 'module-name = "eltdx._native"' not in pyproject:
         errors.append("pyproject does not use dynamic native package versioning")
     if 'Development Status :: 5 - Production/Stable' not in pyproject:
-        errors.append("pyproject does not classify v3.0.0 as production/stable")
+        errors.append("pyproject does not classify the release as production/stable")
     required = {
         "README.md": TARGET_PYTHON_VERSION,
         "docs/CHANGELOG.md": f"v{TARGET_PYTHON_VERSION}",
-        "docs/releases/v3.0.0.md": f"v{TARGET_PYTHON_VERSION}",
-        "mkdocs.yml": "releases/v3.0.0.md",
+        "docs/releases/v3.0.1.md": f"v{TARGET_PYTHON_VERSION}",
+        "mkdocs.yml": "releases/v3.0.1.md",
         "docs/assets/interface-catalog-data.js": f'"version": "{TARGET_PYTHON_VERSION}"',
     }
     for relative, needle in required.items():

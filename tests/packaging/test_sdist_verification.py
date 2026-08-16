@@ -37,35 +37,35 @@ def _write_sdist(
 
     with tarfile.open(path, "w:gz") as archive:
         for relative, content in sorted(files.items()):
-            info = tarfile.TarInfo(f"eltdx-3.0.0/{relative}")
+            info = tarfile.TarInfo(f"eltdx-3.0.1/{relative}")
             info.size = len(content)
             archive.addfile(info, io.BytesIO(content))
 
 
 def test_sdist_inventory_requires_all_trees_and_identical_docs(tmp_path: Path) -> None:
-    sdist = tmp_path / "eltdx-3.0.0.tar.gz"
+    sdist = tmp_path / "eltdx-3.0.1.tar.gz"
     _write_sdist(sdist)
     inventory = inspect_sdist(sdist)
-    assert inventory["root"] == "eltdx-3.0.0"
+    assert inventory["root"] == "eltdx-3.0.1"
     assert inventory["docs"] >= 1
 
 
 def test_sdist_rejects_docs_mirror_drift(tmp_path: Path) -> None:
-    sdist = tmp_path / "eltdx-3.0.0.tar.gz"
+    sdist = tmp_path / "eltdx-3.0.1.tar.gz"
     _write_sdist(sdist, mirror_matches=False)
     with pytest.raises(ValueError, match="mirror differs"):
         inspect_sdist(sdist)
 
 
 def test_sdist_rejects_path_traversal(tmp_path: Path) -> None:
-    sdist = tmp_path / "eltdx-3.0.0.tar.gz"
+    sdist = tmp_path / "eltdx-3.0.1.tar.gz"
     _write_sdist(sdist, unsafe=True)
     with pytest.raises(ValueError, match="unsafe sdist path"):
         inspect_sdist(sdist)
 
 
 def test_sdist_rejects_python_bytecode(tmp_path: Path) -> None:
-    sdist = tmp_path / "eltdx-3.0.0.tar.gz"
+    sdist = tmp_path / "eltdx-3.0.1.tar.gz"
     _write_sdist(sdist, bytecode=True)
     with pytest.raises(ValueError, match="contains Python bytecode"):
         inspect_sdist(sdist)

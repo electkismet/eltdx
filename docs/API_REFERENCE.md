@@ -185,10 +185,11 @@ client.trades.all_history("sz000001", "2026-05-20")
 
 ```python
 client.auctions.series("sz000001")
+client.auctions.series("sz000001", "2026-05-20")
 client.trades.opening_match_history("sz000001", "2026-05-20")
 ```
 
-`client.auctions.series()` 返回 `0x056a` 主站当前保存的集合竞价过程快照。`client.trades.opening_match_today()` 和 `opening_match_history()` 分别从 `0x0fc5`、`0x0fc6` 只取 09:25 正式开盘撮合。
+`client.auctions.series()` 返回 `0x056a` 主站保存的当日或历史集合竞价过程快照；不传日期查询当日，传入日期查询历史。`client.trades.opening_match_today()` 和 `opening_match_history()` 分别从 `0x0fc5`、`0x0fc6` 只取 09:25 正式开盘撮合。
 
 ### 股本变迁便捷方法
 
@@ -516,12 +517,13 @@ client.trades.history("sz000001", "2026-05-20")
 
 ## `client.auctions`
 
-### `series(code, include_raw=False)`
+### `series(code, date=None, include_raw=False)`
 
-查询主站当前保存的集合竞价过程快照，对应 `0x056a`；它不是逐笔成交接口，即使返回 `09:25:00` 也仍按快照解释。
+查询主站保存的当日或历史集合竞价过程快照，对应 `0x056a`；不传日期查询当日，传入日期查询历史。它不是逐笔成交接口，即使返回 `09:25:00` 也仍按快照解释。
 
 ```python
 client.auctions.series("sz000001")
+client.auctions.series("sz000001", "2026-05-20")
 ```
 
 ## `client.corporate`

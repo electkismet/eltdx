@@ -338,7 +338,7 @@ K 线响应和单根 K 线。
 | `code` / `trading_date` | 完整代码 / 交易日   |
 | `series`                | 当日或历史 `0x056a` 集合竞价过程快照 |
 | `snapshot_0925`         | 09:25 正式撮合记录 |
-| `pre_close_price`       | 昨收           |
+| `pre_close_price`       | 前收盘参考价；普通日为昨收，除权除息日为调整后的除权参考价 |
 | `open_price`            | 开盘价          |
 | `open_volume`           | 09:25 成交量    |
 | `open_amount`           | 09:25 成交额    |

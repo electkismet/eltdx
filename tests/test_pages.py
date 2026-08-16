@@ -182,7 +182,7 @@ def test_pages_catalog_has_complete_function_menus() -> None:
         "realtime": 9,
         "history": 3,
         "bars": 7,
-        "auction-shortline": 8,
+        "auction-shortline": 6,
         "f10": 23,
         "common": 6,
     }

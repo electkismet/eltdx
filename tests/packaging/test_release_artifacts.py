@@ -16,11 +16,11 @@ from scripts.verification.verify_release_artifacts import (
 
 
 WHEELS = (
-    "eltdx-3.0.0-cp310-abi3-win_amd64.whl",
-    "eltdx-3.0.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
-    "eltdx-3.0.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
-    "eltdx-3.0.0-cp310-abi3-macosx_10_12_x86_64.whl",
-    "eltdx-3.0.0-cp310-abi3-macosx_11_0_arm64.whl",
+    "eltdx-3.0.1-cp310-abi3-win_amd64.whl",
+    "eltdx-3.0.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+    "eltdx-3.0.1-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+    "eltdx-3.0.1-cp310-abi3-macosx_10_12_x86_64.whl",
+    "eltdx-3.0.1-cp310-abi3-macosx_11_0_arm64.whl",
 )
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -29,13 +29,13 @@ def _artifacts(root: Path) -> None:
     for name in WHEELS:
         with zipfile.ZipFile(root / name, "w") as archive:
             archive.writestr("eltdx/__init__.py", b"")
-    (root / "eltdx-3.0.0.tar.gz").write_bytes(b"sdist")
+    (root / "eltdx-3.0.1.tar.gz").write_bytes(b"sdist")
 
 
 def test_exact_release_artifact_inventory(tmp_path: Path) -> None:
     _artifacts(tmp_path)
     inventory = verify_artifacts(tmp_path, candidate=None)
-    assert inventory["version"] == "3.0.0"
+    assert inventory["version"] == "3.0.1"
     assert set(inventory["platforms"]) == EXPECTED_PLATFORMS
     assert len(inventory["files"]) == 6
     assert all(len(item["sha256"]) == 64 for item in inventory["files"])
@@ -181,7 +181,7 @@ def test_single_wheel_verifier_accepts_exact_matching_wheel(
         python_version="3.14",
     )
 
-    assert calls == [(wheel, "3.0.0", "macos-arm64", "3.14")]
+    assert calls == [(wheel, "3.0.1", "macos-arm64", "3.14")]
 
 
 def test_single_wheel_verifier_rejects_extra_files(tmp_path: Path) -> None:

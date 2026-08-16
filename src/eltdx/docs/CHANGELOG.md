@@ -1,10 +1,10 @@
 # 变更记录
 
-## Unreleased
+## v3.0.1 - 2026-08-17
 
 - `client.auctions.series(code, date=None)` 现在通过 `0x056a` 同时支持当日和历史集合竞价过程快照，并按主站响应顺序保留全部时间点。
 - 删除 `client.trades.auction_today()` 和 `auction_history()`；成交明细仍保留原始混合记录及其分类属性，正式 09:25 撮合入口保持不变。
-- `client.helpers.auction_data()` 的历史竞价过程改由 `0x056a` 获取；`0x0fc6` 只负责历史 09:25 正式撮合和昨收。
+- `client.helpers.auction_data()` 的历史竞价过程改由 `0x056a` 获取；`0x0fc6` 只负责历史 09:25 正式撮合和前收盘参考价。
 
 ## v3.0.0 - 2026-08-16
 

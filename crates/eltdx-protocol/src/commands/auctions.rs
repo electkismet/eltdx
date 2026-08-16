@@ -69,7 +69,10 @@ impl AuctionSeriesRequest {
         let trading_date = trading_date
             .map(|value| DateParts::new(value.year, value.month, value.day))
             .transpose()?;
-        let trading_date_raw = trading_date.map(DateParts::yyyymmdd).transpose()?.unwrap_or(0);
+        let trading_date_raw = trading_date
+            .map(DateParts::yyyymmdd)
+            .transpose()?
+            .unwrap_or(0);
         Ok(Self {
             code,
             trading_date,

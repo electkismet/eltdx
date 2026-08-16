@@ -60,7 +60,7 @@ eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用�
 | K 线与复权 | 分钟/日/周/月/季/年 K 线、自动分页、前/后/定点复权 | [`client.helpers.adjusted_kline()`](docs/helpers/复权K线.md) | `7709` + `Helpers 封装` |
 | 当日分时 | 当日每分钟价格、成交量和均价 | [`client.minutes.today()`](docs/methods/7709-当日分时.md) | `7709 原生协议` |
 | 当日成交明细 | 自动分页合并的当日完整成交记录 | [`client.trades.all_today()`](docs/methods/7709-当日成交明细.md) | `7709 原生协议` |
-| 集合竞价 | 竞价过程、09:25 撮合、昨收、开盘价/量/额/涨幅 | [`client.helpers.auction_data()`](docs/helpers/竞价数据.md) | `7709` + `Helpers 封装` |
+| 集合竞价 | 竞价过程、09:25 撮合、前收盘参考价、开盘价/量/额/涨幅 | [`client.helpers.auction_data()`](docs/helpers/竞价数据.md) | `7709` + `Helpers 封装` |
 | 股本变迁 | 除权除息、股本变化、增发和回购记录 | [`client.corporate.capital_changes()`](docs/methods/7709-股本变迁GBBQ.md) | `7709 原生协议` |
 | 财务基础 | 流通/总股本、EPS、资产、负债、收入和利润 | [`client.corporate.finance_batch()`](docs/methods/7709-财务基础信息.md) | `7709 原生协议` |
 | 本地复权因子 | 按不复权日 K 和除权除息记录计算的复权因子 | [`client.helpers.factors()`](docs/methods/7709-本地复权因子.md) | `7709` + `Helpers 本地计算` |
@@ -402,7 +402,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | 底层协议和 F10 Entry | [7709 命令](docs/COMMANDS_7709.md) · [7615 F10](docs/F10_7615.md) |
 | 连接、测速、并发和故障排查 | [调试指南](docs/DEBUG_GUIDE.md) · [架构](docs/ARCHITECTURE.md) |
 | MCP 安装、工具和资源 | [MCP 文档](docs/MCP.md) |
-| 当前版本、变更和旧 API 迁移 | [v3.0.0](docs/releases/v3.0.0.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
+| 当前版本、变更和旧 API 迁移 | [v3.0.1](docs/releases/v3.0.1.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
 
 ## 常用问题
 

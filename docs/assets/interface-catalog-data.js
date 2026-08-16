@@ -1,7 +1,7 @@
 window.ELTDX_CATALOG = {
   "schema_version": 13,
   "release": {
-    "version": "3.0.0",
+    "version": "3.0.1",
     "status": "stable",
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
@@ -1237,7 +1237,7 @@ window.ELTDX_CATALOG = {
     },
     {
       "id": "helper-auction-data",
-      "title": "竞价数据",
+      "title": "集合竞价数据",
       "source": "Helper",
       "category": "集合竞价",
       "api": "client.helpers.auction_data(code, date=None)",
@@ -1246,9 +1246,9 @@ window.ELTDX_CATALOG = {
         "开盘涨幅",
         "开盘金额"
       ],
-      "protocol": "当日 0x056a + 0x0fc5 + 0x054c / 历史 0x0fc6",
+      "protocol": "当日 0x056a + 0x0fc5 + 0x054c / 历史 0x056a + 0x0fc6",
       "kind": "组合能力",
-      "summary": "不传日期时合并 0x056A 竞价过程、0x0FC5 正式撮合和 0x054C 昨收；传日期时只使用 0x0FC6 自动分页，从历史成交明细中筛选竞价记录和正式撮合，并读取昨收。",
+      "summary": "不传日期时合并 0x056A 竞价过程、0x0FC5 正式撮合和 0x054C 前收盘参考价；传日期时使用 0x056A 查询历史竞价过程，并通过 0x0FC6 自动分页取得正式撮合和前收盘参考价。",
       "return_model": "AuctionData",
       "doc": "helpers/竞价数据.md"
     },

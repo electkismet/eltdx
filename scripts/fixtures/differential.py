@@ -113,7 +113,9 @@ def applicable_override(
 def target_request_bytes(case: DifferentialCase, override: dict[str, Any] | None) -> bytes:
     if override is None:
         return case.request_bytes
-    patch = override["request_patch"]
+    patch = override.get("request_patch")
+    if patch is None:
+        return case.request_bytes
     if patch != {"encoding": "uint16_le", "offset_from_end": 2}:
         raise ValueError(f"unsupported request override for {case.case_id}: {patch!r}")
     offset = len(case.request_bytes) - patch["offset_from_end"]
@@ -137,10 +139,22 @@ def target_expected(
     if override is None or case.expected.get("$type") == "missing":
         return case.expected
     result = json.loads(json.dumps(case.expected))
-    for field_name, value in override["expected_dataclass_fields"].items():
+    for field_name, value in override.get("expected_dataclass_fields", {}).items():
         if not _replace_dataclass_field(result, field_name, to_canonical(value)):
             raise AssertionError(
                 f"override field {field_name!r} is absent from expected value for {case.case_id}"
+            )
+    for addition in override.get("expected_added_root_dataclass_fields", []):
+        if not _insert_root_dataclass_field(
+            result,
+            qualname=addition["qualname"],
+            after=addition["after"],
+            field_name=addition["name"],
+            replacement=to_canonical(addition["value"]),
+        ):
+            raise AssertionError(
+                f"cannot add override field {addition['name']!r} to "
+                f"{addition['qualname']!r} after {addition['after']!r} for {case.case_id}"
             )
     return result
 
@@ -159,6 +173,30 @@ def _replace_dataclass_field(value: Any, field_name: str, replacement: dict[str,
                 if _replace_dataclass_field(item, field_name, replacement):
                     return True
         elif isinstance(child, dict) and _replace_dataclass_field(child, field_name, replacement):
+            return True
+    return False
+
+
+def _insert_root_dataclass_field(
+    node: Any,
+    *,
+    qualname: str,
+    after: str,
+    field_name: str,
+    replacement: dict[str, Any],
+) -> bool:
+    if (
+        not isinstance(node, dict)
+        or node.get("$type") != "dataclass"
+        or node.get("qualname") != qualname
+    ):
+        return False
+    fields = node["fields"]
+    if any(field[0] == field_name for field in fields):
+        return False
+    for index, field in enumerate(fields):
+        if field[0] == after:
+            fields.insert(index + 1, [field_name, replacement])
             return True
     return False
 
