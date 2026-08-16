@@ -7,7 +7,7 @@ from datetime import date
 from typing import Any
 
 from eltdx.client import TdxClient
-from eltdx.transport.pool import DEFAULT_POOL_SIZE
+from eltdx.transport._config import DEFAULT_SERVER_COUNT
 
 
 def main() -> int:
@@ -19,8 +19,54 @@ def main() -> int:
     parser.add_argument("--code", default="sz000001", help="primary code to test")
     parser.add_argument("--history-date", default=None, help="history trading date, for example 2026-05-20")
     parser.add_argument("--timeout", type=float, default=8.0, help="socket timeout seconds")
-    parser.add_argument("--pool-size", type=int, default=DEFAULT_POOL_SIZE, help="connection pool size")
-    parser.add_argument("--probe-hosts", action="store_true", help="probe and sort candidate hosts before connecting")
+    parser.add_argument(
+        "--pool-size",
+        type=int,
+        default=None,
+        help="total connection count; overrides the derived default when provided",
+    )
+    parser.add_argument(
+        "--server-count",
+        type=int,
+        default=DEFAULT_SERVER_COUNT,
+        help="number of fastest ranked servers to use",
+    )
+    parser.add_argument(
+        "--connections-per-server",
+        type=int,
+        default=None,
+        help="connections per selected server (default: 4 when pool-size is omitted)",
+    )
+    parser.add_argument(
+        "--runtime-workers",
+        type=int,
+        default=None,
+        help="Tokio worker threads; automatic when omitted",
+    )
+    parser.add_argument(
+        "--max-connections-per-host",
+        type=int,
+        default=None,
+        help="hard active connection cap for one server",
+    )
+    parser.add_argument(
+        "--connect-concurrency",
+        type=int,
+        default=None,
+        help="global concurrent TCP connect and handshake limit",
+    )
+    parser.add_argument(
+        "--connect-concurrency-per-host",
+        type=int,
+        default=None,
+        help="per-server concurrent TCP connect and handshake limit",
+    )
+    parser.add_argument(
+        "--probe-hosts",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="probe, persist, and sort candidate hosts before connecting",
+    )
     parser.add_argument("--heartbeat-interval", type=float, default=30.0, help="background heartbeat interval seconds")
     parser.add_argument("--no-heartbeat", action="store_true", help="disable background heartbeat")
     parser.add_argument("--quote-count", type=int, default=120, help="number of symbols for quote batching")
@@ -37,6 +83,12 @@ def main() -> int:
         host=args.host,
         timeout=args.timeout,
         pool_size=args.pool_size,
+        server_count=args.server_count,
+        connections_per_server=args.connections_per_server,
+        runtime_workers=args.runtime_workers,
+        max_connections_per_host=args.max_connections_per_host,
+        connect_concurrency=args.connect_concurrency,
+        connect_concurrency_per_host=args.connect_concurrency_per_host,
         probe_hosts=args.probe_hosts,
         heartbeat_interval=heartbeat_interval,
     ) as client:

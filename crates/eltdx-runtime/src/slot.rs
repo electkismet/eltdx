@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use eltdx_protocol::frame::{ResponseFrame, ResponseFrameDecoder};
@@ -12,6 +13,7 @@ use eltdx_protocol::ProtocolError;
 use crate::deadline::Deadline;
 use crate::endpoint::{EndpointAttempt, EndpointRotation};
 use crate::error::RuntimeError;
+use crate::memory::MemoryBudget;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EngineEpoch(u64);
@@ -216,11 +218,23 @@ struct SlotGeneration {
     endpoint_host: String,
     connect_deadline: Deadline,
     decoder: ResponseFrameDecoder,
+    memory_budget: Arc<MemoryBudget>,
+    raw_reserved: usize,
     decoded_frames: VecDeque<QueuedDecodedFrame>,
     decoded_bytes: usize,
+    decoded_reserved: usize,
     receive_sequence: u64,
     exchange: Option<ExchangeIdentity>,
     last_activity_at: Instant,
+}
+
+impl Drop for SlotGeneration {
+    fn drop(&mut self) {
+        self.memory_budget.release_raw(self.raw_reserved);
+        self.memory_budget.release_decoded(self.decoded_reserved);
+        self.raw_reserved = 0;
+        self.decoded_reserved = 0;
+    }
 }
 
 #[derive(Debug)]
@@ -236,6 +250,7 @@ pub struct Slot {
     reconnect_count: u64,
     stale_event_count: u64,
     last_error: Option<String>,
+    memory_budget: Arc<MemoryBudget>,
 }
 
 impl Slot {
@@ -243,6 +258,7 @@ impl Slot {
         engine_epoch: EngineEpoch,
         slot_id: SlotId,
         endpoint_rotation: EndpointRotation,
+        memory_budget: Arc<MemoryBudget>,
     ) -> Result<Self, RuntimeError> {
         Ok(Self {
             engine_epoch,
@@ -256,6 +272,7 @@ impl Slot {
             reconnect_count: 0,
             stale_event_count: 0,
             last_error: None,
+            memory_budget,
         })
     }
 
@@ -348,8 +365,11 @@ impl Slot {
             endpoint_host: attempt.endpoint.host().to_owned(),
             connect_deadline: attempt.deadline,
             decoder,
+            memory_budget: Arc::clone(&self.memory_budget),
+            raw_reserved: 0,
             decoded_frames: VecDeque::new(),
             decoded_bytes: 0,
+            decoded_reserved: 0,
             receive_sequence: 0,
             exchange: None,
             last_activity_at: now,
@@ -643,6 +663,7 @@ impl Slot {
             MAX_RAW_STAGING_BUFFER_SIZE
                 .saturating_sub(generation.decoder.buffered_bytes())
                 .min(SLOT_WIRE_BUDGET_BYTES)
+                .min(self.memory_budget.raw_available())
         })
     }
 
@@ -655,9 +676,17 @@ impl Slot {
             return 0;
         }
         let offered = data.len().min(capacity);
-        self.generation
-            .as_mut()
-            .map_or(0, |generation| generation.decoder.push(&data[..offered]))
+        if !self.memory_budget.try_reserve_raw(offered) {
+            return 0;
+        }
+        let accepted = self.generation.as_mut().map_or(0, |generation| {
+            let accepted = generation.decoder.push(&data[..offered]);
+            generation.raw_reserved = generation.raw_reserved.saturating_add(accepted);
+            accepted
+        });
+        self.memory_budget
+            .release_raw(offered.saturating_sub(accepted));
+        accepted
     }
 
     pub fn decode_turn(
@@ -679,7 +708,23 @@ impl Slot {
             })
             .ok_or_else(|| self.invariant_error("decode turn lost its generation"))?;
         let frame_budget = remaining_frames.min(SLOT_FRAME_BUDGET);
-        let byte_budget = remaining_bytes.min(SLOT_DECODED_BUDGET_BYTES);
+        let local_byte_budget = remaining_bytes.min(SLOT_DECODED_BUDGET_BYTES);
+        if !self.memory_budget.try_reserve_decoded(local_byte_budget) {
+            let (queue_frames, queue_bytes) = self.decoded_queue_usage();
+            return Ok(Some(SlotDecodeTurn {
+                frames_added: 0,
+                decoded_bytes_added: 0,
+                queue_frames,
+                queue_bytes,
+                budget_exhausted: true,
+            }));
+        }
+        let byte_budget = local_byte_budget;
+        let raw_before = self
+            .generation
+            .as_ref()
+            .map(|generation| generation.decoder.buffered_bytes())
+            .ok_or_else(|| self.invariant_error("decode turn lost its generation"))?;
         let decoded = {
             let generation = self
                 .generation
@@ -689,14 +734,48 @@ impl Slot {
                 .decoder
                 .decode_available(frame_budget, byte_budget)
         };
+        let raw_after = self
+            .generation
+            .as_ref()
+            .map(|generation| generation.decoder.buffered_bytes())
+            .ok_or_else(|| self.invariant_error("decode generation disappeared"))?;
+        let raw_released = raw_before.checked_sub(raw_after).ok_or_else(|| {
+            RuntimeError::internal("response decoder increased raw staging during decode")
+        })?;
+        if raw_released != 0 {
+            let generation = self
+                .generation
+                .as_mut()
+                .ok_or_else(|| RuntimeError::internal("decode generation disappeared"))?;
+            generation.raw_reserved = generation
+                .raw_reserved
+                .checked_sub(raw_released)
+                .ok_or_else(|| {
+                    RuntimeError::internal("raw memory reservation accounting underflow")
+                })?;
+            self.memory_budget.release_raw(raw_released);
+        }
         let batch = match decoded {
             Ok(batch) => batch,
-            Err(error) => return Err(self.retire_decode_failure(identity, error)),
+            Err(error) => {
+                self.memory_budget.release_decoded(byte_budget);
+                return Err(self.retire_decode_failure(identity, error));
+            }
         };
+        if batch.decoded_bytes > byte_budget {
+            self.memory_budget.release_decoded(byte_budget);
+            return Err(RuntimeError::internal(
+                "decoder exceeded its reserved Engine decoded budget",
+            ));
+        }
+        self.memory_budget
+            .release_decoded(byte_budget - batch.decoded_bytes);
         let frame_budget_hit = batch.frames.len() >= frame_budget;
         let queue_overflow = batch.budget_exhausted
             && ((frame_budget_hit && frame_budget == remaining_frames)
-                || (!frame_budget_hit && byte_budget == remaining_bytes));
+                || (!frame_budget_hit
+                    && byte_budget == local_byte_budget
+                    && local_byte_budget == remaining_bytes));
         if queue_overflow {
             let error = if frame_budget_hit && frame_budget == remaining_frames {
                 ProtocolError::LimitExceeded {
@@ -711,48 +790,75 @@ impl Slot {
                     limit: MAX_DECODED_QUEUE_BYTES,
                 }
             };
+            self.memory_budget.release_decoded(batch.decoded_bytes);
             return Err(self.retire_decode_failure(identity, error));
         }
         let frames_added = batch.frames.len();
         let decoded_bytes_added = batch.decoded_bytes;
-        let (base_sequence, base_bytes) = self
-            .generation
-            .as_ref()
-            .map(|generation| (generation.receive_sequence, generation.decoded_bytes))
-            .ok_or_else(|| RuntimeError::internal("decoded generation disappeared"))?;
-        let frame_increment = u64::try_from(frames_added)
-            .map_err(|_| RuntimeError::internal("decoded frame count exceeds u64"))?;
-        let final_sequence = base_sequence
-            .checked_add(frame_increment)
-            .ok_or_else(|| RuntimeError::internal("receive sequence exhausted"))?;
-        let final_bytes = base_bytes
-            .checked_add(decoded_bytes_added)
-            .ok_or_else(|| RuntimeError::internal("decoded queue byte count overflow"))?;
-        let mut queued_batch = Vec::with_capacity(frames_added);
-        for (offset, response) in batch.frames.into_iter().enumerate() {
-            let sequence_offset = u64::try_from(offset)
-                .map_err(|_| RuntimeError::internal("decoded frame offset exceeds u64"))?;
-            let receive_sequence = base_sequence
-                .checked_add(sequence_offset)
-                .and_then(|value| value.checked_add(1))
+        let prepared = (|| {
+            let (base_sequence, base_bytes) = self
+                .generation
+                .as_ref()
+                .map(|generation| (generation.receive_sequence, generation.decoded_bytes))
+                .ok_or_else(|| RuntimeError::internal("decoded generation disappeared"))?;
+            let frame_increment = u64::try_from(frames_added)
+                .map_err(|_| RuntimeError::internal("decoded frame count exceeds u64"))?;
+            let final_sequence = base_sequence
+                .checked_add(frame_increment)
                 .ok_or_else(|| RuntimeError::internal("receive sequence exhausted"))?;
-            queued_batch.push(QueuedDecodedFrame {
-                response,
-                receive_sequence,
-            });
-        }
-        let generation = self
-            .generation
-            .as_mut()
-            .ok_or_else(|| RuntimeError::internal("decoded generation disappeared"))?;
+            let final_bytes = base_bytes
+                .checked_add(decoded_bytes_added)
+                .ok_or_else(|| RuntimeError::internal("decoded queue byte count overflow"))?;
+            let mut queued_batch = Vec::with_capacity(frames_added);
+            for (offset, response) in batch.frames.into_iter().enumerate() {
+                let sequence_offset = u64::try_from(offset)
+                    .map_err(|_| RuntimeError::internal("decoded frame offset exceeds u64"))?;
+                let receive_sequence = base_sequence
+                    .checked_add(sequence_offset)
+                    .and_then(|value| value.checked_add(1))
+                    .ok_or_else(|| RuntimeError::internal("receive sequence exhausted"))?;
+                queued_batch.push(QueuedDecodedFrame {
+                    response,
+                    receive_sequence,
+                });
+            }
+            Ok((
+                base_sequence,
+                base_bytes,
+                final_sequence,
+                final_bytes,
+                queued_batch,
+            ))
+        })();
+        let (base_sequence, base_bytes, final_sequence, final_bytes, queued_batch) = match prepared
+        {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                self.memory_budget.release_decoded(decoded_bytes_added);
+                return Err(error);
+            }
+        };
+        let Some(generation) = self.generation.as_mut() else {
+            self.memory_budget.release_decoded(decoded_bytes_added);
+            return Err(RuntimeError::internal("decoded generation disappeared"));
+        };
         if generation.receive_sequence != base_sequence || generation.decoded_bytes != base_bytes {
+            self.memory_budget.release_decoded(decoded_bytes_added);
             return Err(RuntimeError::internal(
                 "decoded queue changed before transactional enqueue",
             ));
         }
+        let final_reserved = match generation.decoded_reserved.checked_add(decoded_bytes_added) {
+            Some(final_reserved) => final_reserved,
+            None => {
+                self.memory_budget.release_decoded(decoded_bytes_added);
+                return Err(RuntimeError::internal("decoded reservation count overflow"));
+            }
+        };
         generation.decoded_frames.extend(queued_batch);
         generation.receive_sequence = final_sequence;
         generation.decoded_bytes = final_bytes;
+        generation.decoded_reserved = final_reserved;
         Ok(Some(SlotDecodeTurn {
             frames_added,
             decoded_bytes_added,
@@ -844,7 +950,12 @@ impl Slot {
                 .drain(..route_count)
                 .collect::<Vec<_>>();
             generation.decoded_bytes = remaining_bytes;
+            generation.decoded_reserved = generation
+                .decoded_reserved
+                .checked_sub(queued_bytes)
+                .ok_or_else(|| RuntimeError::internal("decoded reservation underflow"))?;
         }
+        self.memory_budget.release_decoded(queued_bytes);
         let mut routed = Vec::with_capacity(route_count);
         for (frame, message) in queued.into_iter().zip(messages) {
             let identity = FrameIdentity {
@@ -876,6 +987,8 @@ impl Slot {
         if generation.decoder.buffered_bytes() > MAX_RAW_STAGING_BUFFER_SIZE
             || generation.decoded_frames.len() > MAX_DECODED_QUEUE_FRAMES
             || generation.decoded_bytes > MAX_DECODED_QUEUE_BYTES
+            || generation.raw_reserved != generation.decoder.buffered_bytes()
+            || generation.decoded_reserved != generation.decoded_bytes
         {
             return Err(self.invariant_error("Slot decode capacity invariant failed"));
         }
@@ -1065,6 +1178,7 @@ fn nonzero_identity(name: &'static str, value: u64) -> Result<u64, RuntimeError>
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use std::time::{Duration, Instant};
 
     use eltdx_protocol::frame::RESPONSE_PREFIX;
@@ -1077,6 +1191,7 @@ mod tests {
     use crate::deadline::Deadline;
     use crate::endpoint::{Endpoint, EndpointRotation};
     use crate::error::RuntimeError;
+    use crate::memory::MemoryBudget;
 
     fn slot() -> Result<Slot, RuntimeError> {
         let endpoints = vec![
@@ -1087,6 +1202,7 @@ mod tests {
             EngineEpoch::new(1)?,
             SlotId::new(0),
             EndpointRotation::new(endpoints, 0)?,
+            Arc::new(MemoryBudget::new(8 * 1024 * 1024, 8 * 1024 * 1024)?),
         )
     }
 
@@ -1448,6 +1564,34 @@ mod tests {
         assert_eq!(error.kind(), "Protocol");
         assert_eq!(slot.state(), SlotState::Retiring);
         assert_eq!(slot.active_request(), Some(RequestId::new(61)?));
+        slot.check_decode_invariants()?;
+        Ok(())
+    }
+
+    #[test]
+    fn partial_overflow_batch_releases_unqueued_decoded_budget() -> Result<(), RuntimeError> {
+        let now = Instant::now();
+        let mut slot = slot()?;
+        let generation = start_connect(&mut slot, RequestId::new(62)?, now)?;
+        let mut initial = Vec::new();
+        for message in 1_u32..=1_000 {
+            initial.extend_from_slice(&response_bytes(message, 0x0547, &[1])?);
+        }
+        assert_eq!(slot.push_wire_bytes(generation, &initial), initial.len());
+        for _ in 0..16 {
+            slot.decode_turn(generation)?
+                .ok_or_else(|| RuntimeError::internal("decode turn was rejected"))?;
+        }
+        assert_eq!(slot.decoded_queue_usage(), (1_000, 1_000));
+
+        let mut overflow = Vec::new();
+        for message in 1_001_u32..=1_025 {
+            overflow.extend_from_slice(&response_bytes(message, 0x0547, &[1])?);
+        }
+        assert_eq!(slot.push_wire_bytes(generation, &overflow), overflow.len());
+        assert!(slot.decode_turn(generation).is_err());
+        assert_eq!(slot.decoded_queue_usage(), (1_000, 1_000));
+        assert_eq!(slot.memory_budget.snapshot().decoded_bytes, 1_000);
         slot.check_decode_invariants()?;
         Ok(())
     }

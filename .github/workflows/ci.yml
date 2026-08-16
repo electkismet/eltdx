@@ -38,7 +38,7 @@ jobs:
         run: rustup toolchain install 1.89.0 --profile minimal
       - name: Install project
         run: python -m pip install -e ".[dev,mcp]"
-      - run: python -m pytest -q tests/contracts tests/test_client.py tests/test_helpers.py tests/test_f10.py tests/test_mcp.py
+      - run: python scripts/verification/run_python_test_group.py round4-local
 
   wire-golden:
     name: 21-command wire golden differential
@@ -70,7 +70,7 @@ jobs:
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.89.0 --profile minimal
       - run: python -m pip install -e ".[dev]"
-      - run: python -m pytest -q tests/integration/test_loopback_faults.py tests/integration/test_loopback_concurrency.py
+      - run: python scripts/verification/run_python_test_group.py round5-loopback
 
   runtime-stress:
     name: Runtime stress and resource cleanup
@@ -149,4 +149,5 @@ jobs:
 
   native-dist:
     name: Five wheels, sdist, and install smoke
+    if: github.event_name == 'push'
     uses: ./.github/workflows/native-wheels.yml

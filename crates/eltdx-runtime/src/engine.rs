@@ -1,4 +1,5 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::ops::Deref;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{mpsc as std_mpsc, Arc, Condvar, Mutex, MutexGuard, TryLockError};
@@ -10,11 +11,13 @@ use eltdx_protocol::commands::session::{
     HeartbeatAck, HeartbeatRequest, TYPE_HANDSHAKE, TYPE_HEARTBEAT,
 };
 use eltdx_protocol::frame::ResponseFrame;
-use eltdx_protocol::limits::SLOT_FRAME_BUDGET;
+use eltdx_protocol::limits::{
+    MAX_DECODED_QUEUE_BYTES, MAX_RAW_STAGING_BUFFER_SIZE, SLOT_FRAME_BUDGET,
+};
 use eltdx_protocol::{CommandRequest, CommandResponse};
 use tokio::net::TcpStream;
 use tokio::runtime::Builder;
-use tokio::sync::{mpsc, oneshot, watch, Notify};
+use tokio::sync::{mpsc, oneshot, watch, Notify, OwnedSemaphorePermit, Semaphore};
 use tokio::time::{interval, timeout_at, MissedTickBehavior};
 
 use crate::deadline::Deadline;
@@ -23,6 +26,7 @@ use crate::diagnostics::{
 };
 use crate::endpoint::{Endpoint, EndpointRotation};
 use crate::error::{RuntimeError, TimeoutPhase};
+use crate::memory::MemoryBudget;
 use crate::pin::PinIdentity;
 use crate::push::PushFrame;
 use crate::request::{
@@ -43,12 +47,38 @@ pub const CANCEL_CONFIRM_TIMEOUT: Duration = Duration::from_secs(1);
 pub const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 const RUNTIME_TICK: Duration = Duration::from_millis(10);
+const DIAGNOSTICS_REFRESH_INTERVAL: Duration = Duration::from_millis(25);
+const DEFAULT_GLOBAL_RAW_MAX_BYTES: usize = 256 * 1024 * 1024;
+const DEFAULT_GLOBAL_DECODED_MAX_BYTES: usize = 2 * 1024 * 1024 * 1024;
+
+#[derive(Clone, Debug)]
+pub struct EngineConfigOptions {
+    pub pool_size: usize,
+    pub runtime_workers: Option<usize>,
+    pub server_count: usize,
+    pub max_connections_per_host: Option<usize>,
+    pub connect_concurrency: Option<usize>,
+    pub connect_concurrency_per_host: Option<usize>,
+    pub global_raw_bytes: Option<usize>,
+    pub global_decoded_bytes: Option<usize>,
+    pub heartbeat_interval: Option<f64>,
+    pub max_pending_requests: usize,
+    pub push_queue_size: usize,
+    pub push_queue_bytes: usize,
+}
 
 #[derive(Clone, Debug)]
 pub struct EngineConfig {
     endpoints: Arc<[Endpoint]>,
     request_timeout: Duration,
     pool_size: usize,
+    runtime_workers: usize,
+    server_count: usize,
+    max_connections_per_host: usize,
+    connect_concurrency: usize,
+    connect_concurrency_per_host: usize,
+    global_raw_bytes: usize,
+    global_decoded_bytes: usize,
     heartbeat_interval: Option<Duration>,
     max_pending_requests: usize,
     push_queue_size: usize,
@@ -59,11 +89,7 @@ impl EngineConfig {
     pub fn new(
         hosts: Vec<String>,
         timeout: f64,
-        pool_size: usize,
-        heartbeat_interval: Option<f64>,
-        max_pending_requests: usize,
-        push_queue_size: usize,
-        push_queue_bytes: usize,
+        options: EngineConfigOptions,
     ) -> Result<Self, RuntimeError> {
         let mut endpoints = Vec::with_capacity(hosts.len());
         let mut seen = BTreeSet::new();
@@ -76,25 +102,32 @@ impl EngineConfig {
         Self::from_endpoints(
             endpoints,
             duration_from_seconds("timeout", timeout, false)?,
-            pool_size,
-            heartbeat_interval
-                .map(|seconds| duration_from_seconds("heartbeat_interval", seconds, true))
-                .transpose()?,
-            max_pending_requests,
-            push_queue_size,
-            push_queue_bytes,
+            options,
         )
     }
 
     pub fn from_endpoints(
         endpoints: Vec<Endpoint>,
         request_timeout: Duration,
-        pool_size: usize,
-        heartbeat_interval: Option<Duration>,
-        max_pending_requests: usize,
-        push_queue_size: usize,
-        push_queue_bytes: usize,
+        options: EngineConfigOptions,
     ) -> Result<Self, RuntimeError> {
+        let EngineConfigOptions {
+            pool_size,
+            runtime_workers,
+            server_count,
+            max_connections_per_host,
+            connect_concurrency,
+            connect_concurrency_per_host,
+            global_raw_bytes,
+            global_decoded_bytes,
+            heartbeat_interval,
+            max_pending_requests,
+            push_queue_size,
+            push_queue_bytes,
+        } = options;
+        let heartbeat_interval = heartbeat_interval
+            .map(|seconds| duration_from_seconds("heartbeat_interval", seconds, true))
+            .transpose()?;
         if endpoints.is_empty() {
             return Err(RuntimeError::invalid_argument(
                 "ValueError",
@@ -113,16 +146,105 @@ impl EngineConfig {
                 "pool_size must be a positive integer",
             ));
         }
+        if pool_size > Semaphore::MAX_PERMITS {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "pool_size exceeds the Tokio runtime capacity limit",
+            ));
+        }
+        if server_count == 0 || server_count > endpoints.len() || server_count > pool_size {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "server_count must be between 1 and both pool_size and the number of resolved endpoints",
+            ));
+        }
+        let available_workers = thread::available_parallelism()
+            .map(std::num::NonZeroUsize::get)
+            .unwrap_or(1);
+        let runtime_workers = runtime_workers.unwrap_or(pool_size.min(available_workers).max(1));
+        if runtime_workers == 0 || runtime_workers > pool_size {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "runtime_workers must be between 1 and pool_size, or None",
+            ));
+        }
+        let minimum_per_host = pool_size.checked_add(server_count - 1).ok_or_else(|| {
+            RuntimeError::invalid_argument("OverflowError", "pool distribution overflow")
+        })? / server_count;
+        let max_connections_per_host = max_connections_per_host.unwrap_or(minimum_per_host);
+        if max_connections_per_host < minimum_per_host
+            || max_connections_per_host > Semaphore::MAX_PERMITS
+        {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "max_connections_per_host must hold the configured distribution without exceeding the Tokio capacity limit",
+            ));
+        }
+        let automatic_connect_concurrency = available_workers
+            .saturating_mul(2)
+            .clamp(4, 32)
+            .min(pool_size)
+            .max(1);
+        let connect_concurrency = connect_concurrency.unwrap_or(automatic_connect_concurrency);
+        if connect_concurrency == 0 || connect_concurrency > pool_size {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "connect_concurrency must be between 1 and pool_size, or None",
+            ));
+        }
+        let connect_concurrency_per_host =
+            connect_concurrency_per_host.unwrap_or(max_connections_per_host.min(2));
+        if connect_concurrency_per_host == 0
+            || connect_concurrency_per_host > max_connections_per_host
+            || connect_concurrency_per_host > connect_concurrency
+        {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "connect_concurrency_per_host must not exceed connect_concurrency or max_connections_per_host",
+            ));
+        }
+        let automatic_raw_bytes = pool_size
+            .saturating_mul(MAX_RAW_STAGING_BUFFER_SIZE)
+            .clamp(MAX_RAW_STAGING_BUFFER_SIZE, DEFAULT_GLOBAL_RAW_MAX_BYTES);
+        let global_raw_bytes = global_raw_bytes.unwrap_or(automatic_raw_bytes);
+        if global_raw_bytes < MAX_RAW_STAGING_BUFFER_SIZE {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "global_raw_bytes must allow at least one complete Slot staging buffer",
+            ));
+        }
+        let automatic_decoded_bytes = pool_size
+            .saturating_mul(MAX_DECODED_QUEUE_BYTES)
+            .clamp(MAX_DECODED_QUEUE_BYTES, DEFAULT_GLOBAL_DECODED_MAX_BYTES);
+        let global_decoded_bytes = global_decoded_bytes.unwrap_or(automatic_decoded_bytes);
+        if global_decoded_bytes < MAX_DECODED_QUEUE_BYTES {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "global_decoded_bytes must allow at least one complete Slot decoded queue",
+            ));
+        }
         if max_pending_requests == 0 {
             return Err(RuntimeError::invalid_argument(
                 "ValueError",
                 "max_pending_requests must be > 0",
             ));
         }
+        if max_pending_requests > Semaphore::MAX_PERMITS {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "max_pending_requests exceeds the Tokio runtime capacity limit",
+            ));
+        }
         if push_queue_size == 0 {
             return Err(RuntimeError::invalid_argument(
                 "ValueError",
                 "push_queue_size must be > 0",
+            ));
+        }
+        if push_queue_size > Semaphore::MAX_PERMITS {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "push_queue_size exceeds the Tokio runtime capacity limit",
             ));
         }
         if push_queue_bytes == 0 {
@@ -137,9 +259,28 @@ impl EngineConfig {
                 "heartbeat_interval must be > 0 or None",
             ));
         }
-        pool_size.checked_add(max_pending_requests).ok_or_else(|| {
+        let total_capacity = pool_size.checked_add(max_pending_requests).ok_or_else(|| {
             RuntimeError::invalid_argument("OverflowError", "request capacity overflow")
         })?;
+        if total_capacity > Semaphore::MAX_PERMITS {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "pool_size + max_pending_requests exceeds the Tokio runtime capacity limit",
+            ));
+        }
+        let event_capacity = total_capacity
+            .checked_add(pool_size.checked_mul(8).ok_or_else(|| {
+                RuntimeError::invalid_argument("OverflowError", "runtime event capacity overflow")
+            })?)
+            .ok_or_else(|| {
+                RuntimeError::invalid_argument("OverflowError", "runtime event capacity overflow")
+            })?;
+        if event_capacity > Semaphore::MAX_PERMITS {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "configured runtime event capacity exceeds the Tokio limit",
+            ));
+        }
         Supervisor::with_limits(
             pool_size,
             max_pending_requests,
@@ -150,6 +291,13 @@ impl EngineConfig {
             endpoints: endpoints.into(),
             request_timeout,
             pool_size,
+            runtime_workers,
+            server_count,
+            max_connections_per_host,
+            connect_concurrency,
+            connect_concurrency_per_host,
+            global_raw_bytes,
+            global_decoded_bytes,
             heartbeat_interval,
             max_pending_requests,
             push_queue_size,
@@ -167,6 +315,57 @@ impl EngineConfig {
 
     pub const fn pool_size(&self) -> usize {
         self.pool_size
+    }
+
+    pub const fn runtime_workers(&self) -> usize {
+        self.runtime_workers
+    }
+
+    pub const fn server_count(&self) -> usize {
+        self.server_count
+    }
+
+    pub const fn max_connections_per_host(&self) -> usize {
+        self.max_connections_per_host
+    }
+
+    pub const fn connect_concurrency(&self) -> usize {
+        self.connect_concurrency
+    }
+
+    pub const fn connect_concurrency_per_host(&self) -> usize {
+        self.connect_concurrency_per_host
+    }
+
+    pub const fn global_raw_bytes(&self) -> usize {
+        self.global_raw_bytes
+    }
+
+    pub const fn global_decoded_bytes(&self) -> usize {
+        self.global_decoded_bytes
+    }
+
+    fn slot_endpoints(&self, slot_index: usize) -> Vec<Endpoint> {
+        let primary_index = slot_index % self.server_count;
+        let mut endpoints = Vec::with_capacity(self.endpoints.len());
+        endpoints.push(self.endpoints[primary_index].clone());
+        // Spare ranked hosts are preferred for failover so a dead primary does not
+        // wait behind another selected host that is already at its connection cap.
+        endpoints.extend(
+            self.endpoints
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| *index >= self.server_count)
+                .map(|(_, endpoint)| endpoint.clone()),
+        );
+        endpoints.extend(
+            self.endpoints
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| *index < self.server_count && *index != primary_index)
+                .map(|(_, endpoint)| endpoint.clone()),
+        );
+        endpoints
     }
 
     pub const fn heartbeat_interval(&self) -> Option<Duration> {
@@ -226,7 +425,7 @@ struct DiagnosticsCache {
 }
 
 impl DiagnosticsCache {
-    fn stopped(pool_size: usize) -> Self {
+    fn stopped(config: &EngineConfig) -> Self {
         Self {
             pool: PoolDiagnostics {
                 epoch: 0,
@@ -236,8 +435,21 @@ impl DiagnosticsCache {
                 push_frames: 0,
                 push_bytes: 0,
                 push_dropped: 0,
+                runtime_workers: config.runtime_workers,
+                pool_size: config.pool_size,
+                server_count: config.server_count,
+                max_connections_per_host: config.max_connections_per_host,
+                connect_concurrency: config.connect_concurrency,
+                connect_concurrency_per_host: config.connect_concurrency_per_host,
+                raw_bytes: 0,
+                raw_max_bytes: config.global_raw_bytes,
+                raw_peak_bytes: 0,
+                decoded_bytes: 0,
+                decoded_max_bytes: config.global_decoded_bytes,
+                decoded_peak_bytes: 0,
+                push_max_bytes: config.push_queue_bytes,
             },
-            transport: (pool_size == 1).then_some(TransportDiagnostics {
+            transport: (config.pool_size == 1).then_some(TransportDiagnostics {
                 epoch: 0,
                 actor: None,
                 push_frames: 0,
@@ -245,6 +457,13 @@ impl DiagnosticsCache {
                 push_dropped: 0,
                 push_max_frames: 0,
                 push_max_bytes: 0,
+                runtime_workers: config.runtime_workers,
+                raw_bytes: 0,
+                raw_max_bytes: config.global_raw_bytes,
+                raw_peak_bytes: 0,
+                decoded_bytes: 0,
+                decoded_max_bytes: config.global_decoded_bytes,
+                decoded_peak_bytes: 0,
             }),
         }
     }
@@ -466,6 +685,7 @@ pub struct PendingExecution {
     created_pid: u32,
     request_id: RequestId,
     control: Arc<ControlCell>,
+    admission_rx: Option<std_mpsc::Receiver<Result<(), RuntimeError>>>,
     result_rx: std_mpsc::Receiver<Result<RawExecution, RuntimeError>>,
     terminal: Option<Result<CommandResponse, RuntimeError>>,
 }
@@ -476,6 +696,7 @@ pub struct PendingPin {
     engine: Engine,
     request_id: RequestId,
     control: Arc<ControlCell>,
+    admission_rx: Option<std_mpsc::Receiver<Result<(), RuntimeError>>>,
     result_rx: std_mpsc::Receiver<Result<PinIdentity, RuntimeError>>,
 }
 
@@ -522,7 +743,21 @@ impl PendingExecution {
         if let Some(result) = self.terminal.take() {
             return result.map(PendingPoll::Ready);
         }
-        match receive_std_timeout(&self.result_rx, timeout) {
+        let started = Instant::now();
+        if let Some(admission_rx) = self.admission_rx.as_ref() {
+            match receive_std_timeout(admission_rx, timeout) {
+                Ok(Ok(())) => self.admission_rx = None,
+                Ok(Err(error)) => return Err(error),
+                Err(std_mpsc::RecvTimeoutError::Timeout) => return Ok(PendingPoll::Pending),
+                Err(std_mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(RuntimeError::internal(
+                        "runtime admission channel disconnected before publication",
+                    ));
+                }
+            }
+        }
+        let remaining = timeout.saturating_sub(started.elapsed());
+        match receive_std_timeout(&self.result_rx, remaining) {
             Ok(Ok(raw)) => {
                 let parsed = CommandResponse::parse(raw.request, &raw.response.data)
                     .map_err(RuntimeError::from)?;
@@ -547,6 +782,10 @@ impl PendingExecution {
 
     pub fn cancel_and_confirm(&self, timeout: Duration) -> Result<(), RuntimeError> {
         check_pid(self.created_pid)?;
+        match self.result_rx.try_recv() {
+            Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => return Ok(()),
+            Err(std_mpsc::TryRecvError::Empty) => {}
+        }
         let confirmation = Arc::new(Completion::new());
         self.control
             .request_cancel(self.request_id, Arc::clone(&confirmation))?;
@@ -569,7 +808,21 @@ impl PendingPin {
         timeout: Duration,
     ) -> Result<PendingPoll<PinHandle>, RuntimeError> {
         check_pid(self.created_pid)?;
-        match receive_std_timeout(&self.result_rx, timeout) {
+        let started = Instant::now();
+        if let Some(admission_rx) = self.admission_rx.as_ref() {
+            match receive_std_timeout(admission_rx, timeout) {
+                Ok(Ok(())) => self.admission_rx = None,
+                Ok(Err(error)) => return Err(error),
+                Err(std_mpsc::RecvTimeoutError::Timeout) => return Ok(PendingPoll::Pending),
+                Err(std_mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(RuntimeError::internal(
+                        "runtime pin admission channel disconnected before publication",
+                    ));
+                }
+            }
+        }
+        let remaining = timeout.saturating_sub(started.elapsed());
+        match receive_std_timeout(&self.result_rx, remaining) {
             Ok(Ok(identity)) => Ok(PendingPoll::Ready(PinHandle {
                 engine: self.engine.clone(),
                 identity,
@@ -593,6 +846,10 @@ impl PendingPin {
 
     pub fn cancel_and_confirm(&self, timeout: Duration) -> Result<(), RuntimeError> {
         check_pid(self.created_pid)?;
+        match self.result_rx.try_recv() {
+            Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => return Ok(()),
+            Err(std_mpsc::TryRecvError::Empty) => {}
+        }
         let confirmation = Arc::new(Completion::new());
         self.control
             .request_cancel(self.request_id, Arc::clone(&confirmation))?;
@@ -770,7 +1027,7 @@ impl Engine {
     pub fn new(config: EngineConfig) -> Result<Self, RuntimeError> {
         let _ = process_origin_pid();
         config.total_capacity()?;
-        let diagnostics = DiagnosticsCache::stopped(config.pool_size);
+        let diagnostics = DiagnosticsCache::stopped(&config);
         Ok(Self {
             inner: Arc::new(EngineInner {
                 created_pid: std::process::id(),
@@ -894,16 +1151,24 @@ impl Engine {
             result: result_tx,
             ingress,
         };
-        runtime.command_tx.blocking_send(command).map_err(|_| {
-            RuntimeError::connection_closed("7709 runtime command channel is closed")
-        })?;
-        receive_std(&admission_rx).map_err(|_| {
-            RuntimeError::connection_closed("7709 runtime stopped before admission")
-        })??;
+        runtime
+            .command_tx
+            .try_send(command)
+            .map_err(|error| match error {
+                mpsc::error::TrySendError::Full(_) => RuntimeError::PoolBusy {
+                    message: "7709 runtime ingress channel is full".to_owned(),
+                    capacity: self.inner.config.total_capacity().unwrap_or(usize::MAX),
+                    context: Vec::new(),
+                },
+                mpsc::error::TrySendError::Closed(_) => {
+                    RuntimeError::connection_closed("7709 runtime command channel is closed")
+                }
+            })?;
         Ok(PendingExecution {
             created_pid: self.inner.created_pid,
             request_id,
             control: runtime.control,
+            admission_rx: Some(admission_rx),
             result_rx,
             terminal: None,
         })
@@ -921,24 +1186,29 @@ impl Engine {
         let (result_tx, result_rx) = std_mpsc::sync_channel(1);
         runtime
             .command_tx
-            .blocking_send(RuntimeCommand::OpenPin {
+            .try_send(RuntimeCommand::OpenPin {
                 request_id,
                 deadline,
                 admission: admission_tx,
                 result: result_tx,
                 ingress,
             })
-            .map_err(|_| {
-                RuntimeError::connection_closed("7709 runtime command channel is closed")
+            .map_err(|error| match error {
+                mpsc::error::TrySendError::Full(_) => RuntimeError::PoolBusy {
+                    message: "7709 runtime pin ingress channel is full".to_owned(),
+                    capacity: self.inner.config.total_capacity().unwrap_or(usize::MAX),
+                    context: Vec::new(),
+                },
+                mpsc::error::TrySendError::Closed(_) => {
+                    RuntimeError::connection_closed("7709 runtime command channel is closed")
+                }
             })?;
-        receive_std(&admission_rx).map_err(|_| {
-            RuntimeError::connection_closed("7709 runtime stopped before pin admission")
-        })??;
         Ok(PendingPin {
             created_pid: self.inner.created_pid,
             engine: self.clone(),
             request_id,
             control: runtime.control,
+            admission_rx: Some(admission_rx),
             result_rx,
         })
     }
@@ -959,7 +1229,7 @@ impl Engine {
         let (result_tx, result_rx) = std_mpsc::sync_channel(1);
         runtime
             .command_tx
-            .blocking_send(RuntimeCommand::ExecutePinned {
+            .try_send(RuntimeCommand::ExecutePinned {
                 pin,
                 request_id,
                 request,
@@ -968,16 +1238,21 @@ impl Engine {
                 result: result_tx,
                 ingress,
             })
-            .map_err(|_| {
-                RuntimeError::connection_closed("7709 runtime command channel is closed")
+            .map_err(|error| match error {
+                mpsc::error::TrySendError::Full(_) => RuntimeError::PoolBusy {
+                    message: "7709 runtime pinned ingress channel is full".to_owned(),
+                    capacity: self.inner.config.total_capacity().unwrap_or(usize::MAX),
+                    context: Vec::new(),
+                },
+                mpsc::error::TrySendError::Closed(_) => {
+                    RuntimeError::connection_closed("7709 runtime command channel is closed")
+                }
             })?;
-        receive_std(&admission_rx).map_err(|_| {
-            RuntimeError::connection_closed("7709 runtime stopped before pinned admission")
-        })??;
         Ok(PendingExecution {
             created_pid: self.inner.created_pid,
             request_id,
             control: runtime.control,
+            admission_rx: Some(admission_rx),
             result_rx,
             terminal: None,
         })
@@ -991,12 +1266,19 @@ impl Engine {
         let (result_tx, result_rx) = std_mpsc::sync_channel(1);
         runtime
             .command_tx
-            .blocking_send(RuntimeCommand::ClosePin {
+            .try_send(RuntimeCommand::ClosePin {
                 pin,
                 reply: result_tx,
             })
-            .map_err(|_| {
-                RuntimeError::connection_closed("7709 runtime command channel is closed")
+            .map_err(|error| match error {
+                mpsc::error::TrySendError::Full(_) => RuntimeError::PoolBusy {
+                    message: "7709 runtime control ingress channel is full".to_owned(),
+                    capacity: self.inner.config.total_capacity().unwrap_or(usize::MAX),
+                    context: Vec::new(),
+                },
+                mpsc::error::TrySendError::Closed(_) => {
+                    RuntimeError::connection_closed("7709 runtime command channel is closed")
+                }
             })?;
         Ok(PendingPinClose {
             created_pid: self.inner.created_pid,
@@ -1015,12 +1297,19 @@ impl Engine {
         let (reply_tx, reply_rx) = std_mpsc::sync_channel(1);
         runtime
             .command_tx
-            .blocking_send(RuntimeCommand::PollPush {
+            .try_send(RuntimeCommand::PollPush {
                 deadline,
                 reply: reply_tx,
             })
-            .map_err(|_| {
-                RuntimeError::connection_closed("7709 runtime command channel is closed")
+            .map_err(|error| match error {
+                mpsc::error::TrySendError::Full(_) => RuntimeError::PoolBusy {
+                    message: "7709 runtime push ingress channel is full".to_owned(),
+                    capacity: self.inner.config.total_capacity().unwrap_or(usize::MAX),
+                    context: Vec::new(),
+                },
+                mpsc::error::TrySendError::Closed(_) => {
+                    RuntimeError::connection_closed("7709 runtime command channel is closed")
+                }
             })?;
         receive_std(&reply_rx)
             .map_err(|_| RuntimeError::connection_closed("7709 runtime stopped during push poll"))?
@@ -1035,9 +1324,16 @@ impl Engine {
         let (reply_tx, reply_rx) = std_mpsc::sync_channel(1);
         runtime
             .command_tx
-            .blocking_send(RuntimeCommand::DrainPushes { reply: reply_tx })
-            .map_err(|_| {
-                RuntimeError::connection_closed("7709 runtime command channel is closed")
+            .try_send(RuntimeCommand::DrainPushes { reply: reply_tx })
+            .map_err(|error| match error {
+                mpsc::error::TrySendError::Full(_) => RuntimeError::PoolBusy {
+                    message: "7709 runtime push ingress channel is full".to_owned(),
+                    capacity: self.inner.config.total_capacity().unwrap_or(usize::MAX),
+                    context: Vec::new(),
+                },
+                mpsc::error::TrySendError::Closed(_) => {
+                    RuntimeError::connection_closed("7709 runtime command channel is closed")
+                }
             })?;
         receive_std(&reply_rx).map_err(|_| {
             RuntimeError::connection_closed("7709 runtime stopped during push drain")
@@ -1046,18 +1342,6 @@ impl Engine {
 
     pub fn pool_diagnostics(&self) -> Result<PoolDiagnostics, RuntimeError> {
         self.check_pid()?;
-        if let Some(runtime) = self.diagnostics_runtime()? {
-            let (reply, received) = std_mpsc::sync_channel(1);
-            if runtime
-                .command_tx
-                .blocking_send(RuntimeCommand::PoolDiagnostics { reply })
-                .is_ok()
-            {
-                if let Ok(result) = receive_std(&received) {
-                    return result.and_then(|value| self.overlay_pool_diagnostics(value));
-                }
-            }
-        }
         let cached = lock_mutex(&self.inner.diagnostics, "Engine diagnostics")?
             .pool
             .clone();
@@ -1070,18 +1354,6 @@ impl Engine {
             return Err(RuntimeError::internal(
                 "standalone transport diagnostics require pool_size=1",
             ));
-        }
-        if let Some(runtime) = self.diagnostics_runtime()? {
-            let (reply, received) = std_mpsc::sync_channel(1);
-            if runtime
-                .command_tx
-                .blocking_send(RuntimeCommand::TransportDiagnostics { reply })
-                .is_ok()
-            {
-                if let Ok(result) = receive_std(&received) {
-                    return result.and_then(|value| self.overlay_transport_diagnostics(value));
-                }
-            }
         }
         let cached = lock_mutex(&self.inner.diagnostics, "Engine diagnostics")?
             .transport
@@ -1531,19 +1803,6 @@ impl Engine {
         }
     }
 
-    fn diagnostics_runtime(&self) -> Result<Option<RuntimeRef>, RuntimeError> {
-        let host = lock_mutex(&self.inner.host, "Engine diagnostics gate")?;
-        Ok(match host.lifecycle {
-            HostLifecycle::Starting | HostLifecycle::Running => {
-                host.runtime.as_ref().map(RuntimeRef::from)
-            }
-            HostLifecycle::Stopped
-            | HostLifecycle::Closing
-            | HostLifecycle::FailedClosing
-            | HostLifecycle::FailedClosed => None,
-        })
-    }
-
     fn reserve_submission(
         &self,
     ) -> Result<(RuntimeRef, RequestId, IngressOwnership), RuntimeError> {
@@ -1668,12 +1927,20 @@ enum RuntimeCommand {
     DrainPushes {
         reply: std_mpsc::SyncSender<Result<Vec<PushFrame>, RuntimeError>>,
     },
-    PoolDiagnostics {
-        reply: std_mpsc::SyncSender<Result<PoolDiagnostics, RuntimeError>>,
-    },
-    TransportDiagnostics {
-        reply: std_mpsc::SyncSender<Result<TransportDiagnostics, RuntimeError>>,
-    },
+}
+
+impl RuntimeCommand {
+    const fn request_id(&self) -> Option<RequestId> {
+        match self {
+            Self::Execute { request_id, .. }
+            | Self::OpenPin { request_id, .. }
+            | Self::ExecutePinned { request_id, .. } => Some(*request_id),
+            Self::ConnectAll { .. }
+            | Self::ClosePin { .. }
+            | Self::PollPush { .. }
+            | Self::DrainPushes { .. } => None,
+        }
+    }
 }
 
 fn spawn_runtime(
@@ -1739,7 +2006,9 @@ fn runtime_thread_main(
     sessions: Arc<Mutex<SessionCache>>,
 ) -> Result<(), RuntimeError> {
     let RuntimeLaunch { config, epoch_seed } = launch;
-    let runtime = Builder::new_current_thread()
+    let runtime = Builder::new_multi_thread()
+        .worker_threads(config.runtime_workers)
+        .thread_name("eltdx-worker")
         .enable_all()
         .build()
         .map_err(|error| {
@@ -1910,8 +2179,108 @@ struct ConnectBatch {
     attempt_id: ConnectAttemptId,
     completion: Arc<Completion<Result<(), RuntimeError>>>,
     remaining: BTreeSet<SlotId>,
+    in_flight: BTreeSet<SlotId>,
+    canary_pending: VecDeque<SlotId>,
+    canary_remaining: BTreeSet<SlotId>,
+    expansion_pending: VecDeque<SlotId>,
+    deadline: Deadline,
     first_error: Option<RuntimeError>,
     rolling_back: bool,
+}
+
+#[derive(Debug)]
+struct ConnectionLimiter {
+    global_connect: Arc<Semaphore>,
+    connect_by_host: BTreeMap<String, Arc<Semaphore>>,
+    connections_by_host: BTreeMap<String, Arc<Semaphore>>,
+}
+
+impl ConnectionLimiter {
+    fn new(config: &EngineConfig) -> Self {
+        let mut connect_by_host = BTreeMap::new();
+        let mut connections_by_host = BTreeMap::new();
+        for endpoint in config.endpoints.iter() {
+            connect_by_host
+                .entry(endpoint.host().to_owned())
+                .or_insert_with(|| Arc::new(Semaphore::new(config.connect_concurrency_per_host)));
+            connections_by_host
+                .entry(endpoint.host().to_owned())
+                .or_insert_with(|| Arc::new(Semaphore::new(config.max_connections_per_host)));
+        }
+        Self {
+            global_connect: Arc::new(Semaphore::new(config.connect_concurrency)),
+            connect_by_host,
+            connections_by_host,
+        }
+    }
+
+    fn host_semaphores(
+        &self,
+        host: &str,
+    ) -> Result<(Arc<Semaphore>, Arc<Semaphore>), RuntimeError> {
+        let connect = self.connect_by_host.get(host).cloned().ok_or_else(|| {
+            RuntimeError::internal("connect limiter has no semaphore for endpoint")
+                .with_context("host", host.to_owned())
+        })?;
+        let connections = self.connections_by_host.get(host).cloned().ok_or_else(|| {
+            RuntimeError::internal("connection limiter has no semaphore for endpoint")
+                .with_context("host", host.to_owned())
+        })?;
+        Ok((connect, connections))
+    }
+
+    fn check_idle(&self, config: &EngineConfig) -> Result<(), RuntimeError> {
+        if self.global_connect.available_permits() != config.connect_concurrency {
+            return Err(RuntimeError::internal(
+                "global connection limiter retained a transient permit after Slot cleanup",
+            ));
+        }
+        if self
+            .connect_by_host
+            .values()
+            .any(|semaphore| semaphore.available_permits() != config.connect_concurrency_per_host)
+        {
+            return Err(RuntimeError::internal(
+                "per-host connection limiter retained a transient permit after Slot cleanup",
+            ));
+        }
+        if self
+            .connections_by_host
+            .values()
+            .any(|semaphore| semaphore.available_permits() != config.max_connections_per_host)
+        {
+            return Err(RuntimeError::internal(
+                "per-host connection limiter retained an active permit after Slot cleanup",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct ConnectionPermits {
+    _connection: OwnedSemaphorePermit,
+    transient: Option<(OwnedSemaphorePermit, OwnedSemaphorePermit)>,
+}
+
+#[derive(Debug)]
+struct ManagedStream {
+    stream: TcpStream,
+    permits: ConnectionPermits,
+}
+
+impl ManagedStream {
+    fn finish_handshake(&mut self) {
+        self.permits.transient = None;
+    }
+}
+
+impl Deref for ManagedStream {
+    type Target = TcpStream;
+
+    fn deref(&self) -> &Self::Target {
+        &self.stream
+    }
 }
 
 #[derive(Debug)]
@@ -1943,12 +2312,16 @@ struct RuntimeCore {
     heartbeat_requests: BTreeSet<RequestId>,
     retirements: BTreeMap<RequestId, RetirementPlan>,
     cancel_confirmations: BTreeMap<RequestId, Arc<Completion<Result<(), RuntimeError>>>>,
+    pre_cancelled_submissions: BTreeSet<RequestId>,
     slots: Vec<Option<SlotHandle>>,
     slot_event_tx: mpsc::Sender<SlotEvent>,
     slot_event_rx: mpsc::Receiver<SlotEvent>,
     push_tx: mpsc::Sender<PushFrame>,
     push_rx: mpsc::Receiver<PushFrame>,
     push_dropped: Arc<AtomicU64>,
+    connection_limiter: Arc<ConnectionLimiter>,
+    memory_budget: Arc<MemoryBudget>,
+    last_diagnostics_refresh: Instant,
     connect_batch: Option<ConnectBatch>,
     push_waiters: Vec<PushPollWaiter>,
     close_attempt: Option<crate::supervisor::CloseAttempt>,
@@ -1971,8 +2344,19 @@ impl RuntimeCore {
             .total_capacity()?
             .checked_add(config.pool_size.saturating_mul(8))
             .ok_or_else(|| RuntimeError::internal("runtime event capacity overflow"))?;
+        if event_capacity > Semaphore::MAX_PERMITS {
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "configured runtime event capacity exceeds the Tokio limit",
+            ));
+        }
         let (slot_event_tx, slot_event_rx) = mpsc::channel(event_capacity.max(1));
         let (push_tx, push_rx) = mpsc::channel(config.push_queue_size);
+        let connection_limiter = Arc::new(ConnectionLimiter::new(&config));
+        let memory_budget = Arc::new(MemoryBudget::new(
+            config.global_raw_bytes,
+            config.global_decoded_bytes,
+        )?);
         Ok(Self {
             supervisor: Supervisor::with_limits_from_epoch(
                 config.pool_size,
@@ -1996,11 +2380,15 @@ impl RuntimeCore {
             heartbeat_requests: BTreeSet::new(),
             retirements: BTreeMap::new(),
             cancel_confirmations: BTreeMap::new(),
+            pre_cancelled_submissions: BTreeSet::new(),
             slot_event_tx,
             slot_event_rx,
             push_tx,
             push_rx,
             push_dropped: Arc::new(AtomicU64::new(0)),
+            connection_limiter,
+            memory_budget,
+            last_diagnostics_refresh: Instant::now(),
             connect_batch: None,
             push_waiters: Vec::new(),
             close_attempt: None,
@@ -2051,6 +2439,7 @@ impl RuntimeCore {
             self.reject_startup_commands(error.clone());
             return Err(error);
         }
+        self.last_diagnostics_refresh = Instant::now();
         startup.publish(Ok(()));
 
         let mut tick = interval(RUNTIME_TICK);
@@ -2093,9 +2482,13 @@ impl RuntimeCore {
                     return Err(self.emergency_stop_and_join(cleanup_error).await);
                 }
             }
-            if let Err(error) = self.refresh_diagnostics_cache() {
-                if let Err(cleanup_error) = self.begin_runtime_fatal(error).await {
-                    return Err(self.emergency_stop_and_join(cleanup_error).await);
+            if self.last_diagnostics_refresh.elapsed() >= DIAGNOSTICS_REFRESH_INTERVAL {
+                if let Err(error) = self.refresh_diagnostics_cache() {
+                    if let Err(cleanup_error) = self.begin_runtime_fatal(error).await {
+                        return Err(self.emergency_stop_and_join(cleanup_error).await);
+                    }
+                } else {
+                    self.last_diagnostics_refresh = Instant::now();
                 }
             }
             let close_ready = match self.close_ready() {
@@ -2135,16 +2528,25 @@ impl RuntimeCore {
             let _ = handle.join.await;
         }
 
+        let memory = self.memory_budget.snapshot();
         if let Ok(mut cache) = self.diagnostics.lock() {
             cache.pool.state = PoolState::FailedClosed;
             cache.pool.broker = None;
             cache.pool.actors.clear();
             cache.pool.push_frames = 0;
             cache.pool.push_bytes = 0;
+            cache.pool.raw_bytes = memory.raw_bytes;
+            cache.pool.raw_peak_bytes = memory.raw_peak_bytes;
+            cache.pool.decoded_bytes = memory.decoded_bytes;
+            cache.pool.decoded_peak_bytes = memory.decoded_peak_bytes;
             if let Some(transport) = cache.transport.as_mut() {
                 transport.actor = None;
                 transport.push_frames = 0;
                 transport.push_bytes = 0;
+                transport.raw_bytes = memory.raw_bytes;
+                transport.raw_peak_bytes = memory.raw_peak_bytes;
+                transport.decoded_bytes = memory.decoded_bytes;
+                transport.decoded_peak_bytes = memory.decoded_peak_bytes;
             }
         }
 
@@ -2229,18 +2631,47 @@ impl RuntimeCore {
                 RuntimeCommand::DrainPushes { reply } => {
                     let _ = reply.send(Err(error.clone()));
                 }
-                RuntimeCommand::PoolDiagnostics { reply } => {
-                    let _ = reply.send(Err(error.clone()));
-                }
-                RuntimeCommand::TransportDiagnostics { reply } => {
-                    let _ = reply.send(Err(error.clone()));
-                }
             }
         }
     }
 
     async fn handle_command(&mut self, command: RuntimeCommand) -> Result<(), RuntimeError> {
         self.flush_pending_push_drops();
+        if let Some(request_id) = command.request_id() {
+            if self.pre_cancelled_submissions.remove(&request_id) {
+                let error = RuntimeError::connection_closed("request cancelled before admission")
+                    .with_context("request_id", request_id.get().to_string());
+                match command {
+                    RuntimeCommand::Execute {
+                        admission, result, ..
+                    } => {
+                        let _ = admission.send(Err(error.clone()));
+                        let _ = result.send(Err(error));
+                    }
+                    RuntimeCommand::OpenPin {
+                        admission, result, ..
+                    } => {
+                        let _ = admission.send(Err(error.clone()));
+                        let _ = result.send(Err(error));
+                    }
+                    RuntimeCommand::ExecutePinned {
+                        admission, result, ..
+                    } => {
+                        let _ = admission.send(Err(error.clone()));
+                        let _ = result.send(Err(error));
+                    }
+                    _ => {
+                        return Err(RuntimeError::internal(
+                            "pre-admission cancellation targeted a control command",
+                        ));
+                    }
+                }
+                if let Some(confirmation) = self.cancel_confirmations.remove(&request_id) {
+                    confirmation.publish(Ok(()));
+                }
+                return Ok(());
+            }
+        }
         if self.closing {
             return self.reject_command_after_close(command);
         }
@@ -2415,20 +2846,6 @@ impl RuntimeCore {
                 let _ = reply.send(self.supervisor.drain_pushes());
                 Ok(())
             }
-            RuntimeCommand::PoolDiagnostics { reply } => {
-                let diagnostics = self.refresh_diagnostics_cache().map(|cache| cache.pool);
-                let _ = reply.send(diagnostics);
-                Ok(())
-            }
-            RuntimeCommand::TransportDiagnostics { reply } => {
-                let diagnostics = self.refresh_diagnostics_cache().and_then(|cache| {
-                    cache.transport.ok_or_else(|| {
-                        RuntimeError::internal("transport diagnostics cache is missing")
-                    })
-                });
-                let _ = reply.send(diagnostics);
-                Ok(())
-            }
         }
     }
 
@@ -2468,17 +2885,6 @@ impl RuntimeCore {
             RuntimeCommand::DrainPushes { reply } => {
                 let _ = reply.send(self.supervisor.drain_pushes());
             }
-            RuntimeCommand::PoolDiagnostics { reply } => {
-                let _ = reply.send(self.refresh_diagnostics_cache().map(|cache| cache.pool));
-            }
-            RuntimeCommand::TransportDiagnostics { reply } => {
-                let result = self.refresh_diagnostics_cache().and_then(|cache| {
-                    cache.transport.ok_or_else(|| {
-                        RuntimeError::internal("transport diagnostics cache is missing")
-                    })
-                });
-                let _ = reply.send(result);
-            }
         }
         Ok(())
     }
@@ -2488,12 +2894,32 @@ impl RuntimeCore {
         for handle in self.slots.iter().flatten() {
             snapshots.push(lock_mutex(&handle.snapshot, "Slot diagnostics")?.clone());
         }
-        let pool = PoolDiagnostics::capture_snapshots(&self.supervisor, snapshots.clone())?;
+        let memory = self.memory_budget.snapshot();
+        let mut pool = PoolDiagnostics::capture_snapshots(&self.supervisor, snapshots.clone())?;
+        pool.runtime_workers = self.config.runtime_workers;
+        pool.pool_size = self.config.pool_size;
+        pool.server_count = self.config.server_count;
+        pool.max_connections_per_host = self.config.max_connections_per_host;
+        pool.connect_concurrency = self.config.connect_concurrency;
+        pool.connect_concurrency_per_host = self.config.connect_concurrency_per_host;
+        pool.raw_bytes = memory.raw_bytes;
+        pool.raw_max_bytes = memory.raw_max_bytes;
+        pool.raw_peak_bytes = memory.raw_peak_bytes;
+        pool.decoded_bytes = memory.decoded_bytes;
+        pool.decoded_max_bytes = memory.decoded_max_bytes;
+        pool.decoded_peak_bytes = memory.decoded_peak_bytes;
+        pool.push_max_bytes = self.config.push_queue_bytes;
         let transport = if self.config.pool_size == 1 {
-            Some(TransportDiagnostics::capture_snapshots(
-                &self.supervisor,
-                snapshots,
-            )?)
+            let mut transport =
+                TransportDiagnostics::capture_snapshots(&self.supervisor, snapshots)?;
+            transport.runtime_workers = self.config.runtime_workers;
+            transport.raw_bytes = memory.raw_bytes;
+            transport.raw_max_bytes = memory.raw_max_bytes;
+            transport.raw_peak_bytes = memory.raw_peak_bytes;
+            transport.decoded_bytes = memory.decoded_bytes;
+            transport.decoded_max_bytes = memory.decoded_max_bytes;
+            transport.decoded_peak_bytes = memory.decoded_peak_bytes;
+            Some(transport)
         } else {
             None
         };
@@ -2524,6 +2950,11 @@ impl RuntimeCore {
             attempt_id,
             completion,
             remaining: BTreeSet::new(),
+            in_flight: BTreeSet::new(),
+            canary_pending: VecDeque::new(),
+            canary_remaining: BTreeSet::new(),
+            expansion_pending: VecDeque::new(),
+            deadline: Deadline::after(self.config.request_timeout)?,
             first_error: None,
             rolling_back: false,
         });
@@ -2539,22 +2970,15 @@ impl RuntimeCore {
                 .as_mut()
                 .ok_or_else(|| RuntimeError::internal("connect batch disappeared"))?;
             batch.remaining.insert(slot_id);
-        }
-        let deadline = Deadline::after(self.config.request_timeout)?;
-        let slot_ids = self
-            .connect_batch
-            .as_ref()
-            .map(|batch| batch.remaining.iter().copied().collect::<Vec<_>>())
-            .ok_or_else(|| RuntimeError::internal("connect batch disappeared"))?;
-        if dispatch_error.is_none() {
-            for slot_id in slot_ids {
-                if let Err(error) =
-                    self.send_slot_work(slot_id, SlotWork::EnsureConnected { deadline })
-                {
-                    dispatch_error = Some(error);
-                    break;
-                }
+            if index < self.config.server_count {
+                batch.canary_pending.push_back(slot_id);
+                batch.canary_remaining.insert(slot_id);
+            } else {
+                batch.expansion_pending.push_back(slot_id);
             }
+        }
+        if dispatch_error.is_none() {
+            dispatch_error = self.dispatch_connect_batch().err();
         }
         if let Some(error) = dispatch_error {
             if let Some(batch) = self.connect_batch.as_mut() {
@@ -2564,6 +2988,44 @@ impl RuntimeCore {
             self.begin_close().await?;
         }
         Ok(())
+    }
+
+    fn dispatch_connect_batch(&mut self) -> Result<(), RuntimeError> {
+        loop {
+            let next = {
+                let batch = self
+                    .connect_batch
+                    .as_mut()
+                    .ok_or_else(|| RuntimeError::internal("connect batch disappeared"))?;
+                if batch.rolling_back || batch.in_flight.len() >= self.config.connect_concurrency {
+                    return Ok(());
+                }
+                let slot_id = if let Some(slot_id) = batch.canary_pending.pop_front() {
+                    Some(slot_id)
+                } else if !batch.canary_remaining.is_empty() {
+                    None
+                } else {
+                    batch.expansion_pending.pop_front()
+                };
+                let Some(slot_id) = slot_id else {
+                    return Ok(());
+                };
+                if !batch.in_flight.insert(slot_id) {
+                    return Err(RuntimeError::internal(
+                        "connect batch attempted to dispatch one Slot twice",
+                    ));
+                }
+                (slot_id, batch.deadline)
+            };
+            if let Err(error) =
+                self.send_slot_work(next.0, SlotWork::EnsureConnected { deadline: next.1 })
+            {
+                if let Some(batch) = self.connect_batch.as_mut() {
+                    batch.in_flight.remove(&next.0);
+                }
+                return Err(error);
+            }
+        }
     }
 
     fn ensure_slot(&mut self, epoch: EngineEpoch, slot_id: SlotId) -> Result<(), RuntimeError> {
@@ -2580,8 +3042,8 @@ impl RuntimeCore {
                 "Slot registration lost the active engine epoch",
             ));
         }
-        let rotation = EndpointRotation::new(self.config.endpoints.to_vec(), index)?;
-        let slot = Slot::new(epoch, slot_id, rotation)?;
+        let rotation = EndpointRotation::new(self.config.slot_endpoints(index), 0)?;
+        let slot = Slot::new(epoch, slot_id, rotation, Arc::clone(&self.memory_budget))?;
         let snapshot = Arc::new(Mutex::new(SlotSnapshot::capture(&slot, true)));
         let (work_tx, work_rx) = mpsc::channel(1);
         let (directive_tx, directive_rx) = watch::channel(SlotDirective::Run);
@@ -2594,6 +3056,8 @@ impl RuntimeCore {
             event_tx: self.slot_event_tx.clone(),
             push_tx: self.push_tx.clone(),
             push_dropped: Arc::clone(&self.push_dropped),
+            connection_limiter: Arc::clone(&self.connection_limiter),
+            memory_budget: Arc::clone(&self.memory_budget),
             heartbeat_interval: self.config.heartbeat_interval,
             snapshot: Arc::clone(&snapshot),
         };
@@ -3110,6 +3574,12 @@ impl RuntimeCore {
                 "connect completion did not belong to the current batch",
             ));
         }
+        if !batch.in_flight.remove(&slot_id) {
+            return Err(RuntimeError::internal(
+                "connect completion arrived for a Slot that was not in flight",
+            ));
+        }
+        batch.canary_remaining.remove(&slot_id);
         let failed = if let Err(error) = result {
             batch.first_error.get_or_insert(error);
             true
@@ -3124,6 +3594,7 @@ impl RuntimeCore {
             self.begin_close().await?;
             return Ok(());
         }
+        self.dispatch_connect_batch()?;
         let Some(batch) = self.connect_batch.as_ref() else {
             return Ok(());
         };
@@ -3134,6 +3605,8 @@ impl RuntimeCore {
             .connect_batch
             .take()
             .ok_or_else(|| RuntimeError::internal("connect batch disappeared"))?;
+        self.refresh_diagnostics_cache()?;
+        self.last_diagnostics_refresh = Instant::now();
         completed.completion.publish(Ok(()));
         Ok(())
     }
@@ -3638,7 +4111,8 @@ impl RuntimeCore {
             };
         }
         let Some(pending) = self.pending.get(&request_id) else {
-            confirmation.publish(Ok(()));
+            self.pre_cancelled_submissions.insert(request_id);
+            self.cancel_confirmations.insert(request_id, confirmation);
             return Ok(());
         };
         self.cancel_confirmations.insert(request_id, confirmation);
@@ -3852,6 +4326,7 @@ impl RuntimeCore {
             || !self.heartbeat_requests.is_empty()
             || !self.retirements.is_empty()
             || !self.cancel_confirmations.is_empty()
+            || !self.pre_cancelled_submissions.is_empty()
         {
             return Ok(false);
         }
@@ -3884,6 +4359,8 @@ impl RuntimeCore {
                 "runtime cleanup did not reach a closed Engine state",
             ));
         }
+        self.connection_limiter.check_idle(&self.config)?;
+        self.memory_budget.check_empty()?;
         self.refresh_diagnostics_cache()?;
         if let Some(batch) = self.connect_batch.take() {
             let error = batch.first_error.unwrap_or_else(|| {
@@ -3995,13 +4472,15 @@ enum SlotEvent {
 #[derive(Debug)]
 struct SlotWorker {
     slot: Slot,
-    stream: Option<TcpStream>,
+    stream: Option<ManagedStream>,
     message_ids: MessageIdGenerator,
     work_rx: mpsc::Receiver<SlotWork>,
     directive_rx: watch::Receiver<SlotDirective>,
     event_tx: mpsc::Sender<SlotEvent>,
     push_tx: mpsc::Sender<PushFrame>,
     push_dropped: Arc<AtomicU64>,
+    connection_limiter: Arc<ConnectionLimiter>,
+    memory_budget: Arc<MemoryBudget>,
     heartbeat_interval: Option<Duration>,
     snapshot: Arc<Mutex<SlotSnapshot>>,
 }
@@ -4463,6 +4942,7 @@ impl SlotWorker {
         let stream = match self
             .connect_stream(
                 attempt.request_id,
+                start.attempt.endpoint.host(),
                 start.attempt.endpoint.address(),
                 start.attempt.deadline,
             )
@@ -4569,6 +5049,10 @@ impl SlotWorker {
                 }));
             }
         };
+        self.stream
+            .as_mut()
+            .ok_or_else(|| RuntimeError::internal("handshaken TCP stream disappeared"))?
+            .finish_handshake();
         self.publish_handshake(handshake).await?;
         Ok(ConnectForRequest::Ready {
             receive_boundary: routed.frame.receive_sequence,
@@ -4602,6 +5086,7 @@ impl SlotWorker {
             match self
                 .connect_stream(
                     request_id,
+                    start.attempt.endpoint.host(),
                     start.attempt.endpoint.address(),
                     start.attempt.deadline,
                 )
@@ -4635,7 +5120,13 @@ impl SlotWorker {
                 .encode()
                 .map_err(RuntimeError::from)?;
             let handshake = self
-                .write_frame(request_id, &frame, deadline, TimeoutPhase::Handshake, None)
+                .write_frame(
+                    request_id,
+                    &frame,
+                    start.attempt.deadline,
+                    TimeoutPhase::Handshake,
+                    None,
+                )
                 .await
                 .map(|_| ());
             if let Err(failure) = handshake {
@@ -4650,7 +5141,7 @@ impl SlotWorker {
                 .read_matching_response(
                     request_id,
                     start.identity,
-                    deadline,
+                    start.attempt.deadline,
                     TimeoutPhase::Handshake,
                 )
                 .await
@@ -4675,6 +5166,10 @@ impl SlotWorker {
                     return Err(RuntimeError::from(error));
                 }
             };
+            self.stream
+                .as_mut()
+                .ok_or_else(|| RuntimeError::internal("handshaken TCP stream disappeared"))?
+                .finish_handshake();
             self.publish_handshake(handshake).await?;
             if !self.slot.release_unstarted_request(request_id)? {
                 return Err(RuntimeError::internal(
@@ -4754,9 +5249,40 @@ impl SlotWorker {
     async fn connect_stream(
         &mut self,
         request_id: RequestId,
+        host: &str,
         address: std::net::SocketAddr,
         deadline: Deadline,
-    ) -> Result<TcpStream, OperationFailure> {
+    ) -> Result<ManagedStream, OperationFailure> {
+        let (host_connect, host_connections) = self
+            .connection_limiter
+            .host_semaphores(host)
+            .map_err(OperationFailure::Error)?;
+        let connection = match host_connections.try_acquire_owned() {
+            Ok(permit) => permit,
+            Err(tokio::sync::TryAcquireError::NoPermits) => {
+                return Err(OperationFailure::Error(
+                    RuntimeError::connection_closed(
+                        "7709 endpoint reached max_connections_per_host",
+                    )
+                    .with_context("host", host.to_owned()),
+                ));
+            }
+            Err(tokio::sync::TryAcquireError::Closed) => {
+                return Err(OperationFailure::Error(RuntimeError::connection_closed(
+                    "7709 connection limiter is closed",
+                )));
+            }
+        };
+        let host_connect =
+            acquire_owned_interruptible(host_connect, &mut self.directive_rx, request_id, deadline)
+                .await?;
+        let global_connect = acquire_owned_interruptible(
+            Arc::clone(&self.connection_limiter.global_connect),
+            &mut self.directive_rx,
+            request_id,
+            deadline,
+        )
+        .await?;
         tokio::select! {
             biased;
             directive = wait_for_interrupt(&mut self.directive_rx, request_id) => {
@@ -4771,7 +5297,13 @@ impl SlotWorker {
                                 format!("unable to configure TCP_NODELAY: {error}")
                             ))
                         })?;
-                        Ok(stream)
+                        Ok(ManagedStream {
+                            stream,
+                            permits: ConnectionPermits {
+                                _connection: connection,
+                                transient: Some((global_connect, host_connect)),
+                            },
+                        })
                     }
                     Ok(Err(error)) => Err(OperationFailure::Error(
                         RuntimeError::connection_closed(format!("7709 TCP connect failed: {error}"))
@@ -4870,6 +5402,27 @@ impl SlotWorker {
                 return Ok(matched);
             }
             if decoded.budget_exhausted
+                && decoded.frames_added == 0
+                && self.slot.decoded_queue_usage().0 == 0
+            {
+                tokio::select! {
+                    biased;
+                    directive = wait_for_interrupt(&mut self.directive_rx, request_id) => {
+                        let _ = directive;
+                        return Err(OperationFailure::Interrupted);
+                    }
+                    result = timeout_at(
+                        deadline.tokio_instant(),
+                        self.memory_budget.wait_for_decoded_release(),
+                    ) => {
+                        if result.is_err() {
+                            return Err(OperationFailure::Error(RuntimeError::timeout(phase)));
+                        }
+                    }
+                }
+                continue;
+            }
+            if decoded.budget_exhausted
                 || route_frames >= SLOT_FRAME_BUDGET
                 || self.slot.decoded_queue_usage().0 != 0
             {
@@ -4878,9 +5431,22 @@ impl SlotWorker {
             }
             let capacity = self.slot.wire_read_capacity(generation);
             if capacity == 0 {
-                return Err(OperationFailure::Error(RuntimeError::internal(
-                    "Slot has no bounded wire read capacity",
-                )));
+                tokio::select! {
+                    biased;
+                    directive = wait_for_interrupt(&mut self.directive_rx, request_id) => {
+                        let _ = directive;
+                        return Err(OperationFailure::Interrupted);
+                    }
+                    result = timeout_at(
+                        deadline.tokio_instant(),
+                        self.memory_budget.wait_for_raw_release(),
+                    ) => {
+                        if result.is_err() {
+                            return Err(OperationFailure::Error(RuntimeError::timeout(phase)));
+                        }
+                    }
+                }
+                continue;
             }
             let mut buffer = vec![0_u8; capacity];
             let stream = self.stream.as_ref().ok_or_else(|| {
@@ -4922,9 +5488,13 @@ impl SlotWorker {
             };
             let accepted = self.slot.push_wire_bytes(generation, &buffer[..read]);
             if accepted != read {
-                return Err(OperationFailure::Error(RuntimeError::internal(
-                    "Slot rejected bytes within its advertised read capacity",
-                )));
+                return Err(OperationFailure::Error(
+                    RuntimeError::connection_closed(
+                        "Engine raw memory budget was exhausted during TCP receive",
+                    )
+                    .with_context("accepted", accepted.to_string())
+                    .with_context("read", read.to_string()),
+                ));
             }
         }
     }
@@ -4992,9 +5562,8 @@ impl SlotWorker {
             }
         };
         if self.slot.push_wire_bytes(generation, &buffer[..read]) != read {
-            return Err(RuntimeError::internal(
-                "idle Slot rejected advertised wire capacity",
-            ));
+            self.retire_idle("Engine raw memory budget exhausted during idle receive")?;
+            return Ok(true);
         }
         self.process_idle_decoded(generation)
     }
@@ -5137,6 +5706,32 @@ impl OperationFailure {
     }
 }
 
+async fn acquire_owned_interruptible(
+    semaphore: Arc<Semaphore>,
+    receiver: &mut watch::Receiver<SlotDirective>,
+    request_id: RequestId,
+    deadline: Deadline,
+) -> Result<OwnedSemaphorePermit, OperationFailure> {
+    tokio::select! {
+        biased;
+        directive = wait_for_interrupt(receiver, request_id) => {
+            let _ = directive;
+            Err(OperationFailure::Interrupted)
+        }
+        result = timeout_at(deadline.tokio_instant(), semaphore.acquire_owned()) => {
+            match result {
+                Ok(Ok(permit)) => Ok(permit),
+                Ok(Err(_)) => Err(OperationFailure::Error(RuntimeError::connection_closed(
+                    "7709 connection limiter is closed",
+                ))),
+                Err(_) => Err(OperationFailure::Error(RuntimeError::timeout(
+                    TimeoutPhase::Connect,
+                ))),
+            }
+        }
+    }
+}
+
 async fn wait_for_interrupt(
     receiver: &mut watch::Receiver<SlotDirective>,
     request_id: RequestId,
@@ -5225,8 +5820,9 @@ mod tests {
 
     use super::{
         check_pid, keyed_permutation, runtime_epoch_reservation, ConnectAttemptId, ControlCell,
-        Engine, EngineConfig, HostCloseAttemptId, HostConnectAttempt, HostLifecycle,
-        IngressOwnership, PendingConnect, PendingPoll, RuntimeCore, CLOSE_TIMEOUT,
+        Engine, EngineConfig, EngineConfigOptions, HostCloseAttemptId, HostConnectAttempt,
+        HostLifecycle, IngressOwnership, PendingConnect, PendingPoll, RuntimeCore, CLOSE_TIMEOUT,
+        MAX_DECODED_QUEUE_BYTES, MAX_RAW_STAGING_BUFFER_SIZE,
     };
     use crate::diagnostics::PoolState;
     use crate::endpoint::Endpoint;
@@ -5237,11 +5833,47 @@ mod tests {
         EngineConfig::from_endpoints(
             vec![Endpoint::numeric("127.0.0.1:7709")?],
             Duration::from_secs(8),
-            pool_size,
-            Some(Duration::from_secs(30)),
-            max_pending,
-            1_024,
-            8 * 1024 * 1024,
+            EngineConfigOptions {
+                pool_size,
+                runtime_workers: None,
+                server_count: 1,
+                max_connections_per_host: None,
+                connect_concurrency: None,
+                connect_concurrency_per_host: None,
+                global_raw_bytes: None,
+                global_decoded_bytes: None,
+                heartbeat_interval: Some(30.0),
+                max_pending_requests: max_pending,
+                push_queue_size: 1_024,
+                push_queue_bytes: 8 * 1024 * 1024,
+            },
+        )
+    }
+
+    fn distributed_config(
+        pool_size: usize,
+        server_count: usize,
+    ) -> Result<EngineConfig, RuntimeError> {
+        let endpoints = (1..=4)
+            .map(|index| Endpoint::numeric(&format!("127.0.0.{index}:7709")))
+            .collect::<Result<Vec<_>, _>>()?;
+        EngineConfig::from_endpoints(
+            endpoints,
+            Duration::from_secs(8),
+            EngineConfigOptions {
+                pool_size,
+                runtime_workers: None,
+                server_count,
+                max_connections_per_host: None,
+                connect_concurrency: None,
+                connect_concurrency_per_host: None,
+                global_raw_bytes: None,
+                global_decoded_bytes: None,
+                heartbeat_interval: None,
+                max_pending_requests: 256,
+                push_queue_size: 1_024,
+                push_queue_bytes: 64 * 1024 * 1024,
+            },
         )
     }
 
@@ -5254,7 +5886,57 @@ mod tests {
         assert_eq!(config.push_queue_size(), 1_024);
         assert_eq!(config.push_queue_bytes(), 8 * 1024 * 1024);
         assert_eq!(config.heartbeat_interval(), Some(Duration::from_secs(30)));
+        assert_eq!(
+            config.runtime_workers(),
+            4_usize.min(
+                std::thread::available_parallelism()
+                    .map(std::num::NonZeroUsize::get)
+                    .unwrap_or(1)
+            )
+        );
         assert_eq!(CLOSE_TIMEOUT, Duration::from_secs(1));
+        Ok(())
+    }
+
+    #[test]
+    fn distributed_defaults_scale_workers_memory_and_connect_limits() -> Result<(), RuntimeError> {
+        let config = distributed_config(160, 4)?;
+        let available = std::thread::available_parallelism()
+            .map(std::num::NonZeroUsize::get)
+            .unwrap_or(1);
+
+        assert_eq!(config.runtime_workers(), 160_usize.min(available));
+        assert_eq!(config.server_count(), 4);
+        assert_eq!(config.max_connections_per_host(), 40);
+        assert_eq!(
+            config.connect_concurrency(),
+            available.saturating_mul(2).clamp(4, 32).min(160)
+        );
+        assert_eq!(config.connect_concurrency_per_host(), 2);
+        assert_eq!(config.global_raw_bytes(), 160 * MAX_RAW_STAGING_BUFFER_SIZE);
+        assert_eq!(config.global_decoded_bytes(), 160 * MAX_DECODED_QUEUE_BYTES);
+        Ok(())
+    }
+
+    #[test]
+    fn slot_failover_prefers_ranked_spares_before_a_capped_selected_peer(
+    ) -> Result<(), RuntimeError> {
+        let config = distributed_config(8, 2)?;
+        let hosts = config
+            .slot_endpoints(0)
+            .into_iter()
+            .map(|endpoint| endpoint.host().to_owned())
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            hosts,
+            vec![
+                "127.0.0.1:7709",
+                "127.0.0.3:7709",
+                "127.0.0.4:7709",
+                "127.0.0.2:7709",
+            ]
+        );
         Ok(())
     }
 
@@ -5274,13 +5956,15 @@ mod tests {
     fn internal_request_identities_are_even_and_disjoint_from_public_ids(
     ) -> Result<(), RuntimeError> {
         let (_command_tx, command_rx) = tokio::sync::mpsc::channel(1);
+        let runtime_config = config(1, 1)?;
+        let diagnostics = super::DiagnosticsCache::stopped(&runtime_config);
         let mut runtime = RuntimeCore::new(
-            config(1, 1)?,
+            runtime_config,
             0,
             command_rx,
             Arc::new(ControlCell::new()),
             Arc::new(AtomicUsize::new(0)),
-            Arc::new(std::sync::Mutex::new(super::DiagnosticsCache::stopped(1))),
+            Arc::new(std::sync::Mutex::new(diagnostics)),
             Arc::new(std::sync::Mutex::new(super::SessionCache::default())),
         )?;
         let first = runtime.next_internal_request_id()?;

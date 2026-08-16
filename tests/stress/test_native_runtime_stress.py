@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import gc
 import multiprocessing
 import os
+import socket
 import subprocess
 import sys
 import textwrap
@@ -11,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pytest
+import psutil
 
 from eltdx.exceptions import PoolBusyError, PushOverflowError, TransportError
 from eltdx.models import FileContentChunk
@@ -61,6 +64,23 @@ def _ordinary_waiters(transport: PooledSocketTransport) -> int:
 def _pin_waiters(transport: PooledSocketTransport) -> int:
     broker = transport.diagnostics.broker
     return -1 if broker is None else broker.pin_waiter_count
+
+
+def _pool_is_idle(transport: PooledSocketTransport) -> bool:
+    diagnostics = transport.diagnostics
+    broker = diagnostics.broker
+    return (
+        broker is not None
+        and broker.waiter_count == 0
+        and broker.pin_waiter_count == 0
+        and broker.active_leases == 0
+        and all(actor.pending_depth == 0 for actor in diagnostics.actors)
+    )
+
+
+def _socket_is_idle(transport: SocketTransport) -> bool:
+    actor = transport.diagnostics.actor
+    return actor is not None and actor.pending_depth == 0
 
 
 def _acquire_pin(transport: PooledSocketTransport) -> str | None:
@@ -143,6 +163,7 @@ def test_one_hundred_thousand_requests_are_unique_and_resource_bounded() -> None
             assert len({value[0] for value in values}) == request_count
             assert len({value[2] for value in values}) == request_count
             assert server.wait_for_idle()
+            assert _wait_until(lambda: _pool_is_idle(transport))
             diagnostics = transport.diagnostics
             assert diagnostics.state is PoolState.RUNNING
             assert diagnostics.broker is not None
@@ -155,6 +176,8 @@ def test_one_hundred_thousand_requests_are_unique_and_resource_bounded() -> None
             transport.close()
         assert transport.diagnostics.state is PoolState.STOPPED
         assert transport.diagnostics.actors == ()
+        assert transport.diagnostics.raw_bytes == 0
+        assert transport.diagnostics.decoded_bytes == 0
         assert server.wait_for_no_workers()
 
 
@@ -182,7 +205,128 @@ def test_pool_sizes_preserve_exact_completion_and_cleanup(pool_size: int) -> Non
         finally:
             transport.close()
         assert transport.diagnostics.state is PoolState.STOPPED
+        assert transport.diagnostics.raw_bytes == 0
+        assert transport.diagnostics.decoded_bytes == 0
         assert server.wait_for_no_workers()
+
+
+def test_one_engine_handles_160_slots_with_bounded_workers_and_memory() -> None:
+    pool_size = _count("ELTDX_STRESS_LARGE_POOL_SIZE", 160)
+    request_count = _count("ELTDX_STRESS_LARGE_POOL_REQUESTS", pool_size * 4)
+    runtime_workers = min(4, pool_size)
+    with NativeStressServer(response_delay=0.0001) as server:
+        transport = PooledSocketTransport(
+            [server.host],
+            timeout=30,
+            pool_size=pool_size,
+            runtime_workers=runtime_workers,
+            connect_concurrency=min(16, pool_size),
+            connect_concurrency_per_host=min(4, pool_size),
+            heartbeat_interval=None,
+            max_pending_requests=pool_size,
+        )
+        try:
+            transport.connect()
+            with ThreadPoolExecutor(max_workers=min(pool_size, 160)) as executor:
+                values = list(
+                    executor.map(
+                        lambda token: _execute_identity(transport, token),
+                        range(request_count),
+                    )
+                )
+            diagnostics = transport.diagnostics
+            assert {value[0] for value in values} == set(range(request_count))
+            assert diagnostics.pool_size == pool_size
+            assert diagnostics.server_count == 1
+            assert diagnostics.runtime_workers == runtime_workers
+            assert len(diagnostics.actors) == pool_size
+            assert diagnostics.raw_bytes <= diagnostics.raw_max_bytes
+            assert diagnostics.decoded_bytes <= diagnostics.decoded_max_bytes
+            assert diagnostics.raw_peak_bytes <= diagnostics.raw_max_bytes
+            assert diagnostics.decoded_peak_bytes <= diagnostics.decoded_max_bytes
+            assert server.accepted >= pool_size
+        finally:
+            transport.close()
+        diagnostics = transport.diagnostics
+        assert diagnostics.state is PoolState.STOPPED
+        assert diagnostics.actors == ()
+        assert diagnostics.raw_bytes == 0
+        assert diagnostics.decoded_bytes == 0
+        assert server.wait_for_no_workers()
+
+
+def test_slots_are_evenly_distributed_across_selected_servers() -> None:
+    with (
+        NativeStressServer() as first,
+        NativeStressServer() as second,
+        NativeStressServer() as third,
+    ):
+        transport = PooledSocketTransport(
+            [first.host, second.host, third.host],
+            server_count=3,
+            connections_per_server=4,
+            runtime_workers=4,
+            probe_hosts=False,
+            heartbeat_interval=None,
+        )
+        try:
+            transport.connect()
+            connected = transport.connected_hosts
+            assert connected.count(first.host) == 4
+            assert connected.count(second.host) == 4
+            assert connected.count(third.host) == 4
+            assert first.accepted == 4
+            assert second.accepted == 4
+            assert third.accepted == 4
+        finally:
+            transport.close()
+        assert first.wait_for_no_workers()
+        assert second.wait_for_no_workers()
+        assert third.wait_for_no_workers()
+
+
+def test_failed_selected_servers_skip_full_spares_and_keep_host_caps() -> None:
+    with (
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM) as first_probe,
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM) as second_probe,
+    ):
+        first_probe.bind(("127.0.0.1", 0))
+        second_probe.bind(("127.0.0.1", 0))
+        first_failed = f"127.0.0.1:{first_probe.getsockname()[1]}"
+        second_failed = f"127.0.0.1:{second_probe.getsockname()[1]}"
+
+        with (
+            NativeStressServer() as selected,
+            NativeStressServer() as first_spare,
+            NativeStressServer() as second_spare,
+        ):
+            transport = PooledSocketTransport(
+                [
+                    first_failed,
+                    second_failed,
+                    selected.host,
+                    first_spare.host,
+                    second_spare.host,
+                ],
+                server_count=3,
+                connections_per_server=4,
+                runtime_workers=4,
+                probe_hosts=False,
+                heartbeat_interval=None,
+            )
+            try:
+                transport.connect()
+                connected = transport.connected_hosts
+                assert first_failed not in connected
+                assert second_failed not in connected
+                assert connected.count(selected.host) == 4
+                assert connected.count(first_spare.host) == 4
+                assert connected.count(second_spare.host) == 4
+            finally:
+                transport.close()
+            assert selected.wait_for_no_workers()
+            assert first_spare.wait_for_no_workers()
+            assert second_spare.wait_for_no_workers()
 
 
 def test_ten_thousand_tcp_generations_keep_one_engine_and_no_live_actor() -> None:
@@ -192,6 +336,13 @@ def test_ten_thousand_tcp_generations_keep_one_engine_and_no_live_actor() -> Non
         try:
             for token in range(generation_count):
                 assert _execute_identity(transport, token)[0] == token
+            assert _wait_until(
+                lambda: (
+                    transport.diagnostics.actor is not None
+                    and transport.diagnostics.actor.reconnect_count
+                    >= generation_count - 1
+                )
+            )
             diagnostics = transport.diagnostics
             assert diagnostics.actor is not None
             assert diagnostics.actor.reconnect_count >= generation_count - 1
@@ -219,6 +370,45 @@ def test_ten_thousand_normal_close_reopen_cycles_end_stopped() -> None:
             assert transport.diagnostics.actor is None
         assert transport.diagnostics.epoch == last_epoch
         assert server.wait_for_no_workers()
+
+
+def test_repeated_engine_lifecycle_keeps_threads_and_rss_bounded() -> None:
+    batch_size = _count("ELTDX_STRESS_LIFECYCLE_ENGINES", 1_000)
+    max_rss_growth = _count("ELTDX_STRESS_RSS_GROWTH_BYTES", 32 * 1024 * 1024)
+    process = psutil.Process()
+
+    def run_batch(server: NativeStressServer, start: int, count: int) -> None:
+        for token in range(start, start + count):
+            transport = SocketTransport(
+                [server.host],
+                timeout=10,
+                heartbeat_interval=None,
+            )
+            try:
+                assert _execute_identity(transport, token)[0] == token
+            finally:
+                transport.close()
+            assert transport.diagnostics.actor is None
+        assert server.wait_for_no_workers()
+
+    def footprint(thread_ceiling: int) -> tuple[int, int]:
+        gc.collect()
+        assert _wait_until(lambda: process.num_threads() <= thread_ceiling, timeout=5)
+        return process.memory_info().rss, process.num_threads()
+
+    with NativeStressServer() as server:
+        run_batch(server, 0, 64)
+        _, thread_ceiling = footprint(process.num_threads())
+
+        run_batch(server, 64, batch_size)
+        middle_rss, middle_threads = footprint(thread_ceiling)
+
+        run_batch(server, 64 + batch_size, batch_size)
+        final_rss, final_threads = footprint(thread_ceiling)
+
+        assert middle_threads <= thread_ceiling
+        assert final_threads <= thread_ceiling
+        assert final_rss - middle_rss <= max_rss_growth
 
 
 def test_waiting_capacity_rejects_without_losing_admitted_requests() -> None:
@@ -266,6 +456,7 @@ def test_pin_waiting_capacity_is_shared_and_exactly_released() -> None:
                         with transport.pin():
                             raise AssertionError("full pin queue admitted another owner")
                 assert waiting.result(timeout=5) == server.host
+            assert _wait_until(lambda: _pool_is_idle(transport))
             broker = transport.diagnostics.broker
             assert broker is not None
             assert broker.waiter_count == 0
@@ -300,6 +491,7 @@ def test_pin_local_waiting_capacity_rejects_without_a_second_active_lease() -> N
                         _execute_identity(pinned, 6)
                     assert active.result(timeout=5)[0] == 4
                     assert waiting.result(timeout=5)[0] == 5
+            assert _wait_until(lambda: _pool_is_idle(transport))
             broker = transport.diagnostics.broker
             assert broker is not None
             assert broker.pin_waiter_count == 0
@@ -320,6 +512,12 @@ def test_push_capacity_reports_one_gap_and_retains_newest_frames() -> None:
         )
         try:
             assert _execute_identity(transport, 7)[0] == 7
+            assert _wait_until(
+                lambda: (
+                    transport.diagnostics.push_frames == 2
+                    and transport.diagnostics.push_dropped == 3
+                )
+            )
             diagnostics = transport.diagnostics
             assert diagnostics.push_frames == 2
             assert diagnostics.push_dropped == 3
@@ -353,6 +551,7 @@ def test_low_priority_heartbeat_recovers_after_request_pressure() -> None:
             assert {value[0] for value in values} == set(range(request_count))
             assert _wait_until(lambda: transport.last_heartbeat is not None, timeout=5)
             assert transport.last_heartbeat.server_date_raw == 20260815
+            assert _wait_until(lambda: _socket_is_idle(transport))
             diagnostics = transport.diagnostics
             assert diagnostics.actor is not None
             assert diagnostics.actor.pending_depth == 0

@@ -17,9 +17,16 @@ from .api.session import SessionApi
 from .api.trades import TradeApi
 from .f10 import F10Client
 from .helpers import HelperApi
-from .hosts import DEFAULT_PROBE_TIMEOUT, DEFAULT_PROBE_WORKERS
+from .hosts import DEFAULT_PROBE_HOSTS, DEFAULT_PROBE_TIMEOUT, DEFAULT_PROBE_WORKERS
 from .transport import InMemoryTransport, PooledSocketTransport, Transport
-from .transport.pool import DEFAULT_POOL_SIZE, validate_pool_size
+from .transport._config import (
+    DEFAULT_CONNECTIONS_PER_SERVER,
+    DEFAULT_POOL_SIZE,
+    DEFAULT_PUSH_QUEUE_BYTES,
+    DEFAULT_SERVER_COUNT,
+    optional_positive_int,
+    positive_int,
+)
 from .workday import WorkdayService
 
 @dataclass(slots=True)
@@ -35,14 +42,22 @@ class TdxClient:
     host: str | None = None
     hosts: Sequence[str] | None = None
     timeout: float = 8.0
-    pool_size: int = DEFAULT_POOL_SIZE
-    probe_hosts: bool = False
+    pool_size: int | None = None
+    probe_hosts: bool = DEFAULT_PROBE_HOSTS
     probe_timeout: float = DEFAULT_PROBE_TIMEOUT
     probe_workers: int = DEFAULT_PROBE_WORKERS
     heartbeat_interval: float | None = 30.0
     max_pending_requests: int = 256
     push_queue_size: int = 1024
-    push_queue_bytes: int = 8 * 1024 * 1024
+    push_queue_bytes: int = DEFAULT_PUSH_QUEUE_BYTES
+    server_count: int = DEFAULT_SERVER_COUNT
+    connections_per_server: int | None = None
+    runtime_workers: int | None = None
+    max_connections_per_host: int | None = None
+    connect_concurrency: int | None = None
+    connect_concurrency_per_host: int | None = None
+    global_raw_bytes: int | None = None
+    global_decoded_bytes: int | None = None
     session: SessionApi = field(init=False)
     codes: CodeApi = field(init=False)
     quotes: QuoteApi = field(init=False)
@@ -63,14 +78,22 @@ class TdxClient:
         hosts: list[str] | tuple[str, ...] | None = None,
         *,
         timeout: float = 8.0,
-        pool_size: int = DEFAULT_POOL_SIZE,
-        probe_hosts: bool = False,
+        pool_size: int | None = None,
+        server_count: int = DEFAULT_SERVER_COUNT,
+        connections_per_server: int | None = None,
+        runtime_workers: int | None = None,
+        max_connections_per_host: int | None = None,
+        connect_concurrency: int | None = None,
+        connect_concurrency_per_host: int | None = None,
+        global_raw_bytes: int | None = None,
+        global_decoded_bytes: int | None = None,
+        probe_hosts: bool = DEFAULT_PROBE_HOSTS,
         probe_timeout: float = DEFAULT_PROBE_TIMEOUT,
         probe_workers: int = DEFAULT_PROBE_WORKERS,
         heartbeat_interval: float | None = 30.0,
         max_pending_requests: int = 256,
         push_queue_size: int = 1024,
-        push_queue_bytes: int = 8 * 1024 * 1024,
+        push_queue_bytes: int = DEFAULT_PUSH_QUEUE_BYTES,
     ) -> TdxClient:
         """创建连接真实 7709 行情主站的客户端。"""
 
@@ -79,6 +102,14 @@ class TdxClient:
                 hosts=hosts,
                 timeout=timeout,
                 pool_size=pool_size,
+                server_count=server_count,
+                connections_per_server=connections_per_server,
+                runtime_workers=runtime_workers,
+                max_connections_per_host=max_connections_per_host,
+                connect_concurrency=connect_concurrency,
+                connect_concurrency_per_host=connect_concurrency_per_host,
+                global_raw_bytes=global_raw_bytes,
+                global_decoded_bytes=global_decoded_bytes,
                 probe_hosts=probe_hosts,
                 probe_timeout=probe_timeout,
                 probe_workers=probe_workers,
@@ -90,6 +121,14 @@ class TdxClient:
             hosts=hosts,
             timeout=timeout,
             pool_size=pool_size,
+            server_count=server_count,
+            connections_per_server=connections_per_server,
+            runtime_workers=runtime_workers,
+            max_connections_per_host=max_connections_per_host,
+            connect_concurrency=connect_concurrency,
+            connect_concurrency_per_host=connect_concurrency_per_host,
+            global_raw_bytes=global_raw_bytes,
+            global_decoded_bytes=global_decoded_bytes,
             probe_hosts=probe_hosts,
             probe_timeout=probe_timeout,
             probe_workers=probe_workers,
@@ -106,13 +145,41 @@ class TdxClient:
         return cls(transport=InMemoryTransport())
 
     def __post_init__(self) -> None:
-        self.pool_size = validate_pool_size(self.pool_size)
+        self.pool_size = optional_positive_int("pool_size", self.pool_size)
+        self.server_count = positive_int("server_count", self.server_count)
+        self.connections_per_server = optional_positive_int(
+            "connections_per_server", self.connections_per_server
+        )
+        self.runtime_workers = optional_positive_int("runtime_workers", self.runtime_workers)
+        self.max_connections_per_host = optional_positive_int(
+            "max_connections_per_host", self.max_connections_per_host
+        )
+        self.connect_concurrency = optional_positive_int(
+            "connect_concurrency", self.connect_concurrency
+        )
+        self.connect_concurrency_per_host = optional_positive_int(
+            "connect_concurrency_per_host", self.connect_concurrency_per_host
+        )
+        self.global_raw_bytes = optional_positive_int(
+            "global_raw_bytes", self.global_raw_bytes
+        )
+        self.global_decoded_bytes = optional_positive_int(
+            "global_decoded_bytes", self.global_decoded_bytes
+        )
         if self.transport is None:
             resolved_hosts = _resolve_hosts(self.host, self.hosts)
             self.transport = PooledSocketTransport(
                 hosts=resolved_hosts or None,
                 timeout=self.timeout,
                 pool_size=self.pool_size,
+                server_count=self.server_count,
+                connections_per_server=self.connections_per_server,
+                runtime_workers=self.runtime_workers,
+                max_connections_per_host=self.max_connections_per_host,
+                connect_concurrency=self.connect_concurrency,
+                connect_concurrency_per_host=self.connect_concurrency_per_host,
+                global_raw_bytes=self.global_raw_bytes,
+                global_decoded_bytes=self.global_decoded_bytes,
                 probe_hosts=self.probe_hosts,
                 probe_timeout=self.probe_timeout,
                 probe_workers=self.probe_workers,
@@ -121,6 +188,14 @@ class TdxClient:
                 push_queue_size=self.push_queue_size,
                 push_queue_bytes=self.push_queue_bytes,
             )
+        if isinstance(self.transport, PooledSocketTransport):
+            self.pool_size = self.transport.pool_size
+            self.server_count = self.transport.server_count
+            self.connections_per_server = self.transport.connections_per_server
+        elif self.pool_size is None:
+            self.pool_size = DEFAULT_POOL_SIZE
+        if self.connections_per_server is None:
+            self.connections_per_server = DEFAULT_CONNECTIONS_PER_SERVER
         self.session = SessionApi(self.transport)
         self.codes = CodeApi(self.transport)
         self.quotes = QuoteApi(self.transport)

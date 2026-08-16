@@ -30,13 +30,18 @@ with TdxClient(host="116.205.183.150:7709", timeout=3) as client:
 也可以使用连接池和主站测速：
 
 ```python
-with TdxClient.from_hosts(pool_size=2, probe_hosts=True, timeout=3) as client:
+with TdxClient.from_hosts(
+    server_count=2,
+    connections_per_server=4,
+    probe_hosts=True,
+    timeout=3,
+) as client:
     quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
 ```
 
-`probe_hosts=True` 会先用 TCP connect 测一遍候选主站，把连得上的、延迟低的排在前面。默认不开测速，避免启动时等待过久。
+`probe_hosts=True` 会在第一次真正建立 Native Engine 前，用 TCP connect 测一遍全部候选主站，把连得上的、延迟低的排在前面。默认开启测速；只构造客户端但不连接时不会触发网络操作。
 
-不传 `host` / `hosts` 时，客户端会读取包内 `tdx_server.json` 的默认主站列表。如果这个文件缺失，会退回代码内置的主站列表。
+不传 `host` / `hosts` 时，客户端会读取包内 `tdx_server.json` 的43台默认主站。如果这个文件缺失，会退回代码内置列表。测速结果会原子写入当前用户数据目录的 `tdx_server_ranking.json`，下次启动先复用已保存的排名再刷新；软件升级不会覆盖这张本地排名表。可调用 `eltdx.hosts.refresh_server_ranking()` 手动重新测速并保存。
 
 真实 socket 默认每 30 秒发一次 `0x0004` 心跳，用来维持长时间空闲连接。短脚本不用管；需要改间隔或关闭时：
 
@@ -52,16 +57,24 @@ TdxClient(heartbeat_interval=None)
 | `host` | `None` | 指定单个 7709 主站 |
 | `hosts` | `None` | 指定多个 7709 主站 |
 | `timeout` | `8.0` | 数字 IP 或已缓存 endpoint 的端到端请求上限，覆盖排队、连接、握手、发送、响应和一次 retry |
-| `pool_size` | `1` | 连接池连接数，必须是正整数 |
-| `probe_hosts` | `False` | 启动时是否先测速排序 |
-| `heartbeat_interval` | `30.0` | 后台心跳秒数；`None` 或小于等于 0 表示关闭 |
+| `server_count` | `2` | 从持久测速排名中使用的服务器数量 |
+| `connections_per_server` | `4` | 每台选中服务器的 TCP 连接数；未显式设置 `pool_size` 时据此计算总数 |
+| `pool_size` | `None`，自动为 `8` | 兼容参数，显式指定 TCP/Slot 总数时在选中服务器之间尽量平均分配 |
+| `runtime_workers` | `None` | 自动取 `min(pool_size, 系统允许的逻辑处理器数)`；可手动指定1到 `pool_size` |
+| `max_connections_per_host` | `None` | 自动按分布计算每台服务器的活动连接硬上限 |
+| `connect_concurrency` | `None` | 自动计算全局同时建连和握手数量，最大默认32 |
+| `connect_concurrency_per_host` | `None` | 每台服务器同时建连和握手数量，默认最多2 |
+| `probe_hosts` | `True` | 第一次建 Engine 前是否测速、持久化并排序候选主站 |
+| `heartbeat_interval` | `30.0` | 后台心跳秒数；`None` 表示关闭，非 `None` 时必须大于 0 |
 | `max_pending_requests` | `256` | pool 中等待空闲 slot 的最大请求数；满时抛 `PoolBusyError` |
 | `push_queue_size` | `1024` | 共享 push buffer 的最大帧数 |
-| `push_queue_bytes` | `8 * 1024 * 1024` | 共享 push buffer 的最大 wire bytes |
+| `push_queue_bytes` | `64 * 1024 * 1024` | 共享 push buffer 的最大 wire bytes |
+| `global_raw_bytes` | `None` | 自动按 Slot 数增长、最高256 MiB的 Engine raw 预算 |
+| `global_decoded_bytes` | `None` | 自动按 Slot 数增长、最高2 GiB的 Engine decoded 预算 |
 
 自定义 hostname 的首次 DNS 解析在 native Engine request deadline 外执行，标准库解析无法严格取消；它不占用 pool Slot 或 TCP 连接，解析结束后会重新检查 transport epoch 和 close 状态。数字 IP 和已缓存 endpoint 没有该例外。
 
-`pool_size=N` 表示 native Engine 最多拥有 N 个 Rust Slot、N 个 TCP socket 和 N 个业务 wire request 同时在途。`N` 必须是正整数，非法值会直接抛出 `ValueError`，不会被自动修改。请求在 Supervisor 的全池 FIFO admission 中等待空闲 Slot；等待 permit 和 active lease 分开计数，不会继续堆到慢连接后面。
+默认不传 `pool_size`，由最快2台服务器乘以每台4个 Slot 得到8。`pool_size=N` 继续表示 native Engine 最多拥有 N 个 Rust Slot、N 个 TCP socket 和 N 个业务 wire request 同时在途；它不是 worker 数。显式同时传 `pool_size`、`server_count` 和 `connections_per_server` 时，三者乘积必须一致。请求在 Supervisor 的全池 FIFO admission 中等待空闲 Slot；等待 permit 和 active lease 分开计数。
 
 多请求必须固定在同一连接时可使用 pin：
 

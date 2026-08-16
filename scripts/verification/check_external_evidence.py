@@ -11,7 +11,11 @@ from typing import Any
 
 
 EXPECTED_STRESS_SYSTEMS = {"Linux", "Windows"}
-EXPECTED_STRESS_COMMAND = ["python", "-m", "pytest", "-q", "tests/stress"]
+EXPECTED_STRESS_COMMAND = [
+    "python",
+    "scripts/verification/run_python_test_group.py",
+    "round6-stress",
+]
 
 
 def _parse_utc(value: Any) -> datetime:

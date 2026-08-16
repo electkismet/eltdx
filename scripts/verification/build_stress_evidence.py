@@ -13,7 +13,11 @@ from pathlib import Path
 from typing import Any
 
 
-COMMAND = ["python", "-m", "pytest", "-q", "tests/stress"]
+COMMAND = [
+    "python",
+    "scripts/verification/run_python_test_group.py",
+    "round6-stress",
+]
 
 
 def _now() -> str:
@@ -49,7 +53,7 @@ def run_stress(candidate: str, system: str, runner: str, output: Path) -> int:
     started_at = _now()
     started = time.monotonic()
     completed = subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", "tests/stress"],
+        [sys.executable, *COMMAND[1:]],
         check=False,
         capture_output=True,
         text=True,

@@ -60,7 +60,7 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     catalog = _catalog()
     items = catalog["items"]
 
-    assert catalog["schema_version"] == 12
+    assert catalog["schema_version"] == 13
     assert len(items) == 60
     assert Counter(item["source"] for item in items) == {
         "7709": 21,

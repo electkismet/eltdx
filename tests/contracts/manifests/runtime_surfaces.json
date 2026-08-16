@@ -112,7 +112,20 @@
         "actors",
         "push_frames",
         "push_bytes",
-        "push_dropped"
+        "push_dropped",
+        "runtime_workers",
+        "pool_size",
+        "server_count",
+        "max_connections_per_host",
+        "connect_concurrency",
+        "connect_concurrency_per_host",
+        "raw_bytes",
+        "raw_max_bytes",
+        "raw_peak_bytes",
+        "decoded_bytes",
+        "decoded_max_bytes",
+        "decoded_peak_bytes",
+        "push_max_bytes"
       ],
       "eltdx.transport.socket:TransportDiagnostics": [
         "epoch",
@@ -121,7 +134,14 @@
         "push_bytes",
         "push_dropped",
         "push_max_frames",
-        "push_max_bytes"
+        "push_max_bytes",
+        "runtime_workers",
+        "raw_bytes",
+        "raw_max_bytes",
+        "raw_peak_bytes",
+        "decoded_bytes",
+        "decoded_max_bytes",
+        "decoded_peak_bytes"
       ]
     }
   },
@@ -145,7 +165,7 @@
       ]
     },
     "eltdx.transport.pool:PooledSocketTransport": {
-      "constructor": "(hosts=None, *, timeout=8.0, pool_size=1, probe_hosts=False, probe_timeout=1.2, probe_workers=32, heartbeat_interval=30.0, max_pending_requests=256, push_queue_size=1024, push_queue_bytes=8388608)",
+      "constructor": "(hosts=None, *, timeout=8.0, pool_size=None, server_count=2, connections_per_server=None, runtime_workers=None, max_connections_per_host=None, connect_concurrency=None, connect_concurrency_per_host=None, global_raw_bytes=None, global_decoded_bytes=None, probe_hosts=True, probe_timeout=1.2, probe_workers=32, heartbeat_interval=30.0, max_pending_requests=256, push_queue_size=1024, push_queue_bytes=67108864)",
       "methods": {
         "connect": "(self)",
         "close": "(self)",
@@ -158,6 +178,7 @@
       "properties": [
         "connected_host",
         "connected_hosts",
+        "connections_per_server",
         "diagnostics",
         "heartbeat_interval",
         "hosts",
@@ -165,7 +186,8 @@
         "pending_push_count",
         "pool_size",
         "push_queue_bytes",
-        "push_queue_size"
+        "push_queue_size",
+        "server_count"
       ]
     },
     "eltdx.transport.pool:PinnedTransportProxy": {
@@ -242,8 +264,14 @@
         "--code": {"default": "sz000001", "action": "store"},
         "--history-date": {"default": null, "action": "store"},
         "--timeout": {"default": 8.0, "action": "store", "type": "float"},
-        "--pool-size": {"default": 1, "action": "store", "type": "int"},
-        "--probe-hosts": {"default": false, "action": "store_true"},
+        "--pool-size": {"default": null, "action": "store", "type": "int"},
+        "--server-count": {"default": 2, "action": "store", "type": "int"},
+        "--connections-per-server": {"default": null, "action": "store", "type": "int"},
+        "--runtime-workers": {"default": null, "action": "store", "type": "int"},
+        "--max-connections-per-host": {"default": null, "action": "store", "type": "int"},
+        "--connect-concurrency": {"default": null, "action": "store", "type": "int"},
+        "--connect-concurrency-per-host": {"default": null, "action": "store", "type": "int"},
+        "--probe-hosts": {"default": true, "action": "boolean_optional"},
         "--heartbeat-interval": {"default": 30.0, "action": "store", "type": "float"},
         "--no-heartbeat": {"default": false, "action": "store_true"},
         "--quote-count": {"default": 120, "action": "store", "type": "int"},

@@ -183,31 +183,23 @@ ROUNDS = (
         4,
         "python-public-contract",
         (
-            command("public-api", "{python}", "-m", "pytest", "-q", "tests/contracts/test_public_api_contract.py"),
             command(
-                "dataclasses-exceptions-serialization",
+                "python-local-suite",
                 "{python}",
-                "-m",
-                "pytest",
-                "-q",
-                "tests/contracts/test_dataclasses_exceptions.py",
+                "scripts/verification/run_python_test_group.py",
+                "round4-local",
             ),
-            command("python-contract-suite", "{python}", "-m", "pytest", "-q", "tests/contracts"),
-            command("python-integration-suite", "{python}", "-m", "pytest", "-q", "tests/integration"),
         ),
     ),
     Round(
         5,
         "loopback-fault-injection",
         (
-            command("loopback-faults", "{python}", "-m", "pytest", "-q", "tests/integration/test_loopback_faults.py"),
             command(
-                "loopback-concurrency",
+                "loopback-fault-injection",
                 "{python}",
-                "-m",
-                "pytest",
-                "-q",
-                "tests/integration/test_loopback_concurrency.py",
+                "scripts/verification/run_python_test_group.py",
+                "round5-loopback",
             ),
         ),
     ),
@@ -215,7 +207,12 @@ ROUNDS = (
         6,
         "stress-and-resources",
         (
-            command("local-stress", "{python}", "-m", "pytest", "-q", "tests/stress"),
+            command(
+                "local-stress",
+                "{python}",
+                "scripts/verification/run_python_test_group.py",
+                "round6-stress",
+            ),
             gate("windows-linux-long-running-evidence", "round6_windows_linux"),
             command(
                 "stress-evidence-check",
@@ -255,7 +252,12 @@ ROUNDS = (
         8,
         "real-host",
         (
-            command("real-host-21-commands", "{python}", "-m", "pytest", "-q", "tests/integration/test_real_hosts.py"),
+            command(
+                "real-host-21-commands",
+                "{python}",
+                "scripts/verification/run_python_test_group.py",
+                "round8-real-host",
+            ),
             command(
                 "real-host-differential",
                 "{python}",
@@ -264,6 +266,16 @@ ROUNDS = (
                 "{baseline_wheel}",
                 "--output",
                 "{round_dir}/live-validation.json",
+            ),
+            command(
+                "real-f10-7615",
+                "{python}",
+                "-m",
+                "eltdx.f10_smoke",
+                "--code",
+                "000034",
+                "--timeout",
+                "8",
             ),
         ),
     ),

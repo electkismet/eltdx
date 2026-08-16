@@ -7,8 +7,8 @@
   "dataclasses": {
     "eltdx.client:TdxClient": {
       "frozen": false,
-      "fields": ["transport", "host", "hosts", "timeout", "pool_size", "probe_hosts", "probe_timeout", "probe_workers", "heartbeat_interval", "max_pending_requests", "push_queue_size", "push_queue_bytes", "session", "codes", "quotes", "resources", "bars", "minutes", "trades", "auctions", "corporate", "limits", "workdays", "f10", "helpers"],
-      "defaults": {"transport": null, "host": null, "hosts": null, "timeout": 8.0, "pool_size": 1, "probe_hosts": false, "probe_timeout": 1.2, "probe_workers": 32, "heartbeat_interval": 30.0, "max_pending_requests": 256, "push_queue_size": 1024, "push_queue_bytes": 8388608}
+      "fields": ["transport", "host", "hosts", "timeout", "pool_size", "probe_hosts", "probe_timeout", "probe_workers", "heartbeat_interval", "max_pending_requests", "push_queue_size", "push_queue_bytes", "server_count", "connections_per_server", "runtime_workers", "max_connections_per_host", "connect_concurrency", "connect_concurrency_per_host", "global_raw_bytes", "global_decoded_bytes", "session", "codes", "quotes", "resources", "bars", "minutes", "trades", "auctions", "corporate", "limits", "workdays", "f10", "helpers"],
+      "defaults": {"transport": null, "host": null, "hosts": null, "timeout": 8.0, "pool_size": null, "server_count": 2, "connections_per_server": null, "runtime_workers": null, "max_connections_per_host": null, "connect_concurrency": null, "connect_concurrency_per_host": null, "global_raw_bytes": null, "global_decoded_bytes": null, "probe_hosts": true, "probe_timeout": 1.2, "probe_workers": 32, "heartbeat_interval": 30.0, "max_pending_requests": 256, "push_queue_size": 1024, "push_queue_bytes": 67108864}
     },
     "eltdx.models.auction:AuctionPoint": {
       "fields": ["index", "minute_of_day_raw", "second_raw", "time_label", "time_seconds", "price", "price_milli", "matched_volume", "unmatched_signed_raw", "unmatched_volume", "unmatched_direction_raw", "reserved_zero_0e", "record_hex"],
@@ -238,10 +238,12 @@
       "fields": ["pool_epoch", "idle_slots", "waiter_count", "pin_waiter_count", "active_leases", "closed"]
     },
     "eltdx.transport.pool:PoolDiagnostics": {
-      "fields": ["epoch", "state", "broker", "actors", "push_frames", "push_bytes", "push_dropped"]
+      "fields": ["epoch", "state", "broker", "actors", "push_frames", "push_bytes", "push_dropped", "runtime_workers", "pool_size", "server_count", "max_connections_per_host", "connect_concurrency", "connect_concurrency_per_host", "raw_bytes", "raw_max_bytes", "raw_peak_bytes", "decoded_bytes", "decoded_max_bytes", "decoded_peak_bytes", "push_max_bytes"],
+      "defaults": {"runtime_workers": 0, "pool_size": 0, "server_count": 0, "max_connections_per_host": 0, "connect_concurrency": 0, "connect_concurrency_per_host": 0, "raw_bytes": 0, "raw_max_bytes": 0, "raw_peak_bytes": 0, "decoded_bytes": 0, "decoded_max_bytes": 0, "decoded_peak_bytes": 0, "push_max_bytes": 0}
     },
     "eltdx.transport.socket:TransportDiagnostics": {
-      "fields": ["epoch", "actor", "push_frames", "push_bytes", "push_dropped", "push_max_frames", "push_max_bytes"]
+      "fields": ["epoch", "actor", "push_frames", "push_bytes", "push_dropped", "push_max_frames", "push_max_bytes", "runtime_workers", "raw_bytes", "raw_max_bytes", "raw_peak_bytes", "decoded_bytes", "decoded_max_bytes", "decoded_peak_bytes"],
+      "defaults": {"runtime_workers": 0, "raw_bytes": 0, "raw_max_bytes": 0, "raw_peak_bytes": 0, "decoded_bytes": 0, "decoded_max_bytes": 0, "decoded_peak_bytes": 0}
     }
   },
   "exceptions": {

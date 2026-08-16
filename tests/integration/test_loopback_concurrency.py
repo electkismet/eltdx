@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import pytest
 
@@ -18,11 +18,18 @@ from loopback_support import (
 )
 
 
-def native_engine(host: str, *, pool_size: int = 2, timeout: float = 1.0):
+def native_engine(
+    hosts: str | Sequence[str],
+    *,
+    pool_size: int = 2,
+    timeout: float = 1.0,
+):
+    values = [hosts] if isinstance(hosts, str) else list(hosts)
     return _native.NativeEngine(
-        [host],
+        values,
         timeout=timeout,
         pool_size=pool_size,
+        server_count=min(len(values), pool_size),
         heartbeat_interval=None,
         max_pending_requests=8,
         push_queue_size=16,
@@ -85,8 +92,8 @@ def test_public_runtime_gate_stays_unpublished_until_all_handshakes_succeed() ->
         connection.sendall(response_bytes(message_id, message_type, handshake_payload()))
         wait_for_peer_close(connection)
 
-    with ScriptedServer([delayed, delayed]) as server:
-        engine = native_engine(server.host)
+    with ScriptedServer([delayed]) as first, ScriptedServer([delayed]) as second:
+        engine = native_engine([first.host, second.host])
         results: list[BaseException | None] = []
         caller = threading.Thread(
             target=call_in_thread,
@@ -94,7 +101,8 @@ def test_public_runtime_gate_stays_unpublished_until_all_handshakes_succeed() ->
             daemon=True,
         )
         caller.start()
-        assert server.wait_for_connections(2)
+        assert first.wait_for_connections(1)
+        assert second.wait_for_connections(1)
         with pytest.raises(Exception, match="connect.*progress|not running"):
             engine.drain_pushes()
         release.set()
@@ -121,8 +129,14 @@ def test_concurrent_close_waits_for_the_same_connect_rollback() -> None:
         both_started.wait(timeout=3)
         failure_released.set()
 
-    with ScriptedServer([successful, failed]) as server:
-        engine = native_engine(server.host, timeout=3)
+    with (
+        ScriptedServer([successful]) as successful_server,
+        ScriptedServer([failed]) as failed_server,
+    ):
+        engine = native_engine(
+            [successful_server.host, failed_server.host],
+            timeout=3,
+        )
         connect_results: list[BaseException | None] = []
         close_results: list[BaseException | None] = []
         connect_thread = threading.Thread(

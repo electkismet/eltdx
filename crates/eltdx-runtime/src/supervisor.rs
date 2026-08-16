@@ -2088,6 +2088,7 @@ mod tests {
     use crate::deadline::Deadline;
     use crate::endpoint::{Endpoint, EndpointRotation};
     use crate::error::RuntimeError;
+    use crate::memory::MemoryBudget;
     use crate::push::{PushFrame, DEFAULT_PUSH_MAX_BYTES, DEFAULT_PUSH_MAX_FRAMES};
     use crate::request::{
         Admission, RequestState, RequestWireIdentity, RetryDecision, RetryPolicy, RetryStopReason,
@@ -2134,6 +2135,7 @@ mod tests {
                 ],
                 0,
             )?,
+            Arc::new(MemoryBudget::new(8 * 1024 * 1024, 8 * 1024 * 1024)?),
         )
     }
 

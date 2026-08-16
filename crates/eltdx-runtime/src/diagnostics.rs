@@ -220,6 +220,19 @@ pub struct PoolDiagnostics {
     pub push_frames: usize,
     pub push_bytes: usize,
     pub push_dropped: u64,
+    pub runtime_workers: usize,
+    pub pool_size: usize,
+    pub server_count: usize,
+    pub max_connections_per_host: usize,
+    pub connect_concurrency: usize,
+    pub connect_concurrency_per_host: usize,
+    pub raw_bytes: usize,
+    pub raw_max_bytes: usize,
+    pub raw_peak_bytes: usize,
+    pub decoded_bytes: usize,
+    pub decoded_max_bytes: usize,
+    pub decoded_peak_bytes: usize,
+    pub push_max_bytes: usize,
 }
 
 impl PoolDiagnostics {
@@ -249,6 +262,19 @@ impl PoolDiagnostics {
             push_frames: push.map_or(0, |snapshot| snapshot.frame_count),
             push_bytes: push.map_or(0, |snapshot| snapshot.byte_count),
             push_dropped: push.map_or(0, |snapshot| snapshot.dropped_total),
+            runtime_workers: 0,
+            pool_size: supervisor.pool_size(),
+            server_count: 0,
+            max_connections_per_host: 0,
+            connect_concurrency: 0,
+            connect_concurrency_per_host: 0,
+            raw_bytes: 0,
+            raw_max_bytes: 0,
+            raw_peak_bytes: 0,
+            decoded_bytes: 0,
+            decoded_max_bytes: 0,
+            decoded_peak_bytes: 0,
+            push_max_bytes: push.map_or(0, |snapshot| snapshot.max_bytes),
         })
     }
 }
@@ -262,6 +288,13 @@ pub struct TransportDiagnostics {
     pub push_dropped: u64,
     pub push_max_frames: usize,
     pub push_max_bytes: usize,
+    pub runtime_workers: usize,
+    pub raw_bytes: usize,
+    pub raw_max_bytes: usize,
+    pub raw_peak_bytes: usize,
+    pub decoded_bytes: usize,
+    pub decoded_max_bytes: usize,
+    pub decoded_peak_bytes: usize,
 }
 
 impl TransportDiagnostics {
@@ -297,6 +330,13 @@ impl TransportDiagnostics {
             push_dropped: push.map_or(0, |snapshot| snapshot.dropped_total),
             push_max_frames: push.map_or(0, |snapshot| snapshot.max_frames_observed),
             push_max_bytes: push.map_or(0, |snapshot| snapshot.max_bytes_observed),
+            runtime_workers: 0,
+            raw_bytes: 0,
+            raw_max_bytes: 0,
+            raw_peak_bytes: 0,
+            decoded_bytes: 0,
+            decoded_max_bytes: 0,
+            decoded_peak_bytes: 0,
         })
     }
 }
@@ -344,6 +384,7 @@ mod tests {
     use crate::deadline::Deadline;
     use crate::endpoint::{Endpoint, EndpointRotation};
     use crate::error::RuntimeError;
+    use crate::memory::MemoryBudget;
     use crate::push::PushFrame;
     use crate::request::{Admission, RetryPolicy};
     use crate::slot::{
@@ -373,6 +414,7 @@ mod tests {
             epoch,
             SlotId::new(slot_id),
             EndpointRotation::new(vec![Endpoint::numeric("127.0.0.1:7709")?], 0)?,
+            Arc::new(MemoryBudget::new(8 * 1024 * 1024, 8 * 1024 * 1024)?),
         )
     }
 

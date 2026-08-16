@@ -72,6 +72,8 @@ nav:
   - MCP: MCP.md
   - 工程参考:
       - 架构: ARCHITECTURE.md
+      - 线程层扩容方案: THREADING_SCALE_PLAN.md
+      - 架构决策记录: adr/README.md
       - 调试: DEBUG_GUIDE.md
       - 变更记录: CHANGELOG.md
       - 字段迁移到 2.0: FIELD_MIGRATION.md

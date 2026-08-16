@@ -28,6 +28,23 @@ jobs:
         with:
           target: x86_64-pc-windows-msvc
           args: --release --locked --out dist
+      - name: Install and smoke wheel on CPython 3.10
+        run: >-
+          python scripts/verification/verify_wheel_matrix.py
+          --artifact-dir dist
+          --platform windows-x86_64
+          --python-version 3.10
+          --single-wheel
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install and smoke wheel on CPython 3.14
+        run: >-
+          python scripts/verification/verify_wheel_matrix.py
+          --artifact-dir dist
+          --platform windows-x86_64
+          --python-version 3.14
+          --single-wheel
       - name: Upload wheel
         uses: actions/upload-artifact@v7
         with:
@@ -44,9 +61,11 @@ jobs:
           - arch: x86_64
             runner: ubuntu-24.04
             target: x86_64
+            platform: linux-x86_64
           - arch: aarch64
             runner: ubuntu-24.04-arm
             target: aarch64
+            platform: linux-aarch64
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
@@ -59,6 +78,23 @@ jobs:
           target: ${{ matrix.target }}
           manylinux: "2014"
           args: --release --locked --out dist
+      - name: Install and smoke wheel on CPython 3.10
+        run: >-
+          python scripts/verification/verify_wheel_matrix.py
+          --artifact-dir dist
+          --platform ${{ matrix.platform }}
+          --python-version 3.10
+          --single-wheel
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install and smoke wheel on CPython 3.14
+        run: >-
+          python scripts/verification/verify_wheel_matrix.py
+          --artifact-dir dist
+          --platform ${{ matrix.platform }}
+          --python-version 3.14
+          --single-wheel
       - name: Upload wheel
         uses: actions/upload-artifact@v7
         with:
@@ -76,10 +112,12 @@ jobs:
             runner: macos-15-intel
             target: x86_64-apple-darwin
             deployment-target: "10.12"
+            platform: macos-x86_64
           - arch: arm64
             runner: macos-15
             target: aarch64-apple-darwin
             deployment-target: "11.0"
+            platform: macos-arm64
     runs-on: ${{ matrix.runner }}
     env:
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment-target }}
@@ -93,6 +131,23 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --locked --out dist
+      - name: Install and smoke wheel on CPython 3.10
+        run: >-
+          python scripts/verification/verify_wheel_matrix.py
+          --artifact-dir dist
+          --platform ${{ matrix.platform }}
+          --python-version 3.10
+          --single-wheel
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install and smoke wheel on CPython 3.14
+        run: >-
+          python scripts/verification/verify_wheel_matrix.py
+          --artifact-dir dist
+          --platform ${{ matrix.platform }}
+          --python-version 3.14
+          --single-wheel
       - name: Upload wheel
         uses: actions/upload-artifact@v7
         with:
@@ -155,44 +210,3 @@ jobs:
           name: release-dist
           path: dist/
           if-no-files-found: error
-
-  wheel-smoke:
-    name: Smoke ${{ matrix.platform }} on CPython ${{ matrix.python }}
-    needs: aggregate
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - windows-x86_64
-          - linux-x86_64
-          - linux-aarch64
-          - macos-x86_64
-          - macos-arm64
-        python: ["3.10", "3.14"]
-        include:
-          - platform: windows-x86_64
-            runner: windows-2025
-          - platform: linux-x86_64
-            runner: ubuntu-24.04
-          - platform: linux-aarch64
-            runner: ubuntu-24.04-arm
-          - platform: macos-x86_64
-            runner: macos-15-intel
-          - platform: macos-arm64
-            runner: macos-15
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: ${{ matrix.python }}
-      - uses: actions/download-artifact@v8
-        with:
-          name: release-dist
-          path: dist
-      - name: Install and smoke matching wheel
-        run: >-
-          python scripts/verification/verify_wheel_matrix.py
-          --artifact-dir dist/packages
-          --platform ${{ matrix.platform }}
-          --python-version ${{ matrix.python }}

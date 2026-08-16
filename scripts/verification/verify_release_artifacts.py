@@ -58,6 +58,18 @@ def classify_platform(tag: str) -> str:
     raise ValueError(f"unsupported release wheel platform tag: {tag}")
 
 
+def inspect_release_wheel(wheel: Path) -> dict[str, str]:
+    match = WHEEL_PATTERN.fullmatch(wheel.name)
+    if match is None:
+        raise ValueError(f"wheel is not eltdx cp310-abi3: {wheel.name}")
+    _verify_wheel_archive(wheel)
+    return {
+        "name": wheel.name,
+        "version": match.group("version"),
+        "platform": classify_platform(match.group("platform")),
+    }
+
+
 def verify_artifacts(artifact_dir: Path, *, candidate: str | None) -> dict[str, Any]:
     artifact_dir = artifact_dir.resolve()
     if not artifact_dir.is_dir():
@@ -75,15 +87,12 @@ def verify_artifacts(artifact_dir: Path, *, candidate: str | None) -> dict[str, 
     versions = set()
     records = []
     for wheel in wheels:
-        match = WHEEL_PATTERN.fullmatch(wheel.name)
-        if match is None:
-            raise ValueError(f"wheel is not eltdx cp310-abi3: {wheel.name}")
-        _verify_wheel_archive(wheel)
-        platform = classify_platform(match.group("platform"))
+        inspected = inspect_release_wheel(wheel)
+        platform = inspected["platform"]
         if platform in platforms:
             raise ValueError(f"duplicate release wheel platform {platform}: {wheel.name}")
         platforms[platform] = wheel.name
-        versions.add(match.group("version"))
+        versions.add(inspected["version"])
         records.append(_record(wheel, kind="wheel", platform=platform))
     if set(platforms) != EXPECTED_PLATFORMS:
         raise ValueError(

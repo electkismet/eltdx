@@ -252,11 +252,11 @@ with TdxClient.from_hosts(pool_size=4, probe_hosts=True, timeout=3) as client:
     print(client.codes.count("sz"))
 ```
 
-`pool_size` 默认是 `1`。`pool_size=N` 表示 native Engine 最多拥有 N 个 Rust Slot 和 N 条 TCP 连接，最多允许 N 个行情 wire request 同时在途；它不表示连接 N 个行情服务器。Supervisor 使用有界 FIFO admission，传入多个主站时每个 Slot 会按不同顺序尝试候选主站，连接失败或断开后自动尝试后续主站。
+默认从43台候选服务器的持久测速排名中使用最快2台，每台4条 TCP 连接，共8个 Rust Slot。可以用 `server_count` 和 `connections_per_server` 调整；旧的 `pool_size=N` 继续表示 TCP/Slot 总数，并在选中的服务器之间尽量平均分配。
 
-普通顺序调用保持默认 `1` 即可；需要同时发起多个行情请求时，可以根据实际并发量设置 `pool_size=4`、`pool_size=8` 等正整数。`0`、负数、float、字符串、bool 和 `None` 会直接抛出 `ValueError`，不会被自动修改。
+`runtime_workers` 与 TCP 数量分开，默认取 `min(pool_size, 系统允许的逻辑处理器数)`，也可以手动设置。高并发可使用 `TdxClient(server_count=20, connections_per_server=8)` 配置160个 Slot；这不等于创建160个线程。
 
-每个 Engine 只创建一个后台 runtime 线程，每个 Slot task 独占自己的 socket、decoder 和 TCP generation。网络重连只 retirement 当前 generation。建议始终使用 `with TdxClient(...) as client:`；退出 `with` 时会停止 admission、清理 pin/push、关闭 socket 并 join runtime。手动创建客户端时，需要在 `finally` 中调用 `client.close()`。
+每个 Engine 使用一个单所有者 Supervisor 和共享的 Tokio worker；每个 Slot task 独占自己的 socket、decoder 和 TCP generation。网络重连只 retirement 当前 generation。建议始终使用 `with TdxClient(...) as client:`；退出 `with` 时会停止 admission、清理 pin/push、关闭 socket 并 join runtime。手动创建客户端时，需要在 `finally` 中调用 `client.close()`。
 
 真实 socket 连接默认每 30 秒自动心跳保活。关闭后台心跳：
 

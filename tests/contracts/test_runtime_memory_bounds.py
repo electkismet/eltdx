@@ -21,6 +21,9 @@ PUSH = (ROOT / "crates" / "eltdx-runtime" / "src" / "push.rs").read_text(
 LIMITS = (ROOT / "crates" / "eltdx-protocol" / "src" / "limits.rs").read_text(
     encoding="utf-8"
 )
+MEMORY = (ROOT / "crates" / "eltdx-runtime" / "src" / "memory.rs").read_text(
+    encoding="utf-8"
+)
 
 
 def test_post_ingress_waiter_collections_have_hard_caps() -> None:
@@ -50,3 +53,18 @@ def test_channels_admission_decoders_and_push_buffers_are_bounded() -> None:
         "MAX_DECODED_QUEUE_BYTES: usize = 8 * 1024 * 1024",
     ):
         assert literal in LIMITS
+
+
+def test_runtime_workers_ingress_and_engine_memory_are_explicitly_bounded() -> None:
+    assert "Builder::new_multi_thread()" in ENGINE
+    assert ".worker_threads(config.runtime_workers)" in ENGINE
+    assert "DIAGNOSTICS_REFRESH_INTERVAL: Duration = Duration::from_millis(25)" in ENGINE
+    assert ".blocking_send(" not in ENGINE
+    assert "MemoryBudget::new(" in ENGINE
+    assert "self.memory_budget.check_empty()?" in ENGINE
+    assert "self.connection_limiter.check_idle(&self.config)?" in ENGINE
+    assert "try_reserve_raw" in SLOT
+    assert "try_reserve_decoded" in SLOT
+    assert "AtomicUsize" in MEMORY
+    assert "notify_waiters" in MEMORY
+    assert "value.checked_sub(bytes)" in MEMORY

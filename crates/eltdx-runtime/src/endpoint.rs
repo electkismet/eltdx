@@ -5,6 +5,8 @@ use std::time::Instant;
 use crate::deadline::Deadline;
 use crate::error::{RuntimeError, TimeoutPhase};
 
+const MAX_ENDPOINT_FAIR_SHARE_DIVISOR: usize = 8;
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Endpoint {
     host: String,
@@ -108,8 +110,9 @@ impl EndpointRotation {
         }
         let endpoint_index = self.next_index;
         let endpoints_remaining = self.remaining_in_attempt;
+        let fair_share_divisor = endpoints_remaining.min(MAX_ENDPOINT_FAIR_SHARE_DIVISOR);
         let deadline =
-            attempt_deadline.fair_slice_at(now, endpoints_remaining, TimeoutPhase::Connect)?;
+            attempt_deadline.fair_slice_at(now, fair_share_divisor, TimeoutPhase::Connect)?;
         let endpoint = self.endpoints[endpoint_index].clone();
         self.next_index = (endpoint_index + 1) % self.endpoints.len();
         self.remaining_in_attempt -= 1;
@@ -201,6 +204,25 @@ mod tests {
         assert_eq!(first.deadline.instant(), now + Duration::from_millis(300));
         assert_eq!(second.endpoint_index, 1);
         assert_eq!(second.deadline.instant(), now + Duration::from_millis(500));
+        Ok(())
+    }
+
+    #[test]
+    fn large_ranked_pool_keeps_the_first_handshake_slice_practical() -> Result<(), RuntimeError> {
+        let now = Instant::now();
+        let attempt_deadline = Deadline::at(now + Duration::from_secs(8));
+        let endpoints = (1..=43)
+            .map(|index| endpoint(&format!("127.0.0.{index}:7709")))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut rotation = EndpointRotation::new(endpoints, 0)?;
+        rotation.begin_attempt();
+
+        let first = rotation
+            .next(attempt_deadline, now)?
+            .ok_or_else(|| RuntimeError::internal("first endpoint is missing"))?;
+
+        assert_eq!(first.deadline.instant(), now + Duration::from_secs(1));
+        assert_eq!(first.endpoints_remaining, 43);
         Ok(())
     }
 

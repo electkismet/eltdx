@@ -11,6 +11,10 @@ from eltdx.hosts import DEFAULT_HOSTS, resolve_hosts, unique_hosts
 from eltdx.transport.native import call_native, native_module
 
 from .actor import ActorSnapshot, RuntimeState, TcpState
+from ._config import (
+    automatic_decoded_bytes as _automatic_decoded_bytes,
+    automatic_raw_bytes as _automatic_raw_bytes,
+)
 
 DEFAULT_HEARTBEAT_INTERVAL = 30.0
 DEFAULT_PUSH_QUEUE_SIZE = 1024
@@ -26,6 +30,13 @@ class TransportDiagnostics:
     push_dropped: int
     push_max_frames: int
     push_max_bytes: int
+    runtime_workers: int = 0
+    raw_bytes: int = 0
+    raw_max_bytes: int = 0
+    raw_peak_bytes: int = 0
+    decoded_bytes: int = 0
+    decoded_max_bytes: int = 0
+    decoded_peak_bytes: int = 0
 
 
 def _resolved_native_hosts(hosts: Sequence[str]) -> list[str]:
@@ -109,6 +120,13 @@ class SocketTransport:
                 _resolved_native_hosts(self._hosts),
                 timeout=self._timeout,
                 pool_size=1,
+                runtime_workers=1,
+                server_count=1,
+                max_connections_per_host=1,
+                connect_concurrency=1,
+                connect_concurrency_per_host=1,
+                global_raw_bytes=_automatic_raw_bytes(1),
+                global_decoded_bytes=_automatic_decoded_bytes(1),
                 heartbeat_interval=self._heartbeat_interval,
                 max_pending_requests=256,
                 push_queue_size=self._push_queue_size,
@@ -150,6 +168,13 @@ class SocketTransport:
                 0,
                 self._push_queue_size,
                 self._push_queue_bytes,
+                1,
+                0,
+                _automatic_raw_bytes(1),
+                0,
+                0,
+                _automatic_decoded_bytes(1),
+                0,
             )
         dto = call_native(self._engine.transport_diagnostics)
         return TransportDiagnostics(
@@ -160,6 +185,13 @@ class SocketTransport:
             push_dropped=dto[4],
             push_max_frames=dto[5],
             push_max_bytes=dto[6],
+            runtime_workers=dto[7],
+            raw_bytes=dto[8],
+            raw_max_bytes=dto[9],
+            raw_peak_bytes=dto[10],
+            decoded_bytes=dto[11],
+            decoded_max_bytes=dto[12],
+            decoded_peak_bytes=dto[13],
         )
 
     def connect(self) -> None:

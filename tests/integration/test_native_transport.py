@@ -82,8 +82,14 @@ def test_socket_execute_push_diagnostics_and_session_models() -> None:
             assert diagnostics.actor.connected_host == server.host
             assert diagnostics.push_frames == 0
             assert diagnostics.push_dropped == 0
+            assert diagnostics.runtime_workers == 1
+            assert diagnostics.raw_bytes <= diagnostics.raw_max_bytes
+            assert diagnostics.decoded_bytes <= diagnostics.decoded_max_bytes
         finally:
             transport.close()
+        assert transport.diagnostics.actor is None
+        assert transport.diagnostics.raw_bytes == 0
+        assert transport.diagnostics.decoded_bytes == 0
 
 
 def test_pool_reuses_slots_and_pin_keeps_connection_affinity() -> None:
@@ -119,9 +125,14 @@ def test_pool_reuses_slots_and_pin_keeps_connection_affinity() -> None:
             assert diagnostics.broker.pin_waiter_count == 0
             assert len(diagnostics.actors) == 1
             assert diagnostics.actors[0].connected_host == server.host
+            assert diagnostics.pool_size == 1
+            assert diagnostics.server_count == 1
+            assert diagnostics.max_connections_per_host == 1
             assert server.accepted_count == 1
         finally:
             pool.close()
+        assert pool.diagnostics.raw_bytes == 0
+        assert pool.diagnostics.decoded_bytes == 0
 
 
 def test_close_reopen_invalidates_the_old_pinned_proxy() -> None:

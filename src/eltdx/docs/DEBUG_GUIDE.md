@@ -20,15 +20,15 @@ python -c "import eltdx, eltdx._native; print(eltdx.__version__, eltdx._native.A
 先检查 TCP 可达性：
 
 ```python
-from eltdx.hosts import DEFAULT_HOSTS, probe_hosts
+from eltdx.hosts import refresh_server_ranking
 
-for item in probe_hosts(DEFAULT_HOSTS[:10], timeout=1.2):
+for item in refresh_server_ranking(timeout=1.2):
     print(item.host, item.ok, item.latency_ms, item.error)
 ```
 
-大部分主站失败时检查网络、防火墙、代理和 7709 端口。个别主站慢时可使用 `probe_hosts=True`，或显式传 `host` / `hosts`。测速只说明 TCP connect 成功，不保证业务响应。
+该调用会测速包内全部43台候选服务器并更新当前用户的 `tdx_server_ranking.json`。大部分主站失败时检查网络、防火墙、代理和 7709 端口；也可以显式传 `host` / `hosts`。当前测速只说明 TCP connect 成功，不保证业务响应。
 
-默认主站来自包内 `tdx_server.json`；文件不可用时才使用内置列表。
+默认候选主站来自包内 `tdx_server.json`；文件不可用时才使用内置列表。用户测速排名与安装包名单分开保存，因此重新安装或升级不会主动清空排名。
 
 ## Timeout 阶段
 
@@ -68,12 +68,19 @@ from eltdx import TdxClient
 
 with TdxClient(pool_size=4, timeout=3) as client:
     snapshot = client.transport.diagnostics
-    print(snapshot.state, snapshot.epoch, snapshot.broker)
+    print(
+        snapshot.state,
+        snapshot.epoch,
+        snapshot.runtime_workers,
+        snapshot.server_count,
+        snapshot.raw_bytes,
+        snapshot.decoded_bytes,
+    )
     for slot in snapshot.actors:
         print(slot.tcp_state, slot.tcp_generation, slot.pending_depth)
 ```
 
-为兼容 2.x，字段仍叫 `actors` / `ActorSnapshot`；它们映射 Rust Slot task，不是 Python Actor。正常空闲时 `pending_depth`、broker waiter 和 active lease 应为 0，`stale_event_count` 通常为 0。`reconnect_count` 是该 Slot 在当前 epoch 已成功 retirement 的 TCP generation 数。
+为兼容 2.x，字段仍叫 `actors` / `ActorSnapshot`；它们映射 Rust Slot task，不是 Python Actor。正常空闲时 `pending_depth`、broker waiter 和 active lease 应为 0，`stale_event_count` 通常为 0。`reconnect_count` 是该 Slot 在当前 epoch 已成功 retirement 的 TCP generation 数。`raw_bytes` / `decoded_bytes` 不应超过对应 `*_max_bytes`，正常关闭后必须归零；`*_peak_bytes` 用于判断实际负载是否接近上限。
 
 `FAILED_CLOSING` 表示 1 秒硬门内无法证明全部本地资源结束。修复阻塞源后可以再次调用同一个 `close()`；清理成功后状态为 `FAILED_CLOSED`，该实例仍不能 reopen。正常 `STOPPED` 才能 reopen。
 
@@ -106,7 +113,7 @@ print(series.bars[0].record_hex)
 
 ## Signal 和 fork
 
-主线程等待 native I/O 时会周期检查 Python signal。`KeyboardInterrupt` 后 Engine 只等待最多 1 秒的本地取消确认，不等待服务器回应；清理异常保存在原中断的 `__cause__`。
+主线程提交请求使用非阻塞 ingress，队列满时立即抛 `PoolBusyError`；进入 native 等待后每25 ms检查 Python signal。`KeyboardInterrupt` 后 Engine 只等待最多1秒的本地取消确认，不等待服务器回应；清理异常保存在原中断的 `__cause__`。
 
 fork 子进程复用父进程 client 会立即收到错误：
 

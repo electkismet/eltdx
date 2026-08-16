@@ -5,7 +5,7 @@ use eltdx_runtime::diagnostics::{
     ActorSnapshot, BrokerSnapshot, PoolDiagnostics, TransportDiagnostics,
 };
 use eltdx_runtime::engine::{PendingPoll, PinHandle, CANCEL_CONFIRM_TIMEOUT, SIGNAL_POLL_INTERVAL};
-use eltdx_runtime::{Engine, EngineConfig};
+use eltdx_runtime::{Engine, EngineConfig, EngineConfigOptions};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyTuple};
 use pyo3::IntoPyObjectExt;
@@ -30,15 +30,32 @@ impl NativeEngine {
         *,
         timeout=8.0,
         pool_size=1,
+        runtime_workers=None,
+        server_count=1,
+        max_connections_per_host=None,
+        connect_concurrency=None,
+        connect_concurrency_per_host=None,
+        global_raw_bytes=None,
+        global_decoded_bytes=None,
         heartbeat_interval=Some(30.0),
         max_pending_requests=256,
         push_queue_size=1024,
         push_queue_bytes=8_388_608
     ))]
+    // PyO3 must expose these as independent keyword arguments; the runtime
+    // immediately groups them into EngineConfigOptions below.
+    #[allow(clippy::too_many_arguments)]
     fn new(
         hosts: Vec<String>,
         timeout: f64,
         pool_size: usize,
+        runtime_workers: Option<usize>,
+        server_count: usize,
+        max_connections_per_host: Option<usize>,
+        connect_concurrency: Option<usize>,
+        connect_concurrency_per_host: Option<usize>,
+        global_raw_bytes: Option<usize>,
+        global_decoded_bytes: Option<usize>,
         heartbeat_interval: Option<f64>,
         max_pending_requests: usize,
         push_queue_size: usize,
@@ -47,11 +64,20 @@ impl NativeEngine {
         let config = EngineConfig::new(
             hosts,
             timeout,
-            pool_size,
-            heartbeat_interval,
-            max_pending_requests,
-            push_queue_size,
-            push_queue_bytes,
+            EngineConfigOptions {
+                pool_size,
+                runtime_workers,
+                server_count,
+                max_connections_per_host,
+                connect_concurrency,
+                connect_concurrency_per_host,
+                global_raw_bytes,
+                global_decoded_bytes,
+                heartbeat_interval,
+                max_pending_requests,
+                push_queue_size,
+                push_queue_bytes,
+            },
         )
         .map_err(error::from_runtime)?;
         let engine = Engine::new(config).map_err(error::from_runtime)?;
@@ -364,6 +390,19 @@ fn diagnostics_tuple(py: Python<'_>, diagnostics: PoolDiagnostics) -> PyResult<P
             object(py, diagnostics.push_frames)?,
             object(py, diagnostics.push_bytes)?,
             object(py, diagnostics.push_dropped)?,
+            object(py, diagnostics.runtime_workers)?,
+            object(py, diagnostics.pool_size)?,
+            object(py, diagnostics.server_count)?,
+            object(py, diagnostics.max_connections_per_host)?,
+            object(py, diagnostics.connect_concurrency)?,
+            object(py, diagnostics.connect_concurrency_per_host)?,
+            object(py, diagnostics.raw_bytes)?,
+            object(py, diagnostics.raw_max_bytes)?,
+            object(py, diagnostics.raw_peak_bytes)?,
+            object(py, diagnostics.decoded_bytes)?,
+            object(py, diagnostics.decoded_max_bytes)?,
+            object(py, diagnostics.decoded_peak_bytes)?,
+            object(py, diagnostics.push_max_bytes)?,
         ],
     )?
     .into_any()
@@ -385,6 +424,13 @@ fn transport_tuple(py: Python<'_>, diagnostics: TransportDiagnostics) -> PyResul
             object(py, diagnostics.push_dropped)?,
             object(py, diagnostics.push_max_frames)?,
             object(py, diagnostics.push_max_bytes)?,
+            object(py, diagnostics.runtime_workers)?,
+            object(py, diagnostics.raw_bytes)?,
+            object(py, diagnostics.raw_max_bytes)?,
+            object(py, diagnostics.raw_peak_bytes)?,
+            object(py, diagnostics.decoded_bytes)?,
+            object(py, diagnostics.decoded_max_bytes)?,
+            object(py, diagnostics.decoded_peak_bytes)?,
         ],
     )?
     .into_any()

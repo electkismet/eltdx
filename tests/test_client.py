@@ -6,10 +6,22 @@ import pytest
 from eltdx import Client, HelperApi, TdxClient, __version__, to_json, to_jsonable
 from eltdx import WorkdayService
 from eltdx.api import ping
-from eltdx.hosts import FALLBACK_HOSTS, DEFAULT_HOSTS, load_server_config, load_server_hosts
+from eltdx import hosts as hosts_module
+from eltdx.hosts import (
+    DEFAULT_HOSTS,
+    FALLBACK_HOSTS,
+    HostProbeResult,
+    load_server_config,
+    load_server_hosts,
+    load_server_ranking,
+    probe_hosts,
+    rank_hosts_from_cache,
+    server_ranking_path,
+)
 from eltdx.protocol.constants import TYPE_REFRESH_STREAM
 from eltdx.protocol import COMMANDS, decode, encode, required_commands
 from eltdx.transport import InMemoryTransport, PooledSocketTransport, SocketTransport
+from eltdx.transport.pool import validate_pool_size
 from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, QuoteSnapshot
 
 
@@ -25,6 +37,48 @@ def test_packaged_server_hosts_load_from_json() -> None:
     assert DEFAULT_HOSTS == FALLBACK_HOSTS
 
 
+def test_probe_hosts_persists_ranking_for_next_process(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("ELTDX_DATA_DIR", str(tmp_path))
+    latencies = {
+        "127.0.0.1:7709": 30.0,
+        "127.0.0.2:7709": 10.0,
+        "127.0.0.3:7709": None,
+    }
+
+    def fake_probe(host: str, *, timeout: float) -> HostProbeResult:
+        latency = latencies[host]
+        if latency is None:
+            return HostProbeResult(host=host, ok=False, error="TimeoutError")
+        return HostProbeResult(host=host, ok=True, latency_ms=latency)
+
+    monkeypatch.setattr(hosts_module, "probe_host", fake_probe)
+    candidates = list(latencies)
+    probe_hosts(candidates, timeout=0.1, max_workers=3)
+
+    assert server_ranking_path() == tmp_path / "tdx_server_ranking.json"
+    assert rank_hosts_from_cache(candidates) == [
+        "127.0.0.2:7709",
+        "127.0.0.1:7709",
+        "127.0.0.3:7709",
+    ]
+    ranking = load_server_ranking()
+    assert ranking["schema_version"] == 1
+    assert [record["rank"] for record in ranking["hosts"]] == [1, 2, 3]
+    assert ranking["hosts"][2]["consecutive_failures"] == 1
+
+    latencies.update({host: None for host in candidates})
+    probe_hosts(list(reversed(candidates)), timeout=0.1, max_workers=3)
+
+    assert rank_hosts_from_cache(candidates) == [
+        "127.0.0.2:7709",
+        "127.0.0.1:7709",
+        "127.0.0.3:7709",
+    ]
+    ranking = load_server_ranking()
+    assert ranking["hosts"][0]["last_success_latency_ms"] == 10.0
+    assert all(record["ok"] is False for record in ranking["hosts"])
+
+
 def test_client_ping_returns_pong() -> None:
     assert Client().ping() == "pong"
     assert isinstance(TdxClient().transport, PooledSocketTransport)
@@ -36,15 +90,114 @@ def test_public_pool_defaults_are_consistent() -> None:
     client = TdxClient(heartbeat_interval=None)
     direct = PooledSocketTransport(["127.0.0.1:9"], heartbeat_interval=None)
 
-    assert client.pool_size == 1
-    assert client.transport.pool_size == 1
-    assert direct.pool_size == 1
+    assert client.pool_size == 8
+    assert client.server_count == 2
+    assert client.connections_per_server == 4
+    assert client.transport.pool_size == 8
+    assert client.transport.server_count == 2
+    assert direct.pool_size == 4
+    assert direct.server_count == 1
+    assert direct.connections_per_server == 4
+    assert client.transport.push_queue_bytes == 64 * 1024 * 1024
+    assert client.probe_hosts is True
 
 
-@pytest.mark.parametrize("value", [0, -1, 1.5, "2", True, None])
+def test_client_keeps_the_v2_positional_configuration_prefix() -> None:
+    transport = InMemoryTransport()
+    client = TdxClient(
+        transport,
+        None,
+        None,
+        5.0,
+        3,
+        False,
+        0.5,
+        4,
+        None,
+        9,
+        10,
+        11,
+    )
+
+    assert client.transport is transport
+    assert client.timeout == 5.0
+    assert client.pool_size == 3
+    assert client.probe_hosts is False
+    assert client.probe_timeout == 0.5
+    assert client.probe_workers == 4
+    assert client.heartbeat_interval is None
+    assert client.max_pending_requests == 9
+    assert client.push_queue_size == 10
+    assert client.push_queue_bytes == 11
+
+
+@pytest.mark.parametrize("value", [0, -1, 1.5, "2", True])
 def test_client_rejects_invalid_pool_size(value) -> None:
     with pytest.raises(ValueError, match="pool_size must be a positive integer"):
         TdxClient(transport=InMemoryTransport(), pool_size=value)
+
+
+@pytest.mark.parametrize("value", [0, -1, 1.5, "2", True, None])
+def test_legacy_pool_size_validator_keeps_rejecting_invalid_values(value) -> None:
+    with pytest.raises(ValueError, match="pool_size must be a positive integer"):
+        validate_pool_size(value)
+
+
+def test_legacy_pool_size_is_distributed_across_available_servers() -> None:
+    single = PooledSocketTransport(["127.0.0.1:9"], pool_size=1, probe_hosts=False)
+    uneven = PooledSocketTransport(
+        ["127.0.0.1:9", "127.0.0.2:9", "127.0.0.3:9"],
+        pool_size=7,
+        server_count=3,
+        probe_hosts=False,
+    )
+
+    assert single.pool_size == 1
+    assert single.server_count == 1
+    assert single.diagnostics.max_connections_per_host == 1
+    assert uneven.pool_size == 7
+    assert uneven.server_count == 3
+    assert uneven.connections_per_server == 3
+    assert uneven.diagnostics.max_connections_per_host == 3
+
+
+def test_explicit_server_layout_and_runtime_limits_are_visible_in_diagnostics() -> None:
+    transport = PooledSocketTransport(
+        ["127.0.0.1:9", "127.0.0.2:9", "127.0.0.3:9"],
+        server_count=3,
+        connections_per_server=5,
+        runtime_workers=6,
+        connect_concurrency=7,
+        connect_concurrency_per_host=2,
+        global_raw_bytes=16 * 1024 * 1024,
+        global_decoded_bytes=128 * 1024 * 1024,
+        probe_hosts=False,
+    )
+
+    diagnostics = transport.diagnostics
+    assert transport.pool_size == 15
+    assert diagnostics.pool_size == 15
+    assert diagnostics.server_count == 3
+    assert diagnostics.runtime_workers == 6
+    assert diagnostics.max_connections_per_host == 5
+    assert diagnostics.connect_concurrency == 7
+    assert diagnostics.connect_concurrency_per_host == 2
+    assert diagnostics.raw_max_bytes == 16 * 1024 * 1024
+    assert diagnostics.decoded_max_bytes == 128 * 1024 * 1024
+
+
+def test_explicit_pool_and_server_layout_must_agree() -> None:
+    with pytest.raises(
+        ValueError,
+        match=r"pool_size must equal server_count \* connections_per_server",
+    ):
+        PooledSocketTransport(
+            ["127.0.0.1:9", "127.0.0.2:9"],
+            pool_size=7,
+            server_count=2,
+            connections_per_server=4,
+            probe_hosts=False,
+        )
 
 
 def test_api_ping_uses_default_client() -> None:

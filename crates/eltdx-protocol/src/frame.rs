@@ -244,7 +244,7 @@ impl Default for ResponseFrameDecoder {
             max_payload_size: MAX_RESPONSE_PAYLOAD_SIZE,
             max_buffer_size: MAX_RESPONSE_BUFFER_SIZE,
             max_resync_bytes: MAX_RESPONSE_RESYNC_BYTES,
-            buffer: BytesMut::with_capacity(MAX_RESPONSE_BUFFER_SIZE),
+            buffer: BytesMut::new(),
             resync_discarded: 0,
             max_buffer_observed: 0,
         }
@@ -291,7 +291,7 @@ impl ResponseFrameDecoder {
             max_payload_size,
             max_buffer_size,
             max_resync_bytes,
-            buffer: BytesMut::with_capacity(max_buffer_size),
+            buffer: BytesMut::new(),
             resync_discarded: 0,
             max_buffer_observed: 0,
         })
@@ -746,6 +746,14 @@ mod tests {
         assert_eq!(frames.len(), 1);
         assert_eq!(decoder.buffered_bytes(), 0);
         assert!(decoder.finish().is_ok());
+    }
+
+    #[test]
+    fn response_decoder_allocates_raw_staging_only_when_bytes_arrive() {
+        let decoder = ResponseFrameDecoder::default();
+
+        assert_eq!(decoder.buffer.capacity(), 0);
+        assert_eq!(decoder.buffered_bytes(), 0);
     }
 
     #[test]

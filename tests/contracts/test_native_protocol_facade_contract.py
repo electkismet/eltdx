@@ -96,7 +96,8 @@ def test_socket_and_pool_facades_have_no_python_runtime_core() -> None:
         assert "ActorRuntime" not in source
         assert "LeaseBroker" not in source
         assert "PushBuffer" not in source
-        assert "threading" not in source
+        assert "Thread(" not in source
+        assert "Condition(" not in source
     assert "native_pin.execute" in pool_source
     assert "native_pin.close" in pool_source
     assert "session_snapshot" in socket_source
@@ -115,6 +116,9 @@ def test_native_pin_and_diagnostics_paths_are_engine_owned() -> None:
     assert "session_snapshot" in binding
     assert "pool_diagnostics" in binding
     assert "transport_diagnostics" in binding
+    assert "RuntimeCommand::PoolDiagnostics" not in engine
+    assert "RuntimeCommand::TransportDiagnostics" not in engine
+    assert "self.inner.diagnostics" in engine
 
 
 def test_native_execute_and_push_dtos_reconstruct_public_values() -> None:

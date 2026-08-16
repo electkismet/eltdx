@@ -211,8 +211,10 @@ def _parser_options(parser: argparse.ArgumentParser) -> dict[str, dict[str, Any]
     for action in parser._actions:
         if action.dest == "help":
             continue
-        option = action.option_strings[-1]
-        if isinstance(action, argparse._StoreTrueAction):
+        option = action.option_strings[0]
+        if isinstance(action, argparse.BooleanOptionalAction):
+            action_name = "boolean_optional"
+        elif isinstance(action, argparse._StoreTrueAction):
             action_name = "store_true"
         else:
             action_name = "store"

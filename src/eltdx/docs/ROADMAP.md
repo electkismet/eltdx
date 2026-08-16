@@ -96,7 +96,7 @@
 
 已完成：
 
-- `ConnectionActor`：每个连接槽位由一个长期单线程 Actor 独占非阻塞 socket，并负责收发、配对和心跳。
+- `Slot task`：每个连接槽位独占非阻塞 socket、decoder 和 TCP generation，由 Engine 的共享 Tokio worker 调度。
 - 请求配对：响应同时校验 runtime epoch、TCP generation、socket identity、lease、`msg_id` 和 `msg_type`。
 - 有界 push buffer：`msg_id=0` 或未配对推送帧进入 pool epoch 共享队列，溢出时显式报告 gap。
 

@@ -12,9 +12,9 @@ import venv
 from pathlib import Path
 
 if __package__:
-    from .verify_release_artifacts import verify_artifacts
+    from .verify_release_artifacts import inspect_release_wheel, verify_artifacts
 else:
-    from verify_release_artifacts import verify_artifacts
+    from verify_release_artifacts import inspect_release_wheel, verify_artifacts
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,17 +34,61 @@ def verify_wheel(
     platform: str,
     python_version: str,
 ) -> None:
+    inventory = verify_artifacts(artifact_dir, candidate=None)
+    wheel_name = inventory["platforms"].get(platform)
+    if wheel_name is None:
+        raise ValueError(f"no wheel for platform {platform!r}")
+    wheel = artifact_dir.resolve() / wheel_name
+    _smoke_wheel(
+        wheel,
+        expected_version=inventory["version"],
+        platform=platform,
+        python_version=python_version,
+    )
+
+
+def verify_single_built_wheel(
+    artifact_dir: Path,
+    *,
+    platform: str,
+    python_version: str,
+) -> None:
+    artifact_dir = artifact_dir.resolve()
+    if not artifact_dir.is_dir():
+        raise FileNotFoundError(artifact_dir)
+    files = sorted(path for path in artifact_dir.iterdir() if path.is_file())
+    wheels = [path for path in files if path.suffix == ".whl"]
+    if len(files) != 1 or len(wheels) != 1:
+        raise ValueError(
+            "single-wheel smoke requires exactly one wheel and no other files; "
+            f"found {[path.name for path in files]!r}"
+        )
+    inspected = inspect_release_wheel(wheels[0])
+    if inspected["platform"] != platform:
+        raise ValueError(
+            f"built wheel platform {inspected['platform']} does not match requested {platform}"
+        )
+    _smoke_wheel(
+        wheels[0],
+        expected_version=inspected["version"],
+        platform=platform,
+        python_version=python_version,
+    )
+
+
+def _smoke_wheel(
+    wheel: Path,
+    *,
+    expected_version: str,
+    platform: str,
+    python_version: str,
+) -> None:
     actual_python = f"{sys.version_info.major}.{sys.version_info.minor}"
     if actual_python != python_version:
         raise RuntimeError(f"runner Python {actual_python} does not match requested {python_version}")
     actual_platform = _current_platform()
     if actual_platform != platform:
         raise RuntimeError(f"runner platform {actual_platform} does not match requested {platform}")
-    inventory = verify_artifacts(artifact_dir, candidate=None)
-    wheel_name = inventory["platforms"].get(platform)
-    if wheel_name is None:
-        raise ValueError(f"no wheel for platform {platform!r}")
-    wheel = artifact_dir.resolve() / wheel_name
 
     with tempfile.TemporaryDirectory(prefix="eltdx-wheel-smoke-") as temporary:
         environment_root = Path(temporary) / "venv"
@@ -74,7 +118,7 @@ def verify_wheel(
                 str(python),
                 str(ROOT / "scripts" / "verification" / "installed_smoke.py"),
                 "--expected-version",
-                inventory["version"],
+                expected_version,
             ),
             check=True,
             cwd=temporary,
@@ -108,6 +152,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--artifact-dir", type=Path, required=True)
     parser.add_argument("--platform")
     parser.add_argument("--python-version")
+    parser.add_argument("--single-wheel", action="store_true")
     return parser
 
 
@@ -119,11 +164,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.python_version is not None
         else f"{sys.version_info.major}.{sys.version_info.minor}"
     )
-    verify_wheel(
-        args.artifact_dir,
-        platform=target_platform,
-        python_version=target_python,
-    )
+    verifier = verify_single_built_wheel if args.single_wheel else verify_wheel
+    verifier(args.artifact_dir, platform=target_platform, python_version=target_python)
     return 0
 
 

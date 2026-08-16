@@ -63,6 +63,14 @@ def test_each_round_preserves_plan_step_order() -> None:
         "fixture-workspace",
         "baseline-export",
     ]
+    assert names[4] == ["python-local-suite"]
+    assert names[5] == ["loopback-fault-injection"]
+    assert names[6][0] == "local-stress"
+    assert names[8] == [
+        "real-host-21-commands",
+        "real-host-differential",
+        "real-f10-7615",
+    ]
     assert names[9][0] == "five-wheel-and-sdist-evidence"
     assert names[10][-2:] == ["publish-workflow-dry-run-no-upload", "evidence-index"]
 

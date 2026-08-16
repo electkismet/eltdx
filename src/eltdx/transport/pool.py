@@ -6,36 +6,48 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
+from threading import Lock
 from typing import Any
 
 from eltdx._native_models import response_from_dto
 from eltdx.exceptions import ConnectionClosedError
 from eltdx.hosts import (
     DEFAULT_HOSTS,
+    DEFAULT_PROBE_HOSTS,
     DEFAULT_PROBE_TIMEOUT,
     DEFAULT_PROBE_WORKERS,
+    rank_hosts_from_cache,
     sort_hosts_by_latency,
     unique_hosts,
 )
 from eltdx.transport.native import call_native, native_module
 
 from .actor import ActorSnapshot, RuntimeState, TcpState
+from ._config import (
+    DEFAULT_POOL_SIZE,
+    DEFAULT_PUSH_QUEUE_BYTES,
+    DEFAULT_SERVER_COUNT,
+    SLOT_DECODED_MAX_BYTES,
+    SLOT_RAW_MAX_BYTES,
+    automatic_decoded_bytes as _automatic_decoded_bytes,
+    automatic_raw_bytes as _automatic_raw_bytes,
+    available_parallelism as _available_parallelism,
+    optional_positive_int,
+    positive_int,
+    resolve_pool_layout,
+)
 from .socket import (
     DEFAULT_HEARTBEAT_INTERVAL,
-    DEFAULT_PUSH_QUEUE_BYTES,
     DEFAULT_PUSH_QUEUE_SIZE,
     _push_value,
     _resolved_native_hosts,
 )
 
 DEFAULT_MAX_PENDING_REQUESTS = 256
-DEFAULT_POOL_SIZE = 1
 
 
 def validate_pool_size(value: int) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-        raise ValueError("pool_size must be a positive integer")
-    return value
+    return positive_int("pool_size", value)
 
 
 class PoolState(Enum):
@@ -67,6 +79,19 @@ class PoolDiagnostics:
     push_frames: int
     push_bytes: int
     push_dropped: int
+    runtime_workers: int = 0
+    pool_size: int = 0
+    server_count: int = 0
+    max_connections_per_host: int = 0
+    connect_concurrency: int = 0
+    connect_concurrency_per_host: int = 0
+    raw_bytes: int = 0
+    raw_max_bytes: int = 0
+    raw_peak_bytes: int = 0
+    decoded_bytes: int = 0
+    decoded_max_bytes: int = 0
+    decoded_peak_bytes: int = 0
+    push_max_bytes: int = 0
 
 
 def _pool_diagnostics(dto: tuple[Any, ...]) -> PoolDiagnostics:
@@ -94,6 +119,19 @@ def _pool_diagnostics(dto: tuple[Any, ...]) -> PoolDiagnostics:
         dto[4],
         dto[5],
         dto[6],
+        dto[7],
+        dto[8],
+        dto[9],
+        dto[10],
+        dto[11],
+        dto[12],
+        dto[13],
+        dto[14],
+        dto[15],
+        dto[16],
+        dto[17],
+        dto[18],
+        dto[19],
     )
 
 
@@ -165,8 +203,16 @@ class PooledSocketTransport:
         hosts: Sequence[str] | None = None,
         *,
         timeout: float = 8.0,
-        pool_size: int = DEFAULT_POOL_SIZE,
-        probe_hosts: bool = False,
+        pool_size: int | None = None,
+        server_count: int = DEFAULT_SERVER_COUNT,
+        connections_per_server: int | None = None,
+        runtime_workers: int | None = None,
+        max_connections_per_host: int | None = None,
+        connect_concurrency: int | None = None,
+        connect_concurrency_per_host: int | None = None,
+        global_raw_bytes: int | None = None,
+        global_decoded_bytes: int | None = None,
+        probe_hosts: bool = DEFAULT_PROBE_HOSTS,
         probe_timeout: float = DEFAULT_PROBE_TIMEOUT,
         probe_workers: int = DEFAULT_PROBE_WORKERS,
         heartbeat_interval: float | None = DEFAULT_HEARTBEAT_INTERVAL,
@@ -174,37 +220,109 @@ class PooledSocketTransport:
         push_queue_size: int = DEFAULT_PUSH_QUEUE_SIZE,
         push_queue_bytes: int = DEFAULT_PUSH_QUEUE_BYTES,
     ) -> None:
-        values = unique_hosts(list(hosts or DEFAULT_HOSTS))
+        values = rank_hosts_from_cache(unique_hosts(list(hosts or DEFAULT_HOSTS)))
         if not values:
             raise ValueError("at least one host is required")
-        if probe_hosts and len(values) > 1:
-            values = sort_hosts_by_latency(
-                values,
-                timeout=probe_timeout,
-                max_workers=probe_workers,
-            )
         if timeout <= 0:
             raise ValueError("timeout must be > 0")
-        if max_pending_requests <= 0:
-            raise ValueError("max_pending_requests must be > 0")
-        if push_queue_size <= 0 or push_queue_bytes <= 0:
-            raise ValueError("push queue limits must be > 0")
+        max_pending_requests = positive_int(
+            "max_pending_requests", max_pending_requests
+        )
+        push_queue_size = positive_int("push_queue_size", push_queue_size)
+        push_queue_bytes = positive_int("push_queue_bytes", push_queue_bytes)
+        if probe_timeout <= 0:
+            raise ValueError("probe_timeout must be > 0")
+        probe_workers = positive_int("probe_workers", probe_workers)
+        layout = resolve_pool_layout(
+            host_count=len(values),
+            pool_size=pool_size,
+            server_count=server_count,
+            connections_per_server=connections_per_server,
+            max_connections_per_host=max_connections_per_host,
+        )
         self._hosts = values
         self._timeout = float(timeout)
-        self._pool_size = validate_pool_size(pool_size)
+        self._pool_size = layout.pool_size
+        self._server_count = layout.server_count
+        self._connections_per_server = layout.connections_per_server
+        self._runtime_workers = optional_positive_int("runtime_workers", runtime_workers)
+        if self._runtime_workers is not None and self._runtime_workers > self._pool_size:
+            raise ValueError("runtime_workers cannot exceed pool_size")
+        self._max_connections_per_host = layout.max_connections_per_host
+        self._connect_concurrency = optional_positive_int(
+            "connect_concurrency", connect_concurrency
+        )
+        if (
+            self._connect_concurrency is not None
+            and self._connect_concurrency > self._pool_size
+        ):
+            raise ValueError("connect_concurrency cannot exceed pool_size")
+        self._connect_concurrency_per_host = optional_positive_int(
+            "connect_concurrency_per_host", connect_concurrency_per_host
+        )
+        effective_connect_concurrency = self._connect_concurrency or min(
+            self._pool_size,
+            max(4, min(_available_parallelism() * 2, 32)),
+        )
+        if self._connect_concurrency_per_host is not None and (
+            self._connect_concurrency_per_host > effective_connect_concurrency
+            or self._connect_concurrency_per_host > self._max_connections_per_host
+        ):
+            raise ValueError(
+                "connect_concurrency_per_host cannot exceed connect_concurrency "
+                "or max_connections_per_host"
+            )
+        self._global_raw_bytes = optional_positive_int("global_raw_bytes", global_raw_bytes)
+        if self._global_raw_bytes is not None and self._global_raw_bytes < SLOT_RAW_MAX_BYTES:
+            raise ValueError(
+                "global_raw_bytes must allow at least one complete Slot staging buffer"
+            )
+        self._global_decoded_bytes = optional_positive_int(
+            "global_decoded_bytes", global_decoded_bytes
+        )
+        if (
+            self._global_decoded_bytes is not None
+            and self._global_decoded_bytes < SLOT_DECODED_MAX_BYTES
+        ):
+            raise ValueError(
+                "global_decoded_bytes must allow at least one complete Slot decoded queue"
+            )
         self._heartbeat_interval = heartbeat_interval
-        self._max_pending_requests = int(max_pending_requests)
-        self._push_queue_size = int(push_queue_size)
-        self._push_queue_bytes = int(push_queue_bytes)
+        self._max_pending_requests = max_pending_requests
+        self._push_queue_size = push_queue_size
+        self._push_queue_bytes = push_queue_bytes
+        self._probe_hosts = bool(probe_hosts)
+        self._probe_timeout = float(probe_timeout)
+        self._probe_workers = probe_workers
+        self._hosts_probed = not self._probe_hosts or len(values) <= 1
+        self._engine_lock = Lock()
         self._engine: Any = None
 
     def _native(self) -> Any:
-        if self._engine is None:
+        if self._engine is not None:
+            return self._engine
+        with self._engine_lock:
+            if self._engine is not None:
+                return self._engine
+            if not self._hosts_probed:
+                self._hosts = sort_hosts_by_latency(
+                    self._hosts,
+                    timeout=self._probe_timeout,
+                    max_workers=self._probe_workers,
+                )
+                self._hosts_probed = True
             self._engine = call_native(
                 native_module().NativeEngine,
                 _resolved_native_hosts(self._hosts),
                 timeout=self._timeout,
                 pool_size=self._pool_size,
+                runtime_workers=self._runtime_workers,
+                server_count=self._server_count,
+                max_connections_per_host=self._max_connections_per_host,
+                connect_concurrency=self._connect_concurrency,
+                connect_concurrency_per_host=self._connect_concurrency_per_host,
+                global_raw_bytes=self._global_raw_bytes,
+                global_decoded_bytes=self._global_decoded_bytes,
                 heartbeat_interval=self._heartbeat_interval,
                 max_pending_requests=self._max_pending_requests,
                 push_queue_size=self._push_queue_size,
@@ -219,6 +337,14 @@ class PooledSocketTransport:
     @property
     def pool_size(self) -> int:
         return self._pool_size
+
+    @property
+    def server_count(self) -> int:
+        return self._server_count
+
+    @property
+    def connections_per_server(self) -> int:
+        return self._connections_per_server
 
     @property
     def heartbeat_interval(self) -> float | None:
@@ -239,7 +365,33 @@ class PooledSocketTransport:
     @property
     def diagnostics(self) -> PoolDiagnostics:
         if self._engine is None:
-            return PoolDiagnostics(0, PoolState.STOPPED, None, (), 0, 0, 0)
+            return PoolDiagnostics(
+                0,
+                PoolState.STOPPED,
+                None,
+                (),
+                0,
+                0,
+                0,
+                self._runtime_workers or min(self._pool_size, _available_parallelism()),
+                self._pool_size,
+                self._server_count,
+                self._max_connections_per_host,
+                self._connect_concurrency
+                or min(
+                    self._pool_size,
+                    max(4, min(_available_parallelism() * 2, 32)),
+                ),
+                self._connect_concurrency_per_host
+                or min(2, self._max_connections_per_host),
+                0,
+                self._global_raw_bytes or _automatic_raw_bytes(self._pool_size),
+                0,
+                0,
+                self._global_decoded_bytes or _automatic_decoded_bytes(self._pool_size),
+                0,
+                self._push_queue_bytes,
+            )
         return _pool_diagnostics(call_native(self._engine.pool_diagnostics))
 
     @property

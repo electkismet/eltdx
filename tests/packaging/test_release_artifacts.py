@@ -22,6 +22,7 @@ WHEELS = (
     "eltdx-3.0.0a1-cp310-abi3-macosx_10_12_x86_64.whl",
     "eltdx-3.0.0a1-cp310-abi3-macosx_11_0_arm64.whl",
 )
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def _artifacts(root: Path) -> None:
@@ -126,3 +127,109 @@ def test_wheel_matrix_cli_defaults_to_current_runner(
         == 0
     )
     assert calls == [(tmp_path, "linux-x86_64", "3.14")]
+
+
+def test_single_wheel_cli_dispatches_to_single_wheel_verifier(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls: list[tuple[Path, str, str]] = []
+    monkeypatch.setattr(
+        verify_wheel_matrix,
+        "verify_single_built_wheel",
+        lambda artifact_dir, *, platform, python_version: calls.append(
+            (artifact_dir, platform, python_version)
+        ),
+    )
+
+    assert (
+        verify_wheel_matrix.main(
+            [
+                "--artifact-dir",
+                str(tmp_path),
+                "--platform",
+                "macos-arm64",
+                "--python-version",
+                "3.10",
+                "--single-wheel",
+            ]
+        )
+        == 0
+    )
+    assert calls == [(tmp_path, "macos-arm64", "3.10")]
+
+
+def test_single_wheel_verifier_accepts_exact_matching_wheel(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    wheel = tmp_path / WHEELS[4]
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("eltdx/__init__.py", b"")
+    calls: list[tuple[Path, str, str, str]] = []
+    monkeypatch.setattr(
+        verify_wheel_matrix,
+        "_smoke_wheel",
+        lambda path, *, expected_version, platform, python_version: calls.append(
+            (path, expected_version, platform, python_version)
+        ),
+    )
+
+    verify_wheel_matrix.verify_single_built_wheel(
+        tmp_path,
+        platform="macos-arm64",
+        python_version="3.14",
+    )
+
+    assert calls == [(wheel, "3.0.0a1", "macos-arm64", "3.14")]
+
+
+def test_single_wheel_verifier_rejects_extra_files(tmp_path: Path) -> None:
+    with zipfile.ZipFile(tmp_path / WHEELS[0], "w") as archive:
+        archive.writestr("eltdx/__init__.py", b"")
+    (tmp_path / "notes.txt").write_text("unexpected", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="exactly one wheel"):
+        verify_wheel_matrix.verify_single_built_wheel(
+            tmp_path,
+            platform="windows-x86_64",
+            python_version="3.10",
+        )
+
+
+def test_single_wheel_verifier_rejects_platform_mismatch(tmp_path: Path) -> None:
+    with zipfile.ZipFile(tmp_path / WHEELS[0], "w") as archive:
+        archive.writestr("eltdx/__init__.py", b"")
+
+    with pytest.raises(ValueError, match="does not match requested linux-x86_64"):
+        verify_wheel_matrix.verify_single_built_wheel(
+            tmp_path,
+            platform="linux-x86_64",
+            python_version="3.10",
+        )
+
+
+def test_native_wheels_smoke_before_upload_without_followup_matrix() -> None:
+    workflow = (ROOT / ".github/workflows/native-wheels.yml").read_text(encoding="utf-8")
+
+    assert "  wheel-smoke:" not in workflow
+    assert workflow.count("--single-wheel") == 6
+    for job, next_job in (
+        ("wheel-windows", "wheel-linux"),
+        ("wheel-linux", "wheel-macos"),
+        ("wheel-macos", "sdist"),
+    ):
+        block = workflow.split(f"  {job}:", maxsplit=1)[1].split(
+            f"  {next_job}:", maxsplit=1
+        )[0]
+        assert block.count("--python-version 3.10") == 1
+        assert block.count("--python-version 3.14") == 1
+        assert block.index("--python-version 3.10") < block.index("--python-version 3.14")
+        assert block.index("--python-version 3.14") < block.index("- name: Upload wheel")
+
+
+def test_full_native_distribution_runs_on_main_push_only() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    block = workflow.split("  native-dist:", maxsplit=1)[1]
+
+    assert "if: github.event_name == 'push'" in block
