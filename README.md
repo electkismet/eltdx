@@ -38,7 +38,7 @@
 
 ## 功能地图
 
-eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用模块化 API 和 Helpers；只有做协议研究时，才需要直接对照 `7709` 命令或 `7615` Entry。
+eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用模块化 API 和 Helpers；只有做协议研究时，才需要直接对照 `7709` 命令或 `7615` Entry。下表的代表调用均来自当前接口文档，点击方法名可直接查看参数、返回字段和同类方法。
 
 <p align="center">
   <strong>Python / MCP</strong>
@@ -50,26 +50,28 @@ eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用�
   <strong>dataclass / push / JSON</strong>
 </p>
 
-| 研究任务 | 可以直接拿到 | 推荐入口 | 数据路径 |
+| 研究任务 | 可以直接拿到 | 代表调用（点开文档） | 数据路径 |
 | --- | --- | --- | --- |
-| 证券清单 | A 股、ETF、指数、市场代码数量和全量代码表 | `client.codes` | `7709 原生协议` |
-| 分类行情 | 按市场或板块分页、排序的行情列表 | `client.quotes.list_by_category()` | `7709 原生协议` |
-| 完整实时行情 | 批量快照、最新价、成交量额和完整五档 | `client.helpers.full_quotes()` | `7709` + `Helpers 封装` |
-| 实时刷新与 push | 五档刷新、游标更新和 push 队列 | `client.quotes` | `7709 原生协议` |
-| K 线与复权 | 分钟/日/周/月/季/年 K 线、自动分页、前/后/定点复权 | `client.helpers.adjusted_kline()` | `7709` + `Helpers 封装` |
-| 分时图表 | 当日/历史分时、分时副图和小走势图 | `client.minutes` | `7709 原生协议` |
-| 成交明细 | 当日/历史成交、自动分页和 09:25 正式撮合 | `client.trades` | `7709 原生协议` |
-| 集合竞价 | 竞价过程、09:25 撮合、昨收、开盘价/量/额/涨幅 | `client.helpers.auction_data()` | `7709` + `Helpers 封装` |
-| 公司与股本基础 | 股本变迁、财务基础字段 | `client.corporate` | `7709 原生协议` |
-| 股本与复权计算 | 除权除息、指定日期股本、换手率和本地复权因子 | `client.helpers` | `7709` + `Helpers 本地计算` |
-| 特殊品种限制 | 特殊品种涨跌停限制表 | `client.limits` | `7709 原生协议` |
-| F10 与资讯 | 公司概况、主营构成、财报、估值、公告、新闻、研报和北向持仓 | `client.f10` | `7615 原生 Entry` |
-| 题材与概念 | 个股所属概念、概念成分股和题材内对比 | `client.helpers` | `7615` + `Helpers 封装` |
-| 股票信息汇总 | 行情、证券名称、股本、市值和换手率合并表 | `client.helpers.stock_profile_table()` | `7709` + `Helpers 组合` |
-| 短线指标 | 流通市值Z、开盘换手Z、竞价昨比、几天几板等 21 个指标 | `client.helpers.shortline_indicators()` | `7709` + `Helpers 组合` |
-| 服务器资源 | 文件分块读取、完整下载和统计资源解析 | `client.resources` | `7709 原生协议` |
-| 连接与并发 | 主站测速、Rust 连接池、心跳、pin、push、缓存和 diagnostics | `TdxClient` | `Rust Engine` |
-| MCP 工具服务 | 将常用行情、F10、竞价和文档能力提供给 MCP 客户端 | `eltdx-mcp` | `MCP` |
+| A 股清单 | 上海、深圳和北交所 A 股代码表 | [`client.codes.all_a_shares()`](docs/methods/7709-代码表.md) | `7709 原生协议` |
+| 分类行情 | 按市场或板块分页、排序的行情列表 | [`client.quotes.list_by_category()`](docs/methods/7709-分类行情.md) | `7709 原生协议` |
+| 完整实时行情 | 批量快照、最新价、成交量额和完整五档 | [`client.helpers.full_quotes()`](docs/helpers/完整行情.md) | `7709` + `Helpers 封装` |
+| 五档实时刷新 | 为代码列表建立或刷新实时五档 | [`client.quotes.get_depth()`](docs/methods/7709-增量刷新推送队列.md) | `7709 原生协议` |
+| push 队列 | 读取未匹配的实时更新帧 | [`client.quotes.poll_push()`](docs/methods/7709-增量刷新推送队列.md) | `7709 原生协议` |
+| K 线与复权 | 分钟/日/周/月/季/年 K 线、自动分页、前/后/定点复权 | [`client.helpers.adjusted_kline()`](docs/helpers/复权K线.md) | `7709` + `Helpers 封装` |
+| 当日分时 | 当日每分钟价格、成交量和均价 | [`client.minutes.today()`](docs/methods/7709-当日分时.md) | `7709 原生协议` |
+| 当日成交明细 | 自动分页合并的当日完整成交记录 | [`client.trades.all_today()`](docs/methods/7709-当日成交明细.md) | `7709 原生协议` |
+| 集合竞价 | 竞价过程、09:25 撮合、昨收、开盘价/量/额/涨幅 | [`client.helpers.auction_data()`](docs/helpers/竞价数据.md) | `7709` + `Helpers 封装` |
+| 股本变迁 | 除权除息、股本变化、增发和回购记录 | [`client.corporate.capital_changes()`](docs/methods/7709-股本变迁GBBQ.md) | `7709 原生协议` |
+| 财务基础 | 流通/总股本、EPS、资产、负债、收入和利润 | [`client.corporate.finance_batch()`](docs/methods/7709-财务基础信息.md) | `7709 原生协议` |
+| 本地复权因子 | 按不复权日 K 和除权除息记录计算的复权因子 | [`client.helpers.factors()`](docs/methods/7709-本地复权因子.md) | `7709` + `Helpers 本地计算` |
+| 特殊品种限制 | 特殊品种涨跌停限制表 | [`client.limits.special()`](docs/methods/7709-特殊品种涨跌停限制.md) | `7709 原生协议` |
+| F10 公司概况 | 发行上市信息、上市日期、发行价、募资额和承销商 | [`client.f10.company_profile()`](docs/methods/F10-公司概况.md) | `7615 原生 Entry` |
+| 个股概念 | 某只股票所属的热点题材和入选原因 | [`client.helpers.stock_topics()`](docs/helpers/个股概念板块.md) | `7615` + `Helpers 封装` |
+| 股票信息汇总 | 行情、证券名称、股本、市值和换手率合并表 | [`client.helpers.stock_profile_table()`](docs/helpers/股票信息汇总.md) | `7709` + `Helpers 组合` |
+| 短线指标 | 流通市值Z、开盘换手Z、竞价昨比、几天几板等 21 个指标 | [`client.helpers.shortline_indicators()`](docs/helpers/短线指标.md) | `7709` + `Helpers 组合` |
+| 服务器文件 | 按分块自动下载并合并完整文件 | [`client.resources.download_file()`](docs/methods/7709-服务器文件下载.md) | `7709 原生协议` |
+| 连接与并发 | 主站测速、Rust 连接池、心跳、pin、push、缓存和 diagnostics | [`TdxClient()`](docs/METHOD_REFERENCE.md#tdxclient) | `Rust Engine` |
+| MCP 工具服务 | 将常用行情、F10、竞价和文档能力提供给 MCP 客户端 | [`eltdx-mcp`](docs/MCP.md#安装和启动) | `MCP` |
 
 完整接口目录见 [GitHub Pages](https://electkismet.github.io/eltdx/)。调用方法和返回字段看 [METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md)，常用问题入口看 [docs/helpers/README.md](docs/helpers/README.md)，完整 API 看 [API_REFERENCE.md](docs/API_REFERENCE.md)，字段总表看 [FIELD_REFERENCE.md](docs/FIELD_REFERENCE.md)，F10 资料看 [F10_7615.md](docs/F10_7615.md)，MCP 工具看 [MCP.md](docs/MCP.md)。
 
