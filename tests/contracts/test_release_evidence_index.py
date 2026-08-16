@@ -66,7 +66,7 @@ def test_index_excludes_execution_venv_and_mutable_round_log(
     self_log = (
         root
         / "round-10-documentation-and-release"
-        / "07-evidence-index.log"
+        / "06-evidence-index.log"
     )
     self_log.parent.mkdir()
     self_log.write_text("mutable\n", encoding="utf-8")
@@ -83,7 +83,7 @@ def test_index_excludes_execution_venv_and_mutable_round_log(
     assert not any(path.startswith("baseline-venv/") for path in indexed_paths)
     assert index["excluded_execution_roots"] == ["baseline-venv"]
     assert (
-        "round-10-documentation-and-release/07-evidence-index.log"
+        "round-10-documentation-and-release/06-evidence-index.log"
         in index["excluded_mutable_paths"]
     )
 

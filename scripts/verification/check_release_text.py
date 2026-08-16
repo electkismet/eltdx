@@ -31,7 +31,7 @@ def check() -> list[str]:
         errors.append("changelog does not contain the dated v3.0.0 release")
     if "待发布" in release or "预发布候选" in release:
         errors.append("release notes still describe a pending prerelease")
-    for needle in ("name: testpypi", "name: pypi", "refs/tags/v"):
+    for needle in ("name: pypi", "refs/tags/v"):
         if needle not in publish:
             errors.append(f"publish workflow missing gate {needle!r}")
     forbidden = ("TODO", "FIXME", "TBD", "PLACEHOLDER")

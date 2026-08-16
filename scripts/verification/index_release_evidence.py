@@ -19,14 +19,13 @@ EXPECTED_ROUND_10_STEPS = [
     "pages-links",
     "version-and-docs",
     "release-text",
-    "testpypi-plan-only",
     "publish-workflow-dry-run-no-upload",
 ]
 EXCLUDED_EXECUTION_ROOTS = frozenset({"baseline-venv"})
 MUTABLE_LOCAL_PATHS = frozenset(
     {
         "state.json",
-        "round-10-documentation-and-release/07-evidence-index.log",
+        "round-10-documentation-and-release/06-evidence-index.log",
     }
 )
 

@@ -52,53 +52,10 @@ jobs:
             dist/SHA256SUMS
           if-no-files-found: error
 
-  testpypi:
-    name: Upload exact artifacts to TestPyPI
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [native-dist, verify-release]
-    runs-on: ubuntu-24.04
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/eltdx
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: release-dist
-          path: dist
-      - name: Upload to TestPyPI after environment approval
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-          packages-dir: dist/packages/
-          skip-existing: false
-
-  testpypi-smoke:
-    name: Install exact version from TestPyPI
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [verify-release, testpypi]
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.14"
-      - uses: actions/download-artifact@v8
-        with:
-          name: release-dist
-          path: dist
-      - name: Verify TestPyPI installation and entry points
-        run: >-
-          python scripts/verification/verify_testpypi.py
-          --tag "${{ github.ref_name }}"
-          --candidate "${{ github.sha }}"
-          --artifact-manifest dist/artifacts.json
-
   pypi:
     name: Upload exact artifacts to PyPI
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [native-dist, verify-release, testpypi-smoke]
+    needs: [native-dist, verify-release]
     runs-on: ubuntu-24.04
     environment:
       name: pypi

@@ -320,15 +320,6 @@ ROUNDS = (
             command("version-and-docs", "{python}", "scripts/verification/check_release_metadata.py"),
             command("release-text", "{python}", "scripts/verification/check_release_text.py"),
             command(
-                "testpypi-plan-only",
-                "{python}",
-                "scripts/release/prepare_testpypi_plan.py",
-                "--artifact-dir",
-                "{artifact_dir}",
-                "--output",
-                "{round_dir}/testpypi-plan.json",
-            ),
-            command(
                 "publish-workflow-dry-run-no-upload",
                 "{python}",
                 "scripts/verification/dry_run_publish_workflow.py",

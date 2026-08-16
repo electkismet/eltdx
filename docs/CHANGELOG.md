@@ -15,7 +15,7 @@
 - 增加显式 Python/native ABI 校验，移除纯 Python 7709 fallback；安装版本来自 Cargo/distribution metadata。
 - 构建产物改为五个 `cp310-abi3` wheel 和一个 sdist，支持 CPython 3.10-3.14 的首发平台矩阵。
 - 新增版本绑定的十轮统一测试、黄金 fixture、故障注入、压力、性能、真实主站和安装证据资产。
-- 正式版产物通过 TestPyPI 安装验证后，以同一批文件发布到 PyPI 和 GitHub Release。
+- 正式版在五个平台完成 wheel 安装验证后，以同一批文件发布到 PyPI 和 GitHub Release。
 
 ## v2.0.5 - 2026-08-14
 

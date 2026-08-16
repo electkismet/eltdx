@@ -29,22 +29,15 @@ def inspect_workflow(*, disable_uploads: bool, disable_release: bool) -> dict:
     path = ROOT / ".github" / "workflows" / "publish.yml"
     text = path.read_text(encoding="utf-8")
     native = _job(text, "native-dist")
-    testpypi = _job(text, "testpypi")
-    testpypi_smoke = _job(text, "testpypi-smoke")
     pypi = _job(text, "pypi")
     release = _job(text, "release")
     checks = {
         "manual_dispatch_present": "workflow_dispatch:" in text,
         "same_run_native_workflow_present": "uses: ./.github/workflows/native-wheels.yml" in native,
-        "testpypi_tag_gate_present": TAG_GATE in testpypi,
-        "testpypi_environment_present": "name: testpypi" in testpypi,
-        "testpypi_trusted_publish_present": "pypa/gh-action-pypi-publish" in testpypi,
-        "testpypi_smoke_tag_gate_present": TAG_GATE in testpypi_smoke,
-        "testpypi_smoke_depends_on_upload": "needs: [verify-release, testpypi]" in testpypi_smoke,
         "pypi_tag_gate_present": TAG_GATE in pypi,
         "pypi_environment_present": "name: pypi" in pypi,
-        "pypi_depends_on_testpypi_smoke": (
-            "needs: [native-dist, verify-release, testpypi-smoke]" in pypi
+        "pypi_depends_on_verified_native_artifacts": (
+            "needs: [native-dist, verify-release]" in pypi
         ),
         "pypi_trusted_publish_present": "pypa/gh-action-pypi-publish" in pypi,
         "release_tag_gate_present": TAG_GATE in release,
@@ -61,7 +54,7 @@ def inspect_workflow(*, disable_uploads: bool, disable_release: bool) -> dict:
         "checks": checks,
         "uploads_disabled": True,
         "github_release_disabled": True,
-        "disabled_jobs": ["testpypi", "testpypi-smoke", "pypi", "release"],
+        "disabled_jobs": ["pypi", "release"],
         "commands_executed": [],
         "network_calls": 0,
     }
