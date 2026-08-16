@@ -33,7 +33,7 @@
 | 当日分时、历史分时、近期分时 | `client.minutes` | `0x0537`, `0x0fb4`, `0x0feb` |
 | 分时副图、小走势图 | `client.minutes` | `0x051b`, `0x0fd1` |
 | 当日成交明细、历史成交明细 | `client.trades` | `0x0fc5`, `0x0fc6` |
-| 集合竞价明细 | `client.auctions` | `0x056a` |
+| 集合竞价过程快照 | `client.auctions` | `0x056a`，支持当日和历史日期 |
 | 股本变迁、财务批量 | `client.corporate` | `0x000f`, `0x0010` |
 | 特殊品种涨跌停限制 | `client.limits` | `0x0452` |
 | F10、题材、公告、财务报表、估值 | `client.f10` | `7615/TQLEX` |

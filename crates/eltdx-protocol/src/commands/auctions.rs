@@ -3,7 +3,7 @@ use bytes::Bytes;
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::MAX_RESPONSE_PAYLOAD_SIZE;
-use crate::unit::{little_f32, little_u16, little_u32, NormalizedCode};
+use crate::unit::{little_f32, little_u16, little_u32, DateParts, NormalizedCode};
 
 use super::trades::minute_of_day_label;
 
@@ -16,6 +16,8 @@ pub const DEFAULT_AUCTION_LIMIT: u32 = 500;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AuctionSeriesRequest {
     pub code: NormalizedCode,
+    pub trading_date: Option<DateParts>,
+    pub trading_date_raw: u32,
     pub mode_or_selector_raw: u32,
     pub start_raw: u32,
     pub limit_or_count_raw: u32,
@@ -47,11 +49,36 @@ impl AuctionSeriesRequest {
     ) -> Self {
         Self {
             code,
+            trading_date: None,
+            trading_date_raw: 0,
             mode_or_selector_raw,
             start_raw,
             limit_or_count_raw,
             include_raw,
         }
+    }
+
+    pub fn with_trading_date_and_include_raw(
+        code: NormalizedCode,
+        trading_date: Option<DateParts>,
+        mode_or_selector_raw: u32,
+        start_raw: u32,
+        limit_or_count_raw: u32,
+        include_raw: bool,
+    ) -> Result<Self, ProtocolError> {
+        let trading_date = trading_date
+            .map(|value| DateParts::new(value.year, value.month, value.day))
+            .transpose()?;
+        let trading_date_raw = trading_date.map(DateParts::yyyymmdd).transpose()?.unwrap_or(0);
+        Ok(Self {
+            code,
+            trading_date,
+            trading_date_raw,
+            mode_or_selector_raw,
+            start_raw,
+            limit_or_count_raw,
+            include_raw,
+        })
     }
 
     pub fn with_defaults(code: NormalizedCode) -> Self {
@@ -67,7 +94,7 @@ impl AuctionSeriesRequest {
         let mut data = Vec::with_capacity(28);
         data.extend_from_slice(&[self.code.market().id(), 0]);
         data.extend_from_slice(self.code.number().as_bytes());
-        data.extend_from_slice(&0_u32.to_le_bytes());
+        data.extend_from_slice(&self.trading_date_raw.to_le_bytes());
         data.extend_from_slice(&self.mode_or_selector_raw.to_le_bytes());
         data.extend_from_slice(&0_u32.to_le_bytes());
         data.extend_from_slice(&self.start_raw.to_le_bytes());
@@ -223,7 +250,7 @@ fn encode_hex(data: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{parse_auction_series_payload, python_round_to_i64, AuctionSeriesRequest};
-    use crate::unit::NormalizedCode;
+    use crate::unit::{DateParts, NormalizedCode};
     use crate::ProtocolError;
 
     #[test]
@@ -246,6 +273,22 @@ mod tests {
             true,
         );
         assert!(raw.include_raw);
+        Ok(())
+    }
+
+    #[test]
+    fn request_encodes_optional_historical_date() -> Result<(), ProtocolError> {
+        let request = AuctionSeriesRequest::with_trading_date_and_include_raw(
+            NormalizedCode::parse("sh600519")?,
+            Some(DateParts::new(2026, 8, 7)?),
+            3,
+            0,
+            500,
+            false,
+        )?;
+        let frame = request.frame(1);
+        assert_eq!(&frame.data[8..12], &20_260_807_u32.to_le_bytes());
+        assert_eq!(request.trading_date, DateParts::new(2026, 8, 7).ok());
         Ok(())
     }
 

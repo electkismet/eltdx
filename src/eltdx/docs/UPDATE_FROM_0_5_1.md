@@ -35,7 +35,7 @@ with TdxClient(timeout=3) as client:
 | 当日分时、历史分时、近期分时 | `client.minutes`                                    | 查询主站当日分时和历史分钟走势              |
 | 分时副图、小走势图      | `client.minutes.aux()` / `sparkline()`              | 查询分时页副图序列和小型走势序列           |
 | 当日成交明细、历史成交明细  | `client.trades`                                     | 查询逐条成交记录，包含时间、价格、成交量、方向等字段 |
-| 集合竞价明细         | `client.auctions.series()`                          | 查询主站当前保存的集合竞价阶段明细          |
+| 集合竞价过程快照     | `client.auctions.series(code, date=None)`            | 查询主站保存的当日或历史集合竞价过程          |
 | 09:25 竞价成交快照   | `client.trades.opening_match_today()` / `opening_match_history()` | 从当日或历史成交明细中提取 09:25 最终竞价成交 |
 | 股本变迁 / GBBQ    | `client.corporate.capital_changes()` / `get_gbbq()` | 查询除权除息、股本变化、增发、回购等事件       |
 | 财务基础信息         | `client.corporate.finance_batch()`                  | 查询流通股本、总股本、EPS、资产、收入、利润等字段 |

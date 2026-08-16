@@ -1091,9 +1091,7 @@ def test_trade_event_specific_helpers_return_none_when_no_opening_match() -> Non
     assert result is None
 
 
-def test_trade_event_specific_helpers_use_status_8_and_opening_match_filters() -> None:
-    from eltdx.models import TradePage
-
+def test_auction_series_forwards_optional_trading_date() -> None:
     class FakeTransport:
         def connect(self) -> None:
             pass
@@ -1105,18 +1103,12 @@ def test_trade_event_specific_helpers_use_status_8_and_opening_match_filters() -
             return "pong"
 
         def execute(self, command: int, payload=None):
-            assert command == 0x0FC6
-            return TradePage(
-                exchange="sz",
-                market_id=0,
-                code="000001",
-                start=payload["start"],
-                request_count=payload["count"],
-                ticks=(),
-                trading_date=date(2026, 8, 14),
-            )
+            assert command == 0x056A
+            return payload
 
-    assert TdxClient(transport=FakeTransport()).trades.auction_history("000001", "2026-08-14") == ()
+    auctions = TdxClient(transport=FakeTransport()).auctions
+    assert auctions.series("000001")["trading_date"] is None
+    assert auctions.series("000001", "2026-08-14")["trading_date"] == "2026-08-14"
 
 
 def test_trade_event_specific_helpers_paginate_to_opening_match() -> None:

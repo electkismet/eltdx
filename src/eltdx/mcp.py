@@ -135,25 +135,18 @@ def trades(
 def call_auction(
     code: str,
     *,
+    trading_date: str | int | None = None,
     include_raw: bool = False,
     timeout: float = 8.0,
     host: str | None = None,
 ) -> Any:
-    """Query today's hosted call-auction series."""
+    """Query current or historical call-auction process snapshots."""
 
     return _call_once(
-        lambda client: client.auctions.series(code, include_raw=include_raw),
+        lambda client: client.auctions.series(code, trading_date, include_raw=include_raw),
         timeout=timeout,
         host=host,
     )
-
-
-def auction_today(code: str, *, timeout: float = 8.0, host: str | None = None) -> Any:
-    return _call_once(lambda client: client.trades.auction_today(code), timeout=timeout, host=host)
-
-
-def auction_history(code: str, trading_date: str | int, *, timeout: float = 8.0, host: str | None = None) -> Any:
-    return _call_once(lambda client: client.trades.auction_history(code, trading_date), timeout=timeout, host=host)
 
 
 def opening_match_today(code: str, *, timeout: float = 8.0, host: str | None = None) -> Any:
@@ -651,22 +644,15 @@ class _McpTools:
     def call_auction(
         self,
         code: str,
+        trading_date: str | int | None = None,
         include_raw: bool = False,
         timeout: float = 8.0,
         host: str | None = None,
     ) -> dict[str, Any]:
-        """Query today's hosted call-auction series."""
+        """Query current or historical call-auction process snapshots."""
 
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.auctions.series(code, include_raw=include_raw))
-
-    def auction_today(self, code: str, timeout: float = 8.0, host: str | None = None) -> dict[str, Any]:
-        with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.trades.auction_today(code))
-
-    def auction_history(self, code: str, trading_date: str | int, timeout: float = 8.0, host: str | None = None) -> dict[str, Any]:
-        with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.trades.auction_history(code, trading_date))
+            return _json(client.auctions.series(code, trading_date, include_raw=include_raw))
 
     def opening_match_today(self, code: str, timeout: float = 8.0, host: str | None = None) -> dict[str, Any]:
         with self._clients.use(timeout=timeout, host=host) as client:
@@ -854,8 +840,6 @@ def create_mcp_server():
         ("eltdx_minute", tools.minute),
         ("eltdx_trades", tools.trades),
         ("eltdx_call_auction", tools.call_auction),
-        ("eltdx_auction_today", tools.auction_today),
-        ("eltdx_auction_history", tools.auction_history),
         ("eltdx_opening_match_today", tools.opening_match_today),
         ("eltdx_opening_match_history", tools.opening_match_history),
         ("eltdx_auction_data", tools.auction_data),

@@ -275,6 +275,7 @@ fn snapshots(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
 
 fn auction_series(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
     let code = required_code(payload, "code")?;
+    let trading_date = optional_date(payload, &["trading_date", "date"], "trading_date")?;
     let selector = u32_field(
         payload,
         &["mode_or_selector_raw", "selector"],
@@ -297,9 +298,15 @@ fn auction_series(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
         u32::MAX,
     )?;
     let include_raw = bool_field(payload, "include_raw", false)?;
-    Ok(CommandRequest::AuctionSeries(
-        AuctionSeriesRequest::with_include_raw(code, selector, start, limit, include_raw),
+    protocol(AuctionSeriesRequest::with_trading_date_and_include_raw(
+        code,
+        trading_date,
+        selector,
+        start,
+        limit,
+        include_raw,
     ))
+    .map(CommandRequest::AuctionSeries)
 }
 
 fn file_content(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
@@ -491,6 +498,17 @@ fn required_market(payload: Payload<'_, '_>, names: &[&str]) -> PyResult<Market>
 fn required_date(payload: Payload<'_, '_>, name: &'static str) -> PyResult<DateParts> {
     let value = required(payload, &[name], name)?;
     date_parts(&value, name)
+}
+
+fn optional_date(
+    payload: Payload<'_, '_>,
+    names: &[&str],
+    name: &'static str,
+) -> PyResult<Option<DateParts>> {
+    match get(payload, names)? {
+        Some(value) if !value.is_none() => date_parts(&value, name).map(Some),
+        _ => Ok(None),
+    }
 }
 
 fn date_parts(value: &Bound<'_, PyAny>, name: &'static str) -> PyResult<DateParts> {

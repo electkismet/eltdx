@@ -334,11 +334,12 @@ def response_from_dto(dto: Any) -> Any:
             for offset in range(0, len(snapshot_fields), _SNAPSHOT_STRIDE)
         ]
     if tag == "auction_series":
-        exchange, market_id, code, mode, start, limit, points, raw_payload = _tuple(payload, tag, 8)
+        exchange, market_id, code, trading_date, mode, start, limit, points, raw_payload = _tuple(payload, tag, 9)
         return AuctionSeries(
             exchange,
             market_id,
             code,
+            _date(trading_date),
             mode,
             start,
             limit,

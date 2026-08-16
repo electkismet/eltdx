@@ -42,7 +42,7 @@ EXPECTED_TAGS = {
 
 EXPECTED_MODEL_FIELDS = {
     "AuctionPoint": 13,
-    "AuctionSeries": 8,
+    "AuctionSeries": 9,
     "CapitalChangeRecord": 21,
     "CapitalChangeBlock": 6,
     "FinanceRecord": 42,

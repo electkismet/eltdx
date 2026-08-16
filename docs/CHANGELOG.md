@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `client.auctions.series(code, date=None)` 现在通过 `0x056a` 同时支持当日和历史集合竞价过程快照，并按主站响应顺序保留全部时间点。
+- 删除 `client.trades.auction_today()` 和 `auction_history()`；成交明细仍保留原始混合记录及其分类属性，正式 09:25 撮合入口保持不变。
+- `client.helpers.auction_data()` 的历史竞价过程改由 `0x056a` 获取；`0x0fc6` 只负责历史 09:25 正式撮合和昨收。
+
 ## v3.0.0 - 2026-08-16
 
 - Native Engine 改为单 Supervisor、自适应 Tokio runtime；worker 默认按 Slot 数和系统逻辑处理器自动计算并允许手动覆盖，单 worker 使用 current-thread 快速路径，两个以上 worker 使用 multi-thread。

@@ -192,6 +192,7 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
         exchange="sz",
         market_id=0,
         code="000001",
+        trading_date=None,
         mode_or_selector_raw=0,
         start_raw=0,
         limit_or_count_raw=0,
@@ -212,7 +213,7 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
         workdays = FakeWorkdays()
         def __init__(self):
             self.quote_calls = 0
-            self.auctions = type("Auctions", (), {"series": lambda _, code: series})()
+            self.auctions = type("Auctions", (), {"series": lambda _, code, date=None: series})()
             self.trades = type("Trades", (), {"opening_match_today": lambda _, code: snapshot})()
             self.quotes = type("Quotes", (), {"get_snapshots": lambda _, code: self._quotes(code)})()
 
@@ -226,7 +227,6 @@ def test_auction_data_combines_series_snapshot_and_open_change() -> None:
     result = helpers.auction_data("000001")
 
     assert result.series is series
-    assert result.auction_records == ()
     assert result.snapshot_0925 is snapshot
     assert result.pre_close_price == 10.0
     assert result.open_price == 11.0
@@ -258,7 +258,6 @@ def test_auction_data_reuses_current_market_date_for_snapshot() -> None:
 
     assert result.trading_date == date(2026, 5, 20)
     assert result.snapshot_0925 is None
-    assert result.auction_records == ()
 
 
 def test_auction_data_uses_quote_only_for_current_pre_close() -> None:
@@ -369,7 +368,13 @@ def test_auction_data_does_not_use_current_quote_for_history_date() -> None:
         workdays = FakeWorkdays()
         def __init__(self):
             self.history_calls = 0
+            self.series_calls = []
+            self.auctions = type("Auctions", (), {"series": lambda _, code, trading_date=None: self._series(code, trading_date)})()
             self.trades = type("Trades", (), {"all_history": lambda _, code, trading_date: self._history(code, trading_date)})()
+
+        def _series(self, code, trading_date):
+            self.series_calls.append((code, trading_date))
+            return "historical-series"
 
         def _history(self, code, trading_date):
             self.history_calls += 1
@@ -379,14 +384,14 @@ def test_auction_data_does_not_use_current_quote_for_history_date() -> None:
     helpers = HelperApi(client)
     result = helpers.auction_data("000001", "2026-05-19")
 
-    assert result.series is None
-    assert result.auction_records == (auction,)
+    assert result.series == "historical-series"
     assert result.snapshot_0925 is snapshot
     assert result.pre_close_price == 10.0
     assert result.open_price == 11.0
     assert result.open_amount == 135300.0
     assert result.open_change_pct == 10.0
     assert client.history_calls == 1
+    assert client.series_calls == [("sz000001", date(2026, 5, 19))]
 
     helpers = HelperApi(FakeClient())
     with_base = helpers.auction_data("000001", "2026-05-19", pre_close_price=10.0)

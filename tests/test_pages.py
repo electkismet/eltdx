@@ -61,11 +61,11 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     items = catalog["items"]
 
     assert catalog["schema_version"] == 13
-    assert len(items) == 60
+    assert len(items) == 58
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
         "F10": 21,
-        "Helper": 18,
+        "Helper": 16,
     }
     assert len({item["id"] for item in items}) == len(items)
 
@@ -111,7 +111,7 @@ hide:
 [← 返回接口目录](../index.md){ .interface-detail-back }
 """
 
-    assert len(detail_docs) == 60
+    assert len(detail_docs) == 58
     for relative_path in detail_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert detail.startswith(expected_header), relative_path
@@ -131,9 +131,9 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
     assert Counter(layer_id for layer_id, _ in assignments.values()) == {
         "7709": 21,
         "7615": 21,
-        "helpers": 18,
+        "helpers": 16,
     }
-    expected_counts = {"7709": 21, "7615": 21, "helpers": 18}
+    expected_counts = {"7709": 21, "7615": 21, "helpers": 16}
     assert all(layer["description"].startswith(f"{expected_counts[layer['id']]} 个") for layer in ordered_layers)
     assert all("groups" not in layer for layer in ordered_layers)
     assert {layer["source"] for layer in ordered_layers} == {"7709", "F10", "Helper"}
@@ -466,10 +466,8 @@ def test_trade_docs_describe_mixed_records_instead_of_only_trades() -> None:
     assert 'client.trades.all_history("sz000001", "2026-05-20")' in methods
 
 
-def test_split_trade_detail_docs_include_return_fields_and_examples() -> None:
+def test_trade_detail_docs_include_return_fields_and_examples() -> None:
     docs = {
-        "当日竞价": REPO_ROOT / "docs" / "methods" / "7709-当日成交明细竞价记录.md",
-        "历史竞价": REPO_ROOT / "docs" / "methods" / "7709-历史成交明细竞价记录.md",
         "当日撮合": REPO_ROOT / "docs" / "methods" / "7709-当日0925正式撮合.md",
         "历史撮合": REPO_ROOT / "docs" / "methods" / "7709-历史0925正式撮合.md",
     }
@@ -480,17 +478,15 @@ def test_split_trade_detail_docs_include_return_fields_and_examples() -> None:
         assert "示例结果" in text
         assert "TradeTick" in text
 
-    for key in ("当日竞价", "历史竞价"):
-        text = docs[key].read_text(encoding="utf-8")
-        assert "auction_matched_volume" in text
-        assert "auction_unmatched_signed_volume" in text
-        assert "只有分钟，不含秒" in text
-
     for key in ("当日撮合", "历史撮合"):
         text = docs[key].read_text(encoding="utf-8")
         assert "event_kind" in text
         assert "opening_match" in text
         assert "is_opening_match" in text
+
+    series = (REPO_ROOT / "docs" / "methods" / "7709-集合竞价明细.md").read_text(encoding="utf-8")
+    assert "client.auctions.series(\"sz000001\", \"2026-06-12\")" in series
+    assert "不按固定时间范围过滤、截断或去重" in series
 
 
 def test_local_factor_docs_explain_anchor_and_daily_only_scope() -> None:

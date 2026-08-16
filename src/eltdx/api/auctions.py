@@ -6,5 +6,12 @@ from .base import ApiBase
 
 
 class AuctionApi(ApiBase):
-    def series(self, code: str, *, include_raw: bool = False):
-        return self._execute("auction_series", code=code, include_raw=include_raw)
+    def series(self, code: str, date=None, *, include_raw: bool = False):
+        """Return all call-auction process snapshots supplied by ``0x056a``."""
+
+        return self._execute(
+            "auction_series",
+            code=code,
+            trading_date=date,
+            include_raw=include_raw,
+        )

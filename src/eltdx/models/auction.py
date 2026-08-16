@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +32,7 @@ class AuctionSeries:
     exchange: str
     market_id: int
     code: str
+    trading_date: date | None
     mode_or_selector_raw: int
     start_raw: int
     limit_or_count_raw: int

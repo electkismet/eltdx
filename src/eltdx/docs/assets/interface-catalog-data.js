@@ -6,7 +6,7 @@ window.ELTDX_CATALOG = {
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
     "native_commands": 21,
-    "mcp_tools": 20,
+    "mcp_tools": 18,
     "mcp_resources": 8,
     "pure_python_7709_fallback": false
   },
@@ -33,7 +33,7 @@ window.ELTDX_CATALOG = {
         "label": "Helpers 封装",
         "tag_label": "Helpers",
         "stat_label": "Helpers 封装",
-        "description": "18 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
+        "description": "16 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
         "source": "Helper"
       }
     ],
@@ -102,8 +102,6 @@ window.ELTDX_CATALOG = {
         "description": "集合竞价过程、09:25 正式撮合、竞价整理、换手率和短线指标。",
         "item_ids": [
           "7709-auction-series",
-          "7709-auction-today",
-          "7709-auction-history",
           "7709-opening-match-today",
           "7709-opening-match-history",
           "7709-turnover",
@@ -520,43 +518,19 @@ window.ELTDX_CATALOG = {
     },
     {
       "id": "7709-auction-series",
-      "title": "当日集合竞价过程快照",
+      "title": "集合竞价过程快照",
       "source": "7709",
       "category": "集合竞价",
-      "api": "client.auctions.series(code)",
+      "api": "client.auctions.series(code, date=None)",
       "aliases": [
         "auctions.series",
         "竞价序列"
       ],
       "protocol": "0x056a",
       "kind": "底层协议",
-      "summary": "返回带秒字段的集合竞价过程快照，通常几秒一条；即使出现 09:25:00 也不是正式成交。",
+      "summary": "不传日期查询当日，传入日期查询历史；按主站顺序返回全部过程时间点，09:25 附近记录也不是正式成交。",
       "return_model": "AuctionSeries",
       "doc": "methods/7709-集合竞价明细.md"
-    },
-    {
-      "id": "7709-auction-today",
-      "title": "当日成交明细竞价记录",
-      "source": "Helper",
-      "category": "集合竞价",
-      "api": "client.trades.auction_today(code, ...)",
-      "protocol": "0x0fc5",
-      "kind": "组合接口",
-      "summary": "从 0x0FC5 当日成交明细中筛选 status=8 的竞价事件；时间字段只有分钟，不含秒。",
-      "return_model": "tuple[TradeTick, ...]",
-      "doc": "methods/7709-当日成交明细竞价记录.md"
-    },
-    {
-      "id": "7709-auction-history",
-      "title": "历史成交明细竞价记录",
-      "source": "Helper",
-      "category": "集合竞价",
-      "api": "client.trades.auction_history(code, date, ...)",
-      "protocol": "0x0fc6",
-      "kind": "组合接口",
-      "summary": "从 0x0FC6 历史成交明细中筛选 status=8 的竞价事件；时间字段只有分钟，不含秒。",
-      "return_model": "tuple[TradeTick, ...]",
-      "doc": "methods/7709-历史成交明细竞价记录.md"
     },
     {
       "id": "7709-opening-match-today",

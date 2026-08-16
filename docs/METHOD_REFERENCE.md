@@ -660,15 +660,6 @@ page = client.trades.all_history("sz000001", "2026-05-20")
 | `count`                                         | 混合记录条数                                       |
 | `has_more`                                      | 单页结果非空时为 `True`，表示仍可能有下一页；空页才确认结束 |
 
-### `client.trades.auction_today(code, ...)` / `auction_history(code, date, ...)`
-
-分别从当日 `0x0fc5` 和历史 `0x0fc6` 成交明细中筛出 `status=8` 的集合竞价记录，返回 `tuple[TradeTick, ...]`。详细参数、时间粒度和示例见 [当日成交明细竞价记录](methods/7709-当日成交明细竞价记录.md) 与 [历史成交明细竞价记录](methods/7709-历史成交明细竞价记录.md)。
-
-```python
-today_auction = client.trades.auction_today("sz000001")
-history_auction = client.trades.auction_history("sz000001", "2026-05-20")
-```
-
 | `TradeTick` 字段                | 含义                             |
 | ----------------------------- | ------------------------------ |
 | `index` / `absolute_index`    | 页内序号 / 全局序号                    |
@@ -703,17 +694,20 @@ client.trades.all_history("sz000001", "2026-05-20")
 
 <a id="method-auctions-series"></a>
 
-### `client.auctions.series(code)`
+### `client.auctions.series(code, date=None)`
 
-查询主站当前保存的集合竞价快照明细，对应 `0x056a`。该接口专门返回竞价过程，不是逐笔成交；记录通常从 `09:15:00` 到 `09:24:57`，也可能到 `09:24:59` 或 `09:25:00`，尾盘还可能有 `14:57` 到 `15:00`。
+查询主站保存的当日或历史集合竞价过程快照，对应 `0x056a`。不传日期时请求当前交易日，传入日期时请求指定历史日期。接口专门返回虚拟撮合过程，不是逐笔成交。
 
 ```python
-series = client.auctions.series("sz000001")
+today = client.auctions.series("sz000001")
+history = client.auctions.series("sz000001", "2026-05-20")
 ```
+
+服务端的时间点随股票、市场和交易日变化，客户端按响应顺序保留全部记录，不按固定时间范围过滤、截断或去重。过程记录即使出现 `09:25` 也不是正式撮合。
 
 | 返回模型            | 说明     |
 | --------------- | ------ |
-| `AuctionSeries` | 集合竞价明细 |
+| `AuctionSeries` | 集合竞价过程快照 |
 
 | `AuctionPoint` 字段          | 含义                                   |
 | -------------------------- | ------------------------------------ |

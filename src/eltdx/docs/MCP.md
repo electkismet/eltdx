@@ -54,9 +54,7 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | `eltdx_kline` | 查询一页 K 线，支持周期、复权和锚定日期 |
 | `eltdx_minute` | 查询当前或指定日期分时 |
 | `eltdx_trades` | 查询一页当前或历史成交明细 |
-| `eltdx_call_auction` | 查询当前集合竞价序列 |
-| `eltdx_auction_today` | 查询当日成交明细中的集合竞价记录 |
-| `eltdx_auction_history` | 查询历史成交明细中的集合竞价记录 |
+| `eltdx_call_auction` | 查询当日或历史集合竞价过程快照；`trading_date` 可选 |
 | `eltdx_opening_match_today` | 查询当日 09:25 正式撮合 |
 | `eltdx_opening_match_history` | 查询历史 09:25 正式撮合 |
 | `eltdx_auction_data` | 不传日期汇总当日竞价过程、09:25 正式撮合和昨收；传日期时从历史成交明细汇总同类数据 |

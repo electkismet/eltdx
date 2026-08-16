@@ -1163,6 +1163,7 @@ fn auction_series<'py>(py: Python<'py>, value: &AuctionSeries) -> PyResult<Obj> 
             any(py, req.code.market().as_str())?,
             any(py, req.code.market().id())?,
             any(py, req.code.number())?,
+            date(py, req.trading_date)?,
             any(py, req.mode_or_selector_raw)?,
             any(py, req.start_raw)?,
             any(py, req.limit_or_count_raw)?,

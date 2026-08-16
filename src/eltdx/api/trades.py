@@ -31,33 +31,6 @@ class TradeApi(ApiBase):
     def all_history(self, code: str, trading_date, *, page_size: int = 1800, max_pages: int | None = 100, include_raw: bool = False):
         return self._all(code, trading_date, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
 
-    def auction_today(
-        self,
-        code: str,
-        *,
-        page_size: int = 1800,
-        max_pages: int | None = 100,
-        include_raw: bool = False,
-    ):
-        """Return today's embedded auction records from ``0x0fc5``."""
-
-        page = self.all_today(code, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
-        return tuple(page.auction_snapshots) if hasattr(page, "auction_snapshots") else ()
-
-    def auction_history(
-        self,
-        code: str,
-        trading_date,
-        *,
-        page_size: int = 1800,
-        max_pages: int | None = 100,
-        include_raw: bool = False,
-    ):
-        """Return a historical day's embedded auction records from ``0x0fc6``."""
-
-        page = self.all_history(code, trading_date, page_size=page_size, max_pages=max_pages, include_raw=include_raw)
-        return tuple(page.auction_snapshots) if hasattr(page, "auction_snapshots") else ()
-
     def opening_match_today(
         self,
         code: str,

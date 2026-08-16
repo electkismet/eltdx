@@ -134,7 +134,6 @@ class AuctionData:
     code: str
     trading_date: Any
     series: Any | None
-    auction_records: tuple[Any, ...]
     snapshot_0925: Any | None
     pre_close_price: float | None
     open_price: float | None
@@ -399,20 +398,17 @@ class HelperApi:
         trading_date = self._client.workdays.normalize(date) if is_history else self._current_market_date()
 
         series = None
-        auction_records: tuple[Any, ...] = ()
         snapshot = None
         historical_page = None
+        if include_series:
+            series = self._client.auctions.series(full_code, trading_date if is_history else None)
         if is_history:
-            if include_series or include_snapshot or (include_quote and pre_close_price is None):
+            if include_snapshot or (include_quote and pre_close_price is None):
                 historical_page = self._client.trades.all_history(full_code, trading_date)
-                if include_series:
-                    auction_records = tuple(getattr(historical_page, "auction_snapshots", ()))
                 if include_snapshot:
                     opening_matches = tuple(getattr(historical_page, "opening_matches", ()))
                     snapshot = opening_matches[0] if opening_matches else None
         else:
-            if include_series:
-                series = self._client.auctions.series(full_code)
             if include_snapshot:
                 snapshot = self._client.trades.opening_match_today(full_code)
 
@@ -444,7 +440,6 @@ class HelperApi:
             code=full_code,
             trading_date=trading_date,
             series=series,
-            auction_records=auction_records,
             snapshot_0925=snapshot,
             pre_close_price=resolved_pre_close,
             open_price=open_price,

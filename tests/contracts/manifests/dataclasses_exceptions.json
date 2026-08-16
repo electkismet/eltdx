@@ -16,7 +16,7 @@
       "properties": ["matched_amount_estimated"]
     },
     "eltdx.models.auction:AuctionSeries": {
-      "fields": ["exchange", "market_id", "code", "mode_or_selector_raw", "start_raw", "limit_or_count_raw", "points", "raw_payload"],
+      "fields": ["exchange", "market_id", "code", "trading_date", "mode_or_selector_raw", "start_raw", "limit_or_count_raw", "points", "raw_payload"],
       "defaults": {"raw_payload": {"$type": "bytes", "hex": ""}},
       "properties": ["count", "full_code"]
     },
@@ -196,7 +196,7 @@
       "properties": ["count"]
     },
     "eltdx.helpers.core:AuctionData": {
-      "fields": ["code", "trading_date", "series", "auction_records", "snapshot_0925", "pre_close_price", "open_price", "open_volume", "open_amount", "open_change_pct"]
+      "fields": ["code", "trading_date", "series", "snapshot_0925", "pre_close_price", "open_price", "open_volume", "open_amount", "open_change_pct"]
     },
     "eltdx.helpers.shortline:ShortlineIndicator": {
       "fields": ["full_code", "exchange", "market_id", "code", "target_trade_date", "previous_trade_date", "stats_date", "alignment_status", "limit_status", "beta_60d", "pe_ttm", "free_float_shares", "prev_amount", "prev_seal_amount", "prev2_seal_amount", "prev_open_volume_hand", "prev_open_amount", "limit_stat_days", "limit_up_count_in_stat_days", "limit_up_streak_days", "year_limit_up_days", "free_float_market_value", "open_turnover_z", "open_prev_amount_ratio", "auction_prev_volume_ratio", "open_prev_seal_ratio", "seal_to_float_ratio", "seal_prev_ratio", "limit_board_text", "ladder_level"]
