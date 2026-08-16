@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.89.0 --profile minimal
+        run: rustup toolchain install 1.89.0 --profile minimal --component rustfmt,clippy
       - name: Install project
         run: python -m pip install -e ".[dev,mcp]"
       - run: python scripts/verification/run_python_test_group.py round4-local
@@ -50,7 +50,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.89.0 --profile minimal
+        run: rustup toolchain install 1.89.0 --profile minimal --component rustfmt,clippy
       - run: python -m pip install -e ".[dev,mcp]"
       - run: python scripts/ci/run_wire_golden.py
 
@@ -68,7 +68,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.89.0 --profile minimal
+        run: rustup toolchain install 1.89.0 --profile minimal --component rustfmt,clippy
       - run: python -m pip install -e ".[dev]"
       - run: python scripts/verification/run_python_test_group.py round5-loopback
 
@@ -87,7 +87,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install pinned Rust toolchain
-        run: rustup toolchain install 1.89.0 --profile minimal
+        run: rustup toolchain install 1.89.0 --profile minimal --component rustfmt,clippy
       - run: python -m pip install -e ".[dev]"
       - name: Run and record candidate-bound stress evidence
         run: >-

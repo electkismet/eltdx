@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import date
 
 import pytest
@@ -33,6 +34,17 @@ def _answer_count(connection, value: int) -> None:
     message_id, message_type, _ = read_request(connection)
     assert message_type == TYPE_SECURITY_COUNT
     connection.sendall(response_bytes(message_id, message_type, value.to_bytes(2, "little")))
+
+
+def _wait_for_push_diagnostics(transport: SocketTransport, expected: int) -> None:
+    deadline = time.monotonic() + 1.0
+    while transport.diagnostics.push_frames != expected:
+        if time.monotonic() >= deadline:
+            raise AssertionError(
+                "push diagnostics did not converge before the deadline: "
+                f"expected={expected}, actual={transport.diagnostics.push_frames}"
+            )
+        time.sleep(0.005)
 
 
 def test_socket_execute_push_diagnostics_and_session_models() -> None:
@@ -74,6 +86,7 @@ def test_socket_execute_push_diagnostics_and_session_models() -> None:
             assert isinstance(handshake, HandshakeInfo)
             assert handshake.server_name == "native-loopback"
             assert transport.last_heartbeat == heartbeat
+            _wait_for_push_diagnostics(transport, 0)
             diagnostics = transport.diagnostics
             assert diagnostics.epoch > 0
             assert diagnostics.actor is not None
