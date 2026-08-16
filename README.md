@@ -322,15 +322,15 @@ with TdxClient(host="116.205.183.150:7709", timeout=3) as client:
 | `pool_size` | 自动为 `server_count × connections_per_server` | TCP/Slot 总数；显式同时传三者时，乘积必须一致 |
 | `runtime_workers` | 按 Slot 和逻辑 CPU 自动 | Rust Tokio Runtime 工作线程数 |
 | `max_connections_per_host` | 按初始分布自动 | 单台服务器的活动连接硬上限，重连时也遵守 |
-| `connect_concurrency` | 按 CPU/Slot 自动，最高 `32` | 全局同时建连和握手数，防止大池瞬间建连 |
-| `connect_concurrency_per_host` | 最多 `2` | 同一台服务器同时建连和握手数 |
+| `connect_concurrency` | 按 CPU/Slot 自动，单批最高 `32` | 整个 Engine 每批最多同时建立和握手的 TCP 连接数，**不是 Runtime 线程上限** |
+| `connect_concurrency_per_host` | 单批最多 `2` | 每批对同一台服务器最多同时建立 2 条 TCP，也不是线程数 |
 | `probe_hosts` | `True` | 首次建 Engine 前是否测速、持久化并排序 |
 | `heartbeat_interval` | `30.0` | 后台心跳秒数；`None` 表示关闭 |
 | `max_pending_requests` | `256` | Slot 全忙时允许等待的请求数；满后抛 `PoolBusyError` |
 | `push_queue_size` / `push_queue_bytes` | `1024` 帧 / `64 MiB` | 用户可见 push 缓冲的帧数和字节上限 |
 | `global_raw_bytes` / `global_decoded_bytes` | 随 Slot 自动增长 | Engine 全局内存预算，分别最高 `256 MiB` / `2 GiB`，防止异常流量无限增长 |
 
-160 Slot 并不会一次性拉起 160 次握手：默认全局同时建连最高 32，单台同时最多 2 条，完成一批后再继续。所有连接共享 Engine 级 raw、decoded 和 push 内存预算；达到上限时会限流、丢弃过旧 push 或关闭受影响的 Slot，不会任由队列无限占用内存。
+160 Slot 并不会一次性拉起 160 次握手：默认每批全局最多同时建立 32 条 TCP，其中对同一台服务器最多 2 条，完成一批后再继续。这个 32 只控制启动时的建连速度；连好后 160 个 Slot 都能异步工作，Runtime 线程数另由 `runtime_workers` 决定。所有连接共享 Engine 级 raw、decoded 和 push 内存预算；达到上限时会限流、丢弃过旧 push 或关闭受影响的 Slot，不会任由队列无限占用内存。
 
 运行时可通过 diagnostics 查看真实线程数、已连主站和内存占用：
 
