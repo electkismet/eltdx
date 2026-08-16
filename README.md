@@ -394,53 +394,17 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 
 ## 文档
 
-使用文档现在按层级拆开看：
+不用按文件名翻目录，按要解决的问题进入即可：
 
-| 层级           | 看哪里                                                  | 适合解决什么问题                   |
-| ------------ | ---------------------------------------------------- | -------------------------- |
-| 快速总览         | 本 README                                             | 这个库能查什么、用哪个方法、底层接口是什么      |
-| 常用问题         | [docs/helpers/README.md](docs/helpers/README.md)     | 按问题进入对应调用说明             |
-| 当前版本         | [docs/releases/v3.0.0.md](docs/releases/v3.0.0.md) | Rust 7709 协议与传输核心正式版 |
-| 变更记录         | [docs/CHANGELOG.md](docs/CHANGELOG.md)               | 当前版本和未发布改动               |
-| 迁移到 2.0       | [docs/MIGRATION_FROM_OLD.md](docs/MIGRATION_FROM_OLD.md) | 把 1.x 的旧 `get_*` 调用迁移到当前模块化 API |
-| 方法字段手册       | [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md) | 每个调用方法怎么传参、返回哪些解析字段        |
-| 具体调用         | [docs/API_REFERENCE.md](docs/API_REFERENCE.md)       | 每组 API 怎么传参数、返回什么、有哪些注意点   |
-| 7709 接口对照    | [docs/COMMANDS_7709.md](docs/COMMANDS_7709.md)       | 21 个二进制命令分别对应哪个业务 API      |
-| F10 Entry 对照 | [docs/F10_7615.md](docs/F10_7615.md)                 | 7615/TQLEX 每个资料 Entry 怎么调用 |
-| 字段说明         | [docs/FIELD_REFERENCE.md](docs/FIELD_REFERENCE.md)   | 返回模型里的字段中文含义               |
-
-| 文档                                                       | 内容                     |
-| -------------------------------------------------------- | ---------------------- |
-| [docs/README.md](docs/README.md)                         | 文档入口                   |
-| [docs/PRODUCT.md](docs/PRODUCT.md)                       | 产品定位和能力总览              |
-| [docs/releases/v3.0.0.md](docs/releases/v3.0.0.md)       | `v3.0.0` 发布说明              |
-| [docs/releases/v2.0.5.md](docs/releases/v2.0.5.md)       | `v2.0.5` 正式发布说明          |
-| [docs/releases/v2.0.4.md](docs/releases/v2.0.4.md)       | `v2.0.4` 正式发布说明          |
-| [docs/releases/v2.0.3.md](docs/releases/v2.0.3.md)       | `v2.0.3` 正式发布说明          |
-| [docs/releases/v2.0.2.md](docs/releases/v2.0.2.md)       | `v2.0.2` 正式发布说明          |
-| [docs/releases/v2.0.1.md](docs/releases/v2.0.1.md)       | `v2.0.1` 正式发布说明          |
-| [docs/releases/v2.0.0.md](docs/releases/v2.0.0.md)       | `v2.0.0` 正式发布说明          |
-| [docs/releases/v1.3.1.md](docs/releases/v1.3.1.md)       | `v1.3.1` 正式发布说明          |
-| [docs/releases/v1.3.0.md](docs/releases/v1.3.0.md)       | `v1.3.0` 正式发布说明          |
-| [docs/releases/v1.2.0.md](docs/releases/v1.2.0.md)       | `v1.2.0` 正式发布说明          |
-| [docs/releases/v1.1.0.md](docs/releases/v1.1.0.md)       | `v1.1.0` 正式发布说明          |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md)                   | 版本变更记录                 |
-| [docs/UPDATE_FROM_0_5_1.md](docs/UPDATE_FROM_0_5_1.md)   | 历史归档：从 `v0.5.1` 到 `v1.0.0` 的更新说明 |
-| [docs/helpers/README.md](docs/helpers/README.md)         | 常用问题入口                |
-| [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md)     | 调用方法、参数和解析字段           |
-| [docs/methods/README.md](docs/methods/README.md)         | 每个调用方法的单页说明            |
-| [docs/API_REFERENCE.md](docs/API_REFERENCE.md)           | API 调用说明               |
-| [docs/EXAMPLES.md](docs/EXAMPLES.md)                     | 常见复制即用示例               |
-| [docs/FIELD_REFERENCE.md](docs/FIELD_REFERENCE.md)       | 返回字段中文含义               |
-| [docs/F10_7615.md](docs/F10_7615.md)                     | 7615 F10 / TQLEX 调用说明  |
-| [docs/MCP.md](docs/MCP.md)                               | MCP 工具说明               |
-| [docs/COMMANDS_7709.md](docs/COMMANDS_7709.md)           | 21 个 `7709` 命令和 API 映射 |
-| [docs/DEBUG_GUIDE.md](docs/DEBUG_GUIDE.md)               | 连接、主站和协议排查             |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)             | 项目分层和实现结构              |
-| [docs/FIELD_MIGRATION.md](docs/FIELD_MIGRATION.md)       | 历史字段迁移到当前公开模型          |
-| [docs/MIGRATION_FROM_OLD.md](docs/MIGRATION_FROM_OLD.md) | 1.x API 迁移到 2.0 模块化 API  |
-| [docs/ROADMAP.md](docs/ROADMAP.md)                       | 历史归档：1.0 实现记录          |
-| [scripts/README.md](scripts/README.md)                   | smoke / live 脚本说明      |
+| 想查什么 | 文档入口 |
+| --- | --- |
+| 搜索全部功能和调用 | [接口目录](https://electkismet.github.io/eltdx/) |
+| 常用场景和可复制示例 | [Helpers](docs/helpers/README.md) · [示例](docs/EXAMPLES.md) |
+| 方法参数、返回字段和完整 API | [方法手册](docs/METHOD_REFERENCE.md) · [字段手册](docs/FIELD_REFERENCE.md) · [API 参考](docs/API_REFERENCE.md) |
+| 底层协议和 F10 Entry | [7709 命令](docs/COMMANDS_7709.md) · [7615 F10](docs/F10_7615.md) |
+| 连接、测速、并发和故障排查 | [调试指南](docs/DEBUG_GUIDE.md) · [架构](docs/ARCHITECTURE.md) |
+| MCP 安装、工具和资源 | [MCP 文档](docs/MCP.md) |
+| 当前版本、变更和旧 API 迁移 | [v3.0.0](docs/releases/v3.0.0.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
 
 ## 常用问题
 
