@@ -7,7 +7,7 @@
 | 顺序 | 文档 | 用途 |
 | --- | --- | --- |
 | 1 | [PRODUCT.md](PRODUCT.md) | 看这个库能查什么、适合怎么用 |
-| 2 | [releases/v3.0.0a1.md](releases/v3.0.0a1.md) | 看 3.0 Rust 重写、平台 wheel、兼容和迁移边界 |
+| 2 | [releases/v3.0.0.md](releases/v3.0.0.md) | 看 3.0 Rust 重写、平台 wheel、兼容和迁移边界 |
 | 3 | [MIGRATION_FROM_OLD.md](MIGRATION_FROM_OLD.md) | 从 1.x 迁移到当前模块化 API |
 | 4 | [helpers/README.md](helpers/README.md) | 按常用问题进入调用说明 |
 | 5 | [METHOD_REFERENCE.md](METHOD_REFERENCE.md) | 按调用方法看参数、底层接口和解析字段 |

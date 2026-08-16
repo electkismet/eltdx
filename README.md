@@ -312,7 +312,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | ------------ | ---------------------------------------------------- | -------------------------- |
 | 快速总览         | 本 README                                             | 这个库能查什么、用哪个方法、底层接口是什么      |
 | 常用问题         | [docs/helpers/README.md](docs/helpers/README.md)     | 按问题进入对应调用说明             |
-| 当前候选         | [docs/releases/v3.0.0a1.md](docs/releases/v3.0.0a1.md) | Rust 7709 协议与传输核心预发布候选 |
+| 当前版本         | [docs/releases/v3.0.0.md](docs/releases/v3.0.0.md) | Rust 7709 协议与传输核心正式版 |
 | 变更记录         | [docs/CHANGELOG.md](docs/CHANGELOG.md)               | 当前版本和未发布改动               |
 | 迁移到 2.0       | [docs/MIGRATION_FROM_OLD.md](docs/MIGRATION_FROM_OLD.md) | 把 1.x 的旧 `get_*` 调用迁移到当前模块化 API |
 | 方法字段手册       | [docs/METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md) | 每个调用方法怎么传参、返回哪些解析字段        |
@@ -325,7 +325,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | -------------------------------------------------------- | ---------------------- |
 | [docs/README.md](docs/README.md)                         | 文档入口                   |
 | [docs/PRODUCT.md](docs/PRODUCT.md)                       | 产品定位和能力总览              |
-| [docs/releases/v3.0.0a1.md](docs/releases/v3.0.0a1.md)   | `v3.0.0a1` 预发布说明          |
+| [docs/releases/v3.0.0.md](docs/releases/v3.0.0.md)       | `v3.0.0` 发布说明              |
 | [docs/releases/v2.0.5.md](docs/releases/v2.0.5.md)       | `v2.0.5` 正式发布说明          |
 | [docs/releases/v2.0.4.md](docs/releases/v2.0.4.md)       | `v2.0.4` 正式发布说明          |
 | [docs/releases/v2.0.3.md](docs/releases/v2.0.3.md)       | `v2.0.3` 正式发布说明          |

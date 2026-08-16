@@ -2,12 +2,11 @@
 
 ## Unreleased
 
+## v3.0.0 - 2026-08-16
+
 - Native Engine 改为单 Supervisor、自适应 Tokio runtime；worker 默认按 Slot 数和系统逻辑处理器自动计算并允许手动覆盖，单 worker 使用 current-thread 快速路径，两个以上 worker 使用 multi-thread。
 - 默认使用测速排名最快2台7709服务器、每台4条连接；新增 canary 握手、受控分批建连、每服务器连接上限和排名后备服务器补位。
 - 新增 Engine 全局 raw/decoded 内存预算和峰值 diagnostics；默认 push 字节上限提高到64 MiB，并增加160 Slot压力与资源归零合同。
-
-## v3.0.0a1 - 待发布
-
 - 保持 `TdxClient`、模块化业务 API、公开 dataclass、异常、Helpers、F10、MCP 和 CLI，完整 7709 构包、解析和网络运行核心迁入 Rust。
 - 新增无 Tokio/Python 依赖的协议 crate、Supervisor/Slot runtime crate 和私有 PyO3 ABI3 扩展 crate。
 - 21 个命令全部使用强类型 Rust request/response；公开 `eltdx.protocol` 继续存在，但只委托无状态 native 入口。
@@ -15,8 +14,8 @@
 - 保留 diagnostics 和 `ActorSnapshot` 公开字段名；`actor_alive` 现在映射 Rust Slot task，不再存在 Python Actor 运行核心。
 - 增加显式 Python/native ABI 校验，移除纯 Python 7709 fallback；安装版本来自 Cargo/distribution metadata。
 - 构建产物改为五个 `cp310-abi3` wheel 和一个 sdist，支持 CPython 3.10-3.14 的首发平台矩阵。
-- 新增候选绑定的十轮统一测试、黄金 fixture、故障注入、压力、性能、真实主站和安装证据资产。
-- 此条目描述预发布候选，不构成 push、tag、TestPyPI、PyPI 或 GitHub Release 授权。
+- 新增版本绑定的十轮统一测试、黄金 fixture、故障注入、压力、性能、真实主站和安装证据资产。
+- 正式版产物通过 TestPyPI 安装验证后，以同一批文件发布到 PyPI 和 GitHub Release。
 
 ## v2.0.5 - 2026-08-14
 

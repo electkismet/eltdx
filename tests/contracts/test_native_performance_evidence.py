@@ -96,7 +96,7 @@ def test_benchmark_campaign_runs_both_release_wheels_in_isolated_environments(
     tmp_path: Path,
 ) -> None:
     baseline_wheel = tmp_path / "eltdx-2.0.5.whl"
-    current_wheel = tmp_path / "eltdx-3.0.0a1.whl"
+    current_wheel = tmp_path / "eltdx-3.0.0.whl"
     baseline_wheel.write_bytes(b"baseline")
     current_wheel.write_bytes(b"current")
     environments: list[tuple[Path, Path]] = []

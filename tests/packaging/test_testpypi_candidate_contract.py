@@ -13,7 +13,7 @@ from scripts.verification.verify_testpypi import _verify_manifest
 
 ROOT = Path(__file__).resolve().parents[2]
 CANDIDATE = "a" * 40
-VERSION = "3.0.0a1"
+VERSION = "3.0.0"
 
 
 def _manifest(path: Path, wheel: Path, *, candidate: str = CANDIDATE) -> None:
@@ -41,7 +41,7 @@ def _manifest(path: Path, wheel: Path, *, candidate: str = CANDIDATE) -> None:
 
 
 def test_testpypi_manifest_requires_the_exact_candidate(tmp_path: Path) -> None:
-    wheel = tmp_path / "eltdx-3.0.0a1-cp310-abi3-manylinux_2_17_x86_64.whl"
+    wheel = tmp_path / "eltdx-3.0.0-cp310-abi3-manylinux_2_17_x86_64.whl"
     wheel.write_bytes(b"wheel")
     manifest = tmp_path / "artifacts.json"
     _manifest(manifest, wheel)
