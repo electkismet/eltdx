@@ -589,7 +589,7 @@ def _build_current_wheel(output_dir: Path) -> Path:
     return wheels[0]
 
 
-def _create_baseline_environment(root: Path, wheel: Path) -> Path:
+def _create_wheel_environment(root: Path, wheel: Path) -> Path:
     subprocess.run(
         [sys.executable, "-m", "venv", str(root)],
         check=True,
@@ -641,13 +641,17 @@ def _run_campaign(baseline_wheel: Path, output: Path) -> dict[str, Any]:
     current_wheel = _build_current_wheel(output.parent / "benchmark-current-wheel")
     with tempfile.TemporaryDirectory(prefix="eltdx-benchmark-") as temporary:
         temporary_root = Path(temporary)
-        baseline_python = _create_baseline_environment(
+        baseline_python = _create_wheel_environment(
             temporary_root / "baseline-venv",
             baseline_wheel,
         )
+        current_python = _create_wheel_environment(
+            temporary_root / "current-venv",
+            current_wheel,
+        )
         trials = []
         for index, role in enumerate(SCHEDULE):
-            python = baseline_python if role == "baseline" else Path(sys.executable)
+            python = baseline_python if role == "baseline" else current_python
             trials.append(
                 _run_child(
                     python,

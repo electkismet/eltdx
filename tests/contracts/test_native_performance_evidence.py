@@ -91,6 +91,43 @@ def test_benchmark_waits_for_cached_diagnostics_to_publish_idle_state() -> None:
     assert diagnostics.broker is idle
 
 
+def test_benchmark_campaign_runs_both_release_wheels_in_isolated_environments(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    baseline_wheel = tmp_path / "eltdx-2.0.5.whl"
+    current_wheel = tmp_path / "eltdx-3.0.0a1.whl"
+    baseline_wheel.write_bytes(b"baseline")
+    current_wheel.write_bytes(b"current")
+    environments: list[tuple[Path, Path]] = []
+    children: list[tuple[Path, str]] = []
+
+    monkeypatch.setattr(
+        benchmark_native,
+        "_build_current_wheel",
+        lambda _output: current_wheel,
+    )
+
+    def create_environment(root: Path, wheel: Path) -> Path:
+        environments.append((root, wheel))
+        return root / "bin" / "python"
+
+    def run_child(python: Path, role: str, _output: Path) -> dict:
+        children.append((python, role))
+        return {"role": role}
+
+    monkeypatch.setattr(benchmark_native, "_create_wheel_environment", create_environment)
+    monkeypatch.setattr(benchmark_native, "_run_child", run_child)
+    monkeypatch.setattr(benchmark_native, "_git_head", lambda: "1" * 40)
+
+    result = benchmark_native._run_campaign(baseline_wheel, tmp_path / "benchmark.json")
+
+    assert [wheel for _, wheel in environments] == [baseline_wheel, current_wheel]
+    interpreters = {role: python for python, role in children}
+    assert interpreters["baseline"] != interpreters["current"]
+    assert result["schedule"] == list(benchmark_native.SCHEDULE)
+
+
 def test_benchmark_gate_thresholds_are_not_report_only() -> None:
     bundle = {
         "candidate_sha": "1" * 40,
