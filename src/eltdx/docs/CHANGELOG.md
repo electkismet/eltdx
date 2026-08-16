@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Native Engine 改为单 Supervisor、多线程 Tokio runtime；worker 默认按 Slot 数和系统逻辑处理器自动计算，并允许手动覆盖。
+- Native Engine 改为单 Supervisor、自适应 Tokio runtime；worker 默认按 Slot 数和系统逻辑处理器自动计算并允许手动覆盖，单 worker 使用 current-thread 快速路径，两个以上 worker 使用 multi-thread。
 - 默认使用测速排名最快2台7709服务器、每台4条连接；新增 canary 握手、受控分批建连、每服务器连接上限和排名后备服务器补位。
 - 新增 Engine 全局 raw/decoded 内存预算和峰值 diagnostics；默认 push 字节上限提高到64 MiB，并增加160 Slot压力与资源归零合同。
 

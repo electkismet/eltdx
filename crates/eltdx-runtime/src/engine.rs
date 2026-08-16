@@ -16,7 +16,7 @@ use eltdx_protocol::limits::{
 };
 use eltdx_protocol::{CommandRequest, CommandResponse};
 use tokio::net::TcpStream;
-use tokio::runtime::Builder;
+use tokio::runtime::{Builder, Runtime};
 use tokio::sync::{mpsc, oneshot, watch, Notify, OwnedSemaphorePermit, Semaphore};
 use tokio::time::{interval, timeout_at, MissedTickBehavior};
 
@@ -2006,14 +2006,7 @@ fn runtime_thread_main(
     sessions: Arc<Mutex<SessionCache>>,
 ) -> Result<(), RuntimeError> {
     let RuntimeLaunch { config, epoch_seed } = launch;
-    let runtime = Builder::new_multi_thread()
-        .worker_threads(config.runtime_workers)
-        .thread_name("eltdx-worker")
-        .enable_all()
-        .build()
-        .map_err(|error| {
-            RuntimeError::internal(format!("unable to build Tokio runtime: {error}"))
-        })?;
+    let runtime = build_tokio_runtime(config.runtime_workers)?;
     runtime.block_on(
         RuntimeCore::new(
             config,
@@ -2026,6 +2019,22 @@ fn runtime_thread_main(
         )?
         .run(startup),
     )
+}
+
+fn build_tokio_runtime(runtime_workers: usize) -> Result<Runtime, RuntimeError> {
+    let mut builder = if runtime_workers == 1 {
+        Builder::new_current_thread()
+    } else {
+        let mut builder = Builder::new_multi_thread();
+        builder
+            .worker_threads(runtime_workers)
+            .thread_name("eltdx-worker");
+        builder
+    };
+    builder
+        .enable_all()
+        .build()
+        .map_err(|error| RuntimeError::internal(format!("unable to build Tokio runtime: {error}")))
 }
 
 fn duration_from_seconds(
@@ -5819,15 +5828,17 @@ mod tests {
     use std::time::Duration;
 
     use super::{
-        check_pid, keyed_permutation, runtime_epoch_reservation, ConnectAttemptId, ControlCell,
-        Engine, EngineConfig, EngineConfigOptions, HostCloseAttemptId, HostConnectAttempt,
-        HostLifecycle, IngressOwnership, PendingConnect, PendingPoll, RuntimeCore, CLOSE_TIMEOUT,
-        MAX_DECODED_QUEUE_BYTES, MAX_RAW_STAGING_BUFFER_SIZE,
+        build_tokio_runtime, check_pid, keyed_permutation, runtime_epoch_reservation,
+        ConnectAttemptId, ControlCell, Engine, EngineConfig, EngineConfigOptions,
+        HostCloseAttemptId, HostConnectAttempt, HostLifecycle, IngressOwnership, PendingConnect,
+        PendingPoll, RuntimeCore, CLOSE_TIMEOUT, MAX_DECODED_QUEUE_BYTES,
+        MAX_RAW_STAGING_BUFFER_SIZE,
     };
     use crate::diagnostics::PoolState;
     use crate::endpoint::Endpoint;
     use crate::error::RuntimeError;
     use crate::slot::RequestId;
+    use tokio::runtime::RuntimeFlavor;
 
     fn config(pool_size: usize, max_pending: usize) -> Result<EngineConfig, RuntimeError> {
         EngineConfig::from_endpoints(
@@ -5895,6 +5906,20 @@ mod tests {
             )
         );
         assert_eq!(CLOSE_TIMEOUT, Duration::from_secs(1));
+        Ok(())
+    }
+
+    #[test]
+    fn runtime_uses_current_thread_only_for_the_single_worker_fast_path() -> Result<(), RuntimeError>
+    {
+        let single = build_tokio_runtime(1)?;
+        let multi = build_tokio_runtime(2)?;
+
+        assert_eq!(
+            single.handle().runtime_flavor(),
+            RuntimeFlavor::CurrentThread
+        );
+        assert_eq!(multi.handle().runtime_flavor(), RuntimeFlavor::MultiThread);
         Ok(())
     }
 

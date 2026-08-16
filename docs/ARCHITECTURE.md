@@ -2,7 +2,7 @@
 
 `eltdx 3.0` 仍是 Python 包，公开入口、业务 API、dataclass、Helpers、F10、MCP 和 CLI 保持 Python 形态。变化发生在包内部：完整 7709 wire 编解码和网络运行核心由 Rust 实现，不提供纯 Python 7709 fallback。
 
-本文描述当前3.0候选架构。160条以上 TCP 连接、多线程 Tokio runtime、服务器连接分布和 Engine 全局内存预算已经进入实现，设计边界见 [线程层扩容方案](THREADING_SCALE_PLAN.md)。在统一测试完成前，这些改动仍属于未验证候选。
+本文描述当前3.0候选架构。160条以上 TCP 连接、多线程 Tokio runtime、服务器连接分布和 Engine 全局内存预算已经进入实现，设计边界见 [线程层扩容方案](THREADING_SCALE_PLAN.md)。本机统一验证已经完成，跨平台结果以候选提交的 CI 为准。
 
 ## 分层
 
@@ -36,7 +36,7 @@ TdxClient
 
 ## Engine 和 Slot
 
-每个 `NativeEngine` 拥有一个负责 Supervisor 的后台 OS 线程和一个 Tokio multi-thread runtime。worker 默认数量为 `min(pool_size, available_parallelism)`，允许显式覆盖；没有进程全局 runtime，也不会为每个请求创建 runtime。Supervisor future 保持单所有者，Slot I/O、解压和协议处理由共享 worker 执行。
+每个 `NativeEngine` 拥有一个负责 Supervisor 的后台 OS 线程和一个 Tokio runtime。worker 默认数量为 `min(pool_size, available_parallelism)`，允许显式覆盖；单 worker 使用 current-thread 快速路径，两个以上 worker 使用 multi-thread runtime。没有进程全局 runtime，也不会为每个请求创建 runtime。Supervisor future 保持单所有者，Slot I/O、解压和协议处理由共享 worker 执行。
 
 Supervisor 是以下状态的唯一写入者：Engine epoch、FIFO 等待队列、Slot lease、pin 归属、push buffer、terminal owner 和 diagnostics。每个 Slot task 独占一个 `TcpStream`、incremental decoder、endpoint cursor、TCP generation 和当前 wire request。Supervisor 不直接操作 socket，Slot 也不直接修改池状态。
 

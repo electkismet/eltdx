@@ -56,8 +56,10 @@ def test_channels_admission_decoders_and_push_buffers_are_bounded() -> None:
 
 
 def test_runtime_workers_ingress_and_engine_memory_are_explicitly_bounded() -> None:
+    assert "runtime_workers == 1" in ENGINE
+    assert "Builder::new_current_thread()" in ENGINE
     assert "Builder::new_multi_thread()" in ENGINE
-    assert ".worker_threads(config.runtime_workers)" in ENGINE
+    assert ".worker_threads(runtime_workers)" in ENGINE
     assert "DIAGNOSTICS_REFRESH_INTERVAL: Duration = Duration::from_millis(25)" in ENGINE
     assert ".blocking_send(" not in ENGINE
     assert "MemoryBudget::new(" in ENGINE

@@ -72,7 +72,7 @@ Python 同步调用线程
         |
         +-- 一个单所有者 Supervisor
         |
-        +-- Tokio multi-thread runtime
+        +-- Tokio runtime（1 worker 为 current-thread，2+ 为 multi-thread）
         |       +-- worker 1
         |       +-- worker 2
         |       +-- ...
@@ -99,6 +99,7 @@ Rust 使用 `std::thread::available_parallelism()` 读取 Windows、macOS 和 Li
 - 160个 Slot、16个逻辑处理器：默认16个 worker。
 - 160个 Slot、64个逻辑处理器：默认64个 worker。
 - 用户显式设置 `runtime_workers` 时使用用户值，但必须在1到 `pool_size` 之间；worker 多于 Slot 不会增加并行能力，只会浪费线程资源。
+- `runtime_workers=1` 使用 current-thread 快速路径，避免单连接场景承担多线程调度开销；两个以上 worker 才启用 multi-thread runtime。
 
 worker 数量决定同一时刻能有多少 CPU 工作并行执行，不限制等待网络的连接数量。160个异步 Slot 即使只有16个 worker，也仍然可以保持160条 TCP 连接并发等待数据。
 
@@ -213,7 +214,7 @@ Engine 全局预算随 Slot 数自动增长，不能再固定为256 MiB，否则
 ## 实施和验证顺序
 
 1. 已完成：冻结新配置语义、兼容规则和 diagnostics 字段。
-2. 已完成：将 Native Engine 改为 Tokio multi-thread runtime，同时保留单 Supervisor 状态所有权。
+2. 已完成：将 Native Engine 改为自适应 Tokio runtime，同时保留单 Supervisor 状态所有权；1 worker 走 current-thread 快速路径，2个以上 worker 走 multi-thread。
 3. 已完成：实现服务器排名选择、真实握手验证、连接均匀分布和失败补位。
 4. 已完成：实现 canary 与有界分批建连。
 5. 已完成：实现 Engine 全局 raw、decoded 和 push 预算及背压。
