@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -69,6 +70,25 @@ def test_benchmark_snapshot_record_matches_frozen_fixture() -> None:
     assert len(response) == 124
     assert len(benchmark_native.SNAPSHOT_RECORD) == 104
     assert benchmark_native.SNAPSHOT_RECORD == response[20:]
+
+
+def test_benchmark_waits_for_cached_diagnostics_to_publish_idle_state() -> None:
+    busy = SimpleNamespace(active_leases=8, waiter_count=176, pin_waiter_count=0)
+    idle = SimpleNamespace(active_leases=0, waiter_count=0, pin_waiter_count=0)
+
+    class Transport:
+        reads = 0
+
+        @property
+        def diagnostics(self):
+            self.reads += 1
+            return SimpleNamespace(broker=busy if self.reads == 1 else idle)
+
+    transport = Transport()
+    diagnostics = benchmark_native._wait_for_idle_diagnostics(transport)
+
+    assert transport.reads == 2
+    assert diagnostics.broker is idle
 
 
 def test_benchmark_gate_thresholds_are_not_report_only() -> None:

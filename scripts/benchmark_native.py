@@ -41,6 +41,7 @@ POOL_REQUESTS = 5_000
 POOL_SIZES = (1, 4, 8)
 PARSE_ITERATIONS = 50
 LIFECYCLE_CYCLES = 100
+DIAGNOSTICS_SETTLE_TIMEOUT_SECONDS = 1.0
 SNAPSHOT_RECORD = bytes.fromhex(
     "00303030303031e61185115b5c005fa4a3cf0ec51187e9aa01bfe40e40afb44eb0994298cf6800"
     "b8df094100901381c3011614120010004091fc4c000000000000000000000000ca0b9f409ffa84c200"
@@ -298,6 +299,28 @@ def _execute_timed(transport: Any, token: int) -> tuple[int, int, int]:
     return elapsed, connection_id, sequence
 
 
+def _wait_for_idle_diagnostics(transport: Any) -> Any:
+    deadline = time.monotonic() + DIAGNOSTICS_SETTLE_TIMEOUT_SECONDS
+    diagnostics = transport.diagnostics
+    while True:
+        broker = diagnostics.broker
+        if (
+            broker is not None
+            and broker.active_leases == 0
+            and broker.waiter_count == 0
+            and broker.pin_waiter_count == 0
+        ):
+            return diagnostics
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise AssertionError(
+                "benchmark transport did not publish idle diagnostics before the deadline: "
+                f"broker={broker!r}"
+            )
+        time.sleep(min(0.005, remaining))
+        diagnostics = transport.diagnostics
+
+
 def _transport_case(pool_size: int, concurrency: int, requests: int) -> dict[str, Any]:
     from eltdx.transport import PooledSocketTransport
     from eltdx.transport.pool import PoolState
@@ -330,11 +353,7 @@ def _transport_case(pool_size: int, concurrency: int, requests: int) -> dict[str
             wall_elapsed = time.perf_counter_ns() - wall_started
             cpu_elapsed = time.process_time_ns() - cpu_started
             rss_after = _rss_bytes()
-            diagnostics = transport.diagnostics
-            if diagnostics.broker is None or diagnostics.broker.active_leases != 0:
-                raise AssertionError("benchmark transport retained an active lease")
-            if diagnostics.broker.waiter_count or diagnostics.broker.pin_waiter_count:
-                raise AssertionError("benchmark transport retained a waiter")
+            _wait_for_idle_diagnostics(transport)
             latencies = [result[0] for result in results]
             sequences = [result[2] for result in results]
             if len(set(sequences)) != requests:
