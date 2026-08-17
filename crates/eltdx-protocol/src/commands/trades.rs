@@ -359,16 +359,10 @@ fn parse_tick_records(
             },
             record_hex,
             event_kind,
-            auction_matched_volume: if event_kind == TradeEventKind::AuctionSnapshot {
-                Some(volume)
-            } else {
-                None
-            },
-            auction_unmatched_signed_volume: if event_kind == TradeEventKind::AuctionSnapshot {
-                Some(order_count)
-            } else {
-                None
-            },
+            // The mixed trade commands preserve these wire fields as `volume`
+            // and `order_count`, but do not establish auction quantity semantics.
+            auction_matched_volume: None,
+            auction_unmatched_signed_volume: None,
         });
     }
     Ok((ticks, offset))
@@ -559,8 +553,10 @@ mod tests {
             TodayTicksRequest::new(NormalizedCode::parse("sz000001")?, 0, 115)?,
         )?;
         assert_eq!(auction.ticks[0].event_kind, TradeEventKind::AuctionSnapshot);
-        assert_eq!(auction.ticks[0].auction_matched_volume, Some(975));
-        assert_eq!(auction.ticks[0].auction_unmatched_signed_volume, Some(214));
+        assert_eq!(auction.ticks[0].volume, 975);
+        assert_eq!(auction.ticks[0].order_count, 214);
+        assert_eq!(auction.ticks[0].auction_matched_volume, None);
+        assert_eq!(auction.ticks[0].auction_unmatched_signed_volume, None);
 
         let mut history_payload = vec![1, 0];
         history_payload.extend_from_slice(&35.5_f32.to_le_bytes());

@@ -149,33 +149,36 @@ K 线响应和单根 K 线。
 
 ## TradePage / TradeTick
 
-成交明细响应和单条混合事件。`0x0fc5`（当前）与 `0x0fc6`（历史）可能同时返回普通成交、竞价快照和 09:25 正式撮合。
+成交明细响应和单条混合事件。`0x0fc5`（当前）与 `0x0fc6`（历史）可能同时返回普通成交、竞价快照、09:25 与 15:00 正式撮合，以及 `status=5` 盘后固定价格成交。
 
 | 字段                  | 含义                            |
 | ------------------- | ----------------------------- |
 | `trading_date`      | 交易日                           |
 | `start`             | 请求起始位置                        |
 | `request_count`     | 请求条数                          |
-| `ticks`             | 混合记录，包含普通成交、竞价快照和 09:25 正式撮合                          |
+| `ticks`             | 服务器原始混合记录，不丢弃 `status=8` 竞价快照                          |
+| `actual_trades`     | 排除 `status=8` 后的真实成交，包含 09:25、15:00 和盘后固定价格成交 |
+| `after_hours_trades` | 15:05-15:30、`status=5` 的盘后固定价格成交 |
 | `auction_snapshots` | `status=8` 竞价快照                |
 | `opening_matches`   | 09:25 正式开盘撮合                  |
 | `time_label`        | 时间文本                          |
 | `trade_datetime`    | 成交时间                          |
 | `price`             | 成交价                           |
-| `volume`            | 原始数量字段；普通成交/正式撮合时是成交量，竞价快照时是虚拟匹配量                       |
-| `order_count`       | 原始笔数字段；竞价快照时是带符号未匹配量                      |
+| `volume`            | 原始数量字段；真实成交时是成交量，`status=8` 时不赋予竞价数量语义 |
+| `order_count`       | 原始笔数字段；`status=8` 时不赋予竞价未匹配量语义 |
 | `event_kind`        | `trade`、`auction_snapshot`、`opening_match` |
 | `is_auction_snapshot` | 是否为竞价快照                    |
 | `is_opening_match`   | 是否为 09:25 正式撮合              |
 | `is_trade`           | 是否为普通成交                     |
-| `auction_matched_volume` | 竞价快照虚拟匹配量               |
-| `auction_unmatched_signed_volume` | 竞价快照带符号未匹配量       |
-| `auction_unmatched_volume` | 竞价快照未匹配量绝对值           |
+| `is_actual_trade`    | 是否为真实成交；仅 `status=8` 返回 `False` |
+| `is_after_hours_fixed_price` | 是否为 15:05-15:30、`status=5` 的盘后固定价格成交 |
+| `auction_matched_volume` | 成交明细不推断竞价数量，固定为 `None` |
+| `auction_unmatched_signed_volume` / `auction_unmatched_volume` | 成交明细不推断竞价未匹配量，固定为 `None` |
 | `side`              | 方向，`buy` / `sell` / `neutral` |
-| `trade_amount_yuan` | `price * volume * 100`；竞价快照仅为估算，不代表实际成交金额                     |
+| `trade_amount_yuan` | `price * volume * 100`；只应对 `is_actual_trade=True` 的记录作为成交额使用 |
 | `has_more`          | 单页结果是否可能还有下一页，派生字段                |
 
-分类规则：`status_raw == 8` 为 `auction_snapshot`；时间为 `09:25` 且不是 `status=8` 为 `opening_match`；其余为 `trade`。竞价快照的 `volume` / `order_count` 保留原始协议字段，分别按虚拟匹配量 / 带符号未匹配量解释。
+分类规则：`status_raw == 8` 为非成交的 `auction_snapshot`；时间为 `09:25` 且不是 `status=8` 为真实的 `opening_match`；15:00 的非 `status=8` 记录是正式收盘撮合；15:05-15:30 的 `status=5` 是盘后固定价格真实成交。成交明细保留竞价快照的原始 `volume` / `order_count`，但不把它们解释为虚拟匹配量或未匹配量；完整竞价数量使用 `client.auctions.series()`。
 
 ## AuctionSeries / AuctionPoint
 

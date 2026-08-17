@@ -339,8 +339,6 @@ def test_auction_data_does_not_use_current_quote_for_history_date() -> None:
         0,
         1090,
         event_kind="auction_snapshot",
-        auction_matched_volume=100,
-        auction_unmatched_signed_volume=-20,
     )
     snapshot = TradeTick(0, 0, 565, "09:25", None, 11.0, 11000, 123, 1, 2, "neutral", 0, 1100, event_kind="opening_match")
     page = TradePage(

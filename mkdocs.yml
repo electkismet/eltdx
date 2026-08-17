@@ -50,6 +50,7 @@ markdown_extensions:
 
 extra_css:
   - assets/interface-catalog.css
+  - assets/return-samples.css
 
 extra_javascript:
   - assets/interface-catalog-data.js
@@ -59,6 +60,7 @@ nav:
   - 接口目录: index.md
   - 使用指南:
       - 产品与能力: PRODUCT.md
+      - v3.0.2 发布说明: releases/v3.0.2.md
       - v3.0.1 发布说明: releases/v3.0.1.md
       - v3.0.0 发布说明: releases/v3.0.0.md
       - 调用方法: METHOD_REFERENCE.md

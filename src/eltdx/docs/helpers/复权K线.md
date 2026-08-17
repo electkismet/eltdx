@@ -79,3 +79,44 @@ series = client.helpers.adjusted_kline(
 ```
 
 `all_pages=True` 时，Helper 会调用 `client.bars.all()` 自动分页合并。
+
+## 真实返回样本
+
+??? return-sample "真实返回 JSON · KlineSeries（前复权 2 条）"
+    <div class="return-sample-meta">
+      <div><span>采样标的</span><code>sz000001</code></div>
+      <div><span>复权模式</span><code>qfq</code></div>
+      <div><span>返回类型</span><code>KlineSeries</code></div>
+    </div>
+    <p class="return-sample-note">真实采样；请求 period="day"、adjust="qfq"、count=2。</p>
+
+    ```json
+    {
+      "exchange": "sz",
+      "code": "000001",
+      "period_name": "day",
+      "request_count": 2,
+      "adjust_mode_raw": 1,
+      "adjust_mode": "qfq",
+      "bars": [
+        {
+          "time": "2026-08-14T15:00:00+08:00",
+          "open": 11.22,
+          "close": 11.11,
+          "high": 11.23,
+          "low": 11.11,
+          "volume_lots": 832343.76,
+          "amount": 929098432.0
+        },
+        {
+          "time": "2026-08-17T15:00:00+08:00",
+          "open": 11.2,
+          "close": 11.1,
+          "high": 11.22,
+          "low": 11.07,
+          "volume_lots": 929043.44,
+          "amount": 1031951488.0
+        }
+      ]
+    }
+    ```

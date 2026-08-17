@@ -44,6 +44,21 @@ class TradeTick:
         return self.event_kind == "trade"
 
     @property
+    def is_actual_trade(self) -> bool:
+        """Return whether this record represents an executed trade."""
+
+        return not self.is_auction_snapshot
+
+    @property
+    def is_after_hours_fixed_price(self) -> bool:
+        """Return whether this is a 15:05-15:30 fixed-price trade."""
+
+        return (
+            self.status_raw == 5
+            and 15 * 60 + 5 <= self.time_minutes <= 15 * 60 + 30
+        )
+
+    @property
     def auction_unmatched_volume(self) -> int | None:
         if self.auction_unmatched_signed_volume is None:
             return None
@@ -83,6 +98,18 @@ class TradePage:
         """Return embedded ``status=8`` auction snapshots from this page."""
 
         return tuple(tick for tick in self.ticks if tick.is_auction_snapshot)
+
+    @property
+    def actual_trades(self) -> tuple[TradeTick, ...]:
+        """Return executed trades, excluding ``status=8`` auction snapshots."""
+
+        return tuple(tick for tick in self.ticks if tick.is_actual_trade)
+
+    @property
+    def after_hours_trades(self) -> tuple[TradeTick, ...]:
+        """Return 15:05-15:30 fixed-price trades marked with ``status=5``."""
+
+        return tuple(tick for tick in self.ticks if tick.is_after_hours_fixed_price)
 
     @property
     def opening_matches(self) -> tuple[TradeTick, ...]:

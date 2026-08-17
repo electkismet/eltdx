@@ -56,6 +56,26 @@ def _taxonomy_assignments(catalog: dict) -> dict[str, tuple[str, str | None]]:
     return assignments
 
 
+def test_common_interface_docs_have_collapsible_real_json_samples() -> None:
+    mkdocs = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+    stylesheet = REPO_ROOT / "docs" / "assets" / "return-samples.css"
+    catalog = _catalog()
+    return_sample_docs = [item["doc"] for item in catalog["items"] if item["source"] != "F10"]
+    f10_docs = [item["doc"] for item in catalog["items"] if item["source"] == "F10"]
+
+    assert "assets/return-samples.css" in mkdocs
+    assert stylesheet.is_file()
+    assert len(return_sample_docs) == 37
+    for relative_path in return_sample_docs:
+        detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
+        assert '??? return-sample "' in detail, relative_path
+        assert "真实采样" in detail, relative_path
+        assert "```json" in detail, relative_path
+    for relative_path in f10_docs:
+        detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
+        assert '??? return-sample "' not in detail, relative_path
+
+
 def test_pages_catalog_has_expected_public_interfaces() -> None:
     catalog = _catalog()
     items = catalog["items"]
@@ -452,7 +472,7 @@ def test_current_docs_match_v2_cache_and_migration_contracts() -> None:
     assert "当前 `v2.0.5` 已移除这些入口" in historical_update
 
 
-def test_trade_docs_describe_mixed_records_instead_of_only_trades() -> None:
+def test_trade_docs_separate_raw_records_from_actual_trades() -> None:
     fields = (REPO_ROOT / "docs" / "FIELD_REFERENCE.md").read_text(encoding="utf-8")
     methods = (REPO_ROOT / "docs" / "METHOD_REFERENCE.md").read_text(encoding="utf-8")
     today = (REPO_ROOT / "docs" / "methods" / "7709-当日成交明细.md").read_text(encoding="utf-8")
@@ -461,8 +481,10 @@ def test_trade_docs_describe_mixed_records_instead_of_only_trades() -> None:
     for text in (methods, today, history):
         assert "实际成交条数" not in text
         assert "混合记录条数" in text
-    assert "竞价快照时是虚拟匹配量" in fields
-    assert "竞价快照仅为估算，不代表实际成交金额" in methods
+    assert "`actual_trades`" in fields
+    assert "不把它们解释为虚拟匹配量或未匹配量" in fields
+    assert "完整秒级过程、虚拟匹配量和未匹配量使用 `client.auctions.series()`" in methods
+    assert "15:05-15:30 的 `status=5` 是盘后固定价格真实成交" in methods
     assert 'client.trades.all_history("sz000001", "2026-05-20")' in methods
 
 

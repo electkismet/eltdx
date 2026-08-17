@@ -5128,7 +5128,7 @@ impl SlotWorker {
                 .frame(message.msg_id())
                 .encode()
                 .map_err(RuntimeError::from)?;
-            let handshake = self
+            match self
                 .write_frame(
                     request_id,
                     &frame,
@@ -5137,14 +5137,21 @@ impl SlotWorker {
                     None,
                 )
                 .await
-                .map(|_| ());
-            if let Err(failure) = handshake {
-                let error = failure.into_error("explicit connect interrupted");
-                self.retire_synthetic(request_id, start.identity)?;
-                if start.attempt.endpoints_remaining > 1 {
-                    continue;
+            {
+                Ok(_) => {}
+                Err(OperationFailure::Interrupted) => {
+                    self.retire_synthetic(request_id, start.identity)?;
+                    return Err(RuntimeError::connection_closed(
+                        "explicit connect interrupted",
+                    ));
                 }
-                return Err(error);
+                Err(OperationFailure::Error(error)) => {
+                    self.retire_synthetic(request_id, start.identity)?;
+                    if start.attempt.endpoints_remaining > 1 {
+                        continue;
+                    }
+                    return Err(error);
+                }
             }
             let routed = match self
                 .read_matching_response(
@@ -5156,8 +5163,13 @@ impl SlotWorker {
                 .await
             {
                 Ok(routed) => routed,
-                Err(failure) => {
-                    let error = failure.into_error("explicit connect interrupted");
+                Err(OperationFailure::Interrupted) => {
+                    self.retire_synthetic(request_id, start.identity)?;
+                    return Err(RuntimeError::connection_closed(
+                        "explicit connect interrupted",
+                    ));
+                }
+                Err(OperationFailure::Error(error)) => {
                     self.retire_synthetic(request_id, start.identity)?;
                     if start.attempt.endpoints_remaining > 1 {
                         continue;
@@ -5704,15 +5716,6 @@ enum ConnectForRequest {
 enum OperationFailure {
     Interrupted,
     Error(RuntimeError),
-}
-
-impl OperationFailure {
-    fn into_error(self, interrupted_message: &'static str) -> RuntimeError {
-        match self {
-            Self::Interrupted => RuntimeError::connection_closed(interrupted_message),
-            Self::Error(error) => error,
-        }
-    }
 }
 
 async fn acquire_owned_interruptible(

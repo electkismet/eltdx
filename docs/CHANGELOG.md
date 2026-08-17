@@ -1,5 +1,13 @@
 # 变更记录
 
+## v3.0.2 - 2026-08-17
+
+- 成交明细新增 `actual_trades`，在保留原始 `ticks` 的同时排除非成交的 `status=8` 集合竞价快照；09:25、15:00 和普通盘中成交继续作为真实成交保留。
+- 新增 `is_actual_trade`、`is_after_hours_fixed_price` 和 `after_hours_trades`，明确识别 15:05-15:30、`status=5` 的盘后固定价格真实成交。
+- 成交明细不再把 `status=8` 的原始数量字段解释为竞价匹配量；完整秒级竞价过程、虚拟匹配量和未匹配量统一以 `client.auctions.series()` 为准。
+- 修复显式 `connect()` 握手期间并发 `close()` 时仍切换备用服务器的问题，关闭中断现在会立即停止连接流程，避免无谓的 `CloseTimeout`。
+- 21 个 7709 原生接口和 16 个 Helpers 页面新增默认折叠、可复制的真实 JSON 返回样本；F10 原生 Entry 页面不新增样本。
+
 ## v3.0.1 - 2026-08-17
 
 - `client.auctions.series(code, date=None)` 现在通过 `0x056a` 同时支持当日和历史集合竞价过程快照，并按主站响应顺序保留全部时间点。

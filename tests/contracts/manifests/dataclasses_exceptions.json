@@ -166,12 +166,12 @@
     "eltdx.models.trade:TradeTick": {
       "fields": ["index", "absolute_index", "time_minutes", "time_label", "trade_datetime", "price", "price_milli", "volume", "order_count", "status_raw", "side", "price_delta_raw", "price_acc_raw", "unknown_tail_raw", "reserved_zero", "record_hex", "event_kind", "auction_matched_volume", "auction_unmatched_signed_volume"],
       "defaults": {"unknown_tail_raw": null, "reserved_zero": null, "record_hex": "", "event_kind": "trade", "auction_matched_volume": null, "auction_unmatched_signed_volume": null},
-      "properties": ["auction_unmatched_volume", "is_auction_snapshot", "is_opening_match", "is_trade", "trade_amount_yuan"]
+      "properties": ["auction_unmatched_volume", "is_actual_trade", "is_after_hours_fixed_price", "is_auction_snapshot", "is_opening_match", "is_trade", "trade_amount_yuan"]
     },
     "eltdx.models.trade:TradePage": {
       "fields": ["exchange", "market_id", "code", "start", "request_count", "ticks", "trading_date", "price_base_raw_f32", "raw_payload"],
       "defaults": {"trading_date": null, "price_base_raw_f32": null, "raw_payload": {"$type": "bytes", "hex": ""}},
-      "properties": ["auction_snapshots", "count", "full_code", "has_more", "opening_matches"]
+      "properties": ["actual_trades", "after_hours_trades", "auction_snapshots", "count", "full_code", "has_more", "opening_matches"]
     },
     "eltdx.helpers.core:StockProfile": {
       "fields": ["full_code", "exchange", "market_id", "code", "name", "category", "board", "last_price", "pre_close_price", "open_price", "high_price", "low_price", "change", "change_pct", "volume_hand", "amount", "open_amount_yuan", "circulating_shares", "total_shares", "turnover_rate", "circulating_market_value", "total_market_value", "eps", "ipo_date", "updated_date", "security", "quote", "finance"],

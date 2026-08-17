@@ -611,7 +611,7 @@ series = client.minutes.sparkline("sz000001", selector=1, window=20)
 
 ### `client.trades.today(code, start=0, count=1800)`
 
-查询主站当前保存的混合明细，对应 `0x0fc5`。凌晨、周末或节假日可能返回最近交易日数据。返回普通成交、`status=8` 集合竞价快照和 09:25 正式开盘撮合。
+查询主站当前保存的混合明细，对应 `0x0fc5`。凌晨、周末或节假日可能返回最近交易日数据。原始 `ticks` 可能同时包含普通成交、`status=8` 集合竞价快照、09:25 与 15:00 正式撮合，以及 `status=5` 盘后固定价格成交。
 
 ```python
 page = client.trades.today("sz000001", start=0, count=1800)
@@ -628,7 +628,7 @@ page = client.trades.today("sz000001")
 
 ### `client.trades.history(code, trading_date, start=0, count=1800)`
 
-查询历史混合明细增强接口，对应 `0x0fc6`。返回普通成交、`status=8` 集合竞价快照和 09:25 正式开盘撮合。
+查询历史混合明细增强接口，对应 `0x0fc6`，记录分类和当日接口一致。
 
 ```python
 page = client.trades.history("sz000001", "2026-05-20")
@@ -643,6 +643,8 @@ page = client.trades.history("sz000001", "2026-05-20")
 ```python
 page = client.trades.all_today("sz000001")
 page = client.trades.all_history("sz000001", "2026-05-20")
+actual = page.actual_trades
+after_hours = page.after_hours_trades
 ```
 
 | 返回模型        | 说明          |
@@ -655,6 +657,8 @@ page = client.trades.all_history("sz000001", "2026-05-20")
 | `trading_date`                                  | 历史成交日期；当前 `0x0fc5` 原始响应不带日期，因此保持为空 |
 | `start` / `request_count`                       | 请求起点 / 请求条数                                  |
 | `ticks`                                         | 原始混合记录                                       |
+| `actual_trades`                                 | 排除 `status=8` 竞价快照后的真实成交                    |
+| `after_hours_trades`                            | 15:05-15:30、`status=5` 的盘后固定价格成交              |
 | `auction_snapshots`                             | `status=8` 集合竞价快照                           |
 | `opening_matches`                               | 09:25 正式开盘撮合                                |
 | `count`                                         | 混合记录条数                                       |
@@ -666,20 +670,23 @@ page = client.trades.all_history("sz000001", "2026-05-20")
 | `time_minutes` / `time_label` | 分钟数 / 时间文本                     |
 | `trade_datetime`              | 成交时间                           |
 | `price` / `price_milli`       | 成交价 / 毫厘价                      |
-| `volume`                      | 原始数量字段；普通成交/正式撮合时是成交量，竞价快照时是虚拟匹配量                        |
-| `order_count`                 | 原始笔数字段；竞价快照时是带符号未匹配量             |
+| `volume`                      | 原始数量字段；真实成交时是成交量，竞价快照时不赋予竞价数量语义 |
+| `order_count`                 | 原始笔数字段；竞价快照时不赋予竞价未匹配量语义 |
 | `event_kind`                  | `trade`、`auction_snapshot` 或 `opening_match` |
 | `is_auction_snapshot`         | 是否为集合竞价快照                               |
 | `is_opening_match`            | 是否为 09:25 正式开盘撮合                         |
 | `is_trade`                     | 是否为普通成交                                   |
-| `auction_matched_volume`      | 竞价快照虚拟匹配量                               |
-| `auction_unmatched_signed_volume` | 竞价快照带符号未匹配量                         |
-| `auction_unmatched_volume`    | 竞价快照未匹配量绝对值                           |
+| `is_actual_trade`             | 是否为真实成交；仅 `status=8` 返回 `False`             |
+| `is_after_hours_fixed_price` | 是否为 15:05-15:30、`status=5` 的盘后固定价格成交 |
+| `auction_matched_volume`      | 成交明细不推断竞价数量，固定为 `None`                 |
+| `auction_unmatched_signed_volume` / `auction_unmatched_volume` | 成交明细不推断竞价未匹配量，固定为 `None` |
 | `side`                        | 方向，`buy`、`sell`、`neutral` 或状态名 |
 | `status_raw`                  | 方向 / 状态原始值                     |
-| `trade_amount_yuan`           | `price * volume * 100`；竞价快照仅为估算，不代表实际成交金额    |
+| `trade_amount_yuan`           | `price * volume * 100`；仅对真实成交作为成交额使用 |
 
-分类规则：`status_raw == 8` 为 `auction_snapshot`；时间为 `09:25` 且不是 `status=8` 为 `opening_match`；其余为 `trade`。竞价快照的 `volume` / `order_count` 仍保留原始字段，不应按实际成交解释。
+分类规则：`status_raw == 8` 为非成交的 `auction_snapshot`；时间为 `09:25` 且不是 `status=8` 为真实的 `opening_match`；15:00 的非 `status=8` 记录是正式收盘撮合；15:05-15:30 的 `status=5` 是盘后固定价格真实成交。`ticks` 保留全部服务器记录，`actual_trades` 只排除 `status=8`。竞价快照的原始数量字段不作为竞价量解释，完整秒级过程、虚拟匹配量和未匹配量使用 `client.auctions.series()`。
+
+自 2026 年 7 月 6 日起，盘后固定价格交易由科创板、创业板扩展至全部 A 股及沪深 ETF；查询更早历史日期时，并非所有股票都会出现 `status=5`。规则背景见[央广网转载的交易新规说明](https://finance.cnr.cn/gundong/20260706/t20260706_527692978.shtml)。
 
 成交明细完整分页入口：
 

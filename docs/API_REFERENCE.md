@@ -501,15 +501,17 @@ client.minutes.sparkline("sz000001", selector=1)
 
 ### `today(code, start=0, count=1800, include_raw=False)`
 
-查询主站当前保存的混合明细，对应 `0x0fc5`。凌晨、周末或节假日可能返回最近交易日数据。记录中的 `status=8` 是竞价快照，09:25 的其他状态是正式开盘撮合，其余是普通成交。
+查询主站当前保存的混合明细，对应 `0x0fc5`。凌晨、周末或节假日可能返回最近交易日数据。`ticks` 原样保留 `status=8` 竞价快照；`actual_trades` 排除这些非成交快照，并保留 09:25、15:00 和 `status=5` 盘后固定价格真实成交。
 
 ```python
 client.trades.today("sz000001", start=0, count=1800)
 ```
 
+`after_hours_trades` 可单独取得 15:05-15:30、`status=5` 的盘后固定价格成交。完整秒级竞价过程和竞价数量使用 `client.auctions.series()`。
+
 ### `history(code, trading_date, start=0, count=1800, include_raw=False)`
 
-查询历史混合明细增强接口，对应 `0x0fc6`。记录中的 `status=8` 是竞价快照，09:25 的其他状态是正式开盘撮合，其余是普通成交。
+查询历史混合明细增强接口，对应 `0x0fc6`。原始 `ticks` 与真实成交视图的分类规则和当日接口一致。
 
 ```python
 client.trades.history("sz000001", "2026-05-20")

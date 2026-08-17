@@ -128,6 +128,7 @@ def test_concurrent_close_waits_for_the_same_connect_rollback() -> None:
         assert message_type == 0x000D and payload == b"\x01"
         both_started.wait(timeout=3)
         failure_released.set()
+        wait_for_peer_close(connection)
 
     with (
         ScriptedServer([successful]) as successful_server,

@@ -26,7 +26,7 @@ from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, Quote
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "3.0.1"
+    assert __version__ == "3.0.2"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -1185,15 +1185,13 @@ def test_trade_page_keeps_snapshot_and_opening_match_properties() -> None:
         trade_datetime=None,
         price=11.10,
         price_milli=11100,
-        volume=999,
-        order_count=-12,
+        volume=0,
+        order_count=0,
         status_raw=8,
         side="status_8",
         price_delta_raw=0,
         price_acc_raw=1110,
         event_kind="auction_snapshot",
-        auction_matched_volume=999,
-        auction_unmatched_signed_volume=-12,
     )
     opening = TradeTick(
         index=1,
@@ -1210,6 +1208,36 @@ def test_trade_page_keeps_snapshot_and_opening_match_properties() -> None:
         price_delta_raw=0,
         price_acc_raw=1111,
         event_kind="opening_match",
+    )
+    closing = TradeTick(
+        index=2,
+        absolute_index=2,
+        time_minutes=15 * 60,
+        time_label="15:00",
+        trade_datetime=None,
+        price=11.12,
+        price_milli=11120,
+        volume=456,
+        order_count=1,
+        status_raw=2,
+        side="neutral",
+        price_delta_raw=1,
+        price_acc_raw=1112,
+    )
+    after_hours = TradeTick(
+        index=3,
+        absolute_index=3,
+        time_minutes=15 * 60 + 5,
+        time_label="15:05",
+        trade_datetime=None,
+        price=11.12,
+        price_milli=11120,
+        volume=20,
+        order_count=1,
+        status_raw=5,
+        side="status_5",
+        price_delta_raw=0,
+        price_acc_raw=1112,
     )
 
     class FakeTransport:
@@ -1236,12 +1264,21 @@ def test_trade_page_keeps_snapshot_and_opening_match_properties() -> None:
                 code="000001",
                 start=payload["start"],
                 request_count=payload["count"],
-                ticks=(snapshot, opening),
+                ticks=(snapshot, opening, closing, after_hours),
             )
 
-    page = TdxClient(transport=FakeTransport()).trades.today("sz000001", count=2)
+    page = TdxClient(transport=FakeTransport()).trades.today("sz000001", count=4)
+    assert page.ticks == (snapshot, opening, closing, after_hours)
     assert page.auction_snapshots == (snapshot,)
     assert page.opening_matches == (opening,)
+    assert page.actual_trades == (opening, closing, after_hours)
+    assert page.after_hours_trades == (after_hours,)
+    assert snapshot.is_actual_trade is False
+    assert opening.is_actual_trade is True
+    assert closing.is_actual_trade is True
+    assert after_hours.is_actual_trade is True
+    assert after_hours.is_after_hours_fixed_price is True
+    assert closing.is_after_hours_fixed_price is False
 
 
 def test_trade_page_has_more_until_an_empty_page_confirms_completion() -> None:

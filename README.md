@@ -184,9 +184,9 @@ print(f10.company_profile("000034").rows[0])
 | 近期历史分时       | `client.minutes.recent()`                                  | [`0x0feb`](docs/COMMANDS_7709.md#cmd-0x0feb)                                                | 返回服务端近期窗口内的历史分时；适合查较近交易日的分钟走势                                  | [文档](docs/methods/7709-近期历史分时.md)     |
 | 分时副图         | `client.minutes.aux()`                                     | [`0x051b`](docs/COMMANDS_7709.md#cmd-0x051b)                                                | 返回分时页下方副图数据，例如买卖力道、成交对比等序列                                     | [文档](docs/methods/7709-分时副图.md)       |
 | 小走势图         | `client.minutes.sparkline()`                               | [`0x0fd1`](docs/COMMANDS_7709.md#cmd-0x0fd1)                                                | 返回单标的小型价格走势序列，适合列表页或概览页的小图                                     | [文档](docs/methods/7709-小走势图.md)       |
-| 当日成交明细       | `client.trades.today(code, ...)` / `client.trades.all_today(code, ...)`                   | [`0x0fc5`](docs/COMMANDS_7709.md#cmd-0x0fc5)                                                | `today()` 返回一页，`all_today()` 自动翻页返回完整明细；混合记录中可能包含普通成交、竞价快照和 09:25 正式撮合                       | [文档](docs/methods/7709-当日成交明细.md)     |
+| 当日成交明细       | `client.trades.today(code, ...)` / `client.trades.all_today(code, ...)`                   | [`0x0fc5`](docs/COMMANDS_7709.md#cmd-0x0fc5)                                                | `ticks` 保留原始混合记录；`actual_trades` 排除 `status=8` 竞价快照，并保留 09:25、15:00 和 `status=5` 盘后真实成交 | [文档](docs/methods/7709-当日成交明细.md)     |
 | 当日 09:25 正式撮合 | `client.trades.opening_match_today(code, ...)` | [`0x0fc5`](docs/COMMANDS_7709.md#cmd-0x0fc5) | 从当日成交明细筛选 09:25 正式撮合；没有记录时返回 `None` | [文档](docs/methods/7709-当日0925正式撮合.md) |
-| 历史成交明细       | `client.trades.history(code, date, ...)` / `client.trades.all_history(code, date, ...)`      | [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6)                                                | `history()` 返回一页，`all_history()` 自动翻页返回指定交易日混合明细                      | [文档](docs/methods/7709-历史成交明细.md)     |
+| 历史成交明细       | `client.trades.history(code, date, ...)` / `client.trades.all_history(code, date, ...)`      | [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6)                                                | `history()` 返回一页，`all_history()` 自动翻页；用 `actual_trades` 读取排除竞价快照后的真实成交 | [文档](docs/methods/7709-历史成交明细.md)     |
 | 历史 09:25 正式撮合 | `client.trades.opening_match_history(code, date, ...)` | [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6) | 从历史成交明细筛选指定日期 09:25 正式撮合；没有记录时返回 `None` | [文档](docs/methods/7709-历史0925正式撮合.md) |
 | 集合竞价过程快照 | `client.auctions.series(code, date=None)`          | [`0x056a`](docs/COMMANDS_7709.md#cmd-0x056a)                                                | 不传日期查询当日，传入日期查询历史；按主站顺序返回全部过程时间点，即使出现 `09:25` 也不是正式成交                       | [文档](docs/methods/7709-集合竞价明细.md)     |
 | 股本变迁 / GBBQ  | `client.corporate.capital_changes()` / `client.helpers.capital_changes()`        | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f)                                                | 返回除权除息、股本变化、增发、回购等股本事件记录                                       | [文档](docs/methods/7709-股本变迁GBBQ.md)   |
@@ -402,7 +402,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | 底层协议和 F10 Entry | [7709 命令](docs/COMMANDS_7709.md) · [7615 F10](docs/F10_7615.md) |
 | 连接、测速、并发和故障排查 | [调试指南](docs/DEBUG_GUIDE.md) · [架构](docs/ARCHITECTURE.md) |
 | MCP 安装、工具和资源 | [MCP 文档](docs/MCP.md) |
-| 当前版本、变更和旧 API 迁移 | [v3.0.1](docs/releases/v3.0.1.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
+| 当前版本、变更和旧 API 迁移 | [v3.0.2](docs/releases/v3.0.2.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
 
 ## 常用问题
 
