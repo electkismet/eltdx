@@ -87,7 +87,7 @@ class TradeApi(ApiBase):
             if not hasattr(page, "ticks") or not hasattr(page, "count"):
                 return page
             first_page = first_page or page
-            ticks.extend(page.ticks)
+            ticks = list(page.ticks) + ticks 
             pages += 1
             if page.count == 0:
                 return replace(first_page, start=0, request_count=len(ticks), ticks=tuple(ticks))
