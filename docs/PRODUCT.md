@@ -80,7 +80,7 @@ with TdxClient(timeout=3) as client:
     auction = client.helpers.auction_data("sz000001", "2026-05-20")
 ```
 
-`shortline` 包含流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比、几天几板等 21 个字段，完整口径见[短线指标](helpers/短线指标.md)。
+`shortline` 包含开盘量比、流通市值Z、普通流通股本、竞价昨比、封单和几天几板等字段，完整口径见[短线指标](helpers/短线指标.md)。
 
 开发和测试时可以使用内存 transport：
 

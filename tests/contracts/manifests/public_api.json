@@ -7,11 +7,18 @@
   "module_exports": {
     "eltdx": [
       "AuctionData",
+      "DailyPriceLimit",
+      "DailyPriceLimitTable",
+      "DailyShareCapital",
+      "DailyShareCapitalTable",
       "Client",
       "F10Client",
       "F10Response",
       "F10ResultSet",
       "HelperApi",
+      "LimitLadderTable",
+      "RealtimeRankRow",
+      "RealtimeRankTable",
       "ShortlineIndicator",
       "ShortlineIndicatorTable",
       "StockProfile",
@@ -21,6 +28,8 @@
       "TdxClient",
       "TopicStock",
       "TopicStockTable",
+      "ThemeStrengthRow",
+      "ThemeStrengthTable",
       "WorkdayService",
       "__version__",
       "to_json",
@@ -94,7 +103,7 @@
       }
     },
     "eltdx.api.codes:CodeApi": {
-      "members": ["a_share_count", "a_shares", "all", "all_a_shares", "all_etfs", "all_indices", "all_markets", "all_stocks", "count", "etfs", "indices", "list", "stock_count", "stocks"],
+      "members": ["a_share_count", "a_shares", "all", "all_a_shares", "all_etfs", "all_indices", "all_markets", "all_stocks", "count", "etfs", "indices", "latest_st", "latest_stock_list", "latest_stocks", "latest_suspended", "list", "st", "stock_count", "stocks", "suspended"],
       "signatures": {
         "count": "(self, market)",
         "list": "(self, market, *, start=0, limit=1600)",
@@ -109,7 +118,13 @@
         "all_stocks": "(self)",
         "all_a_shares": "(self)",
         "all_etfs": "(self)",
-        "all_indices": "(self)"
+        "all_indices": "(self)",
+        "latest_stock_list": "(self, market=None)",
+        "latest_stocks": "(self, market=None)",
+        "latest_st": "(self, market=None)",
+        "st": "(self, market=None)",
+        "latest_suspended": "(self, market=None)",
+        "suspended": "(self, market=None)"
       }
     },
     "eltdx.api.quotes:QuoteApi": {
@@ -140,13 +155,15 @@
       }
     },
     "eltdx.api.minutes:MinuteApi": {
-      "members": ["aux", "history", "recent", "sparkline", "today"],
+      "members": ["aux", "buy_sell_strength", "history", "recent", "sparkline", "today", "volume_comparison"],
       "signatures": {
         "today": "(self, code, *, include_raw=False)",
         "history": "(self, code, trading_date, *, include_raw=False)",
         "recent": "(self, code, trading_date=None, *, include_raw=False)",
         "aux": "(self, code, kind='buy_sell_strength', *, include_raw=False)",
-        "sparkline": "(self, code, *, selector=1, window=20, include_raw=False)"
+        "sparkline": "(self, code, *, selector=1, window=20, include_raw=False)",
+        "buy_sell_strength": "(self, code, *, include_raw=False)",
+        "volume_comparison": "(self, code, *, include_raw=False)"
       }
     },
     "eltdx.api.trades:TradeApi": {

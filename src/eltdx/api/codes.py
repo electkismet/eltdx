@@ -64,6 +64,45 @@ class CodeApi(ApiBase):
     def all_indices(self) -> builtins.list[str]:
         return [item.full_code for item in self.all_markets() if item.category == "index"]
 
+    def latest_stock_list(self, market: str | None = None):
+        """Return the current A-share security rows from the 0x044d table."""
+        if market is None:
+            return [item for item in self.all_markets() if item.category == "a_share"]
+        return [item for item in self.a_shares(market)]
+
+    def latest_st(self, market: str | None = None):
+        """Return the latest ST/*ST list using the current code-table names."""
+        rows = self.latest_stock_list(market)
+        return [item for item in rows if _is_st_name(getattr(item, "name", ""))]
+
+    def st(self, market: str | None = None):
+        """Short alias for :meth:`latest_st`."""
+        return self.latest_st(market)
+
+    def latest_stocks(self, market: str | None = None):
+        """Alias for :meth:`latest_stock_list` used by data-oriented callers."""
+        return self.latest_stock_list(market)
+
+    def latest_suspended(self, market: str | None = None):
+        """Return stocks whose native 0x053e trading status has bit 0x20 set."""
+        rows = self.latest_stock_list(market)
+        if not rows:
+            return []
+        result = []
+        for start in range(0, len(rows), 80):
+            quotes = self._execute(
+                "legacy_quotes",
+                codes=[item.full_code for item in rows[start : start + 80]],
+            )
+            for quote in quotes or ():
+                if int(getattr(quote, "trading_status_raw", 0)) & 0x20:
+                    result.append(quote.full_code)
+        return result
+
+    def suspended(self, market: str | None = None):
+        """Short alias for :meth:`latest_suspended`."""
+        return self.latest_suspended(market)
+
 
 def _validate_page_size(value: int) -> None:
     if value <= 0 or value > MAX_CODE_PAGE_SIZE:
@@ -73,3 +112,8 @@ def _validate_page_size(value: int) -> None:
 def _validate_limit(value: int) -> None:
     if value < 0 or value > MAX_CODE_PAGE_SIZE:
         raise ValueError(f"limit must be between 0 and {MAX_CODE_PAGE_SIZE}")
+
+
+def _is_st_name(name: str) -> bool:
+    text = str(name or "").strip().upper()
+    return text.startswith(("ST", "*ST", "SST", "S*ST"))

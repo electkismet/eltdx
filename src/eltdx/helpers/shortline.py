@@ -57,6 +57,17 @@ class ShortlineIndicator:
     seal_prev_ratio: float | None
     limit_board_text: str | None
     ladder_level: int | None
+    open_price: float | None = None
+    pre_close: float | None = None
+    open_change_pct: float | None = None
+    open_amount: float | None = None
+    open_volume_hand: float | None = None
+    open_volume_ratio: float | None = None
+    opening_rush: float | None = None
+    float_shares: float | None = None
+    float_market_value: float | None = None
+    seal_amount: float | None = None
+    seal_to_amount_ratio: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,11 +139,21 @@ class ShortlineIndicatorService:
         # refresh.
         quote_map = _by_full_code(self._client.helpers.full_quotes(full_codes))
         security_map = _security_map(self._client, full_codes)
+        recent_bars_map = _recent_daily_bars_map(
+            self._client,
+            full_codes,
+            before=context.target_trade_date,
+        )
+        finance_map = _finance_map(self._client, full_codes)
+        opening_rush_map = _opening_rush_map(self._client, full_codes)
         rows = tuple(
             _build_indicator(
                 full_code,
                 quote=quote_map.get(full_code),
                 security=security_map.get(full_code),
+                recent_daily_bars=recent_bars_map.get(full_code, ()),
+                finance=finance_map.get(full_code),
+                opening_rush=opening_rush_map.get(full_code),
                 stats=stats,
                 context=context,
             )
@@ -298,6 +319,9 @@ def _build_indicator(
     *,
     quote: Any | None,
     security: Any | None,
+    recent_daily_bars: Sequence[Any],
+    finance: Any | None,
+    opening_rush: float | None,
     stats: TdxStatsResource,
     context: _MarketDateContext,
 ) -> ShortlineIndicator:
@@ -321,8 +345,11 @@ def _build_indicator(
     open_price = _number(quote, "open_price")
     open_amount = _number(quote, "open_amount_yuan")
     open_volume_hand = _safe_ratio(open_amount, open_price * 100.0 if open_price else None)
+    pre_close = _number(quote, "pre_close_price")
+    float_shares = _round(getattr(finance, "circulating_shares", None))
     free_float_shares = _tenk(getattr(stat_row, "free_float_shares_10k", None))
     free_float_market_value = _multiply(free_float_shares, last_price)
+    float_market_value = _multiply(float_shares, last_price)
     locked_amount = _locked_amount(quote)
     prev_amount = _tenk(aligned["prev_amount_10k"])
     prev_seal_amount = _tenk(aligned["prev_seal_amount_10k"])
@@ -387,6 +414,21 @@ def _build_indicator(
             previous=context.previous_trade_date,
             limit_status=limit_status,
         ),
+        open_price=open_price,
+        pre_close=pre_close,
+        open_change_pct=_change_pct(open_price, pre_close),
+        open_amount=open_amount,
+        open_volume_hand=open_volume_hand,
+        open_volume_ratio=_open_volume_ratio(open_volume_hand, recent_daily_bars),
+        opening_rush=(
+            opening_rush
+            if opening_rush is not None
+            else _number(quote, "opening_rush")
+        ),
+        float_shares=float_shares,
+        float_market_value=float_market_value,
+        seal_amount=locked_amount,
+        seal_to_amount_ratio=_safe_ratio(locked_amount, _number(quote, "amount")),
     )
 
 
@@ -442,6 +484,86 @@ def _security_map(client: TdxClient, full_codes: Sequence[str]) -> dict[str, Any
     return result
 
 
+def _recent_daily_bars_map(
+    client: TdxClient,
+    full_codes: Sequence[str],
+    *,
+    before: date | None = None,
+) -> dict[str, tuple[Any, ...]]:
+    bars_api = getattr(client, "bars", None)
+    getter = getattr(bars_api, "get", None)
+    if getter is None:
+        return {}
+    result: dict[str, tuple[Any, ...]] = {}
+    for full_code in full_codes:
+        try:
+            # Request one extra bar because the first bar can be today's partial session.
+            page = getter(full_code, period="day", start=0, count=6, adjust="none")
+        except Exception:
+            continue
+        values = tuple(getattr(page, "bars", ()) or ())
+        if before is not None:
+            values = tuple(
+                bar
+                for bar in values
+                if getattr(getattr(bar, "time", None), "date", lambda: None)() is None
+                or getattr(bar.time, "date")() < before
+            )
+        if values:
+            result[full_code] = values[:5]
+    return result
+
+
+def _finance_map(client: TdxClient, full_codes: Sequence[str]) -> dict[str, Any]:
+    corporate = getattr(client, "corporate", None)
+    getter = getattr(corporate, "finance_batch", None)
+    if getter is None:
+        return {}
+    result: dict[str, Any] = {}
+    for start in range(0, len(full_codes), 80):
+        try:
+            page = getter(full_codes[start : start + 80])
+        except Exception:
+            continue
+        for record in getattr(page, "records", ()) or ():
+            full_code = getattr(record, "full_code", None)
+            if full_code is not None:
+                result[str(full_code)] = record
+    return result
+
+
+def _opening_rush_map(client: TdxClient, full_codes: Sequence[str]) -> dict[str, float]:
+    # 0x054b is a category scan, not a single-code lookup. Avoid turning a
+    # one-stock shortline request into a full-market pagination sweep.
+    if len(full_codes) < 80:
+        return {}
+    quotes = getattr(client, "quotes", None)
+    getter = getattr(quotes, "list_by_category", None)
+    if getter is None:
+        return {}
+    wanted = set(full_codes)
+    result: dict[str, float] = {}
+    start = 0
+    while wanted and start < 200 * 80:
+        try:
+            page = getter("沪深A股", sort_by="代码", start=start, count=80, ascending=True)
+        except Exception:
+            break
+        records = tuple(getattr(page, "records", ()) or ())
+        if not records:
+            break
+        for record in records:
+            full_code = getattr(record, "full_code", None)
+            value = getattr(record, "opening_rush", None)
+            if full_code in wanted and value is not None:
+                result[str(full_code)] = round(float(value), 6)
+                wanted.discard(full_code)
+        start += len(records)
+        if len(records) < 80:
+            break
+    return result
+
+
 def _by_full_code(items: Any) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for item in items or ():
@@ -475,6 +597,26 @@ def _round(value: Any) -> float | None:
     if value is None:
         return None
     return round(float(value), 6)
+
+
+def _change_pct(value: Any, base: Any) -> float | None:
+    if value is None or base in (None, 0):
+        return None
+    return round((float(value) - float(base)) / float(base) * 100.0, 6)
+
+
+def _open_volume_ratio(open_volume_hand: Any, bars: Sequence[Any]) -> float | None:
+    if open_volume_hand is None:
+        return None
+    volumes = [
+        float(getattr(bar, "volume_lots"))
+        for bar in tuple(bars)[:5]
+        if getattr(bar, "volume_lots", None) is not None
+    ]
+    if len(volumes) < 5:
+        return None
+    average_minute_volume = sum(volumes) / (240.0 * 5.0)
+    return _safe_ratio(open_volume_hand, average_minute_volume)
 
 
 def _tenk(value: Any) -> float | None:

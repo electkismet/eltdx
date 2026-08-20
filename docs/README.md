@@ -7,8 +7,9 @@
 | 顺序 | 文档 | 用途 |
 | --- | --- | --- |
 | 1 | [PRODUCT.md](PRODUCT.md) | 看这个库能查什么、适合怎么用 |
-| 2 | [releases/v3.0.2.md](releases/v3.0.2.md) | 看成交明细真实成交视图和返回样本文档 |
-| 3 | [releases/v3.0.1.md](releases/v3.0.1.md) | 看历史集合竞价过程、聚合口径和升级说明 |
+| 2 | [releases/v3.0.3.md](releases/v3.0.3.md) | 看 A 股常用接口、实时榜单和短线字段补齐 |
+| 3 | [releases/v3.0.2.md](releases/v3.0.2.md) | 看成交明细真实成交视图和返回样本文档 |
+| 4 | [releases/v3.0.1.md](releases/v3.0.1.md) | 看历史集合竞价过程、聚合口径和升级说明 |
 | 4 | [releases/v3.0.0.md](releases/v3.0.0.md) | 看 3.0 Rust 重写、平台 wheel、兼容和迁移边界 |
 | 5 | [MIGRATION_FROM_OLD.md](MIGRATION_FROM_OLD.md) | 从 1.x 迁移到当前模块化 API |
 | 6 | [helpers/README.md](helpers/README.md) | 按常用问题进入调用说明 |

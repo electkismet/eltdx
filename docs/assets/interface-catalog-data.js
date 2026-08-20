@@ -1,7 +1,7 @@
 window.ELTDX_CATALOG = {
   "schema_version": 13,
   "release": {
-    "version": "3.0.2",
+    "version": "3.0.3",
     "status": "stable",
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
@@ -1181,7 +1181,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x06b9 + 0x054c + 0x0547 + 0x044d + 0x052d",
       "kind": "组合能力",
-      "summary": "按交易日安全对齐统计资源和实时行情，返回流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比、几天几板等 21 个短线字段。",
+      "summary": "按交易日安全对齐统计资源、实时行情、近 5 日 K 线和财务快照，返回竞价、开盘量比、流通股本、封单和连板字段。",
       "return_model": "ShortlineIndicatorTable",
       "doc": "helpers/短线指标.md"
     },

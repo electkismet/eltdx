@@ -18,5 +18,13 @@ class MinuteApi(ApiBase):
     def aux(self, code: str, kind: str | int = "buy_sell_strength", *, include_raw: bool = False):
         return self._execute("intraday_aux", code=code, kind=kind, include_raw=include_raw)
 
+    def buy_sell_strength(self, code: str, *, include_raw: bool = False):
+        """Return the buy/sell commission-strength series with named fields."""
+        return self.aux(code, kind="buy_sell_strength", include_raw=include_raw)
+
+    def volume_comparison(self, code: str, *, include_raw: bool = False):
+        """Return current versus previous-day cumulative volume fields."""
+        return self.aux(code, kind="volume_comparison", include_raw=include_raw)
+
     def sparkline(self, code: str, *, selector: int = 1, window: int = 20, include_raw: bool = False):
         return self._execute("sparkline", code=code, selector=selector, window=window, include_raw=include_raw)

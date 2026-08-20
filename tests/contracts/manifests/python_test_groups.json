@@ -29,6 +29,7 @@
       "tests/packaging/test_release_metadata_contract.py",
       "tests/packaging/test_sdist_verification.py",
       "tests/test_client.py",
+      "tests/test_a_share_helpers.py",
       "tests/test_f10.py",
       "tests/test_helpers.py",
       "tests/test_mcp.py",

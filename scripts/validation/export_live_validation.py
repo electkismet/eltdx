@@ -162,7 +162,7 @@ def _run(python: Path, role: str, output: Path) -> dict[str, Any]:
 
 def _compare(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
     errors = []
-    if baseline["package_version"] != "2.0.5" or current["package_version"] != "3.0.2":
+    if baseline["package_version"] != "2.0.5" or current["package_version"] != "3.0.3":
         errors.append("baseline/current package version mismatch")
     for role, result in (("baseline", baseline), ("current", current)):
         if result["external_failures"] or result["client_failures"]:

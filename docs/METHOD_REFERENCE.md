@@ -17,6 +17,23 @@
 | `*_milli`     | 毫厘价格，通常 `price = price_milli / 1000`                            |
 | `volume`      | 成交明细、分时、K 线里大多按“手”理解，具体字段以对应模型说明为准                              |
 
+## A 股常用业务封装
+
+以下入口位于 `client.helpers`，是对现有原生接口的组合和标准化，不新增协议号：
+
+| 方法 | 用途 |
+| --- | --- |
+| `latest_stock_list()` / `latest_stocks()` | 最新 A 股结构化代码表 |
+| `latest_st()` / `st()` | 按代码表名称筛选 ST/*ST |
+| `latest_suspended()` / `suspended()` | 用 `0x053e` 状态位 `0x20` 扫描当前停牌 |
+| `daily_share_capital()` / `daily_shares()` | 财务快照 + 统计资源生成每日股本 |
+| `daily_price_limits()` / `stock_daily_price_limits()` | 按昨收和市场规则生成涨跌停价 |
+| `realtime_rank()` / `stock_realtime_rank()` | `0x054b` 分类行情标准化榜单 |
+| `buy_sell_strength()` | `0x051b` 买卖力道序列 |
+| `volume_comparison()` | `0x051b` 成交对比序列 |
+| `limit_ladder()` / `stock_limit_ladder()` | 当前封板/触板连板天梯 |
+| `theme_strength_rank()` / `stock_theme_strength_rank()` | 按个股题材聚合连板强度 |
+
 ## 客户端入口
 
 ### `TdxClient(...)`

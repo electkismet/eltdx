@@ -26,6 +26,8 @@ from .shortline import (
     ShortlineIndicator as ShortlineIndicator,
     ShortlineIndicatorService,
     ShortlineIndicatorTable,
+    _resolve_market_date_context,
+    _validate_stats_resource_dates,
 )
 
 if TYPE_CHECKING:
@@ -130,6 +132,111 @@ class TopicStockTable:
 
 
 @dataclass(frozen=True, slots=True)
+class DailyShareCapital:
+    full_code: str
+    trade_date: Any | None
+    total_shares: float | None
+    circulating_shares: float | None
+    free_float_shares: float | None
+    finance_updated_date: Any | None
+    share_source: str
+
+
+@dataclass(frozen=True, slots=True)
+class DailyShareCapitalTable:
+    codes: tuple[str, ...]
+    rows: tuple[DailyShareCapital, ...]
+
+    @property
+    def count(self) -> int:
+        return len(self.rows)
+
+
+@dataclass(frozen=True, slots=True)
+class DailyPriceLimit:
+    full_code: str
+    trade_date: Any | None
+    name: str | None
+    pre_close_trade_date: Any | None
+    pre_close: float | None
+    limit_up_price: float | None
+    limit_down_price: float | None
+    limit_ratio_pct: float | None
+    limit_rule: str
+    limit_status: str
+    pre_close_source: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class DailyPriceLimitTable:
+    codes: tuple[str, ...]
+    rows: tuple[DailyPriceLimit, ...]
+
+    @property
+    def count(self) -> int:
+        return len(self.rows)
+
+
+@dataclass(frozen=True, slots=True)
+class RealtimeRankRow:
+    rank: int
+    full_code: str
+    name: str | None
+    last_price: float | None
+    pre_close: float | None
+    change_pct: float | None
+    amount: float | None
+    volume_hand: int | None
+    opening_rush: float | None
+    seal_amount: float | None
+    raw: Any
+
+
+@dataclass(frozen=True, slots=True)
+class RealtimeRankTable:
+    category: str | int
+    sort_by: str | int | None
+    rows: tuple[RealtimeRankRow, ...]
+
+    @property
+    def count(self) -> int:
+        return len(self.rows)
+
+
+@dataclass(frozen=True, slots=True)
+class LimitLadderTable:
+    trade_date: Any | None
+    rows: tuple[ShortlineIndicator, ...]
+
+    @property
+    def count(self) -> int:
+        return len(self.rows)
+
+
+@dataclass(frozen=True, slots=True)
+class ThemeStrengthRow:
+    rank: int
+    topic_id: str | None
+    topic_name: str
+    limit_up_count: int
+    highest_ladder_level: int
+    lianban_count: int
+    total_seal_amount: float
+    leader_code: str | None
+    leader_ladder_level: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class ThemeStrengthTable:
+    trade_date: Any | None
+    rows: tuple[ThemeStrengthRow, ...]
+
+    @property
+    def count(self) -> int:
+        return len(self.rows)
+
+
+@dataclass(frozen=True, slots=True)
 class AuctionData:
     code: str
     trading_date: Any
@@ -150,11 +257,13 @@ class HelperApi:
         self._shortline = ShortlineIndicatorService(client)
         self._capital_cache: dict[str, Any] = {}
         self._finance_cache: dict[tuple[str, ...], Any] = {}
+        self._security_cache: dict[str, tuple[Any, ...]] = {}
 
     def clear_cache(self) -> None:
         self._shortline.clear_cache()
         self._capital_cache.clear()
         self._finance_cache.clear()
+        self._security_cache.clear()
 
     def full_quotes(self, codes: str | Sequence[str]):
         """Return complete quotes by combining ``0x054c`` snapshots with ``0x0547`` depth."""
@@ -170,6 +279,278 @@ class HelperApi:
             else:
                 return page
         return results
+
+    def latest_stock_list(self, market: str | None = None):
+        """Return the latest structured A-share code-table rows."""
+        return self._client.codes.latest_stock_list(market)
+
+    def latest_st(self, market: str | None = None):
+        """Return the latest ST/*ST code-table rows."""
+        return self._client.codes.latest_st(market)
+
+    def latest_suspended(self, market: str | None = None):
+        """Return current suspended A-share code-table rows reported by 0x053e."""
+        suspended = set(self._client.codes.latest_suspended(market))
+        return [item for item in self._client.codes.latest_stock_list(market) if item.full_code in suspended]
+
+    def buy_sell_strength(self, code: str, *, include_raw: bool = False):
+        """Return the normalized native buy/sell-strength minute series."""
+        return self._client.minutes.aux(
+            normalize_code(code), kind="buy_sell_strength", include_raw=include_raw
+        )
+
+    def volume_comparison(self, code: str, *, include_raw: bool = False):
+        """Return the normalized current/previous-day volume comparison series."""
+        return self._client.minutes.aux(
+            normalize_code(code), kind="volume_comparison", include_raw=include_raw
+        )
+
+    def realtime_rank(
+        self,
+        *,
+        category: str | int = "沪深A股",
+        sort_by: str | int | None = "涨幅",
+        count: int | None = 80,
+        ascending: bool = False,
+    ) -> RealtimeRankTable:
+        """Return a standardized realtime ranking built from native 0x054b pages."""
+        if count is not None and count <= 0:
+            raise ValueError("count must be positive or None")
+        rows: list[RealtimeRankRow] = []
+        start = 0
+        while count is None or len(rows) < count:
+            page_size = 80 if count is None else min(80, count - len(rows))
+            page = self._client.quotes.list_by_category(
+                category,
+                sort_by=sort_by,
+                start=start,
+                count=page_size,
+                ascending=ascending,
+            )
+            records = tuple(getattr(page, "records", ()) or ())
+            if not records:
+                break
+            security_map = self._security_map(
+                [str(getattr(item, "full_code")) for item in records]
+            )
+            for item in records:
+                full_code = str(item.full_code)
+                rows.append(
+                    RealtimeRankRow(
+                        rank=len(rows) + 1,
+                        full_code=full_code,
+                        name=getattr(security_map.get(full_code), "name", None),
+                        last_price=_float(getattr(item, "last_price", None)),
+                        pre_close=_float(getattr(item, "pre_close_price", None)),
+                        change_pct=_float(getattr(item, "change_pct", None)),
+                        amount=_float(getattr(item, "amount", None)),
+                        volume_hand=_int(getattr(item, "total_hand", None)),
+                        opening_rush=_float(getattr(item, "opening_rush", None)),
+                        seal_amount=_float(getattr(item, "locked_amount", None)),
+                        raw=item,
+                    )
+                )
+            start += len(records)
+            if len(records) < page_size:
+                break
+        return RealtimeRankTable(category=category, sort_by=sort_by, rows=tuple(rows))
+
+    def stock_realtime_rank(self, **kwargs: Any) -> RealtimeRankTable:
+        """Alias matching the data-catalog name for A-share realtime ranking."""
+        return self.realtime_rank(**kwargs)
+
+    def daily_share_capital(
+        self,
+        codes: str | Sequence[str] | None = None,
+        *,
+        stats_path: str = "zhb.zip",
+        refresh_stats: bool = False,
+    ) -> DailyShareCapitalTable:
+        """Return daily total, circulating and free-float share capital."""
+        full_codes = (
+            list(self._client.codes.all_a_shares())
+            if codes is None
+            else _code_list(codes)
+        )
+        context = _resolve_market_date_context(self._client)
+        stats, _refreshed = self._shortline._stats_resource(
+            stats_path,
+            refresh=refresh_stats,
+            target=context.target_trade_date,
+            previous=context.previous_trade_date,
+        )
+        stats_date = _validate_stats_resource_dates(
+            stats,
+            target=context.target_trade_date,
+            previous=context.previous_trade_date,
+        )
+        finance_map = self._finance_map(full_codes)
+        rows = []
+        for full_code in full_codes:
+            market_id = {"sz": 0, "sh": 1, "bj": 2}[full_code[:2]]
+            stat_row, _ = stats.row(market_id, full_code[2:])
+            finance = finance_map.get(full_code)
+            total = _float(getattr(finance, "total_shares", None))
+            circulating = _float(getattr(finance, "circulating_shares", None))
+            free_float = (
+                None
+                if stat_row is None or stat_row.free_float_shares_10k is None
+                else round(float(stat_row.free_float_shares_10k) * 10000.0, 6)
+            )
+            sources = []
+            if total is not None or circulating is not None:
+                sources.append("finance_snapshot")
+            if free_float is not None:
+                sources.append("tdx_stats")
+            rows.append(
+                DailyShareCapital(
+                    full_code=full_code,
+                    trade_date=stats_date,
+                    total_shares=total,
+                    circulating_shares=circulating,
+                    free_float_shares=free_float,
+                    finance_updated_date=getattr(finance, "updated_date", None),
+                    share_source="+".join(sources) or "missing",
+                )
+            )
+        return DailyShareCapitalTable(codes=tuple(full_codes), rows=tuple(rows))
+
+    def daily_shares(self, codes: str | Sequence[str] | None = None, **kwargs: Any) -> DailyShareCapitalTable:
+        """Alias for :meth:`daily_share_capital`."""
+        return self.daily_share_capital(codes, **kwargs)
+
+    def daily_price_limits(
+        self,
+        codes: str | Sequence[str] | None = None,
+    ) -> DailyPriceLimitTable:
+        """Calculate current A-share daily price limits from the native pre-close."""
+        full_codes = (
+            list(self._client.codes.all_a_shares())
+            if codes is None
+            else _code_list(codes)
+        )
+        security_map = self._security_map(full_codes)
+        quote_map = _by_full_code(self._snapshot_batches(full_codes))
+        trade_date = self._current_market_date()
+        pre_close_trade_date = self._client.workdays.previous_workday(trade_date)
+        rows = tuple(
+            _build_daily_price_limit(
+                full_code,
+                trade_date,
+                pre_close_trade_date,
+                security_map.get(full_code),
+                quote_map.get(full_code),
+            )
+            for full_code in full_codes
+        )
+        return DailyPriceLimitTable(codes=tuple(full_codes), rows=rows)
+
+    def stock_daily_price_limits(self, codes: str | Sequence[str] | None = None) -> DailyPriceLimitTable:
+        """Alias matching the data-catalog name for daily price limits."""
+        return self.daily_price_limits(codes)
+
+    def limit_ladder(
+        self,
+        codes: str | Sequence[str] | None = None,
+        *,
+        include_touched: bool = False,
+        count: int | None = None,
+    ) -> LimitLadderTable:
+        """Return the current sealed (and optionally touched) limit-up ladder."""
+        full_codes = (
+            list(self._client.codes.all_a_shares())
+            if codes is None
+            else _code_list(codes)
+        )
+        table = self.shortline_indicators(full_codes)
+        rows = [
+            row
+            for row in table.rows
+            if row.limit_status == "sealed"
+            or (include_touched and row.limit_status == "touched")
+        ]
+        rows.sort(key=lambda row: (-(row.ladder_level or 0), -(row.seal_amount or 0.0), row.full_code))
+        if count is not None:
+            if count <= 0:
+                raise ValueError("count must be positive or None")
+            rows = rows[:count]
+        return LimitLadderTable(trade_date=table.target_trade_date, rows=tuple(rows))
+
+    def stock_limit_ladder(self, codes: str | Sequence[str] | None = None, **kwargs: Any) -> LimitLadderTable:
+        """Alias matching the data-catalog name for the limit-up ladder."""
+        return self.limit_ladder(codes, **kwargs)
+
+    def theme_strength_rank(
+        self,
+        codes: str | Sequence[str] | None = None,
+        *,
+        count: int | None = None,
+    ) -> ThemeStrengthTable:
+        """Aggregate current ladder stocks by their known F10 topics."""
+        ladder = self.limit_ladder(codes, count=None)
+        grouped: dict[str, dict[str, Any]] = {}
+        for row in ladder.rows:
+            try:
+                topics = self.stock_topics(row.full_code).topics
+            except Exception:
+                topics = ()
+            for topic in topics:
+                key = topic.topic_id or topic.topic_name
+                if not key or not topic.topic_name:
+                    continue
+                item = grouped.setdefault(
+                    str(key),
+                    {
+                        "topic_id": topic.topic_id,
+                        "topic_name": topic.topic_name,
+                        "limit_up_count": 0,
+                        "highest_ladder_level": 0,
+                        "lianban_count": 0,
+                        "total_seal_amount": 0.0,
+                        "leader": None,
+                    },
+                )
+                item["limit_up_count"] += 1
+                level = row.ladder_level or 0
+                item["highest_ladder_level"] = max(item["highest_ladder_level"], level)
+                item["lianban_count"] += int(level >= 2)
+                item["total_seal_amount"] += row.seal_amount or 0.0
+                leader = item["leader"]
+                if leader is None or level > (leader.ladder_level or 0):
+                    item["leader"] = row
+        ranked = sorted(
+            grouped.values(),
+            key=lambda item: (
+                -item["limit_up_count"],
+                -item["highest_ladder_level"],
+                -item["lianban_count"],
+                -item["total_seal_amount"],
+            ),
+        )
+        if count is not None:
+            if count <= 0:
+                raise ValueError("count must be positive or None")
+            ranked = ranked[:count]
+        rows = tuple(
+            ThemeStrengthRow(
+                rank=index,
+                topic_id=item["topic_id"],
+                topic_name=item["topic_name"],
+                limit_up_count=item["limit_up_count"],
+                highest_ladder_level=item["highest_ladder_level"],
+                lianban_count=item["lianban_count"],
+                total_seal_amount=round(item["total_seal_amount"], 6),
+                leader_code=getattr(item["leader"], "full_code", None),
+                leader_ladder_level=getattr(item["leader"], "ladder_level", None),
+            )
+            for index, item in enumerate(ranked, 1)
+        )
+        trade_date = ladder.trade_date
+        return ThemeStrengthTable(trade_date=trade_date, rows=rows)
+
+    def stock_theme_strength_rank(self, codes: str | Sequence[str] | None = None, **kwargs: Any) -> ThemeStrengthTable:
+        """Alias matching the data-catalog name for topic strength ranking."""
+        return self.theme_strength_rank(codes, **kwargs)
 
     def _merge_quote_depths(self, snapshots: list[Any], codes: Sequence[str]) -> list[Any]:
         """Merge a 0x0547 refresh page into 0x054c snapshots when five levels exist."""
@@ -488,7 +869,11 @@ class HelperApi:
         markets = sorted({code[:2] for code in full_codes})
         result: dict[str, Any] = {}
         for market in markets:
-            for item in self._client.codes.all(market):
+            rows = self._security_cache.get(market)
+            if rows is None:
+                rows = tuple(self._client.codes.all(market))
+                self._security_cache[market] = rows
+            for item in rows:
                 result[getattr(item, "full_code", f"{item.exchange}{item.code}")] = item
         return result
 
@@ -496,9 +881,22 @@ class HelperApi:
         key = tuple(full_codes)
         batch = self._finance_cache.get(key)
         if batch is None:
-            batch = self._client.corporate.finance_batch(full_codes)
+            records = []
+            for start in range(0, len(full_codes), 80):
+                page = self._client.corporate.finance_batch(full_codes[start : start + 80])
+                records.extend(getattr(page, "records", ()) or ())
+            batch = tuple(records)
             self._finance_cache[key] = batch
-        return _by_full_code(getattr(batch, "records", ()))
+        return _by_full_code(
+            getattr(batch, "records", batch if isinstance(batch, tuple) else ())
+        )
+
+    def _snapshot_batches(self, full_codes: Sequence[str]) -> list[Any]:
+        rows: list[Any] = []
+        for start in range(0, len(full_codes), 80):
+            page = self._client.quotes.get_snapshots(full_codes[start : start + 80])
+            rows.extend(page if isinstance(page, (list, tuple)) else ())
+        return rows
 
     def _first_quote(self, full_code: str) -> Any | None:
         quotes = self._client.quotes.get_snapshots(full_code)
@@ -703,3 +1101,71 @@ def _pct(price: float | None, base: float | None) -> float | None:
     if price is None or not base:
         return None
     return (price - base) / base * 100.0
+
+
+def _build_daily_price_limit(
+    full_code: str,
+    trade_date: Any,
+    pre_close_trade_date: Any,
+    security: Any | None,
+    quote: Any | None,
+) -> DailyPriceLimit:
+    name = getattr(security, "name", None)
+    pre_close = _float(getattr(quote, "pre_close_price", None))
+    ratio = _price_limit_ratio(full_code, name)
+    rule = _price_limit_rule(full_code, name)
+    status = "normal"
+    if ratio is None:
+        status = "no_price_limit"
+        limit_up = limit_down = None
+    elif pre_close is None:
+        status = "missing_pre_close"
+        limit_up = limit_down = None
+    else:
+        limit_up = round(pre_close * (1.0 + ratio / 100.0) + 1e-9, 2)
+        limit_down = round(pre_close * (1.0 - ratio / 100.0) + 1e-9, 2)
+    return DailyPriceLimit(
+        full_code=full_code,
+        trade_date=trade_date,
+        name=name,
+        pre_close_trade_date=pre_close_trade_date,
+        pre_close=pre_close,
+        limit_up_price=limit_up,
+        limit_down_price=limit_down,
+        limit_ratio_pct=ratio,
+        limit_rule=rule,
+        limit_status=status,
+        pre_close_source="tdx_realtime_snapshot" if pre_close is not None else None,
+    )
+
+
+def _price_limit_ratio(full_code: str, name: str | None) -> float | None:
+    upper = str(name or "").strip().upper()
+    if upper.startswith(("N", "C")):
+        return None
+    if upper.startswith(("ST", "*ST", "SST", "S*ST")):
+        return 5.0
+    if full_code.startswith("bj"):
+        return 30.0
+    if full_code.startswith("sh688") or (
+        full_code.startswith("sz") and full_code[2:].startswith(("300", "301"))
+    ):
+        return 20.0
+    return 10.0
+
+
+def _price_limit_rule(full_code: str, name: str | None) -> str:
+    upper = str(name or "").strip().upper()
+    if upper.startswith("N"):
+        return "ipo_first_day"
+    if upper.startswith("C"):
+        return "ipo_first_5_days"
+    if upper.startswith(("ST", "*ST", "SST", "S*ST")):
+        return "st_5pct"
+    if full_code.startswith("bj"):
+        return "bse_30pct"
+    if full_code.startswith("sh688"):
+        return "star_20pct"
+    if full_code.startswith("sz") and full_code[2:].startswith(("300", "301")):
+        return "chinext_20pct"
+    return "main_10pct"

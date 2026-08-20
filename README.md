@@ -52,7 +52,7 @@ eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用�
 
 | 研究任务 | 可以直接拿到 | 代表调用（点开文档） | 数据路径 |
 | --- | --- | --- | --- |
-| A 股清单 | 上海、深圳和北交所 A 股代码表 | [`client.codes.all_a_shares()`](docs/methods/7709-代码表.md) | `7709 原生协议` |
+| A 股清单 | 最新股票、ST、停牌列表和代码表 | [`client.helpers.latest_stock_list()`](docs/helpers/A股常用封装.md) | `7709` + `Helpers 封装` |
 | 分类行情 | 按市场或板块分页、排序的行情列表 | [`client.quotes.list_by_category()`](docs/methods/7709-分类行情.md) | `7709 原生协议` |
 | 完整实时行情 | 批量快照、最新价、成交量额和完整五档 | [`client.helpers.full_quotes()`](docs/helpers/完整行情.md) | `7709` + `Helpers 封装` |
 | 五档实时刷新 | 为代码列表建立或刷新实时五档 | [`client.quotes.get_depth()`](docs/methods/7709-增量刷新推送队列.md) | `7709 原生协议` |
@@ -68,7 +68,8 @@ eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用�
 | F10 公司概况 | 发行上市信息、上市日期、发行价、募资额和承销商 | [`client.f10.company_profile()`](docs/methods/F10-公司概况.md) | `7615 原生 Entry` |
 | 个股概念 | 某只股票所属的热点题材和入选原因 | [`client.helpers.stock_topics()`](docs/helpers/个股概念板块.md) | `7615` + `Helpers 封装` |
 | 股票信息汇总 | 行情、证券名称、股本、市值和换手率合并表 | [`client.helpers.stock_profile_table()`](docs/helpers/股票信息汇总.md) | `7709` + `Helpers 组合` |
-| 短线指标 | 流通市值Z、开盘换手Z、竞价昨比、几天几板等 21 个指标 | [`client.helpers.shortline_indicators()`](docs/helpers/短线指标.md) | `7709` + `Helpers 组合` |
+| 短线指标 | 竞价、开盘量比、流通股本、封单和几天几板等指标 | [`client.helpers.shortline_indicators()`](docs/helpers/短线指标.md) | `7709` + `Helpers 组合` |
+| A 股常用榜单 | 每日股本、涨跌停价、实时榜单、连板天梯和题材强度 | [`client.helpers.realtime_rank()`](docs/helpers/A股常用封装.md) | `7709` + `Helpers 组合` |
 | 服务器文件 | 按分块自动下载并合并完整文件 | [`client.resources.download_file()`](docs/methods/7709-服务器文件下载.md) | `7709 原生协议` |
 | 连接与并发 | 主站测速、Rust 连接池、心跳、pin、push、缓存和 diagnostics | [`TdxClient()`](docs/METHOD_REFERENCE.md#tdxclient) | `Rust Engine` |
 | MCP 工具服务 | 将常用行情、F10、竞价和文档能力提供给 MCP 客户端 | [`eltdx-mcp`](docs/MCP.md#安装和启动) | `MCP` |
@@ -199,7 +200,7 @@ print(f10.company_profile("000034").rows[0])
 | 服务器文件分块读取      | `client.resources.read()` | [`0x06b9`](docs/COMMANDS_7709.md#cmd-0x06b9) | 读取一个服务器文件块，返回原始 bytes 和长度头 | [文档](docs/methods/7709-服务器文件读取.md)    |
 | 服务器文件下载      | `client.resources.download_file()` | [`0x06b9`](docs/COMMANDS_7709.md#cmd-0x06b9) | 循环读取并合并完整服务器文件 | [文档](docs/methods/7709-服务器文件下载.md)    |
 | 服务器统计文件解析      | `client.resources.read_stats()` | [`0x06b9`](docs/COMMANDS_7709.md#cmd-0x06b9) | 下载并解析 `zhb.zip` 中的统计文件 | [文档](docs/methods/7709-服务器统计文件解析.md)    |
-| 短线指标（Helper） | `client.helpers.shortline_indicators()`                    | `0x06b9 + 0x054c + 0x0547 + 0x044d + 0x052d`                                             | 按交易日对齐统计资源和实时行情，返回流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比、几天几板等 21 个字段 | [文档](docs/helpers/短线指标.md)              |
+| 短线指标（Helper） | `client.helpers.shortline_indicators()`                    | `0x06b9 + 0x054c + 0x0547 + 0x044d + 0x052d + 0x0010`                                    | 按交易日对齐统计资源、实时行情、近 5 日 K 线和财务快照，返回竞价、开盘量比、流通股本、封单和连板指标 | [文档](docs/helpers/短线指标.md)              |
 
 `7709` 命令和 API 对照见 [COMMANDS_7709.md](docs/COMMANDS_7709.md)，完整调用参数见 [API_REFERENCE.md](docs/API_REFERENCE.md)。
 
@@ -402,7 +403,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | 底层协议和 F10 Entry | [7709 命令](docs/COMMANDS_7709.md) · [7615 F10](docs/F10_7615.md) |
 | 连接、测速、并发和故障排查 | [调试指南](docs/DEBUG_GUIDE.md) · [架构](docs/ARCHITECTURE.md) |
 | MCP 安装、工具和资源 | [MCP 文档](docs/MCP.md) |
-| 当前版本、变更和旧 API 迁移 | [v3.0.2](docs/releases/v3.0.2.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
+| 当前版本、变更和旧 API 迁移 | [v3.0.3](docs/releases/v3.0.3.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
 
 ## 常用问题
 
