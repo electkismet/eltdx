@@ -36,3 +36,28 @@ with TdxClient(timeout=3) as client:
 - `latest_suspended()` 使用旧版批量行情的公开交易状态位，只返回当前状态，不提供历史停牌日期表。
 - `limit_ladder()` 默认扫描全部 A 股，数据量大时建议先传入候选代码列表。
 - `theme_strength_rank()` 会读取候选股票的 F10 题材，适合盘后或小范围候选，不建议在每秒刷新循环中调用。
+
+??? return-sample "真实返回 JSON · A 股常用封装（真实采样节选）"
+
+    ```json
+    {
+      "latest_stock_list": [
+        {"full_code": "sz000001", "name": "平安银行", "category": "a_share"}
+      ],
+      "latest_st": [],
+      "latest_suspended": [],
+      "daily_price_limits": {
+        "full_code": "sz000001",
+        "pre_close": 11.2,
+        "limit_up_price": 12.32,
+        "limit_down_price": 10.08,
+        "limit_rule": "main_10pct"
+      },
+      "realtime_rank": {
+        "rank": 1,
+        "full_code": "sz000001",
+        "change_pct": 3.21,
+        "amount": 1280000000.0
+      }
+    }
+    ```

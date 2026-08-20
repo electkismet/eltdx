@@ -33,7 +33,7 @@ window.ELTDX_CATALOG = {
         "label": "Helpers 封装",
         "tag_label": "Helpers",
         "stat_label": "Helpers 封装",
-        "description": "16 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
+        "description": "26 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
         "source": "Helper"
       }
     ],
@@ -53,7 +53,10 @@ window.ELTDX_CATALOG = {
         "description": "查询市场证券数量，以及分页或全量读取证券代码表。",
         "item_ids": [
           "7709-code-count",
-          "7709-code-list"
+          "7709-code-list",
+          "helper-latest-stock-list",
+          "helper-latest-st",
+          "helper-latest-suspended"
         ]
       },
       {
@@ -69,7 +72,11 @@ window.ELTDX_CATALOG = {
           "7709-minute-today",
           "7709-minute-aux",
           "7709-sparkline",
-          "7709-trades-today"
+          "7709-trades-today",
+          "helper-daily-price-limits",
+          "helper-realtime-rank",
+          "helper-buy-sell-strength",
+          "helper-volume-comparison"
         ]
       },
       {
@@ -106,7 +113,10 @@ window.ELTDX_CATALOG = {
           "7709-opening-match-history",
           "7709-turnover",
           "helper-shortline-indicators",
-          "helper-auction-data"
+          "helper-auction-data",
+          "helper-daily-share-capital",
+          "helper-limit-ladder",
+          "helper-theme-strength-rank"
         ]
       },
       {
@@ -1144,6 +1154,136 @@ window.ELTDX_CATALOG = {
       "summary": "返回新闻、公告和路演列表，包含标题、日期、来源、公告类型和附件地址。",
       "return_model": "F10Response",
       "doc": "methods/F10-新闻公告路演.md"
+    },
+    {
+      "id": "helper-latest-stock-list",
+      "title": "最新股票列表",
+      "source": "Helper",
+      "category": "证券代码",
+      "api": "client.helpers.latest_stock_list(market=None)",
+      "aliases": ["latest_stock_list", "latest_stocks", "A 股列表"],
+      "protocol": "0x044d",
+      "kind": "组合能力",
+      "summary": "从当前代码表筛出沪深北 A 股证券，返回最新股票列表。",
+      "return_model": "list[SecurityCode]",
+      "doc": "helpers/A股常用封装.md"
+    },
+    {
+      "id": "helper-latest-st",
+      "title": "最新 ST 列表",
+      "source": "Helper",
+      "category": "证券代码",
+      "api": "client.helpers.latest_st(market=None)",
+      "aliases": ["latest_st", "st", "ST 股票"],
+      "protocol": "0x044d",
+      "kind": "组合能力",
+      "summary": "按代码表证券名称筛选当前 ST、*ST、SST 和 S*ST 股票。",
+      "return_model": "list[SecurityCode]",
+      "doc": "helpers/A股常用封装.md"
+    },
+    {
+      "id": "helper-latest-suspended",
+      "title": "最新停牌列表",
+      "source": "Helper",
+      "category": "证券代码",
+      "api": "client.helpers.latest_suspended(market=None)",
+      "aliases": ["latest_suspended", "suspended", "停牌股票"],
+      "protocol": "0x044d + 0x053e",
+      "kind": "组合能力",
+      "summary": "读取代码表并用 0x053e 交易状态位 0x20 筛出当前停牌股票。",
+      "return_model": "list[SecurityCode]",
+      "doc": "helpers/A股常用封装.md"
+    },
+    {
+      "id": "helper-daily-share-capital",
+      "title": "每日股本（盘前）",
+      "source": "Helper",
+      "category": "集合竞价",
+      "api": "client.helpers.daily_share_capital(codes=None)",
+      "aliases": ["daily_share_capital", "daily_shares", "股本"],
+      "protocol": "0x0010 + 0x06b9",
+      "kind": "组合能力",
+      "summary": "合并财务快照与服务器统计资源，返回总股本、流通股本和自由流通股本。",
+      "return_model": "DailyShareCapitalTable",
+      "doc": "helpers/A股常用封装.md"
+    },
+    {
+      "id": "helper-daily-price-limits",
+      "title": "每日涨跌停价",
+      "source": "Helper",
+      "category": "实时行情",
+      "api": "client.helpers.daily_price_limits(codes=None)",
+      "aliases": ["daily_price_limits", "stock_daily_price_limits", "涨跌停"],
+      "protocol": "0x054c + 业务规则",
+      "kind": "组合能力",
+      "summary": "按实时昨收、市场板块、ST 和新股规则计算标准化涨跌停价格。",
+      "return_model": "DailyPriceLimitTable",
+      "doc": "helpers/A股常用封装.md"
+    },
+    {
+      "id": "helper-realtime-rank",
+      "title": "实时榜单",
+      "source": "Helper",
+      "category": "实时行情",
+      "api": "client.helpers.realtime_rank(sort_by=\"涨幅\")",
+      "aliases": ["realtime_rank", "stock_realtime_rank", "涨幅榜"],
+      "protocol": "0x054b",
+      "kind": "组合能力",
+      "summary": "分页读取分类行情并标准化为带排名、名称、涨幅和成交字段的榜单。",
+      "return_model": "RealtimeRankTable",
+      "doc": "helpers/A股常用封装.md"
+    },
+    {
+      "id": "helper-buy-sell-strength",
+      "title": "买卖力道",
+      "source": "Helper",
+      "category": "实时行情",
+      "api": "client.helpers.buy_sell_strength(code)",
+      "aliases": ["buy_sell_strength", "买卖力道"],
+      "protocol": "0x051b",
+      "kind": "组合能力",
+      "summary": "返回按分钟整理的买卖力道副图序列。",
+      "return_model": "MinuteAuxSeries",
+      "doc": "helpers/A股常用封装.md"
+    },
+    {
+      "id": "helper-volume-comparison",
+      "title": "成交对比",
+      "source": "Helper",
+      "category": "实时行情",
+      "api": "client.helpers.volume_comparison(code)",
+      "aliases": ["volume_comparison", "成交对比"],
+      "protocol": "0x051b",
+      "kind": "组合能力",
+      "summary": "返回当前与前一交易日累计成交量对比的分钟副图序列。",
+      "return_model": "MinuteAuxSeries",
+      "doc": "helpers/A股常用封装.md"
+    },
+    {
+      "id": "helper-limit-ladder",
+      "title": "连板天梯",
+      "source": "Helper",
+      "category": "集合竞价",
+      "api": "client.helpers.limit_ladder(codes=None)",
+      "aliases": ["limit_ladder", "stock_limit_ladder", "连板"],
+      "protocol": "实时快照 + 0x06b9",
+      "kind": "组合能力",
+      "summary": "从短线指标中筛选封板或触板股票，按连板级别和封单金额排序。",
+      "return_model": "LimitLadderTable",
+      "doc": "helpers/A股常用封装.md"
+    },
+    {
+      "id": "helper-theme-strength-rank",
+      "title": "题材强度排行",
+      "source": "Helper",
+      "category": "集合竞价",
+      "api": "client.helpers.theme_strength_rank(codes=None)",
+      "aliases": ["theme_strength_rank", "stock_theme_strength_rank", "题材强度"],
+      "protocol": "连板天梯 + 7615 F10",
+      "kind": "组合能力",
+      "summary": "按个股 F10 题材聚合涨停数量、最高板、连板数和封单金额。",
+      "return_model": "ThemeStrengthTable",
+      "doc": "helpers/A股常用封装.md"
     },
     {
       "id": "helper-stock-profile",

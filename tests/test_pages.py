@@ -65,7 +65,7 @@ def test_common_interface_docs_have_collapsible_real_json_samples() -> None:
 
     assert "assets/return-samples.css" in mkdocs
     assert stylesheet.is_file()
-    assert len(return_sample_docs) == 37
+    assert len(return_sample_docs) == 47
     for relative_path in return_sample_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert '??? return-sample "' in detail, relative_path
@@ -81,11 +81,11 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     items = catalog["items"]
 
     assert catalog["schema_version"] == 13
-    assert len(items) == 58
+    assert len(items) == 68
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
         "F10": 21,
-        "Helper": 16,
+        "Helper": 26,
     }
     assert len({item["id"] for item in items}) == len(items)
 
@@ -131,7 +131,7 @@ hide:
 [← 返回接口目录](../index.md){ .interface-detail-back }
 """
 
-    assert len(detail_docs) == 58
+    assert len(detail_docs) == 59
     for relative_path in detail_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert detail.startswith(expected_header), relative_path
@@ -151,9 +151,9 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
     assert Counter(layer_id for layer_id, _ in assignments.values()) == {
         "7709": 21,
         "7615": 21,
-        "helpers": 16,
+        "helpers": 26,
     }
-    expected_counts = {"7709": 21, "7615": 21, "helpers": 16}
+    expected_counts = {"7709": 21, "7615": 21, "helpers": 26}
     assert all(layer["description"].startswith(f"{expected_counts[layer['id']]} 个") for layer in ordered_layers)
     assert all("groups" not in layer for layer in ordered_layers)
     assert {layer["source"] for layer in ordered_layers} == {"7709", "F10", "Helper"}
@@ -198,11 +198,11 @@ def test_pages_catalog_has_complete_function_menus() -> None:
     ]
     assert Counter(assigned.values()) == {
         "basics": 2,
-        "codes": 2,
-        "realtime": 9,
+        "codes": 5,
+        "realtime": 13,
         "history": 3,
         "bars": 7,
-        "auction-shortline": 6,
+        "auction-shortline": 9,
         "f10": 23,
         "common": 6,
     }
