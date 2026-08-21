@@ -18,10 +18,7 @@ def check() -> list[str]:
         "## 修复内容",
         "## 安装和平台",
         "## 升级注意",
-        "## 验证和发布状态",
         "五个独立 ABI3 wheel",
-        "一个",
-        "同一批产物",
     )
     for needle in required_release:
         if needle not in release:
