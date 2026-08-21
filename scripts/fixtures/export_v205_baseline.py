@@ -226,33 +226,58 @@ def _public_contract_snapshot() -> dict[str, Any]:
     dataclasses_contract = _load_json(MANIFEST_ROOT / "dataclasses_exceptions.json")
     runtime_contract = _load_json(MANIFEST_ROOT / "runtime_surfaces.json")
 
-    modules = {
-        module_name: list(importlib.import_module(module_name).__all__)
-        for module_name in public_api["module_exports"]
-    }
+    modules = {}
+    for module_name in public_api["module_exports"]:
+        try:
+            modules[module_name] = list(importlib.import_module(module_name).__all__)
+        except ImportError:
+            # The current manifest may contain a module added after the
+            # v2.0.5 baseline. Keep that absence explicit in the snapshot.
+            modules[module_name] = {"missing": True}
+
     signatures: dict[str, Any] = {}
     for path, contract in public_api["classes"].items():
-        cls = _resolve(path)
-        signatures[path] = {
-            name: _signature_shape(cls if name == "__call__" else getattr(cls, name))
-            for name in contract["signatures"]
-        }
-    signatures.update(
-        {path: _signature_shape(_resolve(path)) for path in public_api["callables"]}
-    )
+        try:
+            cls = _resolve(path)
+        except (AttributeError, ImportError):
+            signatures[path] = {"missing": True}
+            continue
+        class_signatures = {}
+        for name in contract["signatures"]:
+            try:
+                value = cls if name == "__call__" else getattr(cls, name)
+            except AttributeError:
+                # A method added after v2.0.5 is an intentional baseline
+                # difference, not a reason to abort fixture generation.
+                continue
+            class_signatures[name] = _signature_shape(value)
+        signatures[path] = class_signatures
+    for path in public_api["callables"]:
+        try:
+            signatures[path] = _signature_shape(_resolve(path))
+        except (AttributeError, ImportError):
+            signatures[path] = {"missing": True}
 
     dataclass_snapshot: dict[str, Any] = {}
     for path in dataclasses_contract["dataclasses"]:
-        cls = _resolve(path)
+        try:
+            cls = _resolve(path)
+        except (AttributeError, ImportError):
+            dataclass_snapshot[path] = {"missing": True}
+            continue
         dataclass_snapshot[path] = {
             "annotations": _annotations_for(cls),
             "fields": [field.name for field in fields(cls)],
         }
 
-    exceptions = {
-        path: [f"{base.__module__}:{base.__qualname__}" for base in _resolve(path).__bases__]
-        for path in dataclasses_contract["exceptions"]
-    }
+    exceptions = {}
+    for path in dataclasses_contract["exceptions"]:
+        try:
+            cls = _resolve(path)
+        except (AttributeError, ImportError):
+            exceptions[path] = {"missing": True}
+            continue
+        exceptions[path] = [f"{base.__module__}:{base.__qualname__}" for base in cls.__bases__]
     return {
         "module_exports": modules,
         "signatures": signatures,

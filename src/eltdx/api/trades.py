@@ -81,16 +81,21 @@ class TradeApi(ApiBase):
         start = 0
         pages = 0
         first_page = None
-        ticks = []
+        pages_ticks = []
         while True:
             page = self.today(code, start=start, count=page_size, include_raw=include_raw) if trading_date is None else self.history(code, trading_date, start=start, count=page_size, include_raw=include_raw)
             if not hasattr(page, "ticks") or not hasattr(page, "count"):
                 return page
             first_page = first_page or page
-            ticks.extend(page.ticks)
+            pages_ticks.append(tuple(page.ticks))
             pages += 1
             if page.count == 0:
-                return replace(first_page, start=0, request_count=len(ticks), ticks=tuple(ticks))
+                # The server returns the newest page at start=0 and older
+                # pages at increasing offsets. Reverse page order while
+                # preserving each page's wire order to build chronological
+                # output without sorting away same-minute trade order.
+                ticks = tuple(tick for page_ticks in reversed(pages_ticks) for tick in page_ticks)
+                return replace(first_page, start=0, request_count=len(ticks), ticks=ticks)
             if max_pages is not None and pages >= max_pages:
                 raise RuntimeError("trade pagination reached max_pages before an empty page")
             start += page.count

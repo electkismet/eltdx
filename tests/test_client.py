@@ -26,7 +26,7 @@ from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, Quote
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "3.0.3"
+    assert __version__ == "3.0.4"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -944,6 +944,65 @@ def test_trades_all_pages_until_short_page() -> None:
     assert page.start == 0
     assert page.request_count == 3
     assert page.count == 3
+
+
+def test_trades_all_pages_restore_chronological_order_without_renumbering_source_indexes() -> None:
+    from eltdx.models import TradePage, TradeTick
+
+    template = TradeTick(
+        index=0,
+        absolute_index=0,
+        time_minutes=13 * 60 + 30,
+        time_label="13:30",
+        trade_datetime=None,
+        price=10.0,
+        price_milli=10000,
+        volume=1,
+        order_count=0,
+        status_raw=0,
+        side="buy",
+        price_delta_raw=0,
+        price_acc_raw=1000,
+    )
+    pages = {
+        0: (
+            template,
+            replace(template, index=1, absolute_index=1, time_minutes=13 * 60 + 31, time_label="13:31"),
+        ),
+        2: (
+            replace(template, absolute_index=2, time_minutes=13 * 60 + 28, time_label="13:28"),
+            replace(template, index=1, absolute_index=3, time_minutes=13 * 60 + 29, time_label="13:29"),
+        ),
+        4: (replace(template, absolute_index=4, time_minutes=13 * 60 + 27, time_label="13:27"),),
+        5: (),
+    }
+
+    class FakeTransport:
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            assert command == 0x0FC5
+            ticks = pages[payload["start"]]
+            return TradePage(
+                exchange="sz",
+                market_id=0,
+                code="000001",
+                start=payload["start"],
+                request_count=payload["count"],
+                ticks=ticks,
+            )
+
+    page = TdxClient(transport=FakeTransport()).trades.all_today("sz000001", page_size=2)
+
+    assert [tick.time_label for tick in page.ticks] == ["13:27", "13:28", "13:29", "13:30", "13:31"]
+    assert [tick.absolute_index for tick in page.ticks] == [4, 2, 3, 0, 1]
 
 
 def test_trades_all_history_uses_server_page_limit_without_losing_early_ticks() -> None:

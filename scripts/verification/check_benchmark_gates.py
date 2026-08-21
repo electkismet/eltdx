@@ -331,7 +331,7 @@ def _validate_campaign(bundle: Any) -> list[str]:
             errors.append(f"{location}: unexpected schema or kind")
         if trial.get("role") != role:
             errors.append(f"{location}: role differs from schedule")
-        expected_version = "2.0.5" if role == "baseline" else "3.0.3"
+        expected_version = "2.0.5" if role == "baseline" else "3.0.4"
         if trial.get("package_version") != expected_version:
             errors.append(f"{location}: package version must be {expected_version}")
         expected_abi = None if role == "baseline" else 1

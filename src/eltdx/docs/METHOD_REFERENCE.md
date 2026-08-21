@@ -655,7 +655,7 @@ page = client.trades.history("sz000001", "2026-05-20")
 
 ### `client.trades.all_today(...)` / `client.trades.all_history(...)`
 
-自动分页拉取成交明细，直到服务端返回空页。
+自动分页拉取成交明细，直到服务端返回空页，并按时间顺序合并分页。
 
 ```python
 page = client.trades.all_today("sz000001")
@@ -713,6 +713,8 @@ client.trades.all_history("sz000001", "2026-05-20")
 ```
 
 `client.trades.today()` 和 `client.trades.history()` 每次只返回一页，用于手动分页、抽样或控制单次请求量。
+
+单页入口保留服务器当前页的原始顺序。完整分页入口会把 `start=0` 的较新页面和后续较早页面按页倒序展开，同时保留每页内部顺序；`TradeTick.absolute_index` 仍是服务器原始分页位置，不是合并结果的列表下标。
 
 ## 集合竞价
 
