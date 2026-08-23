@@ -1,0 +1,30 @@
+---
+hide:
+  - navigation
+---
+
+[← 返回接口目录](../index.md){ .interface-detail-back }
+
+# 最新 ST 列表
+
+按当前证券名称筛选 ST 类股票。
+
+| 项目 | 内容 |
+| --- | --- |
+| 调用 | `client.helpers.latest_st(market=None)` |
+| 返回 | `list[SecurityCode]` |
+| 数据来源 | `0x044d` 代码表和证券名称规则 |
+
+## 筛选规则
+
+名称包含 `ST`、`*ST`、`SST` 或 `S*ST` 的证券会被返回。`market` 可选 `sh`、`sz` 或 `bj`；不传时扫描全部 A 股代码表。该列表反映当前名称，不提供历史 ST 变更记录。
+
+## 示例
+
+```python
+from eltdx import TdxClient
+
+with TdxClient(timeout=3) as client:
+    rows = client.helpers.latest_st()
+    print([(row.full_code, row.name) for row in rows[:10]])
+```

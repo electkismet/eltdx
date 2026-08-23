@@ -74,6 +74,18 @@ nav:
       - 接口单页: methods/README.md
   - 7615 F10: F10_7615.md
   - Helpers: helpers/README.md
+  - Helper 单页:
+      - A 股常用封装总览: helpers/A股常用封装.md
+      - 最新股票列表: helpers/最新股票列表.md
+      - 最新 ST 列表: helpers/最新ST列表.md
+      - 最新停牌列表: helpers/最新停牌列表.md
+      - 每日股本（盘前）: helpers/每日股本.md
+      - 每日涨跌停价: helpers/每日涨跌停价.md
+      - 实时榜单: helpers/实时榜单.md
+      - 买卖力道: helpers/买卖力道.md
+      - 成交对比: helpers/成交对比.md
+      - 连板天梯: helpers/连板天梯.md
+      - 题材强度排行: helpers/题材强度排行.md
   - MCP: MCP.md
   - 工程参考:
       - 架构: ARCHITECTURE.md

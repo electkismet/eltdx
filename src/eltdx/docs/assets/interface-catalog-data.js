@@ -1166,8 +1166,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "从当前代码表筛出沪深北 A 股证券，返回最新股票列表。",
       "return_model": "list[SecurityCode]",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "latest-stock-list"
+      "doc": "helpers/最新股票列表.md"
     },
     {
       "id": "helper-latest-st",
@@ -1180,8 +1179,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "按代码表证券名称筛选当前 ST、*ST、SST 和 S*ST 股票。",
       "return_model": "list[SecurityCode]",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "latest-st"
+      "doc": "helpers/最新ST列表.md"
     },
     {
       "id": "helper-latest-suspended",
@@ -1194,8 +1192,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "读取代码表并用 0x053e 交易状态位 0x20 筛出当前停牌股票。",
       "return_model": "list[SecurityCode]",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "latest-suspended"
+      "doc": "helpers/最新停牌列表.md"
     },
     {
       "id": "helper-daily-share-capital",
@@ -1208,8 +1205,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "合并财务快照与服务器统计资源，返回总股本、流通股本和自由流通股本。",
       "return_model": "DailyShareCapitalTable",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "daily-share-capital"
+      "doc": "helpers/每日股本.md"
     },
     {
       "id": "helper-daily-price-limits",
@@ -1222,8 +1218,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "按实时昨收、市场板块、ST 和新股规则计算标准化涨跌停价格。",
       "return_model": "DailyPriceLimitTable",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "daily-price-limits"
+      "doc": "helpers/每日涨跌停价.md"
     },
     {
       "id": "helper-realtime-rank",
@@ -1236,8 +1231,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "分页读取分类行情并标准化为带排名、名称、涨幅和成交字段的榜单。",
       "return_model": "RealtimeRankTable",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "realtime-rank"
+      "doc": "helpers/实时榜单.md"
     },
     {
       "id": "helper-buy-sell-strength",
@@ -1250,8 +1244,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "返回按分钟整理的买卖力道副图序列。",
       "return_model": "MinuteAuxSeries",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "buy-sell-strength"
+      "doc": "helpers/买卖力道.md"
     },
     {
       "id": "helper-volume-comparison",
@@ -1264,8 +1257,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "返回当前与前一交易日累计成交量对比的分钟副图序列。",
       "return_model": "MinuteAuxSeries",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "volume-comparison"
+      "doc": "helpers/成交对比.md"
     },
     {
       "id": "helper-limit-ladder",
@@ -1278,8 +1270,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "从短线指标中筛选封板或触板股票，按连板级别和封单金额排序。",
       "return_model": "LimitLadderTable",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "limit-ladder"
+      "doc": "helpers/连板天梯.md"
     },
     {
       "id": "helper-theme-strength-rank",
@@ -1292,8 +1283,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "按个股 F10 题材聚合涨停数量、最高板、连板数和封单金额。",
       "return_model": "ThemeStrengthTable",
-      "doc": "helpers/A股常用封装.md",
-      "doc_anchor": "theme-strength-rank"
+      "doc": "helpers/题材强度排行.md"
     },
     {
       "id": "helper-stock-profile",
