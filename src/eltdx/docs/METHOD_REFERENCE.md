@@ -720,7 +720,7 @@ block = client.corporate.capital_changes("sz000001")
 
 ### `client.corporate.adjustment_factors(code, anchor_date=None, *, start_date=None)`
 
-根据 `0x000f` 的标签 `1` 事件，为用户本地不复权 K 线提供前复权或后复权所需系数。需要直接获取服务端 K 线时使用 `client.bars.get()`。
+根据 `0x000f` 的标签 `1` 事件，为本地不复权 K 线提供前复权或后复权所需系数。直接获取服务端 K 线时使用 `client.bars.get()`。
 
 ```python
 factors = client.corporate.adjustment_factors("sz000858")

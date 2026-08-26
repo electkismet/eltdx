@@ -515,7 +515,7 @@ def test_local_factor_docs_explain_affine_coefficients() -> None:
     detail = (REPO_ROOT / "docs" / "methods" / "7709-本地复权系数.md").read_text(encoding="utf-8")
     fields = (REPO_ROOT / "docs" / "FIELD_REFERENCE.md").read_text(encoding="utf-8")
 
-    assert "本地保存的不复权 OHLC" in detail
+    assert "将这些系数按日期应用到本地保存的不复权 OHLC" in detail
     assert "直接获取服务端 K 线时" in detail
     assert "根据 `0x000f` 返回的标签 `1` 权息事件" in detail
     assert "raw * scale + offset" in detail
