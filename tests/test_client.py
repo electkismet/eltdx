@@ -731,8 +731,8 @@ def test_workday_service_uses_client_daily_bars() -> None:
     ]
 
 
-def test_corporate_adjustment_factors_use_affine_composition() -> None:
-    from eltdx.models import CapitalChangeBlock, CapitalChangeRecord, KlineBar, KlineSeries
+def test_corporate_adjustment_factors_use_only_capital_changes() -> None:
+    from eltdx.models import CapitalChangeBlock, CapitalChangeRecord
 
     def record(category: int, when: date, c1: float, c2: float, c3: float, c4: float):
         return CapitalChangeRecord(
@@ -758,29 +758,6 @@ def test_corporate_adjustment_factors_use_affine_composition() -> None:
             c4_value=c4,
         )
 
-    def bar(when: datetime, close_milli: int) -> KlineBar:
-        return KlineBar(
-            time=when,
-            open=close_milli / 1000,
-            close=close_milli / 1000,
-            high=close_milli / 1000,
-            low=close_milli / 1000,
-            open_price_milli=close_milli,
-            close_price_milli=close_milli,
-            high_price_milli=close_milli,
-            low_price_milli=close_milli,
-            last_close_price_milli=close_milli,
-            volume_raw=0,
-            amount_raw=0,
-            volume_wire_value=0,
-            volume_lots=0,
-            amount=0,
-            open_delta_raw=0,
-            close_delta_raw=0,
-            high_delta_raw=0,
-            low_delta_raw=0,
-        )
-
     changes = CapitalChangeBlock(
         exchange="sz",
         market_id=0,
@@ -793,24 +770,11 @@ def test_corporate_adjustment_factors_use_affine_composition() -> None:
             record(5, date(2024, 6, 2), 0.0, 0.0, 100_000_000.0, 200_000_000.0),
         ),
     )
-    first_page = KlineSeries(
-        exchange="sz",
-        market_id=0,
-        code="000858",
-        period_raw=4,
-        period_param_raw=1,
-        period_name="day",
-        start=0,
-        request_count=2,
-        adjust_mode_raw=0,
-        adjust_mode="none",
-        anchor_date_raw=0,
-        anchor_date=None,
-        bars=(bar(datetime(2024, 5, 31, 15), 10000), bar(datetime(2024, 6, 3, 15), 8000)),
-    )
-    empty_page = replace(first_page, start=2, request_count=2, bars=())
 
     class FakeTransport:
+        def __init__(self) -> None:
+            self.commands = []
+
         def connect(self) -> None:
             pass
 
@@ -821,26 +785,33 @@ def test_corporate_adjustment_factors_use_affine_composition() -> None:
             return "pong"
 
         def execute(self, command: int, payload=None):
-            if command == 0x000F:
-                return changes
-            if command == 0x052D:
-                return first_page if payload["start"] == 0 else empty_page
-            raise AssertionError(f"unexpected command: {command:#x}")
+            self.commands.append(command)
+            assert command == 0x000F
+            return changes
 
-    factors = TdxClient(transport=FakeTransport()).corporate.adjustment_factors("sz000858")
+    transport = FakeTransport()
+    factors = TdxClient(transport=transport).corporate.adjustment_factors(
+        "sz000858", start_date="2024-05-31"
+    )
 
+    assert transport.commands == [0x000F]
     assert factors.count == 2
     assert factors.full_code == "sz000858"
-    assert factors.first_trading_date == date(2024, 5, 31)
+    assert factors.start_date == date(2024, 5, 31)
+    assert [item.date for item in factors.items] == [date(2024, 6, 1), date(2024, 6, 2)]
     assert factors.items[0].qfq_scale == pytest.approx(1.0 / 1.2 / 1.1)
     assert factors.items[0].qfq_offset == pytest.approx(((5.0 / 1.2) - 0.1) / 1.1)
     assert factors.items[0].qfq_scale * 10.0 + factors.items[0].qfq_offset == pytest.approx(11.27272727)
-    assert factors.items[1].qfq_scale == 1.0
-    assert factors.items[1].qfq_offset == 0.0
-    assert factors.items[0].hfq_scale == 1.0
+    assert factors.items[1].qfq_scale == pytest.approx(1.0 / 1.1)
+    assert factors.items[1].qfq_offset == pytest.approx(-0.1 / 1.1)
+    assert factors.items[0].hfq_scale == pytest.approx(1.2)
+    assert factors.items[0].hfq_offset == pytest.approx(-5.0)
     assert factors.items[1].hfq_scale == pytest.approx(1.32)
     assert factors.items[1].hfq_offset == pytest.approx(-4.88)
     assert factors.items[1].hfq_scale * 8.0 + factors.items[1].hfq_offset == pytest.approx(5.68)
+
+    all_events = TdxClient(transport=FakeTransport()).corporate.adjustment_factors("sz000858")
+    assert all_events.count == 3
 
     from eltdx.equity import build_adjustment_factor_response
 
@@ -851,20 +822,31 @@ def test_corporate_adjustment_factors_use_affine_composition() -> None:
             record(1, date(2024, 6, 1), 1.0, 0.0, 1.0, 0.0),
         ),
     )
-    same_day = build_adjustment_factor_response(first_page, same_day_changes)
-    assert same_day.items[1].hfq_scale == pytest.approx(1.32)
-    assert same_day.items[1].hfq_offset == pytest.approx(-5.4)
-    assert same_day.items[1].hfq_scale * 8.0 + same_day.items[1].hfq_offset == pytest.approx(5.16)
+    same_day = build_adjustment_factor_response(same_day_changes)
+    assert same_day.count == 1
+    assert same_day.items[0].qfq_scale == pytest.approx(1.0 / 1.2 / 1.1)
+    assert same_day.items[0].qfq_offset == pytest.approx(((5.0 / 1.2) - 0.1) / 1.1)
+    assert same_day.items[0].hfq_scale == pytest.approx(1.32)
+    assert same_day.items[0].hfq_offset == pytest.approx(-5.4)
+    assert same_day.items[0].hfq_scale * 8.0 + same_day.items[0].hfq_offset == pytest.approx(5.16)
+
+    partial_anchor = TdxClient(transport=FakeTransport()).corporate.adjustment_factors(
+        "sz000858", anchor_date="2024-06-01", start_date="2024-05-31"
+    )
+    assert partial_anchor.items[0].qfq_scale == pytest.approx(1.0 / 1.2)
+    assert partial_anchor.items[0].qfq_offset == pytest.approx(5.0 / 1.2)
+    assert partial_anchor.items[1].qfq_scale == 1.0
+    assert partial_anchor.items[1].qfq_offset == 0.0
 
     anchored = TdxClient(transport=FakeTransport()).corporate.adjustment_factors(
-        "sz000858", anchor_date="2024-05-31"
+        "sz000858", anchor_date="2024-05-31", start_date="2024-05-31"
     )
     assert anchored.anchor_date == date(2024, 5, 31)
     assert all(item.qfq_scale == 1.0 and item.qfq_offset == 0.0 for item in anchored.items)
 
-    with pytest.raises(ValueError, match="earlier than the first available"):
+    with pytest.raises(ValueError, match="must not be earlier"):
         TdxClient(transport=FakeTransport()).corporate.adjustment_factors(
-            "sz000858", anchor_date="2024-05-01"
+            "sz000858", anchor_date="2024-05-01", start_date="2024-05-31"
         )
 
 

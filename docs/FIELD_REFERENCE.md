@@ -217,10 +217,10 @@ K 线响应和单根 K 线。
 | 字段 | 含义 |
 | --- | --- |
 | `full_code` | 完整证券代码 |
-| `anchor_date` | 实际前复权锚点；未指定时为 `None` |
-| `first_trading_date` | 可用不复权日 K 的首个交易日 |
-| `items` / `count` | 每日系数 / 数量 |
-| `date` / `time` | 系数对应交易日 / 15:00 时间 |
+| `anchor_date` | 用户指定的前复权事件截止自然日期；未指定时为 `None` |
+| `start_date` | 用户指定的事件起点；未指定时为 `None` |
+| `items` / `count` | 事件日期系数 / 数量 |
+| `date` / `time` | 除权事件日期 / 当日 15:00 时间 |
 | `qfq_scale` / `qfq_offset` | 前复权缩放和偏移 |
 | `hfq_scale` / `hfq_offset` | 后复权缩放和偏移 |
 

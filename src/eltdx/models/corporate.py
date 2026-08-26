@@ -160,7 +160,7 @@ class AdjustmentFactorResponse:
     market_id: int
     code: str
     anchor_date: date | None
-    first_trading_date: date | None
+    start_date: date | None
     items: tuple[AdjustmentFactor, ...]
 
     @property

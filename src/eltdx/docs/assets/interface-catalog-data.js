@@ -568,14 +568,14 @@ window.ELTDX_CATALOG = {
       "title": "本地复权系数",
       "source": "Helper",
       "category": "公司基础",
-      "api": "client.corporate.adjustment_factors(code, anchor_date=None)",
+      "api": "client.corporate.adjustment_factors(code, anchor_date=None, *, start_date=None)",
       "aliases": [
         "qfq",
         "hfq"
       ],
-      "protocol": "0x052d + 0x000f",
+      "protocol": "0x000f",
       "kind": "组合接口",
-      "summary": "根据完整不复权日 K 和标签 1 计算本地前、后复权仿射系数，支持前复权锚点。",
+      "summary": "仅根据标签 1 计算事件级前、后复权仿射系数，不请求 K 线，支持前复权锚点和事件起点。",
       "return_model": "AdjustmentFactorResponse",
       "doc": "methods/7709-本地复权系数.md"
     },

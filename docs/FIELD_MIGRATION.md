@@ -81,8 +81,9 @@ client.bars.get("sz000001", period="day", adjust="hfq")
 
 ```python
 factors = client.corporate.adjustment_factors("sz000001")
-adjusted = round(raw * factors.items[0].qfq_scale + factors.items[0].qfq_offset, 2)
 ```
+
+该接口只从 `0x000f` 生成事件级系数，不直接返回复权 K 线。应按 K 线日期选择系数行后计算 `round(raw * scale + offset, 2)`；选行代码见 [本地复权系数](methods/7709-本地复权系数.md)。
 
 ## 缓存
 

@@ -718,21 +718,25 @@ block = client.corporate.capital_changes("sz000001")
 
 <a id="method-corporate-adjustment-factors"></a>
 
-### `client.corporate.adjustment_factors(code, anchor_date=None)`
+### `client.corporate.adjustment_factors(code, anchor_date=None, *, start_date=None)`
 
-自动组合完整不复权日 K 和标签 `1`，为每个交易日生成前、后复权仿射系数。
+只请求 `0x000f`，用标签 `1` 为每个除权事件日期生成前、后复权仿射系数，不请求 K 线。
 
 ```python
 factors = client.corporate.adjustment_factors("sz000858")
-anchored = client.corporate.adjustment_factors("sz000858", anchor_date="2024-05-31")
+anchored = client.corporate.adjustment_factors(
+    "sz000858",
+    anchor_date="2024-05-31",
+    start_date="1998-04-27",
+)
 ```
 
 | 返回模型 | 字段 |
 | --- | --- |
-| `AdjustmentFactorResponse` | `full_code`、`anchor_date`、`first_trading_date`、`count`、`items` |
+| `AdjustmentFactorResponse` | `full_code`、`anchor_date`、`start_date`、`count`、`items` |
 | `AdjustmentFactor` | `date`、`qfq_scale`、`qfq_offset`、`hfq_scale`、`hfq_offset` |
 
-使用方式为 `round(raw * scale + offset, 2)`。多事件按日期复合、等日期保持服务端顺序、排除上市前事件，计算过程中不舍入。详见 [本地复权系数](methods/7709-本地复权系数.md)。
+使用方式为 `round(raw * scale + offset, 2)`。`start_date` 可显式排除上市前事件；多事件按日期复合、同日保持服务端顺序，计算过程中不舍入。系数行的日期选择规则和完整应用代码见 [本地复权系数](methods/7709-本地复权系数.md)。
 
 ## 财务基础信息
 

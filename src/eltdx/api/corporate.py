@@ -8,7 +8,6 @@ from typing import Any
 from eltdx.equity import build_adjustment_factor_response
 
 from .base import ApiBase
-from .bars import BarApi
 
 
 FINANCE_FIELD_ALIASES = {
@@ -20,19 +19,18 @@ FINANCE_FIELD_ALIASES = {
 
 
 class CorporateApi(ApiBase):
-    def __init__(self, transport) -> None:
-        super().__init__(transport)
-        self._bars = BarApi(transport)
-
     def capital_changes(self, code: str, *, include_raw: bool = False):
         return self._execute("capital_changes", code=code, include_raw=include_raw)
 
-    def adjustment_factors(self, code: str, anchor_date=None):
+    def adjustment_factors(self, code: str, anchor_date=None, *, start_date=None):
         changes = self.capital_changes(code)
-        daily = self._bars.get(code, period="day", adjust="none", all_pages=True)
-        if not hasattr(changes, "records") or not hasattr(daily, "bars"):
+        if not hasattr(changes, "records"):
             return changes
-        return build_adjustment_factor_response(daily, changes, anchor_date=anchor_date)
+        return build_adjustment_factor_response(
+            changes,
+            anchor_date=anchor_date,
+            start_date=start_date,
+        )
 
     def finance_batch(self, codes: str | Sequence[str], fields: Sequence[str] | None = None, *, include_raw: bool = False):
         code_list = [codes] if isinstance(codes, str) else list(codes)

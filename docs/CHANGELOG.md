@@ -3,7 +3,7 @@
 ## 未发布
 
 - 修正权息标签 1 字段语义：`c2` 为配股价，`c4` 为每十股配股数量，并用 000858/20010219 配股记录增加回归测试。
-- 新增 `client.corporate.adjustment_factors()`，按日期复合完整仿射公式并同时返回 `scale + offset`；排除上市前事件，系数计算不舍入。
+- 新增 `client.corporate.adjustment_factors()`，仅根据 `0x000f` 标签 `1` 按事件日期复合完整仿射公式并同时返回 `scale + offset`；可用 `start_date` 排除上市前事件，系数计算不舍入。
 - 将 `client.bars.all()` 合并为 `client.bars.get(..., all_pages=True)`，单页与自动分页统一使用一个入口。
 - 删除重复的股本、复权 Helper：`capital_changes()`、`xdxr()`、`equity_changes()`、`equity()`、`turnover()`、`factors()`、`local_adjusted_kline()` 和 `adjusted_kline()`。
 - 修正标签 4 名称、标签 6 混合单位及数量类标签的“万股到股”解析。

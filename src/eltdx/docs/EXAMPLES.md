@@ -81,6 +81,8 @@ print(gbbq.records[0].category_name)
 print(factors.count, factors.items[0].qfq_scale, factors.items[0].qfq_offset)
 ```
 
+`adjustment_factors()` 只请求 `0x000f`，返回每个除权事件日期的 `scale + offset`，不是已经复权的 K 线。普通复权 K 线直接使用 `client.bars.get(..., adjust="qfq" / "hfq")`；本地应用系数时按 K 线日期选行，完整示例见 [本地复权系数](methods/7709-本地复权系数.md)。
+
 ## 主站测速和连接池
 
 ```python

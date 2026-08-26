@@ -53,7 +53,7 @@
       "properties": ["time"]
     },
     "eltdx.models.corporate:AdjustmentFactorResponse": {
-      "fields": ["exchange", "market_id", "code", "anchor_date", "first_trading_date", "items"],
+      "fields": ["exchange", "market_id", "code", "anchor_date", "start_date", "items"],
       "properties": ["count", "full_code"]
     },
     "eltdx.models.corporate:FinanceRecord": {

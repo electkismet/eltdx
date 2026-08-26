@@ -185,7 +185,7 @@
     "eltdx.api.corporate:CorporateApi": {
       "members": ["adjustment_factors", "capital_changes", "finance_batch"],
       "signatures": {
-        "adjustment_factors": "(self, code, anchor_date=None)",
+        "adjustment_factors": "(self, code, anchor_date=None, *, start_date=None)",
         "capital_changes": "(self, code, *, include_raw=False)",
         "finance_batch": "(self, codes, fields=None, *, include_raw=False)"
       }

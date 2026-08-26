@@ -515,7 +515,11 @@ def test_local_factor_docs_explain_affine_coefficients() -> None:
     detail = (REPO_ROOT / "docs" / "methods" / "7709-本地复权系数.md").read_text(encoding="utf-8")
     fields = (REPO_ROOT / "docs" / "FIELD_REFERENCE.md").read_text(encoding="utf-8")
 
-    assert "anchor_date=\"2024-06-03\"" in detail
+    assert "只会请求一次 `0x000f`" in detail
+    assert "不参与系数计算" in detail
     assert "raw * scale + offset" in detail
+    assert "bar_date < factor.date" in detail
+    assert "factor.date <= bar_date" in detail
     assert "不舍入" in detail
     assert "`anchor_date`" in fields
+    assert "`start_date`" in fields

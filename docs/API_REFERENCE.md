@@ -171,7 +171,7 @@ factors = client.corporate.adjustment_factors("sz000001")
 anchored = client.corporate.adjustment_factors("sz000001", anchor_date="2024-05-31")
 ```
 
-`capital_changes()` 返回标签 `1..15` 的广义权息/股本变迁原始业务记录。`adjustment_factors()` 自动取得完整不复权日 K，只使用标签 `1` 计算每个交易日的前、后复权仿射系数：
+`capital_changes()` 返回标签 `1..15` 的广义权息/股本变迁原始业务记录。`adjustment_factors()` 只请求 `0x000f`，使用标签 `1` 计算每个除权事件日期的前、后复权仿射系数：
 
 ```text
 adjusted = round(raw * scale + offset, 2)
@@ -452,13 +452,19 @@ client.auctions.series("sz000001", "2026-05-20")
 client.corporate.capital_changes("sz000001")
 ```
 
-### `adjustment_factors(code, anchor_date=None)`
+### `adjustment_factors(code, anchor_date=None, *, start_date=None)`
 
-组合 `0x000f` 和自动分页的不复权日 K，返回 `AdjustmentFactorResponse`。每条 `AdjustmentFactor` 包含 `qfq_scale/qfq_offset` 与 `hfq_scale/hfq_offset`。
+只根据 `0x000f` 标签 `1` 记录返回 `AdjustmentFactorResponse`，不请求 K 线。每个除权事件日期返回一条 `AdjustmentFactor`，包含 `qfq_scale/qfq_offset` 与 `hfq_scale/hfq_offset`。
 
 ```python
-client.corporate.adjustment_factors("sz000858", anchor_date="2024-06-03")
+client.corporate.adjustment_factors(
+    "sz000858",
+    anchor_date="2024-06-03",
+    start_date="1998-04-27",
+)
 ```
+
+应用到不复权 K 线时，前复权选择第一条满足 `bar_date < factor.date` 的系数，后复权选择最后一条满足 `factor.date <= bar_date` 的系数，再计算 `round(raw * scale + offset, 2)`。普通复权 K 线可直接请求 `client.bars.get(..., adjust="qfq" / "hfq")`。
 
 ### `finance_batch(codes, fields=None, include_raw=False)`
 
