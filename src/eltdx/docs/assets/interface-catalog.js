@@ -552,10 +552,12 @@
     var activeScopes = view === "function" ? functionScopes : scopes;
     var activeScope = activeScopes[activeScopeId] || activeScopes[view === "function" ? "function/all" : "all"];
     var terms = normalize(searchInput.value).split(" ").filter(Boolean);
+    var isSearching = terms.length > 0;
+    var globalScopeId = view === "function" ? "function/all" : "all";
     var visible = 0;
 
     Array.prototype.forEach.call(rows.children, function (row) {
-      var matchesScope = rowMatchesScope(row, activeScope);
+      var matchesScope = isSearching || rowMatchesScope(row, activeScope);
       var matchesQuery = terms.every(function (term) {
         return row.dataset.search.indexOf(term) >= 0;
       });
@@ -567,12 +569,12 @@
 
     resultCount.textContent = String(visible);
     empty.hidden = visible !== 0;
-    heading.textContent = activeScope.label;
-    lead.textContent = activeScope.description;
+    heading.textContent = isSearching ? "搜索结果" : activeScope.label;
+    lead.textContent = isSearching
+      ? "在全部 " + items.length + " 项接口中搜索“" + searchInput.value.trim() + "”。"
+      : activeScope.description;
     renderView(view);
-    activeScopeId = currentScopeId();
-    activeScope = activeScopes[activeScopeId] || activeScopes[view === "function" ? "function/all" : "all"];
-    updateNavigation(activeScopeId);
+    updateNavigation(isSearching ? globalScopeId : activeScopeId);
     root.dataset.catalogReady = "true";
   }
 

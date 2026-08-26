@@ -408,6 +408,17 @@ def test_interface_details_promote_back_link_to_header() -> None:
     assert "#087f72" not in styles
 
 
+def test_catalog_search_is_global_and_method_syntax_is_tokenized() -> None:
+    app = (REPO_ROOT / "docs" / "assets" / "interface-catalog.js").read_text(encoding="utf-8")
+    config = (REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+
+    assert "var matchesScope = isSearching || rowMatchesScope(row, activeScope);" in app
+    assert 'updateNavigation(isSearching ? globalScopeId : activeScopeId);' in app
+    assert 'heading.textContent = isSearching ? "搜索结果" : activeScope.label;' in app
+    assert "separator:" in config
+    assert "()\\[\\]" in config
+
+
 def test_readme_promotes_the_static_pages_catalog() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     banner = README_BANNER_PATH.read_bytes()

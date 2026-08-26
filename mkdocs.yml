@@ -32,6 +32,7 @@ plugins:
       lang:
         - zh
         - en
+      separator: '[\s\u200b\u3000\-\u3001\u3002\uff0c\uff0e\uff1f\uff01\uff1b()\[\]{},.:/="]+'
 
 markdown_extensions:
   - admonition
