@@ -21,45 +21,36 @@ class BarApi(ApiBase):
         anchor_date=None,
         kind: str = "stock",
         include_raw: bool = False,
-    ):
-        _validate_page_size(count)
-        return self._execute(
-            "klines",
-            code=code,
-            period=period,
-            start=start,
-            count=count,
-            adjust=adjust,
-            anchor_date=anchor_date,
-            kind=kind,
-            include_raw=include_raw,
-        )
-
-    def all(
-        self,
-        code: str,
-        *,
-        period: str = "day",
-        adjust: str | None = None,
-        anchor_date=None,
-        kind: str = "stock",
+        all_pages: bool = False,
         page_size: int = 800,
         max_pages: int | None = 200,
-        include_raw: bool = False,
     ):
+        if not all_pages:
+            _validate_page_size(count)
+            return self._get_page(
+                code,
+                period=period,
+                start=start,
+                count=count,
+                adjust=adjust,
+                anchor_date=anchor_date,
+                kind=kind,
+                include_raw=include_raw,
+            )
+
         _validate_page_size(page_size)
         if max_pages is not None and max_pages <= 0:
             raise ValueError("max_pages must be positive or None")
 
-        start = 0
+        next_start = start
         pages = 0
         first_page = None
         bars = []
         while True:
-            page = self.get(
+            page = self._get_page(
                 code,
                 period=period,
-                start=start,
+                start=next_start,
                 count=page_size,
                 adjust=adjust,
                 anchor_date=anchor_date,
@@ -75,8 +66,32 @@ class BarApi(ApiBase):
             if page.count == 0:
                 return replace(first_page, request_count=len(bars), bars=tuple(bars))
             if max_pages is not None and pages >= max_pages:
-                raise RuntimeError("bars.all reached max_pages before the server returned an empty page")
-            start += page.count
+                raise RuntimeError("bars.get reached max_pages before the server returned an empty page")
+            next_start += page.count
+
+    def _get_page(
+        self,
+        code: str,
+        *,
+        period: str,
+        start: int,
+        count: int,
+        adjust: str | None,
+        anchor_date,
+        kind: str,
+        include_raw: bool,
+    ):
+        return self._execute(
+            "klines",
+            code=code,
+            period=period,
+            start=start,
+            count=count,
+            adjust=adjust,
+            anchor_date=anchor_date,
+            kind=kind,
+            include_raw=include_raw,
+        )
 
 
 def _validate_page_size(value: int) -> None:

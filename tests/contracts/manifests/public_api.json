@@ -148,10 +148,9 @@
       }
     },
     "eltdx.api.bars:BarApi": {
-      "members": ["all", "get"],
+      "members": ["get"],
       "signatures": {
-        "get": "(self, code, *, period='day', start=0, count=800, adjust=None, anchor_date=None, kind='stock', include_raw=False)",
-        "all": "(self, code, *, period='day', adjust=None, anchor_date=None, kind='stock', page_size=800, max_pages=200, include_raw=False)"
+        "get": "(self, code, *, period='day', start=0, count=800, adjust=None, anchor_date=None, kind='stock', include_raw=False, all_pages=False, page_size=800, max_pages=200)"
       }
     },
     "eltdx.api.minutes:MinuteApi": {
@@ -184,8 +183,9 @@
       }
     },
     "eltdx.api.corporate:CorporateApi": {
-      "members": ["capital_changes", "finance_batch"],
+      "members": ["adjustment_factors", "capital_changes", "finance_batch"],
       "signatures": {
+        "adjustment_factors": "(self, code, anchor_date=None)",
         "capital_changes": "(self, code, *, include_raw=False)",
         "finance_batch": "(self, codes, fields=None, *, include_raw=False)"
       }

@@ -142,6 +142,37 @@ class FactorResponse:
 
 
 @dataclass(frozen=True, slots=True)
+class AdjustmentFactor:
+    date: date
+    qfq_scale: float
+    qfq_offset: float
+    hfq_scale: float
+    hfq_offset: float
+
+    @property
+    def time(self) -> datetime:
+        return datetime(self.date.year, self.date.month, self.date.day, 15, 0)
+
+
+@dataclass(frozen=True, slots=True)
+class AdjustmentFactorResponse:
+    exchange: str
+    market_id: int
+    code: str
+    anchor_date: date | None
+    first_trading_date: date | None
+    items: tuple[AdjustmentFactor, ...]
+
+    @property
+    def full_code(self) -> str:
+        return f"{self.exchange}{self.code}"
+
+    @property
+    def count(self) -> int:
+        return len(self.items)
+
+
+@dataclass(frozen=True, slots=True)
 class FinanceRecord:
     exchange: str
     market_id: int

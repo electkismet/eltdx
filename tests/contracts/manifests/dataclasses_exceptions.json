@@ -48,6 +48,14 @@
       "fields": ["count", "items", "anchor_date"],
       "defaults": {"anchor_date": null}
     },
+    "eltdx.models.corporate:AdjustmentFactor": {
+      "fields": ["date", "qfq_scale", "qfq_offset", "hfq_scale", "hfq_offset"],
+      "properties": ["time"]
+    },
+    "eltdx.models.corporate:AdjustmentFactorResponse": {
+      "fields": ["exchange", "market_id", "code", "anchor_date", "first_trading_date", "items"],
+      "properties": ["count", "full_code"]
+    },
     "eltdx.models.corporate:FinanceRecord": {
       "fields": ["exchange", "market_id", "code", "finance_info_raw", "liu_tong_gu_ben_raw_float", "province_raw", "industry_raw", "updated_date_raw", "updated_date", "ipo_date_raw", "ipo_date", "zong_gu_ben_raw_float", "guo_jia_gu_raw_float", "fa_qi_ren_fa_ren_gu_raw_float", "fa_ren_gu_raw_float", "b_gu_raw_float", "h_gu_raw_float", "eps_raw", "zong_zi_chan_raw_float", "liu_dong_zi_chan_raw_float", "gu_ding_zi_chan_raw_float", "wu_xing_zi_chan_raw_float", "gu_dong_ren_shu_raw_float", "liu_dong_fu_zhai_raw_float", "chang_qi_fu_zhai_raw_float", "zi_ben_gong_ji_jin_raw_float", "jing_zi_chan_raw_float", "zhu_ying_shou_ru_raw_float", "zhu_ying_li_run_raw_float", "ying_shou_zhang_kuan_raw_float", "ying_ye_li_run_raw_float", "tou_zi_shou_yu_raw_float", "jing_ying_xian_jin_liu_raw_float", "zong_xian_jin_liu_raw_float", "cun_huo_raw_float", "li_run_zong_he_raw_float", "shui_hou_li_run_raw_float", "jing_li_run_raw_float", "wei_fen_li_run_raw_float", "mei_gu_jing_zi_chan_raw_float", "bao_liu_2_raw_float", "record_hex"],
       "defaults": {"record_hex": ""},

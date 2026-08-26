@@ -1,283 +1,132 @@
-"""Derived helpers built from capital-change records."""
+"""Local adjustment coefficients derived from capital-change records."""
 
 from __future__ import annotations
 
 from datetime import date
 
 from eltdx.models import (
+    AdjustmentFactor,
+    AdjustmentFactorResponse,
     CapitalChangeBlock,
-    EquityRecord,
-    EquityResponse,
-    FactorRecord,
-    FactorResponse,
-    KlineBar,
+    CapitalChangeRecord,
     KlineSeries,
-    XdxrRecord,
 )
-from eltdx.protocol.unit import yyyymmdd
-
-EQUITY_CATEGORIES = {2, 3, 5, 7, 8, 9, 10}
-VOLUME_UNIT_MULTIPLIERS = {
-    "share": 1,
-    "shares": 1,
-    "stock": 1,
-    "hand": 100,
-    "hands": 100,
-    "lot": 100,
-    "lots": 100,
-}
+from eltdx.protocol.unit import date_from_yyyymmdd, yyyymmdd
 
 
-def filter_xdxr_records(block: CapitalChangeBlock) -> list[XdxrRecord]:
-    return [
-        XdxrRecord(
-            code=record.full_code,
-            date=record.date,
-            category=record.category_raw,
-            category_name=record.category_name,
-            fenhong=round(record.c1_value, 6),
-            peigujia=round(record.c2_value, 6),
-            songzhuangu=round(record.c3_value, 6),
-            peigu=round(record.c4_value, 6),
+def build_adjustment_factor_response(
+    day_kline: KlineSeries,
+    changes: CapitalChangeBlock,
+    *,
+    anchor_date=None,
+) -> AdjustmentFactorResponse:
+    bars = sorted(day_kline.bars, key=lambda item: item.time)
+    if not bars:
+        return AdjustmentFactorResponse(
+            exchange=day_kline.exchange,
+            market_id=day_kline.market_id,
+            code=day_kline.code,
+            anchor_date=None,
+            first_trading_date=None,
+            items=(),
         )
-        for record in block.records
+
+    first_trading_date = bars[0].time.date()
+    resolved_anchor = _resolve_anchor_date(bars, anchor_date)
+    effective_anchor = resolved_anchor or bars[-1].time.date()
+    events = [
+        record
+        for record in changes.records
         if record.category_raw == 1
+        and record.date is not None
+        and record.date >= first_trading_date
+    ]
+    qfq_events = sorted(events, key=lambda item: item.date or date.min)
+    hfq_events = [
+        event
+        for _, event in sorted(
+            enumerate(events),
+            key=lambda item: (-(item[1].date or date.min).toordinal(), item[0]),
+        )
     ]
 
-
-def filter_equity_records(block: CapitalChangeBlock) -> EquityResponse:
-    records = tuple(
-        EquityRecord(
-            code=record.full_code,
-            date=record.date,
-            category=record.category_raw,
-            category_name=record.category_name,
-            float_shares=int(record.c3_value),
-            total_shares=int(record.c4_value),
-        )
-        for record in block.records
-        if record.category_raw in EQUITY_CATEGORIES
-    )
-    return EquityResponse(count=len(records), items=records)
-
-
-def pick_equity(records: list[EquityRecord] | tuple[EquityRecord, ...], on=None) -> EquityRecord | None:
-    target = _normalize_date(on)
-    ordered = sorted(
-        (record for record in records if record.date is not None),
-        key=lambda record: record.date or date.min,
-    )
-    for record in reversed(ordered):
-        assert record.date is not None
-        if record.date <= target:
-            return record
-    return None
-
-
-def normalize_volume_unit(unit: str) -> int:
-    key = str(unit).strip().lower()
-    try:
-        return VOLUME_UNIT_MULTIPLIERS[key]
-    except KeyError as exc:
-        raise ValueError(f"invalid volume unit: {unit!r}") from exc
-
-
-def compute_turnover(equity: EquityRecord | None, volume: int | float, *, unit: str = "hand") -> float:
-    if equity is None or equity.float_shares <= 0:
-        return 0.0
-    shares = float(volume) * normalize_volume_unit(unit)
-    return shares / float(equity.float_shares) * 100.0
-
-
-def build_factor_response(
-    day_kline: KlineSeries,
-    xdxr_records: list[XdxrRecord] | tuple[XdxrRecord, ...],
-    *,
-    anchor_date=None,
-) -> FactorResponse:
-    bars = sorted(day_kline.bars, key=lambda item: item.time)
-    xdxr_sorted = sorted(
-        (item for item in xdxr_records if item.date is not None),
-        key=lambda item: item.date or date.min,
-    )
-    overrides: dict[date, int | None] = {}
-
-    for xdxr in xdxr_sorted:
-        assert xdxr.date is not None
-        for bar in bars:
-            if bar.time.date() >= xdxr.date:
-                overrides[bar.time.date()] = apply_xdxr_to_last_close(bar.last_close_price_milli, xdxr)
-                break
-
-    factors: list[FactorRecord] = []
-    hfq_cumulative = 1.0
+    factors = []
     for bar in bars:
-        pre_last_close_milli = overrides.get(bar.time.date(), bar.last_close_price_milli)
-        hfq_cumulative *= _hfq_step(bar.last_close_price_milli, pre_last_close_milli)
+        bar_date = bar.time.date()
+        qfq_scale, qfq_offset = _qfq_coefficients(qfq_events, bar_date, effective_anchor)
+        hfq_scale, hfq_offset = _hfq_coefficients(hfq_events, first_trading_date, bar_date)
         factors.append(
-            FactorRecord(
-                time=bar.time,
-                last_close_price=None if bar.last_close_price_milli is None else bar.last_close_price_milli / 1000.0,
-                last_close_price_milli=bar.last_close_price_milli,
-                pre_last_close_price=None if pre_last_close_milli is None else pre_last_close_milli / 1000.0,
-                pre_last_close_price_milli=pre_last_close_milli,
-                qfq_factor=1.0,
-                hfq_factor=hfq_cumulative,
+            AdjustmentFactor(
+                date=bar_date,
+                qfq_scale=qfq_scale,
+                qfq_offset=qfq_offset,
+                hfq_scale=hfq_scale,
+                hfq_offset=hfq_offset,
             )
         )
-
-    if factors:
-        qfq_cumulative = 1.0
-        for index in range(len(factors) - 1, 0, -1):
-            current = factors[index]
-            qfq_cumulative *= _qfq_step(current.last_close_price_milli, current.pre_last_close_price_milli)
-            factors[index - 1] = _replace_factor_qfq(factors[index - 1], qfq_cumulative)
-
-    resolved_anchor = _normalize_date(anchor_date) if anchor_date not in (None, "") else None
-    if resolved_anchor is not None:
-        factors = _normalize_qfq_anchor(factors, resolved_anchor)
-
-    return FactorResponse(count=len(factors), items=tuple(factors), anchor_date=resolved_anchor)
-
-
-def apply_xdxr_to_last_close(last_close_milli: int | None, xdxr: XdxrRecord | None) -> int | None:
-    if last_close_milli is None or last_close_milli == 0 or xdxr is None:
-        return last_close_milli
-
-    numerator = ((last_close_milli / 1000.0) * 10.0 - xdxr.fenhong) + (xdxr.peigu * xdxr.peigujia)
-    denominator = 10.0 + xdxr.songzhuangu + xdxr.peigu
-    if denominator == 0:
-        return last_close_milli
-    return int((numerator / denominator) * 1000.0)
-
-
-def apply_factors_to_kline(
-    response: KlineSeries,
-    factors: FactorResponse,
-    adjust: str = "qfq",
-    *,
-    anchor_date=None,
-) -> KlineSeries:
-    key = str(adjust).strip().lower()
-    if key not in {"qfq", "front", "forward", "pre", "hfq", "back", "backward", "post"}:
-        raise ValueError(f"invalid adjust mode: {adjust!r}")
-    factor_by_day = {item.time.date(): item for item in factors.items}
-    use_qfq = key in {"qfq", "front", "forward", "pre"}
-    if anchor_date not in (None, "") and not use_qfq:
-        raise ValueError("anchor_date is only supported for qfq")
-    resolved_anchor = _normalize_date(anchor_date) if anchor_date not in (None, "") else factors.anchor_date if use_qfq else None
-    bars = tuple(_adjust_bar(bar, factor_by_day.get(bar.time.date()), use_qfq=use_qfq) for bar in response.bars)
-    return KlineSeries(
-        exchange=response.exchange,
-        market_id=response.market_id,
-        code=response.code,
-        period_raw=response.period_raw,
-        period_param_raw=response.period_param_raw,
-        period_name=response.period_name,
-        start=response.start,
-        request_count=response.request_count,
-        adjust_mode_raw=response.adjust_mode_raw,
-        adjust_mode=f"local_{'qfq' if use_qfq else 'hfq'}",
-        anchor_date_raw=yyyymmdd(resolved_anchor) if resolved_anchor is not None else response.anchor_date_raw,
-        anchor_date=resolved_anchor if resolved_anchor is not None else response.anchor_date,
-        bars=bars,
-        raw_payload=response.raw_payload,
+    return AdjustmentFactorResponse(
+        exchange=day_kline.exchange,
+        market_id=day_kline.market_id,
+        code=day_kline.code,
+        anchor_date=resolved_anchor,
+        first_trading_date=first_trading_date,
+        items=tuple(factors),
     )
 
 
-def _adjust_bar(bar: KlineBar, factor: FactorRecord | None, *, use_qfq: bool) -> KlineBar:
-    if factor is None:
-        return bar
-    multiplier = factor.qfq_factor if use_qfq else factor.hfq_factor
-    last_close_base = factor.pre_last_close_price_milli if factor.pre_last_close_price_milli is not None else bar.last_close_price_milli
-    open_milli = _adjust_price_milli(bar.open_price_milli, multiplier)
-    close_milli = _adjust_price_milli(bar.close_price_milli, multiplier)
-    high_milli = _adjust_price_milli(bar.high_price_milli, multiplier)
-    low_milli = _adjust_price_milli(bar.low_price_milli, multiplier)
-    last_close_milli = _adjust_price_milli(last_close_base, multiplier)
-    return KlineBar(
-        time=bar.time,
-        open=open_milli / 1000.0,
-        close=close_milli / 1000.0,
-        high=high_milli / 1000.0,
-        low=low_milli / 1000.0,
-        open_price_milli=open_milli,
-        close_price_milli=close_milli,
-        high_price_milli=high_milli,
-        low_price_milli=low_milli,
-        last_close_price_milli=last_close_milli,
-        volume_raw=bar.volume_raw,
-        amount_raw=bar.amount_raw,
-        volume_wire_value=bar.volume_wire_value,
-        volume_lots=bar.volume_lots,
-        amount=bar.amount,
-        open_delta_raw=bar.open_delta_raw,
-        close_delta_raw=bar.close_delta_raw,
-        high_delta_raw=bar.high_delta_raw,
-        low_delta_raw=bar.low_delta_raw,
-        up_count=bar.up_count,
-        down_count=bar.down_count,
-        record_hex=bar.record_hex,
-    )
+def _event_coefficients(event: CapitalChangeRecord) -> tuple[float, float]:
+    # Tag 1: c1=D, c2=P, c3=S, c4=R, all expressed per ten shares.
+    multiplier = (10.0 + event.c3_value + event.c4_value) / 10.0
+    offset = (event.c1_value - event.c4_value * event.c2_value) / 10.0
+    if multiplier <= 0:
+        raise ValueError("capital-change event produces a non-positive price multiplier")
+    return multiplier, offset
 
 
-def _adjust_price_milli(value: int | None, factor: float) -> int:
-    if value is None:
-        return 0
-    return int(round(value * factor))
+def _qfq_coefficients(
+    events: list[CapitalChangeRecord],
+    bar_date: date,
+    anchor_date: date,
+) -> tuple[float, float]:
+    scale = 1.0
+    offset = 0.0
+    for event in events:
+        assert event.date is not None
+        if bar_date < event.date <= anchor_date:
+            multiplier, event_offset = _event_coefficients(event)
+            scale /= multiplier
+            offset = (offset - event_offset) / multiplier
+    return scale, offset
 
 
-def _qfq_step(last_close_milli: int | None, pre_last_close_milli: int | None) -> float:
-    if (
-        last_close_milli is None
-        or last_close_milli == 0
-        or pre_last_close_milli is None
-        or pre_last_close_milli == 0
-        or last_close_milli == pre_last_close_milli
-    ):
-        return 1.0
-    return pre_last_close_milli / last_close_milli
+def _hfq_coefficients(
+    events: list[CapitalChangeRecord],
+    first_trading_date: date,
+    bar_date: date,
+) -> tuple[float, float]:
+    scale = 1.0
+    offset = 0.0
+    for event in events:
+        assert event.date is not None
+        if first_trading_date <= event.date <= bar_date:
+            multiplier, event_offset = _event_coefficients(event)
+            scale *= multiplier
+            offset = multiplier * offset + event_offset
+    return scale, offset
 
 
-def _hfq_step(last_close_milli: int | None, pre_last_close_milli: int | None) -> float:
-    if (
-        last_close_milli is None
-        or last_close_milli == 0
-        or pre_last_close_milli is None
-        or pre_last_close_milli == 0
-        or last_close_milli == pre_last_close_milli
-    ):
-        return 1.0
-    return last_close_milli / pre_last_close_milli
-
-
-def _replace_factor_qfq(item: FactorRecord, qfq_factor: float) -> FactorRecord:
-    return FactorRecord(
-        time=item.time,
-        last_close_price=item.last_close_price,
-        last_close_price_milli=item.last_close_price_milli,
-        pre_last_close_price=item.pre_last_close_price,
-        pre_last_close_price_milli=item.pre_last_close_price_milli,
-        qfq_factor=qfq_factor,
-        hfq_factor=item.hfq_factor,
-    )
-
-
-def _normalize_qfq_anchor(factors: list[FactorRecord], anchor_date: date) -> list[FactorRecord]:
-    anchor = None
-    for item in factors:
-        if item.time.date() <= anchor_date:
-            anchor = item
+def _resolve_anchor_date(bars, value) -> date | None:
+    if value in (None, ""):
+        return None
+    target = date_from_yyyymmdd(yyyymmdd(value))
+    if target is None:
+        raise ValueError(f"invalid anchor_date: {value!r}")
+    resolved = None
+    for bar in bars:
+        if bar.time.date() <= target:
+            resolved = bar.time.date()
         else:
             break
-    if anchor is None:
+    if resolved is None:
         raise ValueError("anchor_date is earlier than the first available trade date")
-    if anchor.qfq_factor == 0:
-        raise ValueError("anchor_date qfq factor is zero")
-    return [_replace_factor_qfq(item, item.qfq_factor / anchor.qfq_factor) for item in factors]
-
-
-def _normalize_date(value) -> date:
-    raw = yyyymmdd(value)
-    text = f"{raw:08d}"
-    return date(int(text[:4]), int(text[4:6]), int(text[6:8]))
+    return resolved

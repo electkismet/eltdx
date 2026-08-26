@@ -3,6 +3,8 @@
 from .response import Response
 from .auction import AuctionPoint, AuctionSeries
 from .corporate import (
+    AdjustmentFactor,
+    AdjustmentFactorResponse,
     CapitalChangeBlock,
     CapitalChangeRecord,
     EquityRecord,
@@ -31,6 +33,8 @@ from .session import HandshakeInfo, HeartbeatAck
 from .trade import TradePage, TradeTick
 
 __all__ = [
+    "AdjustmentFactor",
+    "AdjustmentFactorResponse",
     "AuctionPoint",
     "AuctionSeries",
     "CapitalChangeBlock",

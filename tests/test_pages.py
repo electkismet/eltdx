@@ -65,7 +65,7 @@ def test_common_interface_docs_have_collapsible_real_json_samples() -> None:
 
     assert "assets/return-samples.css" in mkdocs
     assert stylesheet.is_file()
-    assert len(return_sample_docs) == 47
+    assert len(return_sample_docs) == 42
     for relative_path in return_sample_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert '??? return-sample "' in detail, relative_path
@@ -81,11 +81,11 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     items = catalog["items"]
 
     assert catalog["schema_version"] == 13
-    assert len(items) == 68
+    assert len(items) == 63
     assert Counter(item["source"] for item in items) == {
         "7709": 21,
         "F10": 21,
-        "Helper": 26,
+        "Helper": 21,
     }
     assert len({item["id"] for item in items}) == len(items)
 
@@ -131,7 +131,7 @@ hide:
 [← 返回接口目录](../index.md){ .interface-detail-back }
 """
 
-    assert len(detail_docs) == 59
+    assert len(detail_docs) == 63
     for relative_path in detail_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert detail.startswith(expected_header), relative_path
@@ -151,14 +151,14 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
     assert Counter(layer_id for layer_id, _ in assignments.values()) == {
         "7709": 21,
         "7615": 21,
-        "helpers": 26,
+        "helpers": 21,
     }
-    expected_counts = {"7709": 21, "7615": 21, "helpers": 26}
+    expected_counts = {"7709": 21, "7615": 21, "helpers": 21}
     assert all(layer["description"].startswith(f"{expected_counts[layer['id']]} 个") for layer in ordered_layers)
     assert all("groups" not in layer for layer in ordered_layers)
     assert {layer["source"] for layer in ordered_layers} == {"7709", "F10", "Helper"}
     assert assignments["f10-generic-entry"] == ("7615", None)
-    assert assignments["7709-turnover"] == ("helpers", None)
+    assert assignments["7709-local-factors"] == ("helpers", None)
     assert assignments["helper-server-stats"] == ("helpers", None)
     assert assignments["helper-server-download"] == ("helpers", None)
     assert all(item["source"] != "MCP" for item in catalog["items"])
@@ -201,8 +201,8 @@ def test_pages_catalog_has_complete_function_menus() -> None:
         "codes": 5,
         "realtime": 13,
         "history": 3,
-        "bars": 7,
-        "auction-shortline": 9,
+        "bars": 3,
+        "auction-shortline": 8,
         "f10": 23,
         "common": 6,
     }
@@ -438,7 +438,7 @@ def test_current_docs_match_v2_pagination_and_parameter_contracts() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     code_count = (REPO_ROOT / "docs" / "methods" / "7709-代码数量.md").read_text(encoding="utf-8")
     code_table = (REPO_ROOT / "docs" / "methods" / "7709-代码表.md").read_text(encoding="utf-8")
-    all_bars = (REPO_ROOT / "docs" / "methods" / "7709-全量K线分页.md").read_text(encoding="utf-8")
+    bars = (REPO_ROOT / "docs" / "methods" / "7709-K线周期线.md").read_text(encoding="utf-8")
     finance = (REPO_ROOT / "docs" / "methods" / "7709-财务基础信息.md").read_text(encoding="utf-8")
 
     assert "client.codes.count()" not in readme
@@ -450,9 +450,9 @@ def test_current_docs_match_v2_pagination_and_parameter_contracts() -> None:
     assert "`refresh`" not in code_table
     assert "不接受 `refresh` 参数" in finance
     assert "| 停止条件 | 主站返回空页 |" in code_table
-    assert "| 停止条件 | 主站返回空页 |" in all_bars
+    assert "主站返回空页才停止" in bars
     assert "短页不代表数据已经结束" in code_table
-    assert "短页不代表数据已经结束" in all_bars
+    assert "短页不代表结束" in bars
 
 
 def test_current_docs_match_v2_cache_and_migration_contracts() -> None:
@@ -464,10 +464,10 @@ def test_current_docs_match_v2_cache_and_migration_contracts() -> None:
 
     for text in (readme, fields, methods):
         assert "代码数量、全量代码表、股本变迁、财务" not in text
-    assert "`client.codes.count()`、`client.codes.all()` 和 `client.corporate.finance_batch()` 都会直接请求主站" in fields
+    assert "`client.corporate.capital_changes()`" in fields
     assert 'client.bars.get("sz000001", period="day", include_raw=True)' in migration
-    assert 'client.helpers.factors("sz000001")' in migration
-    assert 'client.helpers.capital_changes("sz000001", refresh=True)' in migration
+    assert 'client.corporate.adjustment_factors("sz000001")' in migration
+    assert 'client.corporate.capital_changes()` 股本变迁结果 | 否' in migration
     assert 'warning "历史版本文档"' in historical_update
     assert "当前 `v2.0.5` 已移除这些入口" in historical_update
 
@@ -511,11 +511,11 @@ def test_trade_detail_docs_include_return_fields_and_examples() -> None:
     assert "不按固定时间范围过滤、截断或去重" in series
 
 
-def test_local_factor_docs_explain_anchor_and_daily_only_scope() -> None:
-    detail = (REPO_ROOT / "docs" / "methods" / "7709-本地复权因子.md").read_text(encoding="utf-8")
+def test_local_factor_docs_explain_affine_coefficients() -> None:
+    detail = (REPO_ROOT / "docs" / "methods" / "7709-本地复权系数.md").read_text(encoding="utf-8")
     fields = (REPO_ROOT / "docs" / "FIELD_REFERENCE.md").read_text(encoding="utf-8")
 
-    assert "anchor_date=\"2024-05-31\"" in detail
-    assert "本地调整 K 线只支持日 K" in detail
-    assert "锚点只改变因子和复权价格的绝对尺度" in detail
+    assert "anchor_date=\"2024-06-03\"" in detail
+    assert "raw * scale + offset" in detail
+    assert "不舍入" in detail
     assert "`anchor_date`" in fields

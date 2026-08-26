@@ -197,29 +197,34 @@ K 线响应和单根 K 线。
 
 ## CapitalChangeBlock / CapitalChangeRecord
 
-股本变迁 / 除权相关事件。
+广义权息 / 股本变迁事件。
 
-| 字段                                                | 含义           |
-| ------------------------------------------------- | ------------ |
-| `records` / `items`                               | 事件列表         |
-| `date`                                            | 事件日期         |
-| `category_raw`                                    | 事件类别编号       |
-| `category_name`                                   | 类别名称         |
-| `c1_value` / `c2_value` / `c3_value` / `c4_value` | 按类别解码后的四个业务值 |
-| `c1_raw` / `c2_raw` / `c3_raw` / `c4_raw`         | 四个原始字段       |
+| 字段 | 含义 |
+| --- | --- |
+| `records` / `items` / `count` | 标签 `1..15` 的事件列表 / 数量 |
+| `date` | 事件日期 |
+| `category_raw` / `category_name` | 事件标签 / 名称 |
+| `c1_value` / `c2_value` / `c3_value` / `c4_value` | 按标签解释并完成单位换算的业务值 |
+| `c1_float` / `c2_float` / `c3_float` / `c4_float` | 四字段的 float32 解释值 |
+| `c1_raw` / `c2_raw` / `c3_raw` / `c4_raw` | 四个 wire 原始字段 |
 
-## XdxrRecord / EquityRecord
+标签 `1` 中四个业务值依次是每十股现金分红、配股价格、每十股送转数量、每十股配股数量。数量类标签的 `c*_value` 单位统一为股。
 
-从股本变迁中整理出来的本地派生记录。
+## AdjustmentFactorResponse / AdjustmentFactor
 
-| 字段             | 含义   |
-| -------------- | ---- |
-| `fenhong`      | 分红   |
-| `peigujia`     | 配股价  |
-| `songzhuangu`  | 送转股  |
-| `peigu`        | 配股   |
-| `float_shares` | 流通股本 |
-| `total_shares` | 总股本  |
+本地前、后复权仿射系数。
+
+| 字段 | 含义 |
+| --- | --- |
+| `full_code` | 完整证券代码 |
+| `anchor_date` | 实际前复权锚点；未指定时为 `None` |
+| `first_trading_date` | 可用不复权日 K 的首个交易日 |
+| `items` / `count` | 每日系数 / 数量 |
+| `date` / `time` | 系数对应交易日 / 15:00 时间 |
+| `qfq_scale` / `qfq_offset` | 前复权缩放和偏移 |
+| `hfq_scale` / `hfq_offset` | 后复权缩放和偏移 |
+
+价格应用公式为 `round(raw * scale + offset, 2)`。
 
 ## FinanceRecord
 
@@ -318,20 +323,6 @@ K 线响应和单根 K 线。
 | `trading_date`                      | 统计日期               |
 | `raw`                               | F10 原始行            |
 
-### FactorResponse / FactorRecord
-
-本地复权因子结果。
-
-| 字段 | 含义 |
-| --- | --- |
-| `count` / `items` | 因子数量 / 因子记录 |
-| `anchor_date` | 前复权锚点日期；未指定时为 `None` |
-| `time` | 因子对应的日 K 日期 |
-| `last_close_price` / `last_close_price_milli` | 原上一收盘价 |
-| `pre_last_close_price` / `pre_last_close_price_milli` | 除权除息调整后的上一收盘价 |
-| `qfq_factor` | 前复权因子；指定锚点时按锚点归一 |
-| `hfq_factor` | 后复权因子，不受锚点影响 |
-
 ### AuctionData
 
 竞价组合结果。
@@ -400,8 +391,8 @@ K 线响应和单根 K 线。
 
 ## 缓存口径
 
-当前客户端只缓存部分 Helper 组合查询使用的低频数据：`client.helpers.capital_changes()` 的股本变迁结果、`client.helpers.stock_profile_table()` 内部使用的财务批次，以及已验证的短线统计资源。
+当前客户端只缓存部分 Helper 组合查询内部使用的财务批次、证券表和已验证的短线统计资源。
 
-`client.codes.count()`、`client.codes.all()` 和 `client.corporate.finance_batch()` 都会直接请求主站，不做缓存。实时快照、分时、成交明细和 K 线也不缓存。
+`client.codes.count()`、`client.codes.all()`、`client.corporate.capital_changes()`、`client.corporate.finance_batch()`、实时快照、分时、成交明细和 K 线均不缓存。
 
-股本变迁 Helper 可用 `refresh=True` 强制刷新，短线统计资源可用 `refresh_stats=True` 强制刷新；清空上述全部 Helper 缓存使用 `client.clear_cache()`。
+短线统计资源可用 `refresh_stats=True` 强制刷新；清空 Helper 缓存使用 `client.clear_cache()`。

@@ -32,6 +32,7 @@ from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
     day = client.bars.get("sz000001", period="day", count=5)
+    history = client.bars.get("sz000001", period="day", all_pages=True)
     qfq = client.bars.get("sz000001", period="day", adjust="qfq", count=5)
     hfq = client.bars.get("sz000001", period="day", adjust="hfq", count=5)
 
@@ -66,21 +67,18 @@ print(ticks.count, ticks.ticks[0].time_label, ticks.ticks[0].price)
 print(auction is not None, auction.price if auction else None, auction.volume if auction else None)
 ```
 
-## 股本、换手率和复权因子
+## 股本变迁和本地复权系数
 
 ```python
 from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
     gbbq = client.corporate.capital_changes("sz000001")
-    equity = client.helpers.equity("sz000001", "2026-05-20")
-    turnover = client.helpers.turnover("sz000001", 123456, on="2026-05-20", unit="hand")
-    factors = client.helpers.factors("sz000001")
+    factors = client.corporate.adjustment_factors("sz000001")
 
 print(gbbq.count)
-print(equity.float_shares, equity.total_shares)
-print(turnover)
-print(factors.count)
+print(gbbq.records[0].category_name)
+print(factors.count, factors.items[0].qfq_scale, factors.items[0].qfq_offset)
 ```
 
 ## 主站测速和连接池

@@ -33,7 +33,7 @@ window.ELTDX_CATALOG = {
         "label": "Helpers 封装",
         "tag_label": "Helpers",
         "stat_label": "Helpers 封装",
-        "description": "26 个 Helpers 封装，组合协议调用、分页、解析、整理和本地计算。",
+        "description": "21 个 Helpers 封装，组合协议调用、解析、整理和本地计算。",
         "source": "Helper"
       }
     ],
@@ -92,26 +92,21 @@ window.ELTDX_CATALOG = {
       {
         "id": "bars",
         "label": "K 线与复权",
-        "description": "周期 K 线、全量分页、复权 K 线，以及复权所需的股本和除权数据。",
+        "description": "周期 K 线、自动分页、服务端复权，以及本地复权所需的权息和仿射系数。",
         "item_ids": [
           "7709-kline",
-          "7709-kline-all",
           "7709-gbbq",
-          "7709-xdxr",
-          "7709-equity",
-          "7709-local-factors",
-          "helper-adjusted-kline"
+          "7709-local-factors"
         ]
       },
       {
         "id": "auction-shortline",
         "label": "集合竞价与短线",
-        "description": "集合竞价过程、09:25 正式撮合、竞价整理、换手率和短线指标。",
+        "description": "集合竞价过程、09:25 正式撮合、竞价整理和短线指标。",
         "item_ids": [
           "7709-auction-series",
           "7709-opening-match-today",
           "7709-opening-match-history",
-          "7709-turnover",
           "helper-shortline-indicators",
           "helper-auction-data",
           "helper-daily-share-capital",
@@ -362,6 +357,8 @@ window.ELTDX_CATALOG = {
       "api": "client.bars.get(code, ...)",
       "aliases": [
         "bars.get",
+        "all_pages",
+        "自动分页",
         "OHLC",
         "前复权",
         "后复权",
@@ -370,25 +367,9 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x052d",
       "kind": "底层协议",
-      "summary": "返回分钟、日、周、月、季、年 K 线，支持服务端复权和不复权参数。",
+      "summary": "返回分钟、日、周、月、季、年 K 线，支持单页、自动分页和服务端复权参数。",
       "return_model": "KlineSeries",
       "doc": "methods/7709-K线周期线.md"
-    },
-    {
-      "id": "7709-kline-all",
-      "title": "全量 K 线分页",
-      "source": "Helper",
-      "category": "K 线",
-      "api": "client.bars.all(code, ...)",
-      "aliases": [
-        "bars.all",
-        "历史 K 线"
-      ],
-      "protocol": "0x052d",
-      "kind": "协议封装",
-      "summary": "自动连续分页并合并 K 线，适合补充历史日线或分钟线数据。",
-      "return_model": "KlineSeries",
-      "doc": "methods/7709-全量K线分页.md"
     },
     {
       "id": "7709-minute-today",
@@ -578,93 +559,25 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x000f",
       "kind": "底层协议",
-      "summary": "返回除权除息、股本变化、增发和回购等股本事件记录。",
+      "summary": "返回标签 1..15 的广义权息资料，包括除权除息、股本变化、增发、回购、缩股和权证等事件。",
       "return_model": "CapitalChangeBlock",
       "doc": "methods/7709-股本变迁GBBQ.md"
     },
     {
-      "id": "7709-xdxr",
-      "title": "除权除息整理",
-      "source": "Helper",
-      "category": "公司基础",
-      "api": "client.helpers.xdxr(code)",
-      "aliases": [
-        "分红",
-        "送转",
-        "配股"
-      ],
-      "protocol": "基于 0x000f",
-      "kind": "功能接口",
-      "summary": "从股本变迁记录中筛出除权除息事件，并整理分红、送转和配股字段。",
-      "return_model": "list[XdxrRecord]",
-      "doc": "methods/7709-除权除息整理.md"
-    },
-    {
-      "id": "7709-equity",
-      "title": "指定日期股本",
-      "source": "Helper",
-      "category": "公司基础",
-      "api": "client.helpers.equity_changes(code) / client.helpers.equity(code, on=...)",
-      "calls": [
-        {
-          "label": "变迁列表",
-          "api": "client.helpers.equity_changes(code)"
-        },
-        {
-          "label": "指定日期",
-          "api": "client.helpers.equity(code, on=...)"
-        }
-      ],
-      "aliases": [
-        "流通股本",
-        "总股本"
-      ],
-      "protocol": "基于 0x000f",
-      "kind": "功能接口",
-      "summary": "整理历次股本变化，并取得指定日期之前最近一次流通股本和总股本。",
-      "return_model": "EquityResponse / EquityRecord",
-      "doc": "methods/7709-指定日期股本.md"
-    },
-    {
-      "id": "7709-turnover",
-      "title": "换手率",
-      "source": "Helper",
-      "category": "公司基础",
-      "api": "client.helpers.turnover(code, volume, on=None, unit=\"hand\")",
-      "aliases": [
-        "turnover rate"
-      ],
-      "protocol": "基于 0x000f",
-      "kind": "功能接口",
-      "summary": "使用成交量和指定日期的流通股本计算换手率。",
-      "return_model": "float",
-      "doc": "methods/7709-换手率.md"
-    },
-    {
       "id": "7709-local-factors",
-      "title": "本地复权因子",
+      "title": "本地复权系数",
       "source": "Helper",
       "category": "公司基础",
-      "api": "client.helpers.factors(code, anchor_date=None) / client.helpers.local_adjusted_kline(code, ...)",
-      "calls": [
-        {
-          "label": "复权因子",
-          "api": "client.helpers.factors(code, anchor_date=None)"
-        },
-        {
-          "label": "本地复权 K 线",
-          "api": "client.helpers.local_adjusted_kline(code, ...)"
-        }
-      ],
+      "api": "client.corporate.adjustment_factors(code, anchor_date=None)",
       "aliases": [
         "qfq",
         "hfq"
       ],
       "protocol": "0x052d + 0x000f",
-      "kind": "功能接口",
-      "summary": "根据不复权日 K 和除权除息记录计算本地前复权、后复权因子；前复权支持指定锚点日期，本地复权 K 线仅支持日 K。",
-      "return_model": "FactorResponse / KlineSeries",
-      "doc": "methods/7709-本地复权因子.md"
+      "kind": "组合接口",
+      "summary": "根据完整不复权日 K 和标签 1 计算本地前、后复权仿射系数，支持前复权锚点。",
+      "return_model": "AdjustmentFactorResponse",
+      "doc": "methods/7709-本地复权系数.md"
     },
     {
       "id": "7709-finance",
@@ -1324,24 +1237,6 @@ window.ELTDX_CATALOG = {
       "summary": "按交易日安全对齐统计资源、实时行情、近 5 日 K 线和财务快照，返回竞价、开盘量比、流通股本、封单和连板字段。",
       "return_model": "ShortlineIndicatorTable",
       "doc": "helpers/短线指标.md"
-    },
-    {
-      "id": "helper-adjusted-kline",
-      "title": "复权 K 线",
-      "source": "Helper",
-      "category": "股票与行情",
-      "api": "client.helpers.adjusted_kline(code, ...)",
-      "aliases": [
-        "adjusted_kline",
-        "qfq",
-        "hfq",
-        "定点复权"
-      ],
-      "protocol": "0x052d",
-      "kind": "组合能力",
-      "summary": "统一获取不复权、前复权、后复权或定点复权 K 线，并可自动分页。",
-      "return_model": "KlineSeries",
-      "doc": "helpers/复权K线.md"
     },
     {
       "id": "helper-stock-topics",

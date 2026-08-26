@@ -3,9 +3,7 @@ use bytes::Bytes;
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{MAX_COMMAND_ITEMS, MAX_RESPONSE_PAYLOAD_SIZE};
-use crate::unit::{
-    get_volume, little_f32, little_u16, little_u32, DateParts, Market, NormalizedCode,
-};
+use crate::unit::{little_f32, little_u16, little_u32, DateParts, Market, NormalizedCode};
 
 pub const TYPE_CAPITAL_CHANGES: u16 = 0x000f;
 pub const TYPE_FINANCE_BATCH: u16 = 0x0010;
@@ -306,20 +304,25 @@ fn parse_capital_change_record(record: &[u8]) -> Result<CapitalChangeRecord, Pro
     let c2_float = little_f32(&c2_raw)?;
     let c3_float = little_f32(&c3_raw)?;
     let c4_float = little_f32(&c4_raw)?;
-    let (c1_value, c2_value, c3_value, c4_value) = if is_float_value_category(category_raw) {
-        (
+    let (c1_value, c2_value, c3_value, c4_value) = match category_raw {
+        value if is_share_count_category(value) => (
+            f64::from(c1_float) * 10_000.0,
+            f64::from(c2_float) * 10_000.0,
+            f64::from(c3_float) * 10_000.0,
+            f64::from(c4_float) * 10_000.0,
+        ),
+        6 => (
+            f64::from(c1_float),
+            f64::from(c2_float),
+            f64::from(c3_float) * 10_000.0,
+            f64::from(c4_float),
+        ),
+        _ => (
             f64::from(c1_float),
             f64::from(c2_float),
             f64::from(c3_float),
             f64::from(c4_float),
-        )
-    } else {
-        (
-            get_volume(little_u32(&c1_raw)?) * 10_000.0,
-            get_volume(little_u32(&c2_raw)?) * 10_000.0,
-            get_volume(little_u32(&c3_raw)?) * 10_000.0,
-            get_volume(little_u32(&c4_raw)?) * 10_000.0,
-        )
+        ),
     };
     Ok(CapitalChangeRecord {
         market_id,
@@ -482,7 +485,7 @@ fn capital_change_category_name(value: u8) -> Option<&'static str> {
         1 => Some("除权除息"),
         2 => Some("送配股上市"),
         3 => Some("非流通股上市"),
-        4 => Some("国家股配售"),
+        4 => Some("未知股本变动"),
         5 => Some("股本变化"),
         6 => Some("增发新股"),
         7 => Some("股份回购"),
@@ -498,8 +501,8 @@ fn capital_change_category_name(value: u8) -> Option<&'static str> {
     }
 }
 
-fn is_float_value_category(value: u8) -> bool {
-    matches!(value, 1 | 11 | 12 | 13 | 14 | 15)
+fn is_share_count_category(value: u8) -> bool {
+    matches!(value, 2 | 3 | 5 | 7 | 8 | 9 | 10)
 }
 
 fn check_payload(payload: &[u8], resource: &'static str) -> Result<(), ProtocolError> {
@@ -554,7 +557,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_float_and_volume_capital_categories() -> Result<(), ProtocolError> {
+    fn parses_capital_categories_with_their_units() -> Result<(), ProtocolError> {
         let mut float_record = Vec::with_capacity(29);
         float_record.extend_from_slice(&[0]);
         float_record.extend_from_slice(b"000001");
@@ -575,16 +578,33 @@ mod tests {
         assert_eq!(parsed.records[0].category_name, Some("重整调整"));
         assert_eq!(parsed.records[0].c3_value, 3.5);
 
-        let mut volume_record = float_record;
+        let mut volume_record = float_record.clone();
         volume_record[12] = 5;
-        volume_record[13..17].copy_from_slice(&[1, 2, 3, 4]);
+        volume_record[13..17].copy_from_slice(&2500.0_f32.to_le_bytes());
+        volume_record[17..21].copy_from_slice(&4850.0_f32.to_le_bytes());
+        volume_record[21..25].copy_from_slice(&3000.0_f32.to_le_bytes());
+        volume_record[25..29].copy_from_slice(&9775.0_f32.to_le_bytes());
         payload.truncate(11);
         payload.extend_from_slice(&volume_record);
         let volume = parse_capital_changes_payload(
             &payload,
             CapitalChangesRequest::new(NormalizedCode::parse("sz000001")?),
         )?;
-        assert_eq!(volume.records[0].c1_raw, [1, 2, 3, 4]);
+        assert_eq!(volume.records[0].c1_value, 25_000_000.0);
+        assert_eq!(volume.records[0].c4_value, 97_750_000.0);
+
+        let mut rights_issue_record = float_record;
+        rights_issue_record[12] = 6;
+        rights_issue_record[17..21].copy_from_slice(&13.98_f32.to_le_bytes());
+        rights_issue_record[21..25].copy_from_slice(&1846.0_f32.to_le_bytes());
+        payload.truncate(11);
+        payload.extend_from_slice(&rights_issue_record);
+        let rights_issue = parse_capital_changes_payload(
+            &payload,
+            CapitalChangesRequest::new(NormalizedCode::parse("sz000001")?),
+        )?;
+        assert!((rights_issue.records[0].c2_value - 13.98).abs() < 0.001);
+        assert_eq!(rights_issue.records[0].c3_value, 18_460_000.0);
         Ok(())
     }
 

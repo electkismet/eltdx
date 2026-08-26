@@ -77,11 +77,11 @@ client.bars.get("sz000001", period="day", adjust="qfq")
 client.bars.get("sz000001", period="day", adjust="hfq")
 ```
 
-本地复权因子仍保留：
+需要本地审计时使用完整仿射系数：
 
 ```python
-client.helpers.factors("sz000001")
-client.helpers.local_adjusted_kline("sz000001", period="day", adjust="qfq")
+factors = client.corporate.adjustment_factors("sz000001")
+adjusted = round(raw * factors.items[0].qfq_scale + factors.items[0].qfq_offset, 2)
 ```
 
 ## 缓存
@@ -90,16 +90,15 @@ client.helpers.local_adjusted_kline("sz000001", period="day", adjust="qfq")
 
 | 数据 | 默认缓存 |
 | --- | --- |
-| `client.helpers.capital_changes()` 股本变迁结果 | 是，不缓存 `include_raw=True` 的结果 |
+| `client.corporate.capital_changes()` 股本变迁结果 | 否 |
 | `client.helpers.stock_profile_table()` 内部财务批次 | 是 |
 | 已验证的短线统计资源 | 是 |
 | 代码数量、全量代码表、直接财务查询 | 否 |
 | 行情快照、分时、成交明细、K 线 | 否 |
 
-股本变迁和短线统计资源可分别强制重新请求：
+短线统计资源可强制重新请求：
 
 ```python
-client.helpers.capital_changes("sz000001", refresh=True)
 client.helpers.shortline_indicators("sz000001", refresh_stats=True)
 ```
 

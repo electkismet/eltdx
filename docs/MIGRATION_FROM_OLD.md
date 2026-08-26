@@ -13,7 +13,7 @@ eltdx 2.0 移除了 `TdxClient` 上的旧版扁平 `get_*` 兼容入口。安装
 | `client.get_legacy_quotes(codes)` | `client.quotes.legacy(codes)` |
 | `client.read_server_file(path, ...)` | `client.resources.read(path, ...)` |
 | `client.get_kline(period, code, ...)` | `client.bars.get(code, period=period, ...)` |
-| `client.get_kline_all(period, code, ...)` | `client.bars.all(code, period=period, ...)` |
+| `client.get_kline_all(period, code, ...)` | `client.bars.get(code, period=period, all_pages=True)` |
 | `client.get_minute(code)` | `client.minutes.today(code)` |
 | `client.get_history_minute(code, date)` | `client.minutes.history(code, date)` |
 | `client.get_trades(code, ...)` | `client.trades.today(code, ...)` |
@@ -30,15 +30,14 @@ eltdx 2.0 移除了 `TdxClient` 上的旧版扁平 `get_*` 兼容入口。安装
 | --- | --- |
 | `client.get_quote(codes)` | `client.helpers.full_quotes(codes)` |
 | `client.get_auction_0925(code, date)` | `client.trades.opening_match_today(code)` 或 `client.trades.opening_match_history(code, date)` |
-| `client.get_xdxr(code)` | `client.helpers.xdxr(code)` |
-| `client.get_equity_changes(code)` | `client.helpers.equity_changes(code)` |
-| `client.get_equity(code, on=...)` | `client.helpers.equity(code, on=...)` |
-| `client.get_turnover(code, volume, ...)` | `client.helpers.turnover(code, volume, ...)` |
-| `client.get_factors(code)` | `client.helpers.factors(code)` |
-| `client.get_local_adjusted_kline_all(period, code, ...)` | `client.helpers.local_adjusted_kline(code, period=period, ...)` |
+| `client.get_xdxr(code)` | `client.corporate.capital_changes(code)` 后筛选 `category_raw == 1` |
+| `client.get_equity_changes(code)` / `get_equity(...)` | `client.corporate.capital_changes(code)` 后按所需标签和日期处理 |
+| `client.get_turnover(...)` | 用业务采用的流通股本口径自行计算 |
+| `client.get_factors(code)` | `client.corporate.adjustment_factors(code)` |
+| `client.get_local_adjusted_kline_all(...)` | 本地取得不复权 K 线后应用 `scale + offset` |
 | `client.get_adjusted_kline(...)` | `client.bars.get(..., adjust=...)` |
-| `client.get_adjusted_kline_all(...)` | `client.bars.all(..., adjust=...)` |
+| `client.get_adjusted_kline_all(...)` | `client.bars.get(..., adjust=..., all_pages=True)` |
 
-`client.helpers.get_shortline_indicators()` 等带 `get_` 的 Helper 别名也已删除，直接使用 `client.helpers.shortline_indicators()`、`stock_profile_table()`、`stock_topics()`、`topic_stocks()`、`auction_data()` 和 `adjusted_kline()`。
+`client.helpers.get_shortline_indicators()` 等带 `get_` 的 Helper 别名也已删除，直接使用 `client.helpers.shortline_indicators()`、`stock_profile_table()`、`stock_topics()`、`topic_stocks()` 和 `auction_data()`。K 线统一使用 `client.bars.get()`。
 
 `client.quotes.legacy()` 是原生 `0x053e` 协议接口，`client.resources.read()` 是原生 `0x06b9` 协议接口；它们不是旧版 Python 兼容层，2.0 继续保留。

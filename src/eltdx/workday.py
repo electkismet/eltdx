@@ -50,7 +50,7 @@ class WorkdayService:
             self._loaded = True
             return 0
 
-        series = self.client.bars.all(self.benchmark_code, period="day", kind="index")
+        series = self.client.bars.get(self.benchmark_code, period="day", kind="index", all_pages=True)
         days = sorted({bar.time.date() for bar in series.bars})
         self._days = days
         self._day_set = set(days)

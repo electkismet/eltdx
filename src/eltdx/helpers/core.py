@@ -11,14 +11,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
-from eltdx.equity import (
-    apply_factors_to_kline,
-    build_factor_response,
-    compute_turnover,
-    filter_equity_records,
-    filter_xdxr_records,
-    pick_equity,
-)
 from eltdx.models import QuoteRefreshRecord, QuoteSnapshot
 from eltdx.protocol.unit import ID_TO_MARKET, normalize_code
 
@@ -255,13 +247,11 @@ class HelperApi:
     def __init__(self, client: TdxClient) -> None:
         self._client = client
         self._shortline = ShortlineIndicatorService(client)
-        self._capital_cache: dict[str, Any] = {}
         self._finance_cache: dict[tuple[str, ...], Any] = {}
         self._security_cache: dict[str, tuple[Any, ...]] = {}
 
     def clear_cache(self) -> None:
         self._shortline.clear_cache()
-        self._capital_cache.clear()
         self._finance_cache.clear()
         self._security_cache.clear()
 
@@ -587,65 +577,6 @@ class HelperApi:
             )
         return merged
 
-    def capital_changes(self, code: str, *, include_raw: bool = False, refresh: bool = False):
-        full_code = normalize_code(code)
-        if not include_raw and not refresh and full_code in self._capital_cache:
-            return self._capital_cache[full_code]
-        result = self._client.corporate.capital_changes(full_code, include_raw=include_raw)
-        if not include_raw:
-            self._capital_cache[full_code] = result
-        return result
-
-    def xdxr(self, code: str, *, refresh: bool = False):
-        return filter_xdxr_records(self.capital_changes(code, refresh=refresh))
-
-    def equity_changes(self, code: str, *, refresh: bool = False):
-        return filter_equity_records(self.capital_changes(code, refresh=refresh))
-
-    def equity(self, code: str, on=None, *, refresh: bool = False):
-        return pick_equity(self.equity_changes(code, refresh=refresh).items, on)
-
-    def turnover(self, code: str, volume: int | float, *, on=None, unit: str = "hand", refresh: bool = False) -> float:
-        return compute_turnover(self.equity(code, on=on, refresh=refresh), volume, unit=unit)
-
-    def factors(self, code: str, *, anchor_date=None, refresh: bool = False):
-        return build_factor_response(
-            self._client.bars.all(code, period="day", adjust="none"),
-            self.xdxr(code, refresh=refresh),
-            anchor_date=anchor_date,
-        )
-
-    def local_adjusted_kline(
-        self,
-        code: str,
-        *,
-        period: str = "day",
-        adjust: str = "qfq",
-        anchor_date=None,
-        refresh: bool = False,
-    ):
-        period_key = str(period).strip().lower()
-        is_daily_period = period_key in {"day", "1d", "d", "daily"} or (
-            isinstance(period, tuple) and len(period) == 2 and tuple(map(int, period)) == (4, 1)
-        )
-        if not is_daily_period:
-            raise ValueError("local_adjusted_kline only supports daily K-lines; use client.bars for other periods")
-        adjust_key = str(adjust).strip().lower()
-        qfq_modes = {"qfq", "front", "forward", "pre"}
-        hfq_modes = {"hfq", "back", "backward", "post"}
-        if adjust_key not in qfq_modes | hfq_modes:
-            raise ValueError(f"invalid adjust mode: {adjust!r}")
-        if anchor_date not in (None, "") and adjust_key in hfq_modes:
-            raise ValueError("anchor_date is only supported for qfq")
-
-        base = self._client.bars.all(code, period="day", adjust="none")
-        factors = build_factor_response(
-            base,
-            self.xdxr(code, refresh=refresh),
-            anchor_date=anchor_date,
-        )
-        return apply_factors_to_kline(base, factors, adjust=adjust, anchor_date=anchor_date)
-
     def shortline_indicators(
         self,
         codes: str | Sequence[str],
@@ -827,42 +758,6 @@ class HelperApi:
             open_volume=open_volume,
             open_amount=open_amount,
             open_change_pct=_pct(open_price, resolved_pre_close),
-        )
-
-    def adjusted_kline(
-        self,
-        code: str,
-        *,
-        period: str = "day",
-        adjust: str | None = "qfq",
-        anchor_date=None,
-        count: int = 800,
-        start: int = 0,
-        all_pages: bool = False,
-        page_size: int = 800,
-        max_pages: int | None = 200,
-        include_raw: bool = False,
-    ):
-        """Fetch K-line data with plain adjust arguments."""
-
-        if all_pages:
-            return self._client.bars.all(
-                code,
-                period=period,
-                adjust=adjust,
-                anchor_date=anchor_date,
-                page_size=page_size,
-                max_pages=max_pages,
-                include_raw=include_raw,
-            )
-        return self._client.bars.get(
-            code,
-            period=period,
-            adjust=adjust,
-            anchor_date=anchor_date,
-            start=start,
-            count=count,
-            include_raw=include_raw,
         )
 
     def _security_map(self, full_codes: Sequence[str]) -> dict[str, Any]:

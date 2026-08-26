@@ -186,20 +186,18 @@ def smoke_corporate(client: TdxClient, code: str) -> None:
     assert_true(gbbq.raw_payload, "gbbq raw payload missing")
     finance = client.corporate.finance_batch([code])
     assert_true(finance.count == 1, "finance batch should return one record")
-    xdxr = client.helpers.xdxr(code)
-    equity_changes = client.helpers.equity_changes(code)
-    ok(f"corporate gbbq={gbbq.count} finance={finance.count} xdxr={len(xdxr)} equity={equity_changes.count}")
+    ok(f"corporate gbbq={gbbq.count} finance={finance.count}")
 
 
 def smoke_deep(client: TdxClient, code: str, history_date: str) -> None:
-    all_day = client.bars.all(code, period="day", max_pages=3)
+    all_day = client.bars.get(code, period="day", all_pages=True, max_pages=3)
     assert_true(all_day.count > 0, "empty all day kline")
     all_trades = client.trades.all_history(code, history_date, max_pages=3)
     assert_true(all_trades.count > 0, "empty all history trades")
     a_share_codes = client.codes.all_a_shares()
     etf_codes = client.codes.all_etfs()
     index_codes = client.codes.all_indices()
-    factors = client.helpers.factors(code)
+    factors = client.corporate.adjustment_factors(code)
     sparkline = client.minutes.sparkline(code)
     aux = client.minutes.aux(code)
     assert_true(a_share_codes and etf_codes and index_codes, "code helpers returned empty lists")

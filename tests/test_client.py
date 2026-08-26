@@ -578,33 +578,19 @@ def test_capital_changes_forwards_include_raw() -> None:
     assert result == {"code": "sz000001", "include_raw": True}
 
 
-def test_gbbq_cache_skips_include_raw_and_allows_refresh() -> None:
-    class FakeTransport:
-        def __init__(self) -> None:
-            self.calls = 0
-
-        def connect(self) -> None:
-            pass
-
-        def close(self) -> None:
-            pass
-
-        def request(self, command: str) -> str:
-            return "pong"
-
-        def execute(self, command: int, payload=None):
-            assert command == 0x000F
-            self.calls += 1
-            return {"call": self.calls, "payload": dict(payload)}
-
-    transport = FakeTransport()
-    client = TdxClient(transport=transport)
-
-    assert client.helpers.capital_changes("000001")["call"] == 1
-    assert client.helpers.capital_changes("sz000001")["call"] == 1
-    assert client.helpers.capital_changes("sz000001", include_raw=True)["call"] == 2
-    assert client.helpers.capital_changes("sz000001")["call"] == 1
-    assert client.helpers.capital_changes("sz000001", refresh=True)["call"] == 3
+def test_removed_corporate_helpers_stay_removed() -> None:
+    helpers = TdxClient.in_memory().helpers
+    removed = {
+        "capital_changes",
+        "xdxr",
+        "equity_changes",
+        "equity",
+        "turnover",
+        "factors",
+        "local_adjusted_kline",
+        "adjusted_kline",
+    }
+    assert all(not hasattr(helpers, name) for name in removed)
 
 
 def test_helper_finance_cache_and_clear_cache() -> None:
@@ -711,7 +697,8 @@ def test_workday_service_uses_client_daily_bars() -> None:
         )
 
     class FakeBars:
-        def all(self, *args, **kwargs):
+        def get(self, *args, **kwargs):
+            assert kwargs["all_pages"] is True
             return KlineSeries(
                 exchange="sh",
                 market_id=1,
@@ -744,14 +731,14 @@ def test_workday_service_uses_client_daily_bars() -> None:
     ]
 
 
-def test_corporate_derived_helpers() -> None:
-    from eltdx.models import CapitalChangeBlock, CapitalChangeRecord
+def test_corporate_adjustment_factors_use_affine_composition() -> None:
+    from eltdx.models import CapitalChangeBlock, CapitalChangeRecord, KlineBar, KlineSeries
 
-    def record(category: int, when: date, c1: float, c2: float, c3: float, c4: float) -> CapitalChangeRecord:
+    def record(category: int, when: date, c1: float, c2: float, c3: float, c4: float):
         return CapitalChangeRecord(
             exchange="sz",
             market_id=0,
-            code="000001",
+            code="000858",
             reserved_7=0,
             date_raw=int(when.strftime("%Y%m%d")),
             date=when,
@@ -771,16 +758,57 @@ def test_corporate_derived_helpers() -> None:
             c4_value=c4,
         )
 
-    block = CapitalChangeBlock(
+    def bar(when: datetime, close_milli: int) -> KlineBar:
+        return KlineBar(
+            time=when,
+            open=close_milli / 1000,
+            close=close_milli / 1000,
+            high=close_milli / 1000,
+            low=close_milli / 1000,
+            open_price_milli=close_milli,
+            close_price_milli=close_milli,
+            high_price_milli=close_milli,
+            low_price_milli=close_milli,
+            last_close_price_milli=close_milli,
+            volume_raw=0,
+            amount_raw=0,
+            volume_wire_value=0,
+            volume_lots=0,
+            amount=0,
+            open_delta_raw=0,
+            close_delta_raw=0,
+            high_delta_raw=0,
+            low_delta_raw=0,
+        )
+
+    changes = CapitalChangeBlock(
         exchange="sz",
         market_id=0,
-        code="000001",
+        code="000858",
         block_count=1,
         records=(
-            record(1, date(2024, 6, 1), 1.0, 8.0, 2.0, 3.0),
-            record(5, date(2024, 7, 1), 0.0, 0.0, 100_000_000.0, 200_000_000.0),
+            record(1, date(2024, 5, 1), 0.0, 25.0, 0.0, 2.0),
+            record(1, date(2024, 6, 1), 0.0, 25.0, 0.0, 2.0),
+            record(1, date(2024, 6, 2), 1.0, 0.0, 1.0, 0.0),
+            record(5, date(2024, 6, 2), 0.0, 0.0, 100_000_000.0, 200_000_000.0),
         ),
     )
+    first_page = KlineSeries(
+        exchange="sz",
+        market_id=0,
+        code="000858",
+        period_raw=4,
+        period_param_raw=1,
+        period_name="day",
+        start=0,
+        request_count=2,
+        adjust_mode_raw=0,
+        adjust_mode="none",
+        anchor_date_raw=0,
+        anchor_date=None,
+        bars=(bar(datetime(2024, 5, 31, 15), 10000), bar(datetime(2024, 6, 3, 15), 8000)),
+    )
+    empty_page = replace(first_page, start=2, request_count=2, bars=())
 
     class FakeTransport:
         def connect(self) -> None:
@@ -793,109 +821,51 @@ def test_corporate_derived_helpers() -> None:
             return "pong"
 
         def execute(self, command: int, payload=None):
-            assert command == 0x000F
-            return block
+            if command == 0x000F:
+                return changes
+            if command == 0x052D:
+                return first_page if payload["start"] == 0 else empty_page
+            raise AssertionError(f"unexpected command: {command:#x}")
 
-    client = TdxClient(transport=FakeTransport())
+    factors = TdxClient(transport=FakeTransport()).corporate.adjustment_factors("sz000858")
 
-    xdxr = client.helpers.xdxr("sz000001")
-    assert len(xdxr) == 1
-    assert xdxr[0].fenhong == 1.0
-    assert xdxr[0].songzhuangu == 2.0
-    equity = client.helpers.equity("sz000001", "2024-07-02")
-    assert equity.float_shares == 100_000_000
-    assert equity.total_shares == 200_000_000
-    assert client.helpers.turnover("sz000001", 10_000, on="2024-07-02", unit="hand") == 1.0
+    assert factors.count == 2
+    assert factors.full_code == "sz000858"
+    assert factors.first_trading_date == date(2024, 5, 31)
+    assert factors.items[0].qfq_scale == pytest.approx(1.0 / 1.2 / 1.1)
+    assert factors.items[0].qfq_offset == pytest.approx(((5.0 / 1.2) - 0.1) / 1.1)
+    assert factors.items[0].qfq_scale * 10.0 + factors.items[0].qfq_offset == pytest.approx(11.27272727)
+    assert factors.items[1].qfq_scale == 1.0
+    assert factors.items[1].qfq_offset == 0.0
+    assert factors.items[0].hfq_scale == 1.0
+    assert factors.items[1].hfq_scale == pytest.approx(1.32)
+    assert factors.items[1].hfq_offset == pytest.approx(-4.88)
+    assert factors.items[1].hfq_scale * 8.0 + factors.items[1].hfq_offset == pytest.approx(5.68)
 
+    from eltdx.equity import build_adjustment_factor_response
 
-def test_local_factor_response_and_adjustment() -> None:
-    from eltdx.equity import apply_factors_to_kline, build_factor_response
-    from eltdx.models import KlineBar, KlineSeries, XdxrRecord
-
-    def bar(when: datetime, close_milli: int, last_close_milli: int | None) -> KlineBar:
-        return KlineBar(
-            time=when,
-            open=close_milli / 1000,
-            close=close_milli / 1000,
-            high=close_milli / 1000,
-            low=close_milli / 1000,
-            open_price_milli=close_milli,
-            close_price_milli=close_milli,
-            high_price_milli=close_milli,
-            low_price_milli=close_milli,
-            last_close_price_milli=last_close_milli,
-            volume_raw=0,
-            amount_raw=0,
-            volume_wire_value=0,
-            volume_lots=0,
-            amount=0,
-            open_delta_raw=0,
-            close_delta_raw=0,
-            high_delta_raw=0,
-            low_delta_raw=0,
-        )
-
-    series = KlineSeries(
-        exchange="sz",
-        market_id=0,
-        code="000001",
-        period_raw=4,
-        period_param_raw=1,
-        period_name="day",
-        start=0,
-        request_count=2,
-        adjust_mode_raw=0,
-        adjust_mode="none",
-        anchor_date_raw=0,
-        anchor_date=None,
-        bars=(
-            bar(datetime(2024, 5, 31, 15, 0), 10000, 9000),
-            bar(datetime(2024, 6, 3, 15, 0), 8000, 10000),
+    same_day_changes = replace(
+        changes,
+        records=(
+            record(1, date(2024, 6, 1), 0.0, 25.0, 0.0, 2.0),
+            record(1, date(2024, 6, 1), 1.0, 0.0, 1.0, 0.0),
         ),
     )
-    xdxr = XdxrRecord(
-        code="sz000001",
-        date=date(2024, 6, 1),
-        category=1,
-        category_name="除权除息",
-        fenhong=1.0,
-        peigujia=0.0,
-        songzhuangu=2.0,
-        peigu=0.0,
+    same_day = build_adjustment_factor_response(first_page, same_day_changes)
+    assert same_day.items[1].hfq_scale == pytest.approx(1.32)
+    assert same_day.items[1].hfq_offset == pytest.approx(-5.4)
+    assert same_day.items[1].hfq_scale * 8.0 + same_day.items[1].hfq_offset == pytest.approx(5.16)
+
+    anchored = TdxClient(transport=FakeTransport()).corporate.adjustment_factors(
+        "sz000858", anchor_date="2024-05-31"
     )
-
-    factors = build_factor_response(series, [xdxr])
-    assert factors.count == 2
-    assert factors.items[1].pre_last_close_price_milli == 8250
-    assert factors.items[0].qfq_factor == 0.825
-    assert factors.items[1].qfq_factor == 1.0
-
-    anchored = build_factor_response(series, [xdxr], anchor_date="2024-05-31")
-    assert factors.anchor_date is None
     assert anchored.anchor_date == date(2024, 5, 31)
-    assert anchored.items[0].qfq_factor == 1.0
-    assert anchored.items[1].qfq_factor == pytest.approx(1.0 / 0.825)
-    assert anchored.items[0].hfq_factor == factors.items[0].hfq_factor
-    assert anchored.items[1].hfq_factor == factors.items[1].hfq_factor
-
-    adjusted = apply_factors_to_kline(series, factors, adjust="qfq")
-    assert adjusted.adjust_mode == "local_qfq"
-    assert adjusted.bars[0].close_price_milli == 8250
-
-    anchored_adjusted = apply_factors_to_kline(
-        series,
-        anchored,
-        adjust="qfq",
-        anchor_date="2024-05-31",
-    )
-    assert anchored_adjusted.anchor_date == date(2024, 5, 31)
-    assert anchored_adjusted.anchor_date_raw == 20240531
-    assert anchored_adjusted.bars[0].close_price_milli == 10000
+    assert all(item.qfq_scale == 1.0 and item.qfq_offset == 0.0 for item in anchored.items)
 
     with pytest.raises(ValueError, match="earlier than the first available"):
-        build_factor_response(series, [xdxr], anchor_date="2024-05-01")
-    with pytest.raises(ValueError, match="only supported for qfq"):
-        apply_factors_to_kline(series, factors, adjust="hfq", anchor_date="2024-05-31")
+        TdxClient(transport=FakeTransport()).corporate.adjustment_factors(
+            "sz000858", anchor_date="2024-05-01"
+        )
 
 
 def test_trades_all_pages_until_short_page() -> None:
@@ -1436,7 +1406,7 @@ def test_bars_all_pages_until_short_page() -> None:
                 bars=bars,
             )
 
-    page = TdxClient(transport=FakeTransport()).bars.all("sz000001", page_size=2)
+    page = TdxClient(transport=FakeTransport()).bars.get("sz000001", all_pages=True, page_size=2)
 
     assert page.start == 0
     assert page.request_count == 3

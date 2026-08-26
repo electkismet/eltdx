@@ -414,91 +414,26 @@ page = client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
 
 ### `client.bars.get(code, period="day", ...)`
 
-查询一页 K 线，对应 `0x052d`。
+对应 `0x052d`。默认只取一页，`all_pages=True` 时自动请求到空页并返回合并后的 `KlineSeries`。
 
 ```python
-series = client.bars.get("sz000001", period="day", count=800)
+one_page = client.bars.get("sz000001", period="day", count=800)
+history = client.bars.get("sz000001", period="day", all_pages=True, page_size=800)
+qfq = client.bars.get("sz000001", period="day", adjust="qfq")
+fixed = client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
 ```
 
-| 参数            | 含义                                    |
-| ------------- | ------------------------------------- |
-| `code`        | 证券代码                                  |
-| `period`      | 周期                                    |
-| `start`       | 起始位置                                  |
-| `count`       | 本页条数                                  |
-| `adjust`      | 复权模式                                  |
-| `anchor_date` | 定点复权日期                                |
-| `kind`        | `stock` 或 `index`；指数 K 线可能解析上涨 / 下跌家数 |
-| `include_raw` | 是否保留原始 payload                        |
+| 参数 | 含义 |
+| --- | --- |
+| `code` / `period` | 证券代码 / 周期 |
+| `start` / `count` | 单页起点 / 条数 |
+| `adjust` / `anchor_date` | 服务端复权模式 / 定点日期 |
+| `kind` | `stock` 或 `index` |
+| `include_raw` | 是否保留原始 payload |
+| `all_pages` | 是否自动分页 |
+| `page_size` / `max_pages` | 自动分页的每页条数 / 最大页数 |
 
-| `period`                                  | 含义                              |
-| ----------------------------------------- | ------------------------------- |
-| `1m`, `5m`, `15m`, `30m`, `60m`           | 分钟 K 线                          |
-| `day`, `week`, `month`, `quarter`, `year` | 日、周、月、季、年                       |
-| `10m`, `2d`, `5s`                         | 自定义 N 分钟、N 日、N 秒形式；实际覆盖以服务端支持为准 |
-
-| `adjust`                    | 含义                     |
-| --------------------------- | ---------------------- |
-| `None` / `none`             | 不复权                    |
-| `qfq` / `front`             | 前复权                    |
-| `hfq` / `back`              | 后复权                    |
-| `fixed_qfq` / `fixed_front` | 定点前复权，需要 `anchor_date` |
-| `fixed_hfq` / `fixed_back`  | 定点后复权，需要 `anchor_date` |
-
-| 返回模型          | 说明     |
-| ------------- | ------ |
-| `KlineSeries` | 一组 K 线 |
-
-| `KlineSeries` 字段                                | 含义          |
-| ----------------------------------------------- | ----------- |
-| `exchange` / `market_id` / `code` / `full_code` | 市场和代码       |
-| `period_name`                                   | 周期名         |
-| `start` / `request_count`                       | 请求起点 / 请求条数 |
-| `adjust_mode`                                   | 复权模式        |
-| `anchor_date`                                   | 定点复权日期      |
-| `bars`                                          | K 线列表       |
-| `count`                                         | 实际 K 线数量    |
-
-| `KlineBar` 字段                     | 含义                  |
-| --------------------------------- | ------------------- |
-| `time`                            | K 线时间               |
-| `open` / `high` / `low` / `close` | 开高低收                |
-| `last_close_price_milli`          | 上一根收盘毫厘价            |
-| `volume_lots`                     | 成交量，单位手             |
-| `amount`                          | 成交额                 |
-| `up_count` / `down_count`         | 指数类上涨 / 下跌家数，股票通常为空 |
-| `record_hex`                      | 单条 K 线原始十六进制        |
-
-<a id="method-bars-all"></a>
-
-### `client.bars.all(code, period="day", ...)`
-
-自动分页拉取 K 线，直到服务端返回空页。
-
-```python
-series = client.bars.all("sz000001", period="day")
-```
-
-| 参数          | 含义                |
-| ----------- | ----------------- |
-| `page_size` | 每页条数              |
-| `max_pages` | 最多拉几页；防止异常情况下无限循环 |
-
-返回仍然是合并后的 `KlineSeries`。
-
-<a id="method-bars-adjusted"></a>
-
-### `client.bars.get(..., adjust=...)` / `client.bars.all(..., adjust=...)`
-
-直接使用 `0x052d` 的服务端复权参数。
-
-```python
-client.bars.get("sz000001", period="day", adjust="qfq")
-client.bars.all("sz000001", period="day", adjust="hfq")
-client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
-```
-
-`anchor_date` 会透传给 `0x052d`，可用于定点前复权 / 定点后复权。
+周期支持分钟、日、周、月、季、年和协议扩展周期。复权模式支持 `none/qfq/hfq/fixed_qfq/fixed_hfq`。自动分页按实际返回条数推进，短页不停止，空页才结束。
 
 ## 分时
 
@@ -767,110 +702,37 @@ history_opening = client.trades.opening_match_history("sz000001", "2026-05-20")
 | `trade_amount_yuan` | 按成交量计算的成交额 |
 | `status_raw` / `side` | 原始状态 / 方向 |
 
-## 股本变迁、除权除息和复权因子
+## 股本变迁和本地复权系数
 
 <a id="method-corporate-capital-changes"></a>
 
 ### `client.corporate.capital_changes(code)`
 
-查询股本变迁 / 除权相关事件，对应 `0x000f`。
+查询标签 `1..15` 的广义权息 / 股本变迁资料，对应 `0x000f`。
 
 ```python
 block = client.corporate.capital_changes("sz000001")
 ```
 
-| 参数            | 含义                     |
-| ------------- | ---------------------- |
-| `code`        | 证券代码                   |
-| `include_raw` | 是否保留原始 payload         |
+返回 `CapitalChangeBlock`。标签 `1` 的字段为 `c1=D`、`c2=P`、`c3=S`、`c4=R`；数量类标签的 `c*_value` 已统一换算成股。完整标签表见 [股本变迁 GBBQ](methods/7709-股本变迁GBBQ.md)。
 
-| 返回模型                 | 说明     |
-| -------------------- | ------ |
-| `CapitalChangeBlock` | 股本事件列表 |
+<a id="method-corporate-adjustment-factors"></a>
 
-| `CapitalChangeRecord` 字段                          | 含义                  |
-| ------------------------------------------------- | ------------------- |
-| `date`                                            | 事件日期                |
-| `category_raw` / `category`                       | 事件类别编号              |
-| `category_name`                                   | 类别名称                |
-| `c1_value` / `c2_value` / `c3_value` / `c4_value` | 按类别解码后的四个业务值        |
-| `c1_raw` / `c2_raw` / `c3_raw` / `c4_raw`         | 四个原始字段              |
-| `time`                                            | 事件日期派生出的 `15:00` 时间 |
+### `client.corporate.adjustment_factors(code, anchor_date=None)`
 
-<a id="method-corporate-xdxr"></a>
-
-### `client.helpers.xdxr(code)`
-
-从 `0x000f` 股本变迁里筛出除权除息记录。
+自动组合完整不复权日 K 和标签 `1`，为每个交易日生成前、后复权仿射系数。
 
 ```python
-records = client.helpers.xdxr("sz000001")
+factors = client.corporate.adjustment_factors("sz000858")
+anchored = client.corporate.adjustment_factors("sz000858", anchor_date="2024-05-31")
 ```
 
-| 返回模型               | 字段                                                                           |
-| ------------------ | ---------------------------------------------------------------------------- |
-| `list[XdxrRecord]` | `date`、`category`、`category_name`、`fenhong`、`peigujia`、`songzhuangu`、`peigu` |
+| 返回模型 | 字段 |
+| --- | --- |
+| `AdjustmentFactorResponse` | `full_code`、`anchor_date`、`first_trading_date`、`count`、`items` |
+| `AdjustmentFactor` | `date`、`qfq_scale`、`qfq_offset`、`hfq_scale`、`hfq_offset` |
 
-| 字段            | 含义  |
-| ------------- | --- |
-| `fenhong`     | 分红  |
-| `peigujia`    | 配股价 |
-| `songzhuangu` | 送转股 |
-| `peigu`       | 配股  |
-
-<a id="method-corporate-equity"></a>
-
-### `client.helpers.equity_changes(code)` / `client.helpers.equity(code, on=None)`
-
-从股本变迁里整理股本变化记录，并取某日之前最近一条。
-
-```python
-changes = client.helpers.equity_changes("sz000001")
-equity = client.helpers.equity("sz000001", on="2026-05-20")
-```
-
-| 返回模型             | 字段                                                              |
-| ---------------- | --------------------------------------------------------------- |
-| `EquityResponse` | `count`、`items`                                                 |
-| `EquityRecord`   | `date`、`category`、`category_name`、`float_shares`、`total_shares` |
-
-<a id="method-corporate-turnover"></a>
-
-### `client.helpers.turnover(code, volume, on=None, unit="hand")`
-
-用成交量和流通股本计算换手率。
-
-```python
-turnover = client.helpers.turnover("sz000001", 123456, on="2026-05-20", unit="hand")
-```
-
-| 参数       | 含义                     |
-| -------- | ---------------------- |
-| `volume` | 成交量                    |
-| `unit`   | `hand` 表示手，`share` 表示股 |
-
-| 返回      | 计算                  |
-| ------- | ------------------- |
-| `float` | `成交股数 / 流通股本 * 100` |
-
-<a id="method-corporate-factors"></a>
-
-### `client.helpers.factors(code, anchor_date=None)` / `client.helpers.local_adjusted_kline(...)`
-
-用不复权日 K 和除权除息记录计算本地复权因子；`anchor_date` 可把指定日期或此前最近交易日的前复权因子归一为 `1`。普通取复权 K 线优先用 `0x052d` 服务端复权参数。
-
-```python
-factors = client.helpers.factors("sz000001")
-anchored = client.helpers.factors("sz000001", anchor_date="2024-05-31")
-local_qfq = client.helpers.local_adjusted_kline("sz000001", period="day", adjust="qfq")
-```
-
-| 返回模型             | 字段                                                                         |
-| ---------------- | -------------------------------------------------------------------------- |
-| `FactorResponse` | `count`、`items`、`anchor_date`                                             |
-| `FactorRecord`   | `time`、`last_close_price`、`pre_last_close_price`、`qfq_factor`、`hfq_factor` |
-
-`local_adjusted_kline()` 只支持日 K；周线、月线等周期使用 `client.bars.get(..., adjust="qfq")`。锚点只支持前复权，后复权传锚点会报错。
+使用方式为 `round(raw * scale + offset, 2)`。多事件按日期复合、等日期保持服务端顺序、排除上市前事件，计算过程中不舍入。详见 [本地复权系数](methods/7709-本地复权系数.md)。
 
 ## 财务基础信息
 
@@ -1112,4 +974,4 @@ client.clear_cache()
 - [想查询某个概念板块都有哪些股票怎么办？](helpers/概念板块成分股.md)
 - [想拿集合竞价数据怎么办？](helpers/竞价数据.md)
 - [想拿流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比和几天几板怎么办？](helpers/短线指标.md)
-- [想拿复权或不复权 K 线怎么办？](helpers/复权K线.md)
+- [K 线、自动分页和服务端复权](methods/7709-K线周期线.md)
