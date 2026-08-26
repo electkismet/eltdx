@@ -575,7 +575,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x000f",
       "kind": "组合接口",
-      "summary": "仅根据标签 1 计算事件级前、后复权仿射系数，不请求 K 线，支持前复权锚点和事件起点。",
+      "summary": "为已有本地不复权 K 线计算事件级前、后复权仿射系数；不请求也不返回 K 线。",
       "return_model": "AdjustmentFactorResponse",
       "doc": "methods/7709-本地复权系数.md"
     },

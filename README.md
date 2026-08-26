@@ -63,7 +63,7 @@ eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用�
 | 集合竞价 | 竞价过程、09:25 撮合、前收盘参考价、开盘价/量/额/涨幅 | [`client.helpers.auction_data()`](docs/helpers/竞价数据.md) | `7709` + `Helpers 封装` |
 | 股本变迁 | 除权除息、股本变化、增发和回购记录 | [`client.corporate.capital_changes()`](docs/methods/7709-股本变迁GBBQ.md) | `7709 原生协议` |
 | 财务基础 | 流通/总股本、EPS、资产、负债、收入和利润 | [`client.corporate.finance_batch()`](docs/methods/7709-财务基础信息.md) | `7709 原生协议` |
-| 本地复权系数 | 仅按 `0x000f` 除权除息记录计算的仿射系数 | [`client.corporate.adjustment_factors()`](docs/methods/7709-本地复权系数.md) | `7709 本地计算` |
+| 本地复权系数 | 为已有本地不复权 K 线提供前/后复权所需系数 | [`client.corporate.adjustment_factors()`](docs/methods/7709-本地复权系数.md) | `7709 本地计算` |
 | 特殊品种限制 | 特殊品种涨跌停限制表 | [`client.limits.special()`](docs/methods/7709-特殊品种涨跌停限制.md) | `7709 原生协议` |
 | F10 公司概况 | 发行上市信息、上市日期、发行价、募资额和承销商 | [`client.f10.company_profile()`](docs/methods/F10-公司概况.md) | `7615 原生 Entry` |
 | 个股概念 | 某只股票所属的热点题材和入选原因 | [`client.helpers.stock_topics()`](docs/helpers/个股概念板块.md) | `7615` + `Helpers 封装` |
@@ -190,7 +190,7 @@ print(f10.company_profile("000034").rows[0])
 | 历史 09:25 正式撮合 | `client.trades.opening_match_history(code, date, ...)` | [`0x0fc6`](docs/COMMANDS_7709.md#cmd-0x0fc6) | 从历史成交明细筛选指定日期 09:25 正式撮合；没有记录时返回 `None` | [文档](docs/methods/7709-历史0925正式撮合.md) |
 | 集合竞价过程快照 | `client.auctions.series(code, date=None)`          | [`0x056a`](docs/COMMANDS_7709.md#cmd-0x056a)                                                | 不传日期查询当日，传入日期查询历史；按主站顺序返回全部过程时间点，即使出现 `09:25` 也不是正式成交                       | [文档](docs/methods/7709-集合竞价明细.md)     |
 | 股本变迁 / GBBQ  | `client.corporate.capital_changes()` | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f) | 返回标签 `1..15` 的广义权息和股本事件记录 | [文档](docs/methods/7709-股本变迁GBBQ.md) |
-| 本地复权系数 | `client.corporate.adjustment_factors()` | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f) | 用标签 `1` 独立计算事件级前/后复权仿射系数 | [文档](docs/methods/7709-本地复权系数.md) |
+| 本地复权系数 | `client.corporate.adjustment_factors()` | [`0x000f`](docs/COMMANDS_7709.md#cmd-0x000f) | 为已有本地不复权 K 线计算事件级前/后复权仿射系数，不返回 K 线 | [文档](docs/methods/7709-本地复权系数.md) |
 | 财务基础信息       | `client.corporate.finance_batch(codes)` | [`0x0010`](docs/COMMANDS_7709.md#cmd-0x0010)                                                | 批量返回流通股本、总股本、EPS、资产、负债、收入、利润等基础财务字段                            | [文档](docs/methods/7709-财务基础信息.md)     |
 | 特殊品种涨跌停限制    | `client.limits.special()`                                  | [`0x0452`](docs/COMMANDS_7709.md#cmd-0x0452)                                                | 返回特殊品种涨跌停限制表；需要按表扫描后本地索引到具体代码                                  | [文档](docs/methods/7709-特殊品种涨跌停限制.md)  |
 | 服务器文件分块读取      | `client.resources.read()` | [`0x06b9`](docs/COMMANDS_7709.md#cmd-0x06b9) | 读取一个服务器文件块，返回原始 bytes 和长度头 | [文档](docs/methods/7709-服务器文件读取.md)    |

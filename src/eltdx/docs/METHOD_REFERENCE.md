@@ -720,7 +720,7 @@ block = client.corporate.capital_changes("sz000001")
 
 ### `client.corporate.adjustment_factors(code, anchor_date=None, *, start_date=None)`
 
-只请求 `0x000f`，用标签 `1` 为每个除权事件日期生成前、后复权仿射系数，不请求 K 线。
+为用户已有的本地不复权 K 线提供前复权或后复权所需系数。接口只请求 `0x000f`，用标签 `1` 为每个除权事件日期生成仿射系数，不请求也不返回 K 线。需要直接获取任一复权模式的 K 线时使用 `client.bars.get()`。
 
 ```python
 factors = client.corporate.adjustment_factors("sz000858")

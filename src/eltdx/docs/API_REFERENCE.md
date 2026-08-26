@@ -171,7 +171,7 @@ factors = client.corporate.adjustment_factors("sz000001")
 anchored = client.corporate.adjustment_factors("sz000001", anchor_date="2024-05-31")
 ```
 
-`capital_changes()` 返回标签 `1..15` 的广义权息/股本变迁原始业务记录。`adjustment_factors()` 只请求 `0x000f`，使用标签 `1` 计算每个除权事件日期的前、后复权仿射系数：
+`capital_changes()` 返回标签 `1..15` 的广义权息/股本变迁原始业务记录。`adjustment_factors()` 面向已经持有本地不复权 K 线的用户：它只请求 `0x000f`，使用标签 `1` 计算每个除权事件日期的前、后复权仿射系数：
 
 ```text
 adjusted = round(raw * scale + offset, 2)
@@ -454,7 +454,7 @@ client.corporate.capital_changes("sz000001")
 
 ### `adjustment_factors(code, anchor_date=None, *, start_date=None)`
 
-只根据 `0x000f` 标签 `1` 记录返回 `AdjustmentFactorResponse`，不请求 K 线。每个除权事件日期返回一条 `AdjustmentFactor`，包含 `qfq_scale/qfq_offset` 与 `hfq_scale/hfq_offset`。
+为用户已有的本地不复权 K 线生成复权系数。接口只根据 `0x000f` 标签 `1` 记录返回 `AdjustmentFactorResponse`，不请求也不返回 K 线。每个除权事件日期返回一条 `AdjustmentFactor`，包含 `qfq_scale/qfq_offset` 与 `hfq_scale/hfq_offset`。
 
 ```python
 client.corporate.adjustment_factors(
@@ -464,7 +464,7 @@ client.corporate.adjustment_factors(
 )
 ```
 
-应用到不复权 K 线时，前复权选择第一条满足 `bar_date < factor.date` 的系数，后复权选择最后一条满足 `factor.date <= bar_date` 的系数，再计算 `round(raw * scale + offset, 2)`。普通复权 K 线可直接请求 `client.bars.get(..., adjust="qfq" / "hfq")`。
+应用到已有不复权 K 线时，前复权选择第一条满足 `bar_date < factor.date` 的系数，后复权选择最后一条满足 `factor.date <= bar_date` 的系数，再计算 `round(raw * scale + offset, 2)`。需要直接获取不复权、前复权或后复权 K 线时，使用 `client.bars.get(..., adjust="none" / "qfq" / "hfq")`，不需要调用本接口。
 
 ### `finance_batch(codes, fields=None, include_raw=False)`
 
