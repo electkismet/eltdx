@@ -1,7 +1,7 @@
 <h1 align="center">eltdx</h1>
 
 <p align="center">
-  <strong>Python API，Rust 驱动的通达信 7709 行情客户端</strong>
+  <strong>Python API，Rust 驱动的通达信量化行情客户端</strong>
 </p>
 
 <p align="center">
