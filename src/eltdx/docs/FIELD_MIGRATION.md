@@ -83,7 +83,7 @@ client.bars.get("sz000001", period="day", adjust="hfq")
 factors = client.corporate.adjustment_factors("sz000001")
 ```
 
-该接口只从 `0x000f` 生成事件级系数，不直接返回复权 K 线。应按 K 线日期选择系数行后计算 `round(raw * scale + offset, 2)`；选行代码见 [本地复权系数](methods/7709-本地复权系数.md)。
+该接口从 `0x000f` 生成事件级系数。将系数按 K 线日期应用到本地不复权 OHLC，再计算 `round(raw * scale + offset, 2)`；选行代码见 [本地复权系数](methods/7709-本地复权系数.md)。
 
 ## 缓存
 

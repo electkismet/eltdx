@@ -515,11 +515,9 @@ def test_local_factor_docs_explain_affine_coefficients() -> None:
     detail = (REPO_ROOT / "docs" / "methods" / "7709-本地复权系数.md").read_text(encoding="utf-8")
     fields = (REPO_ROOT / "docs" / "FIELD_REFERENCE.md").read_text(encoding="utf-8")
 
-    assert "用户已有的本地不复权 K 线" in detail
-    assert "不需要先调用本接口" in detail
-    assert "系数，不是 K 线" in detail
-    assert "只会请求一次 `0x000f`" in detail
-    assert "不参与系数计算" in detail
+    assert "本地保存的不复权 OHLC" in detail
+    assert "直接获取服务端 K 线时" in detail
+    assert "根据 `0x000f` 返回的标签 `1` 权息事件" in detail
     assert "raw * scale + offset" in detail
     assert "bar_date < factor.date" in detail
     assert "factor.date <= bar_date" in detail
