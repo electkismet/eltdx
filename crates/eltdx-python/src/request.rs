@@ -98,7 +98,7 @@ fn capital_changes(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
         codes,
         include_raw,
     ))
-        .map(CommandRequest::CapitalChanges)
+    .map(CommandRequest::CapitalChanges)
 }
 
 fn finance_batch(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
