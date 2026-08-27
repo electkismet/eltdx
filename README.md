@@ -1,7 +1,7 @@
 <h1 align="center">eltdx</h1>
 
 <p align="center">
-  <strong>Python API，Rust 驱动的通达信量化数据客户端</strong>
+  <strong>Python API，Rust 驱动的通达信量化数据客户端，支持其他语言通过语言需要通过 HTTP 或 WebSocket 调用</strong>
 </p>
 
 <p align="center">
