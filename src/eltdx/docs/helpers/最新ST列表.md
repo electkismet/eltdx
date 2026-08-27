@@ -28,3 +28,16 @@ with TdxClient(timeout=3) as client:
     rows = client.helpers.latest_st()
     print([(row.full_code, row.name) for row in rows[:10]])
 ```
+
+## 真实返回样本
+
+??? return-sample "真实返回 JSON · SecurityCode（当前结果节选）"
+    <div class="return-sample-meta">
+      <div><span>筛选范围</span><code>沪深北 A 股</code></div>
+      <div><span>返回类型</span><code>list[SecurityCode]</code></div>
+    </div>
+    <p class="return-sample-note">真实采样；本次代码表没有筛出 ST 证券，结果为空列表。</p>
+
+    ```json
+    []
+    ```
