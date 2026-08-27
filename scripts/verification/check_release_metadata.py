@@ -95,7 +95,7 @@ def check(
     for relative, needle in required.items():
         if needle not in (ROOT / relative).read_text(encoding="utf-8"):
             errors.append(f"{relative} does not contain {needle!r}")
-    banner = ROOT / ".github" / "assets" / "eltdx-readme-banner.png"
+    banner = ROOT / ".github" / "assets" / "eltdx-readme-banner-v3.0.5.png"
     if BANNER_KEYWORD not in _png_text_chunks(banner):
         errors.append(f"README banner lacks eltdx_release={TARGET_PYTHON_VERSION} PNG metadata")
     errors.extend(_mirror_errors())

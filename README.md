@@ -19,10 +19,8 @@
 </p>
 
 <a href="https://electkismet.github.io/eltdx/">
-  <img alt="eltdx 接口目录预览" src=".github/assets/eltdx-readme-banner.png">
+  <img alt="eltdx 接口目录预览" src=".github/assets/eltdx-readme-banner-v3.0.5.png">
 </a>
-
-## 赞助
 
 <p align="center">
   <a href="https://api.astlane.com/">
