@@ -1,5 +1,13 @@
 # 变更记录
 
+## v3.0.5 - 2026-08-27
+
+- `client.corporate.capital_changes()` 和 `adjustment_factors()` 支持代码列表，默认每批 75 只，可通过 `batch_size=1..200` 调整；主站短响应会自动补拉，批次按连接池并发执行。
+- `capital_changes()` 覆盖标签 `1..15` 的广义权息、股本变迁、增发、回购、缩股和权证资料；新增 `CapitalChangeBatch` 和 `AdjustmentFactorBatch`。
+- 新增 `client.corporate.adjustment_factors()`，仅使用 `0x000f` 标签 `1` 在本地计算事件级前、后复权仿射系数。
+- MCP 新增 `eltdx_capital_changes` 和 `eltdx_adjustment_factors`，与 Python API 的批量参数保持同步；MCP 工具总数为 20 个。
+- 修正配股字段映射、标签解析、TCP 拆包和复权事件复合逻辑，并补充多市场和批量回归测试。
+
 ## 未发布
 
 - MCP 新增 `eltdx_capital_changes` 和 `eltdx_adjustment_factors`，与 Python API 同步支持代码列表、默认每批 75 只及可调 `batch_size=1..200`。

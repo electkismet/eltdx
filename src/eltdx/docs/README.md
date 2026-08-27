@@ -7,15 +7,16 @@
 | 顺序 | 文档 | 用途 |
 | --- | --- | --- |
 | 1 | [PRODUCT.md](PRODUCT.md) | 看这个库能查什么、适合怎么用 |
-| 2 | [releases/v3.0.4.md](releases/v3.0.4.md) | 看成交分页顺序修复和发布说明 |
-| 3 | [releases/v3.0.3.md](releases/v3.0.3.md) | 看 A 股常用接口、实时榜单和短线字段补齐 |
-| 4 | [releases/v3.0.2.md](releases/v3.0.2.md) | 看成交明细真实成交视图和返回样本文档 |
-| 5 | [releases/v3.0.1.md](releases/v3.0.1.md) | 看历史集合竞价过程、聚合口径和升级说明 |
-| 6 | [releases/v3.0.0.md](releases/v3.0.0.md) | 看 3.0 Rust 重写、平台 wheel、兼容和迁移边界 |
-| 7 | [MIGRATION_FROM_OLD.md](MIGRATION_FROM_OLD.md) | 从 1.x 迁移到当前模块化 API |
-| 8 | [helpers/README.md](helpers/README.md) | 按常用问题进入调用说明 |
-| 9 | [METHOD_REFERENCE.md](METHOD_REFERENCE.md) | 按调用方法看参数、底层接口和解析字段 |
-| 10 | [methods/README.md](methods/README.md) | 按单个调用方法看独立说明页 |
+| 2 | [releases/v3.0.5.md](releases/v3.0.5.md) | 看股本变迁、复权系数和 MCP 批量能力 |
+| 3 | [releases/v3.0.4.md](releases/v3.0.4.md) | 看成交分页顺序修复和发布说明 |
+| 4 | [releases/v3.0.3.md](releases/v3.0.3.md) | 看 A 股常用接口、实时榜单和短线字段补齐 |
+| 5 | [releases/v3.0.2.md](releases/v3.0.2.md) | 看成交明细真实成交视图和返回样本文档 |
+| 6 | [releases/v3.0.1.md](releases/v3.0.1.md) | 看历史集合竞价过程、聚合口径和升级说明 |
+| 7 | [releases/v3.0.0.md](releases/v3.0.0.md) | 看 3.0 Rust 重写、平台 wheel、兼容和迁移边界 |
+| 8 | [MIGRATION_FROM_OLD.md](MIGRATION_FROM_OLD.md) | 从 1.x 迁移到当前模块化 API |
+| 9 | [helpers/README.md](helpers/README.md) | 按常用问题进入调用说明 |
+| 10 | [METHOD_REFERENCE.md](METHOD_REFERENCE.md) | 按调用方法看参数、底层接口和解析字段 |
+| 11 | [methods/README.md](methods/README.md) | 按单个调用方法看独立说明页 |
 | 11 | [API_REFERENCE.md](API_REFERENCE.md) | 看 `TdxClient` 应该怎么调用 |
 | 12 | [EXAMPLES.md](EXAMPLES.md) | 直接复制常见调用示例 |
 | 13 | [FIELD_REFERENCE.md](FIELD_REFERENCE.md) | 看返回模型字段总表 |
