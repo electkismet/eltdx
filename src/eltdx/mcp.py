@@ -15,7 +15,12 @@ from . import __version__
 from .client import TdxClient
 from .f10 import F10Client
 from .hosts import normalize_host
-from .protocol.constants import MAX_KLINE_PAGE_SIZE, MAX_TRADE_PAGE_SIZE
+from .protocol.constants import (
+    DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
+    MAX_CAPITAL_CHANGE_CODES,
+    MAX_KLINE_PAGE_SIZE,
+    MAX_TRADE_PAGE_SIZE,
+)
 from .serialization import to_jsonable
 
 _MAX_CODES = 200
@@ -39,18 +44,28 @@ _DOC_PATHS = {
 _T = TypeVar("_T")
 
 
-def quote(codes: str | Sequence[str], *, timeout: float = 8.0, host: str | None = None) -> Any:
+def quote(
+    codes: str | Sequence[str], *, timeout: float = 8.0, host: str | None = None
+) -> Any:
     """Query quote snapshots."""
 
     code_list = _validate_codes(codes)
-    return _call_once(lambda client: client.quotes.get_snapshots(code_list), timeout=timeout, host=host)
+    return _call_once(
+        lambda client: client.quotes.get_snapshots(code_list),
+        timeout=timeout,
+        host=host,
+    )
 
 
-def quote_depth(codes: str | Sequence[str], *, timeout: float = 8.0, host: str | None = None) -> Any:
+def quote_depth(
+    codes: str | Sequence[str], *, timeout: float = 8.0, host: str | None = None
+) -> Any:
     """Query five-level quote depth."""
 
     code_list = _validate_codes(codes, maximum=_MAX_DEPTH_CODES)
-    return _call_once(lambda client: client.quotes.get_depth(code_list), timeout=timeout, host=host)
+    return _call_once(
+        lambda client: client.quotes.get_depth(code_list), timeout=timeout, host=host
+    )
 
 
 def kline(
@@ -84,6 +99,58 @@ def kline(
     )
 
 
+def capital_changes(
+    codes: str | Sequence[str],
+    *,
+    include_raw: bool = False,
+    batch_size: int = DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
+    timeout: float = 8.0,
+    host: str | None = None,
+) -> Any:
+    """Query broad capital-change and corporate-action records."""
+
+    code_list = _validate_codes(codes)
+    batch_size = _bounded_int(
+        "batch_size", batch_size, minimum=1, maximum=MAX_CAPITAL_CHANGE_CODES
+    )
+    return _call_once(
+        lambda client: client.corporate.capital_changes(
+            code_list,
+            include_raw=include_raw,
+            batch_size=batch_size,
+        ),
+        timeout=timeout,
+        host=host,
+    )
+
+
+def adjustment_factors(
+    codes: str | Sequence[str],
+    *,
+    anchor_date: str | int | None = None,
+    start_date: str | int | None = None,
+    batch_size: int = DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
+    timeout: float = 8.0,
+    host: str | None = None,
+) -> Any:
+    """Calculate local adjustment coefficients from capital-change records."""
+
+    code_list = _validate_codes(codes)
+    batch_size = _bounded_int(
+        "batch_size", batch_size, minimum=1, maximum=MAX_CAPITAL_CHANGE_CODES
+    )
+    return _call_once(
+        lambda client: client.corporate.adjustment_factors(
+            code_list,
+            anchor_date=anchor_date,
+            start_date=start_date,
+            batch_size=batch_size,
+        ),
+        timeout=timeout,
+        host=host,
+    )
+
+
 def minute(
     code: str,
     *,
@@ -95,9 +162,11 @@ def minute(
     """Query today's hosted data or one historical day's minute series."""
 
     return _call_once(
-        lambda client: client.minutes.today(code, include_raw=include_raw)
-        if trading_date is None
-        else client.minutes.history(code, trading_date, include_raw=include_raw),
+        lambda client: (
+            client.minutes.today(code, include_raw=include_raw)
+            if trading_date is None
+            else client.minutes.history(code, trading_date, include_raw=include_raw)
+        ),
         timeout=timeout,
         host=host,
     )
@@ -118,14 +187,16 @@ def trades(
     start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
     count = _bounded_int("count", count, minimum=1, maximum=_MAX_TRADE_COUNT)
     return _call_once(
-        lambda client: client.trades.today(code, start=start, count=count, include_raw=include_raw)
-        if trading_date is None
-        else client.trades.history(
-            code,
-            trading_date,
-            start=start,
-            count=count,
-            include_raw=include_raw,
+        lambda client: (
+            client.trades.today(code, start=start, count=count, include_raw=include_raw)
+            if trading_date is None
+            else client.trades.history(
+                code,
+                trading_date,
+                start=start,
+                count=count,
+                include_raw=include_raw,
+            )
         ),
         timeout=timeout,
         host=host,
@@ -143,18 +214,32 @@ def call_auction(
     """Query current or historical call-auction process snapshots."""
 
     return _call_once(
-        lambda client: client.auctions.series(code, trading_date, include_raw=include_raw),
+        lambda client: client.auctions.series(
+            code, trading_date, include_raw=include_raw
+        ),
         timeout=timeout,
         host=host,
     )
 
 
-def opening_match_today(code: str, *, timeout: float = 8.0, host: str | None = None) -> Any:
-    return _call_once(lambda client: client.trades.opening_match_today(code), timeout=timeout, host=host)
+def opening_match_today(
+    code: str, *, timeout: float = 8.0, host: str | None = None
+) -> Any:
+    return _call_once(
+        lambda client: client.trades.opening_match_today(code),
+        timeout=timeout,
+        host=host,
+    )
 
 
-def opening_match_history(code: str, trading_date: str | int, *, timeout: float = 8.0, host: str | None = None) -> Any:
-    return _call_once(lambda client: client.trades.opening_match_history(code, trading_date), timeout=timeout, host=host)
+def opening_match_history(
+    code: str, trading_date: str | int, *, timeout: float = 8.0, host: str | None = None
+) -> Any:
+    return _call_once(
+        lambda client: client.trades.opening_match_history(code, trading_date),
+        timeout=timeout,
+        host=host,
+    )
 
 
 def auction_data(
@@ -286,7 +371,9 @@ def hot_topics(code: str, *, section: str = "zttzbkz", timeout: float = 8.0) -> 
     )
 
 
-def finance_report(code: str, *, report_type: str = "zcfzb", timeout: float = 8.0) -> Any:
+def finance_report(
+    code: str, *, report_type: str = "zcfzb", timeout: float = 8.0
+) -> Any:
     """Query an F10 finance report."""
 
     return _call_once(
@@ -354,7 +441,9 @@ class _ClientRegistry:
     """Own and reuse TdxClient instances for one MCP server lifespan."""
 
     def __init__(self) -> None:
-        self._clients: OrderedDict[tuple[str | None, float], _ClientEntry] = OrderedDict()
+        self._clients: OrderedDict[tuple[str | None, float], _ClientEntry] = (
+            OrderedDict()
+        )
         self._pending_keys: set[tuple[str | None, float]] = set()
         self._lock = RLock()
         self._condition = Condition(self._lock)
@@ -370,7 +459,9 @@ class _ClientRegistry:
         finally:
             self._release(key, entry)
 
-    def _acquire(self, *, timeout: float, host: str | None) -> tuple[tuple[str | None, float], _ClientEntry]:
+    def _acquire(
+        self, *, timeout: float, host: str | None
+    ) -> tuple[tuple[str | None, float], _ClientEntry]:
         timeout = _validate_timeout(timeout)
         host = _normalize_host(host)
         key = (host, timeout)
@@ -428,7 +519,11 @@ class _ClientRegistry:
                     self._clients[key] = owner
                 elif entry is None:
                     for victim_key, candidate in self._clients.items():
-                        if candidate.active_calls == 0 and not candidate.connecting and not candidate.retiring:
+                        if (
+                            candidate.active_calls == 0
+                            and not candidate.connecting
+                            and not candidate.retiring
+                        ):
                             candidate.retiring = True
                             victim = (victim_key, candidate)
                             break
@@ -541,7 +636,9 @@ class _ClientRegistry:
             self._condition.notify_all()
 
         if failures:
-            raise RuntimeError(f"failed to close {len(failures)} eltdx MCP client(s)") from failures[0]
+            raise RuntimeError(
+                f"failed to close {len(failures)} eltdx MCP client(s)"
+            ) from failures[0]
 
 
 class _McpTools:
@@ -603,6 +700,54 @@ class _McpTools:
                 )
             )
 
+    def capital_changes(
+        self,
+        codes: str | list[str],
+        include_raw: bool = False,
+        batch_size: int = DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
+        timeout: float = 8.0,
+        host: str | None = None,
+    ) -> dict[str, Any]:
+        """Query broad capital-change records for up to 200 securities."""
+
+        code_list = _validate_codes(codes)
+        batch_size = _bounded_int(
+            "batch_size", batch_size, minimum=1, maximum=MAX_CAPITAL_CHANGE_CODES
+        )
+        with self._clients.use(timeout=timeout, host=host) as client:
+            return _json(
+                client.corporate.capital_changes(
+                    code_list,
+                    include_raw=include_raw,
+                    batch_size=batch_size,
+                )
+            )
+
+    def adjustment_factors(
+        self,
+        codes: str | list[str],
+        anchor_date: str | int | None = None,
+        start_date: str | int | None = None,
+        batch_size: int = DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
+        timeout: float = 8.0,
+        host: str | None = None,
+    ) -> dict[str, Any]:
+        """Calculate local adjustment coefficients for up to 200 securities."""
+
+        code_list = _validate_codes(codes)
+        batch_size = _bounded_int(
+            "batch_size", batch_size, minimum=1, maximum=MAX_CAPITAL_CHANGE_CODES
+        )
+        with self._clients.use(timeout=timeout, host=host) as client:
+            return _json(
+                client.corporate.adjustment_factors(
+                    code_list,
+                    anchor_date=anchor_date,
+                    start_date=start_date,
+                    batch_size=batch_size,
+                )
+            )
+
     def minute(
         self,
         code: str,
@@ -636,9 +781,17 @@ class _McpTools:
         count = _bounded_int("count", count, minimum=1, maximum=_MAX_TRADE_COUNT)
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(
-                client.trades.today(code, start=start, count=count, include_raw=include_raw)
+                client.trades.today(
+                    code, start=start, count=count, include_raw=include_raw
+                )
                 if trading_date is None
-                else client.trades.history(code, trading_date, start=start, count=count, include_raw=include_raw)
+                else client.trades.history(
+                    code,
+                    trading_date,
+                    start=start,
+                    count=count,
+                    include_raw=include_raw,
+                )
             )
 
     def call_auction(
@@ -652,13 +805,23 @@ class _McpTools:
         """Query current or historical call-auction process snapshots."""
 
         with self._clients.use(timeout=timeout, host=host) as client:
-            return _json(client.auctions.series(code, trading_date, include_raw=include_raw))
+            return _json(
+                client.auctions.series(code, trading_date, include_raw=include_raw)
+            )
 
-    def opening_match_today(self, code: str, timeout: float = 8.0, host: str | None = None) -> dict[str, Any]:
+    def opening_match_today(
+        self, code: str, timeout: float = 8.0, host: str | None = None
+    ) -> dict[str, Any]:
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(client.trades.opening_match_today(code))
 
-    def opening_match_history(self, code: str, trading_date: str | int, timeout: float = 8.0, host: str | None = None) -> dict[str, Any]:
+    def opening_match_history(
+        self,
+        code: str,
+        trading_date: str | int,
+        timeout: float = 8.0,
+        host: str | None = None,
+    ) -> dict[str, Any]:
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(client.trades.opening_match_history(code, trading_date))
 
@@ -730,7 +893,9 @@ class _McpTools:
     def stock_topics(self, code: str, timeout: float = 8.0) -> dict[str, Any]:
         """Query all known topics for one stock."""
 
-        return _call_without_market(lambda client: client.helpers.stock_topics(code), timeout=timeout)
+        return _call_without_market(
+            lambda client: client.helpers.stock_topics(code), timeout=timeout
+        )
 
     def topic_stocks(
         self,
@@ -754,20 +919,34 @@ class _McpTools:
             timeout=timeout,
         )
 
-    def company_profile(self, code: str, section: str = "8", timeout: float = 8.0) -> dict[str, Any]:
+    def company_profile(
+        self, code: str, section: str = "8", timeout: float = 8.0
+    ) -> dict[str, Any]:
         """Query an F10 company-profile section."""
 
-        return _call_f10(lambda client: client.company_profile(code, section=section), timeout=timeout)
+        return _call_f10(
+            lambda client: client.company_profile(code, section=section),
+            timeout=timeout,
+        )
 
-    def hot_topics(self, code: str, section: str = "zttzbkz", timeout: float = 8.0) -> dict[str, Any]:
+    def hot_topics(
+        self, code: str, section: str = "zttzbkz", timeout: float = 8.0
+    ) -> dict[str, Any]:
         """Query F10 hot-topic detail rows."""
 
-        return _call_f10(lambda client: client.hot_topics(code, section=section), timeout=timeout)
+        return _call_f10(
+            lambda client: client.hot_topics(code, section=section), timeout=timeout
+        )
 
-    def finance_report(self, code: str, report_type: str = "zcfzb", timeout: float = 8.0) -> dict[str, Any]:
+    def finance_report(
+        self, code: str, report_type: str = "zcfzb", timeout: float = 8.0
+    ) -> dict[str, Any]:
         """Query an F10 finance report."""
 
-        return _call_f10(lambda client: client.finance_report(code, report_type=report_type), timeout=timeout)
+        return _call_f10(
+            lambda client: client.finance_report(code, report_type=report_type),
+            timeout=timeout,
+        )
 
     def company_news(
         self,
@@ -837,6 +1016,8 @@ def create_mcp_server():
         ("eltdx_quote", tools.quote),
         ("eltdx_quote_depth", tools.quote_depth),
         ("eltdx_kline", tools.kline),
+        ("eltdx_capital_changes", tools.capital_changes),
+        ("eltdx_adjustment_factors", tools.adjustment_factors),
         ("eltdx_minute", tools.minute),
         ("eltdx_trades", tools.trades),
         ("eltdx_call_auction", tools.call_auction),
@@ -891,7 +1072,9 @@ def _call_once(
         client.close()
 
 
-def _call_without_market(operation: Callable[[TdxClient], _T], *, timeout: float) -> Any:
+def _call_without_market(
+    operation: Callable[[TdxClient], _T], *, timeout: float
+) -> Any:
     client = _client(timeout=timeout, host=None)
     try:
         return _json(operation(client))
@@ -911,7 +1094,9 @@ def _client(*, timeout: float, host: str | None) -> TdxClient:
     )
 
 
-def _validate_codes(codes: str | Sequence[str], *, maximum: int = _MAX_CODES) -> list[str]:
+def _validate_codes(
+    codes: str | Sequence[str], *, maximum: int = _MAX_CODES
+) -> list[str]:
     if isinstance(codes, str):
         code_list = [codes]
     elif isinstance(codes, Sequence):

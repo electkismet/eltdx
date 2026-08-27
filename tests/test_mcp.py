@@ -9,6 +9,7 @@ import pytest
 
 from eltdx import TdxClient
 from eltdx.api.bars import BarApi
+from eltdx.api.corporate import CorporateApi
 from eltdx.api.quotes import QuoteApi
 from eltdx.f10 import F10Client
 from eltdx.mcp import (
@@ -70,6 +71,56 @@ def test_mcp_quote_returns_jsonable_snapshot_and_closes(monkeypatch) -> None:
     assert result[0]["last_price"] == 12.0
     assert result[0]["tail_raw"] == ""
     assert calls == ["connect", "close"]
+
+
+def test_mcp_capital_change_tools_forward_batch_size(monkeypatch) -> None:
+    calls = []
+
+    monkeypatch.setattr(TdxClient, "connect", lambda self: None)
+    monkeypatch.setattr(TdxClient, "close", lambda self: None)
+    monkeypatch.setattr(
+        CorporateApi,
+        "capital_changes",
+        lambda self, codes, *, include_raw=False, batch_size=75: (
+            calls.append(("changes", codes, include_raw, batch_size))
+            or {"count": len(codes)}
+        ),
+    )
+    monkeypatch.setattr(
+        CorporateApi,
+        "adjustment_factors",
+        lambda self, codes, anchor_date=None, *, start_date=None, batch_size=75: (
+            calls.append(("factors", codes, anchor_date, start_date, batch_size))
+            or {"count": len(codes)}
+        ),
+    )
+
+    registry = _ClientRegistry()
+    tools = _McpTools(registry)
+    try:
+        assert tools.capital_changes(
+            ["sz000001", "sh600000"], include_raw=True, batch_size=100
+        ) == {"count": 2}
+        assert tools.adjustment_factors(
+            ["sz000001"], anchor_date="2026-05-31", start_date="2020-01-01"
+        ) == {"count": 1}
+    finally:
+        registry.close()
+
+    assert calls == [
+        ("changes", ["sz000001", "sh600000"], True, 100),
+        ("factors", ["sz000001"], "2026-05-31", "2020-01-01", 75),
+    ]
+
+
+def test_mcp_capital_change_tools_reject_invalid_batch_size() -> None:
+    registry = _ClientRegistry()
+    tools = _McpTools(registry)
+    try:
+        with pytest.raises(ValueError, match="batch_size must be between 1 and 200"):
+            tools.capital_changes("sz000001", batch_size=201)
+    finally:
+        registry.close()
 
 
 def test_mcp_kline_returns_jsonable_series(monkeypatch) -> None:
@@ -142,7 +193,9 @@ def test_mcp_tool_validates_codes_before_connecting(monkeypatch) -> None:
     tools = _McpTools(registry)
     connect_calls = []
 
-    monkeypatch.setattr(TdxClient, "connect", lambda self: connect_calls.append(id(self)))
+    monkeypatch.setattr(
+        TdxClient, "connect", lambda self: connect_calls.append(id(self))
+    )
 
     with pytest.raises(ValueError, match="at most 200 securities"):
         tools.quote([f"sz{index:06d}" for index in range(201)])
@@ -166,7 +219,9 @@ def test_mcp_registry_rejects_invalid_host_before_registering_pending_key() -> N
     registry.close()
 
 
-def test_mcp_registry_rolls_back_pending_key_when_client_construction_fails(monkeypatch) -> None:
+def test_mcp_registry_rolls_back_pending_key_when_client_construction_fails(
+    monkeypatch,
+) -> None:
     registry = _ClientRegistry()
 
     def fail_client_construction(**_kwargs):
@@ -221,7 +276,9 @@ def test_mcp_registry_initializes_different_keys_concurrently(monkeypatch) -> No
     registry.close()
 
 
-def test_mcp_registry_uses_four_connections_for_same_server_threads(monkeypatch) -> None:
+def test_mcp_registry_uses_four_connections_for_same_server_threads(
+    monkeypatch,
+) -> None:
     registry = _ClientRegistry()
     clients = []
 
@@ -237,7 +294,9 @@ def test_mcp_registry_uses_four_connections_for_same_server_threads(monkeypatch)
     registry.close()
 
 
-def test_mcp_registry_initializes_same_key_once_for_concurrent_calls(monkeypatch) -> None:
+def test_mcp_registry_initializes_same_key_once_for_concurrent_calls(
+    monkeypatch,
+) -> None:
     registry = _ClientRegistry()
     connect_entered = threading.Event()
     release_connect = threading.Event()
@@ -282,7 +341,9 @@ def test_mcp_registry_evicts_idle_lru_client(monkeypatch) -> None:
     closed_timeouts = []
 
     monkeypatch.setattr(TdxClient, "connect", lambda self: None)
-    monkeypatch.setattr(TdxClient, "close", lambda self: closed_timeouts.append(self.timeout))
+    monkeypatch.setattr(
+        TdxClient, "close", lambda self: closed_timeouts.append(self.timeout)
+    )
 
     for timeout in range(1, 18):
         _use_registry_once(registry, timeout=timeout, host=None)
@@ -297,10 +358,14 @@ def test_mcp_f10_tools_do_not_consume_market_client_slots(monkeypatch) -> None:
     registry = _ClientRegistry()
     tools = _McpTools(registry)
 
-    monkeypatch.setattr(F10Client, "company_profile", lambda self, code, section="8": {"code": code})
+    monkeypatch.setattr(
+        F10Client, "company_profile", lambda self, code, section="8": {"code": code}
+    )
 
     for timeout in range(1, 18):
-        assert tools.company_profile("sz000001", timeout=timeout) == {"code": "sz000001"}
+        assert tools.company_profile("sz000001", timeout=timeout) == {
+            "code": "sz000001"
+        }
 
     assert not registry._clients
     registry.close()
@@ -363,7 +428,11 @@ def test_mcp_registry_connect_failure_cleanup_blocks_shutdown(monkeypatch) -> No
     shutdown_finished = threading.Event()
     acquire_errors = []
 
-    monkeypatch.setattr(TdxClient, "connect", lambda self: (_ for _ in ()).throw(RuntimeError("connect")))
+    monkeypatch.setattr(
+        TdxClient,
+        "connect",
+        lambda self: (_ for _ in ()).throw(RuntimeError("connect")),
+    )
 
     def close(client) -> None:
         cleanup_entered.set()
@@ -381,7 +450,9 @@ def test_mcp_registry_connect_failure_cleanup_blocks_shutdown(monkeypatch) -> No
     worker.start()
     assert cleanup_entered.wait(timeout=1)
 
-    closer = threading.Thread(target=lambda: (registry.close(), shutdown_finished.set()))
+    closer = threading.Thread(
+        target=lambda: (registry.close(), shutdown_finished.set())
+    )
     closer.start()
     assert not shutdown_finished.wait(timeout=0.1)
     release_cleanup.set()
@@ -397,7 +468,11 @@ def test_mcp_registry_retains_failed_connect_cleanup_for_retry(monkeypatch) -> N
     registry = _ClientRegistry()
     close_calls = []
 
-    monkeypatch.setattr(TdxClient, "connect", lambda self: (_ for _ in ()).throw(RuntimeError("connect")))
+    monkeypatch.setattr(
+        TdxClient,
+        "connect",
+        lambda self: (_ for _ in ()).throw(RuntimeError("connect")),
+    )
 
     def close(client) -> None:
         close_calls.append(id(client))
@@ -432,7 +507,9 @@ def test_mcp_registry_has_only_one_concurrent_shutdown_owner(monkeypatch) -> Non
         assert release_close.wait(timeout=2)
 
     monkeypatch.setattr(TdxClient, "close", close)
-    worker = threading.Thread(target=lambda: _hold_registry_client(registry, acquired, release_call))
+    worker = threading.Thread(
+        target=lambda: _hold_registry_client(registry, acquired, release_call)
+    )
     worker.start()
     assert acquired.wait(timeout=1)
 
@@ -536,10 +613,12 @@ def test_mcp_sdk2_lists_tools_and_reads_resources() -> None:
         async with Client(create_mcp_server()) as client:
             tools = await client.list_tools()
             tool_names = {tool.name for tool in tools.tools}
-            assert len(tool_names) == 18
+            assert len(tool_names) == 20
             assert {
                 "eltdx_quote",
                 "eltdx_kline",
+                "eltdx_capital_changes",
+                "eltdx_adjustment_factors",
                 "eltdx_minute",
                 "eltdx_trades",
                 "eltdx_shortline_indicators",
@@ -551,7 +630,10 @@ def test_mcp_sdk2_lists_tools_and_reads_resources() -> None:
             assert "eltdx_auction_today" not in tool_names
             assert "eltdx_auction_history" not in tool_names
             assert "eltdx_auction_0925" not in tool_names
-            assert all("self" not in tool.input_schema.get("properties", {}) for tool in tools.tools)
+            assert all(
+                "self" not in tool.input_schema.get("properties", {})
+                for tool in tools.tools
+            )
             assert all(tool.output_schema is not None for tool in tools.tools)
 
             result = await client.call_tool("eltdx_docs_index", {})
@@ -584,7 +666,7 @@ def test_mcp_sdk2_real_stdio_process() -> None:
         )
         async with Client(stdio_client(parameters), mode="legacy") as client:
             tools = await client.list_tools()
-            assert len(tools.tools) == 18
+            assert len(tools.tools) == 20
             result = await client.call_tool("eltdx_docs_index", {})
             assert result.structured_content["MCP"] == "eltdx://docs/mcp"
             document = await client.read_resource("eltdx://docs/mcp")
@@ -599,8 +681,12 @@ def test_mcp_sdk2_reuses_and_closes_client(monkeypatch) -> None:
     calls = []
     quote_clients = []
 
-    monkeypatch.setattr(TdxClient, "connect", lambda self: calls.append(("connect", id(self))))
-    monkeypatch.setattr(TdxClient, "close", lambda self: calls.append(("close", id(self))))
+    monkeypatch.setattr(
+        TdxClient, "connect", lambda self: calls.append(("connect", id(self)))
+    )
+    monkeypatch.setattr(
+        TdxClient, "close", lambda self: calls.append(("close", id(self)))
+    )
     monkeypatch.setattr(
         QuoteApi,
         "get_snapshots",
@@ -609,8 +695,12 @@ def test_mcp_sdk2_reuses_and_closes_client(monkeypatch) -> None:
 
     async def exercise() -> None:
         async with Client(create_mcp_server()) as client:
-            first = await client.call_tool("eltdx_quote", {"codes": "sz000001", "timeout": 3})
-            second = await client.call_tool("eltdx_quote", {"codes": "sh600000", "timeout": 3})
+            first = await client.call_tool(
+                "eltdx_quote", {"codes": "sz000001", "timeout": 3}
+            )
+            second = await client.call_tool(
+                "eltdx_quote", {"codes": "sh600000", "timeout": 3}
+            )
             assert first.is_error is False
             assert second.is_error is False
             assert first.structured_content["result"][0]["code"] == "sz000001"

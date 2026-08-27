@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- MCP 新增 `eltdx_capital_changes` 和 `eltdx_adjustment_factors`，与 Python API 同步支持代码列表、默认每批 75 只及可调 `batch_size=1..200`。
 - `capital_changes()` 和 `adjustment_factors()` 的列表查询默认按 75 只拆批，新增 `batch_size` 参数（`1..200`）允许按需调整；主站短响应仍会自动补拉。
 - `client.corporate.capital_changes()` 和 `adjustment_factors()` 支持代码列表；`0x000f` 协议最多 200 只，客户端默认每批 75 只，超量后按连接池 Slot 数并发拆批，单只调用保持原返回模型。
 - 修正权息标签 1 字段语义：`c2` 为配股价，`c4` 为每十股配股数量，并用 000858/20010219 配股记录增加回归测试。

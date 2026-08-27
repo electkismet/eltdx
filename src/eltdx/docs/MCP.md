@@ -52,6 +52,8 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | `eltdx_quote` | 查询一个或多个证券的行情快照 |
 | `eltdx_quote_depth` | 查询原生五档盘口，单次最多 100 只证券 |
 | `eltdx_kline` | 查询一页 K 线，支持周期、复权和锚定日期 |
+| `eltdx_capital_changes` | 查询标签 1..15 的股本变迁和权息资料，默认每批 75 只 |
+| `eltdx_adjustment_factors` | 根据权息资料计算本地前、后复权系数，默认每批 75 只 |
 | `eltdx_minute` | 查询当前或指定日期分时 |
 | `eltdx_trades` | 查询一页当前或历史成交明细 |
 | `eltdx_call_auction` | 查询当日或历史集合竞价过程快照；`trading_date` 可选 |
@@ -140,6 +142,7 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | 参数 | 边界 |
 | --- | --- |
 | 普通行情和汇总工具 `codes` | 每次最多 200 个代码，建议使用 `sz000001`、`sh600000` 格式 |
+| 股本变迁和复权系数 `codes` | 每次最多 200 个代码，默认每批 75 个；`batch_size` 可设为 `1..200` |
 | 五档盘口 `codes` | `eltdx_quote_depth` 单次最多 100 个代码；底层使用原生 `0x0547` 刷新 / 推送接口 |
 | `timeout` | 大于 0 且不超过 120 秒，默认 8 秒 |
 | `host` | 可选的单个 7709 主站，例如 `116.205.183.150:7709` |
