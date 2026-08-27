@@ -706,19 +706,20 @@ history_opening = client.trades.opening_match_history("sz000001", "2026-05-20")
 
 <a id="method-corporate-capital-changes"></a>
 
-### `client.corporate.capital_changes(code)`
+### `client.corporate.capital_changes(code_or_codes, *, include_raw=False, batch_size=75)`
 
 查询标签 `1..15` 的广义权息 / 股本变迁资料，对应 `0x000f`。
 
 ```python
 block = client.corporate.capital_changes("sz000001")
+batch = client.corporate.capital_changes(["sz000001", "sh600000", "bj920000"])
 ```
 
-返回 `CapitalChangeBlock`。标签 `1` 的字段为 `c1=D`、`c2=P`、`c3=S`、`c4=R`；数量类标签的 `c*_value` 已统一换算成股。完整标签表见 [股本变迁 GBBQ](methods/7709-股本变迁GBBQ.md)。
+单只返回 `CapitalChangeBlock`，列表返回 `CapitalChangeBatch`。列表默认每批 75 只，`batch_size` 可设为 `1..200`，超量批次由连接池并发执行；主站短响应会自动补拉。标签 `1` 的字段为 `c1=D`、`c2=P`、`c3=S`、`c4=R`；数量类标签的 `c*_value` 已统一换算成股。完整标签表见 [股本变迁 GBBQ](methods/7709-股本变迁GBBQ.md)。
 
 <a id="method-corporate-adjustment-factors"></a>
 
-### `client.corporate.adjustment_factors(code, anchor_date=None, *, start_date=None)`
+### `client.corporate.adjustment_factors(code_or_codes, anchor_date=None, *, start_date=None, batch_size=75)`
 
 根据 `0x000f` 的标签 `1` 事件，为本地不复权 K 线提供前复权或后复权所需系数。直接获取服务端 K 线时使用 `client.bars.get()`。
 
@@ -729,11 +730,13 @@ anchored = client.corporate.adjustment_factors(
     anchor_date="2024-05-31",
     start_date="1998-04-27",
 )
+batch = client.corporate.adjustment_factors(["sz000001", "sh600000"])
 ```
 
 | 返回模型 | 字段 |
 | --- | --- |
 | `AdjustmentFactorResponse` | `full_code`、`anchor_date`、`start_date`、`count`、`items` |
+| `AdjustmentFactorBatch` | `count`、`responses` / `items` |
 | `AdjustmentFactor` | `date`、`qfq_scale`、`qfq_offset`、`hfq_scale`、`hfq_offset` |
 
 使用方式为 `round(raw * scale + offset, 2)`。`start_date` 可显式排除上市前事件；多事件按日期复合、同日保持服务端顺序，计算过程中不舍入。系数行的日期选择规则和完整应用代码见 [本地复权系数](methods/7709-本地复权系数.md)。

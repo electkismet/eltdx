@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from eltdx.models import (
     AuctionPoint,
     AuctionSeries,
+    CapitalChangeBatch,
     CapitalChangeBlock,
     CapitalChangeRecord,
     CategoryQuotePage,
@@ -47,7 +48,9 @@ if TYPE_CHECKING:
 
 
 _SHANGHAI_OFFSET_SECONDS = 8 * 60 * 60
-_SHANGHAI_TZ = timezone(timedelta(seconds=_SHANGHAI_OFFSET_SECONDS), name="Asia/Shanghai")
+_SHANGHAI_TZ = timezone(
+    timedelta(seconds=_SHANGHAI_OFFSET_SECONDS), name="Asia/Shanghai"
+)
 _SNAPSHOT_STRIDE = 27
 _TRADE_TICK_STRIDE = 19
 
@@ -78,14 +81,18 @@ def _datetime(value: Any) -> datetime | None:
         return None
     year, month, day, hour, minute, second, offset = _tuple(value, "datetime", 7)
     if offset is None:
-        return datetime(int(year), int(month), int(day), int(hour), int(minute), int(second))
+        return datetime(
+            int(year), int(month), int(day), int(hour), int(minute), int(second)
+        )
     offset_seconds = int(offset)
     tz = (
         _SHANGHAI_TZ
         if offset_seconds == _SHANGHAI_OFFSET_SECONDS
         else timezone(timedelta(seconds=offset_seconds))
     )
-    return datetime(int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=tz)
+    return datetime(
+        int(year), int(month), int(day), int(hour), int(minute), int(second), tzinfo=tz
+    )
 
 
 def _records(value: Any, name: str, convert: Any) -> tuple[Any, ...]:
@@ -104,6 +111,20 @@ def _capital_record(value: Any) -> CapitalChangeRecord:
     fields = list(_tuple(value, "capital change record", 21))
     fields[5] = _date(fields[5])
     return CapitalChangeRecord(*fields)
+
+
+def _capital_block(value: Any, context: str) -> CapitalChangeBlock:
+    exchange, market_id, code, block_count, records, raw_payload = _tuple(
+        value, context, 6
+    )
+    return CapitalChangeBlock(
+        exchange,
+        market_id,
+        code,
+        block_count,
+        _records(records, context, _capital_record),
+        raw_payload,
+    )
 
 
 def _finance_record(value: Any) -> FinanceRecord:
@@ -273,14 +294,12 @@ def response_from_dto(dto: Any) -> Any:
         fields[4] = _date(fields[4])
         return HandshakeInfo(*fields)
     if tag == "capital_changes":
-        exchange, market_id, code, block_count, records, raw_payload = _tuple(payload, tag, 6)
-        return CapitalChangeBlock(
-            exchange,
-            market_id,
-            code,
-            block_count,
-            _records(records, tag, _capital_record),
-            raw_payload,
+        return _capital_block(payload, tag)
+    if tag == "capital_change_batch":
+        blocks, raw_payload = _tuple(payload, tag, 2)
+        return CapitalChangeBatch(
+            _records(blocks, tag, lambda item: _capital_block(item, tag)),
+            (raw_payload,) if raw_payload else (),
         )
     if tag == "finance_batch":
         records, raw_payload = _tuple(payload, tag, 2)
@@ -293,10 +312,14 @@ def response_from_dto(dto: Any) -> Any:
         return payload
     if tag == "special_limits":
         start_index, records, raw_payload = _tuple(payload, tag, 3)
-        converted = _records(records, tag, lambda item: SpecialLimitRecord(*_tuple(item, tag, 7)))
+        converted = _records(
+            records, tag, lambda item: SpecialLimitRecord(*_tuple(item, tag, 7))
+        )
         return SpecialLimitPage(start_index, converted, raw_payload)
     if tag == "intraday_aux":
-        exchange, market_id, code, selector_raw, kind, points, raw_payload = _tuple(payload, tag, 7)
+        exchange, market_id, code, selector_raw, kind, points, raw_payload = _tuple(
+            payload, tag, 7
+        )
         return MinuteAuxSeries(
             exchange,
             market_id,
@@ -334,7 +357,17 @@ def response_from_dto(dto: Any) -> Any:
             for offset in range(0, len(snapshot_fields), _SNAPSHOT_STRIDE)
         ]
     if tag == "auction_series":
-        exchange, market_id, code, trading_date, mode, start, limit, points, raw_payload = _tuple(payload, tag, 9)
+        (
+            exchange,
+            market_id,
+            code,
+            trading_date,
+            mode,
+            start,
+            limit,
+            points,
+            raw_payload,
+        ) = _tuple(payload, tag, 9)
         return AuctionSeries(
             exchange,
             market_id,

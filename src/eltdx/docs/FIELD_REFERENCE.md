@@ -210,6 +210,8 @@ K 线响应和单根 K 线。
 
 标签 `1` 中四个业务值依次是每十股现金分红、配股价格、每十股送转数量、每十股配股数量。数量类标签的 `c*_value` 单位统一为股。
 
+`CapitalChangeBatch` 是代码列表查询的返回模型：`blocks` / `items` 是逐股票结果，`count` 是股票块数，`records` 是所有事件记录的扁平视图，`raw_payloads` 保存各协议批次的原始响应。
+
 ## AdjustmentFactorResponse / AdjustmentFactor
 
 本地前、后复权仿射系数。
@@ -225,6 +227,8 @@ K 线响应和单根 K 线。
 | `hfq_scale` / `hfq_offset` | 后复权缩放和偏移 |
 
 价格应用公式为 `round(raw * scale + offset, 2)`。
+
+代码列表查询返回 `AdjustmentFactorBatch`；`responses` / `items` 是逐股票的 `AdjustmentFactorResponse`，`count` 是股票结果数。
 
 ## FinanceRecord
 

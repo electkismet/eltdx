@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- `capital_changes()` 和 `adjustment_factors()` 的列表查询默认按 75 只拆批，新增 `batch_size` 参数（`1..200`）允许按需调整；主站短响应仍会自动补拉。
+- `client.corporate.capital_changes()` 和 `adjustment_factors()` 支持代码列表；`0x000f` 协议最多 200 只，客户端默认每批 75 只，超量后按连接池 Slot 数并发拆批，单只调用保持原返回模型。
 - 修正权息标签 1 字段语义：`c2` 为配股价，`c4` 为每十股配股数量，并用 000858/20010219 配股记录增加回归测试。
 - 新增 `client.corporate.adjustment_factors()`，仅根据 `0x000f` 标签 `1` 按事件日期复合完整仿射公式并同时返回 `scale + offset`；可用 `start_date` 排除上市前事件，系数计算不舍入。
 - 将 `client.bars.all()` 合并为 `client.bars.get(..., all_pages=True)`，单页与自动分页统一使用一个入口。

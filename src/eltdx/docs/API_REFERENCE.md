@@ -444,17 +444,18 @@ client.auctions.series("sz000001", "2026-05-20")
 
 ## `client.corporate`
 
-### `capital_changes(code, include_raw=False)`
+### `capital_changes(code_or_codes, include_raw=False, batch_size=75)`
 
-查询标签 `1..15` 的广义权息和股本变迁资料，对应 `0x000f`，返回 `CapitalChangeBlock`。
+查询标签 `1..15` 的广义权息和股本变迁资料，对应 `0x000f`。传单个代码返回 `CapitalChangeBlock`；传代码列表默认按 75 只拆批，`batch_size` 可设为 `1..200`。超量批次按连接池 Slot 数并发请求；主站按响应大小截断时会自动补拉未返回的代码。
 
 ```python
 client.corporate.capital_changes("sz000001")
+client.corporate.capital_changes(["sz000001", "sh600000", "bj920000"])
 ```
 
-### `adjustment_factors(code, anchor_date=None, *, start_date=None)`
+### `adjustment_factors(code_or_codes, anchor_date=None, *, start_date=None, batch_size=75)`
 
-接口返回 `AdjustmentFactorResponse`，每个除权事件日期一条 `AdjustmentFactor`，包含 `qfq_scale/qfq_offset` 与 `hfq_scale/hfq_offset`，用于应用到本地不复权 K 线。
+传单个代码返回 `AdjustmentFactorResponse`；传代码列表返回 `AdjustmentFactorBatch`。批量调用复用批量 `0x000f` 返回的股票块，在本地逐只计算，不会为每只股票单独请求。每个除权事件日期一条 `AdjustmentFactor`，包含 `qfq_scale/qfq_offset` 与 `hfq_scale/hfq_offset`，用于应用到本地不复权 K 线。
 
 ```python
 client.corporate.adjustment_factors(

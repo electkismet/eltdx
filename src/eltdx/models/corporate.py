@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 
 
@@ -81,6 +81,24 @@ class CapitalChangeBlock:
     @property
     def items(self) -> tuple[CapitalChangeRecord, ...]:
         return self.records
+
+
+@dataclass(frozen=True, slots=True)
+class CapitalChangeBatch:
+    blocks: tuple[CapitalChangeBlock, ...]
+    raw_payloads: tuple[bytes, ...] = field(default_factory=tuple)
+
+    @property
+    def count(self) -> int:
+        return len(self.blocks)
+
+    @property
+    def items(self) -> tuple[CapitalChangeBlock, ...]:
+        return self.blocks
+
+    @property
+    def records(self) -> tuple[CapitalChangeRecord, ...]:
+        return tuple(record for block in self.blocks for record in block.records)
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +188,19 @@ class AdjustmentFactorResponse:
     @property
     def count(self) -> int:
         return len(self.items)
+
+
+@dataclass(frozen=True, slots=True)
+class AdjustmentFactorBatch:
+    responses: tuple[AdjustmentFactorResponse, ...]
+
+    @property
+    def count(self) -> int:
+        return len(self.responses)
+
+    @property
+    def items(self) -> tuple[AdjustmentFactorResponse, ...]:
+        return self.responses
 
 
 @dataclass(frozen=True, slots=True)

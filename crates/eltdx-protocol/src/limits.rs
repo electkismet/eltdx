@@ -17,6 +17,7 @@ pub const DEFAULT_FILE_CHUNK_SIZE: u32 = 30_000;
 pub const MAX_FILE_CHUNK_SIZE: u32 = 60_000;
 pub const MAX_FILE_PATH_BYTES: usize = 300;
 pub const MAX_REFRESH_CODES: usize = 100;
+pub const MAX_CAPITAL_CHANGE_CODES: usize = 200;
 pub const MAX_COMMAND_ITEMS: usize = u16::MAX as usize;
 
 pub const MAX_VARINT_BYTES: usize = 10;

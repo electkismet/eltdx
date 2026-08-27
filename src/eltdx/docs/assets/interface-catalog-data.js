@@ -552,15 +552,15 @@ window.ELTDX_CATALOG = {
       "title": "股本变迁 / GBBQ",
       "source": "7709",
       "category": "公司基础",
-      "api": "client.corporate.capital_changes(code)",
+      "api": "client.corporate.capital_changes(code_or_codes, batch_size=75)",
       "aliases": [
         "capital_changes",
         "股本事件"
       ],
       "protocol": "0x000f",
       "kind": "底层协议",
-      "summary": "返回标签 1..15 的广义权息资料，包括除权除息、股本变化、增发、回购、缩股和权证等事件。",
-      "return_model": "CapitalChangeBlock",
+      "summary": "返回标签 1..15 的广义权息资料；默认每批 75 只，可调至 200，并支持跨主站并发拆批。",
+      "return_model": "CapitalChangeBlock | CapitalChangeBatch",
       "doc": "methods/7709-股本变迁GBBQ.md"
     },
     {
@@ -568,15 +568,15 @@ window.ELTDX_CATALOG = {
       "title": "本地复权系数",
       "source": "Helper",
       "category": "公司基础",
-      "api": "client.corporate.adjustment_factors(code, anchor_date=None, *, start_date=None)",
+      "api": "client.corporate.adjustment_factors(code_or_codes, anchor_date=None, *, start_date=None, batch_size=75)",
       "aliases": [
         "qfq",
         "hfq"
       ],
       "protocol": "0x000f",
       "kind": "组合接口",
-      "summary": "根据标签 1 权息事件，为本地不复权 K 线计算事件级前、后复权仿射系数。",
-      "return_model": "AdjustmentFactorResponse",
+      "summary": "根据批量权息资料，为本地不复权 K 线逐只计算事件级前、后复权仿射系数。",
+      "return_model": "AdjustmentFactorResponse | AdjustmentFactorBatch",
       "doc": "methods/7709-本地复权系数.md"
     },
     {

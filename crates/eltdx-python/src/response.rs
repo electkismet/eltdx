@@ -8,7 +8,9 @@ use std::sync::Arc;
 
 use eltdx_protocol::commands::{
     auctions::{AuctionPoint, AuctionSeries},
-    corporate::{CapitalChangeBlock, CapitalChangeRecord, FinanceBatch, FinanceRecord},
+    corporate::{
+        CapitalChangeBatch, CapitalChangeBlock, CapitalChangeRecord, FinanceBatch, FinanceRecord,
+    },
     klines::{KlineBar, KlineSeries},
     limits::{SpecialLimitPage, SpecialLimitRecord},
     minutes::{MinuteAuxPoint, MinuteAuxSeries, MinutePoint, MinuteSeries, SparklineSeries},
@@ -767,9 +769,17 @@ pub fn to_python(py: Python<'_>, response: CommandResponse) -> PyResult<Py<PyAny
     let value = match response {
         CommandResponse::Heartbeat(value) => tagged(py, "heartbeat", heartbeat(py, &value)?)?,
         CommandResponse::Handshake(value) => tagged(py, "handshake", handshake(py, &value)?)?,
-        CommandResponse::CapitalChanges(value) => {
-            tagged(py, "capital_changes", capital_changes(py, &value)?)?
-        }
+        CommandResponse::CapitalChanges(value)
+            if value.request.count() == 1 && value.blocks.len() == 1 => tagged(
+            py,
+            "capital_changes",
+            capital_change_block(py, &value.blocks[0], value.request.include_raw, &value.raw_payload)?,
+        )?,
+        CommandResponse::CapitalChanges(value) => tagged(
+            py,
+            "capital_change_batch",
+            capital_change_batch(py, &value)?,
+        )?,
         CommandResponse::FinanceBatch(value) => {
             tagged(py, "finance_batch", finance_batch(py, &value)?)?
         }
@@ -881,8 +891,12 @@ fn handshake<'py>(py: Python<'py>, value: &HandshakeInfo) -> PyResult<Obj> {
     )
 }
 
-fn capital_changes<'py>(py: Python<'py>, value: &CapitalChangeBlock) -> PyResult<Obj> {
-    let include_raw = value.request.include_raw;
+fn capital_change_block<'py>(
+    py: Python<'py>,
+    value: &CapitalChangeBlock,
+    include_raw: bool,
+    raw: &[u8],
+) -> PyResult<Obj> {
     tuple(
         py,
         vec![
@@ -896,6 +910,24 @@ fn capital_changes<'py>(py: Python<'py>, value: &CapitalChangeBlock) -> PyResult
                     .records
                     .iter()
                     .map(|v| capital_record(py, v, include_raw))
+                    .collect::<PyResult<Vec<_>>>()?,
+            )?,
+            raw_payload(py, include_raw, raw),
+        ],
+    )
+}
+
+fn capital_change_batch<'py>(py: Python<'py>, value: &CapitalChangeBatch) -> PyResult<Obj> {
+    let include_raw = value.request.include_raw;
+    tuple(
+        py,
+        vec![
+            tuple(
+                py,
+                value
+                    .blocks
+                    .iter()
+                    .map(|block| capital_change_block(py, block, false, &[]))
                     .collect::<PyResult<Vec<_>>>()?,
             )?,
             raw_payload(py, include_raw, &value.raw_payload),

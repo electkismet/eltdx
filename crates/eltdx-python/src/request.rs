@@ -28,9 +28,9 @@ use eltdx_protocol::commands::{
     trades::{HistoricalTicksRequest, TodayTicksRequest, TYPE_HISTORICAL_TICKS, TYPE_TODAY_TICKS},
 };
 use eltdx_protocol::limits::{
-    DEFAULT_CODE_PAGE_SIZE, DEFAULT_FILE_CHUNK_SIZE, DEFAULT_TRADE_PAGE_SIZE, MAX_CODE_PAGE_SIZE,
-    MAX_COMMAND_ITEMS, MAX_FILE_CHUNK_SIZE, MAX_KLINE_PAGE_SIZE, MAX_REFRESH_CODES,
-    MAX_TRADE_PAGE_SIZE,
+    DEFAULT_CODE_PAGE_SIZE, DEFAULT_FILE_CHUNK_SIZE, DEFAULT_TRADE_PAGE_SIZE,
+    MAX_CAPITAL_CHANGE_CODES, MAX_CODE_PAGE_SIZE, MAX_COMMAND_ITEMS, MAX_FILE_CHUNK_SIZE,
+    MAX_KLINE_PAGE_SIZE, MAX_REFRESH_CODES, MAX_TRADE_PAGE_SIZE,
 };
 use eltdx_protocol::unit::{AdjustMode, DateParts, KlinePeriod, Market, NormalizedCode};
 use eltdx_protocol::{CommandRequest, ProtocolError};
@@ -88,11 +88,14 @@ pub fn from_python(
 }
 
 fn capital_changes(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
-    let code = required_code(payload, "code")?;
+    let codes = if let Some(value) = get(payload, &["codes"])? {
+        code_list(&value, "codes", MAX_CAPITAL_CHANGE_CODES, true)?
+    } else {
+        vec![required_code(payload, "code")?]
+    };
     let include_raw = bool_field(payload, "include_raw", false)?;
-    Ok(CommandRequest::CapitalChanges(
-        CapitalChangesRequest::with_include_raw(code, include_raw),
-    ))
+    protocol(CapitalChangesRequest::with_include_raw_batch(codes, include_raw))
+        .map(CommandRequest::CapitalChanges)
 }
 
 fn finance_batch(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {

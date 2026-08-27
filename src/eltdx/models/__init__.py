@@ -4,7 +4,9 @@ from .response import Response
 from .auction import AuctionPoint, AuctionSeries
 from .corporate import (
     AdjustmentFactor,
+    AdjustmentFactorBatch,
     AdjustmentFactorResponse,
+    CapitalChangeBatch,
     CapitalChangeBlock,
     CapitalChangeRecord,
     EquityRecord,
@@ -34,9 +36,11 @@ from .trade import TradePage, TradeTick
 
 __all__ = [
     "AdjustmentFactor",
+    "AdjustmentFactorBatch",
     "AdjustmentFactorResponse",
     "AuctionPoint",
     "AuctionSeries",
+    "CapitalChangeBatch",
     "CapitalChangeBlock",
     "CapitalChangeRecord",
     "EquityRecord",

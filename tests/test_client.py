@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import date, datetime
+from threading import Barrier, Lock
 
 import pytest
 
@@ -215,7 +216,12 @@ def test_command_registry_contains_7709_documents() -> None:
     assert COMMANDS["file_content"].hex == "0x06b9"
     assert COMMANDS["file_content"].method == "read"
     assert COMMANDS["security_list"].document == "0x044d-代码表分页接口.md"
-    assert {item.name for item in required_commands()} >= {"handshake", "heartbeat", "snapshots", "klines"}
+    assert {item.name for item in required_commands()} >= {
+        "handshake",
+        "heartbeat",
+        "snapshots",
+        "klines",
+    }
 
 
 def test_business_api_uses_command_numbers() -> None:
@@ -223,7 +229,9 @@ def test_business_api_uses_command_numbers() -> None:
     assert client.quotes.get_snapshots(["sz000001"])["command"] == "0x054c"
     assert client.quotes.legacy(["sz000001"])["command"] == "0x053e"
     assert client.quotes.get_depth(["sz000001"])["command"] == "0x0547"
-    assert client.quotes.list_by_category("沪深A股", sort_by="涨幅")["command"] == "0x054b"
+    assert (
+        client.quotes.list_by_category("沪深A股", sort_by="涨幅")["command"] == "0x054b"
+    )
     assert client.quotes.poll_push() is None
     assert client.quotes.drain_pushes() == []
     assert client.bars.get("sz000001", period="day")["payload"]["period"] == "day"
@@ -311,8 +319,18 @@ def test_full_quotes_batches_requests() -> None:
 def test_full_quotes_merges_refresh_five_levels() -> None:
     top_bid = QuoteLevel(price=10.92, volume=1232, price_delta_raw=-1)
     top_ask = QuoteLevel(price=10.93, volume=12481, price_delta_raw=0)
-    full_bids = tuple(QuoteLevel(price=10.92 - index * 0.01, volume=100 + index, price_delta_raw=-(index + 1)) for index in range(5))
-    full_asks = tuple(QuoteLevel(price=10.93 + index * 0.01, volume=200 + index, price_delta_raw=index) for index in range(5))
+    full_bids = tuple(
+        QuoteLevel(
+            price=10.92 - index * 0.01, volume=100 + index, price_delta_raw=-(index + 1)
+        )
+        for index in range(5)
+    )
+    full_asks = tuple(
+        QuoteLevel(
+            price=10.93 + index * 0.01, volume=200 + index, price_delta_raw=index
+        )
+        for index in range(5)
+    )
 
     snapshot = QuoteSnapshot(
         exchange="sz",
@@ -383,7 +401,9 @@ def test_full_quotes_merges_refresh_five_levels() -> None:
             if command == 0x054C:
                 return [snapshot]
             if command == TYPE_REFRESH_STREAM:
-                return QuoteRefreshPage(("sz000001",), (refresh_record,), decoded_payload=b"")
+                return QuoteRefreshPage(
+                    ("sz000001",), (refresh_record,), decoded_payload=b""
+                )
             raise AssertionError(command)
 
     transport = FakeTransport()
@@ -415,7 +435,9 @@ def test_quote_depth_uses_refresh_interface() -> None:
 
     transport = FakeTransport()
     assert TdxClient(transport=transport).quotes.get_depth(["sz000001"]) == "depth"
-    assert transport.calls == [(TYPE_REFRESH_STREAM, {"codes": ["sz000001"], "cursors": {}})]
+    assert transport.calls == [
+        (TYPE_REFRESH_STREAM, {"codes": ["sz000001"], "cursors": {}})
+    ]
 
 
 def test_code_filters_use_security_categories() -> None:
@@ -510,7 +532,11 @@ def test_code_api_requests_current_data() -> None:
                 return 10 + self.calls
             if command == 0x044D:
                 self.calls += 1
-                return [item(payload["market"], f"00000{self.calls}")] if payload["start"] == 0 else []
+                return (
+                    [item(payload["market"], f"00000{self.calls}")]
+                    if payload["start"] == 0
+                    else []
+                )
             raise AssertionError(f"unexpected command: {command:#x}")
 
     transport = FakeTransport()
@@ -543,17 +569,23 @@ def test_bar_api_forwards_period_and_adjust_payload() -> None:
     transport = FakeTransport()
     client = TdxClient(transport=transport)
 
-    assert client.bars.get("sz000001", period="day", count=5, adjust="qfq")["code"] == "sz000001"
+    assert (
+        client.bars.get("sz000001", period="day", count=5, adjust="qfq")["code"]
+        == "sz000001"
+    )
     assert transport.payload["period"] == "day"
     assert transport.payload["adjust"] == "qfq"
     assert client.bars.get("sz000001", period="day", count=5)["period"] == "day"
-    assert client.bars.get(
-        "sz000001",
-        period="day",
-        adjust="fixed_qfq",
-        anchor_date="2024-06-03",
-        count=5,
-    )["code"] == "sz000001"
+    assert (
+        client.bars.get(
+            "sz000001",
+            period="day",
+            adjust="fixed_qfq",
+            anchor_date="2024-06-03",
+            count=5,
+        )["code"]
+        == "sz000001"
+    )
     assert transport.payload["adjust"] == "fixed_qfq"
     assert transport.payload["anchor_date"] == "2024-06-03"
 
@@ -573,9 +605,191 @@ def test_capital_changes_forwards_include_raw() -> None:
             assert command == 0x000F
             return payload
 
-    result = TdxClient(transport=FakeTransport()).corporate.capital_changes("sz000001", include_raw=True)
+    result = TdxClient(transport=FakeTransport()).corporate.capital_changes(
+        "sz000001", include_raw=True
+    )
 
     assert result == {"code": "sz000001", "include_raw": True}
+
+
+def test_capital_changes_batches_200_codes_and_uses_pool_concurrency() -> None:
+    from eltdx.models import CapitalChangeBatch, CapitalChangeBlock
+
+    class FakeTransport:
+        pool_size = 3
+
+        def __init__(self) -> None:
+            self.barrier = Barrier(3)
+            self.lock = Lock()
+            self.batch_sizes = []
+
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            assert command == 0x000F
+            codes = payload["codes"]
+            with self.lock:
+                self.batch_sizes.append(len(codes))
+            self.barrier.wait(timeout=2)
+            blocks = tuple(
+                CapitalChangeBlock(
+                    code[:2],
+                    {"sz": 0, "sh": 1, "bj": 2}[code[:2]],
+                    code[2:],
+                    len(codes),
+                    (),
+                )
+                for code in codes
+            )
+            if len(blocks) == 1:
+                return blocks[0]
+            return CapitalChangeBatch(blocks)
+
+    codes = [f"sz{index:06d}" for index in range(401)]
+    transport = FakeTransport()
+    result = TdxClient(transport=transport).corporate.capital_changes(
+        codes, batch_size=200
+    )
+
+    assert isinstance(result, CapitalChangeBatch)
+    assert sorted(transport.batch_sizes) == [1, 200, 200]
+    assert result.count == 401
+    assert [block.full_code for block in result.blocks] == codes
+
+
+def test_capital_changes_defaults_to_75_and_accepts_custom_batch_size() -> None:
+    from eltdx.models import CapitalChangeBatch, CapitalChangeBlock
+
+    class FakeTransport:
+        pool_size = 1
+
+        def __init__(self) -> None:
+            self.batch_sizes = []
+
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            codes = payload["codes"]
+            self.batch_sizes.append(len(codes))
+            return CapitalChangeBatch(
+                tuple(
+                    CapitalChangeBlock(code[:2], 0, code[2:], 0, ()) for code in codes
+                )
+            )
+
+    default_transport = FakeTransport()
+    TdxClient(transport=default_transport).corporate.capital_changes(
+        [f"sz{index:06d}" for index in range(150)]
+    )
+    assert default_transport.batch_sizes == [75, 75]
+
+    custom_transport = FakeTransport()
+    TdxClient(transport=custom_transport).corporate.capital_changes(
+        [f"sz{index:06d}" for index in range(150)], batch_size=50
+    )
+    assert custom_transport.batch_sizes == [50, 50, 50]
+
+
+@pytest.mark.parametrize("batch_size", (0, 201, True, "75"))
+def test_capital_change_batch_size_is_validated(batch_size) -> None:
+    with pytest.raises(ValueError, match="batch_size"):
+        TdxClient.in_memory().corporate.capital_changes(
+            ["sz000001"], batch_size=batch_size
+        )
+
+
+def test_adjustment_factors_batch_reuses_capital_change_batches() -> None:
+    from eltdx.models import (
+        AdjustmentFactorBatch,
+        CapitalChangeBatch,
+        CapitalChangeBlock,
+    )
+
+    class FakeTransport:
+        pool_size = 2
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            assert command == 0x000F
+            self.calls += 1
+            blocks = tuple(
+                CapitalChangeBlock(code[:2], 0, code[2:], len(payload["codes"]), ())
+                for code in payload["codes"]
+            )
+            return CapitalChangeBatch(blocks)
+
+    transport = FakeTransport()
+    result = TdxClient(transport=transport).corporate.adjustment_factors(
+        ["sz000001", "sz000002"]
+    )
+
+    assert isinstance(result, AdjustmentFactorBatch)
+    assert transport.calls == 1
+    assert [item.full_code for item in result.responses] == ["sz000001", "sz000002"]
+
+
+def test_capital_changes_continues_after_server_response_prefix() -> None:
+    from eltdx.models import CapitalChangeBatch, CapitalChangeBlock
+
+    class FakeTransport:
+        pool_size = 1
+
+        def __init__(self) -> None:
+            self.requests = []
+
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            codes = payload["codes"]
+            self.requests.append(tuple(codes))
+            returned = codes[:75] if len(codes) == 200 else codes
+            return CapitalChangeBatch(
+                tuple(
+                    CapitalChangeBlock(code[:2], 1, code[2:], len(returned), ())
+                    for code in returned
+                )
+            )
+
+    codes = [f"sh{index:06d}" for index in range(200)]
+    transport = FakeTransport()
+    result = TdxClient(transport=transport).corporate.capital_changes(
+        codes, batch_size=200
+    )
+
+    assert [len(request) for request in transport.requests] == [200, 125]
+    assert [block.full_code for block in result.blocks] == codes
 
 
 def test_removed_corporate_helpers_stay_removed() -> None:
@@ -712,7 +926,11 @@ def test_workday_service_uses_client_daily_bars() -> None:
                 adjust_mode="none",
                 anchor_date_raw=0,
                 anchor_date=None,
-                bars=(bar(date(2026, 5, 27)), bar(date(2026, 5, 29)), bar(date(2026, 6, 1))),
+                bars=(
+                    bar(date(2026, 5, 27)),
+                    bar(date(2026, 5, 29)),
+                    bar(date(2026, 6, 1)),
+                ),
             )
 
     class FakeClient:
@@ -801,16 +1019,22 @@ def test_corporate_adjustment_factors_use_only_capital_changes() -> None:
     assert [item.date for item in factors.items] == [date(2024, 6, 1), date(2024, 6, 2)]
     assert factors.items[0].qfq_scale == pytest.approx(1.0 / 1.2 / 1.1)
     assert factors.items[0].qfq_offset == pytest.approx(((5.0 / 1.2) - 0.1) / 1.1)
-    assert factors.items[0].qfq_scale * 10.0 + factors.items[0].qfq_offset == pytest.approx(11.27272727)
+    assert factors.items[0].qfq_scale * 10.0 + factors.items[
+        0
+    ].qfq_offset == pytest.approx(11.27272727)
     assert factors.items[1].qfq_scale == pytest.approx(1.0 / 1.1)
     assert factors.items[1].qfq_offset == pytest.approx(-0.1 / 1.1)
     assert factors.items[0].hfq_scale == pytest.approx(1.2)
     assert factors.items[0].hfq_offset == pytest.approx(-5.0)
     assert factors.items[1].hfq_scale == pytest.approx(1.32)
     assert factors.items[1].hfq_offset == pytest.approx(-4.88)
-    assert factors.items[1].hfq_scale * 8.0 + factors.items[1].hfq_offset == pytest.approx(5.68)
+    assert factors.items[1].hfq_scale * 8.0 + factors.items[
+        1
+    ].hfq_offset == pytest.approx(5.68)
 
-    all_events = TdxClient(transport=FakeTransport()).corporate.adjustment_factors("sz000858")
+    all_events = TdxClient(transport=FakeTransport()).corporate.adjustment_factors(
+        "sz000858"
+    )
     assert all_events.count == 3
 
     from eltdx.equity import build_adjustment_factor_response
@@ -828,7 +1052,9 @@ def test_corporate_adjustment_factors_use_only_capital_changes() -> None:
     assert same_day.items[0].qfq_offset == pytest.approx(((5.0 / 1.2) - 0.1) / 1.1)
     assert same_day.items[0].hfq_scale == pytest.approx(1.32)
     assert same_day.items[0].hfq_offset == pytest.approx(-5.4)
-    assert same_day.items[0].hfq_scale * 8.0 + same_day.items[0].hfq_offset == pytest.approx(5.16)
+    assert same_day.items[0].hfq_scale * 8.0 + same_day.items[
+        0
+    ].hfq_offset == pytest.approx(5.16)
 
     partial_anchor = TdxClient(transport=FakeTransport()).corporate.adjustment_factors(
         "sz000858", anchor_date="2024-06-01", start_date="2024-05-31"
@@ -842,7 +1068,9 @@ def test_corporate_adjustment_factors_use_only_capital_changes() -> None:
         "sz000858", anchor_date="2024-05-31", start_date="2024-05-31"
     )
     assert anchored.anchor_date == date(2024, 5, 31)
-    assert all(item.qfq_scale == 1.0 and item.qfq_offset == 0.0 for item in anchored.items)
+    assert all(
+        item.qfq_scale == 1.0 and item.qfq_offset == 0.0 for item in anchored.items
+    )
 
     with pytest.raises(ValueError, match="must not be earlier"):
         TdxClient(transport=FakeTransport()).corporate.adjustment_factors(
@@ -891,14 +1119,18 @@ def test_trades_all_pages_until_short_page() -> None:
                 ticks=tuple(tick for _ in range(count)),
             )
 
-    page = TdxClient(transport=FakeTransport()).trades.all_today("sz000001", page_size=2)
+    page = TdxClient(transport=FakeTransport()).trades.all_today(
+        "sz000001", page_size=2
+    )
 
     assert page.start == 0
     assert page.request_count == 3
     assert page.count == 3
 
 
-def test_trades_all_pages_restore_chronological_order_without_renumbering_source_indexes() -> None:
+def test_trades_all_pages_restore_chronological_order_without_renumbering_source_indexes() -> (
+    None
+):
     from eltdx.models import TradePage, TradeTick
 
     template = TradeTick(
@@ -919,13 +1151,37 @@ def test_trades_all_pages_restore_chronological_order_without_renumbering_source
     pages = {
         0: (
             template,
-            replace(template, index=1, absolute_index=1, time_minutes=13 * 60 + 31, time_label="13:31"),
+            replace(
+                template,
+                index=1,
+                absolute_index=1,
+                time_minutes=13 * 60 + 31,
+                time_label="13:31",
+            ),
         ),
         2: (
-            replace(template, absolute_index=2, time_minutes=13 * 60 + 28, time_label="13:28"),
-            replace(template, index=1, absolute_index=3, time_minutes=13 * 60 + 29, time_label="13:29"),
+            replace(
+                template,
+                absolute_index=2,
+                time_minutes=13 * 60 + 28,
+                time_label="13:28",
+            ),
+            replace(
+                template,
+                index=1,
+                absolute_index=3,
+                time_minutes=13 * 60 + 29,
+                time_label="13:29",
+            ),
         ),
-        4: (replace(template, absolute_index=4, time_minutes=13 * 60 + 27, time_label="13:27"),),
+        4: (
+            replace(
+                template,
+                absolute_index=4,
+                time_minutes=13 * 60 + 27,
+                time_label="13:27",
+            ),
+        ),
         5: (),
     }
 
@@ -951,9 +1207,17 @@ def test_trades_all_pages_restore_chronological_order_without_renumbering_source
                 ticks=ticks,
             )
 
-    page = TdxClient(transport=FakeTransport()).trades.all_today("sz000001", page_size=2)
+    page = TdxClient(transport=FakeTransport()).trades.all_today(
+        "sz000001", page_size=2
+    )
 
-    assert [tick.time_label for tick in page.ticks] == ["13:27", "13:28", "13:29", "13:30", "13:31"]
+    assert [tick.time_label for tick in page.ticks] == [
+        "13:27",
+        "13:28",
+        "13:29",
+        "13:30",
+        "13:31",
+    ]
     assert [tick.absolute_index for tick in page.ticks] == [4, 2, 3, 0, 1]
 
 
@@ -1015,7 +1279,9 @@ def test_trades_all_history_uses_server_page_limit_without_losing_early_ticks() 
                 trading_date=date(2026, 5, 20),
             )
 
-    page = TdxClient(transport=FakeTransport()).trades.all_history("sz000001", "2026-05-20")
+    page = TdxClient(transport=FakeTransport()).trades.all_history(
+        "sz000001", "2026-05-20"
+    )
 
     assert starts == [0, 1800, 1801]
     assert page.count == 1801
@@ -1057,7 +1323,10 @@ def test_trade_event_specific_helpers_split_today_and_history_sources() -> None:
                 return type(
                     "Handshake",
                     (),
-                    {"server_date_1": date(2026, 5, 21), "server_date_2": date(2026, 5, 21)},
+                    {
+                        "server_date_1": date(2026, 5, 21),
+                        "server_date_2": date(2026, 5, 21),
+                    },
                 )()
             assert command == 0x0FC6
             return TradePage(
@@ -1070,7 +1339,9 @@ def test_trade_event_specific_helpers_split_today_and_history_sources() -> None:
                 trading_date=date(2026, 5, 20),
             )
 
-    result = TdxClient(transport=FakeTransport()).trades.opening_match_history("000001", "2026-05-20")
+    result = TdxClient(transport=FakeTransport()).trades.opening_match_history(
+        "000001", "2026-05-20"
+    )
     assert result is tick
 
 
@@ -1164,11 +1435,18 @@ def test_trade_event_specific_helpers_paginate_to_opening_match() -> None:
                 return type(
                     "Handshake",
                     (),
-                    {"server_date_1": date(2026, 5, 21), "server_date_2": date(2026, 5, 21)},
+                    {
+                        "server_date_1": date(2026, 5, 21),
+                        "server_date_2": date(2026, 5, 21),
+                    },
                 )()
             assert command == 0x0FC6
             starts.append(payload["start"])
-            ticks = tuple(regular for _ in range(1800)) if payload["start"] == 0 else (opening,)
+            ticks = (
+                tuple(regular for _ in range(1800))
+                if payload["start"] == 0
+                else (opening,)
+            )
             return TradePage(
                 exchange="sz",
                 market_id=0,
@@ -1179,7 +1457,9 @@ def test_trade_event_specific_helpers_paginate_to_opening_match() -> None:
                 trading_date=date(2026, 5, 20),
             )
 
-    result = TdxClient(transport=FakeTransport()).trades.opening_match_history("000001", "2026-05-20")
+    result = TdxClient(transport=FakeTransport()).trades.opening_match_history(
+        "000001", "2026-05-20"
+    )
 
     assert starts == [0, 1800]
     assert result is opening
@@ -1266,7 +1546,10 @@ def test_trade_page_keeps_snapshot_and_opening_match_properties() -> None:
                 return type(
                     "Handshake",
                     (),
-                    {"server_date_1": date(2026, 5, 20), "server_date_2": date(2026, 5, 20)},
+                    {
+                        "server_date_1": date(2026, 5, 20),
+                        "server_date_2": date(2026, 5, 20),
+                    },
                 )()
             assert command == 0x0FC5
             return TradePage(
@@ -1316,10 +1599,15 @@ def test_trade_page_has_more_until_an_empty_page_confirms_completion() -> None:
     assert short_page.has_more is True
     assert empty_page.has_more is False
 
+
 def test_json_helpers_handle_models_and_bytes() -> None:
     from eltdx.models import QuoteLevel
 
-    value = {"date": date(2026, 5, 20), "level": QuoteLevel(price=1.23, volume=100, price_delta_raw=1), "raw": b"\x01\x02"}
+    value = {
+        "date": date(2026, 5, 20),
+        "level": QuoteLevel(price=1.23, volume=100, price_delta_raw=1),
+        "raw": b"\x01\x02",
+    }
 
     assert to_jsonable(value) == {
         "date": "2026-05-20",
@@ -1351,7 +1639,11 @@ def test_codes_all_pages_until_short_page() -> None:
                 return []
             raise AssertionError(f"unexpected start: {start}")
 
-    assert TdxClient(transport=FakeTransport()).codes.all("sz", page_size=2) == ["a", "b", "c"]
+    assert TdxClient(transport=FakeTransport()).codes.all("sz", page_size=2) == [
+        "a",
+        "b",
+        "c",
+    ]
 
 
 def test_bars_all_pages_until_short_page() -> None:
@@ -1388,7 +1680,9 @@ def test_bars_all_pages_until_short_page() -> None:
                 bars=bars,
             )
 
-    page = TdxClient(transport=FakeTransport()).bars.get("sz000001", all_pages=True, page_size=2)
+    page = TdxClient(transport=FakeTransport()).bars.get(
+        "sz000001", all_pages=True, page_size=2
+    )
 
     assert page.start == 0
     assert page.request_count == 3
@@ -1468,9 +1762,13 @@ def test_finance_batch_field_filter_is_local() -> None:
             )
             return FinanceBatch(records=(record,))
 
-    selected = TdxClient(transport=FakeTransport()).corporate.finance_batch(["sz000001"], fields=["流通股本", "total_shares"])
+    selected = TdxClient(transport=FakeTransport()).corporate.finance_batch(
+        ["sz000001"], fields=["流通股本", "total_shares"]
+    )
 
-    assert selected == [{"full_code": "sz000001", "流通股本": 1_000_000.0, "total_shares": 2_000_000.0}]
+    assert selected == [
+        {"full_code": "sz000001", "流通股本": 1_000_000.0, "total_shares": 2_000_000.0}
+    ]
 
 
 def test_socket_transport_has_no_legacy_reader_or_socket_owner_paths() -> None:

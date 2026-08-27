@@ -2,7 +2,7 @@ use bytes::Bytes;
 
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
-use crate::limits::{MAX_COMMAND_ITEMS, MAX_RESPONSE_PAYLOAD_SIZE};
+use crate::limits::{MAX_CAPITAL_CHANGE_CODES, MAX_COMMAND_ITEMS, MAX_RESPONSE_PAYLOAD_SIZE};
 use crate::unit::{little_f32, little_u16, little_u32, DateParts, Market, NormalizedCode};
 
 pub const TYPE_CAPITAL_CHANGES: u16 = 0x000f;
@@ -13,7 +13,8 @@ pub const FINANCE_INFO_SIZE: usize = 136;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CapitalChangesRequest {
-    pub code: NormalizedCode,
+    codes: Vec<NormalizedCode>,
+    count: u16,
     pub include_raw: bool,
 }
 
@@ -22,14 +23,59 @@ impl CapitalChangesRequest {
         Self::with_include_raw(code, false)
     }
 
-    pub const fn with_include_raw(code: NormalizedCode, include_raw: bool) -> Self {
-        Self { code, include_raw }
+    pub fn with_include_raw(code: NormalizedCode, include_raw: bool) -> Self {
+        Self {
+            codes: vec![code],
+            count: 1,
+            include_raw,
+        }
+    }
+
+    pub fn new_batch(codes: Vec<NormalizedCode>) -> Result<Self, ProtocolError> {
+        Self::with_include_raw_batch(codes, false)
+    }
+
+    pub fn with_include_raw_batch(
+        codes: Vec<NormalizedCode>,
+        include_raw: bool,
+    ) -> Result<Self, ProtocolError> {
+        if codes.is_empty() {
+            return Err(ProtocolError::invalid_argument(
+                "codes",
+                "capital-change codes must not be empty",
+            ));
+        }
+        if codes.len() > MAX_CAPITAL_CHANGE_CODES {
+            return Err(ProtocolError::LimitExceeded {
+                resource: "capital-change codes",
+                actual: codes.len(),
+                limit: MAX_CAPITAL_CHANGE_CODES,
+            });
+        }
+        let count = u16::try_from(codes.len())
+            .map_err(|_| ProtocolError::invalid_argument("codes", "too many capital-change codes"))?;
+        Ok(Self {
+            codes,
+            count,
+            include_raw,
+        })
+    }
+
+    pub fn codes(&self) -> &[NormalizedCode] {
+        &self.codes
+    }
+
+    pub const fn count(&self) -> u16 {
+        self.count
     }
 
     pub fn frame(&self, msg_id: u32) -> RequestFrame {
-        let mut data = Vec::with_capacity(9);
-        data.extend_from_slice(&[1, 0, self.code.market().id()]);
-        data.extend_from_slice(self.code.number().as_bytes());
+        let mut data = Vec::with_capacity(2_usize.saturating_add(self.codes.len().saturating_mul(7)));
+        data.extend_from_slice(&self.count.to_le_bytes());
+        for code in &self.codes {
+            data.push(code.market().id());
+            data.extend_from_slice(code.number().as_bytes());
+        }
         RequestFrame::new(msg_id, TYPE_CAPITAL_CHANGES, data)
     }
 }
@@ -117,12 +163,17 @@ pub struct CapitalChangeRecord {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CapitalChangeBlock {
-    pub request: CapitalChangesRequest,
     pub block_count: u16,
     pub market_id: u8,
     pub market: Option<Market>,
     pub code: String,
     pub records: Vec<CapitalChangeRecord>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CapitalChangeBatch {
+    pub request: CapitalChangesRequest,
+    pub blocks: Vec<CapitalChangeBlock>,
     pub raw_payload: Bytes,
 }
 
@@ -182,59 +233,65 @@ pub struct FinanceBatch {
 pub fn parse_capital_changes_payload(
     payload: &[u8],
     request: CapitalChangesRequest,
-) -> Result<CapitalChangeBlock, ProtocolError> {
+) -> Result<CapitalChangeBatch, ProtocolError> {
     check_payload(payload, "capital changes")?;
-    if payload.len() < 11 {
+    if payload.len() < 2 {
         return Err(ProtocolError::invalid_data(
             "capital changes",
             "invalid capital changes payload",
         ));
     }
-    let block_count = little_u16(&payload[..2])?;
-    let market_id = payload[2];
-    let market = Market::from_id(i64::from(market_id)).ok();
-    let code = ascii_code(&payload[3..9], "capital changes")?;
-    let record_count = usize::from(little_u16(&payload[9..11])?);
-    let records_length = record_count
-        .checked_mul(CAPITAL_CHANGE_RECORD_SIZE)
-        .ok_or_else(|| {
+    let reported_block_count = little_u16(&payload[..2])?;
+    let mut blocks = Vec::with_capacity(usize::from(reported_block_count));
+    let mut offset = 2_usize;
+    while offset < payload.len() {
+        let header_end = offset.saturating_add(9);
+        let header = payload.get(offset..header_end).ok_or_else(|| {
+            ProtocolError::invalid_data("capital changes", "truncated capital-change block header")
+        })?;
+        let market_id = header[0];
+        let market = Market::from_id(i64::from(market_id)).ok();
+        let code = ascii_code(&header[1..7], "capital changes")?;
+        let record_count = usize::from(little_u16(&header[7..9])?);
+        let records_length = record_count
+            .checked_mul(CAPITAL_CHANGE_RECORD_SIZE)
+            .ok_or_else(|| {
+                ProtocolError::invalid_data("capital changes", "capital changes length overflow")
+            })?;
+        let records_end = header_end.checked_add(records_length).ok_or_else(|| {
             ProtocolError::invalid_data("capital changes", "capital changes length overflow")
         })?;
-    let expected_length = 11_usize.checked_add(records_length).ok_or_else(|| {
-        ProtocolError::invalid_data("capital changes", "capital changes length overflow")
+        if payload.len() < records_end {
+            return Err(ProtocolError::invalid_data(
+                "capital changes",
+                "truncated capital-change block records",
+            ));
+        }
+        let mut records = Vec::with_capacity(record_count);
+        let mut record_offset = header_end;
+        while record_offset < records_end {
+            let end = record_offset.saturating_add(CAPITAL_CHANGE_RECORD_SIZE);
+            records.push(parse_capital_change_record(&payload[record_offset..end])?);
+            record_offset = end;
+        }
+        blocks.push(CapitalChangeBlock {
+            block_count: 0,
+            market_id,
+            market,
+            code,
+            records,
+        });
+        offset = records_end;
+    }
+    let actual_block_count = u16::try_from(blocks.len()).map_err(|_| {
+        ProtocolError::invalid_data("capital changes", "too many capital-change blocks")
     })?;
-    if payload.len() < expected_length {
-        return Err(ProtocolError::invalid_data(
-            "capital changes",
-            "truncated capital changes payload",
-        ));
+    for block in &mut blocks {
+        block.block_count = actual_block_count;
     }
-    let mut records = Vec::with_capacity(record_count);
-    let mut offset = 11_usize;
-    for _ in 0..record_count {
-        let end = offset.saturating_add(CAPITAL_CHANGE_RECORD_SIZE);
-        let record = payload.get(offset..end).ok_or_else(|| {
-            ProtocolError::invalid_data("capital changes", "truncated capital change record")
-        })?;
-        records.push(parse_capital_change_record(record)?);
-        offset = end;
-    }
-    if offset != payload.len() {
-        return Err(ProtocolError::invalid_data(
-            "capital changes",
-            format!(
-                "unexpected trailing capital changes payload bytes: {}",
-                payload.len().saturating_sub(offset)
-            ),
-        ));
-    }
-    Ok(CapitalChangeBlock {
+    Ok(CapitalChangeBatch {
         request,
-        block_count,
-        market_id,
-        market,
-        code,
-        records,
+        blocks,
         raw_payload: Bytes::copy_from_slice(payload),
     })
 }
@@ -553,6 +610,19 @@ mod tests {
             FinanceBatchRequest::with_include_raw(vec![NormalizedCode::parse("sz000001")?], true)?;
         assert!(capital_raw.include_raw);
         assert!(finance_raw.include_raw());
+
+        let batch = CapitalChangesRequest::new_batch(vec![
+            NormalizedCode::parse("sz000001")?,
+            NormalizedCode::parse("sh600000")?,
+        ])?
+        .frame(1);
+        assert_eq!(
+            &batch.data[..],
+            &[
+                2, 0, 0, b'0', b'0', b'0', b'0', b'0', b'1', 1, b'6', b'0', b'0', b'0',
+                b'0', b'0',
+            ]
+        );
         Ok(())
     }
 
@@ -575,8 +645,8 @@ mod tests {
             &payload,
             CapitalChangesRequest::new(NormalizedCode::parse("sz000001")?),
         )?;
-        assert_eq!(parsed.records[0].category_name, Some("重整调整"));
-        assert_eq!(parsed.records[0].c3_value, 3.5);
+        assert_eq!(parsed.blocks[0].records[0].category_name, Some("重整调整"));
+        assert_eq!(parsed.blocks[0].records[0].c3_value, 3.5);
 
         let mut volume_record = float_record.clone();
         volume_record[12] = 5;
@@ -590,8 +660,8 @@ mod tests {
             &payload,
             CapitalChangesRequest::new(NormalizedCode::parse("sz000001")?),
         )?;
-        assert_eq!(volume.records[0].c1_value, 25_000_000.0);
-        assert_eq!(volume.records[0].c4_value, 97_750_000.0);
+        assert_eq!(volume.blocks[0].records[0].c1_value, 25_000_000.0);
+        assert_eq!(volume.blocks[0].records[0].c4_value, 97_750_000.0);
 
         let mut rights_issue_record = float_record;
         rights_issue_record[12] = 6;
@@ -603,8 +673,35 @@ mod tests {
             &payload,
             CapitalChangesRequest::new(NormalizedCode::parse("sz000001")?),
         )?;
-        assert!((rights_issue.records[0].c2_value - 13.98).abs() < 0.001);
-        assert_eq!(rights_issue.records[0].c3_value, 18_460_000.0);
+        assert!((rights_issue.blocks[0].records[0].c2_value - 13.98).abs() < 0.001);
+        assert_eq!(rights_issue.blocks[0].records[0].c3_value, 18_460_000.0);
+        Ok(())
+    }
+
+    #[test]
+    fn parses_multiple_capital_change_blocks() -> Result<(), ProtocolError> {
+        // A size-capped server response can report the last zero-based block index
+        // while still containing one more complete block.
+        let mut payload = 1_u16.to_le_bytes().to_vec();
+        payload.push(0);
+        payload.extend_from_slice(b"000001");
+        payload.extend_from_slice(&0_u16.to_le_bytes());
+        payload.push(1);
+        payload.extend_from_slice(b"600000");
+        payload.extend_from_slice(&0_u16.to_le_bytes());
+
+        let parsed = parse_capital_changes_payload(
+            &payload,
+            CapitalChangesRequest::new_batch(vec![
+                NormalizedCode::parse("sz000001")?,
+                NormalizedCode::parse("sh600000")?,
+            ])?,
+        )?;
+
+        assert_eq!(parsed.blocks.len(), 2);
+        assert_eq!(parsed.blocks[0].code, "000001");
+        assert_eq!(parsed.blocks[1].code, "600000");
+        assert!(parsed.blocks.iter().all(|block| block.block_count == 2));
         Ok(())
     }
 

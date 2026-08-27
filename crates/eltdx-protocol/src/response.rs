@@ -1,7 +1,7 @@
 use crate::commands::{
     auctions::{parse_auction_series_payload, AuctionSeries},
     corporate::{
-        parse_capital_changes_payload, parse_finance_batch_payload, CapitalChangeBlock,
+        parse_capital_changes_payload, parse_finance_batch_payload, CapitalChangeBatch,
         FinanceBatch,
     },
     klines::{parse_klines_payload, KlineSeries},
@@ -31,7 +31,7 @@ use crate::request::CommandRequest;
 pub enum CommandResponse {
     Heartbeat(HeartbeatAck),
     Handshake(HandshakeInfo),
-    CapitalChanges(CapitalChangeBlock),
+    CapitalChanges(CapitalChangeBatch),
     FinanceBatch(FinanceBatch),
     SecurityList(Vec<SecurityCode>),
     SecurityCount(u16),
