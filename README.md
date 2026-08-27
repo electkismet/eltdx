@@ -22,6 +22,14 @@
   <img alt="eltdx 接口目录预览" src=".github/assets/eltdx-readme-banner.png">
 </a>
 
+## 赞助
+
+<p align="center">
+  <a href="https://api.astlane.com/">
+    <img alt="Astlane token 赞助方" src="docs/assets/astlane-sponsor.svg" width="860">
+  </a>
+</p>
+
 > 如果需要多数据源可以关注新项目 [AxData](https://github.com/electkismet/AxData)：AxData 基于 eltdx 迭代开发，除通达信体系外，AxData 还通过插件机制整理接入交易所、巨潮、腾讯财经、新浪财经、东方财富、财联社、开盘红等公开源接口，并扩展了自由流通市值、开盘换手、开盘量比、开盘抢筹、竞价昨比、连板天梯、题材强度等更适合本地量化研究和短线数据分析的指标能力，但如果是用单一源的话，仍推荐eltdx，受制于架构axdata性能不如裸协议路径的eltdx。
 
 通达信在线行情协议 Python 库。可以拿 A 股的行情、分时、成交明细、K 线、竞价、公司信息、题材信息等信息，支持 MCP 工具。`3.0` 保留现有 Python API 和返回模型，将 21 个 7709 命令的构包、解析、连接池、pin、push、心跳和关闭核心统一迁入 Rust。
@@ -440,11 +448,3 @@ print(auction.open_price, auction.open_change_pct, auction.open_amount)
 ## 许可证
 
 本项目仅允许个人学习、协议研究和非商业研究使用，禁止一切商业使用和滥用。详细条款见 [LICENSE](LICENSE)。
-
-## 赞助
-
-<p align="center">
-  <a href="https://api.astlane.com/">
-    <img alt="Astlane token 赞助方" src="docs/assets/astlane-sponsor.svg" width="860">
-  </a>
-</p>
