@@ -9,7 +9,8 @@ from eltdx.protocol import COMMANDS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = REPO_ROOT / "docs" / "assets" / "interface-catalog-data.js"
-README_BANNER_PATH = REPO_ROOT / ".github" / "assets" / "eltdx-readme-banner.png"
+README_BANNER_RELATIVE = ".github/assets/eltdx-readme-banner-v3.0.5.png"
+README_BANNER_PATH = REPO_ROOT / README_BANNER_RELATIVE
 SPONSOR_BANNER_PATH = REPO_ROOT / "docs" / "assets" / "astlane-sponsor.svg"
 
 
@@ -425,7 +426,7 @@ def test_readme_promotes_the_static_pages_catalog() -> None:
 
     assert '<a href="https://electkismet.github.io/eltdx/"><strong>接口一览</strong></a>' in readme
     assert "<strong>在线文档</strong>" not in readme
-    assert 'src=".github/assets/eltdx-readme-banner.png"' in readme
+    assert f'src="{README_BANNER_RELATIVE}"' in readme
     assert README_BANNER_PATH.is_file()
     assert banner.startswith(b"\x89PNG\r\n\x1a\n")
     assert (int.from_bytes(banner[16:20], "big"), int.from_bytes(banner[20:24], "big")) == (1250, 696)
@@ -435,12 +436,10 @@ def test_readme_shows_the_astlane_sponsor_banner() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     sponsor = SPONSOR_BANNER_PATH.read_text(encoding="utf-8")
 
-    catalog_position = readme.index('src=".github/assets/eltdx-readme-banner.png"')
+    catalog_position = readme.index(f'src="{README_BANNER_RELATIVE}"')
     license_position = readme.index("## 许可证")
-    sponsor_heading_position = readme.index("## 赞助")
     sponsor_position = readme.index('src="docs/assets/astlane-sponsor.svg"')
-    assert catalog_position < license_position < sponsor_heading_position < sponsor_position
-    assert readme.rstrip().endswith("</p>")
+    assert catalog_position < sponsor_position < license_position
     assert 'href="https://api.astlane.com/"' in readme
     assert '<title id="title">Astlane 赞助 eltdx token</title>' in sponsor
 

@@ -306,8 +306,16 @@ class _Gateway:
             service = getattr(self.client, root, None)
             if service is None:
                 continue
-            for name, value in inspect.getmembers(service, callable):
-                if not name.startswith("_"):
+            for name in dir(service):
+                if name.startswith("_"):
+                    continue
+                try:
+                    value = getattr(service, name)
+                except (AttributeError, TypeError):
+                    # Python 3.10 can expose dataclass slots descriptors in
+                    # dir(instance) that are invalid for this concrete object.
+                    continue
+                if callable(value):
                     names.add(f"{root}.{name}")
         return sorted(names)
 

@@ -1,5 +1,10 @@
 # 变更记录
 
+## v3.0.7 - 2026-08-28
+
+- 修复 Python 3.10 下 `/methods` 枚举 `WorkdayService` slots 描述符时抛出 `TypeError` 的问题。
+- 同步 README 版本化接口横幅和赞助图位置测试，恢复 Python 3.10-3.14 主分支 CI。
+
 ## v3.0.6 - 2026-08-28
 
 - 新增可选的 FastAPI 跨语言网关 `eltdx-http`，通过 HTTP JSON 和 WebSocket RPC 调用公开 API。
