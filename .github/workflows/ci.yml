@@ -37,7 +37,7 @@ jobs:
       - name: Install pinned Rust toolchain
         run: rustup toolchain install 1.89.0 --profile minimal --component rustfmt,clippy
       - name: Install project
-        run: python -m pip install -e ".[dev,mcp]"
+        run: python -m pip install -e ".[dev,mcp,http]"
       - run: python scripts/verification/run_python_test_group.py round4-local
 
   wire-golden:

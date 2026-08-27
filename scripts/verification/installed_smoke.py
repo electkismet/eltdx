@@ -33,6 +33,7 @@ def installed_smoke(expected_version: str) -> None:
         "tdx_server.json",
         "docs/index.md",
         "docs/API_REFERENCE.md",
+        "docs/HTTP_GATEWAY.md",
         "docs/MCP.md",
     ):
         if not package.joinpath(relative).is_file():
@@ -42,7 +43,7 @@ def installed_smoke(expected_version: str) -> None:
     suffix = ".exe" if os.name == "nt" else ""
     environment = dict(os.environ)
     environment.pop("PYTHONPATH", None)
-    for name in ("eltdx-smoke", "eltdx-f10-smoke"):
+    for name in ("eltdx-smoke", "eltdx-f10-smoke", "eltdx-http"):
         subprocess.run(
             (str(scripts_dir / f"{name}{suffix}"), "--help"),
             check=True,

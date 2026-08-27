@@ -79,6 +79,7 @@ eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用�
 | 服务器文件 | 按分块自动下载并合并完整文件 | [`client.resources.download_file()`](docs/methods/7709-服务器文件下载.md) | `7709 原生协议` |
 | 连接与并发 | 主站测速、Rust 连接池、心跳、pin、push、缓存和 diagnostics | [`TdxClient()`](docs/METHOD_REFERENCE.md#tdxclient) | `Rust Engine` |
 | MCP 工具服务 | 将常用行情、F10、竞价和文档能力提供给 MCP 客户端 | [`eltdx-mcp`](docs/MCP.md#安装和启动) | `MCP` |
+| 跨语言网关 | 通过 HTTP JSON、WebSocket RPC 和实时订阅供其他语言调用 | [`eltdx-http`](docs/HTTP_GATEWAY.md) | `FastAPI` |
 
 完整接口目录见 [GitHub Pages](https://electkismet.github.io/eltdx/)。调用方法和返回字段看 [METHOD_REFERENCE.md](docs/METHOD_REFERENCE.md)，常用问题入口看 [docs/helpers/README.md](docs/helpers/README.md)，完整 API 看 [API_REFERENCE.md](docs/API_REFERENCE.md)，字段总表看 [FIELD_REFERENCE.md](docs/FIELD_REFERENCE.md)，F10 资料看 [F10_7615.md](docs/F10_7615.md)，MCP 工具看 [MCP.md](docs/MCP.md)。
 
@@ -95,6 +96,15 @@ pip install eltdx
 ```bash
 pip install "eltdx[mcp]"
 ```
+
+Java、Go、C#、Node.js 等语言需要通过 HTTP 或 WebSocket 调用时，再安装网关依赖：
+
+```bash
+pip install "eltdx[http]"
+eltdx-http
+```
+
+默认 `pip install eltdx` 不会安装 FastAPI 或 Uvicorn，也不会启动额外服务。网关用法见 [跨语言 HTTP / WebSocket 网关](docs/HTTP_GATEWAY.md)。
 
 源码目录安装：
 
@@ -405,7 +415,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | 底层协议和 F10 Entry | [7709 命令](docs/COMMANDS_7709.md) · [7615 F10](docs/F10_7615.md) |
 | 连接、测速、并发和故障排查 | [调试指南](docs/DEBUG_GUIDE.md) · [架构](docs/ARCHITECTURE.md) |
 | MCP 安装、工具和资源 | [MCP 文档](docs/MCP.md) |
-| 当前版本、变更和旧 API 迁移 | [v3.0.5](docs/releases/v3.0.5.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
+| 当前版本、变更和旧 API 迁移 | [v3.0.6](docs/releases/v3.0.6.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
 
 ## 常用问题
 

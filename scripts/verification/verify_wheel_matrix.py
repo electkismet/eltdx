@@ -125,7 +125,12 @@ def _smoke_wheel(
             env=environment,
         )
         scripts_dir = python.parent
-        for executable in ("eltdx-smoke", "eltdx-f10-smoke", "eltdx-mcp"):
+        for executable in (
+            "eltdx-smoke",
+            "eltdx-f10-smoke",
+            "eltdx-mcp",
+            "eltdx-http",
+        ):
             suffix = ".exe" if os.name == "nt" else ""
             if not (scripts_dir / f"{executable}{suffix}").is_file():
                 raise FileNotFoundError(f"installed console script is missing: {executable}")

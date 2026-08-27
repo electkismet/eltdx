@@ -32,6 +32,7 @@
       "tests/test_a_share_helpers.py",
       "tests/test_f10.py",
       "tests/test_helpers.py",
+      "tests/test_http_server.py",
       "tests/test_mcp.py",
       "tests/test_pages.py",
       "tests/test_resources.py",

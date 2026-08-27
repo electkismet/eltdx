@@ -61,6 +61,7 @@ nav:
   - 接口目录: index.md
   - 使用指南:
       - 产品与能力: PRODUCT.md
+      - v3.0.6 发布说明: releases/v3.0.6.md
       - v3.0.5 发布说明: releases/v3.0.5.md
       - v3.0.4 发布说明: releases/v3.0.4.md
       - v3.0.3 发布说明: releases/v3.0.3.md
@@ -89,6 +90,7 @@ nav:
       - 连板天梯: helpers/连板天梯.md
       - 题材强度排行: helpers/题材强度排行.md
   - MCP: MCP.md
+  - 跨语言网关: HTTP_GATEWAY.md
   - 工程参考:
       - 架构: ARCHITECTURE.md
       - 线程层扩容方案: THREADING_SCALE_PLAN.md

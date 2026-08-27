@@ -48,11 +48,16 @@ dev = [
 mcp = [
   "mcp>=2.0,<3",
 ]
+http = [
+  "fastapi>=0.141,<1",
+  "uvicorn[standard]>=0.30,<1",
+]
 
 [project.scripts]
 eltdx-smoke = "eltdx.cli:smoke"
 eltdx-f10-smoke = "eltdx.cli:f10_smoke"
 eltdx-mcp = "eltdx.mcp:main"
+eltdx-http = "eltdx.http_server:main"
 
 [tool.maturin]
 manifest-path = "crates/eltdx-python/Cargo.toml"

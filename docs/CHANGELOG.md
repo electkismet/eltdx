@@ -1,5 +1,12 @@
 # 变更记录
 
+## v3.0.6 - 2026-08-28
+
+- 新增可选的 FastAPI 跨语言网关 `eltdx-http`，通过 HTTP JSON 和 WebSocket RPC 调用公开 API。
+- WebSocket 支持桥接原生 `0x0547` 行情增量订阅；普通 RPC 仍然是一问一答，推送频率由 7709 主站决定。
+- 默认 `pip install eltdx` 不增加 FastAPI/Uvicorn 依赖，也不会启动额外服务；网关依赖通过 `eltdx[http]` 单独安装。
+- 新增网关文档、订阅测试、发行包 smoke 检查，并同步包内文档镜像。
+
 ## v3.0.5 - 2026-08-27
 
 - `client.corporate.capital_changes()` 和 `adjustment_factors()` 支持代码列表，默认每批 75 只，可通过 `batch_size=1..200` 调整；主站短响应会自动补拉，批次按连接池并发执行。
@@ -7,17 +14,6 @@
 - 新增 `client.corporate.adjustment_factors()`，仅使用 `0x000f` 标签 `1` 在本地计算事件级前、后复权仿射系数。
 - MCP 新增 `eltdx_capital_changes` 和 `eltdx_adjustment_factors`，与 Python API 的批量参数保持同步；MCP 工具总数为 20 个。
 - 修正配股字段映射、标签解析、TCP 拆包和复权事件复合逻辑，并补充多市场和批量回归测试。
-
-## 未发布
-
-- MCP 新增 `eltdx_capital_changes` 和 `eltdx_adjustment_factors`，与 Python API 同步支持代码列表、默认每批 75 只及可调 `batch_size=1..200`。
-- `capital_changes()` 和 `adjustment_factors()` 的列表查询默认按 75 只拆批，新增 `batch_size` 参数（`1..200`）允许按需调整；主站短响应仍会自动补拉。
-- `client.corporate.capital_changes()` 和 `adjustment_factors()` 支持代码列表；`0x000f` 协议最多 200 只，客户端默认每批 75 只，超量后按连接池 Slot 数并发拆批，单只调用保持原返回模型。
-- 修正权息标签 1 字段语义：`c2` 为配股价，`c4` 为每十股配股数量，并用 000858/20010219 配股记录增加回归测试。
-- 新增 `client.corporate.adjustment_factors()`，仅根据 `0x000f` 标签 `1` 按事件日期复合完整仿射公式并同时返回 `scale + offset`；可用 `start_date` 排除上市前事件，系数计算不舍入。
-- 将 `client.bars.all()` 合并为 `client.bars.get(..., all_pages=True)`，单页与自动分页统一使用一个入口。
-- 删除重复的股本、复权 Helper：`capital_changes()`、`xdxr()`、`equity_changes()`、`equity()`、`turnover()`、`factors()`、`local_adjusted_kline()` 和 `adjusted_kline()`。
-- 修正标签 4 名称、标签 6 混合单位及数量类标签的“万股到股”解析。
 
 ## v3.0.4 - 2026-08-22
 
