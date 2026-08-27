@@ -52,8 +52,9 @@ impl CapitalChangesRequest {
                 limit: MAX_CAPITAL_CHANGE_CODES,
             });
         }
-        let count = u16::try_from(codes.len())
-            .map_err(|_| ProtocolError::invalid_argument("codes", "too many capital-change codes"))?;
+        let count = u16::try_from(codes.len()).map_err(|_| {
+            ProtocolError::invalid_argument("codes", "too many capital-change codes")
+        })?;
         Ok(Self {
             codes,
             count,
@@ -70,7 +71,8 @@ impl CapitalChangesRequest {
     }
 
     pub fn frame(&self, msg_id: u32) -> RequestFrame {
-        let mut data = Vec::with_capacity(2_usize.saturating_add(self.codes.len().saturating_mul(7)));
+        let mut data =
+            Vec::with_capacity(2_usize.saturating_add(self.codes.len().saturating_mul(7)));
         data.extend_from_slice(&self.count.to_le_bytes());
         for code in &self.codes {
             data.push(code.market().id());
@@ -618,10 +620,7 @@ mod tests {
         .frame(1);
         assert_eq!(
             &batch.data[..],
-            &[
-                2, 0, 0, b'0', b'0', b'0', b'0', b'0', b'1', 1, b'6', b'0', b'0', b'0',
-                b'0', b'0',
-            ]
+            &[2, 0, 0, b'0', b'0', b'0', b'0', b'0', b'1', 1, b'6', b'0', b'0', b'0', b'0', b'0',]
         );
         Ok(())
     }

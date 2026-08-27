@@ -94,7 +94,10 @@ fn capital_changes(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
         vec![required_code(payload, "code")?]
     };
     let include_raw = bool_field(payload, "include_raw", false)?;
-    protocol(CapitalChangesRequest::with_include_raw_batch(codes, include_raw))
+    protocol(CapitalChangesRequest::with_include_raw_batch(
+        codes,
+        include_raw,
+    ))
         .map(CommandRequest::CapitalChanges)
 }
 

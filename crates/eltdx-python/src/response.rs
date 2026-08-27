@@ -770,11 +770,19 @@ pub fn to_python(py: Python<'_>, response: CommandResponse) -> PyResult<Py<PyAny
         CommandResponse::Heartbeat(value) => tagged(py, "heartbeat", heartbeat(py, &value)?)?,
         CommandResponse::Handshake(value) => tagged(py, "handshake", handshake(py, &value)?)?,
         CommandResponse::CapitalChanges(value)
-            if value.request.count() == 1 && value.blocks.len() == 1 => tagged(
-            py,
-            "capital_changes",
-            capital_change_block(py, &value.blocks[0], value.request.include_raw, &value.raw_payload)?,
-        )?,
+            if value.request.count() == 1 && value.blocks.len() == 1 =>
+        {
+            tagged(
+                py,
+                "capital_changes",
+                capital_change_block(
+                    py,
+                    &value.blocks[0],
+                    value.request.include_raw,
+                    &value.raw_payload,
+                )?,
+            )?
+        }
         CommandResponse::CapitalChanges(value) => tagged(
             py,
             "capital_change_batch",
