@@ -15,9 +15,19 @@ hide:
 | 返回 | `list[SecurityCode]` |
 | 数据来源 | `0x044d` 代码表和证券名称规则 |
 
+## 输入参数
+
+| 参数 | 是否必填 | 说明 |
+| --- | --- | --- |
+| `market` | 否 | 可选 `sh`、`sz`、`bj`；传 `None` 扫描全部市场 |
+
 ## 筛选规则
 
 名称包含 `ST`、`*ST`、`SST` 或 `S*ST` 的证券会被返回。`market` 可选 `sh`、`sz` 或 `bj`；不传时扫描全部 A 股代码表。该列表反映当前名称，不提供历史 ST 变更记录。
+
+## 返回字段
+
+返回 `list[SecurityCode]`。每条记录包含 `exchange`、`market_id`、`code`、`full_code`、`name`、`multiple`、`decimal`、`previous_close_price`、`volume_ratio_base`、`category`、`category_reason`、`board` 和 `board_reason`。
 
 ## 示例
 

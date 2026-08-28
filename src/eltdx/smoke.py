@@ -190,9 +190,12 @@ def smoke_corporate(client: TdxClient, code: str) -> None:
 
 
 def smoke_deep(client: TdxClient, code: str, history_date: str) -> None:
-    all_day = client.bars.get(code, period="day", all_pages=True, max_pages=3)
+    # A typical listed stock has more than three pages of daily bars; keep a
+    # bounded but sufficient cap so the smoke check does not fail merely
+    # because the server returned another non-empty page.
+    all_day = client.bars.get(code, period="day", all_pages=True, max_pages=20)
     assert_true(all_day.count > 0, "empty all day kline")
-    all_trades = client.trades.all_history(code, history_date, max_pages=3)
+    all_trades = client.trades.all_history(code, history_date, max_pages=20)
     assert_true(all_trades.count > 0, "empty all history trades")
     a_share_codes = client.codes.all_a_shares()
     etf_codes = client.codes.all_etfs()
