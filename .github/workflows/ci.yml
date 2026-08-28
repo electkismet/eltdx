@@ -81,6 +81,10 @@ jobs:
         os: [ubuntu-24.04, windows-2025]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    env:
+      # Windows keeps actively closed client sockets in TIME_WAIT longer;
+      # use a bounded cycle count that fits its ephemeral-port pool.
+      ELTDX_STRESS_CLOSE_CYCLES: ${{ startsWith(matrix.os, 'windows') && '2000' || '10000' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
