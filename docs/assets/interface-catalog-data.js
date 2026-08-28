@@ -1125,11 +1125,11 @@ window.ELTDX_CATALOG = {
       "title": "每日涨跌停价",
       "source": "Helper",
       "category": "实时行情",
-      "api": "client.helpers.daily_price_limits(codes=None)",
+      "api": "client.helpers.daily_price_limits(codes=None, trade_date=...)",
       "aliases": ["daily_price_limits", "stock_daily_price_limits", "涨跌停"],
       "protocol": "0x054c + 业务规则",
       "kind": "组合能力",
-      "summary": "按实时昨收、市场板块、ST 和新股规则计算标准化涨跌停价格。",
+      "summary": "按不复权日线、当日权息和市场板块规则计算当前交易日涨跌停价格。",
       "return_model": "DailyPriceLimitTable",
       "doc": "helpers/每日涨跌停价.md"
     },

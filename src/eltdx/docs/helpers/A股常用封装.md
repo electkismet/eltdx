@@ -15,7 +15,7 @@ hide:
 | 最新 ST 列表 | `client.helpers.latest_st()` | `0x044d` 名称规则 | [查看](最新ST列表.md) |
 | 最新停牌列表 | `client.helpers.latest_suspended()` | `0x044d` + `0x053e` 状态位 `0x20` | [查看](最新停牌列表.md) |
 | 每日股本（盘前） | `client.helpers.daily_share_capital(codes=None)` | `0x0010` 财务快照 + `0x06b9` 统计资源 | [查看](每日股本.md) |
-| 每日涨跌停价 | `client.helpers.daily_price_limits(codes=None)` | `0x054c` 昨收 + 板块/ST规则 | [查看](每日涨跌停价.md) |
+| 每日涨跌停价 | `client.helpers.daily_price_limits(codes=None, trade_date=...)` | `0x052d` 不复权日线 + `0x000f` 当日权息 + 板块/ST规则 | [查看](每日涨跌停价.md) |
 | 实时榜单 | `client.helpers.realtime_rank(sort_by="涨幅")` | `0x054b` 分类行情 | [查看](实时榜单.md) |
 | 买卖力道 | `client.helpers.buy_sell_strength(code)` | `0x051b` 分时副图 | [查看](买卖力道.md) |
 | 成交对比 | `client.helpers.volume_comparison(code)` | `0x051b` 分时副图 | [查看](成交对比.md) |
@@ -26,13 +26,15 @@ hide:
 with TdxClient(timeout=3) as client:
     st_rows = client.helpers.latest_st()
     suspended = client.helpers.latest_suspended()
-    limits = client.helpers.daily_price_limits(["sz000001", "sh600000"])
+    limits = client.helpers.daily_price_limits(
+        ["sz000001", "sh600000"], trade_date="2026-08-28"
+    )
     rank = client.helpers.realtime_rank(sort_by="涨幅", count=20)
 ```
 
 ### 说明
 
-- `daily_price_limits()` 是按昨收、市场板块和 ST/新股规则计算的业务结果，不冒充服务端独立的“每日价位”协议。
+- `daily_price_limits()` 必须传入 `trade_date`。返回结果会明确给出 `pre_close_trade_date`（实际采用的上一根日线日期）和 `pre_close_source`（日线及是否叠加当日权息）。取 T 日之前最近一根实际成交的不复权日线，缺失时返回 `missing_pre_close`，再应用 T 日权息和规则。2026 年 7 月 6 日起，主板 ST/*ST 按 10% 处理。
 - `latest_suspended()` 使用旧版批量行情的公开交易状态位，只返回当前状态，不提供历史停牌日期表。
 - `limit_ladder()` 默认扫描全部 A 股，数据量大时建议先传入候选代码列表。
 - `theme_strength_rank()` 会读取候选股票的 F10 题材，适合盘后或小范围候选，不建议在每秒刷新循环中调用。

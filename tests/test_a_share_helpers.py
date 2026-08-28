@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from types import SimpleNamespace
 
 from eltdx import HelperApi
 from eltdx.models import (
@@ -161,8 +162,32 @@ def _handshake():
 def test_common_a_share_helpers_and_rank() -> None:
     helper = HelperApi(_Client())
     assert [item.full_code for item in helper.latest_st()] == ["sh600000"]
-    limits = helper.daily_price_limits(["sz000001"])
-    assert limits.rows[0].limit_up_price == 9.9
+    limits = helper.daily_price_limits(["sz000001"], trade_date=date(2026, 8, 20))
+    assert limits.rows[0].limit_status == "missing_pre_close"
     rank = helper.realtime_rank(count=1)
     assert rank.count == 1
     assert rank.rows[0].opening_rush == 1.5
+
+
+def test_daily_price_limits_apply_same_day_ex_right_event_and_use_current_st_rule() -> None:
+    from eltdx.helpers.core import _build_daily_price_limit
+
+    security = _security("sh600000", "ST浦发")
+    quote = _quote("sh600000")
+    event = SimpleNamespace(c1_value=0.0, c2_value=25.0, c3_value=0.0, c4_value=2.0)
+    row = _build_daily_price_limit(
+        "sh600000",
+        date(2026, 8, 20),
+        date(2026, 8, 19),
+        security,
+        9.0,
+        (event,),
+    )
+
+    # (9 - (-5)) / 1.2 = 11.666..., then the current main-board ST rule applies +/-10%.
+    assert round(row.pre_close or 0.0, 6) == 11.666667
+    assert row.limit_ratio_pct == 10.0
+    assert row.limit_up_price == 12.83
+    assert row.limit_down_price == 10.5
+    assert row.limit_rule == "st_main_10pct"
+    assert row.pre_close_source == "kline_unadjusted+capital_changes"

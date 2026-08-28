@@ -27,7 +27,7 @@
 | `latest_st()` / `st()` | 按代码表名称筛选 ST/*ST |
 | `latest_suspended()` / `suspended()` | 用 `0x053e` 状态位 `0x20` 扫描当前停牌 |
 | `daily_share_capital()` / `daily_shares()` | 财务快照 + 统计资源生成每日股本 |
-| `daily_price_limits()` / `stock_daily_price_limits()` | 按昨收和市场规则生成涨跌停价 |
+| `daily_price_limits()` / `stock_daily_price_limits()` | 按不复权日线、当日权息和市场规则生成当前交易日涨跌停价 |
 | `realtime_rank()` / `stock_realtime_rank()` | `0x054b` 分类行情标准化榜单 |
 | `buy_sell_strength()` | `0x051b` 买卖力道序列 |
 | `volume_comparison()` | `0x051b` 成交对比序列 |
