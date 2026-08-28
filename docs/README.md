@@ -7,7 +7,8 @@
 | 顺序 | 文档 | 用途 |
 | --- | --- | --- |
 | 1 | [PRODUCT.md](PRODUCT.md) | 看这个库能查什么、适合怎么用 |
-| 2 | [releases/v3.0.7.md](releases/v3.0.7.md) | 看跨语言网关的 Python 3.10 兼容修复 |
+| 2 | [releases/v3.0.8.md](releases/v3.0.8.md) | 看每日涨跌停价和 MCP 更新 |
+| 3 | [releases/v3.0.7.md](releases/v3.0.7.md) | 看跨语言网关的 Python 3.10 兼容修复 |
 | 3 | [releases/v3.0.6.md](releases/v3.0.6.md) | 看 HTTP / WebSocket 网关和跨语言调用 |
 | 4 | [releases/v3.0.5.md](releases/v3.0.5.md) | 看股本变迁、复权系数和 MCP 批量能力 |
 | 5 | [releases/v3.0.4.md](releases/v3.0.4.md) | 看成交分页顺序修复和发布说明 |

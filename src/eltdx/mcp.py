@@ -151,6 +151,25 @@ def adjustment_factors(
     )
 
 
+def daily_price_limits(
+    codes: str | Sequence[str] | None = None,
+    *,
+    trade_date: str | int,
+    timeout: float = 8.0,
+    host: str | None = None,
+) -> Any:
+    """Calculate T-day price limits from bars, corporate actions and rules."""
+
+    code_list = None if codes is None else _validate_codes(codes)
+    return _call_once(
+        lambda client: client.helpers.daily_price_limits(
+            code_list, trade_date=trade_date
+        ),
+        timeout=timeout,
+        host=host,
+    )
+
+
 def minute(
     code: str,
     *,
@@ -748,6 +767,24 @@ class _McpTools:
                 )
             )
 
+    def daily_price_limits(
+        self,
+        codes: str | list[str] | None = None,
+        *,
+        trade_date: str | int,
+        timeout: float = 8.0,
+        host: str | None = None,
+    ) -> dict[str, Any]:
+        """Calculate T-day price limits; trade_date is required."""
+
+        code_list = None if codes is None else _validate_codes(codes)
+        with self._clients.use(timeout=timeout, host=host) as client:
+            return _json(
+                client.helpers.daily_price_limits(
+                    code_list, trade_date=trade_date
+                )
+            )
+
     def minute(
         self,
         code: str,
@@ -1018,6 +1055,7 @@ def create_mcp_server():
         ("eltdx_kline", tools.kline),
         ("eltdx_capital_changes", tools.capital_changes),
         ("eltdx_adjustment_factors", tools.adjustment_factors),
+        ("eltdx_daily_price_limits", tools.daily_price_limits),
         ("eltdx_minute", tools.minute),
         ("eltdx_trades", tools.trades),
         ("eltdx_call_auction", tools.call_auction),

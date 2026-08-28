@@ -1,5 +1,13 @@
 # 变更记录
 
+## v3.0.8 - 2026-08-28
+
+- `client.helpers.daily_price_limits()` 现在必须传入 `trade_date`，按指定 T 日计算涨跌停价。
+- 参考价改为取 T 日之前最近一根不复权日线；停牌导致没有 T-1 日线时，继续使用最近实际成交日线，找不到则明确返回 `missing_pre_close`，不再使用实时快照兜底。
+- 应用 T 日 `0x000f` 权息事件，并输出 `pre_close_trade_date` 和 `pre_close_source`。
+- 更新 2026 年 7 月 6 日起主板 ST/*ST 涨跌幅为 10% 的规则。
+- MCP 新增 `eltdx_daily_price_limits`，`trade_date` 为必填参数；同步 MCP 文档和工具契约。
+
 ## v3.0.7 - 2026-08-28
 
 - 修复 Python 3.10 下 `/methods` 枚举 `WorkdayService` slots 描述符时抛出 `TypeError` 的问题。
