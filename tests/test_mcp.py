@@ -11,7 +11,7 @@ from eltdx import TdxClient
 from eltdx.api.bars import BarApi
 from eltdx.api.corporate import CorporateApi
 from eltdx.api.quotes import QuoteApi
-from eltdx.f10 import F10Client
+from eltdx.f10 import F10Client, parse_tqlex_response
 from eltdx.mcp import (
     _ClientRegistry,
     _McpTools,
@@ -368,6 +368,200 @@ def test_mcp_f10_tools_do_not_consume_market_client_slots(monkeypatch) -> None:
         }
 
     assert not registry._clients
+    registry.close()
+
+
+def test_mcp_finance_report_adds_scoped_labels_without_changing_rows(
+    monkeypatch,
+) -> None:
+    response = parse_tqlex_response(
+        "CWServ.tdxf10_gg_cwfx",
+        {"Params": ["600519", "zcfzb", ""]},
+        {
+            "ErrorCode": 0,
+            "ResultSets": [
+                {
+                    "ResultSetKey": "table0",
+                    "ColName": ["rq", "T039", "T999"],
+                    "Content": [["2026-06-30", 309050784569.31, 1]],
+                },
+                {
+                    "ResultSetKey": "table1",
+                    "ColName": ["rtype", "nhytype", "zqname"],
+                    "Content": [["zcfzb", 0, "贵州茅台"]],
+                },
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        F10Client,
+        "finance_report",
+        lambda self, code, report_type="zcfzb": response,
+    )
+
+    registry = _ClientRegistry()
+    result = _McpTools(registry).finance_report("600519")
+    table = result["result_sets"][0]
+
+    assert table["rows"] == [
+        {"rq": "2026-06-30", "T039": 309050784569.31, "T999": 1}
+    ]
+    assert table["field_labels"] == {
+        "rq": "报告期",
+        "T039": "资产总计",
+    }
+    assert table["unmapped_fields"] == ["T999"]
+    registry.close()
+
+
+def test_mcp_company_news_uses_its_own_t039_label(monkeypatch) -> None:
+    response = parse_tqlex_response(
+        "CWServ.tdxf10_gg_gszx",
+        {"Params": ["600519", "gsyj", "", "0", "1", "3"]},
+        {
+            "ErrorCode": 0,
+            "ResultSets": [
+                {
+                    "ResultSetKey": "table0",
+                    "ColName": ["T004", "T039"],
+                    "Content": [["买入", "贵州茅台公司动态点评"]],
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        F10Client,
+        "company_news",
+        lambda self, code, **kwargs: response,
+    )
+
+    registry = _ClientRegistry()
+    result = _McpTools(registry).company_news("600519", page_size=3)
+
+    assert result["result_sets"][0]["field_labels"]["T039"] == "研报标题"
+    registry.close()
+
+
+def test_mcp_finance_report_uses_industry_template(monkeypatch) -> None:
+    response = parse_tqlex_response(
+        "CWServ.tdxf10_gg_cwfx",
+        {"Params": ["000001", "zcfzb", ""]},
+        {
+            "ErrorCode": 0,
+            "ResultSets": [
+                {
+                    "ResultSetKey": "table0",
+                    "ColName": ["rq", "T039", "T048"],
+                    "Content": [["2026-06-30", 10464000000, 6028785000000]],
+                },
+                {
+                    "ResultSetKey": "table1",
+                    "ColName": ["rtype", "nhytype", "zqname"],
+                    "Content": [["zcfzb", 1, "平安银行"]],
+                },
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        F10Client,
+        "finance_report",
+        lambda self, code, report_type="zcfzb": response,
+    )
+
+    registry = _ClientRegistry()
+    result = _McpTools(registry).finance_report("000001")
+    labels = result["result_sets"][0]["field_labels"]
+
+    assert labels["T039"] == "固定资产"
+    assert labels["T048"] == "资产总计"
+    registry.close()
+
+
+def test_mcp_finance_report_explains_dynamic_bank_cashflow_field(
+    monkeypatch,
+) -> None:
+    response = parse_tqlex_response(
+        "CWServ.tdxf10_gg_cwfx",
+        {"Params": ["601288", "xjllb", ""]},
+        {
+            "ErrorCode": 0,
+            "ResultSets": [
+                {
+                    "ResultSetKey": "table0",
+                    "ColName": ["rq", "T081", "T088"],
+                    "Content": [["2017-06-30", None, -232000000]],
+                },
+                {
+                    "ResultSetKey": "table1",
+                    "ColName": ["rtype", "nhytype", "zqname"],
+                    "Content": [["xjllb", 1, "农业银行"]],
+                },
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        F10Client,
+        "finance_report",
+        lambda self, code, report_type="zcfzb": response,
+    )
+
+    registry = _ClientRegistry()
+    result = _McpTools(registry).finance_report("601288", report_type="xjllb")
+    table = result["result_sets"][0]
+
+    assert table["field_labels"] == {
+        "rq": "报告期",
+        "T081": "处置固定资产等损失",
+    }
+    assert table["unmapped_fields"] == ["T088"]
+    assert table["field_notes"] == {
+        "T088": (
+            "银行历史报表的动态扩展调节项，含义随证券及报告期变化；"
+            "不能使用统一字段名。"
+        )
+    }
+    registry.close()
+
+
+def test_mcp_finance_report_labels_income_statement(monkeypatch) -> None:
+    response = parse_tqlex_response(
+        "CWServ.tdxf10_gg_cwfx",
+        {"Params": ["600519", "lyb", ""]},
+        {
+            "ErrorCode": 0,
+            "ResultSets": [
+                {
+                    "ResultSetKey": "table0",
+                    "ColName": ["rq", "T008", "T020", "T999"],
+                    "Content": [["2026-06-30", 100, 20, 1]],
+                },
+                {
+                    "ResultSetKey": "table1",
+                    "ColName": ["rtype", "nhytype", "zqname"],
+                    "Content": [["lyb", 0, "贵州茅台"]],
+                },
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        F10Client,
+        "finance_report",
+        lambda self, code, report_type="zcfzb": response,
+    )
+
+    registry = _ClientRegistry()
+    result = _McpTools(registry).finance_report("600519", report_type="lyb")
+    table = result["result_sets"][0]
+
+    assert table["rows"] == [
+        {"rq": "2026-06-30", "T008": 100, "T020": 20, "T999": 1}
+    ]
+    assert table["field_labels"] == {
+        "rq": "报告期",
+        "T008": "营业收入",
+        "T020": "营业利润",
+    }
+    assert table["unmapped_fields"] == ["T999"]
     registry.close()
 
 

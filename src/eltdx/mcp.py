@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import OrderedDict
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +13,8 @@ from typing import Any, TypeVar
 
 from . import __version__
 from .client import TdxClient
-from .f10 import F10Client
+from .f10 import F10Client, F10Response
+from .f10.fields import describe_field_notes, describe_fields
 from .hosts import normalize_host
 from .protocol.constants import (
     DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
@@ -1213,7 +1214,55 @@ def _docs_root() -> Path:
 
 
 def _json(value: Any) -> Any:
-    return to_jsonable(value)
+    payload = to_jsonable(value)
+    if not isinstance(value, F10Response):
+        return payload
+
+    metadata = _f10_response_metadata(value)
+    for table, table_payload in zip(
+        value.result_sets, payload.get("result_sets", []), strict=False
+    ):
+        fields = _result_set_field_keys(table.columns, table.rows)
+        labels, unmapped = describe_fields(
+            value.entry, value.request_body, fields, metadata=metadata
+        )
+        table_payload["field_labels"] = labels
+        table_payload["unmapped_fields"] = unmapped
+        table_payload["field_notes"] = describe_field_notes(
+            value.entry, value.request_body, fields, metadata=metadata
+        )
+    return payload
+
+
+def _f10_response_metadata(response: F10Response) -> dict[str, Any]:
+    metadata: dict[str, Any] = {}
+    for table in response.result_sets:
+        for row in table.rows:
+            for field in ("rtype", "nhytype", "zqname"):
+                if field in row and field not in metadata:
+                    metadata[field] = row[field]
+    return metadata
+
+
+def _result_set_field_keys(
+    columns: Sequence[str], rows: Sequence[Mapping[str, Any]]
+) -> list[str]:
+    fields: list[str] = []
+    seen: set[str] = set()
+    counts: dict[str, int] = {}
+    for column in columns:
+        count = counts.get(column, 0) + 1
+        counts[column] = count
+        field = column if count == 1 else f"{column}__{count}"
+        if field not in seen:
+            fields.append(field)
+            seen.add(field)
+    for row in rows:
+        for field in row:
+            if field not in seen:
+                fields.append(field)
+                seen.add(field)
+    return fields
 
 
 if __name__ == "__main__":
