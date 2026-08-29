@@ -561,13 +561,14 @@ series = client.minutes.sparkline("sz000001", selector=1, window=20)
 
 <a id="method-trades-today"></a>
 
-### `client.trades.today(code, start=0, count=1800)`
+### `client.trades.today(code, start=0, count=1800, batch_size=None)`
 
 查询主站当前保存的混合明细，对应 `0x0fc5`。凌晨、周末或节假日可能返回最近交易日数据。原始 `ticks` 可能同时包含普通成交、`status=8` 集合竞价快照、09:25 与 15:00 正式撮合，以及 `status=5` 盘后固定价格成交。
 
 ```python
 page = client.trades.today("sz000001", start=0, count=1800)
 page = client.trades.today("sz000001")
+pages = client.trades.today(["sz000001", "sh600000"])
 ```
 
 | 参数            | 含义             |
@@ -575,15 +576,17 @@ page = client.trades.today("sz000001")
 | `start`       | 起始位置           |
 | `count`       | 本页条数           |
 | `include_raw` | 是否保留原始 payload |
+| `batch_size` | 代码列表输入时的同时查询数；默认自动跟随连接池大小。代码列表本身没有数量上限，超出并发数的代码排队等待。 |
 
 <a id="method-trades-history"></a>
 
-### `client.trades.history(code, trading_date, start=0, count=1800)`
+### `client.trades.history(code, trading_date, start=0, count=1800, batch_size=None)`
 
 查询历史混合明细增强接口，对应 `0x0fc6`，记录分类和当日接口一致。
 
 ```python
 page = client.trades.history("sz000001", "2026-05-20")
+pages = client.trades.history(["sz000001", "sh600000"], "2026-05-20")
 ```
 
 <a id="method-trades-all"></a>
@@ -595,6 +598,9 @@ page = client.trades.history("sz000001", "2026-05-20")
 ```python
 page = client.trades.all_today("sz000001")
 page = client.trades.all_history("sz000001", "2026-05-20")
+pages = client.trades.all_history(
+    ["sz000001", "sh600000"], "2026-05-20"
+)
 actual = page.actual_trades
 after_hours = page.after_hours_trades
 ```
@@ -649,6 +655,8 @@ client.trades.all_history("sz000001", "2026-05-20")
 
 `client.trades.today()` 和 `client.trades.history()` 每次只返回一页，用于手动分页、抽样或控制单次请求量。
 
+以上成交入口也接受代码字符串序列。传入序列时，底层仍按单代码请求，客户端按 `batch_size` 在多只股票之间并发，并返回以规范化完整代码为键的字典；单个字符串输入的返回类型不变。代码列表没有总数量上限，`batch_size` 只是同时查询数，默认跟随传输层 `pool_size`，不会超过可用 Slot 数，剩余代码排队后继续复用 Slot。
+
 单页入口保留服务器当前页的原始顺序。完整分页入口会把 `start=0` 的较新页面和后续较早页面按页倒序展开，同时保留每页内部顺序；`TradeTick.absolute_index` 仍是服务器原始分页位置，不是合并结果的列表下标。
 
 ## 集合竞价
@@ -689,11 +697,17 @@ history = client.auctions.series("sz000001", "2026-05-20")
 ```python
 today_opening = client.trades.opening_match_today("sz000001")
 history_opening = client.trades.opening_match_history("sz000001", "2026-05-20")
+today_openings = client.trades.opening_match_today(["sz000001", "sh600000"])
+history_openings = client.trades.opening_match_history(
+    ["sz000001", "sh600000"], "2026-05-20"
+)
 ```
 
 | 返回模型                | 说明           |
 | ------------------- | ------------ |
 | `TradeTick | None` | 09:25 正式撮合记录；没有记录时为 `None` |
+
+传入代码序列时返回 `dict[str, TradeTick | None]`；`batch_size` 控制同时扫描的股票数。每只股票内部仍按成交明细分页顺序扫描。
 
 | 字段                      | 含义            |
 | ----------------------- | ------------- |

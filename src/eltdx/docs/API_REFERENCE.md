@@ -142,6 +142,7 @@ client.minutes.history("sz000001", "2026-05-20")
 client.trades.today("sz000001")
 client.trades.history("sz000001", "2026-05-20")
 client.trades.all_history("sz000001", "2026-05-20")
+client.trades.all_history(["sz000001", "sh600000"], "2026-05-20")
 ```
 
 成交明细提供单页和完整分页两组入口：
@@ -159,9 +160,12 @@ client.trades.all_history("sz000001", "2026-05-20")
 client.auctions.series("sz000001")
 client.auctions.series("sz000001", "2026-05-20")
 client.trades.opening_match_history("sz000001", "2026-05-20")
+client.trades.opening_match_today(["sz000001", "sh600000"])
 ```
 
 `client.auctions.series()` 返回 `0x056a` 主站保存的当日或历史集合竞价过程快照；不传日期查询当日，传入日期查询历史。`client.trades.opening_match_today()` 和 `opening_match_history()` 分别从 `0x0fc5`、`0x0fc6` 只取 09:25 正式开盘撮合。
+
+成交入口传入代码列表时返回以规范化完整代码为键的结果字典；底层仍逐只请求，`batch_size` 控制同时查询的股票数，默认跟随连接池大小。
 
 ### 股本变迁和本地复权系数
 
@@ -413,22 +417,24 @@ client.minutes.sparkline("sz000001", selector=1)
 
 ## `client.trades`
 
-### `today(code, start=0, count=1800, include_raw=False)`
+### `today(code, start=0, count=1800, include_raw=False, batch_size=None)`
 
 查询主站当前保存的混合明细，对应 `0x0fc5`。凌晨、周末或节假日可能返回最近交易日数据。`ticks` 原样保留 `status=8` 竞价快照；`actual_trades` 排除这些非成交快照，并保留 09:25、15:00 和 `status=5` 盘后固定价格真实成交。
 
 ```python
 client.trades.today("sz000001", start=0, count=1800)
+client.trades.today(["sz000001", "sh600000"])
 ```
 
 `after_hours_trades` 可单独取得 15:05-15:30、`status=5` 的盘后固定价格成交。完整秒级竞价过程和竞价数量使用 `client.auctions.series()`。
 
-### `history(code, trading_date, start=0, count=1800, include_raw=False)`
+### `history(code, trading_date, start=0, count=1800, include_raw=False, batch_size=None)`
 
 查询历史混合明细增强接口，对应 `0x0fc6`。原始 `ticks` 与真实成交视图的分类规则和当日接口一致。
 
 ```python
 client.trades.history("sz000001", "2026-05-20")
+client.trades.history(["sz000001", "sh600000"], "2026-05-20")
 ```
 
 ## `client.auctions`

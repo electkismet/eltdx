@@ -27,7 +27,7 @@ from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, Quote
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "3.0.8"
+    assert __version__ == "3.0.9"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -260,6 +260,62 @@ def test_new_binary_client_entrypoints_keep_exact_payloads() -> None:
     assert legacy["payload"] == {"codes": ["sz000001", "sh600000"]}
     assert resource["command"] == "0x06b9"
     assert resource["payload"] == {"path": "zhb.zip", "offset": 30000, "size": 12000}
+
+
+def test_trade_apis_accept_code_sequences_and_return_code_maps() -> None:
+    from eltdx.models import TradePage
+
+    calls = []
+
+    class FakeTransport:
+        pool_size = 2
+
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            calls.append((command, payload))
+            code = payload["code"]
+            return TradePage(
+                exchange=code[:2],
+                market_id=0,
+                code=code[2:],
+                start=payload.get("start", 0),
+                request_count=payload.get("count", payload.get("page_size", 1800)),
+                ticks=(),
+            )
+
+    client = TdxClient(transport=FakeTransport())
+    codes = ["600487", "sh600183", "002384"]
+
+    today = client.trades.today(codes, count=10, batch_size=2)
+    history = client.trades.history(codes, "2026-08-28", count=10, batch_size=2)
+    all_today = client.trades.all_today(codes, batch_size=2)
+    all_history = client.trades.all_history(codes, "2026-08-28", batch_size=2)
+    opening_today = client.trades.opening_match_today(codes, batch_size=2)
+    opening_history = client.trades.opening_match_history(
+        codes, "2026-08-28", batch_size=2
+    )
+
+    expected = {"sh600487", "sh600183", "sz002384"}
+    assert set(today) == expected
+    assert set(history) == expected
+    assert set(all_today) == expected
+    assert set(all_history) == expected
+    assert opening_today == {code: None for code in expected}
+    assert opening_history == {code: None for code in expected}
+    assert len(calls) == 18
+
+
+def test_trade_batch_size_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="batch_size"):
+        TdxClient.in_memory().trades.today(["600487"], batch_size=0)
 
 
 def test_constructor_accepts_single_host() -> None:

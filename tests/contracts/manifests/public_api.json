@@ -168,12 +168,12 @@
     "eltdx.api.trades:TradeApi": {
       "members": ["all_history", "all_today", "history", "opening_match_history", "opening_match_today", "today"],
       "signatures": {
-        "today": "(self, code, *, start=0, count=1800, include_raw=False)",
-        "history": "(self, code, trading_date, *, start=0, count=1800, include_raw=False)",
-        "all_today": "(self, code, *, page_size=1800, max_pages=100, include_raw=False)",
-        "all_history": "(self, code, trading_date, *, page_size=1800, max_pages=100, include_raw=False)",
-        "opening_match_today": "(self, code, *, page_size=1800, max_pages=100, include_raw=False)",
-        "opening_match_history": "(self, code, trading_date, *, page_size=1800, max_pages=100, include_raw=False)"
+        "today": "(self, code, *, start=0, count=1800, include_raw=False, batch_size=None)",
+        "history": "(self, code, trading_date, *, start=0, count=1800, include_raw=False, batch_size=None)",
+        "all_today": "(self, code, *, page_size=1800, max_pages=100, include_raw=False, batch_size=None)",
+        "all_history": "(self, code, trading_date, *, page_size=1800, max_pages=100, include_raw=False, batch_size=None)",
+        "opening_match_today": "(self, code, *, page_size=1800, max_pages=100, include_raw=False, batch_size=None)",
+        "opening_match_history": "(self, code, trading_date, *, page_size=1800, max_pages=100, include_raw=False, batch_size=None)"
       }
     },
     "eltdx.api.auctions:AuctionApi": {

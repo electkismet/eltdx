@@ -1,7 +1,7 @@
 window.ELTDX_CATALOG = {
   "schema_version": 13,
   "release": {
-    "version": "3.0.8",
+    "version": "3.0.9",
     "status": "stable",
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
@@ -459,15 +459,15 @@ window.ELTDX_CATALOG = {
       "title": "当日成交明细",
       "source": "7709",
       "category": "逐笔成交",
-      "api": "client.trades.today(code, ...) / client.trades.all_today(code, ...)",
+      "api": "client.trades.today(code, ..., batch_size=None) / client.trades.all_today(code, ..., batch_size=None)",
       "calls": [
         {
           "label": "主要调用",
-          "api": "client.trades.today(code, ...)"
+          "api": "client.trades.today(code, ..., batch_size=None)"
         },
         {
           "label": "完整分页",
-          "api": "client.trades.all_today(code, ...)"
+          "api": "client.trades.all_today(code, ..., batch_size=None)"
         }
       ],
       "aliases": [
@@ -477,8 +477,8 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x0fc5",
       "kind": "底层协议",
-      "summary": "返回主站当前保存的混合记录：普通成交、status=8 竞价快照和 09:25 正式撮合。",
-      "return_model": "TradePage",
+      "summary": "返回主站当前保存的混合记录：普通成交、status=8 竞价快照和 09:25 正式撮合；code 可传单个代码或代码列表。",
+      "return_model": "TradePage | dict[str, TradePage]",
       "doc": "methods/7709-当日成交明细.md"
     },
     {
@@ -486,15 +486,15 @@ window.ELTDX_CATALOG = {
       "title": "历史成交明细",
       "source": "7709",
       "category": "逐笔成交",
-      "api": "client.trades.history(code, date, ...) / client.trades.all_history(code, date, ...)",
+      "api": "client.trades.history(code, date, ..., batch_size=None) / client.trades.all_history(code, date, ..., batch_size=None)",
       "calls": [
         {
           "label": "主要调用 · 单页",
-          "api": "client.trades.history(code, date, ...)"
+          "api": "client.trades.history(code, date, ..., batch_size=None)"
         },
         {
           "label": "完整分页",
-          "api": "client.trades.all_history(code, date, ...)"
+          "api": "client.trades.all_history(code, date, ..., batch_size=None)"
         }
       ],
       "aliases": [
@@ -503,8 +503,8 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x0fc6",
       "kind": "底层协议",
-      "summary": "返回指定日期混合记录：普通成交、status=8 竞价快照和 09:25 正式撮合。",
-      "return_model": "TradePage",
+      "summary": "返回指定日期混合记录：普通成交、status=8 竞价快照和 09:25 正式撮合；code 可传单个代码或代码列表。",
+      "return_model": "TradePage | dict[str, TradePage]",
       "doc": "methods/7709-历史成交明细.md"
     },
     {
@@ -528,11 +528,11 @@ window.ELTDX_CATALOG = {
       "title": "当日 09:25 正式撮合",
       "source": "Helper",
       "category": "集合竞价",
-      "api": "client.trades.opening_match_today(code, ...)",
+      "api": "client.trades.opening_match_today(code, ..., batch_size=None)",
       "protocol": "0x0fc5",
       "kind": "组合接口",
-      "summary": "从当日成交明细中提取 09:25 正式撮合记录；无记录时返回 None。",
-      "return_model": "TradeTick | None",
+      "summary": "从当日成交明细中提取 09:25 正式撮合记录；code 可传单个代码或代码列表，无记录时返回 None。",
+      "return_model": "TradeTick | None | dict[str, TradeTick | None]",
       "doc": "methods/7709-当日0925正式撮合.md"
     },
     {
@@ -540,11 +540,11 @@ window.ELTDX_CATALOG = {
       "title": "历史 09:25 正式撮合",
       "source": "Helper",
       "category": "集合竞价",
-      "api": "client.trades.opening_match_history(code, date, ...)",
+      "api": "client.trades.opening_match_history(code, date, ..., batch_size=None)",
       "protocol": "0x0fc6",
       "kind": "组合接口",
-      "summary": "从指定日期的历史成交明细中提取 09:25 正式撮合记录；无记录时返回 None。",
-      "return_model": "TradeTick | None",
+      "summary": "从指定日期的历史成交明细中提取 09:25 正式撮合记录；code 可传单个代码或代码列表，无记录时返回 None。",
+      "return_model": "TradeTick | None | dict[str, TradeTick | None]",
       "doc": "methods/7709-历史0925正式撮合.md"
     },
     {
