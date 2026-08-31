@@ -18,8 +18,8 @@ async def _check() -> None:
     )
     async with Client(stdio_client(parameters), mode="legacy") as client:
         tools = await client.list_tools()
-        if len(tools.tools) != 21:
-            raise RuntimeError(f"expected 21 MCP tools, got {len(tools.tools)}")
+        if len(tools.tools) != 22:
+            raise RuntimeError(f"expected 22 MCP tools, got {len(tools.tools)}")
         resources = await client.list_resources()
         if len(resources.resources) != 8:
             raise RuntimeError(f"expected 8 MCP resources, got {len(resources.resources)}")
