@@ -579,7 +579,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x0ffc",
       "kind": "底层协议",
-      "summary": "读取一只或多只股票最近的日资金流向记录，返回主力/主买净额及占比、两套四档净额和原始字段。",
+      "summary": "读取一只或多只股票最近的日资金流向记录，返回主力/主买净额及占比，以及两种口径各自的超大单、大单、中单、小单净额和原始字段。",
       "return_model": "MoneyFlowBlock | MoneyFlowBatch",
       "doc": "methods/0x0ffc-资金流向日数据接口.md",
       "legacy_registry": false

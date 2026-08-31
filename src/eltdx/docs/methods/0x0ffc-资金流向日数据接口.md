@@ -77,8 +77,16 @@ with TdxClient(timeout=5) as client:
 | `record_hex` | 88 字节日记录的原始十六进制 |
 | `main_buy_net` | 主买净额：按主动买入/卖出方向汇总的四组分档净额 |
 | `main_buy_ratio` | 主买净额占比，百分数值 |
-| `main_buy_super_large_net` / `main_buy_large_net` / `main_buy_medium_net` / `main_buy_small_net` | 主买口径下，超大单 / 大单 / 中单 / 小单净额 |
-| `main_super_large_net` / `main_large_net` / `main_medium_net` / `main_small_net` | 主力口径下，超大单 / 大单 / 中单 / 小单净额 |
+| `main_buy_super_large_net` | 主买口径下的超大单净额 |
+| `main_buy_large_net` | 主买口径下的大单净额 |
+| `main_buy_medium_net` | 主买口径下的中单净额 |
+| `main_buy_small_net` | 主买口径下的小单净额 |
+| `main_super_large_net` | 主力净额口径下的超大单净额 |
+| `main_large_net` | 主力净额口径下的大单净额 |
+| `main_medium_net` | 主力净额口径下的中单净额 |
+| `main_small_net` | 主力净额口径下的小单净额 |
+
+其中，`main_super_large_net`、`main_large_net`、`main_medium_net`、`main_small_net` 四项组成 `main_net`；带 `main_buy_` 前缀的四项组成 `main_buy_net`，两者是不同统计口径。
 
 ### `buckets` 怎么看
 
