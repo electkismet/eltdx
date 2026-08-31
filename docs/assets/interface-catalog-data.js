@@ -570,7 +570,7 @@ window.ELTDX_CATALOG = {
       "title": "资金流向日数据",
       "source": "7709",
       "category": "资金流向",
-      "api": "client.money_flow.daily(code, ...)",
+      "api": "client.money_flow.daily(code, ..., batch_size=75)",
       "aliases": [
         "money_flow",
         "资金流向",
@@ -578,9 +578,9 @@ window.ELTDX_CATALOG = {
         "ASK_OneZJLX"
       ],
       "protocol": "0x0ffc",
-      "kind": "底层协议（原生扩展）",
-      "summary": "读取一只股票最近的日资金流向记录，返回总成交额、主力净额/占比、16 个分档值和原始字段。",
-      "return_model": "MoneyFlowBlock",
+      "kind": "底层协议",
+      "summary": "读取一只或多只股票最近的日资金流向记录，返回主力/主买净额及占比、两套四档净额和原始字段。",
+      "return_model": "MoneyFlowBlock | MoneyFlowBatch",
       "doc": "methods/0x0ffc-资金流向日数据接口.md",
       "legacy_registry": false
     },

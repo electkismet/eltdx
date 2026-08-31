@@ -257,7 +257,9 @@ def _minute_series(value: Any) -> MinuteSeries:
 
 
 def _money_flow_record(value: Any) -> MoneyFlowDaily:
-    fields = list(_tuple(value, "money flow record", 8))
+    fields = list(_tuple(value, "money flow record"))
+    if len(fields) not in (8, 10, 18):
+        raise TypeError("money flow record must contain 8, 10, or 18 fields")
     fields[1] = _date(fields[1])
     fields[3] = tuple(_tuple(fields[3], "money flow buckets"))
     fields[6] = tuple(_tuple(fields[6], "money flow raw"))

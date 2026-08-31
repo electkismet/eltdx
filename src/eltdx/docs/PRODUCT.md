@@ -35,7 +35,7 @@
 | 当日成交明细、历史成交明细 | `client.trades` | `0x0fc5`, `0x0fc6` |
 | 集合竞价过程快照 | `client.auctions` | `0x056a`，支持当日和历史日期 |
 | 股本变迁、财务批量 | `client.corporate` | `0x000f`, `0x0010` |
-| 资金流向日数据 | `client.money_flow` | `0x0ffc` 原生扩展 |
+| 资金流向日数据 | `client.money_flow` | `0x0ffc` |
 | 特殊品种涨跌停限制 | `client.limits` | `0x0452` |
 | F10、题材、公告、财务报表、估值 | `client.f10` | `7615/TQLEX` |
 | 常用场景组合调用（含 21 个短线指标） | `client.helpers` | 组合 7709 / F10 |
@@ -109,7 +109,7 @@ eltdx-mcp
 
 ## 1.0 能力状态
 
-当前项目已经完成 `TdxClient`、业务 API 分层、21 个兼容 `7709` 命令注册表及 1 个原生扩展接口、中文文档、同步 `SocketTransport`、连接池包装、主站 TCP 测速和 MCP 工具服务。
+当前项目已经完成 `TdxClient`、业务 API 分层、`7709` 协议接口、中文文档、同步 `SocketTransport`、连接池包装、主站 TCP 测速和 MCP 工具服务。
 
 已经真实接入并验证的命令：
 

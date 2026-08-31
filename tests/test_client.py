@@ -668,6 +668,77 @@ def test_capital_changes_forwards_include_raw() -> None:
     assert result == {"code": "sz000001", "include_raw": True}
 
 
+def test_money_flow_accepts_multiple_codes_and_uses_pool_concurrency() -> None:
+    from eltdx.models import MoneyFlowBatch, MoneyFlowBlock
+
+    class FakeTransport:
+        pool_size = 2
+
+        def __init__(self) -> None:
+            self.barrier = Barrier(2)
+            self.lock = Lock()
+            self.codes = []
+
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            assert command == 0x0FFC
+            code = payload["code"]
+            with self.lock:
+                self.codes.append(code)
+            self.barrier.wait(timeout=2)
+            return MoneyFlowBlock(code[:2], 0, code[2:], ())
+
+    transport = FakeTransport()
+    result = TdxClient(transport=transport).money_flow.daily(
+        ["sz000001", "sh600000"], batch_size=2
+    )
+
+    assert isinstance(result, MoneyFlowBatch)
+    assert result.count == 0
+    assert [block.full_code for block in result.blocks] == [
+        "sz000001",
+        "sh600000",
+    ]
+    assert sorted(transport.codes) == ["sh600000", "sz000001"]
+
+
+@pytest.mark.parametrize("batch_size", (0, -1, True, "75"))
+def test_money_flow_batch_size_is_validated(batch_size) -> None:
+    with pytest.raises(ValueError, match="batch_size"):
+        TdxClient.in_memory().money_flow.daily(["sz000001"], batch_size=batch_size)
+
+
+def test_money_flow_block_provides_returned_period_totals() -> None:
+    from eltdx.models import MoneyFlowBlock, MoneyFlowDaily
+
+    record = MoneyFlowDaily(
+        20260831,
+        date(2026, 8, 31),
+        100.0,
+        tuple(),
+        20.0,
+        10.0,
+        tuple(),
+        "",
+        30.0,
+        15.0,
+    )
+    block = MoneyFlowBlock("sz", 0, "000001", (record,))
+
+    assert block.main_net_total == 20.0
+    assert block.main_ratio_total == 20.0
+    assert block.main_buy_net_total == 30.0
+    assert block.main_buy_ratio_total == 30.0
+
+
 def test_capital_changes_batches_200_codes_and_uses_pool_concurrency() -> None:
     from eltdx.models import CapitalChangeBatch, CapitalChangeBlock
 

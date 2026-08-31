@@ -9,14 +9,14 @@ hide:
 
 ## 作用
 
-按证券代码读取 7709 主站最近的日资金流向记录，通常返回最近 5 个交易日。它不是实时推送接口，也不负责计算 K 线复权。
+按一只或多只证券读取 7709 主站最近的日资金流向记录，每只证券通常返回最近 5 个交易日。它不是实时推送接口，也不负责计算 K 线复权。
 
 | 项目 | 内容 |
 | --- | --- |
-| 主要调用 | `client.money_flow.daily(code, *, include_raw=False)` |
+| 主要调用 | `client.money_flow.daily(code, *, include_raw=False, batch_size=75)` |
 | 底层接口 | [`0x0ffc`](../COMMANDS_7709.md#cmd-0x0ffc) |
-| 返回模型 | `MoneyFlowBlock` |
-| 单次返回 | 一个证券块，通常含最近 5 条日记录 |
+| 返回模型 | 单只代码返回 `MoneyFlowBlock`；代码列表返回 `MoneyFlowBatch` |
+| 单次返回 | 每只证券通常含最近 5 条日记录 |
 
 ## 示例
 
@@ -27,20 +27,27 @@ with TdxClient(timeout=5) as client:
     flow = client.money_flow.daily("sz000063")
     for row in flow.records:
         print(row.date, row.main_net, row.main_ratio)
+
+    flows = client.money_flow.daily(
+        ["sz000063", "sh600000"], batch_size=2
+    )
+    for block in flows.blocks:
+        print(block.full_code, block.records)
 ```
 
 ## 参数
 
 | 参数 | 含义 |
 | --- | --- |
-| `code` | 单只证券代码，支持 `sz000063`、`000063` 这类写法；没有市场前缀时按代码段补全 |
+| `code` | 单只证券代码或代码列表，支持 `sz000063`、`000063` 这类写法；没有市场前缀时按代码段补全 |
 | `include_raw` | 是否保留协议原始响应；默认 `False`。无论是否开启，记录级 `raw` 辅助字段都会保留 |
+| `batch_size` | 传入代码列表时的最大并发数，默认 `75`；实际并发数不会超过连接池容量 |
 
 ## 返回字段
 
 ### `MoneyFlowBlock`
 
-这是“一只股票的结果外壳”。一次调用返回一个 `MoneyFlowBlock`，里面的 `records` 才是每天的资金流向数据；通常有最近 5 个交易日。它不是另一种资金指标。
+这是“一只股票的结果外壳”。传入单只代码时返回一个 `MoneyFlowBlock`，里面的 `records` 才是每天的资金流向数据；通常有最近 5 个交易日。它不是另一种资金指标。
 
 | 字段 | 含义 |
 | --- | --- |
@@ -50,6 +57,10 @@ with TdxClient(timeout=5) as client:
 | `full_code` | `exchange + code` 的完整代码 |
 | `records` | 按主站顺序排列的 `MoneyFlowDaily` 元组 |
 | `count` | `records` 条数 |
+
+### `MoneyFlowBatch`
+
+传入多个代码时返回这个批量结果。`blocks` 按输入代码顺序保存每只证券的 `MoneyFlowBlock`，`count` 是所有证券的日记录总数；证券数量可用 `len(blocks)` 获取。
 
 ### `MoneyFlowDaily`
 
@@ -64,6 +75,10 @@ with TdxClient(timeout=5) as client:
 | `main_ratio` | 主力净额占比，百分数值，例如 `13.928` 表示 `13.928%` |
 | `raw` | 21 个原始 `uint32` 字段，便于继续核对尚未命名的字段 |
 | `record_hex` | 88 字节日记录的原始十六进制 |
+| `main_buy_net` | 主买净额：按主动买入/卖出方向汇总的四组分档净额 |
+| `main_buy_ratio` | 主买净额占比，百分数值 |
+| `main_buy_super_large_net` / `main_buy_large_net` / `main_buy_medium_net` / `main_buy_small_net` | 主买口径下，超大单 / 大单 / 中单 / 小单净额 |
+| `main_super_large_net` / `main_large_net` / `main_medium_net` / `main_small_net` | 主力口径下，超大单 / 大单 / 中单 / 小单净额 |
 
 ### `buckets` 怎么看
 
@@ -72,18 +87,31 @@ with TdxClient(timeout=5) as client:
 | 索引 | 当前含义 | 状态 |
 | ---: | --- | --- |
 | `0`, `1` | 主力净额计算中的第一组买入 / 卖出值 | 已确认参与 `main_net` |
-| `2`, `3` | 第二组买入 / 卖出值 | 保留原始值，业务名称未确认 |
+| `2`, `3` | 主买净额计算中的第一组买入 / 卖出值 | 已确认参与 `main_buy_net` |
 | `4`, `5` | 主力净额计算中的第二组买入 / 卖出值 | 已确认参与 `main_net` |
-| `6`, `7` | 第四组买入 / 卖出值 | 保留原始值，业务名称未确认 |
-| `8`..`15` | 其余四组买入 / 卖出值 | 保留原始值，业务名称未确认 |
+| `6`, `7` | 主买净额计算中的第二组买入 / 卖出值 | 已确认参与 `main_buy_net` |
+| `8`, `9` | 第五组买入 / 卖出值 | 保留原始值，业务名称未确认 |
+| `10`, `11` | 主买净额计算中的第三组买入 / 卖出值 | 已确认参与 `main_buy_net` |
+| `12`, `13` | 第七组买入 / 卖出值 | 保留原始值，业务名称未确认 |
+| `14`, `15` | 主买净额计算中的第四组买入 / 卖出值 | 已确认参与 `main_buy_net` |
 
-因此不要把 `buckets` 的单个数字直接当作“超大单金额”或“买入金额”。目前能直接使用的业务字段是 `main_net` 和 `main_ratio`；需要继续研究其他分档含义时，再结合 `raw` 和 `record_hex` 做对照。
+因此不要把 `buckets` 的单个数字直接当作“超大单金额”或“买入金额”。SDK 已提供主买、主力及两套四档净额字段；`raw` 和 `record_hex` 仍保留用于进一步核对。
 
 服务端页面使用的主力计算口径为：
 
 ```text
 main_net = (bucket[0] - bucket[1] + bucket[4] - bucket[5]) / 50000 * total_amount
 main_ratio = (bucket[0] - bucket[1] + bucket[4] - bucket[5]) / 500
+main_buy_net = (bucket[2] - bucket[3] + bucket[6] - bucket[7] + bucket[10] - bucket[11] + bucket[14] - bucket[15]) / 50000 * total_amount
+main_buy_ratio = (bucket[2] - bucket[3] + bucket[6] - bucket[7] + bucket[10] - bucket[11] + bucket[14] - bucket[15]) / 500
+main_buy_super_large_net = (bucket[2] - bucket[3]) / 50000 * total_amount
+main_buy_large_net = (bucket[6] - bucket[7]) / 50000 * total_amount
+main_buy_medium_net = (bucket[10] - bucket[11]) / 50000 * total_amount
+main_buy_small_net = (bucket[14] - bucket[15]) / 50000 * total_amount
+main_super_large_net = (bucket[0] - bucket[1]) / 50000 * total_amount
+main_large_net = (bucket[4] - bucket[5]) / 50000 * total_amount
+main_medium_net = (bucket[8] - bucket[9]) / 50000 * total_amount
+main_small_net = (bucket[12] - bucket[13]) / 50000 * total_amount
 ```
 
 `buckets` 是记录中 8 个小端 `uint32` 打包得到的 16 个小端 `uint16` 值；SDK 同时保留 `raw`，不把尚未确认的辅助字段误命名为业务字段。
@@ -112,7 +140,17 @@ main_ratio = (bucket[0] - bucket[1] + bucket[4] - bucket[5]) / 500
           "main_net": 372728255.3856,
           "main_ratio": 13.928,
           "raw": [1229001766, 1327465001, 555040271, 246230762, 579412104, 220205424, 1031090488, 414718200, 1111176063, 449125041, 554057277, 245444373, 579477639, 219877747, 1030893864, 413997302, 1112224610, 448600745, 1206735744, 35586615, 1830640588],
-          "record_hex": "..."
+          "record_hex": "...",
+          "main_buy_net": 507015330.7392,
+          "main_buy_ratio": 18.946,
+          "main_buy_super_large_net": 444662025.5232,
+          "main_buy_large_net": 59516631.2448,
+          "main_buy_medium_net": 3907116.9792,
+          "main_buy_small_net": -1070443.008,
+          "main_super_large_net": 400292162.8416,
+          "main_large_net": -27563907.456,
+          "main_medium_net": -168380685.1584,
+          "main_small_net": -204294048.0768
         }
       ]
     }

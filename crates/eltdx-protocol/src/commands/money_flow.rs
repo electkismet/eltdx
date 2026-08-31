@@ -56,6 +56,16 @@ pub struct MoneyFlowRecord {
     pub main_net: f64,
     pub main_ratio: f64,
     pub record_hex: String,
+    pub main_buy_net: f64,
+    pub main_buy_ratio: f64,
+    pub main_buy_super_large_net: f64,
+    pub main_buy_large_net: f64,
+    pub main_buy_medium_net: f64,
+    pub main_buy_small_net: f64,
+    pub main_super_large_net: f64,
+    pub main_large_net: f64,
+    pub main_medium_net: f64,
+    pub main_small_net: f64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -172,6 +182,14 @@ fn parse_money_flow_record(record: &[u8]) -> Result<MoneyFlowRecord, ProtocolErr
     }
     let bucket = f64::from(buckets[0]) - f64::from(buckets[1]) + f64::from(buckets[4])
         - f64::from(buckets[5]);
+    let main_buy_bucket = f64::from(buckets[2]) - f64::from(buckets[3])
+        + f64::from(buckets[6])
+        - f64::from(buckets[7])
+        + f64::from(buckets[10])
+        - f64::from(buckets[11])
+        + f64::from(buckets[14])
+        - f64::from(buckets[15]);
+    let scale = f64::from(total_amount) / 50_000.0;
     Ok(MoneyFlowRecord {
         date_raw,
         date,
@@ -181,6 +199,16 @@ fn parse_money_flow_record(record: &[u8]) -> Result<MoneyFlowRecord, ProtocolErr
         main_net: bucket / 50_000.0 * f64::from(total_amount),
         main_ratio: bucket / 500.0,
         record_hex: hex(record),
+        main_buy_net: main_buy_bucket / 50_000.0 * f64::from(total_amount),
+        main_buy_ratio: main_buy_bucket / 500.0,
+        main_buy_super_large_net: (f64::from(buckets[2]) - f64::from(buckets[3])) * scale,
+        main_buy_large_net: (f64::from(buckets[6]) - f64::from(buckets[7])) * scale,
+        main_buy_medium_net: (f64::from(buckets[10]) - f64::from(buckets[11])) * scale,
+        main_buy_small_net: (f64::from(buckets[14]) - f64::from(buckets[15])) * scale,
+        main_super_large_net: (f64::from(buckets[0]) - f64::from(buckets[1])) * scale,
+        main_large_net: (f64::from(buckets[4]) - f64::from(buckets[5])) * scale,
+        main_medium_net: (f64::from(buckets[8]) - f64::from(buckets[9])) * scale,
+        main_small_net: (f64::from(buckets[12]) - f64::from(buckets[13])) * scale,
     })
 }
 
@@ -210,9 +238,38 @@ mod tests {
         let mut payload = vec![0_u8; 0x28 + 5 * MONEY_FLOW_RECORD_SIZE];
         payload[2..8].copy_from_slice(b"000063");
         payload[0x26..0x28].copy_from_slice(&5_u16.to_le_bytes());
+        let record = 0x28;
+        payload[record + 8..record + 12].copy_from_slice(&100_000.0_f32.to_le_bytes());
+        for (index, lo, hi) in [
+            (10, 100_u16, 20_u16),
+            (11, 300_u16, 100_u16),
+            (12, 50_u16, 10_u16),
+            (13, 200_u16, 100_u16),
+            (14, 60_u16, 10_u16),
+            (15, 30_u16, 10_u16),
+            (16, 20_u16, 70_u16),
+            (17, 70_u16, 20_u16),
+        ] {
+            let packed = u32::from(lo) | (u32::from(hi) << 16);
+            let offset = record + 4 + index * 4;
+            payload[offset..offset + 4].copy_from_slice(&packed.to_le_bytes());
+        }
         let request = MoneyFlowRequest::new(NormalizedCode::parse("sz000063").unwrap());
         let parsed = parse_money_flow_payload(&payload, request).unwrap();
         assert_eq!(parsed.blocks[0].code, "000063");
         assert_eq!(parsed.blocks[0].records.len(), 5);
+        let first = &parsed.blocks[0].records[0];
+        assert!((first.main_net - 240.0).abs() < 1e-9);
+        assert!((first.main_ratio - 0.24).abs() < 1e-9);
+        assert!((first.main_buy_net - 740.0).abs() < 1e-9);
+        assert!((first.main_buy_ratio - 0.74).abs() < 1e-9);
+        assert!((first.main_buy_super_large_net - 400.0).abs() < 1e-9);
+        assert!((first.main_buy_large_net - 200.0).abs() < 1e-9);
+        assert!((first.main_buy_medium_net - 40.0).abs() < 1e-9);
+        assert!((first.main_buy_small_net - 100.0).abs() < 1e-9);
+        assert!((first.main_super_large_net - 160.0).abs() < 1e-9);
+        assert!((first.main_large_net - 80.0).abs() < 1e-9);
+        assert!((first.main_medium_net - 100.0).abs() < 1e-9);
+        assert!((first.main_small_net + 100.0).abs() < 1e-9);
     }
 }

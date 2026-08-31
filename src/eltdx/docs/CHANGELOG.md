@@ -3,6 +3,7 @@
 ## 工作区变更（未发布）
 
 - 新增 `client.money_flow.daily(code)`，接入 7709 `0x0ffc` 日资金流向服务。
+- `client.money_flow.daily()` 现在支持传入代码列表，并按连接池并发返回 `MoneyFlowBatch`。
 - 新增资金流向独立详情页、接口目录条目、命令映射、字段说明和真实返回样本。
 
 ## v3.0.9 - 2026-08-30

@@ -1211,6 +1211,16 @@ fn money_flow_record<'py>(py: Python<'py>, value: &MoneyFlowRecord) -> PyResult<
                     .collect::<PyResult<Vec<_>>>()?,
             )?,
             record_hex(py, true, &value.record_hex),
+            any(py, value.main_buy_net)?,
+            any(py, value.main_buy_ratio)?,
+            any(py, value.main_buy_super_large_net)?,
+            any(py, value.main_buy_large_net)?,
+            any(py, value.main_buy_medium_net)?,
+            any(py, value.main_buy_small_net)?,
+            any(py, value.main_super_large_net)?,
+            any(py, value.main_large_net)?,
+            any(py, value.main_medium_net)?,
+            any(py, value.main_small_net)?,
         ],
     )
 }

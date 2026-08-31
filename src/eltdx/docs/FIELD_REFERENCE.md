@@ -201,7 +201,7 @@ K 线响应和单根 K 线。
 
 ## 资金流向
 
-`client.money_flow.daily(code)` 返回 `MoneyFlowBlock`，它代表一只股票；`block.records` 中的每个 `MoneyFlowDaily` 代表一个交易日。每条记录包含日期、总成交额、主力净额、主力占比和 16 个原始分档值。`buckets[0]/[1]` 与 `buckets[4]/[5]` 已确认用于主力净额计算，其余分档暂不命名；21 个原始 `raw` 字段和 `record_hex` 用于进一步核对。完整参数、单位和真实样本见[资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+`client.money_flow.daily(code)` 传入单只代码时返回 `MoneyFlowBlock`，传入代码列表时返回 `MoneyFlowBatch`；其中每个 `MoneyFlowBlock` 代表一只股票，`block.records` 中的每个 `MoneyFlowDaily` 代表一个交易日。每条记录包含日期、总成交额、主力净额/占比、主买净额/占比、两套超大单/大单/中单/小单净额和 16 个原始分档值。`MoneyFlowBlock` 还提供返回记录的净额和占比汇总。`buckets[0]/[1]` 与 `buckets[4]/[5]` 已确认用于主力净额计算，`buckets[2]/[3]`、`[6]/[7]`、`[10]/[11]`、`[14]/[15]` 已确认用于主买净额计算，其余分档暂不命名；21 个原始 `raw` 字段和 `record_hex` 用于进一步核对。完整参数、单位和真实样本见[资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
 
 | 字段 | 含义 |
 | --- | --- |
