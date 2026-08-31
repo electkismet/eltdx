@@ -761,7 +761,7 @@ batch = client.corporate.adjustment_factors(["sz000001", "sh600000"])
 
 ### `client.money_flow.daily(code, *, include_raw=False)`
 
-查询单只证券最近的日资金流向分档记录，对应原生扩展命令 `0x0ffc`。返回 `MoneyFlowBlock`，通常包含最近 5 个交易日；`MoneyFlowDaily` 保留总成交额、16 个分档值、主力净额/占比以及 `raw` 原始字段。内部路由字段由协议层自动处理，用户不需要传入 `route` 或 `channel`。
+查询单只证券最近的日资金流向分档记录，对应 `0x0ffc`。返回 `MoneyFlowBlock`，通常包含最近 5 个交易日；`MoneyFlowDaily` 保留总成交额、16 个分档值、主力净额/占比以及 `raw` 原始字段。
 
 ```python
 flow = client.money_flow.daily("sz000063")

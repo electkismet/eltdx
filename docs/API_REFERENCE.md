@@ -452,7 +452,7 @@ client.auctions.series("sz000001", "2026-05-20")
 
 ### `daily(code, include_raw=False)`
 
-读取单只证券最近的日资金流向分档数据，对应 `0x0ffc`，返回 `MoneyFlowBlock`。内部路由字段由协议层自动处理，用户不需要传 `route` 或 `channel`。
+读取单只证券最近的日资金流向分档数据，对应 `0x0ffc`，返回 `MoneyFlowBlock`。
 
 ```python
 flow = client.money_flow.daily("sz000063")

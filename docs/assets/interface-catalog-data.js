@@ -579,7 +579,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x0ffc",
       "kind": "底层协议（原生扩展）",
-      "summary": "读取最近日资金流向分档记录，返回总成交额、16 个分档值、主力净额/占比和原始字段；route/channel 由传输层内部处理。",
+      "summary": "读取最近日资金流向分档记录，返回总成交额、16 个分档值、主力净额/占比和原始字段。",
       "return_model": "MoneyFlowBlock",
       "doc": "methods/0x0ffc-资金流向日数据接口.md",
       "legacy_registry": false
