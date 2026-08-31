@@ -11,7 +11,7 @@
 | Python 产品层 | `src/eltdx/` | `TdxClient`、业务 API、公开模型、异常、Helpers、F10、MCP、CLI |
 | Python 兼容门面 | `src/eltdx/protocol/`、`transport/` | 保留公开 import、frame/snapshot 类型和同步 Transport 接口 |
 | PyO3 边界 | `crates/eltdx-python` | ABI 校验、强类型请求转换、紧凑 DTO、错误映射、GIL/信号边界 |
-| 协议核心 | `crates/eltdx-protocol` | 21 个命令、帧、增量解码、zlib、GBK、长度和内存限制 |
+| 协议核心 | `crates/eltdx-protocol` | 21 个兼容命令及 1 个原生扩展、帧、增量解码、zlib、GBK、长度和内存限制 |
 | 运行核心 | `crates/eltdx-runtime` | Engine、Supervisor、Slot、FIFO admission、pin、push、心跳、关闭 |
 
 三个 Rust crate 的职责刻意分离。协议 crate 不依赖 Tokio 或 Python；runtime crate 不依赖 PyO3；Python crate 只做私有扩展 `eltdx._native`，不会向用户暴露新的业务 `PyClass`。

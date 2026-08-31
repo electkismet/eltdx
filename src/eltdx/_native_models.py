@@ -31,6 +31,9 @@ from eltdx.models import (
     MinuteAuxSeries,
     MinutePoint,
     MinuteSeries,
+    MoneyFlowBatch,
+    MoneyFlowBlock,
+    MoneyFlowDaily,
     QuoteLevel,
     QuoteRefreshPage,
     QuoteRefreshRecord,
@@ -253,6 +256,24 @@ def _minute_series(value: Any) -> MinuteSeries:
     return MinuteSeries(*fields)
 
 
+def _money_flow_record(value: Any) -> MoneyFlowDaily:
+    fields = list(_tuple(value, "money flow record", 8))
+    fields[1] = _date(fields[1])
+    fields[3] = tuple(_tuple(fields[3], "money flow buckets"))
+    fields[6] = tuple(_tuple(fields[6], "money flow raw"))
+    return MoneyFlowDaily(*fields)
+
+
+def _money_flow_block(value: Any) -> MoneyFlowBlock:
+    exchange, market_id, code, records = _tuple(value, "money flow block", 4)
+    return MoneyFlowBlock(
+        exchange,
+        market_id,
+        code,
+        _records(records, "money flow records", _money_flow_record),
+    )
+
+
 def _trade_page(value: Any) -> TradePage:
     fields = _tuple(value, "trade page", 9)
     ticks = _flat_records(fields[5], "trade ticks", _TRADE_TICK_STRIDE)
@@ -336,6 +357,9 @@ def response_from_dto(dto: Any) -> Any:
         return KlineSeries(*fields)
     if tag in {"today_intraday", "historical_intraday", "recent_intraday"}:
         return _minute_series(payload)
+    if tag == "money_flow":
+        blocks, _raw_payload = _tuple(payload, tag, 2)
+        return MoneyFlowBatch(_records(blocks, tag, _money_flow_block))
     if tag == "legacy_quotes":
         return [_legacy_quote(item) for item in _list(payload, tag)]
     if tag == "refresh_stream":

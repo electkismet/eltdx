@@ -199,6 +199,10 @@ K 线响应和单根 K 线。
 
 广义权息 / 股本变迁事件。
 
+## 资金流向
+
+`client.money_flow.daily(code)` 返回 `MoneyFlowBlock`，其 `records` 为 `MoneyFlowDaily` 元组。每条记录包含 `date`、`total_amount`、16 个 `buckets` 分档值、`main_net`、`main_ratio`、21 个原始 `raw` 字段和 `record_hex`。完整参数、单位和真实样本见[资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+
 | 字段 | 含义 |
 | --- | --- |
 | `records` / `items` / `count` | 标签 `1..15` 的事件列表 / 数量 |

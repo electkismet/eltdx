@@ -83,6 +83,19 @@ print(factors.count, factors.items[0].qfq_scale, factors.items[0].qfq_offset)
 
 `adjustment_factors()` 返回每个除权事件日期的 `scale + offset`，可按 K 线日期应用到本地不复权 OHLC。直接获取复权 K 线时使用 `client.bars.get(..., adjust="qfq" / "hfq")`；完整的本地应用示例见 [本地复权系数](methods/7709-本地复权系数.md)。
 
+## 资金流向
+
+```python
+from eltdx import TdxClient
+
+with TdxClient(timeout=5) as client:
+    flow = client.money_flow.daily("sz000063")
+    latest = flow.records[0]
+    print(latest.date, latest.main_net, latest.main_ratio)
+```
+
+字段说明和返回样本见 [资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+
 ## 主站测速和连接池
 
 ```python

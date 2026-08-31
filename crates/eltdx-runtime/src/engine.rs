@@ -6,6 +6,7 @@ use std::sync::{mpsc as std_mpsc, Arc, Condvar, Mutex, MutexGuard, TryLockError}
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use eltdx_protocol::commands::money_flow::{MONEY_FLOW_CHANNEL, MONEY_FLOW_ROUTE, TYPE_MONEY_FLOW};
 use eltdx_protocol::commands::session::{
     parse_handshake_payload, parse_heartbeat_payload, HandshakeInfo, HandshakeRequest,
     HeartbeatAck, HeartbeatRequest, TYPE_HANDSHAKE, TYPE_HEARTBEAT,
@@ -5797,6 +5798,19 @@ impl MessageIdGenerator {
                 .checked_add(1)
                 .ok_or_else(|| RuntimeError::internal("message identity space exhausted"))?;
             let message_id = keyed_permutation(self.counter, self.key);
+            let message_id = if message_type == TYPE_MONEY_FLOW {
+                // The 0x0FFC service encodes channel and route in the wire
+                // message-id bytes; this remains internal to the transport.
+                let sequence = message_id as u8;
+                if sequence == 0 {
+                    continue;
+                }
+                u32::from(sequence)
+                    | (u32::from(MONEY_FLOW_CHANNEL) << 8)
+                    | (u32::from(MONEY_FLOW_ROUTE) << 16)
+            } else {
+                message_id
+            };
             if message_id != 0 {
                 return MessageIdentity::new(message_id, message_type);
             }

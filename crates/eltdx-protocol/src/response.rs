@@ -12,6 +12,7 @@ use crate::commands::{
         HistoricalIntradayRequest, MinuteAuxSeries, MinuteSeries, RecentIntradayRequest,
         SparklineSeries, TodayIntradayRequest,
     },
+    money_flow::{parse_money_flow_payload, MoneyFlowBatch},
     quotes::{
         parse_category_quotes_payload, parse_legacy_quotes_payload, parse_refresh_stream_payload,
         parse_snapshots_payload, CategoryQuotePage, LegacyQuote, QuoteRefreshPage, QuoteSnapshot,
@@ -50,6 +51,7 @@ pub enum CommandResponse {
     HistoricalTicks(TradePage<HistoricalTicksRequest>),
     Sparkline(SparklineSeries),
     RecentIntraday(MinuteSeries<RecentIntradayRequest>),
+    MoneyFlow(MoneyFlowBatch),
 }
 
 impl CommandResponse {
@@ -114,6 +116,9 @@ impl CommandResponse {
             }
             CommandRequest::RecentIntraday(request) => {
                 parse_recent_intraday_payload(payload, request).map(Self::RecentIntraday)
+            }
+            CommandRequest::MoneyFlow(request) => {
+                parse_money_flow_payload(payload, request).map(Self::MoneyFlow)
             }
         }
     }

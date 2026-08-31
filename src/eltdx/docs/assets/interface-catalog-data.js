@@ -8,6 +8,7 @@ window.ELTDX_CATALOG = {
     "native_commands": 21,
     "mcp_tools": 21,
     "mcp_resources": 8,
+    "native_extensions": 1,
     "pure_python_7709_fallback": false
   },
   "taxonomy": {
@@ -17,7 +18,7 @@ window.ELTDX_CATALOG = {
         "label": "7709 原生协议接口",
         "tag_label": "7709 原生",
         "stat_label": "7709 原生协议接口",
-        "description": "21 个 7709 原生协议接口，每项对应一个实际二进制命令。",
+        "description": "22 个 7709 原生协议业务能力；其中 21 个命令属于兼容注册表，另含 1 个原生扩展接口。",
         "source": "7709"
       },
       {
@@ -86,7 +87,8 @@ window.ELTDX_CATALOG = {
         "item_ids": [
           "7709-minute-history",
           "7709-minute-recent",
-          "7709-trades-history"
+          "7709-trades-history",
+          "7709-money-flow"
         ]
       },
       {
@@ -562,6 +564,25 @@ window.ELTDX_CATALOG = {
       "summary": "返回标签 1..15 的广义权息资料；默认每批 75 只，可调至 200，并支持跨主站并发拆批。",
       "return_model": "CapitalChangeBlock | CapitalChangeBatch",
       "doc": "methods/7709-股本变迁GBBQ.md"
+    },
+    {
+      "id": "7709-money-flow",
+      "title": "资金流向日数据",
+      "source": "7709",
+      "category": "资金流向",
+      "api": "client.money_flow.daily(code, ...)",
+      "aliases": [
+        "money_flow",
+        "资金流向",
+        "主力净额",
+        "ASK_OneZJLX"
+      ],
+      "protocol": "0x0ffc",
+      "kind": "底层协议（原生扩展）",
+      "summary": "读取最近日资金流向分档记录，返回总成交额、16 个分档值、主力净额/占比和原始字段；route/channel 由传输层内部处理。",
+      "return_model": "MoneyFlowBlock",
+      "doc": "methods/0x0ffc-资金流向日数据接口.md",
+      "legacy_registry": false
     },
     {
       "id": "7709-local-factors",

@@ -3,6 +3,7 @@ pub mod corporate;
 pub mod klines;
 pub mod limits;
 pub mod minutes;
+pub mod money_flow;
 pub mod quotes;
 pub mod resources;
 pub mod security;

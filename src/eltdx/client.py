@@ -11,6 +11,7 @@ from .api.codes import CodeApi
 from .api.corporate import CorporateApi
 from .api.limits import LimitApi
 from .api.minutes import MinuteApi
+from .api.money_flow import MoneyFlowApi
 from .api.quotes import QuoteApi
 from .api.resources import ResourceApi
 from .api.session import SessionApi
@@ -64,6 +65,7 @@ class TdxClient:
     resources: ResourceApi = field(init=False)
     bars: BarApi = field(init=False)
     minutes: MinuteApi = field(init=False)
+    money_flow: MoneyFlowApi = field(init=False)
     trades: TradeApi = field(init=False)
     auctions: AuctionApi = field(init=False)
     corporate: CorporateApi = field(init=False)
@@ -202,6 +204,7 @@ class TdxClient:
         self.resources = ResourceApi(self.transport)
         self.bars = BarApi(self.transport)
         self.minutes = MinuteApi(self.transport)
+        self.money_flow = MoneyFlowApi(self.transport)
         self.trades = TradeApi(self.transport)
         self.auctions = AuctionApi(self.transport)
         self.corporate = CorporateApi(self.transport)

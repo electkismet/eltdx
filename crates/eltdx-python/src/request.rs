@@ -15,6 +15,7 @@ use eltdx_protocol::commands::{
         TYPE_HISTORICAL_INTRADAY, TYPE_INTRADAY_AUX, TYPE_RECENT_INTRADAY, TYPE_SPARKLINE,
         TYPE_TODAY_INTRADAY,
     },
+    money_flow::{MoneyFlowRequest, TYPE_MONEY_FLOW},
     quotes::{
         normalize_category, normalize_sort_type, CategoryQuotesRequest, LegacyQuotesRequest,
         RefreshCursor, RefreshStreamRequest, SnapshotsRequest, TYPE_CATEGORY_QUOTES,
@@ -81,6 +82,7 @@ pub fn from_python(
         TYPE_HISTORICAL_TICKS => historical_ticks(payload),
         TYPE_SPARKLINE => sparkline(payload),
         TYPE_RECENT_INTRADAY => recent_intraday(py, payload),
+        TYPE_MONEY_FLOW => money_flow(payload),
         _ => Err(error::from_runtime(RuntimeError::unsupported_command(
             command,
         ))),
@@ -425,6 +427,14 @@ fn recent_intraday(py: Python<'_>, payload: Payload<'_, '_>) -> PyResult<Command
         include_raw,
     ))
     .map(CommandRequest::RecentIntraday)
+}
+
+fn money_flow(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
+    let code = required_code(payload, "code")?;
+    let include_raw = bool_field(payload, "include_raw", false)?;
+    Ok(CommandRequest::MoneyFlow(
+        MoneyFlowRequest::with_include_raw(code, include_raw),
+    ))
 }
 
 fn get<'py>(payload: Payload<'_, 'py>, names: &[&str]) -> PyResult<Option<Bound<'py, PyAny>>> {

@@ -10,6 +10,7 @@ use crate::commands::{
         TodayIntradayRequest, TYPE_HISTORICAL_INTRADAY, TYPE_INTRADAY_AUX, TYPE_RECENT_INTRADAY,
         TYPE_SPARKLINE, TYPE_TODAY_INTRADAY,
     },
+    money_flow::{MoneyFlowRequest, TYPE_MONEY_FLOW},
     quotes::{
         CategoryQuotesRequest, LegacyQuotesRequest, RefreshStreamRequest, SnapshotsRequest,
         TYPE_CATEGORY_QUOTES, TYPE_LEGACY_QUOTES, TYPE_REFRESH_STREAM, TYPE_SNAPSHOTS,
@@ -24,7 +25,7 @@ use crate::commands::{
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 
-pub const SUPPORTED_COMMAND_CODES: [u16; 21] = [
+pub const SUPPORTED_COMMAND_CODES: [u16; 22] = [
     TYPE_HEARTBEAT,
     TYPE_HANDSHAKE,
     TYPE_CAPITAL_CHANGES,
@@ -46,6 +47,7 @@ pub const SUPPORTED_COMMAND_CODES: [u16; 21] = [
     TYPE_HISTORICAL_TICKS,
     TYPE_SPARKLINE,
     TYPE_RECENT_INTRADAY,
+    TYPE_MONEY_FLOW,
 ];
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -71,6 +73,7 @@ pub enum CommandRequest {
     HistoricalTicks(HistoricalTicksRequest),
     Sparkline(SparklineRequest),
     RecentIntraday(RecentIntradayRequest),
+    MoneyFlow(MoneyFlowRequest),
 }
 
 impl CommandRequest {
@@ -97,6 +100,7 @@ impl CommandRequest {
             Self::HistoricalTicks(_) => TYPE_HISTORICAL_TICKS,
             Self::Sparkline(_) => TYPE_SPARKLINE,
             Self::RecentIntraday(_) => TYPE_RECENT_INTRADAY,
+            Self::MoneyFlow(_) => TYPE_MONEY_FLOW,
         }
     }
 
@@ -127,6 +131,7 @@ impl CommandRequest {
             Self::HistoricalTicks(request) => request.frame(msg_id),
             Self::Sparkline(request) => request.frame(msg_id),
             Self::RecentIntraday(request) => request.frame(msg_id),
+            Self::MoneyFlow(request) => request.frame(msg_id),
         };
         Ok(frame)
     }
@@ -156,6 +161,7 @@ pub const fn is_supported_command(command: u16) -> bool {
             | TYPE_HISTORICAL_TICKS
             | TYPE_SPARKLINE
             | TYPE_RECENT_INTRADAY
+            | TYPE_MONEY_FLOW
     )
 }
 
@@ -172,6 +178,7 @@ mod tests {
             SparklineRequest, TodayIntradayRequest, DEFAULT_SPARKLINE_FIXED_RAW,
             DEFAULT_TODAY_RESERVED_TAIL,
         },
+        money_flow::MoneyFlowRequest,
         quotes::{
             CategoryQuotesRequest, LegacyQuotesRequest, RefreshStreamRequest, SnapshotsRequest,
         },
@@ -185,7 +192,7 @@ mod tests {
 
     #[test]
     fn exact_twenty_one_command_codes_are_registered() {
-        assert_eq!(SUPPORTED_COMMAND_CODES.len(), 21);
+        assert_eq!(SUPPORTED_COMMAND_CODES.len(), 22);
         assert!(SUPPORTED_COMMAND_CODES
             .windows(2)
             .all(|pair| pair[0] < pair[1]));
@@ -292,6 +299,7 @@ mod tests {
                 DEFAULT_SPARKLINE_FIXED_RAW,
             )),
             CommandRequest::RecentIntraday(RecentIntradayRequest::new(code, date)?),
+            CommandRequest::MoneyFlow(MoneyFlowRequest::new(NormalizedCode::parse("sz000001")?)),
         ])
     }
 

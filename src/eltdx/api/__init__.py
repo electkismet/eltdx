@@ -7,6 +7,7 @@ from .corporate import CorporateApi
 from .health import ping
 from .limits import LimitApi
 from .minutes import MinuteApi
+from .money_flow import MoneyFlowApi
 from .quotes import QuoteApi
 from .resources import ResourceApi
 from .session import SessionApi
@@ -19,6 +20,7 @@ __all__ = [
     "CorporateApi",
     "LimitApi",
     "MinuteApi",
+    "MoneyFlowApi",
     "QuoteApi",
     "ResourceApi",
     "SessionApi",

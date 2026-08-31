@@ -14,6 +14,7 @@ use eltdx_protocol::commands::{
     klines::{KlineBar, KlineSeries},
     limits::{SpecialLimitPage, SpecialLimitRecord},
     minutes::{MinuteAuxPoint, MinuteAuxSeries, MinutePoint, MinuteSeries, SparklineSeries},
+    money_flow::{MoneyFlowBatch, MoneyFlowBlock, MoneyFlowRecord},
     quotes::{
         CategoryQuotePage, CategoryQuoteRecord, LegacyQuote, QuoteLevel, QuoteRefreshPage,
         QuoteRefreshRecord, QuoteSnapshot,
@@ -850,6 +851,7 @@ pub fn to_python(py: Python<'_>, response: CommandResponse) -> PyResult<Py<PyAny
         CommandResponse::RecentIntraday(value) => {
             tagged(py, "recent_intraday", recent_intraday(py, &value)?)?
         }
+        CommandResponse::MoneyFlow(value) => tagged(py, "money_flow", money_flow(py, &value)?)?,
     };
     Ok(value)
 }
@@ -1144,6 +1146,72 @@ fn recent_intraday<'py>(
         req.code.market().id(),
         Some(req.trading_date),
         Some(req.date_selector_raw),
+    )
+}
+
+fn money_flow<'py>(py: Python<'py>, value: &MoneyFlowBatch) -> PyResult<Obj> {
+    tuple(
+        py,
+        vec![
+            tuple(
+                py,
+                value
+                    .blocks
+                    .iter()
+                    .map(|block| money_flow_block(py, block))
+                    .collect::<PyResult<Vec<_>>>()?,
+            )?,
+            bytes(py, &value.raw_payload),
+        ],
+    )
+}
+
+fn money_flow_block<'py>(py: Python<'py>, value: &MoneyFlowBlock) -> PyResult<Obj> {
+    tuple(
+        py,
+        vec![
+            any(py, market(value.market, value.market_id))?,
+            any(py, value.market_id)?,
+            any(py, value.code.as_str())?,
+            tuple(
+                py,
+                value
+                    .records
+                    .iter()
+                    .map(|record| money_flow_record(py, record))
+                    .collect::<PyResult<Vec<_>>>()?,
+            )?,
+        ],
+    )
+}
+
+fn money_flow_record<'py>(py: Python<'py>, value: &MoneyFlowRecord) -> PyResult<Obj> {
+    tuple(
+        py,
+        vec![
+            any(py, value.date_raw)?,
+            date(py, value.date)?,
+            any(py, f64::from(value.total_amount))?,
+            tuple(
+                py,
+                value
+                    .buckets
+                    .iter()
+                    .map(|item| any(py, *item))
+                    .collect::<PyResult<Vec<_>>>()?,
+            )?,
+            any(py, value.main_net)?,
+            any(py, value.main_ratio)?,
+            tuple(
+                py,
+                value
+                    .raw
+                    .iter()
+                    .map(|item| any(py, *item))
+                    .collect::<PyResult<Vec<_>>>()?,
+            )?,
+            record_hex(py, true, &value.record_hex),
+        ],
     )
 }
 fn refresh_stream<'py>(py: Python<'py>, value: &QuoteRefreshPage) -> PyResult<Obj> {

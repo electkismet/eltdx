@@ -448,6 +448,19 @@ client.auctions.series("sz000001")
 client.auctions.series("sz000001", "2026-05-20")
 ```
 
+## `client.money_flow`
+
+### `daily(code, include_raw=False)`
+
+读取单只证券最近的日资金流向分档数据，对应 `0x0ffc`，返回 `MoneyFlowBlock`。内部路由字段由协议层自动处理，用户不需要传 `route` 或 `channel`。
+
+```python
+flow = client.money_flow.daily("sz000063")
+print(flow.records[0].date, flow.records[0].main_net)
+```
+
+完整参数和返回字段见 [资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+
 ## `client.corporate`
 
 ### `capital_changes(code_or_codes, include_raw=False, batch_size=75)`
@@ -545,3 +558,4 @@ with TdxClient(timeout=3) as client:
 - [想拿集合竞价数据怎么办？](helpers/竞价数据.md)
 - [想拿流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比和几天几板怎么办？](helpers/短线指标.md)
 - [K 线、自动分页和服务端复权](methods/7709-K线周期线.md)
+- [资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)

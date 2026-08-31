@@ -66,7 +66,7 @@ def test_common_interface_docs_have_collapsible_real_json_samples() -> None:
 
     assert "assets/return-samples.css" in mkdocs
     assert stylesheet.is_file()
-    assert len(return_sample_docs) == 42
+    assert len(return_sample_docs) == 43
     for relative_path in return_sample_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert '??? return-sample "' in detail, relative_path
@@ -82,9 +82,9 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     items = catalog["items"]
 
     assert catalog["schema_version"] == 13
-    assert len(items) == 63
+    assert len(items) == 64
     assert Counter(item["source"] for item in items) == {
-        "7709": 21,
+        "7709": 22,
         "F10": 21,
         "Helper": 21,
     }
@@ -132,7 +132,7 @@ hide:
 [← 返回接口目录](../index.md){ .interface-detail-back }
 """
 
-    assert len(detail_docs) == 63
+    assert len(detail_docs) == 64
     for relative_path in detail_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert detail.startswith(expected_header), relative_path
@@ -150,11 +150,11 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
         ("helpers", "Helpers 封装"),
     ]
     assert Counter(layer_id for layer_id, _ in assignments.values()) == {
-        "7709": 21,
+        "7709": 22,
         "7615": 21,
         "helpers": 21,
     }
-    expected_counts = {"7709": 21, "7615": 21, "helpers": 21}
+    expected_counts = {"7709": 22, "7615": 21, "helpers": 21}
     assert all(layer["description"].startswith(f"{expected_counts[layer['id']]} 个") for layer in ordered_layers)
     assert all("groups" not in layer for layer in ordered_layers)
     assert {layer["source"] for layer in ordered_layers} == {"7709", "F10", "Helper"}
@@ -201,7 +201,7 @@ def test_pages_catalog_has_complete_function_menus() -> None:
         "basics": 2,
         "codes": 5,
         "realtime": 13,
-        "history": 3,
+        "history": 4,
         "bars": 3,
         "auction-shortline": 8,
         "f10": 23,
@@ -241,7 +241,12 @@ def test_function_view_uses_function_group_instead_of_internal_category() -> Non
 def test_pages_catalog_covers_every_registered_7709_command() -> None:
     catalog = _catalog()
     assignments = _taxonomy_assignments(catalog)
-    binary_ids = {item_id for item_id, (layer_id, _) in assignments.items() if layer_id == "7709"}
+    binary_ids = {
+        item_id
+        for item_id, (layer_id, _) in assignments.items()
+        if layer_id == "7709"
+        and next(item for item in catalog["items"] if item["id"] == item_id).get("legacy_registry", True)
+    }
     binary_protocols = [item["protocol"].lower() for item in catalog["items"] if item["id"] in binary_ids]
 
     assert len(COMMANDS) == len(binary_ids) == 21
