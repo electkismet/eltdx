@@ -151,6 +151,31 @@ def adjustment_factors(
     )
 
 
+def money_flow(
+    codes: str | Sequence[str],
+    *,
+    include_raw: bool = False,
+    batch_size: int = DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
+    timeout: float = 8.0,
+    host: str | None = None,
+) -> Any:
+    """Query recent daily money-flow records for one or more securities."""
+
+    code_list = _validate_codes(codes)
+    batch_size = _bounded_int(
+        "batch_size", batch_size, minimum=1, maximum=MAX_CAPITAL_CHANGE_CODES
+    )
+    return _call_once(
+        lambda client: client.money_flow.daily(
+            code_list,
+            include_raw=include_raw,
+            batch_size=batch_size,
+        ),
+        timeout=timeout,
+        host=host,
+    )
+
+
 def daily_price_limits(
     codes: str | Sequence[str] | None = None,
     *,
@@ -767,6 +792,29 @@ class _McpTools:
                 )
             )
 
+    def money_flow(
+        self,
+        codes: str | list[str],
+        include_raw: bool = False,
+        batch_size: int = DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
+        timeout: float = 8.0,
+        host: str | None = None,
+    ) -> dict[str, Any]:
+        """Query recent daily money-flow records for one or more securities."""
+
+        code_list = _validate_codes(codes)
+        batch_size = _bounded_int(
+            "batch_size", batch_size, minimum=1, maximum=MAX_CAPITAL_CHANGE_CODES
+        )
+        with self._clients.use(timeout=timeout, host=host) as client:
+            return _json(
+                client.money_flow.daily(
+                    code_list,
+                    include_raw=include_raw,
+                    batch_size=batch_size,
+                )
+            )
+
     def daily_price_limits(
         self,
         codes: str | list[str] | None = None,
@@ -1055,6 +1103,7 @@ def create_mcp_server():
         ("eltdx_kline", tools.kline),
         ("eltdx_capital_changes", tools.capital_changes),
         ("eltdx_adjustment_factors", tools.adjustment_factors),
+        ("eltdx_money_flow", tools.money_flow),
         ("eltdx_daily_price_limits", tools.daily_price_limits),
         ("eltdx_minute", tools.minute),
         ("eltdx_trades", tools.trades),

@@ -54,6 +54,7 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | `eltdx_kline` | 查询一页 K 线，支持周期、复权和锚定日期 |
 | `eltdx_capital_changes` | 查询标签 1..15 的股本变迁和权息资料，默认每批 75 只 |
 | `eltdx_adjustment_factors` | 根据权息资料计算本地前、后复权系数，默认每批 75 只 |
+| `eltdx_money_flow` | 查询最近日资金流向、主力/主买净额和两种口径的四档净额，默认每批 75 只 |
 | `eltdx_daily_price_limits` | 按指定交易日的日线、权息和市场规则计算涨跌停价；`trade_date` 必填 |
 | `eltdx_minute` | 查询当前或指定日期分时 |
 | `eltdx_trades` | 查询一页当前或历史成交明细 |

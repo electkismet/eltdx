@@ -10,6 +10,7 @@ import pytest
 from eltdx import TdxClient
 from eltdx.api.bars import BarApi
 from eltdx.api.corporate import CorporateApi
+from eltdx.api.money_flow import MoneyFlowApi
 from eltdx.api.quotes import QuoteApi
 from eltdx.f10 import F10Client
 from eltdx.mcp import (
@@ -121,6 +122,30 @@ def test_mcp_capital_change_tools_reject_invalid_batch_size() -> None:
             tools.capital_changes("sz000001", batch_size=201)
     finally:
         registry.close()
+
+
+def test_mcp_money_flow_forwards_batch_options(monkeypatch) -> None:
+    calls = []
+
+    monkeypatch.setattr(TdxClient, "connect", lambda self: None)
+    monkeypatch.setattr(TdxClient, "close", lambda self: None)
+    monkeypatch.setattr(
+        MoneyFlowApi,
+        "daily",
+        lambda self, codes, *, include_raw=False, batch_size=75: (
+            calls.append((codes, include_raw, batch_size))
+            or {"count": len(codes)}
+        ),
+    )
+    registry = _ClientRegistry()
+    tools = _McpTools(registry)
+    try:
+        assert tools.money_flow(
+            ["sz000001", "sh600000"], include_raw=True, batch_size=100
+        ) == {"count": 2}
+    finally:
+        registry.close()
+    assert calls == [(["sz000001", "sh600000"], True, 100)]
 
 
 def test_mcp_kline_returns_jsonable_series(monkeypatch) -> None:
@@ -613,12 +638,13 @@ def test_mcp_sdk2_lists_tools_and_reads_resources() -> None:
         async with Client(create_mcp_server()) as client:
             tools = await client.list_tools()
             tool_names = {tool.name for tool in tools.tools}
-            assert len(tool_names) == 21
+            assert len(tool_names) == 22
             assert {
                 "eltdx_quote",
                 "eltdx_kline",
                 "eltdx_capital_changes",
                 "eltdx_adjustment_factors",
+                "eltdx_money_flow",
                 "eltdx_daily_price_limits",
                 "eltdx_minute",
                 "eltdx_trades",
@@ -667,7 +693,7 @@ def test_mcp_sdk2_real_stdio_process() -> None:
         )
         async with Client(stdio_client(parameters), mode="legacy") as client:
             tools = await client.list_tools()
-            assert len(tools.tools) == 21
+            assert len(tools.tools) == 22
             result = await client.call_tool("eltdx_docs_index", {})
             assert result.structured_content["MCP"] == "eltdx://docs/mcp"
             document = await client.read_resource("eltdx://docs/mcp")

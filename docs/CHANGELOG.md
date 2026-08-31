@@ -2,8 +2,14 @@
 
 ## 工作区变更（未发布）
 
+暂无。
+
+## v3.1.0 - 2026-09-01
+
 - 新增 `client.money_flow.daily(code)`，接入 7709 `0x0ffc` 日资金流向服务。
-- `client.money_flow.daily()` 现在支持传入代码列表，并按连接池并发返回 `MoneyFlowBatch`。
+- `client.money_flow.daily()` 支持传入代码列表，并按连接池并发返回 `MoneyFlowBatch`。
+- 返回主力净额、主买净额及两种口径各自的超大单、大单、中单、小单净额。
+- MCP 新增 `eltdx_money_flow`，参数和批量规则与 Python API 保持一致。
 - 新增资金流向独立详情页、接口目录条目、命令映射、字段说明和真实返回样本。
 
 ## v3.0.9 - 2026-08-30
