@@ -59,7 +59,7 @@ with TdxClient(timeout=5) as client:
 | --- | --- |
 | `date_raw` / `date` | 记录日期原值 / `datetime.date` |
 | `total_amount` | 当日总成交金额，单位元 |
-| `buckets` | 16 个主站分档值，按索引原样保留；不是直接的元金额 |
+| `buckets` | 主站返回的 16 个原始分档值，按索引原样保留；不是直接的元金额 |
 | `main_net` | 主力净额：超大单和大单买入金额减卖出金额 |
 | `main_ratio` | 主力净额占比，百分数值，例如 `13.928` 表示 `13.928%` |
 | `raw` | 21 个原始 `uint32` 字段，便于继续核对尚未命名的字段 |

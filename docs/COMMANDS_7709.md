@@ -25,7 +25,7 @@
 | <a id="cmd-0x0feb"></a>`0x0feb` | `0x0feb-近期历史分时图接口.md`     | 近期历史分时      | `client.minutes.recent()`                               | 已接入          |
 | <a id="cmd-0x0ffc"></a>`0x0ffc` | `0x0ffc-资金流向日数据接口.md` | 资金流向日数据 | `client.money_flow.daily()` | 已接入（原生扩展） |
 
-说明：`0x0547` 已完成请求构造、响应解析、单次刷新和未配对推送队列。实盘主站对单次超过 100 个代码的请求只返回前 100 条，因此构包层将单次上限固定为 100，避免静默截断。`0x06b9` 的协议层返回单个 `FileContentChunk`；整文件下载和 `zhb.zip` 内容解析位于上层封装。`0x0ffc` 是已接入的原生扩展业务接口，用户入口为 `client.money_flow.daily(code)`；其内部 `route=0x7e` 和 `channel=0x2d` 由传输层自动写入，不是用户参数。为保持旧版 `eltdx.protocol.COMMANDS` 的 21 项兼容注册表不变，该扩展不计入旧注册表。
+说明：`0x0547` 已完成请求构造、响应解析、单次刷新和未配对推送队列。实盘主站对单次超过 100 个代码的请求只返回前 100 条，因此构包层将单次上限固定为 100，避免静默截断。`0x06b9` 的协议层返回单个 `FileContentChunk`；整文件下载和 `zhb.zip` 内容解析位于上层封装。`0x0ffc` 已接入，用户直接使用 `client.money_flow.daily(code)`；底层协议参数由 SDK 自动处理。
 
 ## 三个行情命令的边界
 

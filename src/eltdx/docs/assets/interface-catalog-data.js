@@ -18,7 +18,7 @@ window.ELTDX_CATALOG = {
         "label": "7709 原生协议接口",
         "tag_label": "7709 原生",
         "stat_label": "7709 原生协议接口",
-        "description": "22 个 7709 原生协议业务能力；其中 21 个命令属于兼容注册表，另含 1 个原生扩展接口。",
+        "description": "22 个 7709 原生协议业务能力，按业务分类展示。",
         "source": "7709"
       },
       {
