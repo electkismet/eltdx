@@ -15,6 +15,21 @@ from .base import ApiBase
 class MoneyFlowApi(ApiBase):
     """Read the latest daily money-flow records."""
 
+    def __init__(self, transport, *, transport_factory=None) -> None:
+        super().__init__(transport)
+        self._transport_factory = transport_factory
+        self._dedicated_transport = None
+
+    def _active_transport(self):
+        if self._transport_factory is not None and self._dedicated_transport is None:
+            self._dedicated_transport = self._transport_factory()
+        return self._dedicated_transport or self._transport
+
+    def close(self) -> None:
+        if self._dedicated_transport is not None:
+            self._dedicated_transport.close()
+            self._dedicated_transport = None
+
     def daily(
         self,
         code: str | Sequence[str],
@@ -46,7 +61,7 @@ class MoneyFlowApi(ApiBase):
         return MoneyFlowBatch(tuple(blocks))
 
     def _single(self, code: str, *, include_raw: bool):
-        response = self._transport.execute(
+        response = self._active_transport().execute(
             TYPE_MONEY_FLOW, {"code": code, "include_raw": include_raw}
         )
         blocks = getattr(response, "blocks", ())

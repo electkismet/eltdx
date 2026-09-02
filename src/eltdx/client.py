@@ -18,7 +18,12 @@ from .api.session import SessionApi
 from .api.trades import TradeApi
 from .f10 import F10Client
 from .helpers import HelperApi
-from .hosts import DEFAULT_PROBE_HOSTS, DEFAULT_PROBE_TIMEOUT, DEFAULT_PROBE_WORKERS
+from .hosts import (
+    DEFAULT_PROBE_HOSTS,
+    DEFAULT_PROBE_TIMEOUT,
+    DEFAULT_PROBE_WORKERS,
+    load_money_flow_hosts,
+)
 from .transport import InMemoryTransport, PooledSocketTransport, Transport
 from .transport._config import (
     DEFAULT_CONNECTIONS_PER_SERVER,
@@ -204,7 +209,14 @@ class TdxClient:
         self.resources = ResourceApi(self.transport)
         self.bars = BarApi(self.transport)
         self.minutes = MinuteApi(self.transport)
-        self.money_flow = MoneyFlowApi(self.transport)
+        self.money_flow = MoneyFlowApi(
+            self.transport,
+            transport_factory=(
+                self._build_money_flow_transport
+                if isinstance(self.transport, PooledSocketTransport)
+                else None
+            ),
+        )
         self.trades = TradeApi(self.transport)
         self.auctions = AuctionApi(self.transport)
         self.corporate = CorporateApi(self.transport)
@@ -224,6 +236,30 @@ class TdxClient:
 
         assert self.transport is not None
         self.transport.close()
+        self.money_flow.close()
+
+    def _build_money_flow_transport(self) -> PooledSocketTransport:
+        """Create the dedicated money-flow pool on first use."""
+        return PooledSocketTransport(
+            hosts=load_money_flow_hosts(),
+            timeout=self.timeout,
+            pool_size=self.pool_size,
+            server_count=self.server_count,
+            connections_per_server=self.connections_per_server,
+            runtime_workers=self.runtime_workers,
+            max_connections_per_host=self.max_connections_per_host,
+            connect_concurrency=self.connect_concurrency,
+            connect_concurrency_per_host=self.connect_concurrency_per_host,
+            global_raw_bytes=self.global_raw_bytes,
+            global_decoded_bytes=self.global_decoded_bytes,
+            probe_hosts=self.probe_hosts,
+            probe_timeout=self.probe_timeout,
+            probe_workers=self.probe_workers,
+            heartbeat_interval=self.heartbeat_interval,
+            max_pending_requests=self.max_pending_requests,
+            push_queue_size=self.push_queue_size,
+            push_queue_bytes=self.push_queue_bytes,
+        )
 
     def __enter__(self) -> TdxClient:
         self.connect()

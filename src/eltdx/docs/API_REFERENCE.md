@@ -452,7 +452,7 @@ client.auctions.series("sz000001", "2026-05-20")
 
 ### `daily(code, include_raw=False, batch_size=75)`
 
-读取一只或多只证券最近的日资金流向分档数据，对应 `0x0ffc`。传入字符串返回 `MoneyFlowBlock`，传入代码列表返回 `MoneyFlowBatch`。
+读取一只或多只证券最近的日资金流向分档数据，对应 `0x0ffc`。传入字符串返回 `MoneyFlowBlock`，传入代码列表返回 `MoneyFlowBatch`。该接口使用独立的资金流主站池，首次调用时才测速并建立连接。
 
 ```python
 flow = client.money_flow.daily("sz000063")

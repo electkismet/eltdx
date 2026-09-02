@@ -19,6 +19,7 @@ from threading import Lock, get_ident
 from typing import Any
 
 SERVER_FILE = "tdx_server.json"
+MONEY_FLOW_SERVER_FILE = "money_flow_servers.json"
 SERVER_RANKING_FILE = "tdx_server_ranking.json"
 SERVER_RANKING_SCHEMA_VERSION = 1
 DEFAULT_PROBE_TIMEOUT = 1.2
@@ -207,6 +208,22 @@ def load_server_hosts() -> list[str]:
         if isinstance(item, list):
             values.extend(item)
     return unique_hosts(values)
+
+
+def load_money_flow_hosts() -> list[str]:
+    """Return hosts reserved for the 0x0FFC money-flow service."""
+
+    try:
+        content = resources.files("eltdx").joinpath(MONEY_FLOW_SERVER_FILE).read_text(
+            encoding="utf-8"
+        )
+        data = json.loads(content)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    hosts = data.get("hosts")
+    return unique_hosts(hosts) if isinstance(hosts, list) else []
 
 
 def server_ranking_path() -> Path:

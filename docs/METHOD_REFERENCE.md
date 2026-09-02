@@ -761,7 +761,7 @@ batch = client.corporate.adjustment_factors(["sz000001", "sh600000"])
 
 ### `client.money_flow.daily(code, *, include_raw=False, batch_size=75)`
 
-查询一只或多只证券最近的日资金流向分档记录，对应 `0x0ffc`。传入字符串返回 `MoneyFlowBlock`，传入代码列表返回 `MoneyFlowBatch`；每只证券通常包含最近 5 个交易日。`batch_size` 控制批量请求的最大并发数，实际不会超过连接池容量。`MoneyFlowDaily` 保留总成交额、主力和主买净额/占比、两套超大单/大单/中单/小单净额、16 个分档值以及 `raw` 原始字段；`MoneyFlowBlock` 提供这些记录的净额和占比汇总。
+查询一只或多只证券最近的日资金流向分档记录，对应 `0x0ffc`。传入字符串返回 `MoneyFlowBlock`，传入代码列表返回 `MoneyFlowBatch`；每只证券通常包含最近 5 个交易日。`batch_size` 控制批量请求的最大并发数，实际不会超过连接池容量。`MoneyFlowDaily` 保留总成交额、主力和主买净额/占比、两套超大单/大单/中单/小单净额、16 个分档值以及 `raw` 原始字段；`MoneyFlowBlock` 提供这些记录的净额和占比汇总。资金流向使用独立的已验证主站池，首次调用时才测速并建立连接，普通接口继续使用默认主站池。
 
 ```python
 flow = client.money_flow.daily("sz000063")

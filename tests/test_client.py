@@ -14,6 +14,7 @@ from eltdx.hosts import (
     HostProbeResult,
     load_server_config,
     load_server_hosts,
+    load_money_flow_hosts,
     load_server_ranking,
     probe_hosts,
     rank_hosts_from_cache,
@@ -27,7 +28,7 @@ from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, Quote
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "3.1.0"
+    assert __version__ == "3.1.1"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -36,6 +37,15 @@ def test_packaged_server_hosts_load_from_json() -> None:
     assert config["schema_version"] == 1
     assert load_server_hosts() == list(DEFAULT_HOSTS)
     assert DEFAULT_HOSTS == FALLBACK_HOSTS
+
+
+def test_money_flow_uses_dedicated_host_pool_lazily() -> None:
+    client = TdxClient(heartbeat_interval=None)
+
+    assert len(load_money_flow_hosts()) == 35
+    assert isinstance(client.transport, PooledSocketTransport)
+    assert client.transport.diagnostics.state.name == "STOPPED"
+    assert client.money_flow._dedicated_transport is None
 
 
 def test_probe_hosts_persists_ranking_for_next_process(tmp_path, monkeypatch) -> None:

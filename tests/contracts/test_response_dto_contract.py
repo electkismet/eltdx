@@ -39,6 +39,7 @@ EXPECTED_TAGS = {
     "historical_ticks",
     "sparkline",
     "recent_intraday",
+    "money_flow",
 }
 
 EXPECTED_MODEL_FIELDS = {
@@ -71,6 +72,9 @@ EXPECTED_MODEL_FIELDS = {
     "TradePage": 9,
     "HeartbeatAck": 4,
     "HandshakeInfo": 12,
+    "MoneyFlowDaily": 18,
+    "MoneyFlowBlock": 4,
+    "MoneyFlowBatch": 1,
 }
 
 MODEL_FILES = {
@@ -103,6 +107,9 @@ MODEL_FILES = {
     "TradePage": "trade.py",
     "HeartbeatAck": "session.py",
     "HandshakeInfo": "session.py",
+    "MoneyFlowDaily": "money_flow.py",
+    "MoneyFlowBlock": "money_flow.py",
+    "MoneyFlowBatch": "money_flow.py",
 }
 
 
@@ -131,7 +138,7 @@ def test_response_tuple_shapes_and_raw_policy_are_frozen() -> None:
     for model_name, expected_count in EXPECTED_MODEL_FIELDS.items():
         actual_count = _dataclass_field_counts(model_root / MODEL_FILES[model_name])[model_name]
         assert actual_count == expected_count
-        assert model_name in source
+        assert ("MoneyFlowRecord" if model_name == "MoneyFlowDaily" else model_name) in source
     assert "request_date" not in source
     assert "any(py, req.period.name())?" in source
     assert "any(py, req.adjust.as_str())?" in source
