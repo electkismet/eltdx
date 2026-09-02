@@ -221,19 +221,20 @@ mod tests {
     use crate::unit::NormalizedCode;
 
     #[test]
-    fn request_uses_the_observed_40_byte_body() {
-        let request = MoneyFlowRequest::new(NormalizedCode::parse("sz000063").unwrap());
-        let raw = request.frame(0x007e_2d5e).encode().unwrap();
+    fn request_uses_the_observed_40_byte_body() -> Result<(), crate::error::ProtocolError> {
+        let request = MoneyFlowRequest::new(NormalizedCode::parse("sz000063")?);
+        let raw = request.frame(0x007e_2d5e).encode()?;
         assert_eq!(raw.len(), 50);
         assert_eq!(
             &raw[0..12],
             &[0x0c, 0x5e, 0x2d, 0x7e, 0, 1, 0x28, 0, 0x28, 0, 0xfc, 0x0f]
         );
         assert_eq!(&raw[12..20], &[0, 0, b'0', b'0', b'0', b'0', b'6', b'3']);
+        Ok(())
     }
 
     #[test]
-    fn parses_a_five_record_body() {
+    fn parses_a_five_record_body() -> Result<(), crate::error::ProtocolError> {
         let mut payload = vec![0_u8; 0x28 + 5 * MONEY_FLOW_RECORD_SIZE];
         payload[2..8].copy_from_slice(b"000063");
         payload[0x26..0x28].copy_from_slice(&5_u16.to_le_bytes());
@@ -253,8 +254,8 @@ mod tests {
             let offset = record + 4 + index * 4;
             payload[offset..offset + 4].copy_from_slice(&packed.to_le_bytes());
         }
-        let request = MoneyFlowRequest::new(NormalizedCode::parse("sz000063").unwrap());
-        let parsed = parse_money_flow_payload(&payload, request).unwrap();
+        let request = MoneyFlowRequest::new(NormalizedCode::parse("sz000063")?);
+        let parsed = parse_money_flow_payload(&payload, request)?;
         assert_eq!(parsed.blocks[0].code, "000063");
         assert_eq!(parsed.blocks[0].records.len(), 5);
         let first = &parsed.blocks[0].records[0];
@@ -270,5 +271,6 @@ mod tests {
         assert!((first.main_large_net - 80.0).abs() < 1e-9);
         assert!((first.main_medium_net - 100.0).abs() < 1e-9);
         assert!((first.main_small_net + 100.0).abs() < 1e-9);
+        Ok(())
     }
 }
