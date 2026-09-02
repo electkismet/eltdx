@@ -1,0 +1,186 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.minute",
+  "qualname": "MinuteSeries",
+  "fields": [
+    [
+      "exchange",
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      "market_id",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "code",
+      {
+        "$type": "str",
+        "value": "300308"
+      }
+    ],
+    [
+      "trading_date",
+      {
+        "$type": "date",
+        "value": "2026-05-11"
+      }
+    ],
+    [
+      "points",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.minute",
+            "qualname": "MinutePoint",
+            "fields": [
+              [
+                "index",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "time_label",
+                {
+                  "$type": "str",
+                  "value": "09:31"
+                }
+              ],
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2026-05-11T09:31:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "price",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fb999999999999a",
+                  "readable_hex": "0x1.999999999999ap-4"
+                }
+              ],
+              [
+                "price_milli",
+                {
+                  "$type": "int",
+                  "value": "100"
+                }
+              ],
+              [
+                "volume",
+                {
+                  "$type": "int",
+                  "value": "12"
+                }
+              ],
+              [
+                "price_field",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "avg_field",
+                {
+                  "$type": "int",
+                  "value": "11"
+                }
+              ],
+              [
+                "avg_price",
+                {
+                  "$type": "float",
+                  "f64_bits": "3f5205bc01a36e2f",
+                  "readable_hex": "0x1.205bc01a36e2fp-10"
+                }
+              ],
+              [
+                "price_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "avg_raw",
+                {
+                  "$type": "int",
+                  "value": "11"
+                }
+              ],
+              [
+                "price_delta_raw",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "aux_delta_raw",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "0a0b0c"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      "reserved_zero",
+      {
+        "$type": "none"
+      }
+    ],
+    [
+      "prev_close",
+      {
+        "$type": "float",
+        "f64_bits": "4024000000000000",
+        "readable_hex": "0x1.4000000000000p+3"
+      }
+    ],
+    [
+      "open_price",
+      {
+        "$type": "float",
+        "f64_bits": "4024333340000000",
+        "readable_hex": "0x1.4333340000000p+3"
+      }
+    ],
+    [
+      "date_selector_raw",
+      {
+        "$type": "int",
+        "value": "4274706785"
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "0100000020419a9921410a0b0c"
+      }
+    ]
+  ]
+}

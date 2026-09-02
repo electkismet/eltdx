@@ -1,0 +1,73 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.minute",
+  "qualname": "MinuteSeries",
+  "fields": [
+    [
+      "exchange",
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      "market_id",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "code",
+      {
+        "$type": "str",
+        "value": "000988"
+      }
+    ],
+    [
+      "trading_date",
+      {
+        "$type": "none"
+      }
+    ],
+    [
+      "points",
+      {
+        "$type": "tuple",
+        "items": []
+      }
+    ],
+    [
+      "reserved_zero",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "prev_close",
+      {
+        "$type": "none"
+      }
+    ],
+    [
+      "open_price",
+      {
+        "$type": "none"
+      }
+    ],
+    [
+      "date_selector_raw",
+      {
+        "$type": "none"
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "00000000"
+      }
+    ]
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.limit",
+  "qualname": "SpecialLimitPage",
+  "fields": [
+    [
+      "start_index",
+      {
+        "$type": "int",
+        "value": "2"
+      }
+    ],
+    [
+      "records",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.limit",
+            "qualname": "SpecialLimitRecord",
+            "fields": [
+              [
+                "exchange",
+                {
+                  "$type": "str",
+                  "value": "sz"
+                }
+              ],
+              [
+                "market_id",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "code_num",
+                {
+                  "$type": "int",
+                  "value": "123054"
+                }
+              ],
+              [
+                "code",
+                {
+                  "$type": "str",
+                  "value": "123054"
+                }
+              ],
+              [
+                "upper_price_raw_f32",
+                {
+                  "$type": "float",
+                  "f64_bits": "406a90fe00000000",
+                  "readable_hex": "0x1.a90fe00000000p+7",
+                  "wire_f32_bits": "435487f0"
+                }
+              ],
+              [
+                "lower_price_raw_f32",
+                {
+                  "$type": "float",
+                  "f64_bits": "4061b5fbe0000000",
+                  "readable_hex": "0x1.1b5fbe0000000p+7",
+                  "wire_f32_bits": "430dafdf"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "00aee00100f0875443dfaf0d43"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "010000aee00100f0875443dfaf0d43"
+      }
+    ]
+  ]
+}

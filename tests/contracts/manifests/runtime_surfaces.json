@@ -1,9 +1,5 @@
 {
   "schema_version": 1,
-  "baseline": {
-    "tag": "v2.0.5",
-    "commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec"
-  },
   "protocol": {
     "module_exports": {
       "eltdx.protocol": [

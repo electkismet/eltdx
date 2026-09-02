@@ -1,0 +1,213 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.trade",
+  "qualname": "TradePage",
+  "fields": [
+    [
+      "exchange",
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      "market_id",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "code",
+      {
+        "$type": "str",
+        "value": "300308"
+      }
+    ],
+    [
+      "start",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "request_count",
+      {
+        "$type": "int",
+        "value": "1800"
+      }
+    ],
+    [
+      "ticks",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.trade",
+            "qualname": "TradeTick",
+            "fields": [
+              [
+                "index",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "absolute_index",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "time_minutes",
+                {
+                  "$type": "int",
+                  "value": "848"
+                }
+              ],
+              [
+                "time_label",
+                {
+                  "$type": "str",
+                  "value": "14:08"
+                }
+              ],
+              [
+                "trade_datetime",
+                {
+                  "$type": "datetime",
+                  "value": "2026-05-11T14:08:00",
+                  "timezone": null,
+                  "fold": 0
+                }
+              ],
+              [
+                "price",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fb999999999999a",
+                  "readable_hex": "0x1.999999999999ap-4"
+                }
+              ],
+              [
+                "price_milli",
+                {
+                  "$type": "int",
+                  "value": "100"
+                }
+              ],
+              [
+                "volume",
+                {
+                  "$type": "int",
+                  "value": "20"
+                }
+              ],
+              [
+                "order_count",
+                {
+                  "$type": "int",
+                  "value": "3"
+                }
+              ],
+              [
+                "status_raw",
+                {
+                  "$type": "int",
+                  "value": "5"
+                }
+              ],
+              [
+                "side",
+                {
+                  "$type": "str",
+                  "value": "status_5"
+                }
+              ],
+              [
+                "price_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "price_acc_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "unknown_tail_raw",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "reserved_zero",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "50030a14030500"
+                }
+              ],
+              [
+                "event_kind",
+                {
+                  "$type": "str",
+                  "value": "trade"
+                }
+              ],
+              [
+                "auction_matched_volume",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "auction_unmatched_signed_volume",
+                {
+                  "$type": "none"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      "trading_date",
+      {
+        "$type": "date",
+        "value": "2026-05-11"
+      }
+    ],
+    [
+      "price_base_raw_f32",
+      {
+        "$type": "float",
+        "f64_bits": "4041c00000000000",
+        "readable_hex": "0x1.1c00000000000p+5",
+        "wire_f32_bits": "420e0000"
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "010000000e4250030a14030500"
+      }
+    ]
+  ]
+}

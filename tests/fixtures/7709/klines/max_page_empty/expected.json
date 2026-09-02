@@ -1,0 +1,104 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.kline",
+  "qualname": "KlineSeries",
+  "fields": [
+    [
+      "exchange",
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      "market_id",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "code",
+      {
+        "$type": "str",
+        "value": "300308"
+      }
+    ],
+    [
+      "period_raw",
+      {
+        "$type": "int",
+        "value": "4"
+      }
+    ],
+    [
+      "period_param_raw",
+      {
+        "$type": "int",
+        "value": "1"
+      }
+    ],
+    [
+      "period_name",
+      {
+        "$type": "str",
+        "value": "day"
+      }
+    ],
+    [
+      "start",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "request_count",
+      {
+        "$type": "int",
+        "value": "800"
+      }
+    ],
+    [
+      "adjust_mode_raw",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "adjust_mode",
+      {
+        "$type": "str",
+        "value": "none"
+      }
+    ],
+    [
+      "anchor_date_raw",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "anchor_date",
+      {
+        "$type": "none"
+      }
+    ],
+    [
+      "bars",
+      {
+        "$type": "tuple",
+        "items": []
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "0000"
+      }
+    ]
+  ]
+}

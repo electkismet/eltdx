@@ -15,7 +15,7 @@ EXPECTED_GROUPS = {
     "round4-local",
     "round5-loopback",
     "round6-stress",
-    "round8-real-host",
+    "round7-real-host",
 }
 
 
@@ -41,7 +41,7 @@ def test_unified_plan_runs_each_owned_group_in_its_designated_round() -> None:
         4: "round4-local",
         5: "round5-loopback",
         6: "round6-stress",
-        8: "round8-real-host",
+        7: "round7-real-host",
     }
     for number, group in expected.items():
         commands = [step.argv for step in rounds[number].steps if step.kind == "command"]
@@ -57,7 +57,7 @@ def test_unified_plan_runs_each_owned_group_in_its_designated_round() -> None:
         if step.kind == "command"
         for argument in step.argv
     ]
-    assert "tests/native/test_differential.py::test_native_request_frames_match_v205_fixture" in round_three
+    assert "tests/native/test_differential.py::test_native_request_frames_match_golden" in round_three
 
 
 def test_github_python_matrix_uses_the_same_round_four_group() -> None:

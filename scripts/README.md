@@ -69,13 +69,3 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 ```
 
 输出 CSV 默认写到 `output/auction_0925/`，可以用 `--output` 指定完整文件路径。
-
-## validation
-
-目录：`scripts/validation/`
-
-用途：导出小样本 CSV，方便人工核对或发版留档。
-
-```bash
-python scripts/validation/export_live_validation.py --output output/live_validation.csv
-```

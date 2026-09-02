@@ -1,0 +1,119 @@
+{
+  "$type": "list",
+  "items": [
+    {
+      "$type": "dataclass",
+      "module": "eltdx.models.security",
+      "qualname": "SecurityCode",
+      "fields": [
+        [
+          "exchange",
+          {
+            "$type": "str",
+            "value": "sz"
+          }
+        ],
+        [
+          "market_id",
+          {
+            "$type": "int",
+            "value": "0"
+          }
+        ],
+        [
+          "code",
+          {
+            "$type": "str",
+            "value": "000001"
+          }
+        ],
+        [
+          "name",
+          {
+            "$type": "str",
+            "value": "平安银行"
+          }
+        ],
+        [
+          "multiple",
+          {
+            "$type": "int",
+            "value": "100"
+          }
+        ],
+        [
+          "decimal",
+          {
+            "$type": "int",
+            "value": "2"
+          }
+        ],
+        [
+          "previous_close_price",
+          {
+            "$type": "float",
+            "f64_bits": "4025fae140000000",
+            "readable_hex": "0x1.5fae140000000p+3"
+          }
+        ],
+        [
+          "volume_ratio_base",
+          {
+            "$type": "float",
+            "f64_bits": "40aee95020000000",
+            "readable_hex": "0x1.ee95020000000p+11"
+          }
+        ],
+        [
+          "unknown0_raw",
+          {
+            "$type": "bytes",
+            "hex": "814a7745"
+          }
+        ],
+        [
+          "previous_close_raw",
+          {
+            "$type": "bytes",
+            "hex": "0ad72f41"
+          }
+        ],
+        [
+          "unknown3_raw",
+          {
+            "$type": "bytes",
+            "hex": "67316825"
+          }
+        ],
+        [
+          "category",
+          {
+            "$type": "str",
+            "value": "a_share"
+          }
+        ],
+        [
+          "category_reason",
+          {
+            "$type": "str",
+            "value": "SZSE A-share code prefix"
+          }
+        ],
+        [
+          "board",
+          {
+            "$type": "str",
+            "value": "szse_main_board"
+          }
+        ],
+        [
+          "board_reason",
+          {
+            "$type": "str",
+            "value": "SZSE main-board prefix"
+          }
+        ]
+      ]
+    }
+  ]
+}

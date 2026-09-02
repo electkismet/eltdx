@@ -173,7 +173,6 @@ def test_daily_price_limits_apply_same_day_ex_right_event_and_use_current_st_rul
     from eltdx.helpers.core import _build_daily_price_limit
 
     security = _security("sh600000", "ST浦发")
-    quote = _quote("sh600000")
     event = SimpleNamespace(c1_value=0.0, c2_value=25.0, c3_value=0.0, c4_value=2.0)
     row = _build_daily_price_limit(
         "sh600000",

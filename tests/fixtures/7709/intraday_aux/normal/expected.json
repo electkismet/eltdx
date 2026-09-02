@@ -1,0 +1,131 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.minute",
+  "qualname": "MinuteAuxSeries",
+  "fields": [
+    [
+      "exchange",
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      "market_id",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "code",
+      {
+        "$type": "str",
+        "value": "000988"
+      }
+    ],
+    [
+      "selector_raw",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "kind",
+      {
+        "$type": "str",
+        "value": "buy_sell_strength"
+      }
+    ],
+    [
+      "points",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.minute",
+            "qualname": "MinuteAuxPoint",
+            "fields": [
+              [
+                "index",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "time_label",
+                {
+                  "$type": "str",
+                  "value": "09:31"
+                }
+              ],
+              [
+                "series_a",
+                {
+                  "$type": "int",
+                  "value": "5"
+                }
+              ],
+              [
+                "series_b",
+                {
+                  "$type": "int",
+                  "value": "6"
+                }
+              ],
+              [
+                "buy_commission",
+                {
+                  "$type": "int",
+                  "value": "5"
+                }
+              ],
+              [
+                "sell_commission",
+                {
+                  "$type": "int",
+                  "value": "6"
+                }
+              ],
+              [
+                "previous_day_cumulative_volume",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "current_day_cumulative_volume",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "cumulative_volume",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "0506"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "01000506"
+      }
+    ]
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.minute",
+  "qualname": "SparklineSeries",
+  "fields": [
+    [
+      "exchange",
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      "market_id",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "code",
+      {
+        "$type": "str",
+        "value": "000001"
+      }
+    ],
+    [
+      "selector_raw",
+      {
+        "$type": "int",
+        "value": "1"
+      }
+    ],
+    [
+      "selector_echo",
+      {
+        "$type": "int",
+        "value": "1"
+      }
+    ],
+    [
+      "window_or_count_raw",
+      {
+        "$type": "int",
+        "value": "20"
+      }
+    ],
+    [
+      "max_count_raw",
+      {
+        "$type": "int",
+        "value": "60"
+      }
+    ],
+    [
+      "base_price",
+      {
+        "$type": "float",
+        "f64_bits": "4024000000000000",
+        "readable_hex": "0x1.4000000000000p+3"
+      }
+    ],
+    [
+      "prices",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "float",
+            "f64_bits": "4024000000000000",
+            "readable_hex": "0x1.4000000000000p+3"
+          },
+          {
+            "$type": "float",
+            "f64_bits": "4024333340000000",
+            "readable_hex": "0x1.4333340000000p+3"
+          }
+        ]
+      }
+    ],
+    [
+      "reserved_param_u32",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "000030303030303100000000000000000000000000000000010000000000000000003c00000020410200000020419a992141"
+      }
+    ]
+  ]
+}

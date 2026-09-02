@@ -1,0 +1,384 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.corporate",
+  "qualname": "FinanceBatch",
+  "fields": [
+    [
+      "records",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.corporate",
+            "qualname": "FinanceRecord",
+            "fields": [
+              [
+                "exchange",
+                {
+                  "$type": "str",
+                  "value": "sz"
+                }
+              ],
+              [
+                "market_id",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "code",
+                {
+                  "$type": "str",
+                  "value": "000001"
+                }
+              ],
+              [
+                "finance_info_raw",
+                {
+                  "$type": "bytes",
+                  "hex": "0000c842010002004926350103cf2f01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                }
+              ],
+              [
+                "liu_tong_gu_ben_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "4059000000000000",
+                  "readable_hex": "0x1.9000000000000p+6",
+                  "wire_f32_bits": "42c80000"
+                }
+              ],
+              [
+                "province_raw",
+                {
+                  "$type": "int",
+                  "value": "1"
+                }
+              ],
+              [
+                "industry_raw",
+                {
+                  "$type": "int",
+                  "value": "2"
+                }
+              ],
+              [
+                "updated_date_raw",
+                {
+                  "$type": "int",
+                  "value": "20260425"
+                }
+              ],
+              [
+                "updated_date",
+                {
+                  "$type": "date",
+                  "value": "2026-04-25"
+                }
+              ],
+              [
+                "ipo_date_raw",
+                {
+                  "$type": "int",
+                  "value": "19910403"
+                }
+              ],
+              [
+                "ipo_date",
+                {
+                  "$type": "date",
+                  "value": "1991-04-03"
+                }
+              ],
+              [
+                "zong_gu_ben_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "guo_jia_gu_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "fa_qi_ren_fa_ren_gu_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "fa_ren_gu_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "b_gu_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "h_gu_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "eps_raw",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0"
+                }
+              ],
+              [
+                "zong_zi_chan_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "liu_dong_zi_chan_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "gu_ding_zi_chan_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "wu_xing_zi_chan_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "gu_dong_ren_shu_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "liu_dong_fu_zhai_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "chang_qi_fu_zhai_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "zi_ben_gong_ji_jin_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "jing_zi_chan_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "zhu_ying_shou_ru_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "zhu_ying_li_run_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "ying_shou_zhang_kuan_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "ying_ye_li_run_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "tou_zi_shou_yu_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "jing_ying_xian_jin_liu_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "zong_xian_jin_liu_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "cun_huo_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "li_run_zong_he_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "shui_hou_li_run_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "jing_li_run_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "wei_fen_li_run_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "mei_gu_jing_zi_chan_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "bao_liu_2_raw_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0",
+                  "wire_f32_bits": "00000000"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "003030303030310000c842010002004926350103cf2f01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "0100003030303030310000c842010002004926350103cf2f01000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ]
+  ]
+}

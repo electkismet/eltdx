@@ -33,11 +33,11 @@ def _evidence_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     state = {
         "candidate": CANDIDATE,
         "failure": None,
-        "completed_rounds": list(range(1, 10)),
-        "active_round": 10,
+        "completed_rounds": list(range(1, 9)),
+        "active_round": 9,
         "round_progress": {
-            "10": {
-                "completed_steps": index_release_evidence.EXPECTED_ROUND_10_STEPS,
+            "9": {
+                "completed_steps": index_release_evidence.EXPECTED_FINAL_ROUND_STEPS,
             }
         },
         "external_evidence": external,
@@ -55,7 +55,7 @@ def _evidence_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return root
 
 
-def test_index_excludes_execution_venv_and_mutable_round_log(
+def test_index_excludes_mutable_round_log(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -65,25 +65,19 @@ def test_index_excludes_execution_venv_and_mutable_round_log(
     ordinary.write_text("passed\n", encoding="utf-8")
     self_log = (
         root
-        / "round-10-documentation-and-release"
+        / "round-09-documentation-and-release"
         / "06-evidence-index.log"
     )
     self_log.parent.mkdir()
     self_log.write_text("mutable\n", encoding="utf-8")
-    baseline_bin = root / "baseline-venv" / "bin"
-    baseline_bin.mkdir(parents=True)
-    (baseline_bin / "python3.11").write_text("interpreter\n", encoding="utf-8")
-    (baseline_bin / "python").symlink_to("python3.11")
-
     index = index_release_evidence.build_index(CANDIDATE, root)
 
     indexed_paths = {record["path"] for record in index["files"]}
     assert ordinary.relative_to(root).as_posix() in indexed_paths
     assert self_log.relative_to(root).as_posix() not in indexed_paths
-    assert not any(path.startswith("baseline-venv/") for path in indexed_paths)
-    assert index["excluded_execution_roots"] == ["baseline-venv"]
+    assert index["excluded_execution_roots"] == []
     assert (
-        "round-10-documentation-and-release/06-evidence-index.log"
+        "round-09-documentation-and-release/06-evidence-index.log"
         in index["excluded_mutable_paths"]
     )
 

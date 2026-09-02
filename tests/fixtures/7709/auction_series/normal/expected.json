@@ -1,0 +1,169 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.auction",
+  "qualname": "AuctionSeries",
+  "fields": [
+    [
+      "exchange",
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      "market_id",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "code",
+      {
+        "$type": "str",
+        "value": "000988"
+      }
+    ],
+    [
+      "trading_date",
+      {
+        "$type": "none"
+      }
+    ],
+    [
+      "mode_or_selector_raw",
+      {
+        "$type": "int",
+        "value": "3"
+      }
+    ],
+    [
+      "start_raw",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "limit_or_count_raw",
+      {
+        "$type": "int",
+        "value": "500"
+      }
+    ],
+    [
+      "points",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.auction",
+            "qualname": "AuctionPoint",
+            "fields": [
+              [
+                "index",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "minute_of_day_raw",
+                {
+                  "$type": "int",
+                  "value": "555"
+                }
+              ],
+              [
+                "second_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "time_label",
+                {
+                  "$type": "str",
+                  "value": "09:15:00"
+                }
+              ],
+              [
+                "time_seconds",
+                {
+                  "$type": "int",
+                  "value": "33300"
+                }
+              ],
+              [
+                "price",
+                {
+                  "$type": "float",
+                  "f64_bits": "406443d700000000",
+                  "readable_hex": "0x1.443d700000000p+7"
+                }
+              ],
+              [
+                "price_milli",
+                {
+                  "$type": "int",
+                  "value": "162120"
+                }
+              ],
+              [
+                "matched_volume",
+                {
+                  "$type": "int",
+                  "value": "2568"
+                }
+              ],
+              [
+                "unmatched_signed_raw",
+                {
+                  "$type": "int",
+                  "value": "2433"
+                }
+              ],
+              [
+                "unmatched_volume",
+                {
+                  "$type": "int",
+                  "value": "2433"
+                }
+              ],
+              [
+                "unmatched_direction_raw",
+                {
+                  "$type": "int",
+                  "value": "1"
+                }
+              ],
+              [
+                "reserved_zero_0e",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "2b02b81e2243080a0000810900000000"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "01002b02b81e2243080a0000810900000000"
+      }
+    ]
+  ]
+}

@@ -1,6 +1,5 @@
 {
   "schema_version": 1,
-  "baseline": {"tag": "v2.0.5", "commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec"},
   "normalizers": {
     "code": {"explicit_prefixes": ["sz", "sh", "bj"], "inferred_prefixes": {"0|1|2|3": "sz", "6|9": "sh", "8|92": "bj"}},
     "market": {"sz": ["0", "sza", "深市"], "sh": ["1", "sha", "沪市"], "bj": ["2", "bse", "北交所"]},

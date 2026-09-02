@@ -1,0 +1,49 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.resource",
+  "qualname": "FileContentChunk",
+  "fields": [
+    [
+      "path",
+      {
+        "$type": "str",
+        "value": "zhb.zip"
+      }
+    ],
+    [
+      "offset",
+      {
+        "$type": "int",
+        "value": "10"
+      }
+    ],
+    [
+      "request_size",
+      {
+        "$type": "int",
+        "value": "30000"
+      }
+    ],
+    [
+      "chunk_len",
+      {
+        "$type": "int",
+        "value": "6"
+      }
+    ],
+    [
+      "content",
+      {
+        "$type": "bytes",
+        "hex": "616263313233"
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "06000000616263313233aabb"
+      }
+    ]
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.quote",
+  "qualname": "QuoteRefreshPage",
+  "fields": [
+    [
+      "requested_codes",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "str",
+            "value": "sz000001"
+          }
+        ]
+      }
+    ],
+    [
+      "records",
+      {
+        "$type": "tuple",
+        "items": []
+      }
+    ],
+    [
+      "decoded_payload",
+      {
+        "$type": "bytes",
+        "hex": "0000"
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "9393"
+      }
+    ]
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.quote",
+  "qualname": "CategoryQuotePage",
+  "fields": [
+    [
+      "category",
+      {
+        "$type": "int",
+        "value": "6"
+      }
+    ],
+    [
+      "sort_type",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "start",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "request_count",
+      {
+        "$type": "int",
+        "value": "80"
+      }
+    ],
+    [
+      "sort_reverse",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "filter_raw",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "header",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "records",
+      {
+        "$type": "tuple",
+        "items": []
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "00000000"
+      }
+    ]
+  ]
+}

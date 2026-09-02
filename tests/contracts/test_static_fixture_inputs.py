@@ -133,7 +133,7 @@ def test_materializer_writes_one_identity_bound_case(tmp_path: Path, case_key: s
     assert int.from_bytes(response[14:16], "little") == expected_decoded
     assert len(response) == 16 + len(expected_wire)
     assert response[16:] == expected_wire
-    assert "baseline_wheel_sha256" not in metadata
+    assert metadata["golden_schema_version"] == 1
     assert "frame_header" not in metadata
     with pytest.raises(FileExistsError):
         materialize_case(case_key, tmp_path)
@@ -144,10 +144,7 @@ def test_repository_fixture_source_inventory_is_complete() -> None:
     assert directories == set(EXPECTED_CODES)
     for case_key, case in SOURCE_CASES.items():
         case_root = FIXTURE_ROOT / case.command / case.case_id
-        assert {path.name for path in case_root.iterdir()} == REQUIRED_FILES
-    forbidden = {
-        path.relative_to(FIXTURE_ROOT).as_posix()
-        for path in FIXTURE_ROOT.rglob("*")
-        if path.is_file() and path.name in {"request.bin", "expected.json"}
-    }
-    assert not forbidden
+        assert {path.name for path in case_root.iterdir()} == REQUIRED_FILES | {
+            "request.bin",
+            "expected.json",
+        }

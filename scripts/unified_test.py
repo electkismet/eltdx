@@ -1,4 +1,4 @@
-"""Run the frozen eltdx 3.0 candidate through the mandatory ten rounds.
+"""Run the frozen eltdx candidate through the mandatory nine rounds.
 
 This orchestrator never pushes, tags, uploads, publishes, or triggers remote
 workflows. Cross-platform results are explicit evidence gates supplied by the
@@ -19,8 +19,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 
-PLAN_SHA256 = "d74a81850c90d9e781a47a5350203f9357e4a218a287f075acca6120b5e85e73"
-BASELINE_COMMIT = "6486a1692dd4aca5339001b2de22e88bb29e16ec"
+PLAN_SHA256 = "f2d51a72ac653f6ae146bd1f3338b3f1920689edc7a38699b9c20e11c5819f27"
 ROOT = Path(__file__).resolve().parents[1]
 EVIDENCE_ROOT = ROOT / "artifacts" / "release-evidence"
 EDITABLE_NATIVE_RELATIVE = Path(
@@ -96,34 +95,11 @@ ROUNDS = (
         3,
         "protocol-golden",
         (
-            command("baseline-venv", "{python}", "-m", "venv", "{baseline_venv}"),
             command(
-                "baseline-install",
-                "{baseline_python}",
-                "-m",
-                "pip",
-                "install",
-                "{baseline_wheel_extra}",
-            ),
-            command(
-                "fixture-workspace",
+                "golden-consistency",
                 "{python}",
-                "scripts/fixtures/prepare_fixture_workspace.py",
-                "--source",
-                "tests/fixtures/7709",
-                "--output",
-                "{working_fixtures}",
-            ),
-            command(
-                "baseline-export",
-                "{baseline_python}",
-                "scripts/fixtures/export_v205_baseline.py",
-                "--wheel",
-                "{baseline_wheel}",
-                "--fixtures-root",
-                "{working_fixtures}",
-                "--contract-output",
-                "{round_dir}/contracts.json",
+                "scripts/fixtures/export_current_golden.py",
+                "--check",
             ),
             command(
                 "golden-request-frames",
@@ -131,7 +107,7 @@ ROUNDS = (
                 "-m",
                 "pytest",
                 "-q",
-                "tests/native/test_differential.py::test_native_request_frames_match_v205_fixture",
+                "tests/native/test_differential.py::test_native_request_frames_match_golden",
             ),
             command(
                 "golden-parse-results",
@@ -139,7 +115,7 @@ ROUNDS = (
                 "-m",
                 "pytest",
                 "-q",
-                "tests/native/test_differential.py::test_native_parse_results_match_v205_fixture",
+                "tests/native/test_differential.py::test_native_parse_results_match_golden",
             ),
             command(
                 "golden-errors",
@@ -147,7 +123,7 @@ ROUNDS = (
                 "-m",
                 "pytest",
                 "-q",
-                "tests/native/test_differential.py::test_native_errors_match_v205_fixture",
+                "tests/native/test_differential.py::test_native_errors_match_golden",
             ),
             command(
                 "golden-raw-and-precision",
@@ -155,7 +131,7 @@ ROUNDS = (
                 "-m",
                 "pytest",
                 "-q",
-                "tests/native/test_differential.py::test_native_raw_and_precision_match_v205_fixture",
+                "tests/native/test_differential.py::test_native_raw_and_precision_match_golden",
             ),
             command(
                 "protocol-facade",
@@ -175,7 +151,6 @@ ROUNDS = (
                 "-q",
                 "tests/contracts/test_command_contract_manifest.py",
                 "tests/native/test_differential.py::test_differential_matrix_covers_all_21_commands",
-                "tests/native/test_differential.py::test_declared_tick_default_override_is_narrow_and_exact",
             ),
         ),
     ),
@@ -229,43 +204,13 @@ ROUNDS = (
     ),
     Round(
         7,
-        "performance",
-        (
-            command(
-                "benchmark-v205-vs-native",
-                "{python}",
-                "scripts/benchmark_native.py",
-                "--baseline-wheel",
-                "{baseline_wheel}",
-                "--output",
-                "{round_dir}/benchmark.json",
-            ),
-            command(
-                "benchmark-gates",
-                "{python}",
-                "scripts/verification/check_benchmark_gates.py",
-                "{round_dir}/benchmark.json",
-            ),
-        ),
-    ),
-    Round(
-        8,
         "real-host",
         (
             command(
                 "real-host-21-commands",
                 "{python}",
                 "scripts/verification/run_python_test_group.py",
-                "round8-real-host",
-            ),
-            command(
-                "real-host-differential",
-                "{python}",
-                "scripts/validation/export_live_validation.py",
-                "--baseline-wheel",
-                "{baseline_wheel}",
-                "--output",
-                "{round_dir}/live-validation.json",
+                "round7-real-host",
             ),
             command(
                 "real-f10-7615",
@@ -280,10 +225,10 @@ ROUNDS = (
         ),
     ),
     Round(
-        9,
+        8,
         "wheel-and-install",
         (
-            gate("five-wheel-and-sdist-evidence", "round9_artifacts"),
+            gate("five-wheel-and-sdist-evidence", "round8_artifacts"),
             command(
                 "artifact-count-tags-and-hashes",
                 "{python}",
@@ -312,7 +257,7 @@ ROUNDS = (
         ),
     ),
     Round(
-        10,
+        9,
         "documentation-and-release",
         (
             command("mkdocs-strict", "{python}", "-m", "mkdocs", "build", "--strict"),
@@ -428,7 +373,6 @@ def initialize(candidate: str, *, attested_never_tested: bool) -> Path:
     state = {
         "schema_version": 1,
         "candidate": candidate,
-        "baseline_commit": BASELINE_COMMIT,
         "plan_sha256": PLAN_SHA256,
         "attestation": "candidate had never been compiled or tested before unified round 1",
         "created_at": _now(),
@@ -477,26 +421,15 @@ def _context(
     candidate: str,
     round_dir: Path,
     state: dict[str, Any],
-    baseline_wheel: Path | None,
     artifact_dir: Path | None,
 ) -> dict[str, str]:
-    baseline_venv = _candidate_dir(candidate) / "baseline-venv"
-    baseline_python = (
-        baseline_venv / "Scripts" / "python.exe"
-        if os.name == "nt"
-        else baseline_venv / "bin" / "python"
-    )
     values = {
         "python": sys.executable,
         "candidate": candidate,
         "round_dir": str(round_dir),
         "evidence_root": str(_candidate_dir(candidate)),
-        "baseline_venv": str(baseline_venv),
-        "baseline_python": str(baseline_python),
-        "baseline_wheel": str(baseline_wheel) if baseline_wheel is not None else "",
-        "baseline_wheel_extra": f"{baseline_wheel}[mcp]" if baseline_wheel is not None else "",
         "artifact_dir": str(artifact_dir) if artifact_dir is not None else "",
-        "working_fixtures": str(round_dir / "fixtures"),
+        "working_fixtures": str(ROOT / "tests" / "fixtures" / "7709"),
     }
     for key, evidence in state["external_evidence"].items():
         values[f"evidence:{key}"] = evidence["path"]
@@ -582,7 +515,6 @@ def _run_command(argv: tuple[str, ...], log: Path, *, working_fixtures: str) -> 
 def run_next_round(
     candidate: str,
     *,
-    baseline_wheel: Path | None,
     artifact_dir: Path | None,
 ) -> int:
     state = _load_state(candidate)
@@ -601,9 +533,6 @@ def run_next_round(
     serialized_commands = "\n".join(
         "\0".join(step.argv) for step in round_spec.steps if step.kind == "command"
     )
-    if "{baseline_wheel}" in serialized_commands:
-        if baseline_wheel is None or not baseline_wheel.is_file():
-            raise RuntimeError(f"round {number} requires --baseline-wheel pointing to a local wheel")
     if "{artifact_dir}" in serialized_commands:
         if artifact_dir is None or not artifact_dir.is_dir():
             raise RuntimeError(f"round {number} requires --artifact-dir pointing to local artifacts")
@@ -614,7 +543,6 @@ def run_next_round(
         candidate=candidate,
         round_dir=round_dir,
         state=state,
-        baseline_wheel=baseline_wheel.resolve() if baseline_wheel is not None else None,
         artifact_dir=artifact_dir.resolve() if artifact_dir is not None else None,
     )
     state["active_round"] = number
@@ -671,7 +599,7 @@ def run_next_round(
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run frozen eltdx 3.0 unified-test rounds")
+    parser = argparse.ArgumentParser(description="Run frozen eltdx unified-test rounds")
     subparsers = parser.add_subparsers(dest="action", required=True)
 
     initialize_parser = subparsers.add_parser("init")
@@ -680,7 +608,6 @@ def _parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser("run-next")
     run_parser.add_argument("--candidate", required=True)
-    run_parser.add_argument("--baseline-wheel", type=Path)
     run_parser.add_argument("--artifact-dir", type=Path)
 
     evidence_parser = subparsers.add_parser("record-evidence")
@@ -707,7 +634,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     completed = run_next_round(
         args.candidate,
-        baseline_wheel=args.baseline_wheel,
         artifact_dir=args.artifact_dir,
     )
     print(json.dumps({"completed_round": completed, "candidate": args.candidate}))

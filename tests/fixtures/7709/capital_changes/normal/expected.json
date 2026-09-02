@@ -1,0 +1,212 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.corporate",
+  "qualname": "CapitalChangeBlock",
+  "fields": [
+    [
+      "exchange",
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      "market_id",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "code",
+      {
+        "$type": "str",
+        "value": "000001"
+      }
+    ],
+    [
+      "block_count",
+      {
+        "$type": "int",
+        "value": "1"
+      }
+    ],
+    [
+      "records",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.corporate",
+            "qualname": "CapitalChangeRecord",
+            "fields": [
+              [
+                "exchange",
+                {
+                  "$type": "str",
+                  "value": "sz"
+                }
+              ],
+              [
+                "market_id",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "code",
+                {
+                  "$type": "str",
+                  "value": "000001"
+                }
+              ],
+              [
+                "reserved_7",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "date_raw",
+                {
+                  "$type": "int",
+                  "value": "20260511"
+                }
+              ],
+              [
+                "date",
+                {
+                  "$type": "date",
+                  "value": "2026-05-11"
+                }
+              ],
+              [
+                "category_raw",
+                {
+                  "$type": "int",
+                  "value": "15"
+                }
+              ],
+              [
+                "category_name",
+                {
+                  "$type": "str",
+                  "value": "重整调整"
+                }
+              ],
+              [
+                "c1_raw",
+                {
+                  "$type": "bytes",
+                  "hex": "00000000"
+                }
+              ],
+              [
+                "c2_raw",
+                {
+                  "$type": "bytes",
+                  "hex": "00000000"
+                }
+              ],
+              [
+                "c3_raw",
+                {
+                  "$type": "bytes",
+                  "hex": "00006040"
+                }
+              ],
+              [
+                "c4_raw",
+                {
+                  "$type": "bytes",
+                  "hex": "00000000"
+                }
+              ],
+              [
+                "c1_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0"
+                }
+              ],
+              [
+                "c2_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0"
+                }
+              ],
+              [
+                "c3_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "400c000000000000",
+                  "readable_hex": "0x1.c000000000000p+1"
+                }
+              ],
+              [
+                "c4_float",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0"
+                }
+              ],
+              [
+                "c1_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0"
+                }
+              ],
+              [
+                "c2_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0"
+                }
+              ],
+              [
+                "c3_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "400c000000000000",
+                  "readable_hex": "0x1.c000000000000p+1"
+                }
+              ],
+              [
+                "c4_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "0000000000000000",
+                  "readable_hex": "0x0.0p+0"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "00303030303031009f2635010f00000000000000000000604000000000"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "010000303030303031010000303030303031009f2635010f00000000000000000000604000000000"
+      }
+    ]
+  ]
+}

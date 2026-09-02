@@ -56,4 +56,4 @@ def test_canonical_schema_has_all_required_tags_and_metadata() -> None:
     assert definitions["float"]["properties"]["f64_bits"]["pattern"] == "^[0-9a-f]{16}$"
     assert definitions["dataclass"]["required"] == ["$type", "module", "qualname", "fields"]
     metadata_required = set(definitions["metadata"]["required"])
-    assert {"baseline_wheel_sha256", "registry_key", "command_code", "message_id", "request_context", "frame_header", "push_generation", "push_host", "expected_exception"} <= metadata_required
+    assert {"golden_schema_version", "registry_key", "command_code", "message_id", "request_context", "frame_header", "push_generation", "push_host", "expected_exception"} <= metadata_required

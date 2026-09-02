@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from datetime import date
 
-import pytest
-
 from eltdx import HelperApi, TdxClient
 from eltdx.f10 import F10Client, parse_tqlex_response
 from eltdx.models import (

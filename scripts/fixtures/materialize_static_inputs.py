@@ -15,7 +15,6 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ROOT = ROOT / "tests" / "fixtures" / "7709"
-BASELINE_COMMIT = "6486a1692dd4aca5339001b2de22e88bb29e16ec"
 REQUIRED_FILES = frozenset({"request.json", "response.bin", "metadata.json"})
 
 
@@ -462,8 +461,7 @@ def materialize_case(case_key: str, fixture_root: Path = DEFAULT_ROOT) -> Path:
     request = _canonical(case.request)
     metadata = {
         "schema_version": 1,
-        "baseline_tag": "v2.0.5",
-        "baseline_commit": BASELINE_COMMIT,
+        "golden_schema_version": 1,
         "registry_key": case.command,
         "command_code": case.code,
         "message_id": case.message_id,

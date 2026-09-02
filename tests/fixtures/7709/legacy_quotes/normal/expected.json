@@ -1,0 +1,517 @@
+{
+  "$type": "list",
+  "items": [
+    {
+      "$type": "dataclass",
+      "module": "eltdx.models.quote",
+      "qualname": "LegacyQuote",
+      "fields": [
+        [
+          "exchange",
+          {
+            "$type": "str",
+            "value": "sz"
+          }
+        ],
+        [
+          "market_id",
+          {
+            "$type": "int",
+            "value": "0"
+          }
+        ],
+        [
+          "code",
+          {
+            "$type": "str",
+            "value": "000001"
+          }
+        ],
+        [
+          "active1",
+          {
+            "$type": "int",
+            "value": "7"
+          }
+        ],
+        [
+          "last_price",
+          {
+            "$type": "float",
+            "f64_bits": "402447ae147ae148",
+            "readable_hex": "0x1.447ae147ae148p+3"
+          }
+        ],
+        [
+          "pre_close_price",
+          {
+            "$type": "float",
+            "f64_bits": "4024000000000000",
+            "readable_hex": "0x1.4000000000000p+3"
+          }
+        ],
+        [
+          "open_price",
+          {
+            "$type": "float",
+            "f64_bits": "4024428f5c28f5c3",
+            "readable_hex": "0x1.4428f5c28f5c3p+3"
+          }
+        ],
+        [
+          "high_price",
+          {
+            "$type": "float",
+            "f64_bits": "4024666666666666",
+            "readable_hex": "0x1.4666666666666p+3"
+          }
+        ],
+        [
+          "low_price",
+          {
+            "$type": "float",
+            "f64_bits": "4024147ae147ae14",
+            "readable_hex": "0x1.4147ae147ae14p+3"
+          }
+        ],
+        [
+          "server_time_raw",
+          {
+            "$type": "int",
+            "value": "103000"
+          }
+        ],
+        [
+          "unknown_after_time_raw",
+          {
+            "$type": "int",
+            "value": "-1014"
+          }
+        ],
+        [
+          "total_hand",
+          {
+            "$type": "int",
+            "value": "1000"
+          }
+        ],
+        [
+          "current_hand",
+          {
+            "$type": "int",
+            "value": "15"
+          }
+        ],
+        [
+          "amount",
+          {
+            "$type": "float",
+            "f64_bits": "38178c29c0000000",
+            "readable_hex": "0x1.78c29c0000000p-126"
+          }
+        ],
+        [
+          "amount_raw",
+          {
+            "$type": "int",
+            "value": "12345678"
+          }
+        ],
+        [
+          "inside_dish",
+          {
+            "$type": "int",
+            "value": "400"
+          }
+        ],
+        [
+          "outer_disc",
+          {
+            "$type": "int",
+            "value": "600"
+          }
+        ],
+        [
+          "unknown_after_outer_raw",
+          {
+            "$type": "int",
+            "value": "0"
+          }
+        ],
+        [
+          "open_amount_raw",
+          {
+            "$type": "int",
+            "value": "100"
+          }
+        ],
+        [
+          "open_amount_yuan",
+          {
+            "$type": "float",
+            "f64_bits": "40c3880000000000",
+            "readable_hex": "0x1.3880000000000p+13"
+          }
+        ],
+        [
+          "buy_levels",
+          {
+            "$type": "tuple",
+            "items": [
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "4024428f5c28f5c3",
+                      "readable_hex": "0x1.4428f5c28f5c3p+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "320"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "-1"
+                    }
+                  ]
+                ]
+              },
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "40243d70a3d70a3d",
+                      "readable_hex": "0x1.43d70a3d70a3dp+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "118"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "-2"
+                    }
+                  ]
+                ]
+              },
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "40243851eb851eb8",
+                      "readable_hex": "0x1.43851eb851eb8p+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "94"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "-3"
+                    }
+                  ]
+                ]
+              },
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "4024333333333333",
+                      "readable_hex": "0x1.4333333333333p+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "87"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "-4"
+                    }
+                  ]
+                ]
+              },
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "40242e147ae147ae",
+                      "readable_hex": "0x1.42e147ae147aep+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "66"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "-5"
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        [
+          "sell_levels",
+          {
+            "$type": "tuple",
+            "items": [
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "402447ae147ae148",
+                      "readable_hex": "0x1.447ae147ae148p+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "428"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "0"
+                    }
+                  ]
+                ]
+              },
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "40244ccccccccccd",
+                      "readable_hex": "0x1.44ccccccccccdp+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "260"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "1"
+                    }
+                  ]
+                ]
+              },
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "402451eb851eb852",
+                      "readable_hex": "0x1.451eb851eb852p+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "136"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "2"
+                    }
+                  ]
+                ]
+              },
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "4024570a3d70a3d7",
+                      "readable_hex": "0x1.4570a3d70a3d7p+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "92"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "3"
+                    }
+                  ]
+                ]
+              },
+              {
+                "$type": "dataclass",
+                "module": "eltdx.models.quote",
+                "qualname": "QuoteLevel",
+                "fields": [
+                  [
+                    "price",
+                    {
+                      "$type": "float",
+                      "f64_bits": "40245c28f5c28f5c",
+                      "readable_hex": "0x1.45c28f5c28f5cp+3"
+                    }
+                  ],
+                  [
+                    "volume",
+                    {
+                      "$type": "int",
+                      "value": "71"
+                    }
+                  ],
+                  [
+                    "price_delta_raw",
+                    {
+                      "$type": "int",
+                      "value": "4"
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        ],
+        [
+          "trading_status_raw",
+          {
+            "$type": "int",
+            "value": "32"
+          }
+        ],
+        [
+          "tail_metrics_raw",
+          {
+            "$type": "tuple",
+            "items": [
+              {
+                "$type": "int",
+                "value": "1"
+              },
+              {
+                "$type": "int",
+                "value": "-2"
+              },
+              {
+                "$type": "int",
+                "value": "3"
+              },
+              {
+                "$type": "int",
+                "value": "-4"
+              }
+            ]
+          }
+        ],
+        [
+          "rise_speed_raw",
+          {
+            "$type": "int",
+            "value": "21"
+          }
+        ],
+        [
+          "active2",
+          {
+            "$type": "int",
+            "value": "8"
+          }
+        ],
+        [
+          "record_hex",
+          {
+            "$type": "str",
+            "value": "003030303030310700b60f4e41064a98c90cf60fa80f0f4e61bc009006980900a40141008005ac064201b601840443029e018802440397019c0145048201870120000142034415000800"
+          }
+        ]
+      ]
+    }
+  ]
+}

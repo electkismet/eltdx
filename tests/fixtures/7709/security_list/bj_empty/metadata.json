@@ -1,7 +1,5 @@
 {
   "schema_version": 1,
-  "baseline_tag": "v2.0.5",
-  "baseline_commit": "6486a1692dd4aca5339001b2de22e88bb29e16ec",
   "registry_key": "security_list",
   "command_code": 1101,
   "message_id": 822083589,
@@ -42,5 +40,61 @@
   },
   "push_generation": null,
   "push_host": null,
-  "expected_exception": null
+  "expected_exception": null,
+  "frame_header": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "control"
+        },
+        {
+          "$type": "int",
+          "value": "1"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "message_id"
+        },
+        {
+          "$type": "int",
+          "value": "822083589"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "message_type"
+        },
+        {
+          "$type": "int",
+          "value": "1101"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "zip_length"
+        },
+        {
+          "$type": "int",
+          "value": "16"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "length"
+        },
+        {
+          "$type": "int",
+          "value": "16"
+        }
+      ]
+    ]
+  },
+  "golden_schema_version": 1
 }

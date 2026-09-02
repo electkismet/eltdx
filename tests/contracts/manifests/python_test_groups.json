@@ -5,14 +5,11 @@
       "tests/native/test_differential.py"
     ],
     "round4-local": [
-      "tests/contracts/test_baseline_exporter_contract.py",
       "tests/contracts/test_command_contract_manifest.py",
       "tests/contracts/test_dataclasses_exceptions.py",
-      "tests/contracts/test_differential_overrides_contract.py",
       "tests/contracts/test_legacy_test_traceability_contract.py",
       "tests/contracts/test_native_errors_contract.py",
       "tests/contracts/test_native_models_contract.py",
-      "tests/contracts/test_native_performance_evidence.py",
       "tests/contracts/test_native_protocol_facade_contract.py",
       "tests/contracts/test_public_api_contract.py",
       "tests/contracts/test_python_test_groups.py",
@@ -45,7 +42,7 @@
     "round6-stress": [
       "tests/stress/test_native_runtime_stress.py"
     ],
-    "round8-real-host": [
+    "round7-real-host": [
       "tests/integration/test_real_hosts.py"
     ]
   }

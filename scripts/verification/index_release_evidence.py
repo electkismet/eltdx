@@ -13,19 +13,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 INDEX_NAME = "release-evidence-index.json"
-EXPECTED_EXTERNAL_EVIDENCE = frozenset({"round6_windows_linux", "round9_artifacts"})
-EXPECTED_ROUND_10_STEPS = [
+EXPECTED_EXTERNAL_EVIDENCE = frozenset({"round6_windows_linux", "round8_artifacts"})
+EXPECTED_FINAL_ROUND_STEPS = [
     "mkdocs-strict",
     "pages-links",
     "version-and-docs",
     "release-text",
     "publish-workflow-dry-run-no-upload",
 ]
-EXCLUDED_EXECUTION_ROOTS = frozenset({"baseline-venv"})
+EXCLUDED_EXECUTION_ROOTS = frozenset()
 MUTABLE_LOCAL_PATHS = frozenset(
     {
         "state.json",
-        "round-10-documentation-and-release/06-evidence-index.log",
+        "round-09-documentation-and-release/06-evidence-index.log",
     }
 )
 
@@ -50,11 +50,11 @@ def _state_evidence(root: Path, candidate: str) -> tuple[dict, list[dict]]:
         raise ValueError("unified-test state does not match the candidate")
     if state.get("failure") is not None:
         raise ValueError("cannot index failed unified-test state")
-    if state.get("completed_rounds") != list(range(1, 10)) or state.get("active_round") != 10:
-        raise ValueError("release evidence index must run inside unified round 10")
-    completed_steps = state.get("round_progress", {}).get("10", {}).get("completed_steps")
-    if completed_steps != EXPECTED_ROUND_10_STEPS:
-        raise ValueError("release evidence index is not the final round 10 command")
+    if state.get("completed_rounds") != list(range(1, 9)) or state.get("active_round") != 9:
+        raise ValueError("release evidence index must run inside unified round 9")
+    completed_steps = state.get("round_progress", {}).get("9", {}).get("completed_steps")
+    if completed_steps != EXPECTED_FINAL_ROUND_STEPS:
+        raise ValueError("release evidence index is not the final round 9 command")
     external = state.get("external_evidence", {})
     if set(external) != EXPECTED_EXTERNAL_EVIDENCE:
         raise ValueError("release evidence does not contain both required external gates")
@@ -77,7 +77,7 @@ def _state_evidence(root: Path, candidate: str) -> tuple[dict, list[dict]]:
     state_summary = {
         "completed_rounds": state["completed_rounds"],
         "active_round": state["active_round"],
-        "round_10_completed_steps_before_index": completed_steps,
+        "final_round_completed_steps_before_index": completed_steps,
     }
     return state_summary, records
 
