@@ -249,6 +249,28 @@ def test_business_api_uses_command_numbers() -> None:
     assert client.resources.read("zhb.zip", offset=10, size=20)["command"] == "0x06b9"
 
 
+def test_bars_auto_detects_index_record_layout() -> None:
+    class FakeTransport:
+        pool_size = 1
+
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def execute(self, command: int, payload=None):
+            assert command == 0x052D
+            return payload
+
+    client = TdxClient(transport=FakeTransport())
+    assert client.bars.get("sh000001")["kind"] == "index"
+    assert client.bars.get("sz399001")["kind"] == "index"
+    assert client.bars.get("bj899001")["kind"] == "index"
+    assert client.bars.get("sz000001")["kind"] == "stock"
+    assert client.bars.get("sh000001", kind="stock")["kind"] == "stock"
+
+
 def test_today_entrypoints_replace_current_names() -> None:
     client = TdxClient.in_memory()
 

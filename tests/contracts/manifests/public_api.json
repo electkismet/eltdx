@@ -146,7 +146,7 @@
     "eltdx.api.bars:BarApi": {
       "members": ["get"],
       "signatures": {
-        "get": "(self, code, *, period='day', start=0, count=800, adjust=None, anchor_date=None, kind='stock', include_raw=False, all_pages=False, page_size=800, max_pages=200)"
+        "get": "(self, code, *, period='day', start=0, count=800, adjust=None, anchor_date=None, kind=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)"
       }
     },
     "eltdx.api.minutes:MinuteApi": {

@@ -428,7 +428,7 @@ fixed = client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_dat
 | `code` / `period` | 证券代码 / 周期 |
 | `start` / `count` | 单页起点 / 条数 |
 | `adjust` / `anchor_date` | 服务端复权模式 / 定点日期 |
-| `kind` | `stock` 或 `index` |
+| `kind` | 默认自动识别；也可显式传 `stock` 或 `index` |
 | `include_raw` | 是否保留原始 payload |
 | `all_pages` | 是否自动分页 |
 | `page_size` / `max_pages` | 自动分页的每页条数 / 最大页数 |

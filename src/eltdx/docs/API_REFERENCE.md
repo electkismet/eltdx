@@ -358,7 +358,7 @@ stat, stat2 = stats.row(0, "000001")
 
 ## `client.bars`
 
-### `get(code, period="day", start=0, count=800, adjust=None, anchor_date=None, kind="stock", include_raw=False, all_pages=False, page_size=800, max_pages=200)`
+### `get(code, period="day", start=0, count=800, adjust=None, anchor_date=None, kind=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)`
 
 查询 K 线 / 周期线，对应 `0x052d`。
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE
+from eltdx.protocol.unit import normalize_code
 
 from .base import ApiBase
 
@@ -19,7 +20,7 @@ class BarApi(ApiBase):
         count: int = 800,
         adjust: str | None = None,
         anchor_date=None,
-        kind: str = "stock",
+        kind: str | None = None,
         include_raw: bool = False,
         all_pages: bool = False,
         page_size: int = 800,
@@ -78,9 +79,10 @@ class BarApi(ApiBase):
         count: int,
         adjust: str | None,
         anchor_date,
-        kind: str,
+        kind: str | None,
         include_raw: bool,
     ):
+        resolved_kind = _resolve_kline_kind(code, kind)
         return self._execute(
             "klines",
             code=code,
@@ -89,7 +91,7 @@ class BarApi(ApiBase):
             count=count,
             adjust=adjust,
             anchor_date=anchor_date,
-            kind=kind,
+            kind=resolved_kind,
             include_raw=include_raw,
         )
 
@@ -97,3 +99,21 @@ class BarApi(ApiBase):
 def _validate_page_size(value: int) -> None:
     if value <= 0 or value > MAX_KLINE_PAGE_SIZE:
         raise ValueError(f"page size must be between 1 and {MAX_KLINE_PAGE_SIZE}")
+
+
+def _resolve_kline_kind(code: str, kind: str | None) -> str:
+    """Choose the wire record layout when callers leave kind unspecified."""
+    if kind is not None:
+        return kind
+    full_code = normalize_code(code)
+    number = full_code[2:]
+    if (
+        (
+            full_code.startswith("sh")
+            and number.startswith(("000", "880", "881", "999"))
+        )
+        or (full_code.startswith("sz") and number.startswith("399"))
+        or (full_code.startswith("bj") and number.startswith("899"))
+    ):
+        return "index"
+    return "stock"
