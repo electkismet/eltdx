@@ -182,8 +182,7 @@ fn parse_money_flow_record(record: &[u8]) -> Result<MoneyFlowRecord, ProtocolErr
     }
     let bucket = f64::from(buckets[0]) - f64::from(buckets[1]) + f64::from(buckets[4])
         - f64::from(buckets[5]);
-    let main_buy_bucket = f64::from(buckets[2]) - f64::from(buckets[3])
-        + f64::from(buckets[6])
+    let main_buy_bucket = f64::from(buckets[2]) - f64::from(buckets[3]) + f64::from(buckets[6])
         - f64::from(buckets[7])
         + f64::from(buckets[10])
         - f64::from(buckets[11])

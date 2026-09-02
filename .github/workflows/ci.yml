@@ -112,7 +112,10 @@ jobs:
   runtime-stress-evidence:
     name: Aggregate Windows and Linux stress evidence
     needs: runtime-stress
-    if: always()
+    # When an upstream quality gate fails, runtime-stress is skipped and has
+    # no artifacts to aggregate. Preserve the original failure instead of
+    # reporting a misleading "found 0" aggregation error.
+    if: always() && needs.runtime-stress.result != 'skipped'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
