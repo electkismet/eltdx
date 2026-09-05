@@ -6,7 +6,7 @@ window.ELTDX_CATALOG = {
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
     "native_commands": 21,
-    "mcp_tools": 22,
+    "mcp_tools": 23,
     "mcp_resources": 8,
     "native_extensions": 1,
     "pure_python_7709_fallback": false
