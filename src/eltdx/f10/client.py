@@ -563,16 +563,15 @@ def _date_text(value: str | int | date | None) -> str | None:
 
 def _parse_limit_board_ladder_row(row: Mapping[str, Any]) -> LimitBoardLadderRow:
     limit_type = _as_int(row.get("ztlb"))
-    ladder_days = _as_int(row.get("lbts"))
+    board_level = _as_int(row.get("lbts"))
     return LimitBoardLadderRow(
         trading_date=row.get("rq"),
         trading_date_value=row.get("rqex"),
         board_level=(
-            ladder_days
-            if limit_type == 1 and ladder_days is not None and ladder_days > 0
+            board_level
+            if limit_type == 1 and board_level is not None and board_level > 0
             else None
         ),
-        ladder_days=ladder_days,
         code=_as_text(row.get("ZQDM")),
         market_id=_as_int(row.get("SC")),
         limit_reason=row.get("ztyy"),

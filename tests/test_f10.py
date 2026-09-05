@@ -141,7 +141,7 @@ def test_limit_board_ladder_builds_detail_request_and_normalizes_rows() -> None:
     assert result.rows[0].full_code == "sh600815"
     assert result.rows[0].board_level == 1
     assert result.rows[0].highest_board_level == 5
-    assert result.rows[0].ladder_days == 1
+    assert result.rows[0].board_level == 1
     assert result.rows[0].seal_amount == 34826800
     assert result.rows[0].ZQDM == "600815"
     assert result.rows[0].raw["ztyy2"] == "地下管网"
@@ -229,9 +229,9 @@ def test_limit_up_down_list_normalizes_board_and_status_by_row_type() -> None:
 
     result = FakeF10Client().limit_up_down_list("20260904")
     up, broken, down = result.rows
-    assert (up.board_level, up.ladder_days, up.highest_board_level, up.status, up.reason) == (2, 2, 5, "limit_up", "题材")
-    assert (broken.board_level, broken.ladder_days, broken.status) == (None, 0, "broken")
-    assert (down.board_level, down.ladder_days, down.status) == (None, 0, "limit_down")
+    assert (up.board_level, up.highest_board_level, up.status, up.reason) == (2, 5, "limit_up", "题材")
+    assert (broken.board_level, broken.status) == (None, "broken")
+    assert (down.board_level, down.status) == (None, "limit_down")
 
 
 def test_limit_board_ladder_rejects_reversed_or_invalid_dates() -> None:

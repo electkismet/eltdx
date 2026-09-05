@@ -94,7 +94,6 @@ class LimitBoardLadderRow:
     trading_date: Any | None
     trading_date_value: Any | None
     board_level: int | None
-    ladder_days: int | None
     code: str | None
     market_id: int | None
     limit_reason: Any | None
@@ -136,9 +135,9 @@ class LimitBoardLadderRow:
 
     @property
     def consecutive_limit_days(self) -> int | None:
-        """Alias for the consecutive limit-up day count."""
+        """Return the current consecutive limit-up day count."""
 
-        return self.ladder_days
+        return self.board_level
 
     @property
     def status(self) -> str:
@@ -170,7 +169,7 @@ class LimitBoardLadderRow:
 
     @property
     def lbts(self) -> int | None:
-        return self.ladder_days
+        return self.board_level
 
     @property
     def ZQDM(self) -> str | None:  # noqa: N802 - native field name
