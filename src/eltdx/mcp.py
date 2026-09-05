@@ -489,6 +489,7 @@ class _ClientRegistry:
             OrderedDict()
         )
         self._pending_keys: set[tuple[str | None, float]] = set()
+        self._constructing_keys: set[tuple[str | None, float]] = set()
         self._lock = RLock()
         self._condition = Condition(self._lock)
         self._closing = False
@@ -513,7 +514,7 @@ class _ClientRegistry:
 
         while True:
             victim: tuple[tuple[str | None, float], _ClientEntry] | None = None
-            owner: _ClientEntry | None = None
+            constructing = False
 
             with self._condition:
                 if self._closing or self._closed:
@@ -542,25 +543,9 @@ class _ClientRegistry:
                         self._pending_keys.add(key)
                         owns_key = True
 
-                if entry is None and len(self._clients) < _MAX_CLIENTS:
-                    try:
-                        client = TdxClient(
-                            host=host,
-                            timeout=timeout,
-                            pool_size=_MCP_POOL_SIZE,
-                            heartbeat_interval=None,
-                        )
-                    except BaseException:
-                        self._pending_keys.discard(key)
-                        owns_key = False
-                        self._condition.notify_all()
-                        raise
-                    owner = _ClientEntry(
-                        client=client,
-                        active_calls=1,
-                        connecting=True,
-                    )
-                    self._clients[key] = owner
+                if entry is None and len(self._clients) + len(self._constructing_keys) < _MAX_CLIENTS:
+                    self._constructing_keys.add(key)
+                    constructing = True
                 elif entry is None:
                     for victim_key, candidate in self._clients.items():
                         if (
@@ -597,7 +582,27 @@ class _ClientRegistry:
                     self._condition.notify_all()
                 continue
 
-            assert owner is not None
+            assert constructing
+            # Construction probes hosts; keep that I/O outside the registry lock.
+            try:
+                client = TdxClient(
+                    host=host,
+                    timeout=timeout,
+                    pool_size=_MCP_POOL_SIZE,
+                    heartbeat_interval=None,
+                )
+            except BaseException:
+                with self._condition:
+                    self._constructing_keys.discard(key)
+                    self._pending_keys.discard(key)
+                    owns_key = False
+                    self._condition.notify_all()
+                raise
+            with self._condition:
+                self._constructing_keys.discard(key)
+                owner = _ClientEntry(client=client, active_calls=1, connecting=True)
+                self._clients[key] = owner
+
             try:
                 owner.client.connect()
             except BaseException as connect_error:
@@ -650,7 +655,7 @@ class _ClientRegistry:
             while True:
                 if self._closed:
                     return
-                if self._close_in_progress or any(
+                if self._close_in_progress or self._constructing_keys or any(
                     entry.active_calls or entry.connecting or entry.retiring
                     for entry in self._clients.values()
                 ):

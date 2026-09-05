@@ -292,7 +292,9 @@ F10 返回统一是 `F10Response`。常用结果在 `response.rows`，多表结�
 ### 服务器测速与排名
 
 - 不传 `host` / `hosts` 时，读取包内 `tdx_server.json` 的 43 台候选主站。
-- `probe_hosts=True` 默认开启。只创建 `TdxClient` 对象不会测速；进入 `with`、显式 `connect()` 或首次请求需要创建 Engine 时才会测。
+- `probe_hosts=True` 默认开启。创建 `TdxClient` 时会阻塞等待普通 43 台和专用 35 台两组候选主站的测速、排序完成；两组地址合并去重后并发探测，再分别保存排名。显式 `host` / `hosts` 只替换普通组，专用组仍供集合竞价和资金流向使用。
+- 测速只打开并关闭临时探测连接，不创建业务 Engine、不做协议握手。进入 `with` 或显式 `connect()` 连接普通池；集合竞价与资金流向的独立池仍在首次请求时按需建连、握手，后续复用连接。
+- 同一客户端生命周期内复用内存排名，首次请求、另一个专用池启动或专用池重新创建都不重复测速。`probe_hosts=False` 跳过两组自动测速，使用已有排名；内存和自定义非池化 transport 不触发测速。单独使用 `PooledSocketTransport` 仍在首次启动 Engine 时测速。
 - 测速检查的是 TCP connect 延迟，用来快速排除连不上或延迟高的主站；它不等于完整业务请求质量测试。
 - 排名会原子写入当前用户数据目录的 `tdx_server_ranking.json`。下次启动先使用上次排名，然后重新测速刷新；升级 eltdx 不会覆盖这份用户排名。
 
@@ -336,7 +338,7 @@ with TdxClient(host="116.205.183.150:7709", timeout=3) as client:
 | `max_connections_per_host` | 按初始分布自动 | 单台服务器的活动连接硬上限，重连时也遵守 |
 | `connect_concurrency` | 按 CPU/Slot 自动，单批最高 `32` | 整个 Engine 每批最多同时建立和握手的 TCP 连接数，**不是 Runtime 线程上限** |
 | `connect_concurrency_per_host` | 单批最多 `2` | 每批对同一台服务器最多同时建立 2 条 TCP，也不是线程数 |
-| `probe_hosts` | `True` | 首次建 Engine 前是否测速、持久化并排序 |
+| `probe_hosts` | `True` | 创建客户端时是否对两组候选主站测速、持久化并缓存排名 |
 | `heartbeat_interval` | `30.0` | 后台心跳秒数；`None` 表示关闭 |
 | `max_pending_requests` | `256` | Slot 全忙时允许等待的请求数；满后抛 `PoolBusyError` |
 | `push_queue_size` / `push_queue_bytes` | `1024` 帧 / `64 MiB` | 用户可见 push 缓冲的帧数和字节上限 |
@@ -415,7 +417,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | 底层协议和 F10 Entry | [7709 命令](docs/COMMANDS_7709.md) · [7615 F10](docs/F10_7615.md) |
 | 连接、测速、并发和故障排查 | [调试指南](docs/DEBUG_GUIDE.md) · [架构](docs/ARCHITECTURE.md) |
 | MCP 安装、工具和资源 | [MCP 文档](docs/MCP.md) |
-| 当前版本、变更和旧 API 迁移 | [v3.1.1](docs/releases/v3.1.1.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
+| 当前版本、变更和旧 API 迁移 | [v3.1.2](docs/releases/v3.1.2.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
 
 ## 常用问题
 

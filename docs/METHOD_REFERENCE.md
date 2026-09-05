@@ -38,7 +38,7 @@
 
 ### `TdxClient(...)`
 
-真实 `7709` 行情客户端。默认使用包内主站列表；进入 `with`、手动 `connect()` 或首次请求时会建立 socket 连接，并按 `heartbeat_interval` 自动保活。
+真实 `7709` 行情客户端。默认创建时即对普通 43 台和专用 35 台两组主站合并去重测速，阻塞等待结果并分别缓存排名；显式 `host` / `hosts` 只替换普通组。测速不建立业务连接或握手，`probe_hosts=False` 可跳过。进入 `with`、手动 `connect()` 或首次普通请求时建立普通池连接；集合竞价和资金流向各自在首次请求时建立专用池连接，并按 `heartbeat_interval` 自动保活。同一客户端生命周期内不再自动测速；内存及自定义非池化 transport 不触发测速。
 
 ```python
 from eltdx import TdxClient
@@ -53,7 +53,7 @@ with TdxClient(timeout=3) as client:
 | `hosts`              | 多个主站，客户端按顺序尝试                    |
 | `timeout`            | 单次 socket 请求等待秒数                 |
 | `pool_size`          | 连接池连接数                           |
-| `probe_hosts`        | 是否启动时测速主站                        |
+| `probe_hosts`        | 是否在创建客户端时测速并缓存两组主站排名           |
 | `heartbeat_interval` | 自动心跳间隔秒数；传 `None` 关闭             |
 
 ### `TdxClient.from_hosts(...)`
@@ -77,7 +77,7 @@ client = TdxClient.in_memory()
 
 ### `client.connect()` / `client.close()`
 
-手动打开和关闭底层连接。多数情况下直接用 `with TdxClient(...) as client:` 即可。
+`connect()` 打开普通主站池的业务连接并完成握手，不重新测速，也不预热集合竞价或资金流向池；`close()` 释放所有已经创建的池。多数情况下直接用 `with TdxClient(...) as client:` 即可。
 
 ### `client.ping()`
 
@@ -667,6 +667,8 @@ client.trades.all_history("sz000001", "2026-05-20")
 
 查询主站保存的当日或历史集合竞价过程快照，对应 `0x056a`。不传日期时请求当前交易日，传入日期时请求指定历史日期。接口专门返回虚拟撮合过程，不是逐笔成交。
 
+使用 `PooledSocketTransport` 的客户端，无论是否传日期，都从 `money_flow_servers.json` 的 35 台主站中选择服务器。默认在创建客户端时完成测速，集合竞价与资金流向共享这份内存排名；集合竞价首次调用才建立独立业务连接并握手，不再测速，后续请求复用连接，并在 `client.close()` 时关闭。普通行情、K 线和成交接口仍使用原主站池，F10 路由不变；自定义的非池化 transport（含内存 transport）仍直接使用传入对象。历史数据是否存在仍取决于主站的保存范围。
+
 ```python
 today = client.auctions.series("sz000001")
 history = client.auctions.series("sz000001", "2026-05-20")
@@ -761,7 +763,7 @@ batch = client.corporate.adjustment_factors(["sz000001", "sh600000"])
 
 ### `client.money_flow.daily(code, *, include_raw=False, batch_size=75)`
 
-查询一只或多只证券最近的日资金流向分档记录，对应 `0x0ffc`。传入字符串返回 `MoneyFlowBlock`，传入代码列表返回 `MoneyFlowBatch`；每只证券通常包含最近 5 个交易日。`batch_size` 控制批量请求的最大并发数，实际不会超过连接池容量。`MoneyFlowDaily` 保留总成交额、主力和主买净额/占比、两套超大单/大单/中单/小单净额、16 个分档值以及 `raw` 原始字段；`MoneyFlowBlock` 提供这些记录的净额和占比汇总。资金流向使用独立的已验证主站池，首次调用时才测速并建立连接，普通接口继续使用默认主站池。
+查询一只或多只证券最近的日资金流向分档记录，对应 `0x0ffc`。传入字符串返回 `MoneyFlowBlock`，传入代码列表返回 `MoneyFlowBatch`；每只证券通常包含最近 5 个交易日。`batch_size` 控制批量请求的最大并发数，实际不会超过连接池容量。`MoneyFlowDaily` 保留总成交额、主力和主买净额/占比、两套超大单/大单/中单/小单净额、16 个分档值以及 `raw` 原始字段；`MoneyFlowBlock` 提供这些记录的净额和占比汇总。资金流向使用独立的 35 台主站池，复用创建客户端时已完成的测速排名，首次调用时才建立业务连接并握手，不重复测速；普通接口继续使用默认主站池。
 
 ```python
 flow = client.money_flow.daily("sz000063")

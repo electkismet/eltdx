@@ -30,6 +30,8 @@ for item in refresh_server_ranking(timeout=1.2):
 
 默认候选主站来自包内 `tdx_server.json`；文件不可用时才使用内置列表。用户测速排名与安装包名单分开保存，因此重新安装或升级不会主动清空排名。
 
+默认构造 `TdxClient` 时，会先探测普通 43 台和集合竞价、资金流向专用 35 台候选服务器并缓存排名；构造耗时可能包含探测失败地址的 `probe_timeout` 等待，尚未建立业务连接或完成握手。`probe_hosts=False` 可跳过这一阶段。同一客户端后续不会自动重测；手动刷新磁盘排名只影响之后新建的客户端或 transport，不替换现有客户端的排名快照。
+
 ## Timeout 阶段
 
 请求使用一个 absolute deadline，不会在每个阶段重新获得完整 timeout。错误 context 中的 phase 常见值：

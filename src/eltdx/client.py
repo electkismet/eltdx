@@ -19,10 +19,14 @@ from .api.trades import TradeApi
 from .f10 import F10Client
 from .helpers import HelperApi
 from .hosts import (
+    DEFAULT_HOSTS,
     DEFAULT_PROBE_HOSTS,
     DEFAULT_PROBE_TIMEOUT,
     DEFAULT_PROBE_WORKERS,
     load_money_flow_hosts,
+    rank_hosts_from_cache,
+    sort_hosts_by_latency,
+    unique_hosts,
 )
 from .transport import InMemoryTransport, PooledSocketTransport, Transport
 from .transport._config import (
@@ -78,6 +82,7 @@ class TdxClient:
     workdays: WorkdayService = field(init=False)
     f10: F10Client = field(init=False)
     helpers: HelperApi = field(init=False)
+    _dedicated_hosts: tuple[str, ...] = field(init=False, default=(), repr=False, compare=False)
 
     @classmethod
     def from_hosts(
@@ -218,12 +223,37 @@ class TdxClient:
             ),
         )
         self.trades = TradeApi(self.transport)
-        self.auctions = AuctionApi(self.transport)
+        self.auctions = AuctionApi(
+            self.transport,
+            transport_factory=(
+                self._build_dedicated_market_transport
+                if isinstance(self.transport, PooledSocketTransport)
+                else None
+            ),
+        )
         self.corporate = CorporateApi(self.transport)
         self.limits = LimitApi(self.transport)
         self.workdays = WorkdayService(self)
         self.f10 = F10Client(timeout=self.timeout)
         self.helpers = HelperApi(self)
+        self._prepare_host_rankings()
+
+    def _prepare_host_rankings(self) -> None:
+        """Rank both host groups once without opening business connections."""
+        if not isinstance(self.transport, PooledSocketTransport):
+            return
+        ordinary = self.transport.hosts
+        dedicated = rank_hosts_from_cache(load_money_flow_hosts() or DEFAULT_HOSTS)
+        if self.probe_hosts:
+            candidates = unique_hosts(list(ordinary) + dedicated)
+            ranked = sort_hosts_by_latency(
+                candidates, timeout=self.probe_timeout, max_workers=self.probe_workers
+            )
+            ordinary_set, dedicated_set = set(ordinary), set(dedicated)
+            ordinary = tuple(host for host in ranked if host in ordinary_set)
+            dedicated = [host for host in ranked if host in dedicated_set]
+        self.transport._set_ranked_hosts(ordinary)
+        self._dedicated_hosts = tuple(dedicated)
 
     def connect(self) -> None:
         """打开底层连接。"""
@@ -237,11 +267,12 @@ class TdxClient:
         assert self.transport is not None
         self.transport.close()
         self.money_flow.close()
+        self.auctions._close()
 
-    def _build_money_flow_transport(self) -> PooledSocketTransport:
-        """Create the dedicated money-flow pool on first use."""
-        return PooledSocketTransport(
-            hosts=load_money_flow_hosts(),
+    def _build_dedicated_market_transport(self) -> PooledSocketTransport:
+        """Create a pool using the money-flow and auction-capable host list."""
+        transport = PooledSocketTransport(
+            hosts=self._dedicated_hosts,
             timeout=self.timeout,
             pool_size=self.pool_size,
             server_count=self.server_count,
@@ -260,6 +291,12 @@ class TdxClient:
             push_queue_size=self.push_queue_size,
             push_queue_bytes=self.push_queue_bytes,
         )
+        transport._set_ranked_hosts(self._dedicated_hosts)
+        return transport
+
+    def _build_money_flow_transport(self) -> PooledSocketTransport:
+        """Backward-compatible name for the dedicated 7709 market pool."""
+        return self._build_dedicated_market_transport()
 
     def __enter__(self) -> TdxClient:
         self.connect()

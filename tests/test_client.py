@@ -8,6 +8,7 @@ from eltdx import Client, HelperApi, TdxClient, __version__, to_json, to_jsonabl
 from eltdx import WorkdayService
 from eltdx.api import ping
 from eltdx import hosts as hosts_module
+from eltdx import client as client_module
 from eltdx.hosts import (
     DEFAULT_HOSTS,
     FALLBACK_HOSTS,
@@ -23,12 +24,22 @@ from eltdx.hosts import (
 from eltdx.protocol.constants import TYPE_REFRESH_STREAM
 from eltdx.protocol import COMMANDS, decode, encode, required_commands
 from eltdx.transport import InMemoryTransport, PooledSocketTransport, SocketTransport
+from eltdx.transport import pool as pool_module
 from eltdx.transport.pool import validate_pool_size
 from eltdx.models import QuoteLevel, QuoteRefreshPage, QuoteRefreshRecord, QuoteSnapshot
 
 
+@pytest.fixture(autouse=True)
+def local_probe_results(tmp_path, monkeypatch):
+    monkeypatch.setenv("ELTDX_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        hosts_module, "probe_host",
+        lambda host, **kwargs: HostProbeResult(host=host, ok=True, latency_ms=1.0),
+    )
+
+
 def test_version_is_defined() -> None:
-    assert __version__ == "3.1.1"
+    assert __version__ == "3.1.2"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -46,6 +57,321 @@ def test_money_flow_uses_dedicated_host_pool_lazily() -> None:
     assert isinstance(client.transport, PooledSocketTransport)
     assert client.transport.diagnostics.state.name == "STOPPED"
     assert client.money_flow._dedicated_transport is None
+
+
+@pytest.mark.parametrize("factory", [TdxClient, TdxClient.from_hosts])
+@pytest.mark.parametrize("custom_hosts", [False, True])
+def test_constructor_probes_both_host_groups_once_without_connecting(
+    factory, custom_hosts, monkeypatch
+):
+    dedicated = load_money_flow_hosts()
+    ordinary = ["127.0.0.1:7709", dedicated[0]] if custom_hosts else load_server_hosts()
+    candidates = list(dict.fromkeys(ordinary + dedicated))
+    probes = []
+    engines = []
+
+    def probe(host, *, timeout):
+        assert timeout == 0.3
+        probes.append(host)
+        return HostProbeResult(host=host, ok=True, latency_ms=len(candidates) - candidates.index(host))
+
+    class FakeEngine:
+        def __init__(self, hosts, **kwargs):
+            self.hosts = tuple(hosts)
+            self.connected = False
+            engines.append(self)
+
+        def connect(self):
+            self.connected = True
+
+        def execute(self, command, payload):
+            self.connect()
+            return payload
+
+        def close(self):
+            self.connected = False
+
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(hosts_module, "probe_host", probe)
+    monkeypatch.setattr(pool_module, "native_module", lambda: SimpleNamespace(NativeEngine=FakeEngine))
+    monkeypatch.setattr(pool_module, "response_from_dto", lambda value: value)
+    client = factory(hosts=ordinary if custom_hosts else None, probe_timeout=0.3, probe_workers=3)
+    assert sorted(probes) == sorted(candidates)
+    ranked = tuple(reversed(candidates))
+    ordinary_rank = tuple(host for host in ranked if host in ordinary)
+    dedicated_rank = tuple(host for host in ranked if host in dedicated)
+    assert client.transport.hosts == ordinary_rank
+    assert client._dedicated_hosts == dedicated_rank
+    assert [record["host"] for record in load_server_ranking()["hosts"]] == list(ranked)
+    assert engines == []
+    assert client.transport._engine is None
+    assert client.auctions._dedicated_transport is None
+    assert client.money_flow._dedicated_transport is None
+
+    def unexpected_probe(*args, **kwargs):
+        pytest.fail("a prepared client must not probe again")
+
+    monkeypatch.setattr(client_module, "sort_hosts_by_latency", unexpected_probe)
+    monkeypatch.setattr(pool_module, "sort_hosts_by_latency", unexpected_probe)
+    # A later disk ranking must not replace this client's in-memory snapshot.
+    monkeypatch.setattr(pool_module, "rank_hosts_from_cache", lambda hosts: list(reversed(hosts)))
+    try:
+        client.connect()
+        assert len(engines) == 1
+        assert engines[0].hosts == ordinary_rank
+        assert client.auctions._dedicated_transport is None
+        assert client.money_flow._dedicated_transport is None
+        client.auctions.series("sz000001")
+        client.auctions.series("sz000001", "2026-08-14")
+        client.money_flow.daily("sz000001")
+        assert len(engines) == 3
+        assert engines[1].hosts == engines[2].hosts == dedicated_rank
+        assert all(engine.connected for engine in engines)
+        client.close()
+        assert not any(engine.connected for engine in engines)
+        client.auctions.series("sz000001")
+        client.money_flow.daily("sz000001")
+        assert len(engines) == 5
+        assert engines[3].hosts == engines[4].hosts == dedicated_rank
+    finally:
+        client.close()
+    assert sorted(probes) == sorted(candidates)
+
+
+@pytest.mark.parametrize("factory", [TdxClient, TdxClient.from_hosts])
+def test_constructor_can_skip_both_probes(factory, monkeypatch):
+    def unexpected_probe(*args, **kwargs):
+        pytest.fail("probe_hosts=False must not probe either host group")
+
+    monkeypatch.setattr(client_module, "sort_hosts_by_latency", unexpected_probe)
+    monkeypatch.setattr(pool_module, "sort_hosts_by_latency", unexpected_probe)
+    client = factory(probe_hosts=False)
+    try:
+        auction_pool = client.auctions._active_transport()
+        money_flow_pool = client.money_flow._active_transport()
+        for pool in (client.transport, auction_pool, money_flow_pool):
+            assert pool._hosts_probed
+            assert pool._engine is None
+        assert set(auction_pool.hosts) == set(load_money_flow_hosts())
+        assert auction_pool.hosts == money_flow_pool.hosts
+    finally:
+        client.close()
+
+
+def test_each_new_client_refreshes_rankings_and_retains_unreachable_hosts(monkeypatch):
+    candidates = list(dict.fromkeys(load_server_hosts() + load_money_flow_hosts()))
+    probes = []
+    reachable = True
+
+    def probe(host, **kwargs):
+        probes.append(host)
+        if not reachable:
+            return HostProbeResult(host=host, ok=False, error="TimeoutError")
+        return HostProbeResult(host=host, ok=True, latency_ms=len(candidates) - candidates.index(host))
+
+    monkeypatch.setattr(hosts_module, "probe_host", probe)
+    first = TdxClient()
+    reachable = False
+    second = TdxClient()
+    assert len(probes) == 2 * len(candidates)
+    assert first.transport.hosts == second.transport.hosts
+    assert first._dedicated_hosts == second._dedicated_hosts
+    assert set(second.transport.hosts) == set(load_server_hosts())
+    assert set(second._dedicated_hosts) == set(load_money_flow_hosts())
+    assert second.transport._engine is None
+    first.close()
+    second.close()
+
+
+def test_custom_transport_skips_host_preparation(monkeypatch):
+    def unexpected_probe(*args, **kwargs):
+        pytest.fail("custom transports must not probe packaged hosts")
+
+    monkeypatch.setattr(client_module, "sort_hosts_by_latency", unexpected_probe)
+    transport = InMemoryTransport()
+    client = TdxClient(transport=transport)
+    client.auctions.series("sz000001")
+    client.money_flow.daily("sz000001")
+    assert client._dedicated_hosts == ()
+    assert client.auctions._active_transport() is transport
+    assert client.money_flow._active_transport() is transport
+    client.close()
+
+
+def test_bare_pool_keeps_lazy_probing():
+    pool = PooledSocketTransport()
+    assert not pool._hosts_probed
+    assert pool._engine is None
+    pool.close()
+
+
+@pytest.mark.parametrize("factory", [TdxClient, TdxClient.from_hosts])
+@pytest.mark.parametrize("trading_date", [None, "2026-08-14", date(2026, 8, 14)])
+def test_auctions_use_dedicated_hosts_for_all_dates(factory, trading_date, monkeypatch):
+    calls = []
+
+    def execute(transport, command, payload=None):
+        calls.append((transport, command, payload))
+        return payload
+
+    monkeypatch.setattr(PooledSocketTransport, "execute", execute)
+    client = factory(heartbeat_interval=None)
+    ordinary = client.transport
+    assert set(ordinary.hosts) == set(load_server_hosts())
+    assert len(ordinary.hosts) == 43
+    assert client.auctions._dedicated_transport is None
+
+    try:
+        result = client.auctions.series("sz000001", trading_date, include_raw=True)
+        dedicated = client.auctions._dedicated_transport
+        assert isinstance(dedicated, PooledSocketTransport)
+        assert dedicated is not ordinary
+        assert set(dedicated.hosts) == set(load_money_flow_hosts())
+        assert len(dedicated.hosts) == 35
+        assert result == {
+            "code": "sz000001", "trading_date": trading_date, "include_raw": True
+        }
+        assert calls[-1] == (dedicated, 0x056A, result)
+        client.auctions.series("sz000001")
+        assert calls[-1][0] is dedicated
+        assert calls[-1][2]["include_raw"] is False
+        assert client.money_flow._dedicated_transport is None
+
+        client.quotes.get_snapshots(["sz000001"])
+        assert calls[-1][0] is ordinary
+        for name in ("session", "codes", "quotes", "resources", "bars",
+                     "minutes", "trades", "corporate", "limits"):
+            assert getattr(client, name)._transport is ordinary
+        assert set(ordinary.hosts) == set(load_server_hosts())
+        assert ordinary.diagnostics.state.name == "STOPPED"
+    finally:
+        client.close()
+    assert client.auctions._dedicated_transport is None
+
+
+def test_auction_pool_inherits_client_configuration_and_closes(monkeypatch):
+    closed = []
+    monkeypatch.setattr(PooledSocketTransport, "execute", lambda *args: None)
+    monkeypatch.setattr(PooledSocketTransport, "close", lambda pool: closed.append(pool))
+    client = TdxClient(
+        timeout=3, server_count=3, connections_per_server=2, runtime_workers=2,
+        max_connections_per_host=2, connect_concurrency=3,
+        connect_concurrency_per_host=1, probe_hosts=False, probe_timeout=0.4,
+        probe_workers=3, heartbeat_interval=15, max_pending_requests=12,
+        push_queue_size=16, push_queue_bytes=4096,
+        global_raw_bytes=32 * 1024 * 1024, global_decoded_bytes=64 * 1024 * 1024,
+    )
+    client.auctions.series("sz000001")
+    dedicated = client.auctions._dedicated_transport
+    for name in (
+        "timeout", "pool_size", "server_count", "connections_per_server",
+        "runtime_workers", "max_connections_per_host", "connect_concurrency",
+        "connect_concurrency_per_host", "probe_hosts", "probe_timeout",
+        "probe_workers", "heartbeat_interval", "max_pending_requests",
+        "push_queue_size", "push_queue_bytes", "global_raw_bytes", "global_decoded_bytes",
+    ):
+        assert getattr(dedicated, f"_{name}") == getattr(client, name)
+
+    client.money_flow.daily("sz000001")
+    money_flow = client.money_flow._dedicated_transport
+    assert money_flow is not dedicated
+    assert set(money_flow.hosts) == set(dedicated.hosts)
+    client.close()
+    assert closed == [client.transport, money_flow, dedicated]
+    assert client.auctions._dedicated_transport is None
+    assert client.money_flow._dedicated_transport is None
+    client.close()
+    assert closed.count(dedicated) == 1
+    client.auctions.series("sz000001", "2026-08-14")
+    assert client.auctions._dedicated_transport is not dedicated
+    client.close()
+
+
+def test_auction_pool_is_created_once_for_concurrent_first_calls(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from time import sleep
+
+    created = []
+    start = Barrier(8)
+
+    def build(client):
+        transport = InMemoryTransport()
+        created.append(transport)
+        sleep(0.02)
+        return transport
+
+    monkeypatch.setattr(TdxClient, "_build_dedicated_market_transport", build)
+    client = TdxClient(heartbeat_interval=None)
+
+    def query(index):
+        start.wait(timeout=5)
+        return client.auctions.series("sz000001", None if index % 2 else "2026-08-14")
+
+    try:
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(executor.map(query, range(8)))
+        assert len(created) == 1
+        assert len(created[0].calls) == 8
+        assert all(result["command"] == "0x056a" for result in results)
+    finally:
+        client.close()
+
+
+def test_money_flow_pool_is_created_once_for_concurrent_first_calls(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from time import sleep
+
+    created = []
+
+    def build(client):
+        transport = InMemoryTransport()
+        created.append(transport)
+        sleep(0.02)
+        return transport
+
+    monkeypatch.setattr(TdxClient, "_build_money_flow_transport", build)
+    client = TdxClient(heartbeat_interval=None)
+    try:
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            transports = list(executor.map(lambda _: client.money_flow._active_transport(), range(8)))
+        assert len(created) == 1
+        assert all(transport is created[0] for transport in transports)
+    finally:
+        client.close()
+
+
+def test_auction_pool_factory_failure_can_be_retried(monkeypatch):
+    transport = InMemoryTransport()
+    attempts = []
+
+    def build(client):
+        attempts.append(True)
+        if len(attempts) == 1:
+            raise ValueError("pool creation failed")
+        return transport
+
+    monkeypatch.setattr(TdxClient, "_build_dedicated_market_transport", build)
+    client = TdxClient(heartbeat_interval=None)
+    try:
+        with pytest.raises(ValueError, match="pool creation failed"):
+            client.auctions.series("sz000001")
+        assert client.auctions._dedicated_transport is None
+        client.auctions.series("sz000001")
+        assert client.auctions._dedicated_transport is transport
+        assert len(attempts) == 2
+    finally:
+        client.close()
+
+
+def test_in_memory_auctions_keep_the_supplied_transport():
+    client = TdxClient.in_memory()
+    client.auctions.series("sz000001", "2026-08-14", include_raw=True)
+    assert client.auctions._dedicated_transport is None
+    assert client.transport.calls == [
+        (0x056A, {"code": "sz000001", "trading_date": "2026-08-14", "include_raw": True})
+    ]
+    client.close()
 
 
 def test_probe_hosts_persists_ranking_for_next_process(tmp_path, monkeypatch) -> None:

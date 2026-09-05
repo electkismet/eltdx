@@ -36,6 +36,8 @@ TdxClient
 
 ## Engine 和 Slot
 
+`TdxClient` 默认在构造阶段对普通 43 台和专用 35 台名单合并去重测速，持久化结果并分别缓存不可变排名；测速只使用临时 TCP 探测连接，不创建业务 Engine。集合竞价与资金流向的独立池共享专用名单的排名快照，首次请求才建连、握手，不再测速；普通池由 `connect()`、`with` 或首次请求启动。`probe_hosts=False` 跳过测速，自定义非池化 transport 不参与此流程。单独创建 `PooledSocketTransport` 则保留首次启动 Engine 时测速的行为。
+
 每个 `NativeEngine` 拥有一个负责 Supervisor 的后台 OS 线程和一个 Tokio runtime。worker 默认数量为 `min(pool_size, available_parallelism)`，允许显式覆盖；单 worker 使用 current-thread 快速路径，两个以上 worker 使用 multi-thread runtime。没有进程全局 runtime，也不会为每个请求创建 runtime。Supervisor future 保持单所有者，Slot I/O、解压和协议处理由共享 worker 执行。
 
 Supervisor 是以下状态的唯一写入者：Engine epoch、FIFO 等待队列、Slot lease、pin 归属、push buffer、terminal owner 和 diagnostics。每个 Slot task 独占一个 `TcpStream`、incremental decoder、endpoint cursor、TCP generation 和当前 wire request。Supervisor 不直接操作 socket，Slot 也不直接修改池状态。

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 
 from eltdx.models import MoneyFlowBatch, MoneyFlowBlock
 from eltdx.protocol.constants import TYPE_MONEY_FLOW
@@ -19,16 +20,21 @@ class MoneyFlowApi(ApiBase):
         super().__init__(transport)
         self._transport_factory = transport_factory
         self._dedicated_transport = None
+        self._transport_lock = Lock()
 
     def _active_transport(self):
-        if self._transport_factory is not None and self._dedicated_transport is None:
-            self._dedicated_transport = self._transport_factory()
-        return self._dedicated_transport or self._transport
+        if self._transport_factory is None:
+            return self._transport
+        with self._transport_lock:
+            if self._dedicated_transport is None:
+                self._dedicated_transport = self._transport_factory()
+            return self._dedicated_transport
 
     def close(self) -> None:
-        if self._dedicated_transport is not None:
-            self._dedicated_transport.close()
-            self._dedicated_transport = None
+        with self._transport_lock:
+            if self._dedicated_transport is not None:
+                self._dedicated_transport.close()
+                self._dedicated_transport = None
 
     def daily(
         self,
@@ -64,7 +70,7 @@ class MoneyFlowApi(ApiBase):
         response = self._active_transport().execute(
             TYPE_MONEY_FLOW, {"code": code, "include_raw": include_raw}
         )
-        blocks = getattr(response, "blocks", ())
+        blocks: Sequence[object] = getattr(response, "blocks", ())
         if len(blocks) == 1:
             return blocks[0]
         return response

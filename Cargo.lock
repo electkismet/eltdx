@@ -77,7 +77,7 @@ dependencies = [
 
 [[package]]
 name = "eltdx-protocol"
-version = "3.1.1"
+version = "3.1.2"
 dependencies = [
  "bytes",
  "encoding_rs",
@@ -91,7 +91,7 @@ dependencies = [
 
 [[package]]
 name = "eltdx-python"
-version = "3.1.1"
+version = "3.1.2"
 dependencies = [
  "eltdx-protocol",
  "eltdx-runtime",
@@ -101,7 +101,7 @@ dependencies = [
 
 [[package]]
 name = "eltdx-runtime"
-version = "3.1.1"
+version = "3.1.2"
 dependencies = [
  "bytes",
  "eltdx-protocol",

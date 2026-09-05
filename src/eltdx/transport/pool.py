@@ -298,6 +298,16 @@ class PooledSocketTransport:
         self._engine_lock = Lock()
         self._engine: Any = None
 
+    def _set_ranked_hosts(self, hosts: Sequence[str]) -> None:
+        """Use a client's ranking snapshot without probing again."""
+        ranked = unique_hosts(list(hosts))
+        with self._engine_lock:
+            if set(ranked) != set(self._hosts):
+                raise ValueError("ranked hosts must match the pool candidates")
+            if self._engine is None:
+                self._hosts = ranked
+                self._hosts_probed = True
+
     def _native(self) -> Any:
         if self._engine is not None:
             return self._engine

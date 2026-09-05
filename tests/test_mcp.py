@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from eltdx import TdxClient
+from eltdx import hosts as hosts_module
 from eltdx.api.bars import BarApi
 from eltdx.api.corporate import CorporateApi
 from eltdx.api.money_flow import MoneyFlowApi
@@ -24,6 +25,15 @@ from eltdx.mcp import (
     trades,
 )
 from eltdx.models import KlineBar, KlineSeries, QuoteSnapshot
+
+
+@pytest.fixture(autouse=True)
+def local_probe_results(tmp_path, monkeypatch):
+    monkeypatch.setenv("ELTDX_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        hosts_module, "probe_host",
+        lambda host, **kwargs: hosts_module.HostProbeResult(host=host, ok=True, latency_ms=1.0),
+    )
 
 
 def test_mcp_docs_index_lists_main_documents() -> None:
@@ -259,11 +269,87 @@ def test_mcp_registry_rolls_back_pending_key_when_client_construction_fails(
             _use_registry_once(registry, timeout=1, host="valid.example:7709")
         assert not registry._clients
         assert not registry._pending_keys
+        assert not registry._constructing_keys
 
     registry.close()
 
 
-def test_mcp_registry_initializes_different_keys_concurrently(monkeypatch) -> None:
+@pytest.mark.parametrize("construction_fails", [False, True])
+def test_mcp_registry_close_waits_for_client_construction(monkeypatch, construction_fails):
+    registry = _ClientRegistry()
+    entered = threading.Event()
+    release = threading.Event()
+    finished = threading.Event()
+    errors = []
+    closed = []
+
+    def prepare(client):
+        entered.set()
+        assert release.wait(timeout=3)
+        if construction_fails:
+            raise RuntimeError("construction failed")
+
+    def acquire():
+        try:
+            _use_registry_once(registry, timeout=1, host=None)
+        except RuntimeError as error:
+            errors.append(str(error))
+
+    monkeypatch.setattr(TdxClient, "_prepare_host_rankings", prepare)
+    monkeypatch.setattr(TdxClient, "connect", lambda self: None)
+    monkeypatch.setattr(TdxClient, "close", lambda self: closed.append(self))
+    worker = threading.Thread(target=acquire)
+    closer = threading.Thread(target=lambda: (registry.close(), finished.set()))
+    worker.start()
+    try:
+        assert entered.wait(timeout=1)
+        closer.start()
+        assert not finished.wait(timeout=0.1)
+    finally:
+        release.set()
+        worker.join(timeout=3)
+        if closer.ident is not None:
+            closer.join(timeout=3)
+    assert not worker.is_alive()
+    assert not closer.is_alive()
+    assert finished.is_set()
+    assert errors == ["construction failed" if construction_fails else "the eltdx MCP client registry is closing"]
+    assert len(closed) == (0 if construction_fails else 1)
+    assert not registry._clients
+    assert not registry._pending_keys
+    assert not registry._constructing_keys
+
+
+def test_mcp_registry_reserves_capacity_while_constructing(monkeypatch):
+    registry = _ClientRegistry()
+    entered = threading.Event()
+    release = threading.Event()
+
+    def prepare(client):
+        entered.set()
+        assert release.wait(timeout=3)
+
+    monkeypatch.setattr("eltdx.mcp._MAX_CLIENTS", 1)
+    monkeypatch.setattr(TdxClient, "_prepare_host_rankings", prepare)
+    monkeypatch.setattr(TdxClient, "connect", lambda self: None)
+    monkeypatch.setattr(TdxClient, "close", lambda self: None)
+    worker = threading.Thread(target=lambda: _use_registry_once(registry, timeout=1, host=None))
+    worker.start()
+    try:
+        assert entered.wait(timeout=1)
+        with pytest.raises(RuntimeError, match="all 1 eltdx MCP"):
+            _use_registry_once(registry, timeout=2, host=None)
+    finally:
+        release.set()
+        worker.join(timeout=3)
+        registry.close()
+    assert not worker.is_alive()
+    assert not registry._pending_keys
+    assert not registry._constructing_keys
+
+
+@pytest.mark.parametrize("blocked_phase", ["_prepare_host_rankings", "connect"])
+def test_mcp_registry_initializes_different_keys_concurrently(monkeypatch, blocked_phase) -> None:
     registry = _ClientRegistry()
     first_connecting = threading.Event()
     release_first = threading.Event()
@@ -274,7 +360,8 @@ def test_mcp_registry_initializes_different_keys_concurrently(monkeypatch) -> No
             first_connecting.set()
             assert release_first.wait(timeout=2)
 
-    monkeypatch.setattr(TdxClient, "connect", connect)
+    monkeypatch.setattr(TdxClient, "connect", lambda self: None)
+    monkeypatch.setattr(TdxClient, blocked_phase, connect)
     monkeypatch.setattr(TdxClient, "close", lambda self: None)
 
     first = threading.Thread(
@@ -319,8 +406,9 @@ def test_mcp_registry_uses_four_connections_for_same_server_threads(
     registry.close()
 
 
+@pytest.mark.parametrize("blocked_phase", ["_prepare_host_rankings", "connect"])
 def test_mcp_registry_initializes_same_key_once_for_concurrent_calls(
-    monkeypatch,
+    monkeypatch, blocked_phase,
 ) -> None:
     registry = _ClientRegistry()
     connect_entered = threading.Event()
@@ -333,7 +421,8 @@ def test_mcp_registry_initializes_same_key_once_for_concurrent_calls(
         connect_entered.set()
         assert release_connect.wait(timeout=2)
 
-    monkeypatch.setattr(TdxClient, "connect", connect)
+    monkeypatch.setattr(TdxClient, "connect", lambda self: None)
+    monkeypatch.setattr(TdxClient, blocked_phase, connect)
     monkeypatch.setattr(TdxClient, "close", lambda self: None)
 
     threads = [

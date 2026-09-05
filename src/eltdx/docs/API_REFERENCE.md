@@ -39,7 +39,7 @@ with TdxClient.from_hosts(
     quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
 ```
 
-`probe_hosts=True` 会在第一次真正建立 Native Engine 前，用 TCP connect 测一遍全部候选主站，把连得上的、延迟低的排在前面。默认开启测速；只构造客户端但不连接时不会触发网络操作。
+`probe_hosts=True` 会在构造 `TdxClient` 时，用 TCP connect 并发测量普通 43 台和集合竞价、资金流向专用 35 台候选主站（两组地址去重），把连得上的、延迟低的排在前面并缓存到当前客户端。默认开启测速；测速只使用临时探测连接，不创建业务 Engine，也不进行协议握手。`probe_hosts=False` 可跳过这一步。
 
 不传 `host` / `hosts` 时，客户端会读取包内 `tdx_server.json` 的43台默认主站。如果这个文件缺失，会退回代码内置列表。测速结果会原子写入当前用户数据目录的 `tdx_server_ranking.json`，下次启动先复用已保存的排名再刷新；软件升级不会覆盖这张本地排名表。可调用 `eltdx.hosts.refresh_server_ranking()` 手动重新测速并保存。
 
@@ -64,7 +64,7 @@ TdxClient(heartbeat_interval=None)
 | `max_connections_per_host` | `None` | 自动按分布计算每台服务器的活动连接硬上限 |
 | `connect_concurrency` | `None` | 自动计算全局同时建连和握手数量，最大默认32 |
 | `connect_concurrency_per_host` | `None` | 每台服务器同时建连和握手数量，默认最多2 |
-| `probe_hosts` | `True` | 第一次建 Engine 前是否测速、持久化并排序候选主站 |
+| `probe_hosts` | `True` | 创建客户端时是否测速、持久化并缓存普通 43 台和专用 35 台候选主站排名 |
 | `heartbeat_interval` | `30.0` | 后台心跳秒数；`None` 表示关闭，非 `None` 时必须大于 0 |
 | `max_pending_requests` | `256` | pool 中等待空闲 slot 的最大请求数；满时抛 `PoolBusyError` |
 | `push_queue_size` | `1024` | 共享 push buffer 的最大帧数 |
@@ -164,6 +164,8 @@ client.trades.opening_match_today(["sz000001", "sh600000"])
 ```
 
 `client.auctions.series()` 返回 `0x056a` 主站保存的当日或历史集合竞价过程快照；不传日期查询当日，传入日期查询历史。`client.trades.opening_match_today()` 和 `opening_match_history()` 分别从 `0x0fc5`、`0x0fc6` 只取 09:25 正式开盘撮合。
+
+标准客户端从专用 35 台主站中选择集合竞价服务器；排名在客户端构造时完成，集合竞价首次请求时才建立业务连接并握手，后续复用连接且不重复测速。普通行情、K 线和成交仍使用 43 台默认主站。
 
 成交入口传入代码列表时返回以规范化完整代码为键的结果字典；底层仍逐只请求，`batch_size` 控制同时查询的股票数，默认跟随连接池大小。
 
@@ -441,7 +443,7 @@ client.trades.history(["sz000001", "sh600000"], "2026-05-20")
 
 ### `series(code, date=None, include_raw=False)`
 
-查询主站保存的当日或历史集合竞价过程快照，对应 `0x056a`；不传日期查询当日，传入日期查询历史。它不是逐笔成交接口，即使返回 `09:25:00` 也仍按快照解释。
+查询主站保存的当日或历史集合竞价过程快照，对应 `0x056a`；不传日期查询当日，传入日期查询历史。标准客户端统一使用 35 台专用主站，排名在客户端构造时完成，首次调用时才建连和握手，不重复测速；它不是逐笔成交接口，即使返回 `09:25:00` 也仍按快照解释。
 
 ```python
 client.auctions.series("sz000001")
@@ -452,7 +454,7 @@ client.auctions.series("sz000001", "2026-05-20")
 
 ### `daily(code, include_raw=False, batch_size=75)`
 
-读取一只或多只证券最近的日资金流向分档数据，对应 `0x0ffc`。传入字符串返回 `MoneyFlowBlock`，传入代码列表返回 `MoneyFlowBatch`。该接口使用独立的资金流主站池，首次调用时才测速并建立连接。
+读取一只或多只证券最近的日资金流向分档数据，对应 `0x0ffc`。传入字符串返回 `MoneyFlowBlock`，传入代码列表返回 `MoneyFlowBatch`。该接口使用独立的 35 台专用主站池，排名在客户端构造时完成，首次调用时才建立业务连接并握手，不重复测速。
 
 ```python
 flow = client.money_flow.daily("sz000063")
