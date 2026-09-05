@@ -7,7 +7,7 @@
 | 顺序 | 文档 | 用途 |
 | --- | --- | --- |
 | 1 | [PRODUCT.md](PRODUCT.md) | 看这个库能查什么、适合怎么用 |
-| 2 | [releases/v3.1.4.md](releases/v3.1.4.md) | 看批量 K 线和涨跌停列表 F10 更新 |
+| 2 | [releases/v3.1.5.md](releases/v3.1.5.md) | 看涨跌停列表字段和实时涨停梯队文档更新 |
 | 3 | [releases/v3.1.2.md](releases/v3.1.2.md) | 看集合竞价、资金流向专用主站池和启动测速更新 |
 | 4 | [releases/v3.1.1.md](releases/v3.1.1.md) | 看资金流向主站池和测试基线更新 |
 | 5 | [releases/v3.0.9.md](releases/v3.0.9.md) | 看成交明细批量查询更新 |

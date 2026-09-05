@@ -4,6 +4,12 @@
 
 暂无。
 
+## v3.1.5 - 2026-09-06
+
+- 删除 `LimitBoardLadderRow.ladder_days` 冗余字段，统一使用 `board_level` 表示股票实际板位。
+- `consecutive_limit_days` 和原生 `lbts` 访问方式继续对应 `board_level`，避免同一含义出现两个公开字段。
+- 完善实时涨停梯队与 F10 涨跌停列表文档，明确数据来源、字段口径、封单方向和接口区别。
+
 ## v3.1.4 - 2026-09-05
 
 - 修正涨跌停列表解析：使用 `lbts` 作为单只股票板位，补充 `highest_board_level`、`status`、`reason` 字段。
