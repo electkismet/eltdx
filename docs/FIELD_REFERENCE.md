@@ -400,7 +400,7 @@ K 线响应和单根 K 线。
 | 字段 | 原生字段 | 含义 | 单位 |
 | --- | --- | --- | --- |
 | `trading_date` / `trading_date_value` | `rq` / `rqex` | 展示日期 / `YYYYMMDD` 日期值 | - |
-| `board_level` / `ladder_days` | `lbts` | 同一字段的主名和兼容别名；涨停股票的实际板位，其他类型服务端为 `0`，`board_level` 规范为 `None` | 板 / 天 |
+| `board_level` / `ladder_days` | `lbts` | 同一字段的主名和旧版本公开字段名；涨停股票的实际板位，其他类型服务端为 `0`，`board_level` 规范为 `None` | 板 / 天 |
 | `highest_board_level` | `zglb` | 当天最高板；服务端逐行重复 | 板 |
 | `code` / `market_id` | `ZQDM` / `SC` | 六位证券代码 / 市场号 | - |
 | `full_code` / `market` | 派生字段 | 带市场前缀的完整代码 / 市场前缀 | - |
