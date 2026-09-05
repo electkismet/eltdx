@@ -142,11 +142,11 @@ def test_response_tuple_shapes_and_raw_policy_are_frozen() -> None:
     assert "request_date" not in source
     assert "any(py, req.period.name())?" in source
     assert "any(py, req.adjust.as_str())?" in source
-    assert "bytes(py, &[])" not in source
-    assert 'PyString::new(py, "")' not in source
-    assert "fn raw_payload<'py>(py: Python<'py>, _include_raw: bool" in source
-    assert "fn record_hex<'py>(py: Python<'py>, _include_raw: bool" in source
-    assert "record_hex(py, false" not in source
+    assert "fn raw_payload<'py>(py: Python<'py>, include_raw: bool" in source
+    assert "fn record_hex<'py>(py: Python<'py>, include_raw: bool" in source
+    assert "if include_raw" in source
+    assert 'bytes(py, &[])' in source
+    assert 'PyString::new(py, "")' in source
     assert source.count("any(py, *series_a)?") == 2
     assert source.count("any(py, *series_b)?") == 2
     assert ".map(|v| legacy_quote(py, v, true))" in source

@@ -5,7 +5,8 @@ use crate::frame::RequestFrame;
 use crate::limits::MAX_RESPONSE_PAYLOAD_SIZE;
 use crate::unit::{
     consume_price, consume_varint, little_f32, little_u16, little_u32, milli_to_float,
-    minute_index_datetime, minute_index_label, DateParts, DateTimeParts, Market, NormalizedCode,
+    minute_index_datetime, minute_index_label, price_divisor, DateParts, DateTimeParts, Market,
+    NormalizedCode,
 };
 
 pub const TYPE_INTRADAY_AUX: u16 = 0x051b;
@@ -406,6 +407,7 @@ pub fn parse_today_intraday_payload(
             volume,
             price_raw,
             avg_raw,
+            i64::from(price_divisor(&request.code)),
             &payload[record_start..offset],
         )?);
     }
@@ -450,7 +452,11 @@ pub fn parse_historical_intraday_payload(
         let (volume, next) = consume_varint(payload, offset)?;
         offset = next;
         price_acc_raw = checked_add(price_acc_raw, price_delta_raw, "historical intraday price")?;
-        let price_milli = checked_scale(price_acc_raw, "historical intraday price")?;
+        let price_milli = checked_scale(
+            price_acc_raw,
+            i64::from(price_divisor(&request.code)),
+            "historical intraday price",
+        )?;
         let point_index = checked_index(index)?;
         let minute_index = i64::from(point_index);
         points.push(MinutePoint {
@@ -546,6 +552,7 @@ pub fn parse_recent_intraday_payload(
             volume,
             price_raw,
             avg_raw,
+            i64::from(price_divisor(&request.code)),
             &payload[record_start..offset],
         )?);
     }
@@ -714,10 +721,11 @@ fn relative_minute_point(
     volume: i64,
     price_raw: i64,
     avg_raw: i64,
+    divisor: i64,
     record: &[u8],
 ) -> Result<MinutePoint, ProtocolError> {
     let index = checked_index(index)?;
-    let price_milli = checked_scale(price_raw, "intraday price")?;
+    let price_milli = checked_scale(price_raw, divisor, "intraday price")?;
     Ok(MinutePoint {
         index,
         time_label: minute_index_label(i64::from(index))?,
@@ -727,7 +735,7 @@ fn relative_minute_point(
         volume,
         price_field: Some(price_field),
         avg_field: Some(avg_field),
-        avg_price: Some(avg_raw as f64 / 10_000.0),
+        avg_price: Some(avg_raw as f64 / (10_000.0 * divisor as f64)),
         price_raw: Some(price_raw),
         avg_raw: Some(avg_raw),
         price_delta_raw: None,
@@ -803,10 +811,23 @@ fn checked_add(left: i64, right: i64, context: &'static str) -> Result<i64, Prot
         .ok_or_else(|| ProtocolError::invalid_data(context, "price overflow"))
 }
 
-fn checked_scale(value: i64, context: &'static str) -> Result<i64, ProtocolError> {
-    value
+fn checked_scale(value: i64, divisor: i64, context: &'static str) -> Result<i64, ProtocolError> {
+    if divisor <= 0 {
+        return Err(ProtocolError::invalid_data(
+            context,
+            "invalid price divisor",
+        ));
+    }
+    let scaled = value
         .checked_mul(10)
-        .ok_or_else(|| ProtocolError::invalid_data(context, "price overflow"))
+        .ok_or_else(|| ProtocolError::invalid_data(context, "price overflow"))?;
+    let quotient = scaled / divisor;
+    let remainder = scaled % divisor;
+    Ok(if remainder < 0 {
+        quotient - 1
+    } else {
+        quotient
+    })
 }
 
 fn missing_base(context: &'static str) -> ProtocolError {

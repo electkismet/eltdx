@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::fmt;
+use std::sync::{OnceLock, RwLock};
 
 use encoding_rs::{DecoderResult, GBK};
 
@@ -8,6 +10,26 @@ use crate::limits::MAX_VARINT_BYTES;
 pub const SHANGHAI_UTC_OFFSET_SECONDS: i32 = 8 * 60 * 60;
 const PRICING_ETF_PREFIXES: [&str; 8] = ["15", "16", "50", "51", "52", "53", "56", "58"];
 const MAX_NORMALIZED_ARGUMENT_BYTES: usize = 64;
+
+static SECURITY_DECIMALS: OnceLock<RwLock<HashMap<String, u8>>> = OnceLock::new();
+
+fn security_decimals() -> &'static RwLock<HashMap<String, u8>> {
+    SECURITY_DECIMALS.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+/// Register precision read from the 0x044d security table.
+pub fn register_security_decimal(code: &str, decimal: u8) {
+    if let Ok(mut values) = security_decimals().write() {
+        values.insert(code.to_ascii_lowercase(), decimal);
+    }
+}
+
+pub fn security_decimal(code: &NormalizedCode) -> Option<u8> {
+    security_decimals()
+        .read()
+        .ok()
+        .and_then(|values| values.get(&code.full_code()).copied())
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[repr(u8)]
@@ -510,6 +532,14 @@ pub fn milli_to_float(value: i64) -> f64 {
 }
 
 pub fn price_divisor(code: &NormalizedCode) -> u16 {
+    if let Some(decimal) = security_decimal(code) {
+        return match decimal {
+            0..=2 => 1,
+            3 => 10,
+            4 => 100,
+            _ => 10_u16.saturating_pow(u32::from(decimal - 2)),
+        };
+    }
     if PRICING_ETF_PREFIXES
         .iter()
         .any(|prefix| code.number.starts_with(prefix))
@@ -879,5 +909,13 @@ mod tests {
         assert!(matches!(etf, Ok(ref code) if price_divisor(code) == 10));
         assert!(matches!(stock, Ok(ref code) if price_divisor(code) == 1));
         assert_eq!(get_volume(0), 0.0);
+    }
+
+    #[test]
+    fn registered_decimal_overrides_prefix_fallback() {
+        let bond = NormalizedCode::parse("sh118076").expect("code");
+        assert_eq!(price_divisor(&bond), 1);
+        super::register_security_decimal("sh118076", 4);
+        assert_eq!(price_divisor(&bond), 100);
     }
 }

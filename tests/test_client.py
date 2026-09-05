@@ -39,7 +39,7 @@ def local_probe_results(tmp_path, monkeypatch):
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "3.1.5"
+    assert __version__ == "3.1.6"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:

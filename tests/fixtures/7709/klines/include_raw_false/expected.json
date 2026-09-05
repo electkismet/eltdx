@@ -97,7 +97,7 @@
       "raw_payload",
       {
         "$type": "bytes",
-        "hex": "0000"
+        "hex": ""
       }
     ]
   ]

@@ -1,7 +1,7 @@
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{DEFAULT_CODE_PAGE_SIZE, MAX_CODE_PAGE_SIZE, MAX_RESPONSE_PAYLOAD_SIZE};
-use crate::unit::{decode_gbk_text, little_f32, little_u16, Market};
+use crate::unit::{decode_gbk_text, little_f32, little_u16, register_security_decimal, Market};
 
 pub const TYPE_SECURITY_LIST: u16 = 0x044d;
 pub const TYPE_SECURITY_COUNT: u16 = 0x044e;
@@ -203,6 +203,7 @@ pub fn parse_security_list_payload(
         let unknown3_raw = exact_four(&record[33..37], "security unknown3")?;
         let (category, category_reason) = classify_security_details(market, &code);
         let board = classify_board(market, &code, category);
+        register_security_decimal(&format!("{}{}", market.as_str(), code), record[28]);
         items.push(SecurityCode {
             market,
             code,

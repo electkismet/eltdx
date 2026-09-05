@@ -189,6 +189,8 @@ adjusted = round(raw * scale + offset, 2)
 
 Helpers 只缓存组合查询内部使用的财务批次、证券表和已验证的短线统计资源。股本变迁、代码数量、代码表、直接财务查询、实时行情、分时、成交明细和 K 线每次按请求读取。
 
+行情价格精度由 `0x044d` 代码表的 `decimal` 字段决定。客户端首次请求某市场行情时会自动加载并缓存该市场代码表，快照、分类行情、刷新行情和分时解析均按证券自身精度换算；不会根据代码前缀硬编码可转债规则。
+
 ```python
 client.helpers.shortline_indicators("sz000001", refresh_stats=True)
 client.clear_cache()
@@ -205,6 +207,7 @@ client.trades.history("sz000001", "2026-05-20", include_raw=True)
 ```
 
 大多数返回模型已经保留 `raw_payload` 或单条记录的 `record_hex`，用于抓包对照和协议解析排查。
+`include_raw=False`（默认）时仍保留这些字段的位置，但值为空（`b""` 或 `""`）；设为 `True` 才填充原始内容。
 
 ### JSON 输出
 

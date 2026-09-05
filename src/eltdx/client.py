@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from threading import RLock
 
 from .api.auctions import AuctionApi
 from .api.bars import BarApi
@@ -28,7 +29,7 @@ from .hosts import (
     sort_hosts_by_latency,
     unique_hosts,
 )
-from .transport import InMemoryTransport, PooledSocketTransport, Transport
+from .transport import InMemoryTransport, PooledSocketTransport, SocketTransport, Transport
 from .transport._config import (
     DEFAULT_CONNECTIONS_PER_SERVER,
     DEFAULT_POOL_SIZE,
@@ -83,6 +84,9 @@ class TdxClient:
     f10: F10Client = field(init=False)
     helpers: HelperApi = field(init=False)
     _dedicated_hosts: tuple[str, ...] = field(init=False, default=(), repr=False, compare=False)
+    _decimal_cache: dict[str, int] = field(init=False, default_factory=dict, repr=False, compare=False)
+    _decimal_markets: set[str] = field(init=False, default_factory=set, repr=False, compare=False)
+    _decimal_lock: RLock = field(init=False, default_factory=RLock, repr=False, compare=False)
 
     @classmethod
     def from_hosts(
@@ -209,11 +213,11 @@ class TdxClient:
         if self.connections_per_server is None:
             self.connections_per_server = DEFAULT_CONNECTIONS_PER_SERVER
         self.session = SessionApi(self.transport)
-        self.codes = CodeApi(self.transport)
-        self.quotes = QuoteApi(self.transport)
+        self.codes = CodeApi(self.transport, metadata_sink=self._cache_security_rows)
+        self.quotes = QuoteApi(self.transport, price_resolver=self._normalize_prices)
         self.resources = ResourceApi(self.transport)
         self.bars = BarApi(self.transport)
-        self.minutes = MinuteApi(self.transport)
+        self.minutes = MinuteApi(self.transport, price_resolver=self._normalize_prices)
         self.money_flow = MoneyFlowApi(
             self.transport,
             transport_factory=(
@@ -311,9 +315,50 @@ class TdxClient:
         return self.session.ping()
 
     def clear_cache(self) -> None:
-        """清空 Helpers 持有的财务组合、证券表和短线统计内存缓存。"""
+        """清空 Helpers 与行情精度元数据的内存缓存。"""
 
         self.helpers.clear_cache()
+        with self._decimal_lock:
+            self._decimal_cache.clear()
+            self._decimal_markets.clear()
+
+    def _ensure_decimals(self, codes) -> dict[str, int]:
+        markets = set()
+        for value in (codes or []):
+            if not isinstance(value, str):
+                continue
+            code = value.strip().lower()
+            if code[:2] in {"sh", "sz", "bj"}:
+                markets.add(code[:2])
+            elif code[:1] in {"6", "9"}:
+                markets.add("sh")
+            elif code[:1] in {"0", "1", "2", "3", "4"}:
+                markets.add("sz")
+            elif code[:1] in {"8"}:
+                markets.add("bj")
+        if not markets:
+            markets = {"sh", "sz", "bj"}
+        with self._decimal_lock:
+            for market in sorted(markets):
+                if market in self._decimal_markets:
+                    continue
+                self.codes.all(market)
+                self._decimal_markets.add(market)
+            return dict(self._decimal_cache)
+
+    def _cache_security_rows(self, rows) -> None:
+        with self._decimal_lock:
+            self._decimal_cache.update({row.full_code: int(row.decimal) for row in rows})
+
+    def _normalize_prices(self, command_name: str, result, codes=None):
+        if not isinstance(self.transport, (PooledSocketTransport, SocketTransport)):
+            return result
+        self._ensure_decimals(codes)
+        if result is None:
+            return None
+        # The native parser reads the shared 0x044d precision registry.  The
+        # metadata load above is intentionally performed before the request.
+        return result
 
 def _resolve_hosts(host: str | None, hosts: Sequence[str] | None) -> list[str]:
     if hosts is None:
