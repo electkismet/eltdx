@@ -18,8 +18,8 @@ async def _check() -> None:
     )
     async with Client(stdio_client(parameters), mode="legacy") as client:
         tools = await client.list_tools()
-        if len(tools.tools) != 23:
-            raise RuntimeError(f"expected 23 MCP tools, got {len(tools.tools)}")
+        if len(tools.tools) != 24:
+            raise RuntimeError(f"expected 24 MCP tools, got {len(tools.tools)}")
         resources = await client.list_resources()
         if len(resources.resources) != 8:
             raise RuntimeError(f"expected 8 MCP resources, got {len(resources.resources)}")
@@ -30,3 +30,4 @@ async def _check() -> None:
 
 if __name__ == "__main__":
     asyncio.run(asyncio.wait_for(_check(), timeout=20.0))
+
