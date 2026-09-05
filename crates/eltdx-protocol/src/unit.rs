@@ -791,7 +791,7 @@ mod tests {
     use super::{
         consume_varint, decode_gbk_text, decode_kline_datetime, get_volume, minute_index_label,
         normalize_yyyymmdd_raw, normalize_yyyymmdd_text, price_divisor, AdjustMode, DateParts,
-        KlinePeriod, Market, NormalizedCode, SHANGHAI_UTC_OFFSET_SECONDS,
+        KlinePeriod, Market, NormalizedCode, ProtocolError, SHANGHAI_UTC_OFFSET_SECONDS,
     };
 
     #[test]
@@ -912,10 +912,11 @@ mod tests {
     }
 
     #[test]
-    fn registered_decimal_overrides_prefix_fallback() {
-        let bond = NormalizedCode::parse("sh118076").expect("code");
+    fn registered_decimal_overrides_prefix_fallback() -> Result<(), ProtocolError> {
+        let bond = NormalizedCode::parse("sh118076")?;
         assert_eq!(price_divisor(&bond), 1);
         super::register_security_decimal("sh118076", 4);
         assert_eq!(price_divisor(&bond), 100);
+        Ok(())
     }
 }
