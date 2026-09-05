@@ -39,7 +39,7 @@ def local_probe_results(tmp_path, monkeypatch):
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "3.1.2"
+    assert __version__ == "3.2.0"
 
 
 def test_packaged_server_hosts_load_from_json() -> None:
@@ -1002,6 +1002,42 @@ def test_bar_api_forwards_period_and_adjust_payload() -> None:
     )
     assert transport.payload["adjust"] == "fixed_qfq"
     assert transport.payload["anchor_date"] == "2024-06-03"
+
+
+def test_bar_api_fetches_code_lists_concurrently() -> None:
+    class FakeTransport:
+        pool_size = 2
+
+        def connect(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+        def request(self, command: str) -> str:
+            return "pong"
+
+        def execute(self, command: int, payload=None):
+            assert command == 0x052D
+            return {"code": payload["code"], "period": payload["period"]}
+
+    client = TdxClient(transport=FakeTransport())
+    result = client.bars.get(
+        ["000001", "sh600000", "000001"],
+        period="week",
+        count=20,
+        batch_size=1,
+    )
+
+    assert list(result) == ["sz000001", "sh600000"]
+    assert result["sz000001"] == {"code": "sz000001", "period": "week"}
+    assert result["sh600000"] == {"code": "sh600000", "period": "week"}
+
+
+@pytest.mark.parametrize("batch_size", (0, -1, True, "2"))
+def test_bar_api_batch_size_is_validated(batch_size) -> None:
+    with pytest.raises(ValueError, match="batch_size"):
+        TdxClient.in_memory().bars.get(["sz000001"], batch_size=batch_size)
 
 
 def test_capital_changes_forwards_include_raw() -> None:

@@ -65,7 +65,7 @@ hide:
     <section class="catalog-scope" aria-labelledby="catalog-scope-title">
       <h2 id="catalog-scope-title">统计口径</h2>
       <p><code>7709 原生协议接口</code> 收录 22 项二进制业务能力，按业务分类展示。</p>
-      <p><code>7615 原生 Entry 接口</code> 将通用 Entry 和 20 个功能调用平铺在同一目录；它使用 HTTP POST 与 JSON，是 7615/TQLEX 的原生调用入口。</p>
+      <p><code>7615 原生 Entry 接口</code> 将通用 Entry 和 21 个功能调用平铺在同一目录；它使用 HTTP POST 与 JSON，是 7615/TQLEX 的原生调用入口。</p>
       <p><code>Helpers 封装</code> 收录组合协议调用、分页、拆批、内容解析、本地整理和计算；短线指标可返回开盘量比、流通股本、封单和连板字段。</p>
       <p><code>MCP</code> 是面向 Agent 的工具服务，保留独立文档，但不计入接口目录分类。</p>
       <p>目录数据随静态页面发布，打开后不会连接行情主站、F10 网关或任何 eltdx 后台服务。</p>

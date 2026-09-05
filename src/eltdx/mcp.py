@@ -69,7 +69,7 @@ def quote_depth(
 
 
 def kline(
-    code: str,
+    code: str | Sequence[str],
     *,
     period: str = "day",
     count: int = 120,
@@ -77,22 +77,28 @@ def kline(
     adjust: str | None = None,
     anchor_date: str | int | None = None,
     include_raw: bool = False,
+    batch_size: int | None = None,
     timeout: float = 8.0,
     host: str | None = None,
 ) -> Any:
-    """Query one bounded K-line page."""
+    """Query one bounded K-line page for one or more securities."""
 
     count = _bounded_int("count", count, minimum=1, maximum=_MAX_KLINE_COUNT)
     start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
+    batch_size = _optional_bounded_int(
+        "batch_size", batch_size, minimum=1, maximum=_MAX_CODES
+    )
+    code_value = code if isinstance(code, str) else _validate_codes(code)
     return _call_once(
         lambda client: client.bars.get(
-            code,
+            code_value,
             period=period,
             start=start,
             count=count,
             adjust=adjust,
             anchor_date=anchor_date,
             include_raw=include_raw,
+            batch_size=batch_size,
         ),
         timeout=timeout,
         host=host,
@@ -401,6 +407,25 @@ def company_profile(code: str, *, section: str = "8", timeout: float = 8.0) -> A
         timeout=timeout,
         host=None,
         connect=False,
+    )
+
+
+def limit_board_ladder(
+    start_date: str | int | None = None,
+    end_date: str | int | None = None,
+    *,
+    include_summary: bool = False,
+    timeout: float = 8.0,
+) -> Any:
+    """Query 7615 stock-level limit-up/连板 details for a date range."""
+
+    return _call_f10(
+        lambda client: client.limit_board_ladder(
+            start_date,
+            end_date,
+            include_summary=include_summary,
+        ),
+        timeout=timeout,
     )
 
 
@@ -722,30 +747,36 @@ class _McpTools:
 
     def kline(
         self,
-        code: str,
+        code: str | Sequence[str],
         period: str = "day",
         count: int = 120,
         start: int = 0,
         adjust: str | None = None,
         anchor_date: str | int | None = None,
         include_raw: bool = False,
+        batch_size: int | None = None,
         timeout: float = 8.0,
         host: str | None = None,
     ) -> dict[str, Any]:
-        """Query one K-line page; count is limited to 800 bars."""
+        """Query one K-line page for one or more securities."""
 
         count = _bounded_int("count", count, minimum=1, maximum=_MAX_KLINE_COUNT)
         start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
+        batch_size = _optional_bounded_int(
+            "batch_size", batch_size, minimum=1, maximum=_MAX_CODES
+        )
+        code_value = code if isinstance(code, str) else _validate_codes(code)
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(
                 client.bars.get(
-                    code,
+                    code_value,
                     period=period,
                     start=start,
                     count=count,
                     adjust=adjust,
                     anchor_date=anchor_date,
                     include_raw=include_raw,
+                    batch_size=batch_size,
                 )
             )
 
@@ -1019,6 +1050,24 @@ class _McpTools:
             timeout=timeout,
         )
 
+    def limit_board_ladder(
+        self,
+        start_date: str | int | None = None,
+        end_date: str | int | None = None,
+        include_summary: bool = False,
+        timeout: float = 8.0,
+    ) -> dict[str, Any]:
+        """Query 7615 stock-level limit-up/连板 details for a date range."""
+
+        return _call_f10(
+            lambda client: client.limit_board_ladder(
+                start_date,
+                end_date,
+                include_summary=include_summary,
+            ),
+            timeout=timeout,
+        )
+
     def hot_topics(
         self, code: str, section: str = "zttzbkz", timeout: float = 8.0
     ) -> dict[str, Any]:
@@ -1120,6 +1169,7 @@ def create_mcp_server():
         ("eltdx_shortline_indicators", tools.shortline_indicators),
         ("eltdx_stock_topics", tools.stock_topics),
         ("eltdx_topic_stocks", tools.topic_stocks),
+        ("eltdx_limit_board_ladder", tools.limit_board_ladder),
         ("eltdx_company_profile", tools.company_profile),
         ("eltdx_hot_topics", tools.hot_topics),
         ("eltdx_finance_report", tools.finance_report),

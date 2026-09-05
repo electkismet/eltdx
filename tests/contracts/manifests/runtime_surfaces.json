@@ -217,7 +217,7 @@
     "tools": {
       "eltdx_quote": {"method": "quote", "signature": "(codes, timeout=8.0, host=None)", "output": "array"},
       "eltdx_quote_depth": {"method": "quote_depth", "signature": "(codes, timeout=8.0, host=None)", "output": "object"},
-      "eltdx_kline": {"method": "kline", "signature": "(code, period='day', count=120, start=0, adjust=None, anchor_date=None, include_raw=False, timeout=8.0, host=None)", "output": "object"},
+      "eltdx_kline": {"method": "kline", "signature": "(code, period='day', count=120, start=0, adjust=None, anchor_date=None, include_raw=False, batch_size=None, timeout=8.0, host=None)", "output": "object"},
       "eltdx_capital_changes": {"method": "capital_changes", "signature": "(codes, include_raw=False, batch_size=75, timeout=8.0, host=None)", "output": "object"},
       "eltdx_adjustment_factors": {"method": "adjustment_factors", "signature": "(codes, anchor_date=None, start_date=None, batch_size=75, timeout=8.0, host=None)", "output": "object"},
       "eltdx_money_flow": {"method": "money_flow", "signature": "(codes, include_raw=False, batch_size=75, timeout=8.0, host=None)", "output": "object"},
@@ -232,6 +232,7 @@
       "eltdx_shortline_indicators": {"method": "shortline_indicators", "signature": "(codes, stats_path='zhb.zip', refresh_stats=False, timeout=8.0, host=None)", "output": "object"},
       "eltdx_stock_topics": {"method": "stock_topics", "signature": "(code, timeout=8.0)", "output": "object"},
       "eltdx_topic_stocks": {"method": "topic_stocks", "signature": "(seed_code, topic_id=None, topic_name=None, sort_by='zdf', section='gndbzfsj', timeout=8.0)", "output": "object"},
+      "eltdx_limit_board_ladder": {"method": "limit_board_ladder", "signature": "(start_date=None, end_date=None, include_summary=False, timeout=8.0)", "output": "object"},
       "eltdx_company_profile": {"method": "company_profile", "signature": "(code, section='8', timeout=8.0)", "output": "object"},
       "eltdx_hot_topics": {"method": "hot_topics", "signature": "(code, section='zttzbkz', timeout=8.0)", "output": "object"},
       "eltdx_finance_report": {"method": "finance_report", "signature": "(code, report_type='zcfzb', timeout=8.0)", "output": "object"},

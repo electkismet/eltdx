@@ -325,10 +325,31 @@ page = client.quotes.list_by_category("沪深A股", sort_by="涨幅", count=100)
 | 参数          | 含义                                                                                                |
 | ----------- | ------------------------------------------------------------------------------------------------- |
 | `category`  | 分类编号或别名；常用 `"沪深A股"`                                                                               |
-| `sort_by`   | 排序字段，可传 `"代码"`、`"现价"`、`"成交额"`、`"涨幅"`、`"封单额"`、`"开盘金额"`、`"涨速"`、`"短换手"`、`"量涨速"`、`"开盘抢筹"`、`"2分钟金额"` 等 |
+| `sort_by`   | 排序字段名或对应编号；完整列表见下表 |
 | `start`     | 起始行                                                                                               |
 | `count`     | 本页条数                                                                                              |
 | `ascending` | 是否升序；默认降序                                                                                         |
+
+完整服务端排序字段：
+
+| `sort_by` | 服务端编号 | 排序含义 |
+| --- | ---: | --- |
+| `"代码"` | `0x0000` | 按列表默认代码顺序 |
+| `"现价"` | `0x0006` | 按最新价 |
+| `"成交额"` | `0x000a` | 按成交额 |
+| `"涨幅"` | `0x000e` | 按涨跌幅 |
+| `"封单额"` | `0x001c` | 按封单额 |
+| `"开盘金额"` | `0x001d` | 按开盘金额 |
+| `"涨速"` | `0x002e` | 按涨速 |
+| `"短换手"` | `0x00cc` | 按短周期换手 |
+| `"量涨速"` | `0x00d0` | 按量增速 |
+| `"开盘抢筹"` | `0x010a` | 按开盘抢筹 |
+| `"2分钟金额"` | `0x010c` | 按近 2 分钟金额 |
+| `"开盘涨幅"` | `0x0119` | 按今开相对昨收涨幅 |
+| `"最高涨幅"` | `0x011a` | 按最高价相对昨收涨幅 |
+| `"最低涨幅"` | `0x011b` | 按最低价相对昨收涨幅 |
+| `"回撤"` | `0x011e` | 按最高到现价的回撤 |
+| `"攻击"` | `0x011f` | 按现价相对低点的攻击幅度 |
 
 | 返回模型                | 说明     |
 | ------------------- | ------ |
@@ -412,7 +433,7 @@ page = client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
 
 <a id="method-bars-get"></a>
 
-### `client.bars.get(code, period="day", ...)`
+### `client.bars.get(code, period="day", ..., batch_size=None)`
 
 对应 `0x052d`。默认只取一页，`all_pages=True` 时自动请求到空页并返回合并后的 `KlineSeries`。
 
@@ -421,6 +442,7 @@ one_page = client.bars.get("sz000001", period="day", count=800)
 history = client.bars.get("sz000001", period="day", all_pages=True, page_size=800)
 qfq = client.bars.get("sz000001", period="day", adjust="qfq")
 fixed = client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
+many = client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_size=2)
 ```
 
 | 参数 | 含义 |
@@ -432,8 +454,11 @@ fixed = client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_dat
 | `include_raw` | 是否保留原始 payload |
 | `all_pages` | 是否自动分页 |
 | `page_size` / `max_pages` | 自动分页的每页条数 / 最大页数 |
+| `batch_size` | 传入代码列表时的最大并发数；默认跟随连接池容量 |
 
 周期支持分钟、日、周、月、季、年和协议扩展周期。复权模式支持 `none/qfq/hfq/fixed_qfq/fixed_hfq`。自动分页按实际返回条数推进，短页不停止，空页才结束。
+
+`code` 传入字符串返回单个 `KlineSeries`；传入代码列表时按连接池并发逐只请求，返回以规范化完整代码为键的字典。列表中的重复代码会去重。
 
 ## 分时
 
@@ -872,7 +897,7 @@ chunk = client.resources.read("zhb.zip", offset=0, size=30000)
 
 `client.f10` 走 `7615/TQLEX` HTTP 网关，独立于 `7709` socket 握手。
 
-所有 F10 方法统一返回 `F10Response`：
+常规 F10 方法返回 `F10Response`；连板天梯返回 `LimitBoardLadder`（行模型为 `LimitBoardLadderRow`）：
 
 | 字段 / 属性                  | 含义                             |
 | ------------------------ | ------------------------------ |
@@ -912,6 +937,7 @@ response = client.f10.params("CWServ.tdxf10_gg_gsgk", "8", "000034", "")
 | 调用方法                                                   | 底层 Entry                                                 | 返回内容 / 常见字段                               |
 | ------------------------------------------------------ | -------------------------------------------------------- | ----------------------------------------- |
 | `stock_info(code)`                                     | `CWServ.tdxf10_gg_comreq`                                | 股票基础信息；也用于报告期、题材 ID 等辅助查询                 |
+| `limit_board_ladder(start_date=None, end_date=None, include_summary=False)` | `CWServ.cfg_fx_lbtt` | 指定日期 / 日期范围的逐股涨停与连板明细；可选市场概况 |
 | `business_periods(code)`                               | `CWServ.tdxf10_gg_comreq`                                | 主营构成可选报告期                                 |
 | `topic_ids(code)`                                      | `CWServ.tdxf10_gg_comreq`                                | 股票关联题材 ID                                 |
 | `company_profile(code, section="8")`                   | `CWServ.tdxf10_gg_gsgk`                                  | 公司概况，默认发行上市信息                             |

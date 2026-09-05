@@ -360,7 +360,7 @@ stat, stat2 = stats.row(0, "000001")
 
 ## `client.bars`
 
-### `get(code, period="day", start=0, count=800, adjust=None, anchor_date=None, kind=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)`
+### `get(code, period="day", start=0, count=800, adjust=None, anchor_date=None, kind=None, include_raw=False, all_pages=False, page_size=800, max_pages=200, batch_size=None)`
 
 查询 K 线 / 周期线，对应 `0x052d`。
 
@@ -368,9 +368,12 @@ stat, stat2 = stats.row(0, "000001")
 client.bars.get("sz000001", period="day", count=800)
 client.bars.get("sz000001", period="day", adjust="qfq")
 client.bars.get("sz000001", period="day", all_pages=True, page_size=800)
+client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_size=2)
 ```
 
 `all_pages=False` 时校验并使用 `count`，只请求一页。`all_pages=True` 时使用 `page_size` 自动请求到空页，`max_pages` 防止异常情况下无限循环，返回合并后的 `KlineSeries`。短页不会提前停止。
+
+`code` 传入字符串时返回单个 `KlineSeries`；传入代码列表时按连接池并发逐只请求，返回以规范化完整代码为键的字典。`batch_size` 控制同时请求的最大代码数，默认跟随连接池容量；列表中的重复代码会去重。
 
 返回字段包括 `period_name`、`adjust_mode`、`bars`；每根 K 线提供 `time`、`open/high/low/close`、`volume_lots` 和 `amount`。
 
@@ -392,7 +395,7 @@ client.minutes.today("sz000001")
 client.minutes.history("sz000001", "2026-05-20")
 ```
 
-### `recent(code, trading_date, include_raw=False)`
+### `recent(code, trading_date=None, include_raw=False)`
 
 查询近期历史分时，对应 `0x0feb`。
 
@@ -400,7 +403,7 @@ client.minutes.history("sz000001", "2026-05-20")
 client.minutes.recent("sz000001", "2026-05-20")
 ```
 
-### `aux(code, kind, include_raw=False)`
+### `aux(code, kind="buy_sell_strength", include_raw=False)`
 
 查询分时副图数据，对应 `0x051b`。
 
@@ -523,9 +526,10 @@ client.f10.hot_topics("000034")
 client.f10.announcements("000034")
 client.f10.finance_report("000034")
 client.f10.valuation("000034")
+client.f10.limit_board_ladder("20260810")
 ```
 
-所有方法返回 `F10Response`，常用数据在第一张表的 `rows`：
+常规 F10 方法返回 `F10Response`，连板天梯返回 `LimitBoardLadder`（其中每行是 `LimitBoardLadderRow`）。常用数据在第一张表或模型的 `rows`：
 
 ```python
 response = client.f10.hot_topics("000034")

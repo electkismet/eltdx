@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
+from datetime import date, datetime
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -12,10 +13,18 @@ from urllib.request import Request, urlopen
 from eltdx.exceptions import ProtocolError, TransportError
 from eltdx.protocol.unit import split_code
 
-from .models import F10Cell, F10Response, F10ResultSet
+from .models import (
+    F10Cell,
+    F10Response,
+    F10ResultSet,
+    LimitBoardLadder,
+    LimitBoardLadderRow,
+)
 
 DEFAULT_TQLEX_BASE_URL = "http://static.tdx.com.cn:7615/TQLEX"
+DEFAULT_LIMIT_BOARD_LADDER_BASE_URL = "http://hot.icfqs.com:7615/TQLEX"
 DEFAULT_QSID = "tdx"
+LIMIT_BOARD_LADDER_ENTRY = "CWServ.cfg_fx_lbtt"
 
 
 class F10Client:
@@ -30,10 +39,16 @@ class F10Client:
         self,
         *,
         base_url: str = DEFAULT_TQLEX_BASE_URL,
+        limit_board_ladder_base_url: str | None = None,
         timeout: float = 8.0,
         headers: Mapping[str, str] | None = None,
     ) -> None:
         self.base_url = base_url
+        self.limit_board_ladder_base_url = (
+            DEFAULT_LIMIT_BOARD_LADDER_BASE_URL
+            if limit_board_ladder_base_url is None and base_url == DEFAULT_TQLEX_BASE_URL
+            else (limit_board_ladder_base_url or base_url)
+        )
         self.timeout = timeout
         self.headers = {
             "Content-Type": "application/json",
@@ -59,6 +74,45 @@ class F10Client:
         """Call a CWServ Entry with a Params array."""
 
         return self.call(entry, params=params)
+
+    def limit_board_ladder(
+        self,
+        start_date: str | int | date | None = None,
+        end_date: str | int | date | None = None,
+        *,
+        include_summary: bool = False,
+    ) -> LimitBoardLadder:
+        """Query stock-level limit-up/连板 details for a date or date range.
+
+        The page uses the dedicated ``CWServ.cfg_fx_lbtt`` 7615 Entry.  The
+        detail request is ``Params=["1", start, end]``; when requested, the
+        market overview is fetched with ``Params=["2", start, end]``.
+        """
+
+        selected_start, selected_end = _normalize_limit_board_dates(
+            start_date, end_date
+        )
+        body = {"Params": ["1", selected_start, selected_end]}
+        response = self._post(LIMIT_BOARD_LADDER_ENTRY, body)
+        summary_rows: tuple[dict[str, Any], ...] = ()
+        if include_summary:
+            summary = self._post(
+                LIMIT_BOARD_LADDER_ENTRY,
+                {"Params": ["2", selected_start, selected_end]},
+            )
+            summary_rows = summary.rows
+
+        rows = tuple(_parse_limit_board_ladder_row(row) for row in response.rows)
+        return LimitBoardLadder(
+            entry=response.entry,
+            request_body=body,
+            error_code=response.error_code,
+            start_date=selected_start,
+            end_date=selected_end,
+            rows=rows,
+            summary=summary_rows,
+            raw=response.raw,
+        )
 
     def stock_info(self, code: str) -> F10Response:
         """股票基础信息，通常用于页面初始化。"""
@@ -327,7 +381,12 @@ class F10Client:
         return self.call("HQServ.hq_nlp_gpsj", [payload])
 
     def _post(self, entry: str, body: Any) -> F10Response:
-        url = f"{self.base_url}?{urlencode({'Entry': entry})}"
+        base_url = (
+            self.limit_board_ladder_base_url
+            if entry == LIMIT_BOARD_LADDER_ENTRY
+            else self.base_url
+        )
+        url = f"{base_url}?{urlencode({'Entry': entry})}"
         data = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         request = Request(url, data=data, headers=self.headers, method="POST")
         try:
@@ -447,3 +506,89 @@ def _first_value(response: F10Response, field_name: str) -> Any | None:
         if field_name in row:
             return row[field_name]
     return None
+
+
+def _normalize_limit_board_dates(
+    start_date: str | int | date | None,
+    end_date: str | int | date | None,
+) -> tuple[str, str]:
+    """Normalize optional dates to the gateway's ``YYYYMMDD`` format."""
+
+    start = _date_text(start_date)
+    end = _date_text(end_date)
+    if start is None and end is None:
+        today = date.today().strftime("%Y%m%d")
+        return today, today
+    if start is None:
+        start = end
+    if end is None:
+        end = start
+    assert start is not None and end is not None
+    if start > end:
+        raise ValueError("start_date must be on or before end_date")
+    return start, end
+
+
+def _date_text(value: str | int | date | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        value = value.date()
+    if isinstance(value, date):
+        return value.strftime("%Y%m%d")
+    text = str(value).strip().replace("-", "").replace("/", "")
+    if len(text) != 8 or not text.isdigit():
+        raise ValueError(f"invalid date: {value!r}")
+    try:
+        datetime.strptime(text, "%Y%m%d")
+    except ValueError as exc:
+        raise ValueError(f"invalid date: {value!r}") from exc
+    return text
+
+
+def _parse_limit_board_ladder_row(row: Mapping[str, Any]) -> LimitBoardLadderRow:
+    return LimitBoardLadderRow(
+        trading_date=row.get("rq"),
+        trading_date_value=row.get("rqex"),
+        board_level=_as_int(row.get("zglb")),
+        ladder_days=_as_int(row.get("lbts")),
+        code=_as_text(row.get("ZQDM")),
+        market_id=_as_int(row.get("SC")),
+        limit_reason=row.get("ztyy"),
+        seal_amount=_as_number(row.get("fde")),
+        name=row.get("ZQJC"),
+        limit_reason_extra=row.get("ztyy2"),
+        limit_time=row.get("ztsj"),
+        broken_count=_as_int(row.get("kbcs")),
+        industry=row.get("sshy"),
+        limit_type=_as_int(row.get("ztlb")),
+        success_rate=row.get("cgl"),
+        raw=dict(row),
+    )
+
+
+def _as_text(value: Any) -> str | None:
+    return None if value is None else str(value)
+
+
+def _as_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _as_number(value: Any) -> float | int | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float)):
+        return value
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return int(number) if number.is_integer() else number

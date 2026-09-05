@@ -1,3 +1,5 @@
+import pytest
+
 from eltdx import F10Client, TdxClient
 from eltdx.f10 import parse_tqlex_response
 
@@ -94,3 +96,90 @@ def test_f10_business_composition_uses_latest_report_period() -> None:
 
     assert response.entry == "CWServ.tdxf10_gg_jyfx"
     assert response.request_body == {"Params": ["000034", "zygc", "20251231"]}
+
+
+def test_limit_board_ladder_builds_detail_request_and_normalizes_rows() -> None:
+    class FakeF10Client(F10Client):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls = []
+
+        def _post(self, entry, body):
+            self.calls.append((entry, body))
+            return parse_tqlex_response(
+                entry,
+                body,
+                {
+                    "ErrorCode": 0,
+                    "ResultSets": [
+                        {
+                            "ResultSetKey": "table0",
+                            "ColName": [
+                                "rq", "rqex", "zglb", "lbts", "ZQDM", "SC",
+                                "ztyy", "fde", "ZQJC", "ztyy2", "ztsj",
+                                "kbcs", "sshy", "ztlb", "cgl",
+                            ],
+                            "Content": [[
+                                "08月10日", "20260810", 5, 1, "600815", "1",
+                                "工程机械", 34826800, "厦工股份", "地下管网",
+                                "13:56:56", 1, "工程机械", 1, None,
+                            ]],
+                        }
+                    ],
+                },
+            )
+
+    client = FakeF10Client()
+    result = client.limit_board_ladder("2026-08-10")
+
+    assert client.calls == [
+        ("CWServ.cfg_fx_lbtt", {"Params": ["1", "20260810", "20260810"]})
+    ]
+    assert result.ok is True
+    assert result.trade_date == "20260810"
+    assert result.count == 1
+    assert result.rows[0].full_code == "sh600815"
+    assert result.rows[0].board_level == 5
+    assert result.rows[0].ladder_days == 1
+    assert result.rows[0].seal_amount == 34826800
+    assert result.rows[0].ZQDM == "600815"
+    assert result.rows[0].raw["ztyy2"] == "地下管网"
+
+
+def test_limit_board_ladder_can_include_market_summary() -> None:
+    class FakeF10Client(F10Client):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls = []
+
+        def _post(self, entry, body):
+            self.calls.append((entry, body))
+            if body["Params"][0] == "2":
+                raw = {
+                    "ErrorCode": 0,
+                    "ResultSets": [{"ColName": ["t001"], "Content": [["2026-08-10"]]}],
+                }
+            else:
+                raw = {"ErrorCode": 0, "ResultSets": []}
+            return parse_tqlex_response(entry, body, raw)
+
+    client = FakeF10Client()
+    result = client.limit_board_ladder(
+        "20260807", "2026-08-10", include_summary=True
+    )
+
+    assert client.calls == [
+        ("CWServ.cfg_fx_lbtt", {"Params": ["1", "20260807", "20260810"]}),
+        ("CWServ.cfg_fx_lbtt", {"Params": ["2", "20260807", "20260810"]}),
+    ]
+    assert result.trade_date is None
+    assert result.summary == ({"t001": "2026-08-10"},)
+
+
+def test_limit_board_ladder_rejects_reversed_or_invalid_dates() -> None:
+    client = F10Client()
+
+    with pytest.raises(ValueError, match="on or before"):
+        client.limit_board_ladder("20260811", "20260810")
+    with pytest.raises(ValueError, match="invalid date"):
+        client.limit_board_ladder("not-a-date")

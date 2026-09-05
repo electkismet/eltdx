@@ -1,12 +1,12 @@
 window.ELTDX_CATALOG = {
   "schema_version": 13,
   "release": {
-    "version": "3.1.2",
+    "version": "3.2.0",
     "status": "stable",
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
     "native_commands": 21,
-    "mcp_tools": 21,
+    "mcp_tools": 22,
     "mcp_resources": 8,
     "native_extensions": 1,
     "pure_python_7709_fallback": false
@@ -26,7 +26,7 @@ window.ELTDX_CATALOG = {
         "label": "7615 原生 Entry 接口",
         "tag_label": "7615 原生 Entry",
         "stat_label": "7615 原生 Entry 接口",
-        "description": "21 个 7615 原生 Entry 接口，对应 TQLEX/F10 的 HTTP Entry 与功能调用。",
+        "description": "22 个 7615 原生 Entry 接口，对应 TQLEX/F10 的 HTTP Entry 与功能调用。",
         "source": "F10"
       },
       {
@@ -129,7 +129,8 @@ window.ELTDX_CATALOG = {
           "题材行情",
           "评价排名",
           "估值行情",
-          "资讯公告"
+          "资讯公告",
+          "连板天梯"
         ],
         "item_ids": [
           "helper-stock-topics",
@@ -356,7 +357,7 @@ window.ELTDX_CATALOG = {
       "title": "K 线 / 周期线",
       "source": "7709",
       "category": "K 线",
-      "api": "client.bars.get(code, ...)",
+      "api": "client.bars.get(code_or_codes, ...)",
       "aliases": [
         "bars.get",
         "all_pages",
@@ -369,8 +370,8 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x052d",
       "kind": "底层协议",
-      "summary": "返回分钟、日、周、月、季、年 K 线，支持单页、自动分页和服务端复权参数。",
-      "return_model": "KlineSeries",
+      "summary": "返回分钟、日、周、月、季、年 K 线，支持单页、自动分页、单只或多只证券并发查询和服务端复权参数。",
+      "return_model": "KlineSeries | dict[str, KlineSeries]",
       "doc": "methods/7709-K线周期线.md"
     },
     {
@@ -720,6 +721,24 @@ window.ELTDX_CATALOG = {
       "summary": "查询股票名称、代码、市场，以及主营报告期和题材 ID 等辅助信息。",
       "return_model": "F10Response",
       "doc": "methods/F10-股票基础信息.md"
+    },
+    {
+      "id": "f10-limit-board-ladder",
+      "title": "连板天梯明细",
+      "source": "F10",
+      "category": "连板天梯",
+      "api": "client.f10.limit_board_ladder()",
+      "aliases": [
+        "limit_board_ladder",
+        "cfg_fx_lbtt",
+        "连板天梯",
+        "涨停明细"
+      ],
+      "protocol": "CWServ.cfg_fx_lbtt",
+      "kind": "Entry 封装",
+      "summary": "按日期或日期范围返回逐股涨停、连板、涨停原因、封单和炸板次数；可选市场概况。",
+      "return_model": "LimitBoardLadder",
+      "doc": "methods/F10-连板天梯.md"
     },
     {
       "id": "f10-company-profile",

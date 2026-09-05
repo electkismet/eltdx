@@ -82,10 +82,10 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     items = catalog["items"]
 
     assert catalog["schema_version"] == 13
-    assert len(items) == 64
+    assert len(items) == 65
     assert Counter(item["source"] for item in items) == {
         "7709": 22,
-        "F10": 21,
+        "F10": 22,
         "Helper": 21,
     }
     assert len({item["id"] for item in items}) == len(items)
@@ -132,7 +132,7 @@ hide:
 [← 返回接口目录](../index.md){ .interface-detail-back }
 """
 
-    assert len(detail_docs) == 64
+    assert len(detail_docs) == 65
     for relative_path in detail_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert detail.startswith(expected_header), relative_path
@@ -151,10 +151,10 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
     ]
     assert Counter(layer_id for layer_id, _ in assignments.values()) == {
         "7709": 22,
-        "7615": 21,
+        "7615": 22,
         "helpers": 21,
     }
-    expected_counts = {"7709": 22, "7615": 21, "helpers": 21}
+    expected_counts = {"7709": 22, "7615": 22, "helpers": 21}
     assert all(layer["description"].startswith(f"{expected_counts[layer['id']]} 个") for layer in ordered_layers)
     assert all("groups" not in layer for layer in ordered_layers)
     assert {layer["source"] for layer in ordered_layers} == {"7709", "F10", "Helper"}
@@ -204,10 +204,11 @@ def test_pages_catalog_has_complete_function_menus() -> None:
         "history": 4,
         "bars": 3,
         "auction-shortline": 8,
-        "f10": 23,
+        "f10": 24,
         "common": 6,
     }
     assert assigned["f10-stock-info"] == "f10"
+    assert assigned["f10-limit-board-ladder"] == "f10"
     assert assigned["7709-minute-history"] == "history"
     assert assigned["7709-special-limits"] == "common"
 

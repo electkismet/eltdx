@@ -104,7 +104,7 @@ K 线响应和单根 K 线。
 | 字段                                | 含义                        |
 | --------------------------------- | ------------------------- |
 | `period_name`                     | 周期，例如 `day`、`1m`          |
-| `adjust_mode`                     | 复权模式，`none`、`qfq`、`hfq` 等 |
+| `adjust_mode`                     | 复权模式，`none`、`qfq`、`hfq`、`fixed_qfq`、`fixed_hfq`；定点模式需要配合 `anchor_date` |
 | `anchor_date`                     | 定点复权日期                    |
 | `bars`                            | K 线列表                     |
 | `time`                            | K 线时间                     |
@@ -199,22 +199,69 @@ K 线响应和单根 K 线。
 
 广义权息 / 股本变迁事件。
 
-## 资金流向
-
-`client.money_flow.daily(code)` 传入单只代码时返回 `MoneyFlowBlock`，传入代码列表时返回 `MoneyFlowBatch`；其中每个 `MoneyFlowBlock` 代表一只股票，`block.records` 中的每个 `MoneyFlowDaily` 代表一个交易日。每条记录包含日期、总成交额、主力净额/占比、主买净额/占比、两套超大单/大单/中单/小单净额和 16 个原始分档值。`MoneyFlowBlock` 还提供返回记录的净额和占比汇总。`buckets[0]/[1]` 与 `buckets[4]/[5]` 已确认用于主力净额计算，`buckets[2]/[3]`、`[6]/[7]`、`[10]/[11]`、`[14]/[15]` 已确认用于主买净额计算，其余分档暂不命名；21 个原始 `raw` 字段和 `record_hex` 用于进一步核对。完整参数、单位和真实样本见[资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+### `CapitalChangeBlock`
 
 | 字段 | 含义 |
 | --- | --- |
-| `records` / `items` / `count` | 标签 `1..15` 的事件列表 / 数量 |
-| `date` | 事件日期 |
-| `category_raw` / `category_name` | 事件标签 / 名称 |
-| `c1_value` / `c2_value` / `c3_value` / `c4_value` | 按标签解释并完成单位换算的业务值 |
-| `c1_float` / `c2_float` / `c3_float` / `c4_float` | 四字段的 float32 解释值 |
+| `exchange` / `market_id` / `code` / `full_code` | 市场和代码 |
+| `block_count` | 服务端块数量 |
+| `records` / `items` | 事件列表 |
+| `count` | 实际记录数 |
+| `raw_payload` | 原始 payload |
+
+### `CapitalChangeRecord`
+
+| 字段 | 含义 |
+| --- | --- |
+| `exchange` / `market_id` / `code` / `full_code` | 市场和代码 |
+| `reserved_7` | 保留字节 |
+| `date_raw` / `date` | 事件日期原始值 / 日期 |
+| `category_raw` / `category` / `category_name` | 事件类别编号 / 类别名称 |
 | `c1_raw` / `c2_raw` / `c3_raw` / `c4_raw` | 四个 wire 原始字段 |
+| `c1_float` / `c2_float` / `c3_float` / `c4_float` | 四字段按 float32 解释的值 |
+| `c1_value` / `c2_value` / `c3_value` / `c4_value` | 按类别解码后的业务值 |
+| `c1` / `c2` / `c3` / `c4` | `c1_value` 到 `c4_value` 的简写属性 |
+| `time` | 事件日期对应的 15:00 时间 |
+| `record_hex` | 单条原始十六进制 |
 
 标签 `1` 中四个业务值依次是每十股现金分红、配股价格、每十股送转数量、每十股配股数量。数量类标签的 `c*_value` 单位统一为股。
 
 `CapitalChangeBatch` 是代码列表查询的返回模型：`blocks` / `items` 是逐股票结果，`count` 是股票块数，`records` 是所有事件记录的扁平视图，`raw_payloads` 保存各协议批次的原始响应。
+
+## 资金流向
+
+`client.money_flow.daily(code)` 传入单只代码时返回 `MoneyFlowBlock`，传入代码列表时返回 `MoneyFlowBatch`；其中每个 `MoneyFlowBlock` 代表一只股票，`block.records` 中的每个 `MoneyFlowDaily` 代表一个交易日。每条记录包含日期、总成交额、主力净额/占比、主买净额/占比、两套超大单/大单/中单/小单净额和 16 个原始分档值。`buckets[0]/[1]` 与 `buckets[4]/[5]` 已确认用于主力净额计算，`buckets[2]/[3]`、`[6]/[7]`、`[10]/[11]`、`[14]/[15]` 已确认用于主买净额计算，其余分档暂不命名；21 个原始 `raw` 字段和 `record_hex` 用于进一步核对。完整参数、单位和真实样本见[资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+
+### `MoneyFlowBlock`
+
+| 字段 | 含义 |
+| --- | --- |
+| `exchange` / `market_id` / `code` / `full_code` | 市场和代码 |
+| `records` | 每日资金流向记录 |
+| `count` | 日记录数 |
+| `main_buy_net_total` / `main_net_total` | 主买 / 主力净额汇总 |
+| `main_buy_ratio_total` / `main_ratio_total` | 按总成交额计算的主买 / 主力汇总占比 |
+
+### `MoneyFlowBatch`
+
+| 字段 | 含义 |
+| --- | --- |
+| `blocks` | 逐股票的 `MoneyFlowBlock` 结果 |
+| `count` | 所有股票的日记录总数 |
+
+### `MoneyFlowDaily`
+
+| 字段 | 含义 |
+| --- | --- |
+| `date_raw` / `date` | 记录日期原值 / 日期 |
+| `total_amount` | 当日总成交金额，单位元 |
+| `buckets` | 主站返回的 16 个原始分档值 |
+| `main_net` / `main_ratio` | 主力净额 / 占比 |
+| `main_buy_net` / `main_buy_ratio` | 主买净额 / 占比 |
+| `main_buy_super_large_net` / `main_buy_large_net` / `main_buy_medium_net` / `main_buy_small_net` | 主买口径四档净额 |
+| `main_super_large_net` / `main_large_net` / `main_medium_net` / `main_small_net` | 主力口径四档净额 |
+| `raw` | 21 个原始 `uint32` 字段 |
+| `record_hex` | 88 字节日记录的原始十六进制 |
 
 ## AdjustmentFactorResponse / AdjustmentFactor
 
@@ -345,6 +392,22 @@ K 线响应和单根 K 线。
 | `open_volume`           | 09:25 成交量    |
 | `open_amount`           | 09:25 成交额    |
 | `open_change_pct`       | 开盘涨幅         |
+
+### LimitBoardLadder / LimitBoardLadderRow
+
+`client.f10.limit_board_ladder()` 的 7615 连板明细字段。服务端原生字段保留在每行的 `raw` 中；下表是稳定的描述性字段和对应原名。
+
+| 字段 | 原生字段 | 含义 | 单位 |
+| --- | --- | --- | --- |
+| `trading_date` / `trading_date_value` | `rq` / `rqex` | 展示日期 / `YYYYMMDD` 日期值 | - |
+| `board_level` / `ladder_days` | `zglb` / `lbts` | 板位 / 连板天数 | 板 / 天 |
+| `code` / `market_id` | `ZQDM` / `SC` | 六位证券代码 / 市场号 | - |
+| `full_code` / `market` | 派生字段 | 带市场前缀的完整代码 / 市场前缀 | - |
+| `name` / `industry` | `ZQJC` / `sshy` | 证券简称 / 所属行业 | - |
+| `limit_reason` / `limit_reason_extra` | `ztyy` / `ztyy2` | 涨停原因 / 第二原因 | - |
+| `seal_amount` / `limit_time` | `fde` / `ztsj` | 封单额 / 涨停时间 | 元 / 时分秒 |
+| `broken_count` / `limit_type` | `kbcs` / `ztlb` | 炸板次数 / 涨停类型 | 次 / - |
+| `success_rate` | `cgl` | 服务端成功率或晋级相关字段 | 服务端定义 |
 
 ### ShortlineIndicatorTable / ShortlineIndicator
 

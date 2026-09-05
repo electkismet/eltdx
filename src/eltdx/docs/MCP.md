@@ -51,7 +51,7 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | --- | --- |
 | `eltdx_quote` | 查询一个或多个证券的行情快照 |
 | `eltdx_quote_depth` | 查询原生五档盘口，单次最多 100 只证券 |
-| `eltdx_kline` | 查询一页 K 线，支持周期、复权和锚定日期 |
+| `eltdx_kline` | 查询一页 K 线，支持单只或多只证券、周期、复权和锚定日期 |
 | `eltdx_capital_changes` | 查询标签 1..15 的股本变迁和权息资料，默认每批 75 只 |
 | `eltdx_adjustment_factors` | 根据权息资料计算本地前、后复权系数，默认每批 75 只 |
 | `eltdx_money_flow` | 查询最近日资金流向、主力/主买净额和两种口径的四档净额，默认每批 75 只 |
@@ -76,6 +76,7 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | --- | --- |
 | `eltdx_stock_topics` | 查询个股关联的全部题材 |
 | `eltdx_topic_stocks` | 查询题材成分股及题材内对比数据 |
+| `eltdx_limit_board_ladder` | 查询指定日期 / 日期范围的逐股涨停与连板明细，可选市场概况 |
 | `eltdx_company_profile` | 查询 F10 公司概况 |
 | `eltdx_hot_topics` | 查询 F10 热点题材明细 |
 | `eltdx_finance_report` | 查询 F10 财务报表 |
@@ -111,6 +112,17 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 }
 ```
 
+多只证券 K 线：
+
+```json
+{
+  "code": ["sz000001", "sh600000"],
+  "period": "day",
+  "count": 120,
+  "batch_size": 4
+}
+```
+
 历史分时：
 
 ```json
@@ -139,6 +151,16 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 }
 ```
 
+历史连板明细：
+
+```json
+{
+  "start_date": "20260807",
+  "end_date": "20260810",
+  "include_summary": true
+}
+```
+
 ## 参数和资源边界
 
 | 参数 | 边界 |
@@ -149,6 +171,7 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | `timeout` | 大于 0 且不超过 120 秒，默认 8 秒 |
 | `host` | 可选的单个 7709 主站，例如 `116.205.183.150:7709` |
 | K 线 `count` | 每次最多 800 根 |
+| K 线 `code` | 可传单个代码或最多 200 个代码；传列表时 `batch_size` 控制并发数 |
 | 成交 `count` | 每次最多 1800 条 |
 | F10 `page_size` | 每次最多 100 条 |
 

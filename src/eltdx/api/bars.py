@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 
 from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE
@@ -13,7 +15,7 @@ from .base import ApiBase
 class BarApi(ApiBase):
     def get(
         self,
-        code: str,
+        code: str | Sequence[str],
         *,
         period: str = "day",
         start: int = 0,
@@ -25,9 +27,42 @@ class BarApi(ApiBase):
         all_pages: bool = False,
         page_size: int = 800,
         max_pages: int | None = 200,
+        batch_size: int | None = None,
     ):
+        _validate_batch_size(batch_size)
         if not all_pages:
             _validate_page_size(count)
+        else:
+            _validate_page_size(page_size)
+            if max_pages is not None and max_pages <= 0:
+                raise ValueError("max_pages must be positive or None")
+
+        if not isinstance(code, str):
+            codes = _normalize_codes(code)
+            workers = _batch_workers(self._transport, len(codes), batch_size)
+            def query(item: str):
+                return self.get(
+                    item,
+                    period=period,
+                    start=start,
+                    count=count,
+                    adjust=adjust,
+                    anchor_date=anchor_date,
+                    kind=kind,
+                    include_raw=include_raw,
+                    all_pages=all_pages,
+                    page_size=page_size,
+                    max_pages=max_pages,
+                )
+
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                results: dict[str, object] = {}
+                for offset in range(0, len(codes), workers):
+                    chunk = codes[offset : offset + workers]
+                    results.update(zip(chunk, executor.map(query, chunk)))
+                return results
+
+        if not all_pages:
             return self._get_page(
                 code,
                 period=period,
@@ -38,10 +73,6 @@ class BarApi(ApiBase):
                 kind=kind,
                 include_raw=include_raw,
             )
-
-        _validate_page_size(page_size)
-        if max_pages is not None and max_pages <= 0:
-            raise ValueError("max_pages must be positive or None")
 
         next_start = start
         pages = 0
@@ -99,6 +130,34 @@ class BarApi(ApiBase):
 def _validate_page_size(value: int) -> None:
     if value <= 0 or value > MAX_KLINE_PAGE_SIZE:
         raise ValueError(f"page size must be between 1 and {MAX_KLINE_PAGE_SIZE}")
+
+
+def _normalize_codes(codes: Sequence[str]) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for code in codes:
+        full_code = normalize_code(code)
+        if full_code not in seen:
+            normalized.append(full_code)
+            seen.add(full_code)
+    if not normalized:
+        raise ValueError("codes must not be empty")
+    return normalized
+
+
+def _validate_batch_size(value: int | None) -> None:
+    if value is not None and (
+        isinstance(value, bool) or not isinstance(value, int) or value <= 0
+    ):
+        raise ValueError("batch_size must be a positive integer or None")
+
+
+def _batch_workers(transport, code_count: int, batch_size: int | None) -> int:
+    capacity = getattr(transport, "pool_size", 1)
+    if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity <= 0:
+        capacity = 1
+    requested = capacity if batch_size is None else batch_size
+    return min(code_count, requested, capacity)
 
 
 def _resolve_kline_kind(code: str, kind: str | None) -> str:

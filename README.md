@@ -194,7 +194,7 @@ print(f10.company_profile("000034").rows[0])
 | 原生批量行情       | `client.quotes.legacy()`                              | [`0x053e`](docs/COMMANDS_7709.md#cmd-0x053e)                                                | 原生旧版完整快照，保留五档盘口和协议状态原始字段                    | [文档](docs/methods/7709-旧版批量行情.md)     |
 | 五档刷新 / 推送队列 | `client.quotes.get_depth()` / `client.quotes.refresh()` / `client.quotes.poll_push()` | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 原生五档快捷入口、游标刷新与推送队列；面向高级实时更新场景 | [文档](docs/methods/7709-增量刷新推送队列.md) |
 | 分类行情         | `client.quotes.list_by_category()`                         | [`0x054b`](docs/COMMANDS_7709.md#cmd-0x054b)                                                | 按市场或板块分页返回行情列表；可按涨幅、价格、成交额等服务端排序                               | [文档](docs/methods/7709-分类行情.md)       |
-| K 线 / 周期线    | `client.bars.get(code, ..., all_pages=False)` | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d) | 单页或自动分页返回 K 线；支持分钟、日、周、月、季、年线和服务端复权参数 | [文档](docs/methods/7709-K线周期线.md) |
+| K 线 / 周期线    | `client.bars.get(code_or_codes, ..., all_pages=False)` | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d) | 单页或自动分页返回 K 线；支持单只或多只证券并发查询，以及分钟、日、周、月、季、年线和服务端复权参数 | [文档](docs/methods/7709-K线周期线.md) |
 | 当日分时         | `client.minutes.today()`                  | [`0x0537`](docs/COMMANDS_7709.md#cmd-0x0537)                                                | 返回主站当前保存的每分钟价格、成交量、均价等分时序列                                       | [文档](docs/methods/7709-当日分时.md)       |
 | 指定日期历史分时     | `client.minutes.history()`        | [`0x0fb4`](docs/COMMANDS_7709.md#cmd-0x0fb4)                                                | 按日期返回某天的分时价格和分钟成交量，适合补单日历史分时                                   | [文档](docs/methods/7709-指定日期历史分时.md)   |
 | 近期历史分时       | `client.minutes.recent()`                                  | [`0x0feb`](docs/COMMANDS_7709.md#cmd-0x0feb)                                                | 返回服务端近期窗口内的历史分时；适合查较近交易日的分钟走势                                  | [文档](docs/methods/7709-近期历史分时.md)     |
@@ -247,6 +247,7 @@ client.bars.get("sz000001", period="day", all_pages=True, page_size=800)
 | ------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------- |
 | 高级调用（需手动指定 Entry 和参数） | `client.f10.call(entry, body/params)`                   | [`7615/TQLEX`](docs/F10_7615.md#tqlex-gateway)                                        | 用户主动指定 Entry 和参数；用于调试或调用 SDK 尚未封装的 Entry，不会自动执行 | [文档](docs/methods/F10-通用Entry调用.md) |
 | 股票基础信息       | `client.f10.stock_info()`                               | [`CWServ.tdxf10_gg_comreq`](docs/F10_7615.md#entry-cwserv-tdxf10-gg-comreq)           | 返回股票名称、代码、市场；也用于主营构成报告期、题材 ID 等辅助查询          | [文档](docs/methods/F10-股票基础信息.md)    |
+| 连板天梯           | `client.f10.limit_board_ladder()`                       | [`CWServ.cfg_fx_lbtt`](docs/F10_7615.md#entry-cwserv-cfg-fx-lbtt)                     | 返回指定日期 / 日期范围的逐股涨停、连板、涨停原因和封单明细；可选市场概况   | [文档](docs/methods/F10-连板天梯.md)       |
 | 公司概况         | `client.f10.company_profile()`                          | [`CWServ.tdxf10_gg_gsgk`](docs/F10_7615.md#entry-cwserv-tdxf10-gg-gsgk)               | 返回发行上市信息，如上市日期、发行方式、发行价、募资额、承销商等             | [文档](docs/methods/F10-公司概况.md)      |
 | 主营构成         | `client.f10.business_composition()`                     | [`CWServ.tdxf10_gg_jyfx`](docs/F10_7615.md#entry-cwserv-tdxf10-gg-jyfx)               | 返回主营收入、成本、毛利、收入占比、毛利率；不传报告期时自动取最新期           | [文档](docs/methods/F10-主营构成.md)      |
 | 股东增减持        | `client.f10.shareholder_change_plans()`                 | [`CWServ.tdxf10_gg_gdyj`](docs/F10_7615.md#entry-cwserv-tdxf10-gg-gdyj)               | 返回公告日、股东名称、变动方向、拟变动数量 / 比例、计划起止日期等           | [文档](docs/methods/F10-股东增减持.md)     |
@@ -267,7 +268,7 @@ client.bars.get("sz000001", period="day", all_pages=True, page_size=800)
 | 详情正文         | `client.f10.detail()`                                   | [`CWServ.tdxf10_gg_idreq`](docs/F10_7615.md#entry-cwserv-tdxf10-gg-idreq)             | 按记录 ID 返回正文标题和正文内容；常接热点题材事件、违规处理等详情          | [文档](docs/methods/F10-详情正文.md)      |
 | 新闻 / 公告 / 路演 | `client.f10.news()` / `announcements()` / `roadshows()` | [`CWSearch.tzx_rcache`](docs/F10_7615.md#entry-cwsearch-tzx-rcache)                   | 返回新闻、公告、路演列表；含标题、日期、来源、公告类型、PDF 地址等          | [文档](docs/methods/F10-新闻公告路演.md)    |
 
-F10 返回统一是 `F10Response`。常用结果在 `response.rows`，多表结果在 `response.tables`。完整说明见 [F10_7615.md](docs/F10_7615.md)。
+常规 F10 返回 `F10Response`；`client.f10.limit_board_ladder()` 返回 `LimitBoardLadder`。常用结果分别在 `response.rows` 或模型的 `rows`，完整说明见 [F10_7615.md](docs/F10_7615.md)。
 
 ## 连接、并发和缓存
 
@@ -417,7 +418,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | 底层协议和 F10 Entry | [7709 命令](docs/COMMANDS_7709.md) · [7615 F10](docs/F10_7615.md) |
 | 连接、测速、并发和故障排查 | [调试指南](docs/DEBUG_GUIDE.md) · [架构](docs/ARCHITECTURE.md) |
 | MCP 安装、工具和资源 | [MCP 文档](docs/MCP.md) |
-| 当前版本、变更和旧 API 迁移 | [v3.1.2](docs/releases/v3.1.2.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
+| 当前版本、变更和旧 API 迁移 | [v3.2.0](docs/releases/v3.2.0.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
 
 ## 常用问题
 
