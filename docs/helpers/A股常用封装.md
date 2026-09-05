@@ -19,8 +19,8 @@ hide:
 | 实时榜单 | `client.helpers.realtime_rank(sort_by="涨幅")` | `0x054b` 分类行情 | [查看](实时榜单.md) |
 | 买卖力道 | `client.helpers.buy_sell_strength(code)` | `0x051b` 分时副图 | [查看](买卖力道.md) |
 | 成交对比 | `client.helpers.volume_comparison(code)` | `0x051b` 分时副图 | [查看](成交对比.md) |
-| 连板天梯 | `client.helpers.limit_ladder()` | 实时快照 + `0x06b9` | [查看](连板天梯.md) |
-| 题材强度排行 | `client.helpers.theme_strength_rank()` | 连板天梯 + F10 题材 | [查看](题材强度排行.md) |
+| 实时涨停梯队 | `client.helpers.limit_ladder()` | 实时快照 + `0x06b9` | [查看](连板天梯.md) |
+| 题材强度排行 | `client.helpers.theme_strength_rank()` | 实时涨停梯队 + F10 题材 | [查看](题材强度排行.md) |
 
 ```python
 with TdxClient(timeout=3) as client:

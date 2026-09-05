@@ -1216,14 +1216,14 @@ window.ELTDX_CATALOG = {
     },
     {
       "id": "helper-limit-ladder",
-      "title": "连板天梯",
+      "title": "实时涨停梯队",
       "source": "Helper",
-      "category": "集合竞价",
+      "category": "实时行情",
       "api": "client.helpers.limit_ladder(codes=None)",
-      "aliases": ["limit_ladder", "stock_limit_ladder", "连板"],
+      "aliases": ["limit_ladder", "stock_limit_ladder", "实时涨停", "连板"],
       "protocol": "实时快照 + 0x06b9",
       "kind": "组合能力",
-      "summary": "从短线指标中筛选封板或触板股票，按连板级别和封单金额排序。",
+      "summary": "从实时短线指标中筛选封板或触板股票，按涨停梯队和封单金额排序。",
       "return_model": "LimitLadderTable",
       "doc": "helpers/连板天梯.md"
     },
