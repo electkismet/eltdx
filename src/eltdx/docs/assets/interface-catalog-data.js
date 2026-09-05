@@ -740,7 +740,7 @@ window.ELTDX_CATALOG = {
       "kind": "Entry 封装",
       "summary": "按日期或日期范围返回逐股涨停、炸板和跌停列表，以及涨停原因、封单和炸板次数；可选市场概况。",
       "return_model": "LimitBoardLadder",
-      "doc": "methods/F10-连板天梯.md"
+      "doc": "methods/F10-涨跌停列表.md"
     },
     {
       "id": "f10-company-profile",
