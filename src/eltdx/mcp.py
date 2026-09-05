@@ -410,6 +410,25 @@ def company_profile(code: str, *, section: str = "8", timeout: float = 8.0) -> A
     )
 
 
+def limit_up_down_list(
+    start_date: str | int | None = None,
+    end_date: str | int | None = None,
+    *,
+    include_summary: bool = False,
+    timeout: float = 8.0,
+) -> Any:
+    """Query 7615 stock-level limit-up, broken-board and limit-down rows."""
+
+    return _call_f10(
+        lambda client: client.limit_up_down_list(
+            start_date,
+            end_date,
+            include_summary=include_summary,
+        ),
+        timeout=timeout,
+    )
+
+
 def limit_board_ladder(
     start_date: str | int | None = None,
     end_date: str | int | None = None,
@@ -417,14 +436,12 @@ def limit_board_ladder(
     include_summary: bool = False,
     timeout: float = 8.0,
 ) -> Any:
-    """Query 7615 stock-level limit-up/连板 details for a date range."""
+    """Compatibility alias for :func:`limit_up_down_list`."""
 
-    return _call_f10(
-        lambda client: client.limit_board_ladder(
-            start_date,
-            end_date,
-            include_summary=include_summary,
-        ),
+    return limit_up_down_list(
+        start_date,
+        end_date,
+        include_summary=include_summary,
         timeout=timeout,
     )
 
@@ -1050,6 +1067,24 @@ class _McpTools:
             timeout=timeout,
         )
 
+    def limit_up_down_list(
+        self,
+        start_date: str | int | None = None,
+        end_date: str | int | None = None,
+        include_summary: bool = False,
+        timeout: float = 8.0,
+    ) -> dict[str, Any]:
+        """Query 7615 stock-level limit-up, broken-board and limit-down rows."""
+
+        return _call_f10(
+            lambda client: client.limit_up_down_list(
+                start_date,
+                end_date,
+                include_summary=include_summary,
+            ),
+            timeout=timeout,
+        )
+
     def limit_board_ladder(
         self,
         start_date: str | int | None = None,
@@ -1057,14 +1092,12 @@ class _McpTools:
         include_summary: bool = False,
         timeout: float = 8.0,
     ) -> dict[str, Any]:
-        """Query 7615 stock-level limit-up/连板 details for a date range."""
+        """Compatibility alias for :meth:`limit_up_down_list`."""
 
-        return _call_f10(
-            lambda client: client.limit_board_ladder(
-                start_date,
-                end_date,
-                include_summary=include_summary,
-            ),
+        return self.limit_up_down_list(
+            start_date,
+            end_date,
+            include_summary=include_summary,
             timeout=timeout,
         )
 
@@ -1169,6 +1202,7 @@ def create_mcp_server():
         ("eltdx_shortline_indicators", tools.shortline_indicators),
         ("eltdx_stock_topics", tools.stock_topics),
         ("eltdx_topic_stocks", tools.topic_stocks),
+        ("eltdx_limit_up_down_list", tools.limit_up_down_list),
         ("eltdx_limit_board_ladder", tools.limit_board_ladder),
         ("eltdx_company_profile", tools.company_profile),
         ("eltdx_hot_topics", tools.hot_topics),

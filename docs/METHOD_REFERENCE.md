@@ -897,7 +897,7 @@ chunk = client.resources.read("zhb.zip", offset=0, size=30000)
 
 `client.f10` 走 `7615/TQLEX` HTTP 网关，独立于 `7709` socket 握手。
 
-常规 F10 方法返回 `F10Response`；连板天梯返回 `LimitBoardLadder`（行模型为 `LimitBoardLadderRow`）：
+常规 F10 方法返回 `F10Response`；涨跌停列表返回 `LimitBoardLadder`（行模型为 `LimitBoardLadderRow`）：
 
 | 字段 / 属性                  | 含义                             |
 | ------------------------ | ------------------------------ |
@@ -937,7 +937,7 @@ response = client.f10.params("CWServ.tdxf10_gg_gsgk", "8", "000034", "")
 | 调用方法                                                   | 底层 Entry                                                 | 返回内容 / 常见字段                               |
 | ------------------------------------------------------ | -------------------------------------------------------- | ----------------------------------------- |
 | `stock_info(code)`                                     | `CWServ.tdxf10_gg_comreq`                                | 股票基础信息；也用于报告期、题材 ID 等辅助查询                 |
-| `limit_board_ladder(start_date=None, end_date=None, include_summary=False)` | `CWServ.cfg_fx_lbtt` | 指定日期 / 日期范围的逐股涨停与连板明细；可选市场概况 |
+| `limit_up_down_list(start_date=None, end_date=None, include_summary=False)` | `CWServ.cfg_fx_lbtt` | 指定日期 / 日期范围的逐股涨停、炸板和跌停列表；可选市场概况 |
 | `business_periods(code)`                               | `CWServ.tdxf10_gg_comreq`                                | 主营构成可选报告期                                 |
 | `topic_ids(code)`                                      | `CWServ.tdxf10_gg_comreq`                                | 股票关联题材 ID                                 |
 | `company_profile(code, section="8")`                   | `CWServ.tdxf10_gg_gsgk`                                  | 公司概况，默认发行上市信息                             |

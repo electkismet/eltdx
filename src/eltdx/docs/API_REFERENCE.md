@@ -526,10 +526,10 @@ client.f10.hot_topics("000034")
 client.f10.announcements("000034")
 client.f10.finance_report("000034")
 client.f10.valuation("000034")
-client.f10.limit_board_ladder("20260810")
+client.f10.limit_up_down_list("20260810")
 ```
 
-常规 F10 方法返回 `F10Response`，连板天梯返回 `LimitBoardLadder`（其中每行是 `LimitBoardLadderRow`）。常用数据在第一张表或模型的 `rows`：
+常规 F10 方法返回 `F10Response`，涨跌停列表返回 `LimitBoardLadder`（其中每行是 `LimitBoardLadderRow`）。常用数据在第一张表或模型的 `rows`：
 
 ```python
 response = client.f10.hot_topics("000034")

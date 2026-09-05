@@ -232,6 +232,7 @@
       "eltdx_shortline_indicators": {"method": "shortline_indicators", "signature": "(codes, stats_path='zhb.zip', refresh_stats=False, timeout=8.0, host=None)", "output": "object"},
       "eltdx_stock_topics": {"method": "stock_topics", "signature": "(code, timeout=8.0)", "output": "object"},
       "eltdx_topic_stocks": {"method": "topic_stocks", "signature": "(seed_code, topic_id=None, topic_name=None, sort_by='zdf', section='gndbzfsj', timeout=8.0)", "output": "object"},
+      "eltdx_limit_up_down_list": {"method": "limit_up_down_list", "signature": "(start_date=None, end_date=None, include_summary=False, timeout=8.0)", "output": "object"},
       "eltdx_limit_board_ladder": {"method": "limit_board_ladder", "signature": "(start_date=None, end_date=None, include_summary=False, timeout=8.0)", "output": "object"},
       "eltdx_company_profile": {"method": "company_profile", "signature": "(code, section='8', timeout=8.0)", "output": "object"},
       "eltdx_hot_topics": {"method": "hot_topics", "signature": "(code, section='zttzbkz', timeout=8.0)", "output": "object"},

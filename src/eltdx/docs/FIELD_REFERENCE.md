@@ -395,18 +395,20 @@ K 线响应和单根 K 线。
 
 ### LimitBoardLadder / LimitBoardLadderRow
 
-`client.f10.limit_board_ladder()` 的 7615 连板明细字段。服务端原生字段保留在每行的 `raw` 中；下表是稳定的描述性字段和对应原名。
+`client.f10.limit_up_down_list()` 的 7615 涨跌停列表字段。服务端原生字段保留在每行的 `raw` 中；下表是稳定的描述性字段和对应原名。
 
 | 字段 | 原生字段 | 含义 | 单位 |
 | --- | --- | --- | --- |
 | `trading_date` / `trading_date_value` | `rq` / `rqex` | 展示日期 / `YYYYMMDD` 日期值 | - |
-| `board_level` / `ladder_days` | `zglb` / `lbts` | 板位 / 连板天数 | 板 / 天 |
+| `board_level` / `ladder_days` | `lbts` | 涨停股票的板位 / 连板天数；其他类型服务端为 `0`，`board_level` 规范为 `None` | 板 / 天 |
+| `highest_board_level` | `zglb` | 当天最高板；服务端逐行重复 | 板 |
 | `code` / `market_id` | `ZQDM` / `SC` | 六位证券代码 / 市场号 | - |
 | `full_code` / `market` | 派生字段 | 带市场前缀的完整代码 / 市场前缀 | - |
 | `name` / `industry` | `ZQJC` / `sshy` | 证券简称 / 所属行业 | - |
-| `limit_reason` / `limit_reason_extra` | `ztyy` / `ztyy2` | 涨停原因 / 第二原因 | - |
+| `limit_reason` / `limit_reason_extra` | `ztyy` / `ztyy2` | 第一原因 / 第二原因 | - |
 | `seal_amount` / `limit_time` | `fde` / `ztsj` | 封单额 / 涨停时间 | 元 / 时分秒 |
-| `broken_count` / `limit_type` | `kbcs` / `ztlb` | 炸板次数 / 涨停类型 | 次 / - |
+| `broken_count` / `limit_type` | `kbcs` / `ztlb` | 炸板次数 / 行类型（`1` 涨停、`3` 炸板、`0` 跌停） | 次 / - |
+| `status` / `reason` | 派生字段 | 行类型和页面显示原因 | - |
 | `success_rate` | `cgl` | 服务端成功率或晋级相关字段 | 服务端定义 |
 
 ### ShortlineIndicatorTable / ShortlineIndicator

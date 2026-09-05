@@ -75,14 +75,14 @@ class F10Client:
 
         return self.call(entry, params=params)
 
-    def limit_board_ladder(
+    def limit_up_down_list(
         self,
         start_date: str | int | date | None = None,
         end_date: str | int | date | None = None,
         *,
         include_summary: bool = False,
     ) -> LimitBoardLadder:
-        """Query stock-level limit-up/连板 details for a date or date range.
+        """Query the stock-level limit-up, broken-board and limit-down list.
 
         The page uses the dedicated ``CWServ.cfg_fx_lbtt`` 7615 Entry.  The
         detail request is ``Params=["1", start, end]``; when requested, the
@@ -112,6 +112,21 @@ class F10Client:
             rows=rows,
             summary=summary_rows,
             raw=response.raw,
+        )
+
+    def limit_board_ladder(
+        self,
+        start_date: str | int | date | None = None,
+        end_date: str | int | date | None = None,
+        *,
+        include_summary: bool = False,
+    ) -> LimitBoardLadder:
+        """Compatibility alias for :meth:`limit_up_down_list`."""
+
+        return self.limit_up_down_list(
+            start_date,
+            end_date,
+            include_summary=include_summary,
         )
 
     def stock_info(self, code: str) -> F10Response:
@@ -547,11 +562,17 @@ def _date_text(value: str | int | date | None) -> str | None:
 
 
 def _parse_limit_board_ladder_row(row: Mapping[str, Any]) -> LimitBoardLadderRow:
+    limit_type = _as_int(row.get("ztlb"))
+    ladder_days = _as_int(row.get("lbts"))
     return LimitBoardLadderRow(
         trading_date=row.get("rq"),
         trading_date_value=row.get("rqex"),
-        board_level=_as_int(row.get("zglb")),
-        ladder_days=_as_int(row.get("lbts")),
+        board_level=(
+            ladder_days
+            if limit_type == 1 and ladder_days is not None and ladder_days > 0
+            else None
+        ),
+        ladder_days=ladder_days,
         code=_as_text(row.get("ZQDM")),
         market_id=_as_int(row.get("SC")),
         limit_reason=row.get("ztyy"),
@@ -561,8 +582,9 @@ def _parse_limit_board_ladder_row(row: Mapping[str, Any]) -> LimitBoardLadderRow
         limit_time=row.get("ztsj"),
         broken_count=_as_int(row.get("kbcs")),
         industry=row.get("sshy"),
-        limit_type=_as_int(row.get("ztlb")),
+        limit_type=limit_type,
         success_rate=row.get("cgl"),
+        highest_board_level=_as_int(row.get("zglb")),
         raw=dict(row),
     )
 

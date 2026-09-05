@@ -76,7 +76,8 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | --- | --- |
 | `eltdx_stock_topics` | 查询个股关联的全部题材 |
 | `eltdx_topic_stocks` | 查询题材成分股及题材内对比数据 |
-| `eltdx_limit_board_ladder` | 查询指定日期 / 日期范围的逐股涨停与连板明细，可选市场概况 |
+| `eltdx_limit_up_down_list` | 查询指定日期 / 日期范围的逐股涨停、炸板和跌停列表，可选市场概况 |
+| `eltdx_limit_board_ladder` | `eltdx_limit_up_down_list` 的兼容名称 |
 | `eltdx_company_profile` | 查询 F10 公司概况 |
 | `eltdx_hot_topics` | 查询 F10 热点题材明细 |
 | `eltdx_finance_report` | 查询 F10 财务报表 |
@@ -151,7 +152,7 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 }
 ```
 
-历史连板明细：
+历史涨跌停列表：
 
 ```json
 {
@@ -160,6 +161,8 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
   "include_summary": true
 }
 ```
+
+该 Entry 没有服务端排序参数；排序下拉框属于页面本地逻辑，范围是每个日期的每个板位/状态分组内部。
 
 ## 参数和资源边界
 

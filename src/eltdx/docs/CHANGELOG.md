@@ -4,6 +4,12 @@
 
 暂无。
 
+## v3.1.4 - 2026-09-05
+
+- 修正涨跌停列表解析：使用 `lbts` 作为单只股票板位，补充 `highest_board_level`、`status`、`reason` 字段。
+- 新增 `client.f10.limit_up_down_list()` 与 MCP 工具 `eltdx_limit_up_down_list`，旧连板天梯名称继续兼容。
+- 补充市场概况、梯队数量与晋级率统计，日期范围按交易日返回对应统计。
+
 ## v3.1.3 - 2026-09-05
 
 - `client.bars.get()` 支持传入代码列表，按连接池并发返回以规范化完整代码为键的结果字典；`batch_size` 可限制并发数。

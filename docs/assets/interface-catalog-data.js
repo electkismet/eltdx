@@ -1,7 +1,7 @@
 window.ELTDX_CATALOG = {
   "schema_version": 13,
   "release": {
-    "version": "3.1.3",
+    "version": "3.1.4",
     "status": "stable",
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
@@ -724,19 +724,21 @@ window.ELTDX_CATALOG = {
     },
     {
       "id": "f10-limit-board-ladder",
-      "title": "连板天梯明细",
+      "title": "涨跌停列表",
       "source": "F10",
       "category": "连板天梯",
-      "api": "client.f10.limit_board_ladder()",
+      "api": "client.f10.limit_up_down_list()",
       "aliases": [
+        "limit_up_down_list",
         "limit_board_ladder",
         "cfg_fx_lbtt",
+        "涨跌停列表",
         "连板天梯",
         "涨停明细"
       ],
       "protocol": "CWServ.cfg_fx_lbtt",
       "kind": "Entry 封装",
-      "summary": "按日期或日期范围返回逐股涨停、连板、涨停原因、封单和炸板次数；可选市场概况。",
+      "summary": "按日期或日期范围返回逐股涨停、炸板和跌停列表，以及涨停原因、封单和炸板次数；可选市场概况。",
       "return_model": "LimitBoardLadder",
       "doc": "methods/F10-连板天梯.md"
     },
