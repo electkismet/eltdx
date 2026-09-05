@@ -400,13 +400,13 @@ K 线响应和单根 K 线。
 | 字段 | 原生字段 | 含义 | 单位 |
 | --- | --- | --- | --- |
 | `trading_date` / `trading_date_value` | `rq` / `rqex` | 展示日期 / `YYYYMMDD` 日期值 | - |
-| `board_level` / `ladder_days` | `lbts` | 涨停股票的板位 / 连板天数；其他类型服务端为 `0`，`board_level` 规范为 `None` | 板 / 天 |
+| `board_level` / `ladder_days` | `lbts` | 同一字段的主名和兼容别名；涨停股票的实际板位，其他类型服务端为 `0`，`board_level` 规范为 `None` | 板 / 天 |
 | `highest_board_level` | `zglb` | 当天最高板；服务端逐行重复 | 板 |
 | `code` / `market_id` | `ZQDM` / `SC` | 六位证券代码 / 市场号 | - |
 | `full_code` / `market` | 派生字段 | 带市场前缀的完整代码 / 市场前缀 | - |
 | `name` / `industry` | `ZQJC` / `sshy` | 证券简称 / 所属行业 | - |
 | `limit_reason` / `limit_reason_extra` | `ztyy` / `ztyy2` | 第一原因 / 第二原因 | - |
-| `seal_amount` / `limit_time` | `fde` / `ztsj` | 封单额 / 涨停时间 | 元 / 时分秒 |
+| `seal_amount` / `limit_time` | `fde` / `ztsj` | 对应方向封单额 / 涨跌停时间；`ztlb=1` 为涨停封单，`ztlb=0` 为跌停封单 | 元 / 时分秒 |
 | `broken_count` / `limit_type` | `kbcs` / `ztlb` | 炸板次数 / 行类型（`1` 涨停、`3` 炸板、`0` 跌停） | 次 / - |
 | `status` / `reason` | 派生字段 | 行类型和页面显示原因 | - |
 | `success_rate` | `cgl` | 服务端成功率或晋级相关字段 | 服务端定义 |
