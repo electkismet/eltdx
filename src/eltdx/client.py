@@ -348,7 +348,18 @@ class TdxClient:
 
     def _cache_security_rows(self, rows) -> None:
         with self._decimal_lock:
-            self._decimal_cache.update({row.full_code: int(row.decimal) for row in rows})
+            # Code-list requests normally return ``SecurityRow`` objects, but
+            # transports used by tests (and diagnostic/in-memory transports)
+            # may return an envelope or other iterable payload.  Ignore those
+            # values here; precision caching is best-effort and must not alter
+            # the public response or make a metadata request fail.
+            if not isinstance(rows, (list, tuple)):
+                return
+            for row in rows:
+                full_code = getattr(row, "full_code", None)
+                decimal = getattr(row, "decimal", None)
+                if isinstance(full_code, str) and decimal is not None:
+                    self._decimal_cache[full_code] = int(decimal)
 
     def _normalize_prices(self, command_name: str, result, codes=None):
         if not isinstance(self.transport, (PooledSocketTransport, SocketTransport)):

@@ -26,6 +26,11 @@ class CodeApi(ApiBase):
         items = []
         while True:
             page = self.list(market, start=start, limit=page_size)
+            # Native parsing returns a list of ``SecurityRow`` values.  Keep
+            # pagination finite when a diagnostic/in-memory transport returns
+            # an envelope or another non-list payload instead.
+            if not isinstance(page, (list, tuple)):
+                return items
             items.extend(page)
             if not page:
                 return items
