@@ -257,9 +257,10 @@ fn classify_security_details(market: Market, code: &str) -> (SecurityCategory, &
         return (SecurityCategory::AShare, "SSE A-share code prefix");
     }
     if market == Market::Shenzhen
-        && ["000", "001", "002", "003", "004", "300", "301"]
+        && (["000", "001", "002", "003", "004"]
             .iter()
             .any(|value| prefix(value))
+            || prefix("30"))
     {
         return (SecurityCategory::AShare, "SZSE A-share code prefix");
     }
@@ -306,7 +307,7 @@ pub fn classify_board(market: Market, code: &str, category: SecurityCategory) ->
     {
         return SecurityBoard::SzseMainBoard;
     }
-    if market == Market::Shenzhen && ["300", "301"].iter().any(|value| prefix(value)) {
+    if market == Market::Shenzhen && prefix("30") {
         return SecurityBoard::SzseChinext;
     }
     if market == Market::Beijing && prefix("92") {
@@ -423,6 +424,14 @@ mod tests {
         assert_eq!(
             classify_security(Market::Beijing, "810001"),
             SecurityCategory::PrivateConvertibleBond
+        );
+        assert_eq!(
+            classify_security(Market::Shenzhen, "302132"),
+            SecurityCategory::AShare
+        );
+        assert_eq!(
+            classify_board(Market::Shenzhen, "302132", SecurityCategory::AShare),
+            SecurityBoard::SzseChinext
         );
     }
 

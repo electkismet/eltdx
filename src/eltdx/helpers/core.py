@@ -1166,7 +1166,7 @@ def _price_limit_ratio(full_code: str, name: str | None) -> float | None:
     if full_code.startswith("bj"):
         return 30.0
     if full_code.startswith("sh688") or (
-        full_code.startswith("sz") and full_code[2:].startswith(("300", "301"))
+        full_code.startswith("sz") and full_code[2:].startswith("30")
     ):
         return 20.0
     return 10.0
@@ -1178,7 +1178,7 @@ def _price_limit_rule(full_code: str, name: str | None) -> str:
         return "bse_30pct"
     if full_code.startswith("sh688"):
         return "star_20pct"
-    if full_code.startswith("sz") and full_code[2:].startswith(("300", "301")):
+    if full_code.startswith("sz") and full_code[2:].startswith("30"):
         return "chinext_20pct"
     if upper.startswith(("ST", "*ST", "SST", "S*ST")):
         return "st_main_10pct"

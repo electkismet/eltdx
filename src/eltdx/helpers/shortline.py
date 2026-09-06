@@ -710,7 +710,7 @@ def _price_limit_ratio(full_code: str, name: str | None) -> float | None:
         return 30.0
     if full_code.startswith("sh688"):
         return 20.0
-    if full_code.startswith("sz") and symbol.startswith(("300", "301")):
+    if full_code.startswith("sz") and symbol.startswith("30"):
         return 20.0
     return 10.0
 

@@ -16,8 +16,8 @@ if str(ROOT) not in sys.path:
 from scripts.verification.verify_release_artifacts import verify_artifacts
 
 
-TARGET_CARGO_VERSION = "3.1.6"
-TARGET_PYTHON_VERSION = "3.1.6"
+TARGET_CARGO_VERSION = "3.1.7"
+TARGET_PYTHON_VERSION = "3.1.7"
 # The v3.0.5 banner is intentionally reused for this release.
 BANNER_KEYWORD = b"eltdx_release\x00" + b"3.0.5"
 
@@ -89,8 +89,8 @@ def check(
     required = {
         "README.md": TARGET_PYTHON_VERSION,
         "docs/CHANGELOG.md": f"v{TARGET_PYTHON_VERSION}",
-        "docs/releases/v3.1.6.md": f"v{TARGET_PYTHON_VERSION}",
-        "mkdocs.yml": "releases/v3.1.6.md",
+        "docs/releases/v3.1.7.md": f"v{TARGET_PYTHON_VERSION}",
+        "mkdocs.yml": "releases/v3.1.7.md",
         "docs/assets/interface-catalog-data.js": f'"version": "{TARGET_PYTHON_VERSION}"',
     }
     for relative, needle in required.items():
