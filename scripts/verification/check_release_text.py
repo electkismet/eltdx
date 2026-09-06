@@ -10,19 +10,19 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def check() -> list[str]:
     errors: list[str] = []
-    release = (ROOT / "docs" / "releases" / "v3.1.6.md").read_text(encoding="utf-8")
+    release = (ROOT / "docs" / "releases" / "v3.1.7.md").read_text(encoding="utf-8")
     changelog = (ROOT / "docs" / "CHANGELOG.md").read_text(encoding="utf-8")
     publish = (ROOT / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
     required_release = (
         "## 主要变化",
         "## 修复内容",
-        "## 升级注意",
+        "## 升级",
     )
     for needle in required_release:
         if needle not in release:
             errors.append(f"release notes missing {needle!r}")
-    if "## v3.1.6 - 2026-09-06" not in changelog:
-        errors.append("changelog does not contain the dated v3.1.6 release")
+    if "## v3.1.7 - 2026-09-07" not in changelog:
+        errors.append("changelog does not contain the dated v3.1.7 release")
     if "待发布" in release or "预发布候选" in release:
         errors.append("release notes still describe a pending prerelease")
     for needle in ("name: pypi", "refs/tags/v"):
