@@ -71,7 +71,9 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/packages/
-          skip-existing: false
+          # Re-running a tag workflow should remain green when the immutable
+          # files are already present on PyPI.
+          skip-existing: true
 
   release:
     name: Create GitHub Release from exact artifacts
