@@ -1,7 +1,7 @@
 window.ELTDX_CATALOG = {
   "schema_version": 13,
   "release": {
-    "version": "3.1.7",
+    "version": "3.1.8",
     "status": "stable",
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
@@ -498,10 +498,16 @@ window.ELTDX_CATALOG = {
         {
           "label": "完整分页",
           "api": "client.trades.all_history(code, date, ..., batch_size=None)"
+        },
+        {
+          "label": "可选批量返回",
+          "api": "client.trades.history_batch(code, date) / client.trades.all_history_batch(code, date)"
         }
       ],
       "aliases": [
         "trades.history",
+        "trades.history_batch",
+        "trades.all_history_batch",
         "历史逐笔"
       ],
       "protocol": "0x0fc6",

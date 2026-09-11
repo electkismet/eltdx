@@ -34,6 +34,7 @@ from .resource import FileContentChunk, TdxStat2Row, TdxStatRow, TdxStatsResourc
 from .security import SecurityCode
 from .session import HandshakeInfo, HeartbeatAck
 from .trade import TradePage, TradeTick
+from .trade_batch import TradeBatch
 
 __all__ = [
     "AdjustmentFactor",
@@ -75,6 +76,7 @@ __all__ = [
     "SpecialLimitRecord",
     "SparklineSeries",
     "TradePage",
+    "TradeBatch",
     "TradeTick",
     "TdxStat2Row",
     "TdxStatRow",

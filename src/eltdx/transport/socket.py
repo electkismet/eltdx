@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from eltdx._native_models import push_frame_from_dto, response_from_dto
+from eltdx._native_models import push_frame_from_dto, response_from_dto, trade_batch_from_dto
 from eltdx.hosts import DEFAULT_HOSTS, resolve_hosts, unique_hosts
 from eltdx.transport.native import call_native, native_module
 
@@ -204,6 +204,12 @@ class SocketTransport:
     def execute(self, command: int, payload: dict[str, Any] | None = None) -> Any:
         dto = call_native(self._native().execute, command, payload or {})
         return response_from_dto(dto)
+
+    def execute_trade_batch(self, command: int, payload: dict[str, Any] | None = None):
+        if command != 0x0FC6:
+            raise ValueError("trade batch only supports historical ticks")
+        dto = call_native(self._native().execute, command, payload or {})
+        return trade_batch_from_dto(dto)
 
     def request(self, command: str) -> str:
         if command == "ping":

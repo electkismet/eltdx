@@ -9,7 +9,7 @@ from enum import Enum, auto
 from threading import Lock
 from typing import Any
 
-from eltdx._native_models import response_from_dto
+from eltdx._native_models import response_from_dto, trade_batch_from_dto
 from eltdx.exceptions import ConnectionClosedError
 from eltdx.hosts import (
     DEFAULT_HOSTS,
@@ -186,6 +186,13 @@ class PinnedTransportProxy:
         self._require_open()
         dto = call_native(self._native_pin.execute, command, payload or {})
         return response_from_dto(dto)
+
+    def execute_trade_batch(self, command: int, payload: dict[str, Any] | None = None):
+        self._require_open()
+        if command != 0x0FC6:
+            raise ValueError("trade batch only supports historical ticks")
+        dto = call_native(self._native_pin.execute, command, payload or {})
+        return trade_batch_from_dto(dto)
 
     def request(self, command: str) -> str:
         return self._require_open().request(command)
@@ -426,6 +433,12 @@ class PooledSocketTransport:
     def execute(self, command: int, payload: dict[str, Any] | None = None) -> Any:
         dto = call_native(self._native().execute, command, payload or {})
         return response_from_dto(dto)
+
+    def execute_trade_batch(self, command: int, payload: dict[str, Any] | None = None):
+        if command != 0x0FC6:
+            raise ValueError("trade batch only supports historical ticks")
+        dto = call_native(self._native().execute, command, payload or {})
+        return trade_batch_from_dto(dto)
 
     def request(self, command: str) -> str:
         if command == "ping":

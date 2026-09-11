@@ -32,9 +32,11 @@ from .helpers import (
     ThemeStrengthTable,
 )
 from .serialization import to_json, to_jsonable
+from .models import TradeBatch
 from .workday import WorkdayService
 
 __all__ = [
+    "TradeBatch",
     "AuctionData",
     "DailyPriceLimit",
     "DailyPriceLimitTable",

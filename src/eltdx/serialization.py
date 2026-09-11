@@ -8,6 +8,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
+from .models.trade_batch import TradeBatch
+
 
 def to_jsonable(value: Any) -> Any:
     """Convert eltdx models and common Python objects to JSON-safe values."""
@@ -20,6 +22,10 @@ def to_jsonable(value: Any) -> Any:
 
     if isinstance(value, bytes):
         return value.hex()
+
+    if isinstance(value, TradeBatch):
+        # Explicit row-oriented export pays the full model construction cost.
+        return to_jsonable(value.to_page())
 
     if is_dataclass(value) and not isinstance(value, type):
         return {field.name: to_jsonable(getattr(value, field.name)) for field in fields(value)}

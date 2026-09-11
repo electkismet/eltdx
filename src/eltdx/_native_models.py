@@ -299,6 +299,21 @@ def _trade_page(value: Any) -> TradePage:
     )
 
 
+def trade_batch_from_dto(dto: Any):
+    """Keep historical tick fields in blocks; do not construct TradeTick rows."""
+    from eltdx.models.trade_batch import TradeBatch
+
+    tag, payload = _tuple(dto, "response", 2)
+    if tag != "historical_ticks":
+        raise TypeError("trade batch requires a historical_ticks response")
+    fields = _tuple(payload, "trade page", 9)
+    ticks = _flat_records(fields[5], "trade ticks", _TRADE_TICK_STRIDE)
+    return TradeBatch(
+        fields[0], fields[1], fields[2], fields[3], fields[4], (ticks,),
+        _date(fields[6]), fields[7], fields[8],
+    )
+
+
 def response_from_dto(dto: Any) -> Any:
     """Convert one ``(tag, payload)`` native response DTO."""
 

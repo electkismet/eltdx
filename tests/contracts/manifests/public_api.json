@@ -31,7 +31,8 @@
       "WorkdayService",
       "__version__",
       "to_json",
-      "to_jsonable"
+      "to_jsonable",
+      "TradeBatch"
     ],
     "eltdx.api": [
       "AuctionApi",
@@ -154,9 +155,9 @@
     "eltdx.api.minutes:MinuteApi": {
       "members": ["aux", "buy_sell_strength", "history", "recent", "sparkline", "today", "volume_comparison"],
       "signatures": {
-        "today": "(self, code, *, include_raw=False)",
-        "history": "(self, code, trading_date, *, include_raw=False)",
-        "recent": "(self, code, trading_date=None, *, include_raw=False)",
+        "today": "(self, code, *, include_raw=False, batch_size=None)",
+        "history": "(self, code, trading_date, *, include_raw=False, batch_size=None)",
+        "recent": "(self, code, trading_date=None, *, include_raw=False, batch_size=None)",
         "aux": "(self, code, kind='buy_sell_strength', *, include_raw=False)",
         "sparkline": "(self, code, *, selector=1, window=20, include_raw=False)",
         "buy_sell_strength": "(self, code, *, include_raw=False)",
@@ -164,10 +165,14 @@
       }
     },
     "eltdx.api.trades:TradeApi": {
-      "members": ["all_history", "all_today", "history", "opening_match_history", "opening_match_today", "today"],
+      "members": ["all_history", "all_history_batch", "all_today", "all_today_batch", "history", "history_batch", "opening_match_history", "opening_match_today", "today", "today_batch"],
       "signatures": {
         "today": "(self, code, *, start=0, count=1800, include_raw=False, batch_size=None)",
         "history": "(self, code, trading_date, *, start=0, count=1800, include_raw=False, batch_size=None)",
+        "history_batch": "(self, code, trading_date, *, start=0, count=1800, include_raw=False, batch_size=None)",
+        "today_batch": "(self, code, *, start=0, count=1800, include_raw=False, batch_size=None)",
+        "all_today_batch": "(self, code, *, page_size=1800, max_pages=100, include_raw=False, batch_size=None)",
+        "all_history_batch": "(self, code, trading_date, *, page_size=1800, max_pages=100, include_raw=False, batch_size=None)",
         "all_today": "(self, code, *, page_size=1800, max_pages=100, include_raw=False, batch_size=None)",
         "all_history": "(self, code, trading_date, *, page_size=1800, max_pages=100, include_raw=False, batch_size=None)",
         "opening_match_today": "(self, code, *, page_size=1800, max_pages=100, include_raw=False, batch_size=None)",

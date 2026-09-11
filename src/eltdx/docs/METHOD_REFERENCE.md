@@ -464,13 +464,16 @@ many = client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_
 
 <a id="method-minutes-today"></a>
 
-### `client.minutes.today(code)`
+### `client.minutes.today(code, include_raw=False, batch_size=None)`
 
 查询主站当前保存的分时，对应 `0x0537`。凌晨、周末或节假日可能返回最近交易日数据。
 
 ```python
 series = client.minutes.today("sz000001")
+series_by_code = client.minutes.today(["sz000001", "sh600487"], batch_size=8)
 ```
+
+这里的中文名称是“当日分时接口”：查询股票当天每分钟的价格和成交量。传入单个代码返回一个 `MinuteSeries`；传入股票代码列表时按连接池并发查询，返回 `{完整代码: MinuteSeries}`。`batch_size` 只限制同时查询的股票数，不改变单只股票的返回结构。
 
 | 返回模型           | 说明   |
 | -------------- | ---- |
@@ -498,14 +501,17 @@ series = client.minutes.today("sz000001")
 
 <a id="method-minutes-history"></a>
 
-### `client.minutes.history(code, trading_date)`
+### `client.minutes.history(code, trading_date, include_raw=False, batch_size=None)`
 
 查询指定日期历史分时，对应 `0x0fb4`。
 
 ```python
 series = client.minutes.history("sz000001", "2026-05-20")
 series = client.minutes.history("sz000001", "2026-05-20")
+series_by_code = client.minutes.history(["sz000001", "sh600487"], "2026-05-20", batch_size=8)
 ```
+
+中文名称是“指定日期历史分时接口”：查询某个交易日的分钟行情；代码列表返回按股票代码组织的字典。
 
 | 参数             | 含义                                    |
 | -------------- | ------------------------------------- |
@@ -515,13 +521,16 @@ series = client.minutes.history("sz000001", "2026-05-20")
 
 <a id="method-minutes-recent"></a>
 
-### `client.minutes.recent(code, trading_date=None)`
+### `client.minutes.recent(code, trading_date=None, include_raw=False, batch_size=None)`
 
 查询近期历史分时，对应 `0x0feb`。
 
 ```python
 series = client.minutes.recent("sz000001", "2026-05-20")
+series_by_code = client.minutes.recent(["sz000001", "sh600487"], "2026-05-20", batch_size=8)
 ```
+
+中文名称是“近期历史分时接口”：查询近期窗口内的分钟行情；代码列表返回按股票代码组织的字典。
 
 | 参数             | 含义                  |
 | -------------- | ------------------- |
@@ -677,6 +686,11 @@ after_hours = page.after_hours_trades
 client.trades.all_today("sz000001")
 client.trades.all_history("sz000001", "2026-05-20")
 ```
+
+可选批量返回入口：`client.trades.history_batch(code, trading_date, ...)`（一页）和
+`client.trades.all_history_batch(code, trading_date, ...)`（完整分页）。`code` 同样可传单个代码或代码列表，分别返回 `TradeBatch` 或 `{完整代码: TradeBatch}`。
+使用 `column()` 读取字段列、`select()` 按下标筛选，或通过 `tick()` / `to_page()` 显式生成原有对象。
+参数和分页上限与对应原入口相同，原入口返回类型不变。完整用法见[历史成交明细的可选批量数据返回](methods/7709-历史成交明细.md#trade-batch)。
 
 `client.trades.today()` 和 `client.trades.history()` 每次只返回一页，用于手动分页、抽样或控制单次请求量。
 

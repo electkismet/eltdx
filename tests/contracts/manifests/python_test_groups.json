@@ -33,7 +33,8 @@
       "tests/test_mcp.py",
       "tests/test_pages.py",
       "tests/test_resources.py",
-      "tests/test_shortline_helpers.py"
+      "tests/test_shortline_helpers.py",
+      "tests/test_trade_batch.py"
     ],
     "round5-loopback": [
       "tests/integration/test_loopback_concurrency.py",

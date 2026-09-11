@@ -143,6 +143,8 @@ client.trades.today("sz000001")
 client.trades.history("sz000001", "2026-05-20")
 client.trades.all_history("sz000001", "2026-05-20")
 client.trades.all_history(["sz000001", "sh600000"], "2026-05-20")
+client.trades.history_batch("sz000001", "2026-05-20")
+client.trades.all_history_batch(["sz000001", "sh600000"], "2026-05-20")
 ```
 
 成交明细提供单页和完整分页两组入口：
@@ -382,29 +384,38 @@ client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_size=2)
 
 ## `client.minutes`
 
-### `today(code, include_raw=False)`
+### `today(code, include_raw=False, batch_size=None)`
 
 查询主站当前保存的分时，对应 `0x0537`。凌晨、周末或节假日可能返回最近交易日数据。
 
 ```python
 client.minutes.today("sz000001")
+client.minutes.today(["sz000001", "sh600487"], batch_size=8)
 ```
 
-### `history(code, trading_date, include_raw=False)`
+当日分时接口：查询当天每分钟行情。传单个代码返回 `MinuteSeries`，传代码列表返回 `{完整代码: MinuteSeries}`。
+
+### `history(code, trading_date, include_raw=False, batch_size=None)`
 
 查询指定日期历史分时，对应 `0x0fb4`。
 
 ```python
 client.minutes.history("sz000001", "2026-05-20")
+client.minutes.history(["sz000001", "sh600487"], "2026-05-20", batch_size=8)
 ```
 
-### `recent(code, trading_date=None, include_raw=False)`
+指定日期历史分时接口：查询某个交易日的分钟行情；代码列表返回按代码组织的字典。
+
+### `recent(code, trading_date=None, include_raw=False, batch_size=None)`
 
 查询近期历史分时，对应 `0x0feb`。
 
 ```python
 client.minutes.recent("sz000001", "2026-05-20")
+client.minutes.recent(["sz000001", "sh600487"], "2026-05-20", batch_size=8)
 ```
+
+近期历史分时接口：查询近期分钟行情；代码列表返回按代码组织的字典。
 
 ### `aux(code, kind="buy_sell_strength", include_raw=False)`
 
@@ -424,6 +435,8 @@ client.minutes.sparkline("sz000001", selector=1)
 ```
 
 ## `client.trades`
+
+当日成交明细的批量字段接口为 `today_batch()`，完整当日成交明细接口为 `all_today_batch()`；它们返回 `TradeBatch`，需要某一行时再调用 `tick(index)`，需要列数据时调用 `column(name)`，避免一开始为每一笔成交创建 Python 对象。
 
 ### `today(code, start=0, count=1800, include_raw=False, batch_size=None)`
 

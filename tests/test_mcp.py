@@ -12,7 +12,9 @@ from eltdx import hosts as hosts_module
 from eltdx.api.bars import BarApi
 from eltdx.api.corporate import CorporateApi
 from eltdx.api.money_flow import MoneyFlowApi
+from eltdx.api.minutes import MinuteApi
 from eltdx.api.quotes import QuoteApi
+from eltdx.api.trades import TradeApi
 from eltdx.f10 import F10Client
 from eltdx.mcp import (
     _ClientRegistry,
@@ -156,6 +158,70 @@ def test_mcp_money_flow_forwards_batch_options(monkeypatch) -> None:
     finally:
         registry.close()
     assert calls == [(["sz000001", "sh600000"], True, 100)]
+
+
+def test_mcp_minute_accepts_code_list_and_forwards_batch_size(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(TdxClient, "connect", lambda self: None)
+    monkeypatch.setattr(TdxClient, "close", lambda self: None)
+    monkeypatch.setattr(
+        MinuteApi,
+        "today",
+        lambda self, code, *, include_raw=False, batch_size=None: (
+            calls.append((code, include_raw, batch_size))
+            or {"sz000001": {"points": []}, "sh600000": {"points": []}}
+        ),
+    )
+
+    registry = _ClientRegistry()
+    tools = _McpTools(registry)
+    try:
+        result = tools.minute(
+            ["sz000001", "sh600000"], include_raw=True, batch_size=8
+        )
+    finally:
+        registry.close()
+
+    assert set(result) == {"sz000001", "sh600000"}
+    assert calls == [(["sz000001", "sh600000"], True, 8)]
+
+
+def test_mcp_trades_accepts_code_list_and_forwards_batch_size(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(TdxClient, "connect", lambda self: None)
+    monkeypatch.setattr(TdxClient, "close", lambda self: None)
+    monkeypatch.setattr(
+        TradeApi,
+        "history",
+        lambda self, code, trading_date, **kwargs: (
+            calls.append((code, trading_date, kwargs))
+            or {
+                item: {"code": item, "trading_date": trading_date}
+                for item in code
+            }
+        ),
+    )
+
+    registry = _ClientRegistry()
+    tools = _McpTools(registry)
+    try:
+        result = tools.trades(
+            ["sz000001", "sh600000"],
+            trading_date="20260803",
+            count=100,
+            batch_size=8,
+        )
+    finally:
+        registry.close()
+
+    assert set(result) == {"sz000001", "sh600000"}
+    assert calls == [
+        (
+            ["sz000001", "sh600000"],
+            "20260803",
+            {"start": 0, "count": 100, "include_raw": False, "batch_size": 8},
+        )
+    ]
 
 
 def test_mcp_kline_returns_jsonable_series(monkeypatch) -> None:

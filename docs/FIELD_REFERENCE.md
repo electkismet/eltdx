@@ -149,6 +149,12 @@ K 线响应和单根 K 线。
 
 ## TradePage / TradeTick
 
+可选批量入口 `history_batch()` / `all_history_batch()` 返回 `TradeBatch`。
+`column(name)` 使用与 `TradeTick` 相同的 19 个存储字段名和值类型；不包含 `is_actual_trade` 等计算属性。
+`select(indices)` 筛选后仍返回批量字段，`tick(index)` 或 `to_page()` 才生成原有对象。
+元数据包含 `exchange`、`market_id`、`code`、`full_code`、`start`、`request_count`、`trading_date`、`price_base_raw_f32`、`raw_payload` 和 `count`。
+JSON 导出与转换后的 `TradePage` 结构一致。详见[历史成交批量返回](methods/7709-历史成交明细.md#trade-batch)。
+
 成交明细响应和单条混合事件。`0x0fc5`（当前）与 `0x0fc6`（历史）可能同时返回普通成交、竞价快照、09:25 与 15:00 正式撮合，以及 `status=5` 盘后固定价格成交。
 
 | 字段                  | 含义                            |

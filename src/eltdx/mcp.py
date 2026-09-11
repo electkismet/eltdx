@@ -202,20 +202,32 @@ def daily_price_limits(
 
 
 def minute(
-    code: str,
+    code: str | Sequence[str],
     *,
     trading_date: str | int | None = None,
     include_raw: bool = False,
+    batch_size: int | None = None,
     timeout: float = 8.0,
     host: str | None = None,
 ) -> Any:
     """Query today's hosted data or one historical day's minute series."""
 
+    code_value = code if isinstance(code, str) else _validate_codes(code)
+    batch_size = _optional_bounded_int(
+        "batch_size", batch_size, minimum=1, maximum=_MAX_CODES
+    )
     return _call_once(
         lambda client: (
-            client.minutes.today(code, include_raw=include_raw)
+            client.minutes.today(
+                code_value, include_raw=include_raw, batch_size=batch_size
+            )
             if trading_date is None
-            else client.minutes.history(code, trading_date, include_raw=include_raw)
+            else client.minutes.history(
+                code_value,
+                trading_date,
+                include_raw=include_raw,
+                batch_size=batch_size,
+            )
         ),
         timeout=timeout,
         host=host,
@@ -223,12 +235,13 @@ def minute(
 
 
 def trades(
-    code: str,
+    code: str | Sequence[str],
     *,
     trading_date: str | int | None = None,
     start: int = 0,
     count: int = 500,
     include_raw: bool = False,
+    batch_size: int | None = None,
     timeout: float = 8.0,
     host: str | None = None,
 ) -> Any:
@@ -236,16 +249,27 @@ def trades(
 
     start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
     count = _bounded_int("count", count, minimum=1, maximum=_MAX_TRADE_COUNT)
+    code_value = code if isinstance(code, str) else _validate_codes(code)
+    batch_size = _optional_bounded_int(
+        "batch_size", batch_size, minimum=1, maximum=_MAX_CODES
+    )
     return _call_once(
         lambda client: (
-            client.trades.today(code, start=start, count=count, include_raw=include_raw)
+            client.trades.today(
+                code_value,
+                start=start,
+                count=count,
+                include_raw=include_raw,
+                batch_size=batch_size,
+            )
             if trading_date is None
             else client.trades.history(
-                code,
+                code_value,
                 trading_date,
                 start=start,
                 count=count,
                 include_raw=include_raw,
+                batch_size=batch_size,
             )
         ),
         timeout=timeout,
@@ -888,28 +912,41 @@ class _McpTools:
 
     def minute(
         self,
-        code: str,
+        code: str | Sequence[str],
         trading_date: str | int | None = None,
         include_raw: bool = False,
+        batch_size: int | None = None,
         timeout: float = 8.0,
         host: str | None = None,
     ) -> dict[str, Any]:
         """Query today's hosted data or one historical day's minute series."""
 
+        code_value = code if isinstance(code, str) else _validate_codes(code)
+        batch_size = _optional_bounded_int(
+            "batch_size", batch_size, minimum=1, maximum=_MAX_CODES
+        )
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(
-                client.minutes.today(code, include_raw=include_raw)
+                client.minutes.today(
+                    code_value, include_raw=include_raw, batch_size=batch_size
+                )
                 if trading_date is None
-                else client.minutes.history(code, trading_date, include_raw=include_raw)
+                else client.minutes.history(
+                    code_value,
+                    trading_date,
+                    include_raw=include_raw,
+                    batch_size=batch_size,
+                )
             )
 
     def trades(
         self,
-        code: str,
+        code: str | Sequence[str],
         trading_date: str | int | None = None,
         start: int = 0,
         count: int = 500,
         include_raw: bool = False,
+        batch_size: int | None = None,
         timeout: float = 8.0,
         host: str | None = None,
     ) -> dict[str, Any]:
@@ -917,18 +954,27 @@ class _McpTools:
 
         start = _bounded_int("start", start, minimum=0, maximum=0xFFFF)
         count = _bounded_int("count", count, minimum=1, maximum=_MAX_TRADE_COUNT)
+        code_value = code if isinstance(code, str) else _validate_codes(code)
+        batch_size = _optional_bounded_int(
+            "batch_size", batch_size, minimum=1, maximum=_MAX_CODES
+        )
         with self._clients.use(timeout=timeout, host=host) as client:
             return _json(
                 client.trades.today(
-                    code, start=start, count=count, include_raw=include_raw
+                    code_value,
+                    start=start,
+                    count=count,
+                    include_raw=include_raw,
+                    batch_size=batch_size,
                 )
                 if trading_date is None
                 else client.trades.history(
-                    code,
+                    code_value,
                     trading_date,
                     start=start,
                     count=count,
                     include_raw=include_raw,
+                    batch_size=batch_size,
                 )
             )
 

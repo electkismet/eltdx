@@ -56,8 +56,8 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | `eltdx_adjustment_factors` | 根据权息资料计算本地前、后复权系数，默认每批 75 只 |
 | `eltdx_money_flow` | 查询最近日资金流向、主力/主买净额和两种口径的四档净额，默认每批 75 只 |
 | `eltdx_daily_price_limits` | 按指定交易日的日线、权息和市场规则计算涨跌停价；`trade_date` 必填 |
-| `eltdx_minute` | 查询当前或指定日期分时 |
-| `eltdx_trades` | 查询一页当前或历史成交明细 |
+| `eltdx_minute` | 查询当前或指定日期分时；`code` 可传单只或多只证券，列表时 `batch_size` 控制并发数 |
+| `eltdx_trades` | 查询一页当前或历史成交明细；`code` 可传单只或多只证券，列表时 `batch_size` 控制并发数 |
 | `eltdx_call_auction` | 查询当日或历史集合竞价过程快照；`trading_date` 可选 |
 | `eltdx_opening_match_today` | 查询当日 09:25 正式撮合 |
 | `eltdx_opening_match_history` | 查询历史 09:25 正式撮合 |
@@ -133,6 +133,15 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 }
 ```
 
+多只证券分时或成交明细：
+
+```json
+{
+  "code": ["sz000001", "sh600000"],
+  "batch_size": 8
+}
+```
+
 短线指标：
 
 ```json
@@ -175,6 +184,7 @@ Windows 上找不到脚本时，可以直接指定安装 `eltdx` 的 Python：
 | `host` | 可选的单个 7709 主站，例如 `116.205.183.150:7709` |
 | K 线 `count` | 每次最多 800 根 |
 | K 线 `code` | 可传单个代码或最多 200 个代码；传列表时 `batch_size` 控制并发数 |
+| 分时 / 成交 `code` | 可传单个代码或最多 200 个代码；传列表时 `batch_size` 控制并发数 |
 | 成交 `count` | 每次最多 1800 条 |
 | F10 `page_size` | 每次最多 100 条 |
 

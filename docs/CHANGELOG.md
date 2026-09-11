@@ -1,5 +1,13 @@
 # 变更记录
 
+## v3.1.8 - 2026-09-12
+
+- 新增可选的历史成交批量数据入口 `history_batch()` / `all_history_batch()`，支持单代码和代码列表，原有接口签名和返回类型保持不变。
+- 新增 `TradeBatch`，支持按列读取、按索引筛选、按需转换 `TradeTick` / `TradePage`，并支持显式 JSON 导出。
+- 池化、单连接和 pin transport 直接复用原始字段块；只实现旧接口的自定义 transport 保持兼容。批量路径不修改 Rust 协议及 ABI。
+
+- 分时和成交 MCP 工具支持传入代码列表，并通过 `batch_size` 控制并发。
+
 ## 工作区变更（未发布）
 
 暂无。
