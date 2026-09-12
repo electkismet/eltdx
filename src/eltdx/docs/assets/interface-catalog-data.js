@@ -1220,7 +1220,7 @@ window.ELTDX_CATALOG = {
       "kind": "组合能力",
       "summary": "按板块代码读取原始成员，用当前 0x044d 证券名单核对有效性，再分批取得成分股行情。",
       "return_model": "BoardMemberQuoteTable",
-      "doc": "helpers/板块行情.md"
+      "doc": "helpers/板块成分股行情.md"
     },
     {
       "id": "helper-buy-sell-strength",

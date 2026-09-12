@@ -70,7 +70,10 @@ def test_common_interface_docs_have_collapsible_real_json_samples() -> None:
     for relative_path in return_sample_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert '??? return-sample "' in detail, relative_path
-        assert "真实采样" in detail, relative_path
+        if relative_path in {"helpers/板块行情.md", "helpers/板块成分股行情.md"}:
+            assert "示例数据" in detail, relative_path
+        else:
+            assert "真实采样" in detail, relative_path
         assert "```json" in detail, relative_path
     for relative_path in f10_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
@@ -132,7 +135,7 @@ hide:
 [← 返回接口目录](../index.md){ .interface-detail-back }
 """
 
-    assert len(detail_docs) == 66
+    assert len(detail_docs) == 67
     for relative_path in detail_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert detail.startswith(expected_header), relative_path

@@ -92,6 +92,8 @@ nav:
       - 每日股本（盘前）: helpers/每日股本.md
       - 每日涨跌停价: helpers/每日涨跌停价.md
       - 实时榜单: helpers/实时榜单.md
+      - 板块行情: helpers/板块行情.md
+      - 板块成分股行情: helpers/板块成分股行情.md
       - 买卖力道: helpers/买卖力道.md
       - 成交对比: helpers/成交对比.md
       - 连板天梯: helpers/连板天梯.md
