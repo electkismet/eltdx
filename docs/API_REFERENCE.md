@@ -90,6 +90,10 @@ pin context 独占一个 slot；context 退出或 proxy `close()` 会取消未�
 
 这一组方法组合底层分组 API，提供分页、五档补齐、解析和本地计算等常用能力。
 
+### `client.helpers.board_quotes()` / `client.helpers.board_member_quotes(board_code)`
+
+板块 Helper 使用 `0x06b9` 准备板块资料，使用 `0x044d` 核对当前证券名单，再使用 `0x054c` 按最多 80 个代码分批查询行情。`board_quotes()` 返回所有板块自身行情但不排序；`board_member_quotes()` 必须传板块代码，只查询该板块的有效成分股。资料按服务端日期每天首次调用准备一次，可用 `refresh=True` 强制刷新。详见[板块行情与成分股](helpers/板块行情.md)。
+
 ### `client.helpers.full_quotes(codes)`
 
 批量查询完整五档行情，自动按 80 个代码拆批，底层组合 `0x054c` 基础快照和 `0x0547` 首次刷新。

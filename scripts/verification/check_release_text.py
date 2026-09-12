@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def check() -> list[str]:
     errors: list[str] = []
-    release = (ROOT / "docs" / "releases" / "v3.2.0.md").read_text(encoding="utf-8")
+    release = (ROOT / "docs" / "releases" / "v3.2.1.md").read_text(encoding="utf-8")
     changelog = (ROOT / "docs" / "CHANGELOG.md").read_text(encoding="utf-8")
     publish = (ROOT / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
     required_release = (

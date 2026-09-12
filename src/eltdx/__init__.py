@@ -30,6 +30,9 @@ from .helpers import (
     TopicStockTable,
     ThemeStrengthRow,
     ThemeStrengthTable,
+    BoardQuoteRow,
+    BoardQuoteTable,
+    BoardMemberQuoteTable,
 )
 from .serialization import to_json, to_jsonable
 from .models import TradeBatch
@@ -63,6 +66,9 @@ __all__ = [
     "TopicStockTable",
     "ThemeStrengthRow",
     "ThemeStrengthTable",
+    "BoardQuoteRow",
+    "BoardQuoteTable",
+    "BoardMemberQuoteTable",
     "WorkdayService",
     "__version__",
     "to_json",

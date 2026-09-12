@@ -17,9 +17,10 @@
 - 分时 Python 接口及 `eltdx_minute`、`eltdx_trades` MCP 工具新增代码列表，并通过 `batch_size` 控制并发；`eltdx_trades` 对应的 Python 成交接口列表能力不属于本版本新增。
 - `TradeBatch` 复用现有 Rust native DTO，本版本未修改 Rust 协议或 ABI。
 
-## 工作区变更（未发布）
+## v3.2.1 - 2026-09-13
 
-暂无。
+- 新增 `client.helpers.board_quotes()` 和 `client.helpers.board_member_quotes()`：组合 `0x06b9` 板块资料、`0x044d` 当前证券名单和 `0x054c` 批量行情；按 80 个分批，不负责排序，并支持按服务端日期的每日资料缓存与 `refresh=True` 强制刷新。
+- 分类行情目录明确区分 `client.quotes.list_by_category()` 底层原始分页接口与 `client.helpers.realtime_rank()` 榜单封装。
 
 ## v3.1.7 - 2026-09-07
 

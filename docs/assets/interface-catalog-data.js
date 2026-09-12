@@ -1,7 +1,7 @@
 window.ELTDX_CATALOG = {
   "schema_version": 13,
   "release": {
-    "version": "3.2.0",
+    "version": "3.2.1",
     "status": "stable",
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
@@ -34,7 +34,7 @@ window.ELTDX_CATALOG = {
         "label": "Helpers 封装",
         "tag_label": "Helpers",
         "stat_label": "Helpers 封装",
-        "description": "21 个 Helpers 封装，组合协议调用、解析、整理和本地计算。",
+        "description": "23 个 Helpers 封装，组合协议调用、解析、整理和本地计算。",
         "source": "Helper"
       }
     ],
@@ -76,6 +76,8 @@ window.ELTDX_CATALOG = {
           "7709-trades-today",
           "helper-daily-price-limits",
           "helper-realtime-rank",
+          "helper-board-quotes",
+          "helper-board-member-quotes",
           "helper-buy-sell-strength",
           "helper-volume-comparison"
         ]
@@ -307,11 +309,11 @@ window.ELTDX_CATALOG = {
       "aliases": [
         "list_by_category",
         "sort",
-        "板块行情"
+        "分类行情原始分页"
       ],
       "protocol": "0x054b",
       "kind": "底层协议",
-      "summary": "按市场或板块分页返回行情列表，并支持按涨幅、价格、成交额等服务端排序。",
+      "summary": "底层原始分页接口：按市场或板块返回一页行情；实时榜单封装基于此方法自动翻页并整理排名。",
       "return_model": "CategoryQuotePage",
       "doc": "methods/7709-分类行情.md"
     },
@@ -1189,10 +1191,36 @@ window.ELTDX_CATALOG = {
       "api": "client.helpers.realtime_rank(sort_by=\"涨幅\")",
       "aliases": ["realtime_rank", "stock_realtime_rank", "涨幅榜"],
       "protocol": "0x054b",
-      "kind": "组合能力",
-      "summary": "分页读取分类行情并标准化为带排名、名称、涨幅和成交字段的榜单。",
+      "kind": "业务封装",
+      "summary": "基于 list_by_category() 的榜单封装：自动分页、补名称并标准化为带排名的实时结果。",
       "return_model": "RealtimeRankTable",
       "doc": "helpers/实时榜单.md"
+    },
+    {
+      "id": "helper-board-quotes",
+      "title": "板块行情",
+      "source": "Helper",
+      "category": "实时行情",
+      "api": "client.helpers.board_quotes(refresh=False)",
+      "aliases": ["board_quotes", "板块行情"],
+      "protocol": "0x06b9 + 0x044d + 0x054c",
+      "kind": "组合能力",
+      "summary": "读取板块资料并按每批最多 80 个代码取得所有板块自身行情；按定义顺序返回，不自行排序。",
+      "return_model": "BoardQuoteTable",
+      "doc": "helpers/板块行情.md"
+    },
+    {
+      "id": "helper-board-member-quotes",
+      "title": "板块成分股行情",
+      "source": "Helper",
+      "category": "实时行情",
+      "api": "client.helpers.board_member_quotes(board_code, refresh=False)",
+      "aliases": ["board_member_quotes", "板块成分股行情"],
+      "protocol": "0x06b9 + 0x044d + 0x054c",
+      "kind": "组合能力",
+      "summary": "按板块代码读取原始成员，用当前 0x044d 证券名单核对有效性，再分批取得成分股行情。",
+      "return_model": "BoardMemberQuoteTable",
+      "doc": "helpers/板块行情.md"
     },
     {
       "id": "helper-buy-sell-strength",

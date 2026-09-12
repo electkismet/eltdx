@@ -61,6 +61,7 @@ eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用�
 | A 股清单 | 最新股票、ST、停牌列表和代码表 | [`client.helpers.latest_stock_list()`](docs/helpers/A股常用封装.md) | `7709` + `Helpers 封装` |
 | 分类行情 | 按市场或板块分页、排序的行情列表 | [`client.quotes.list_by_category()`](docs/methods/7709-分类行情.md) | `7709 原生协议` |
 | 完整实时行情 | 批量快照、最新价、成交量额和完整五档 | [`client.helpers.full_quotes()`](docs/helpers/完整行情.md) | `7709` + `Helpers 封装` |
+| 板块行情与成分股 | 所有板块行情、指定板块有效成分股行情 | [`client.helpers.board_quotes()`](docs/helpers/板块行情.md) / [`client.helpers.board_member_quotes()`](docs/helpers/板块行情.md) | `0x06b9` + `0x044d` + `0x054c` |
 | 五档实时刷新 | 为代码列表建立或刷新实时五档 | [`client.quotes.get_depth()`](docs/methods/7709-增量刷新推送队列.md) | `7709 原生协议` |
 | push 队列 | 读取未匹配的实时更新帧 | [`client.quotes.poll_push()`](docs/methods/7709-增量刷新推送队列.md) | `7709 原生协议` |
 | K 线与复权 | 分钟/日/周/月/季/年 K 线、自动分页、前/后/定点复权 | [`client.bars.get()`](docs/methods/7709-K线周期线.md) | `7709 原生协议` |
@@ -420,7 +421,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | 底层协议和 F10 Entry | [7709 命令](docs/COMMANDS_7709.md) · [7615 F10](docs/F10_7615.md) |
 | 连接、测速、并发和故障排查 | [调试指南](docs/DEBUG_GUIDE.md) · [架构](docs/ARCHITECTURE.md) |
 | MCP 安装、工具和资源 | [MCP 文档](docs/MCP.md) |
-| 当前版本、变更和旧 API 迁移 | [v3.2.0](docs/releases/v3.2.0.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
+| 当前版本、变更和旧 API 迁移 | [v3.2.1](docs/releases/v3.2.1.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
 
 ## 常用问题
 

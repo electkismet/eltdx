@@ -23,6 +23,7 @@ from .shortline import (
     _resolve_market_date_context,
     _validate_stats_resource_dates,
 )
+from .boards import BoardMemberQuoteTable, BoardQuoteTable, BoardService
 
 if TYPE_CHECKING:
     from eltdx.client import TdxClient
@@ -246,16 +247,38 @@ class AuctionData:
 class HelperApi:
     """Practical helpers for common user questions."""
 
-    def __init__(self, client: TdxClient) -> None:
+    def __init__(
+        self,
+        client: TdxClient,
+        *,
+        board_data_dir: str | None = None,
+        board_definitions_dir: str | None = None,
+    ) -> None:
         self._client = client
         self._shortline = ShortlineIndicatorService(client)
         self._finance_cache: dict[tuple[str, ...], Any] = {}
         self._security_cache: dict[str, tuple[Any, ...]] = {}
+        self._boards = BoardService(
+            client,
+            data_dir=board_data_dir,
+            definitions_dir=board_definitions_dir,
+        )
 
     def clear_cache(self) -> None:
         self._shortline.clear_cache()
         self._finance_cache.clear()
         self._security_cache.clear()
+        self._boards.clear_cache()
+
+    def board_quotes(self, *, refresh: bool = False) -> BoardQuoteTable:
+        """Return every board's own quote through explicit 0x054c batches."""
+        return self._boards.board_quotes(refresh=refresh)
+
+    def board_member_quotes(
+        self, board_code: str, *, refresh: bool = False
+    ) -> BoardMemberQuoteTable:
+        """Return quotes for one board's currently valid constituents."""
+        return self._boards.board_member_quotes(board_code, refresh=refresh)
 
     def full_quotes(self, codes: str | Sequence[str]):
         """Return complete quotes by combining ``0x054c`` snapshots with ``0x0547`` depth."""
