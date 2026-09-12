@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import socket
+from threading import Lock
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any
@@ -25,6 +27,7 @@ DEFAULT_TQLEX_BASE_URL = "http://static.tdx.com.cn:7615/TQLEX"
 DEFAULT_LIMIT_BOARD_LADDER_BASE_URL = "http://hot.icfqs.com:7615/TQLEX"
 DEFAULT_QSID = "tdx"
 LIMIT_BOARD_LADDER_ENTRY = "CWServ.cfg_fx_lbtt"
+_DNS_LOCK = Lock()
 
 
 class F10Client:
@@ -41,6 +44,7 @@ class F10Client:
         base_url: str = DEFAULT_TQLEX_BASE_URL,
         limit_board_ladder_base_url: str | None = None,
         timeout: float = 8.0,
+        prefer_ipv4: bool = True,
         headers: Mapping[str, str] | None = None,
     ) -> None:
         self.base_url = base_url
@@ -50,6 +54,7 @@ class F10Client:
             else (limit_board_ladder_base_url or base_url)
         )
         self.timeout = timeout
+        self.prefer_ipv4 = prefer_ipv4
         self.headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -405,8 +410,21 @@ class F10Client:
         data = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         request = Request(url, data=data, headers=self.headers, method="POST")
         try:
-            with urlopen(request, timeout=self.timeout) as response:
-                raw_bytes = response.read()
+            if self.prefer_ipv4:
+                original = socket.getaddrinfo
+                def ipv4_first(host, port, *args, **kwargs):
+                    records = original(host, port, *args, **kwargs)
+                    return sorted(records, key=lambda row: row[0] != socket.AF_INET)
+                with _DNS_LOCK:
+                    socket.getaddrinfo = ipv4_first
+                    try:
+                        with urlopen(request, timeout=self.timeout) as response:
+                            raw_bytes = response.read()
+                    finally:
+                        socket.getaddrinfo = original
+            else:
+                with urlopen(request, timeout=self.timeout) as response:
+                    raw_bytes = response.read()
         except HTTPError as exc:
             raise TransportError(f"TQLEX HTTP error {exc.code} for {entry}") from exc
         except URLError as exc:
