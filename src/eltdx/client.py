@@ -330,12 +330,16 @@ class TdxClient:
             code = value.strip().lower()
             if code[:2] in {"sh", "sz", "bj"}:
                 markets.add(code[:2])
-            elif code[:1] in {"6", "9"}:
-                markets.add("sh")
-            elif code[:1] in {"0", "1", "2", "3", "4"}:
-                markets.add("sz")
-            elif code[:1] in {"8"}:
-                markets.add("bj")
+                continue
+            # Keep this inference in lockstep with normalize_code(): 92xxxx
+            # is Beijing, while 900xxx remains Shanghai B-share.
+            if len(code) == 6 and code.isdigit():
+                if code.startswith("92") or code.startswith("8"):
+                    markets.add("bj")
+                elif code.startswith(("6", "9")):
+                    markets.add("sh")
+                elif code.startswith(("0", "1", "2", "3")):
+                    markets.add("sz")
         if not markets:
             markets = {"sh", "sz", "bj"}
         with self._decimal_lock:
