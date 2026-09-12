@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import socket
-from threading import Lock
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any
@@ -14,6 +12,8 @@ from urllib.request import Request, urlopen
 
 from eltdx.exceptions import ProtocolError, TransportError
 from eltdx.protocol.unit import split_code
+
+from ._http import open_ipv4_first
 
 from .models import (
     F10Cell,
@@ -27,7 +27,6 @@ DEFAULT_TQLEX_BASE_URL = "http://static.tdx.com.cn:7615/TQLEX"
 DEFAULT_LIMIT_BOARD_LADDER_BASE_URL = "http://hot.icfqs.com:7615/TQLEX"
 DEFAULT_QSID = "tdx"
 LIMIT_BOARD_LADDER_ENTRY = "CWServ.cfg_fx_lbtt"
-_DNS_LOCK = Lock()
 
 
 class F10Client:
@@ -411,17 +410,8 @@ class F10Client:
         request = Request(url, data=data, headers=self.headers, method="POST")
         try:
             if self.prefer_ipv4:
-                original = socket.getaddrinfo
-                def ipv4_first(host, port, *args, **kwargs):
-                    records = original(host, port, *args, **kwargs)
-                    return sorted(records, key=lambda row: row[0] != socket.AF_INET)
-                with _DNS_LOCK:
-                    socket.getaddrinfo = ipv4_first
-                    try:
-                        with urlopen(request, timeout=self.timeout) as response:
-                            raw_bytes = response.read()
-                    finally:
-                        socket.getaddrinfo = original
+                with open_ipv4_first(request, timeout=self.timeout) as response:
+                    raw_bytes = response.read()
             else:
                 with urlopen(request, timeout=self.timeout) as response:
                     raw_bytes = response.read()

@@ -12,6 +12,18 @@ TAG_REF = f"refs/tags/v{TARGET_PYTHON_VERSION}"
 BRANCH_REF = "refs/heads/codex/rust-3.0"
 
 
+def test_current_release_metadata_is_consistent() -> None:
+    from scripts.verification.check_release_metadata import check
+
+    assert check() == []
+
+
+def test_current_release_notes_are_complete() -> None:
+    from scripts.verification.check_release_text import check
+
+    assert check() == []
+
+
 def test_publish_workflow_separates_tag_and_manual_metadata_checks() -> None:
     workflow = (ROOT / ".github/workflows/publish.yml").read_text(encoding="utf-8")
     assert "if: github.event_name == 'push'" in workflow

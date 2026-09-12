@@ -1,7 +1,171 @@
 import pytest
 
+import json
+import socket
+from concurrent.futures import ThreadPoolExecutor
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Barrier, BrokenBarrierError, Thread
+
 from eltdx import F10Client, TdxClient
 from eltdx.f10 import parse_tqlex_response
+
+
+@pytest.mark.parametrize("use_proxy", [False, True])
+def test_f10_ipv4_requests_are_concurrent_and_leave_dns_unchanged(monkeypatch, use_proxy):
+    """Both requests must arrive before either response is returned."""
+    barrier = Barrier(2, timeout=2)
+    observations = []
+    original_resolver = socket.getaddrinfo
+
+    def resolver(host, port, *args, **kwargs):
+        if host == "f10.test":
+            return [
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::1", port, 0, 0)),
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port)),
+            ]
+        return original_resolver(host, port, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", resolver)
+    monkeypatch.setenv("no_proxy", "*")
+    monkeypatch.setenv("NO_PROXY", "*")
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers["Content-Length"]))
+            concurrent = True
+            try:
+                barrier.wait()
+            except BrokenBarrierError:
+                concurrent = False
+            observations.append((
+                concurrent, socket.getaddrinfo is resolver,
+                self.headers["Host"], json.loads(body), self.path,
+            ))
+            data = b'{"ErrorCode":0,"ResultSets":[]}'
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    port = server.server_port
+    try:
+        if use_proxy:
+            monkeypatch.setenv("no_proxy", "")
+            monkeypatch.setenv("NO_PROXY", "")
+            monkeypatch.setenv("http_proxy", f"http://f10.test:{port}")
+            base_url = "http://upstream.test:7615/TQLEX"
+            expected_host = "upstream.test:7615"
+            expected_path = base_url + "?Entry=CWServ.test"
+        else:
+            base_url = f"http://f10.test:{port}/TQLEX"
+            expected_host = f"f10.test:{port}"
+            expected_path = "/TQLEX?Entry=CWServ.test"
+        client = F10Client(base_url=base_url, timeout=5)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(lambda _: client.params("CWServ.test", "x"), range(2)))
+        assert all(result.ok for result in results)
+        assert len(observations) == 2
+        assert all(row[:2] == (True, True) for row in observations)
+        assert all(row[2:] == (expected_host, {"Params": ["x"]}, expected_path) for row in observations)
+        assert socket.getaddrinfo is resolver
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+@pytest.mark.parametrize("scenario", ["ipv4", "fallback", "ipv6_only", "all_fail", "empty"])
+def test_f10_address_order_and_connection_cleanup(monkeypatch, scenario):
+    from eltdx.f10._http import _connect_ipv4_first
+
+    v6 = (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::1", 7615, 0, 0))
+    v4a = (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.2", 7615))
+    v4b = (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 7615))
+    records = [] if scenario == "empty" else ([v6] if scenario == "ipv6_only" else [v6, v4a, v4b])
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *args: records)
+    sockets = []
+    attempts = []
+
+    class Socket:
+        def __init__(self, *args):
+            self.closed = False
+            sockets.append(self)
+
+        def settimeout(self, timeout):
+            assert timeout == 0.25
+
+        def bind(self, source):
+            assert source == ("", 0)
+
+        def connect(self, address):
+            attempts.append(address)
+            if scenario == "all_fail" or (scenario == "fallback" and len(address) == 2):
+                raise TimeoutError("connection timed out")
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr(socket, "socket", Socket)
+    if scenario in {"all_fail", "empty"}:
+        with pytest.raises(OSError):
+            _connect_ipv4_first(("f10.test", 7615), 0.25, ("", 0))
+        assert all(sock.closed for sock in sockets)
+    else:
+        connected = _connect_ipv4_first(("f10.test", 7615), 0.25, ("", 0))
+        assert connected is sockets[-1]
+        assert not connected.closed
+        assert all(sock.closed for sock in sockets[:-1])
+    expected = {
+        "ipv4": [v4a[4]], "fallback": [v4a[4], v4b[4], v6[4]],
+        "ipv6_only": [v6[4]], "all_fail": [v4a[4], v4b[4], v6[4]], "empty": [],
+    }
+    assert attempts == expected[scenario]
+
+
+def test_f10_system_order_opt_out(monkeypatch):
+    from io import BytesIO
+    from eltdx.f10 import client as module
+
+    calls = []
+
+    def open_default(request, *, timeout):
+        calls.append((request.full_url, timeout))
+        return BytesIO(b'{"ErrorCode":0,"ResultSets":[]}')
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("IPv4 preference must be disabled")
+
+    monkeypatch.setattr(module, "urlopen", open_default)
+    monkeypatch.setattr(module, "open_ipv4_first", unexpected)
+    assert F10Client(prefer_ipv4=False, timeout=2).params("CWServ.test").ok
+    assert len(calls) == 1
+    assert calls[0][1] == 2
+
+
+def test_f10_https_retains_sni_and_certificate_checks(monkeypatch):
+    import ssl
+    from unittest.mock import Mock
+    from eltdx.f10._http import _IPv4HTTPSConnection
+
+    connection = _IPv4HTTPSConnection("f10.test", timeout=2)
+    assert connection._context.check_hostname
+    assert connection._context.verify_mode == ssl.CERT_REQUIRED
+    raw_socket = Mock()
+    connector = Mock(return_value=raw_socket)
+    connection._create_connection = connector
+    wrapped_socket = Mock()
+    wrapper = Mock(return_value=wrapped_socket)
+    monkeypatch.setattr(connection._context, "wrap_socket", wrapper)
+    connection.connect()
+    connector.assert_called_once_with(("f10.test", 443), 2, None)
+    wrapper.assert_called_once_with(raw_socket, server_hostname="f10.test")
+    connection.close()
 
 
 def test_parse_tqlex_colname_and_duplicate_columns() -> None:
