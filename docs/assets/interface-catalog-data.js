@@ -1201,11 +1201,11 @@ window.ELTDX_CATALOG = {
       "title": "板块行情",
       "source": "Helper",
       "category": "实时行情",
-      "api": "client.helpers.board_quotes(refresh=False)",
+      "api": "client.helpers.board_quotes(category=\"概念\", refresh=False)",
       "aliases": ["board_quotes", "板块行情"],
       "protocol": "0x06b9 + 0x044d + 0x054c",
       "kind": "组合能力",
-      "summary": "读取板块资料并按每批最多 80 个代码取得所有板块自身行情；按定义顺序返回，不自行排序。",
+      "summary": "默认读取概念板块资料，也可通过 category 选择其他分类或全部板块；按每批最多 80 个代码取得行情，不自行排序。",
       "return_model": "BoardQuoteTable",
       "doc": "helpers/板块行情.md"
     },

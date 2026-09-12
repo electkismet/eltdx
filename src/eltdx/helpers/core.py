@@ -270,9 +270,9 @@ class HelperApi:
         self._security_cache.clear()
         self._boards.clear_cache()
 
-    def board_quotes(self, *, refresh: bool = False) -> BoardQuoteTable:
-        """Return every board's own quote through explicit 0x054c batches."""
-        return self._boards.board_quotes(refresh=refresh)
+    def board_quotes(self, *, category: str = "概念", refresh: bool = False) -> BoardQuoteTable:
+        """Return board quotes for one category (concepts by default)."""
+        return self._boards.board_quotes(category=category, refresh=refresh)
 
     def board_member_quotes(
         self, board_code: str, *, refresh: bool = False

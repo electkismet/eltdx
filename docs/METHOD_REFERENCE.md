@@ -33,7 +33,7 @@
 | `volume_comparison()` | `0x051b` 成交对比序列 |
 | `limit_ladder()` / `stock_limit_ladder()` | 当前封板/触板连板天梯 |
 | `theme_strength_rank()` / `stock_theme_strength_rank()` | 按个股题材聚合连板强度 |
-| `board_quotes()` | 所有板块自身行情，按定义文件顺序返回 |
+| `board_quotes(category="概念")` | 指定分类的板块自身行情，默认概念板块 |
 | `board_member_quotes(board_code)` | 指定板块的当前有效成分股行情 |
 
 板块接口的资料准备、缓存和字段说明见[板块行情](helpers/板块行情.md)和[板块成分股行情](helpers/板块成分股行情.md)。

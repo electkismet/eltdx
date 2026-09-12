@@ -1,5 +1,9 @@
 from types import SimpleNamespace
 
+import pytest
+
+from eltdx.helpers.core import HelperApi
+
 from eltdx.helpers.boards import BoardService
 
 
@@ -60,7 +64,7 @@ def test_board_quotes_preserve_definition_order_and_reuse_daily_cache(tmp_path):
     client = FakeClient()
     service = BoardService(client, data_dir=tmp_path, definitions_dir=tmp_path)
 
-    first = service.board_quotes()
+    first = service.board_quotes(category="概念")
     first_code_calls = client.code_calls
     second = service.board_quotes()
 
@@ -69,3 +73,76 @@ def test_board_quotes_preserve_definition_order_and_reuse_daily_cache(tmp_path):
     assert client.code_calls == first_code_calls
     assert len(client.quote_batches) == 4
     assert [len(batch) for batch in client.quote_batches] == [80, 1, 80, 1]
+
+
+def _mixed_files(tmp_path):
+    _fixture_files(tmp_path, count=1)
+    (tmp_path / "tdxzs.cfg").write_text(
+        "概念甲|880501|4|1|0|概念甲\n"
+        "煤炭|881001|12|1|0|X10\n"
+        "煤炭开采|881002|12|1|0|X1001\n"
+        "动力煤|881003|12|1|1|X100101\n"
+        "风格甲|880801|5|1|0|风格甲\n"
+        "地区甲|880201|3|1|0|1\n"
+        "行业甲|880301|2|1|0|T0101\n"
+        "概念乙|880502|4|1|0|概念乙\n",
+        encoding="gb18030",
+    )
+    (tmp_path / "infoharbor_block.dat").write_text(
+        "#GN_概念甲,1,880501,,,,\n0#000001\n"
+        "#FG_风格甲,1,880801,,,,\n0#000001\n",
+        encoding="gb18030",
+    )
+
+
+@pytest.mark.parametrize(("category", "expected"), [
+    ("概念", ["880501", "880502"]),
+    ("一级行业", ["881001"]),
+    ("二级行业", ["881002"]),
+    ("三级行业", ["881003"]),
+    ("风格", ["880801"]),
+    ("地区", ["880201"]),
+    ("880行业", ["880301"]),
+    ("全部", ["880501", "881001", "881002", "881003", "880801", "880201", "880301", "880502"]),
+])
+def test_board_quotes_request_only_selected_category(tmp_path, category, expected):
+    _mixed_files(tmp_path)
+    client = FakeClient()
+    helper = HelperApi(client, board_data_dir=str(tmp_path), board_definitions_dir=str(tmp_path))
+    result = helper.board_quotes(category=category)
+    assert [r.board_code for r in result.rows] == expected
+    assert client.quote_batches == [["sh" + code for code in expected]]
+
+
+def test_default_concepts_and_category_switch_reuse_cache(tmp_path):
+    _mixed_files(tmp_path)
+    client = FakeClient()
+    service = BoardService(client, data_dir=tmp_path, definitions_dir=tmp_path)
+    assert [r.board_code for r in service.board_quotes().rows] == ["880501", "880502"]
+    calls = (client.resource_calls, client.code_calls)
+    assert service.board_quotes(category="二级行业").count == 1
+    assert service.board_member_quotes("880801").count == 1
+    assert (client.resource_calls, client.code_calls) == calls
+    assert service.board_quotes(category="全部").count == 8
+
+
+@pytest.mark.parametrize("category", ["unknown", "", None, 12, [], {}])
+def test_invalid_category_fails_before_preparation(tmp_path, category):
+    client = FakeClient()
+    service = BoardService(client, data_dir=tmp_path)
+    with pytest.raises(ValueError, match="unsupported board category"):
+        service.board_quotes(category=category)
+    assert client.resource_calls == client.code_calls == 0
+    assert client.quote_batches == []
+
+
+def test_file_only_fallback_distinguishes_concepts_and_styles(tmp_path):
+    _mixed_files(tmp_path)
+    (tmp_path / "tdxzs.cfg").write_text("", encoding="gb18030")
+    client = FakeClient()
+    service = BoardService(client, data_dir=tmp_path, definitions_dir=tmp_path)
+    concept = service.board_quotes()
+    assert [(r.board_code, r.board_name) for r in concept.rows] == [("880501", "概念甲")]
+    assert [r.board_code for r in service.board_quotes(category="风格").rows] == ["880801"]
+    assert service.board_quotes(category="二级行业").rows == ()
+    assert client.quote_batches == [["sh880501"], ["sh880801"]]

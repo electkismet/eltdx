@@ -18,6 +18,7 @@ from eltdx.protocol.unit import ID_TO_MARKET, MARKET_TO_ID
 BOARD_BATCH_SIZE = 80
 BOARD_FILES = ("infoharbor_block.dat", "tdxhy.cfg")
 DEFINITION_FILES = ("tdxzs.cfg", "tdxzs3.cfg")
+BOARD_CATEGORIES = ("概念", "风格", "地区", "一级行业", "二级行业", "三级行业", "880行业", "全部")
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,12 +100,15 @@ class BoardService:
         self._members.clear()
         self._security = None
 
-    def board_quotes(self, *, refresh: bool = False) -> BoardQuoteTable:
+    def board_quotes(self, *, category: str = "概念", refresh: bool = False) -> BoardQuoteTable:
+        if category not in BOARD_CATEGORIES:
+            raise ValueError(f"unsupported board category: {category!r}; choose from {BOARD_CATEGORIES}")
         prepared = self._prepare(refresh=refresh)
-        board_codes = [item["full_code"] for item in prepared["boards"]]
+        selected = tuple(item for item in prepared["boards"] if _matches_category(item, category))
+        board_codes = [item["full_code"] for item in selected]
         quotes = self._snapshot_batches(board_codes)
         by_code = {str(getattr(item, "full_code", "")): item for item in quotes}
-        rows = tuple(self._quote_row(board, by_code.get(board["full_code"])) for board in prepared["boards"])
+        rows = tuple(self._quote_row(board, by_code.get(board["full_code"])) for board in selected)
         return BoardQuoteTable(rows=rows, prepared_date=prepared["date"])
 
     def board_member_quotes(self, board_code: str, *, refresh: bool = False) -> BoardMemberQuoteTable:
@@ -202,10 +206,9 @@ class BoardService:
                 fields = line.split("|")
                 if len(fields) >= 6 and re.fullmatch(r"\d{6}", fields[1].strip()):
                     definitions.setdefault(fields[1].strip(), fields)
-        # A captured infoharbor file is still useful when the definition cfg
-        # is absent: names remain the board code, but membership is exact.
-        for code, name in _infoharbor_headers(self._data_dir / "infoharbor_block.dat"):
-            definitions.setdefault(code, [name, code, "4", "1", "0", ""])
+        # Preserve the concept/style classification when only infoharbor is available.
+        for code, name, category in _infoharbor_headers(self._data_dir / "infoharbor_block.dat"):
+            definitions.setdefault(code, [name, code, str(category), "1", "0", ""])
         result = []
         for code, fields in definitions.items():
             category = int(fields[2]) if fields[2].isdigit() else 4
@@ -362,14 +365,39 @@ def _board_market(code: str, declared: str | None) -> str:
     return "sh"
 
 
-def _infoharbor_headers(path: Path) -> list[tuple[str, str]]:
+def _matches_category(board: dict[str, Any], category: str) -> bool:
+    value = int(board["category"])
+    if category == "全部":
+        return True
+    if category == "概念":
+        return value == 4
+    if category == "风格":
+        return value == 5
+    if category == "地区":
+        return value == 3
+    if category == "880行业":
+        return value == 2
+    if category == "二级行业":
+        return value == 12 and re.fullmatch(r"X\d{4}", board["membership_key"]) is not None
+    if category == "一级行业":
+        return value == 12 and re.fullmatch(r"X\d{2}", board["membership_key"]) is not None
+    if category == "三级行业":
+        return value == 12 and re.fullmatch(r"X\d{6}", board["membership_key"]) is not None
+    return False
+
+
+def _infoharbor_headers(path: Path) -> list[tuple[str, str, int]]:
     result = []
     for line in _read_text(path).splitlines():
         if not line.startswith("#"):
             continue
         fields = line.split(",")
         if len(fields) >= 3 and re.fullmatch(r"\d{6}", fields[2].strip()):
-            result.append((fields[2].strip(), fields[0][1:].strip() or fields[2].strip()))
+            name = fields[0][1:].strip()
+            if name.startswith("FG_"):
+                result.append((fields[2].strip(), name[3:], 5))
+            elif name.startswith("GN_"):
+                result.append((fields[2].strip(), name[3:], 4))
     return result
 
 
