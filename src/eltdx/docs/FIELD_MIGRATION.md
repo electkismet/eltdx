@@ -77,13 +77,18 @@ client.bars.get("sz000001", period="day", adjust="qfq")
 client.bars.get("sz000001", period="day", adjust="hfq")
 ```
 
-需要本地审计时使用完整仿射系数：
+需要本地审计时使用完整仿射系数，并以待处理 K 线的首末日期限定事件范围：
 
 ```python
-factors = client.corporate.adjustment_factors("sz000001")
+raw = client.bars.get("sz000001", period="day", adjust="none", all_pages=True)
+factors = client.corporate.adjustment_factors(
+    "sz000001",
+    start_date=raw.bars[0].time.date(),
+    anchor_date=raw.bars[-1].time.date(),
+)
 ```
 
-该接口从 `0x000f` 生成事件级系数。将系数按 K 线日期应用到本地不复权 OHLC，再计算 `round(raw * scale + offset, 2)`；选行代码见 [本地复权系数](methods/7709-本地复权系数.md)。
+该接口从 `0x000f` 生成事件级系数。`start_date=None` 使用全部权息事件，不会自动推断第一根 K 线日期。将系数按 K 线日期应用到本地不复权 OHLC，再计算 `round(raw * scale + offset, 2)`；其结果不承诺逐值精确重建 `0x052d`，可能相差约 `0.01～0.02` 元。选行代码见 [本地复权系数](methods/7709-本地复权系数.md)。
 
 ## 缓存
 

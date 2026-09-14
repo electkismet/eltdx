@@ -780,7 +780,7 @@ batch = client.corporate.capital_changes(["sz000001", "sh600000", "bj920000"])
 
 ### `client.corporate.adjustment_factors(code_or_codes, anchor_date=None, *, start_date=None, batch_size=75)`
 
-根据 `0x000f` 的标签 `1` 事件，为本地不复权 K 线提供前复权或后复权所需系数。直接获取服务端 K 线时使用 `client.bars.get()`。
+根据 `0x000f` 的标签 `1` 事件，为本地不复权 K 线提供前复权或后复权所需系数。普通前后复权应直接使用 `client.bars.get(..., adjust="qfq" / "hfq")` 获取 `0x052d` 主站结果。
 
 ```python
 factors = client.corporate.adjustment_factors("sz000858")
@@ -798,7 +798,7 @@ batch = client.corporate.adjustment_factors(["sz000001", "sh600000"])
 | `AdjustmentFactorBatch` | `count`、`responses` / `items` |
 | `AdjustmentFactor` | `date`、`qfq_scale`、`qfq_offset`、`hfq_scale`、`hfq_offset` |
 
-使用方式为 `round(raw * scale + offset, 2)`。`start_date` 可显式排除上市前事件；多事件按日期复合、同日保持服务端顺序，计算过程中不舍入。系数行的日期选择规则和完整应用代码见 [本地复权系数](methods/7709-本地复权系数.md)。
+使用方式为 `round(raw * scale + offset, 2)`。`start_date=None` 使用全部有日期的权息事件，不会自动推断第一根可用 K 线日期；应用到完整 K 线时，必须以第一根 K 线日期设置 `start_date`，排除可能存在的上市前事件。多事件按日期复合、同日保持服务端顺序，计算过程中不舍入。由于本地系数来自 `0x000f`，不承诺逐值精确重建 `0x052d` 服务端复权结果，正确限定日期后仍可能相差约 `0.01～0.02` 元。系数行的日期选择规则和完整应用代码见 [本地复权系数](methods/7709-本地复权系数.md)。
 
 ## 资金流向日数据
 

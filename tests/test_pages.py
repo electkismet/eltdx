@@ -485,7 +485,8 @@ def test_current_docs_match_v2_cache_and_migration_contracts() -> None:
         assert "代码数量、全量代码表、股本变迁、财务" not in text
     assert "`client.corporate.capital_changes()`" in fields
     assert 'client.bars.get("sz000001", period="day", include_raw=True)' in migration
-    assert 'client.corporate.adjustment_factors("sz000001")' in migration
+    assert "client.corporate.adjustment_factors(" in migration
+    assert "start_date=raw.bars[0].time.date()" in migration
     assert 'client.corporate.capital_changes()` 股本变迁结果 | 否' in migration
     assert 'warning "历史版本文档"' in historical_update
     assert "当前 `v2.0.5` 已移除这些入口" in historical_update
@@ -533,13 +534,21 @@ def test_trade_detail_docs_include_return_fields_and_examples() -> None:
 def test_local_factor_docs_explain_affine_coefficients() -> None:
     detail = (REPO_ROOT / "docs" / "methods" / "7709-本地复权系数.md").read_text(encoding="utf-8")
     fields = (REPO_ROOT / "docs" / "FIELD_REFERENCE.md").read_text(encoding="utf-8")
+    api = (REPO_ROOT / "docs" / "API_REFERENCE.md").read_text(encoding="utf-8")
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "将这些系数按日期应用到本地保存的不复权 OHLC" in detail
-    assert "直接获取服务端 K 线时" in detail
+    assert "普通前复权和后复权应直接使用" in detail
     assert "根据 `0x000f` 返回的标签 `1` 权息事件" in detail
     assert "raw * scale + offset" in detail
     assert "bar_date < factor.date" in detail
     assert "factor.date <= bar_date" in detail
     assert "不舍入" in detail
+    assert "`start_date=None` 表示使用全部有日期的权息事件" in detail
+    assert "不承诺逐值精确重建 `0x052d`" in detail
+    assert "`0.01～0.02` 元差异" in detail
+    assert "必须以第一根 K 线日期设置 `start_date`" in api
+    assert "普通前复权和后复权应直接使用" in readme
+    assert "不是服务端复权接口的逐值等价替代品" in readme
     assert "`anchor_date`" in fields
     assert "`start_date`" in fields

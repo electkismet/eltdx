@@ -134,7 +134,7 @@ client.bars.get("sz000001", period="week", adjust="hfq")
 client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
 ```
 
-`all_pages=False` 取一页；`all_pages=True` 自动拉到空页并合并。复权参数直接交给 `0x052d` 主站计算。本地审计使用 `client.corporate.adjustment_factors()`，它返回完整的 `scale + offset` 仿射系数。
+`all_pages=False` 取一页；`all_pages=True` 自动拉到空页并合并。复权参数直接交给 `0x052d` 主站计算，这是普通前后复权的推荐入口。本地审计使用 `client.corporate.adjustment_factors()`，它基于 `0x000f` 返回完整的 `scale + offset` 仿射系数，不承诺逐值精确重建服务端复权结果。
 
 常用周期为 `1m/5m/15m/30m/60m`、`day/week/month/quarter/year`。复权模式为 `none`、`qfq`、`hfq`、`fixed_qfq`、`fixed_hfq`；定点模式需要 `anchor_date`。
 
@@ -189,7 +189,7 @@ anchored = client.corporate.adjustment_factors("sz000001", anchor_date="2024-05-
 adjusted = round(raw * scale + offset, 2)
 ```
 
-普通复权 K 线直接使用 `client.bars.get(..., adjust="qfq" / "hfq")`。
+普通复权 K 线直接使用 `client.bars.get(..., adjust="qfq" / "hfq")`。将本地系数用于完整 K 线时，必须以第一根 K 线日期设置 `start_date`，否则早于服务端第一根可用 K 线的权息事件可能污染后复权基准；即使日期范围正确，本地 `0x000f` 计算与服务端 `0x052d` 结果仍可能相差约 `0.01～0.02` 元。
 
 ### 低频数据缓存
 
@@ -499,7 +499,7 @@ client.corporate.capital_changes(["sz000001", "sh600000", "bj920000"])
 
 ### `adjustment_factors(code_or_codes, anchor_date=None, *, start_date=None, batch_size=75)`
 
-传单个代码返回 `AdjustmentFactorResponse`；传代码列表返回 `AdjustmentFactorBatch`。批量调用复用批量 `0x000f` 返回的股票块，在本地逐只计算，不会为每只股票单独请求。每个除权事件日期一条 `AdjustmentFactor`，包含 `qfq_scale/qfq_offset` 与 `hfq_scale/hfq_offset`，用于应用到本地不复权 K 线。
+传单个代码返回 `AdjustmentFactorResponse`；传代码列表返回 `AdjustmentFactorBatch`。批量调用复用批量 `0x000f` 返回的股票块，在本地逐只计算，不会为每只股票单独请求。每个除权事件日期一条 `AdjustmentFactor`，包含 `qfq_scale/qfq_offset` 与 `hfq_scale/hfq_offset`，用于应用到本地不复权 K 线。`start_date=None` 使用全部有日期的权息事件，不会自动推断服务端第一根可用 K 线日期。
 
 ```python
 client.corporate.adjustment_factors(
@@ -509,7 +509,7 @@ client.corporate.adjustment_factors(
 )
 ```
 
-应用到本地不复权 K 线时，前复权选择第一条满足 `bar_date < factor.date` 的系数，后复权选择最后一条满足 `factor.date <= bar_date` 的系数，再计算 `round(raw * scale + offset, 2)`。直接获取服务端复权 K 线时，使用 `client.bars.get(..., adjust="none" / "qfq" / "hfq")`。
+应用到本地不复权 K 线时，必须以第一根 K 线日期设置 `start_date`；前复权选择第一条满足 `bar_date < factor.date` 的系数，后复权选择最后一条满足 `factor.date <= bar_date` 的系数，再计算 `round(raw * scale + offset, 2)`。本地系数来自 `0x000f`，不承诺逐值精确重建 `0x052d`，两者可能存在约 `0.01～0.02` 元差异。直接获取服务端复权 K 线时，使用 `client.bars.get(..., adjust="none" / "qfq" / "hfq")`。
 
 ### `finance_batch(codes, fields=None, include_raw=False)`
 

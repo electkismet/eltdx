@@ -271,19 +271,19 @@ JSON 导出与转换后的 `TradePage` 结构一致。详见[历史成交批量�
 
 ## AdjustmentFactorResponse / AdjustmentFactor
 
-本地前、后复权仿射系数。
+基于 `0x000f` 权息记录计算的本地前、后复权仿射系数，用于本地计算和审计，不承诺逐值精确重建 `0x052d` 服务端复权结果。
 
 | 字段 | 含义 |
 | --- | --- |
 | `full_code` | 完整证券代码 |
 | `anchor_date` | 用户指定的前复权事件截止自然日期；未指定时为 `None` |
-| `start_date` | 用户指定的事件起点；未指定时为 `None` |
+| `start_date` | 用户指定的事件起点；`None` 表示使用全部事件，不会自动推断第一根 K 线日期 |
 | `items` / `count` | 事件日期系数 / 数量 |
 | `date` / `time` | 除权事件日期 / 当日 15:00 时间 |
 | `qfq_scale` / `qfq_offset` | 前复权缩放和偏移 |
 | `hfq_scale` / `hfq_offset` | 后复权缩放和偏移 |
 
-价格应用公式为 `round(raw * scale + offset, 2)`。
+价格应用公式为 `round(raw * scale + offset, 2)`。应用到完整 K 线时必须以第一根 K 线日期设置 `start_date`，排除可能存在的上市前事件；正确限定日期后，本地计算与服务端复权仍可能存在约 `0.01～0.02` 元差异。
 
 代码列表查询返回 `AdjustmentFactorBatch`；`responses` / `items` 是逐股票的 `AdjustmentFactorResponse`，`count` 是股票结果数。
 

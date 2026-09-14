@@ -74,14 +74,19 @@ from eltdx import TdxClient
 
 with TdxClient(timeout=3) as client:
     gbbq = client.corporate.capital_changes("sz000001")
-    factors = client.corporate.adjustment_factors("sz000001")
+    raw = client.bars.get("sz000001", period="day", adjust="none", all_pages=True)
+    factors = client.corporate.adjustment_factors(
+        "sz000001",
+        start_date=raw.bars[0].time.date(),
+        anchor_date=raw.bars[-1].time.date(),
+    )
 
 print(gbbq.count)
 print(gbbq.records[0].category_name)
 print(factors.count, factors.items[0].qfq_scale, factors.items[0].qfq_offset)
 ```
 
-`adjustment_factors()` 返回每个除权事件日期的 `scale + offset`，可按 K 线日期应用到本地不复权 OHLC。直接获取复权 K 线时使用 `client.bars.get(..., adjust="qfq" / "hfq")`；完整的本地应用示例见 [本地复权系数](methods/7709-本地复权系数.md)。
+`adjustment_factors()` 返回每个除权事件日期的 `scale + offset`，可按 K 线日期应用到本地不复权 OHLC。完整 K 线必须传入首根 K 线日期作为 `start_date`，避免上市前权息事件进入后复权基准。直接获取复权 K 线时使用 `client.bars.get(..., adjust="qfq" / "hfq")`；本地计算与服务端结果可能存在约 `0.01～0.02` 元差异，完整说明见 [本地复权系数](methods/7709-本地复权系数.md)。
 
 ## 资金流向
 

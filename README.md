@@ -70,7 +70,7 @@ eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用�
 | 集合竞价 | 竞价过程、09:25 撮合、前收盘参考价、开盘价/量/额/涨幅 | [`client.helpers.auction_data()`](docs/helpers/竞价数据.md) | `7709` + `Helpers 封装` |
 | 股本变迁 | 除权除息、股本变化、增发和回购记录 | [`client.corporate.capital_changes()`](docs/methods/7709-股本变迁GBBQ.md) | `7709 原生协议` |
 | 财务基础 | 流通/总股本、EPS、资产、负债、收入和利润 | [`client.corporate.finance_batch()`](docs/methods/7709-财务基础信息.md) | `7709 原生协议` |
-| 本地复权系数 | 为已有本地不复权 K 线提供前/后复权所需系数 | [`client.corporate.adjustment_factors()`](docs/methods/7709-本地复权系数.md) | `7709 本地计算` |
+| 本地复权系数 | 基于权息记录为已有不复权 K 线提供本地计算和审计系数 | [`client.corporate.adjustment_factors()`](docs/methods/7709-本地复权系数.md) | `0x000f 本地计算` |
 | 特殊品种限制 | 特殊品种涨跌停限制表 | [`client.limits.special()`](docs/methods/7709-特殊品种涨跌停限制.md) | `7709 原生协议` |
 | F10 公司概况 | 发行上市信息、上市日期、发行价、募资额和承销商 | [`client.f10.company_profile()`](docs/methods/F10-公司概况.md) | `7615 原生 Entry` |
 | 个股概念 | 某只股票所属的热点题材和入选原因 | [`client.helpers.stock_topics()`](docs/helpers/个股概念板块.md) | `7615` + `Helpers 封装` |
@@ -229,6 +229,7 @@ client.bars.get("sz000001", period="week", count=100)
 client.bars.get("sz000001", period="year", count=20)
 client.bars.get("sz000001", period="1m", count=240)
 client.bars.get("sz000001", period="day", adjust="qfq", count=200)
+client.bars.get("sz000001", period="day", adjust="hfq", count=200)
 client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
 client.bars.get("sz000001", period="day", all_pages=True, page_size=800)
 ```
@@ -243,6 +244,10 @@ client.bars.get("sz000001", period="day", all_pages=True, page_size=800)
 | `adjust`      | `hfq` / `back`                            | 后复权                               |
 | `adjust`      | `fixed_qfq` / `fixed_hfq`                 | 定点前复权 / 定点后复权，需要配合 `anchor_date`  |
 | `anchor_date` | `YYYY-MM-DD`、`YYYYMMDD`、`date`            | 定点复权基准日期，仅定点复权时需要                 |
+
+普通前复权和后复权应直接使用 `client.bars.get(..., adjust="qfq" / "hfq")`，结果由 `0x052d` 主站计算。`client.corporate.adjustment_factors()` 是基于 `0x000f` 权息记录的本地计算和审计工具，不是服务端复权接口的逐值等价替代品。
+
+将本地系数应用到一段完整不复权 K 线时，必须把第一根 K 线日期传给 `start_date`，并建议把最后一根 K 线日期传给 `anchor_date`。`start_date=None` 会使用全部有日期的权息事件，可能累计早于服务端第一根可用 K 线的记录，直接用于后复权会产生错误基准。即使日期范围正确，本地 `0x000f` 计算与服务端 `0x052d` 的累计精度和舍入顺序仍可能带来约 `0.01～0.02` 元差异；需要服务端口径时请直接使用 `bars.get(adjust=...)`。
 
 ## F10 资料接口
 
