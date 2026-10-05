@@ -101,6 +101,36 @@ def test_delisted_paging_raises_when_limit_prevents_reaching_empty_page() -> Non
         DelistedBarApi(RecordedTransport()).get("sz000038", all_pages=True, max_pages=1)
 
 
+@pytest.mark.parametrize("max_pages", [
+    0, -1, True, False, 1.0, 1.5, float("nan"), float("inf"), "2", [],
+])
+@pytest.mark.parametrize("code", ["T000038", ["T000038", "002087"]])
+def test_delisted_paging_rejects_invalid_limits_before_querying(code, max_pages) -> None:
+    class NoRequestsTransport:
+        def execute(self, command, payload):
+            pytest.fail("invalid max_pages must be rejected before querying")
+
+    with pytest.raises(ValueError, match="max_pages"):
+        DelistedBarApi(NoRequestsTransport()).get(code, all_pages=True, max_pages=max_pages)
+
+
+@pytest.mark.parametrize("max_pages", [2, None])
+def test_delisted_paging_accepts_positive_integer_and_unlimited_history(max_pages) -> None:
+    page = _sample_page()
+    requested_starts = []
+
+    class RecordedTransport:
+        def execute(self, command, payload):
+            requested_starts.append(payload["start"])
+            return page if payload["start"] == 0 else replace(page, bars=())
+
+    history = DelistedBarApi(RecordedTransport()).get(
+        "sz000038", all_pages=True, max_pages=max_pages
+    )
+    assert history.bars == page.bars
+    assert requested_starts == [0, 1]
+
+
 @pytest.mark.parametrize("include_raw", [False, True])
 def test_delisted_capture_decodes_prices_volume_and_raw_fields(include_raw: bool) -> None:
     path = Path(__file__).parent / "fixtures/7709/delisted_bars/normal/response.bin"
@@ -235,7 +265,12 @@ def test_delisted_batch_rejects_invalid_concurrency(code, batch_size) -> None:
         TdxClient.in_memory().delisted_bars.get(code, batch_size=batch_size)
 
 
-@pytest.mark.parametrize("codes", [[], ["T000038", "invalid"], ["T000038", None]])
+@pytest.mark.parametrize("codes", [
+    [], ["T000038", "invalid"], ["T000038", None],
+    ["T000038", "sz００００３８"],
+    ["T000038", "sz٠٠٠٠٣٨"],
+    ["T000038", "sz0000³8"],
+])
 def test_delisted_batch_validates_all_codes_before_querying(codes) -> None:
     class NoRequestsTransport:
         def execute(self, command, payload):

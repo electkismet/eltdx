@@ -37,8 +37,10 @@ class DelistedBarApi(ApiBase):
             _validate_page_size(count)
         else:
             _validate_page_size(page_size)
-            if max_pages is not None and max_pages <= 0:
-                raise ValueError("max_pages must be positive or None")
+            if max_pages is not None and (
+                isinstance(max_pages, bool) or not isinstance(max_pages, int) or max_pages <= 0
+            ):
+                raise ValueError("max_pages must be a positive integer or None")
 
         if not isinstance(code, str):
             codes = _normalize_codes(code)
@@ -121,6 +123,8 @@ def _normalize_codes(codes: Sequence[str]) -> list[str]:
         text = code.strip().lower()
         if len(text) == 7 and text.startswith("t"):
             text = text[1:]
+        if not text.isascii():
+            raise ValueError(f"invalid code: {code!r}; use ASCII digits 0-9")
         normalized[normalize_code(text)] = None
     if not normalized:
         raise ValueError("codes must not be empty")
