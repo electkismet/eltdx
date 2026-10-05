@@ -46,15 +46,20 @@ print(hfq.adjust_mode, hfq.bars[-1].close)
 ```python
 from eltdx import TdxClient
 
-with TdxClient(timeout=3) as client:
+with TdxClient(timeout=3, pool_size=2) as client:
     page = client.delisted_bars.get("T000038", count=20)
     history = client.delisted_bars.get("sz000038", all_pages=True)
+    histories = client.delisted_bars.get(
+        ["T000038", "002087"], all_pages=True, batch_size=2
+    )
+    for code, series in histories.items():
+        print(code, series.count)
 
 for bar in page.bars:
     print(bar.time.date(), bar.close, bar.volume_wire_value, bar.amount)
 ```
 
-`all_pages=True` 自动翻页获取历史日线。`volume_wire_value` 的单位为股，`volume_lots` 的单位为手。完整参数和返回字段见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+`all_pages=True` 自动翻页获取历史日线，批量时每只股票独立翻页。批量结果用标准代码取值，如 `histories["sz000038"]`。`batch_size` 控制同时查询的股票数，实际不超过 `pool_size`。`volume_wire_value` 的单位为股，`volume_lots` 的单位为手。完整参数和返回字段见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
 
 ## 分时
 

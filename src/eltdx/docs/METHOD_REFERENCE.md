@@ -468,16 +468,19 @@ many = client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_
 
 <a id="method-delisted-bars-get"></a>
 
-### `client.delisted_bars.get(code, period="day", start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)`
+### `client.delisted_bars.get(code, period="day", start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200, batch_size=None)`
 
-查询退市股票的不复权日线，返回 `KlineSeries`。仅支持日线、不复权，传入其他周期或复权模式会抛出 `ValueError`。代码支持 `T000038`、`sz000038` 和 `000038`。
+查询退市股票的不复权日线。`code` 为字符串时返回 `KlineSeries`；为列表或元组时返回 `{标准代码: KlineSeries}`。仅支持日线、不复权，传入其他周期或复权模式会抛出 `ValueError`。代码支持 `T000038`、`sz000038` 和 `000038`。
 
 ```python
 page = client.delisted_bars.get("T000038", count=20)
 history = client.delisted_bars.get("sz000038", all_pages=True)
+histories = client.delisted_bars.get(["T000038", "002087"], all_pages=True, batch_size=2)
 ```
 
 单页 `count`、分页 `page_size` 范围为 `1..800`。`start=0` 取最新页；`all_pages=True` 自动分页，短页后继续查询，空页时停止，合并后按日期升序排列。达到 `max_pages` 仍未收到空页时，抛出 `RuntimeError`。
+
+批量时每只股票独立分页，`max_pages` 分别计数。`batch_size` 填正整数或 `None`，默认随连接池容量，实际并发不超过 `pool_size`。结果按输入顺序排列，相同标准代码合并；空列表会报错，查询异常会传递给调用方。
 
 `volume_wire_value` 和 `volume_raw` 是股数，`volume_lots` 是手数；`time` 以上海时区当天 `00:00` 表示交易日期。`include_raw=True` 保留每条记录的 `record_hex` 和响应 `raw_payload`。完整参数和返回字段见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
 

@@ -156,7 +156,7 @@
     "eltdx.api.delisted_bars:DelistedBarApi": {
       "members": ["get"],
       "signatures": {
-        "get": "(self, code, *, period='day', start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)"
+        "get": "(self, code, *, period='day', start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200, batch_size=None)"
       }
     },
     "eltdx.api.minutes:MinuteApi": {

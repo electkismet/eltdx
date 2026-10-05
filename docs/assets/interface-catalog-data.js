@@ -383,11 +383,11 @@ window.ELTDX_CATALOG = {
       "source": "7709",
       "category": "K 线",
       "api": "client.delisted_bars.get(code, ...)",
-      "aliases": ["delisted_bars.get", "退市", "历史证券", "不复权", "自动分页"],
+      "aliases": ["delisted_bars.get", "退市", "历史证券", "不复权", "自动分页", "批量"],
       "protocol": "0x052b",
       "kind": "底层协议",
-      "summary": "查询退市股票的不复权日线，支持单页查询和自动分页。",
-      "return_model": "KlineSeries",
+      "summary": "查询退市股票的不复权日线，支持单只或批量查询、自动分页。",
+      "return_model": "KlineSeries | dict[str, KlineSeries]",
       "doc": "methods/7709-退市K线日线接口.md"
     },
     {

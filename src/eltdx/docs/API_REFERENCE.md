@@ -388,16 +388,19 @@ client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_size=2)
 
 ## `client.delisted_bars`
 
-### `get(code, period="day", start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)`
+### `get(code, period="day", start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200, batch_size=None)`
 
-查询退市股票的不复权日线，返回 `KlineSeries`。仅支持日线、不复权，传入其他周期或复权模式会抛出 `ValueError`。
+查询退市股票的不复权日线。`code` 为字符串时返回 `KlineSeries`；为列表或元组时返回 `{标准代码: KlineSeries}`。仅支持日线、不复权，传入其他周期或复权模式会抛出 `ValueError`。
 
 ```python
 client.delisted_bars.get("T000038", count=20)
 client.delisted_bars.get("sz000038", all_pages=True, page_size=800)
+client.delisted_bars.get(["T000038", "002087"], all_pages=True, batch_size=2)
 ```
 
 代码支持 `T000038`、`sz000038` 和 `000038`。单页上限 800 根，`start=0` 取最新页；`all_pages=True` 自动分页，直到返回空页，结果按日期升序合并。`max_pages` 默认 200，未到空页便达上限时抛出 `RuntimeError`。
+
+批量查询时每只股票独立分页。`batch_size` 为正整数或 `None`，默认随连接池容量，实际并发不超过 `pool_size`。相同标准代码会合并，空列表会报错；任一股票查询失败时，整次调用会抛出异常。
 
 `volume_wire_value` 和 `volume_raw` 为股数，`volume_lots` 为手数，`amount` 为成交额（元）。`time` 以上海时区当天 `00:00` 表示交易日期。完整参数和返回字段见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
 

@@ -101,7 +101,7 @@
 
 K 线响应和单根 K 线。
 
-`client.delisted_bars.get()` 返回日线、不复权数据：`volume_raw` / `volume_wire_value` 的单位为股，`volume_lots` 的单位为手，`volume_lots = volume_wire_value / 100`；`time` 以上海时区当天 `00:00` 表示交易日期。详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+`client.delisted_bars.get()` 返回日线、不复权数据；代码为字符串时返回 `KlineSeries`，为列表或元组时返回 `{标准代码: KlineSeries}`。每个结果的 `volume_raw` / `volume_wire_value` 的单位为股，`volume_lots` 的单位为手，`volume_lots = volume_wire_value / 100`；`time` 以上海时区当天 `00:00` 表示交易日期。详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
 
 | 字段                                | 含义                        |
 | --------------------------------- | ------------------------- |

@@ -4,6 +4,7 @@ import pytest
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
+from threading import Barrier, Lock
 
 from eltdx import TdxClient
 from eltdx.api import DelistedBarApi
@@ -145,3 +146,111 @@ def test_delisted_parser_rejects_malformed_records(payload: bytes) -> None:
 def test_delisted_bars_rejects_out_of_range_counts(count) -> None:
     with pytest.raises(ValueError):
         TdxClient.in_memory().delisted_bars.get("sz000038", count=count)
+
+
+def test_delisted_batch_normalizes_deduplicates_and_preserves_code_order() -> None:
+    path = Path(__file__).parent / "fixtures/7709/delisted_bars/normal/response.bin"
+    response = decode_response(path.read_bytes())
+    requested_codes = []
+
+    class RecordedTransport:
+        def execute(self, command, payload):
+            assert command == 0x052B
+            requested_codes.append(payload["code"])
+            return parse_command_response(command, response, payload)
+
+    result = DelistedBarApi(RecordedTransport()).get(
+        ["T000038", "sz000038", "000038", "t600001"], count=20, include_raw=True
+    )
+    assert list(result) == ["sz000038", "sh600001"]
+    assert requested_codes == ["sz000038", "sh600001"]
+    for code, series in result.items():
+        assert series.full_code == code
+        assert series.count == 20
+        assert series.raw_payload == response.data
+        assert series.bars[-1].close == 0.52
+
+
+def test_delisted_batch_paginates_each_stock_independently() -> None:
+    page = _sample_page()
+    earlier = replace(page.bars[0], time=page.bars[0].time - timedelta(days=1))
+    stock_pages = {
+        "sz000038": {0: page, 1: replace(page, bars=(earlier,)), 2: replace(page, bars=())},
+        "sz002087": {0: page, 1: replace(page, bars=())},
+    }
+
+    class RecordedTransport:
+        pool_size = 2
+
+        def execute(self, command, payload):
+            assert payload["count"] == 800
+            return replace(stock_pages[payload["code"]][payload["start"]],
+                           code=payload["code"][2:])
+
+    result = DelistedBarApi(RecordedTransport()).get(
+        ("T000038", "002087"), all_pages=True
+    )
+    assert result["sz000038"].bars == (earlier, page.bars[0])
+    assert result["sz000038"].count == result["sz000038"].request_count == 2
+    assert result["sz002087"].bars == page.bars
+    assert result["sz002087"].count == result["sz002087"].request_count == 1
+
+
+@pytest.mark.parametrize("pool_size,batch_size,expected", [
+    (2, None, 2), (2, 9, 2), (3, 2, 2), (3, 1, 1), (None, None, 1),
+])
+def test_delisted_batch_bounds_concurrency(pool_size, batch_size, expected) -> None:
+    barrier = Barrier(2)
+    lock = Lock()
+    page = _sample_page()
+
+    class RecordedTransport:
+        active = peak = 0
+
+        def execute(self, command, payload):
+            with lock:
+                self.active += 1
+                self.peak = max(self.peak, self.active)
+            try:
+                if expected == 2:
+                    barrier.wait(timeout=5)
+                return replace(page, code=payload["code"][2:])
+            finally:
+                with lock:
+                    self.active -= 1
+
+    transport = RecordedTransport()
+    transport.pool_size = pool_size
+    result = DelistedBarApi(transport).get(
+        ["000038", "002087"], batch_size=batch_size
+    )
+    assert list(result) == ["sz000038", "sz002087"]
+    assert transport.peak == expected
+
+
+@pytest.mark.parametrize("batch_size", [0, -1, True, 1.5, "2"])
+@pytest.mark.parametrize("code", ["T000038", ["T000038"]])
+def test_delisted_batch_rejects_invalid_concurrency(code, batch_size) -> None:
+    with pytest.raises(ValueError, match="batch_size"):
+        TdxClient.in_memory().delisted_bars.get(code, batch_size=batch_size)
+
+
+@pytest.mark.parametrize("codes", [[], ["T000038", "invalid"], ["T000038", None]])
+def test_delisted_batch_validates_all_codes_before_querying(codes) -> None:
+    class NoRequestsTransport:
+        def execute(self, command, payload):
+            pytest.fail("invalid batch must be rejected before querying")
+
+    with pytest.raises((ValueError, ProtocolError)):
+        DelistedBarApi(NoRequestsTransport()).get(codes)
+
+
+def test_delisted_batch_propagates_query_failure() -> None:
+    class FailedTransport:
+        def execute(self, command, payload):
+            if payload["code"] == "sz002087":
+                raise ProtocolError("server failed for sz002087")
+            return _sample_page()
+
+    with pytest.raises(ProtocolError, match="sz002087"):
+        DelistedBarApi(FailedTransport()).get(["000038", "002087"])
