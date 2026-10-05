@@ -54,7 +54,7 @@ for bar in page.bars:
     print(bar.time.date(), bar.close, bar.volume_wire_value, bar.amount)
 ```
 
-`volume_wire_value` 是股数，`volume_lots` 是手数；当前只支持日线、不复权。不同主站的历史覆盖可能不同，详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+`all_pages=True` 自动翻页获取历史日线。`volume_wire_value` 的单位为股，`volume_lots` 的单位为手。完整参数和返回字段见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
 
 ## 分时
 

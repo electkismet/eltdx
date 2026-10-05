@@ -260,7 +260,7 @@ window.ELTDX_CATALOG = {
       ],
       "protocol": "0x054c",
       "kind": "底层协议",
-      "summary": "无游标的一次性基础快照，返回现价、成交量额和已确认的一档盘口。",
+      "summary": "查询当前行情，返回现价、成交量额和一档盘口（买一、卖一）。",
       "return_model": "list[QuoteSnapshot]",
       "doc": "methods/7709-批量快照.md"
     },
@@ -386,7 +386,7 @@ window.ELTDX_CATALOG = {
       "aliases": ["delisted_bars.get", "退市", "历史证券", "不复权", "自动分页"],
       "protocol": "0x052b",
       "kind": "底层协议",
-      "summary": "查询退市或历史股票的日线、不复权 K 线，支持单页和自动分页；其他周期及复权模式待协议进一步验证。",
+      "summary": "查询退市股票的不复权日线，支持单页查询和自动分页。",
       "return_model": "KlineSeries",
       "doc": "methods/7709-退市K线日线接口.md"
     },

@@ -272,19 +272,18 @@ def test_quote_command_docs_explain_the_three_distinct_roles() -> None:
     assert "client.helpers.full_quotes(codes)" in command_map
 
     expected_roles = {
-        "7709-批量快照.md": "无游标的一次性基础快照",
-        "7709-增量刷新推送队列.md": "按代码和游标刷新行情",
-        "7709-旧版批量行情.md": "无游标的旧版完整快照",
+        "7709-批量快照.md": ("client.quotes.get_snapshots", "QuoteSnapshot", "0x054c"),
+        "7709-增量刷新推送队列.md": ("client.quotes.refresh", "QuoteRefreshPage", "0x0547"),
+        "7709-旧版批量行情.md": ("client.quotes.legacy", "LegacyQuote", "0x053e"),
     }
-    for filename, role in expected_roles.items():
+    for filename, (api, model, command) in expected_roles.items():
         text = (REPO_ROOT / "docs" / "methods" / filename).read_text(encoding="utf-8")
-        lower_text = text.lower()
-        assert "## 与 `0x" in text
-        assert role in text
-        assert all(command in lower_text for command in ("0x054c", "0x0547", "0x053e"))
+        assert api in text
+        assert model in text
+        assert f"../COMMANDS_7709.md#cmd-{command}" in text
 
     items = {item["id"]: item for item in _catalog()["items"]}
-    assert "一次性基础快照" in items["7709-quote-snapshots"]["summary"]
+    assert items["7709-quote-snapshots"]["protocol"] == "0x054c"
     assert "旧版完整快照" in items["7709-legacy-quotes"]["summary"]
     assert "代码和游标" in items["7709-quote-refresh"]["summary"]
 
@@ -305,8 +304,8 @@ def test_quote_catalog_keeps_each_public_entry_in_one_primary_doc() -> None:
 
     snapshot_doc = (REPO_ROOT / "docs" / snapshot["doc"]).read_text(encoding="utf-8")
     complete_doc = (REPO_ROOT / "docs" / complete["doc"]).read_text(encoding="utf-8")
-    assert snapshot_doc.count("client.helpers.full_quotes(") == 1
-    assert snapshot_doc.count("client.quotes.get_depth(") == 1
+    assert "../helpers/完整行情.md" in snapshot_doc
+    assert "7709-增量刷新推送队列.md" in snapshot_doc
     assert "主要调用 | `client.quotes.get_snapshots(codes)`" in snapshot_doc
     assert "from eltdx import TdxClient" in snapshot_doc
     assert "quotes = client.quotes.get_snapshots(" in snapshot_doc
@@ -538,17 +537,17 @@ def test_local_factor_docs_explain_affine_coefficients() -> None:
     readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "将这些系数按日期应用到本地保存的不复权 OHLC" in detail
-    assert "普通前复权和后复权应直接使用" in detail
+    assert "client.bars.get()" in detail
+    assert 'adjust="qfq"' in detail
+    assert '"hfq"' in detail
     assert "根据 `0x000f` 返回的标签 `1` 权息事件" in detail
     assert "raw * scale + offset" in detail
     assert "bar_date < factor.date" in detail
     assert "factor.date <= bar_date" in detail
     assert "不舍入" in detail
     assert "`start_date=None` 表示使用全部有日期的权息事件" in detail
-    assert "不承诺逐值精确重建 `0x052d`" in detail
-    assert "`0.01～0.02` 元差异" in detail
+    assert "`0.01～0.02`" in detail
     assert "必须以第一根 K 线日期设置 `start_date`" in api
-    assert "普通前复权和后复权应直接使用" in readme
-    assert "不是服务端复权接口的逐值等价替代品" in readme
+    assert "docs/methods/7709-本地复权系数.md" in readme
     assert "`anchor_date`" in fields
     assert "`start_date`" in fields

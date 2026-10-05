@@ -134,7 +134,7 @@ client.bars.get("sz000001", period="week", adjust="hfq")
 client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
 ```
 
-`all_pages=False` 取一页；`all_pages=True` 自动拉到空页并合并。复权参数直接交给 `0x052d` 主站计算，这是普通前后复权的推荐入口。本地审计使用 `client.corporate.adjustment_factors()`，它基于 `0x000f` 返回完整的 `scale + offset` 仿射系数，不承诺逐值精确重建服务端复权结果。
+`all_pages=False` 取一页；`all_pages=True` 自动拉到空页并合并。前后复权由主站计算。本地计算和审计使用 `client.corporate.adjustment_factors()`，它根据权息事件返回 `scale + offset` 仿射系数，本地结果可能与服务端复权价格存在差异。
 
 常用周期为 `1m/5m/15m/30m/60m`、`day/week/month/quarter/year`。复权模式为 `none`、`qfq`、`hfq`、`fixed_qfq`、`fixed_hfq`；定点模式需要 `anchor_date`。
 
@@ -277,7 +277,7 @@ client.codes.all_a_shares()
 
 ### `client.quotes.get_snapshots(codes)`
 
-按显式代码列表查询一次 `0x054c` 基础快照。当前实盘响应只稳定确认买一 / 卖一；普通业务需要完整行情时使用 `client.helpers.full_quotes()`，直接操作原生五档刷新时才使用 `client.quotes.get_depth()`。
+按指定代码列表查询当前行情，包含买一 / 卖一盘口。需要完整行情和五档盘口时，使用 `client.helpers.full_quotes()`；单独查询五档数据时，使用 `client.quotes.get_depth()`。
 
 ```python
 client.quotes.get_snapshots(["sz000001", "sh600000"])
@@ -390,16 +390,16 @@ client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_size=2)
 
 ### `get(code, period="day", start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)`
 
-查询退市或历史股票 K 线，对应 `0x052b`，返回 `KlineSeries`。当前只开放日线、不复权；其他周期和复权模式会抛出 `ValueError`，待协议进一步验证后再扩展。
+查询退市股票的不复权日线，返回 `KlineSeries`。仅支持日线、不复权，传入其他周期或复权模式会抛出 `ValueError`。
 
 ```python
 client.delisted_bars.get("T000038", count=20)
 client.delisted_bars.get("sz000038", all_pages=True, page_size=800)
 ```
 
-`T` 前缀在此接口转换为六位股票代码。单页上限 800 根，`start=0` 取最新页；自动分页按实际条数推进，到空页结束并按日期升序合并。`max_pages` 默认 200，未到空页便达上限时抛出 `RuntimeError`。
+代码支持 `T000038`、`sz000038` 和 `000038`。单页上限 800 根，`start=0` 取最新页；`all_pages=True` 自动分页，直到返回空页，结果按日期升序合并。`max_pages` 默认 200，未到空页便达上限时抛出 `RuntimeError`。
 
-`volume_wire_value` 和 `volume_raw` 为股数，`volume_lots` 为手数，`amount` 为成交额。协议只含日期，`time` 映射为上海时区 `00:00`。原始字段与节点覆盖限制详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+`volume_wire_value` 和 `volume_raw` 为股数，`volume_lots` 为手数，`amount` 为成交额（元）。`time` 以上海时区当天 `00:00` 表示交易日期。完整参数和返回字段见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
 
 ## `client.minutes`
 
@@ -524,7 +524,7 @@ client.corporate.adjustment_factors(
 )
 ```
 
-应用到本地不复权 K 线时，必须以第一根 K 线日期设置 `start_date`；前复权选择第一条满足 `bar_date < factor.date` 的系数，后复权选择最后一条满足 `factor.date <= bar_date` 的系数，再计算 `round(raw * scale + offset, 2)`。本地系数来自 `0x000f`，不承诺逐值精确重建 `0x052d`，两者可能存在约 `0.01～0.02` 元差异。直接获取服务端复权 K 线时，使用 `client.bars.get(..., adjust="none" / "qfq" / "hfq")`。
+应用到本地不复权 K 线时，必须以第一根 K 线日期设置 `start_date`；前复权选择第一条满足 `bar_date < factor.date` 的系数，后复权选择最后一条满足 `factor.date <= bar_date` 的系数，再计算 `round(raw * scale + offset, 2)`。本地计算与服务端复权价格可能存在差异，已知样本中约为 `0.01～0.02` 元。直接获取服务端复权 K 线时，使用 `client.bars.get(..., adjust="none" / "qfq" / "hfq")`。
 
 ### `finance_batch(codes, fields=None, include_raw=False)`
 

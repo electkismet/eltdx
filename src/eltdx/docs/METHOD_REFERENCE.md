@@ -234,7 +234,7 @@ client.codes.a_share_count("sz")
 
 ### `client.quotes.get_snapshots(codes)`
 
-按显式代码列表直接查询一次 `0x054c` 基础快照，当前实盘只稳定确认买一 / 卖一。它不会自动调用 `0x0547`。
+按指定代码列表查询当前行情，包含买一 / 卖一盘口。需要完整五档时，使用 `client.helpers.full_quotes()`。
 
 ```python
 quotes = client.quotes.get_snapshots(["sz000001", "sh600000"])
@@ -260,15 +260,15 @@ quotes = client.quotes.get_snapshots(["sz000001", "sh600000"])
 | `amount`                                  | 成交额           |
 | `inside_dish` / `outer_disc`              | 内盘 / 外盘       |
 | `open_amount_yuan`                        | 开盘金额，单位元      |
-| `buy_levels` / `sell_levels`              | 当前实盘稳定确认为买一 / 卖一 |
+| `buy_levels` / `sell_levels`              | 买一 / 卖一盘口 |
 | `tail_raw`                                | 尾部扩展原始字段      |
 
 | 派生字段           | 计算方式                             |
 | -------------- | -------------------------------- |
 | `change`       | `last_price - pre_close_price`   |
 | `change_pct`   | `change / pre_close_price * 100` |
-| `sum_buy_vol`  | 五档买量合计                           |
-| `sum_sell_vol` | 五档卖量合计                           |
+| `sum_buy_vol`  | 返回的买盘档位挂单量合计                  |
+| `sum_sell_vol` | 返回的卖盘档位挂单量合计                  |
 
 `buy_levels` 和 `sell_levels` 的单档模型是 `QuoteLevel`：
 
@@ -280,7 +280,7 @@ quotes = client.quotes.get_snapshots(["sz000001", "sh600000"])
 
 ### `client.helpers.full_quotes(codes)`
 
-普通业务查询完整行情的推荐入口。它按批次组合 `0x054c` 基础快照与 `0x0547` 五档数据，返回统一的 `list[QuoteSnapshot]`。
+查询完整当前行情和五档盘口。它按批次组合基础快照与五档数据，返回 `list[QuoteSnapshot]`。
 
 ```python
 quotes = client.helpers.full_quotes(["sz000001", "sh600000"])
@@ -470,16 +470,16 @@ many = client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_
 
 ### `client.delisted_bars.get(code, period="day", start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)`
 
-对应 `0x052b`，返回 `KlineSeries`。当前仅开放日线、不复权，传入其他周期或复权模式会抛出 `ValueError`。接受 `T000038`、`sz000038` 或六位股票代码。
+查询退市股票的不复权日线，返回 `KlineSeries`。仅支持日线、不复权，传入其他周期或复权模式会抛出 `ValueError`。代码支持 `T000038`、`sz000038` 和 `000038`。
 
 ```python
 page = client.delisted_bars.get("T000038", count=20)
 history = client.delisted_bars.get("sz000038", all_pages=True)
 ```
 
-单页 `count`、分页 `page_size` 范围为 `1..800`。`start=0` 取最新页；自动分页按实际条数推进，短页继续，空页停止，合并后按日期升序排列，达到 `max_pages` 前仍未遇空页则抛出 `RuntimeError`。
+单页 `count`、分页 `page_size` 范围为 `1..800`。`start=0` 取最新页；`all_pages=True` 自动分页，短页后继续查询，空页时停止，合并后按日期升序排列。达到 `max_pages` 仍未收到空页时，抛出 `RuntimeError`。
 
-`volume_wire_value` 和 `volume_raw` 是股数，`volume_lots` 是手数；协议仅提供日期，`time` 映射为上海时区当天 `00:00`。`include_raw=True` 保留每条 `record_hex` 和响应 `raw_payload`，末尾四字节暂不命名。其他周期及复权待进一步验证，详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+`volume_wire_value` 和 `volume_raw` 是股数，`volume_lots` 是手数；`time` 以上海时区当天 `00:00` 表示交易日期。`include_raw=True` 保留每条记录的 `record_hex` 和响应 `raw_payload`。完整参数和返回字段见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
 
 ## 分时
 
@@ -815,7 +815,7 @@ batch = client.corporate.adjustment_factors(["sz000001", "sh600000"])
 | `AdjustmentFactorBatch` | `count`、`responses` / `items` |
 | `AdjustmentFactor` | `date`、`qfq_scale`、`qfq_offset`、`hfq_scale`、`hfq_offset` |
 
-使用方式为 `round(raw * scale + offset, 2)`。`start_date=None` 使用全部有日期的权息事件，不会自动推断第一根可用 K 线日期；应用到完整 K 线时，必须以第一根 K 线日期设置 `start_date`，排除可能存在的上市前事件。多事件按日期复合、同日保持服务端顺序，计算过程中不舍入。由于本地系数来自 `0x000f`，不承诺逐值精确重建 `0x052d` 服务端复权结果，正确限定日期后仍可能相差约 `0.01～0.02` 元。系数行的日期选择规则和完整应用代码见 [本地复权系数](methods/7709-本地复权系数.md)。
+使用方式为 `round(raw * scale + offset, 2)`。`start_date=None` 使用全部有日期的权息事件，不会自动推断第一根可用 K 线日期；应用到完整 K 线时，必须以第一根 K 线日期设置 `start_date`，排除可能存在的上市前事件。多事件按日期复合、同日保持服务端顺序，计算过程中不舍入。正确限定日期后，本地计算与服务端复权价格仍可能存在差异，已知样本中约为 `0.01～0.02` 元。系数行的日期选择规则和完整应用代码见 [本地复权系数](methods/7709-本地复权系数.md)。
 
 ## 资金流向日数据
 

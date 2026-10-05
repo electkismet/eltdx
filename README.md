@@ -193,13 +193,13 @@ print(f10.company_profile("000034").rows[0])
 | 心跳           | `client.session.heartbeat()`                               | [`0x0004`](docs/COMMANDS_7709.md#cmd-0x0004)                                                | 返回服务端心跳响应；长连接默认后台 30 秒保活，也可手动调用                                | [文档](docs/methods/7709-心跳.md)         |
 | 市场代码数量       | `client.codes.count(market)` / `client.codes.a_share_count(market)`                 | [`0x044e`](docs/COMMANDS_7709.md#cmd-0x044e) / [`0x044d`](docs/COMMANDS_7709.md#cmd-0x044d) | 分别返回整个市场代码表条数或仅 A 股数量；前者不限证券品种                              | [文档](docs/methods/7709-代码数量.md)       |
 | 代码表          | `client.codes.all(market, ...)` / `client.codes.all_a_shares()` / `client.codes.list(market, ...)` | [`0x044d`](docs/COMMANDS_7709.md#cmd-0x044d)                                                | 推荐自动翻页取全量；也可直接取 A 股、ETF、指数，或手动控制单页                         | [文档](docs/methods/7709-代码表.md)        |
-| 批量行情快照       | `client.quotes.get_snapshots()`            | [`0x054c`](docs/COMMANDS_7709.md#cmd-0x054c) | 原生一次性基础快照，返回现价、成交量额和已确认的一档盘口                   | [文档](docs/methods/7709-批量快照.md)       |
-| 完整行情 / 五档盘口 | `client.helpers.full_quotes()` | [`0x054c`](docs/COMMANDS_7709.md#cmd-0x054c) + [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 普通用户推荐入口，自动组合基础快照与实时五档 | [文档](docs/helpers/完整行情.md) |
+| 批量行情快照       | `client.quotes.get_snapshots()`            | [`0x054c`](docs/COMMANDS_7709.md#cmd-0x054c) | 返回现价、成交量额和一档盘口（买一、卖一）                   | [文档](docs/methods/7709-批量快照.md)       |
+| 完整行情 / 五档盘口 | `client.helpers.full_quotes()` | [`0x054c`](docs/COMMANDS_7709.md#cmd-0x054c) + [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 查询完整当前行情，自动组合基础快照与实时五档 | [文档](docs/helpers/完整行情.md) |
 | 原生批量行情       | `client.quotes.legacy()`                              | [`0x053e`](docs/COMMANDS_7709.md#cmd-0x053e)                                                | 原生旧版完整快照，保留五档盘口和协议状态原始字段                    | [文档](docs/methods/7709-旧版批量行情.md)     |
 | 五档刷新 / 推送队列 | `client.quotes.get_depth()` / `client.quotes.refresh()` / `client.quotes.poll_push()` | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 原生五档快捷入口、游标刷新与推送队列；面向高级实时更新场景 | [文档](docs/methods/7709-增量刷新推送队列.md) |
 | 分类行情         | `client.quotes.list_by_category()`                         | [`0x054b`](docs/COMMANDS_7709.md#cmd-0x054b)                                                | 按市场或板块分页返回行情列表；可按涨幅、价格、成交额等服务端排序                               | [文档](docs/methods/7709-分类行情.md)       |
 | K 线 / 周期线    | `client.bars.get(code_or_codes, ..., all_pages=False)` | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d) | 单页或自动分页返回 K 线；支持单只或多只证券并发查询，以及分钟、日、周、月、季、年线和服务端复权参数 | [文档](docs/methods/7709-K线周期线.md) |
-| 退市 K 线 | `client.delisted_bars.get(code, ..., all_pages=False)` | [`0x052b`](docs/COMMANDS_7709.md#cmd-0x052b) | 退市股票日线、不复权，支持单页或自动分页；其他周期和复权待进一步验证 | [文档](docs/methods/7709-退市K线日线接口.md) |
+| 退市 K 线 | `client.delisted_bars.get(code, ..., all_pages=False)` | [`0x052b`](docs/COMMANDS_7709.md#cmd-0x052b) | 退市股票的不复权日线，支持单页查询和自动分页 | [文档](docs/methods/7709-退市K线日线接口.md) |
 | 当日分时         | `client.minutes.today()`                  | [`0x0537`](docs/COMMANDS_7709.md#cmd-0x0537)                                                | 返回主站当前保存的每分钟价格、成交量、均价等分时序列                                       | [文档](docs/methods/7709-当日分时.md)       |
 | 指定日期历史分时     | `client.minutes.history()`        | [`0x0fb4`](docs/COMMANDS_7709.md#cmd-0x0fb4)                                                | 按日期返回某天的分时价格和分钟成交量，适合补单日历史分时                                   | [文档](docs/methods/7709-指定日期历史分时.md)   |
 | 近期历史分时       | `client.minutes.recent()`                                  | [`0x0feb`](docs/COMMANDS_7709.md#cmd-0x0feb)                                                | 返回服务端近期窗口内的历史分时；适合查较近交易日的分钟走势                                  | [文档](docs/methods/7709-近期历史分时.md)     |
@@ -247,7 +247,7 @@ client.bars.get("sz000001", period="day", all_pages=True, page_size=800)
 | `adjust`      | `fixed_qfq` / `fixed_hfq`                 | 定点前复权 / 定点后复权，需要配合 `anchor_date`  |
 | `anchor_date` | `YYYY-MM-DD`、`YYYYMMDD`、`date`            | 定点复权基准日期，仅定点复权时需要                 |
 
-普通前复权和后复权应直接使用 `client.bars.get(..., adjust="qfq" / "hfq")`，结果由 `0x052d` 主站计算。`client.corporate.adjustment_factors()` 是基于 `0x000f` 权息记录的本地计算和审计工具，不是服务端复权接口的逐值等价替代品。
+直接查询前复权和后复权 K 线，使用 `client.bars.get(..., adjust="qfq" / "hfq")`。已有不复权 K 线、需要本地计算或审计时，使用 `client.corporate.adjustment_factors()`；本地计算与服务端复权价格可能存在差异。
 
 将本地系数应用到一段完整不复权 K 线时，必须把第一根 K 线日期传给 `start_date`，并建议把最后一根 K 线日期传给 `anchor_date`。`start_date=None` 会使用全部有日期的权息事件，可能累计早于服务端第一根可用 K 线的记录，直接用于后复权会产生错误基准。即使日期范围正确，本地 `0x000f` 计算与服务端 `0x052d` 的累计精度和舍入顺序仍可能带来约 `0.01～0.02` 元差异；需要服务端口径时请直接使用 `bars.get(adjust=...)`。
 

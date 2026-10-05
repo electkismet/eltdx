@@ -51,12 +51,12 @@
 | `inside_dish`      | 内盘          |
 | `outer_disc`       | 外盘          |
 | `open_amount_yuan` | 开盘金额，单位元    |
-| `buy_levels`       | 买盘档位；`client.helpers.full_quotes()` 补齐五档，直接 `get_snapshots()` 为已确认一档 |
-| `sell_levels`      | 卖盘档位；`client.helpers.full_quotes()` 补齐五档，直接 `get_snapshots()` 为已确认一档 |
+| `buy_levels`       | 买盘档位；`client.helpers.full_quotes()` 返回五档，`get_snapshots()` 返回买一 |
+| `sell_levels`      | 卖盘档位；`client.helpers.full_quotes()` 返回五档，`get_snapshots()` 返回卖一 |
 | `change`           | 涨跌额，派生字段    |
 | `change_pct`       | 涨跌幅百分比，派生字段 |
-| `sum_buy_vol`      | 五档买量合计，派生字段 |
-| `sum_sell_vol`     | 五档卖量合计，派生字段 |
+| `sum_buy_vol`      | 返回的买盘档位挂单量合计，派生字段 |
+| `sum_sell_vol`     | 返回的卖盘档位挂单量合计，派生字段 |
 
 ## LegacyQuote
 
@@ -101,7 +101,7 @@
 
 K 线响应和单根 K 线。
 
-`client.delisted_bars.get()` 也返回这两个模型，但固定为日线、不复权：`volume_raw` / `volume_wire_value` 是解码后的整数股数，`volume_lots = volume_wire_value / 100`；与普通 `0x052d` 的原始量编码不同。协议只含日期，因此 `time` 映射到上海时区 `00:00`。详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+`client.delisted_bars.get()` 返回日线、不复权数据：`volume_raw` / `volume_wire_value` 的单位为股，`volume_lots` 的单位为手，`volume_lots = volume_wire_value / 100`；`time` 以上海时区当天 `00:00` 表示交易日期。详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
 
 | 字段                                | 含义                        |
 | --------------------------------- | ------------------------- |
@@ -238,7 +238,7 @@ JSON 导出与转换后的 `TradePage` 结构一致。详见[历史成交批量�
 
 ## 资金流向
 
-`client.money_flow.daily(code)` 传入单只代码时返回 `MoneyFlowBlock`，传入代码列表时返回 `MoneyFlowBatch`；其中每个 `MoneyFlowBlock` 代表一只股票，`block.records` 中的每个 `MoneyFlowDaily` 代表一个交易日。每条记录包含日期、总成交额、主力净额/占比、主买净额/占比、两套超大单/大单/中单/小单净额和 16 个原始分档值。`buckets[0]/[1]` 与 `buckets[4]/[5]` 已确认用于主力净额计算，`buckets[2]/[3]`、`[6]/[7]`、`[10]/[11]`、`[14]/[15]` 已确认用于主买净额计算，其余分档暂不命名；21 个原始 `raw` 字段和 `record_hex` 用于进一步核对。完整参数、单位和真实样本见[资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+`client.money_flow.daily(code)` 传入单只代码时返回 `MoneyFlowBlock`，传入代码列表时返回 `MoneyFlowBatch`；其中每个 `MoneyFlowBlock` 代表一只股票，`block.records` 中的每个 `MoneyFlowDaily` 代表一个交易日。每条记录包含日期、总成交额、主力净额/占比、主买净额/占比、两套超大单/大单/中单/小单净额和 16 个原始分档值。`buckets[0]/[1]` 与 `buckets[4]/[5]` 用于主力净额计算，`buckets[2]/[3]`、`[6]/[7]`、`[10]/[11]`、`[14]/[15]` 用于主买净额计算；`raw` 和 `record_hex` 保留原始数据。完整参数、单位和真实样本见[资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
 
 ### `MoneyFlowBlock`
 
@@ -273,7 +273,7 @@ JSON 导出与转换后的 `TradePage` 结构一致。详见[历史成交批量�
 
 ## AdjustmentFactorResponse / AdjustmentFactor
 
-基于 `0x000f` 权息记录计算的本地前、后复权仿射系数，用于本地计算和审计，不承诺逐值精确重建 `0x052d` 服务端复权结果。
+根据权息事件计算的本地前、后复权仿射系数，用于本地计算和审计。
 
 | 字段 | 含义 |
 | --- | --- |
@@ -285,7 +285,7 @@ JSON 导出与转换后的 `TradePage` 结构一致。详见[历史成交批量�
 | `qfq_scale` / `qfq_offset` | 前复权缩放和偏移 |
 | `hfq_scale` / `hfq_offset` | 后复权缩放和偏移 |
 
-价格应用公式为 `round(raw * scale + offset, 2)`。应用到完整 K 线时必须以第一根 K 线日期设置 `start_date`，排除可能存在的上市前事件；正确限定日期后，本地计算与服务端复权仍可能存在约 `0.01～0.02` 元差异。
+价格应用公式为 `round(raw * scale + offset, 2)`。应用到完整 K 线时必须以第一根 K 线日期设置 `start_date`，排除可能存在的上市前事件；正确限定日期后，本地计算与服务端复权仍可能存在差异，已知样本中约为 `0.01～0.02` 元。
 
 代码列表查询返回 `AdjustmentFactorBatch`；`responses` / `items` 是逐股票的 `AdjustmentFactorResponse`，`count` 是股票结果数。
 
