@@ -737,6 +737,35 @@
   }
 }
 
+.md-typeset .api-parameters {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.md-typeset .api-parameters table:not([class]) {
+  width: 100%;
+  min-width: 40rem;
+  margin-bottom: 0;
+}
+
+.md-typeset .api-parameters th,
+.md-typeset .api-parameters td {
+  vertical-align: top;
+}
+
+.md-typeset .api-parameters th:nth-child(-n + 3),
+.md-typeset .api-parameters td:nth-child(-n + 3) {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.md-typeset .api-parameters td:nth-child(-n + 3) code {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
 @media screen and (max-width: 64rem) {
   .catalog-app {
     display: block;
