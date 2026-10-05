@@ -150,7 +150,7 @@ ROUNDS = (
                 "pytest",
                 "-q",
                 "tests/contracts/test_command_contract_manifest.py",
-                "tests/native/test_differential.py::test_differential_matrix_covers_all_21_commands",
+                "tests/native/test_differential.py::test_differential_matrix_covers_all_22_commands",
             ),
         ),
     ),

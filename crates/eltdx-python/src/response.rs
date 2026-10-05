@@ -818,6 +818,9 @@ pub fn to_python(py: Python<'_>, response: CommandResponse) -> PyResult<Py<PyAny
         CommandResponse::IntradayAux(value) => {
             tagged(py, "intraday_aux", intraday_aux(py, &value)?)?
         }
+        CommandResponse::DelistedKlines(value) => {
+            tagged(py, "delisted_klines", delisted_klines(py, &value)?)?
+        }
         CommandResponse::Klines(value) => tagged(py, "klines", klines(py, &value)?)?,
         CommandResponse::TodayIntraday(value) => {
             tagged(py, "today_intraday", today_intraday(py, &value)?)?
@@ -1105,6 +1108,38 @@ fn klines<'py>(py: Python<'py>, value: &KlineSeries) -> PyResult<Obj> {
                     .collect::<PyResult<Vec<_>>>()?,
             )?,
             raw_payload(py, req.include_raw, &value.raw_payload),
+        ],
+    )
+}
+
+fn delisted_klines<'py>(
+    py: Python<'py>,
+    value: &eltdx_protocol::commands::delisted_bars::DelistedKlineSeries,
+) -> PyResult<Obj> {
+    tuple(
+        py,
+        vec![
+            any(py, value.request.code.market().as_str())?,
+            any(py, value.request.code.market().id())?,
+            any(py, value.request.code.number())?,
+            any(py, 4_u16)?,
+            any(py, 1_u16)?,
+            any(py, "day")?,
+            any(py, value.request.start)?,
+            any(py, value.request.count)?,
+            any(py, 0_u16)?,
+            any(py, "none")?,
+            any(py, 0_u32)?,
+            none(py),
+            tuple(
+                py,
+                value
+                    .bars
+                    .iter()
+                    .map(|v| kline_bar(py, v, value.request.include_raw))
+                    .collect::<PyResult<Vec<_>>>()?,
+            )?,
+            raw_payload(py, value.request.include_raw, &value.raw_payload),
         ],
     )
 }

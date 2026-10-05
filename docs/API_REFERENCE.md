@@ -386,6 +386,21 @@ client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_size=2)
 
 返回字段包括 `period_name`、`adjust_mode`、`bars`；每根 K 线提供 `time`、`open/high/low/close`、`volume_lots` 和 `amount`。
 
+## `client.delisted_bars`
+
+### `get(code, period="day", start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)`
+
+查询退市或历史股票 K 线，对应 `0x052b`，返回 `KlineSeries`。当前只开放日线、不复权；其他周期和复权模式会抛出 `ValueError`，待协议进一步验证后再扩展。
+
+```python
+client.delisted_bars.get("T000038", count=20)
+client.delisted_bars.get("sz000038", all_pages=True, page_size=800)
+```
+
+`T` 前缀在此接口转换为六位股票代码。单页上限 800 根，`start=0` 取最新页；自动分页按实际条数推进，到空页结束并按日期升序合并。`max_pages` 默认 200，未到空页便达上限时抛出 `RuntimeError`。
+
+`volume_wire_value` 和 `volume_raw` 为股数，`volume_lots` 为手数，`amount` 为成交额。协议只含日期，`time` 映射为上海时区 `00:00`。原始字段与节点覆盖限制详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+
 ## `client.minutes`
 
 ### `today(code, include_raw=False, batch_size=None)`
@@ -584,4 +599,5 @@ with TdxClient(timeout=3) as client:
 - [想拿集合竞价数据怎么办？](helpers/竞价数据.md)
 - [想拿流通市值Z、开盘换手Z、竞价昨比、开盘昨封比、昨封比、封流比和几天几板怎么办？](helpers/短线指标.md)
 - [K 线、自动分页和服务端复权](methods/7709-K线周期线.md)
+- [退市 K 线（日线、不复权）](methods/7709-退市K线日线接口.md)
 - [资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)

@@ -464,6 +464,23 @@ many = client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_
 
 `code` 传入字符串返回单个 `KlineSeries`；传入代码列表时按连接池并发逐只请求，返回以规范化完整代码为键的字典。列表中的重复代码会去重。
 
+## 退市 K 线（日线、不复权）
+
+<a id="method-delisted-bars-get"></a>
+
+### `client.delisted_bars.get(code, period="day", start=0, count=800, adjust=None, include_raw=False, all_pages=False, page_size=800, max_pages=200)`
+
+对应 `0x052b`，返回 `KlineSeries`。当前仅开放日线、不复权，传入其他周期或复权模式会抛出 `ValueError`。接受 `T000038`、`sz000038` 或六位股票代码。
+
+```python
+page = client.delisted_bars.get("T000038", count=20)
+history = client.delisted_bars.get("sz000038", all_pages=True)
+```
+
+单页 `count`、分页 `page_size` 范围为 `1..800`。`start=0` 取最新页；自动分页按实际条数推进，短页继续，空页停止，合并后按日期升序排列，达到 `max_pages` 前仍未遇空页则抛出 `RuntimeError`。
+
+`volume_wire_value` 和 `volume_raw` 是股数，`volume_lots` 是手数；协议仅提供日期，`time` 映射为上海时区当天 `00:00`。`include_raw=True` 保留每条 `record_hex` 和响应 `raw_payload`，末尾四字节暂不命名。其他周期及复权待进一步验证，详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+
 ## 分时
 
 <a id="method-minutes-today"></a>

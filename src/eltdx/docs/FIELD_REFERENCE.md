@@ -101,6 +101,8 @@
 
 K 线响应和单根 K 线。
 
+`client.delisted_bars.get()` 也返回这两个模型，但固定为日线、不复权：`volume_raw` / `volume_wire_value` 是解码后的整数股数，`volume_lots = volume_wire_value / 100`；与普通 `0x052d` 的原始量编码不同。协议只含日期，因此 `time` 映射到上海时区 `00:00`。详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+
 | 字段                                | 含义                        |
 | --------------------------------- | ------------------------- |
 | `period_name`                     | 周期，例如 `day`、`1m`          |

@@ -367,7 +367,7 @@ def response_from_dto(dto: Any) -> Any:
             _records(points, tag, _minute_aux_point),
             raw_payload,
         )
-    if tag == "klines":
+    if tag in {"klines", "delisted_klines"}:
         fields = list(_tuple(payload, tag, 14))
         fields[11] = _date(fields[11])
         fields[12] = _records(fields[12], tag, _kline_bar)

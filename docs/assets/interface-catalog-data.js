@@ -1,11 +1,11 @@
 window.ELTDX_CATALOG = {
-  "schema_version": 13,
+  "schema_version": 14,
   "release": {
     "version": "3.2.2",
     "status": "stable",
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
-    "native_commands": 21,
+    "native_commands": 22,
     "mcp_tools": 23,
     "mcp_resources": 8,
     "native_extensions": 1,
@@ -18,7 +18,7 @@ window.ELTDX_CATALOG = {
         "label": "7709 原生协议接口",
         "tag_label": "7709 原生",
         "stat_label": "7709 原生协议接口",
-        "description": "22 个 7709 原生协议业务能力，按业务分类展示。",
+        "description": "23 个 7709 原生协议业务能力，按业务分类展示。",
         "source": "7709"
       },
       {
@@ -99,6 +99,7 @@ window.ELTDX_CATALOG = {
         "description": "周期 K 线、自动分页、服务端复权，以及本地复权所需的权息和仿射系数。",
         "item_ids": [
           "7709-kline",
+          "7709-delisted-bars",
           "7709-gbbq",
           "7709-local-factors"
         ]
@@ -375,6 +376,19 @@ window.ELTDX_CATALOG = {
       "summary": "返回分钟、日、周、月、季、年 K 线，支持单页、自动分页、单只或多只证券并发查询和服务端复权参数。",
       "return_model": "KlineSeries | dict[str, KlineSeries]",
       "doc": "methods/7709-K线周期线.md"
+    },
+    {
+      "id": "7709-delisted-bars",
+      "title": "退市 K 线（日线、不复权）",
+      "source": "7709",
+      "category": "K 线",
+      "api": "client.delisted_bars.get(code, ...)",
+      "aliases": ["delisted_bars.get", "退市", "历史证券", "不复权", "自动分页"],
+      "protocol": "0x052b",
+      "kind": "底层协议",
+      "summary": "查询退市或历史股票的日线、不复权 K 线，支持单页和自动分页；其他周期及复权模式待协议进一步验证。",
+      "return_model": "KlineSeries",
+      "doc": "methods/7709-退市K线日线接口.md"
     },
     {
       "id": "7709-minute-today",

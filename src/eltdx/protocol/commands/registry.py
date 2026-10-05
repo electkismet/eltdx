@@ -33,6 +33,7 @@ COMMANDS: dict[str, CommandSpec] = {
     "security_count": CommandSpec(0x044E, "security_count", "codes", "count", True, "0x044e-代码数量接口.md", True),
     "special_limits": CommandSpec(0x0452, "special_limits", "limits", "special", False, "0x0452-特殊品种涨跌停限制表接口.md", True),
     "intraday_aux": CommandSpec(0x051B, "intraday_aux", "minutes", "aux", False, "0x051b-个股分时副图数据接口.md", True),
+    "delisted_bars": CommandSpec(0x052B, "delisted_bars", "delisted_bars", "get", False, "0x052b-退市K线日线接口.md", True),
     "klines": CommandSpec(0x052D, "klines", "bars", "get", True, "0x052d-K线周期数据接口.md", True),
     "today_intraday": CommandSpec(0x0537, "today_intraday", "minutes", "today", True, "0x0537-个股当前日分时图接口.md", True),
     "legacy_quotes": CommandSpec(0x053E, "legacy_quotes", "quotes", "legacy", False, "0x053e-旧版批量行情接口.md", True),

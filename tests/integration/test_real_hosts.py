@@ -14,6 +14,7 @@ from eltdx.protocol.constants import TYPE_FILE_CONTENT
 DEFAULT_CODES = ("sz000001", "sh600000", "bj920001")
 DEFAULT_ETF = "sh510300"
 DEFAULT_INDEX = "sh000001"
+DEFAULT_DELISTED_CODE = "T000038"
 DEFAULT_HISTORY_DATE = "2026-08-14"
 DEFAULT_RESOURCE_PATH = "T0002/hq_cache.dat"
 
@@ -59,6 +60,7 @@ def test_all_native_commands_against_real_hosts() -> None:
     stock = codes[0]
     etf = os.environ.get("ELTDX_REAL_ETF", DEFAULT_ETF)
     index = os.environ.get("ELTDX_REAL_INDEX", DEFAULT_INDEX)
+    delisted_code = os.environ.get("ELTDX_REAL_DELISTED_CODE", DEFAULT_DELISTED_CODE)
     history_date = os.environ.get("ELTDX_REAL_HISTORY_DATE", DEFAULT_HISTORY_DATE)
     resource_path = os.environ.get("ELTDX_REAL_RESOURCE_PATH", DEFAULT_RESOURCE_PATH)
     external_failures: list[str] = []
@@ -74,6 +76,7 @@ def test_all_native_commands_against_real_hosts() -> None:
             ("special_limits", lambda: client.limits.special(start_index=0)),
             ("intraday_aux", lambda: client.minutes.aux(stock)),
             ("klines", lambda: client.bars.get(stock, count=20)),
+            ("delisted_bars", lambda: client.delisted_bars.get(delisted_code, count=20)),
             ("today_intraday", lambda: client.minutes.today(stock)),
             ("legacy_quotes", lambda: client.quotes.legacy(codes)),
             ("refresh_stream", lambda: client.quotes.refresh(codes, cursors={})),

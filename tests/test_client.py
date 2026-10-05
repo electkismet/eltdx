@@ -546,7 +546,7 @@ def test_protocol_round_trip() -> None:
 
 
 def test_command_registry_contains_7709_documents() -> None:
-    assert len(COMMANDS) == 21
+    assert len(COMMANDS) == 22
     assert COMMANDS["snapshots"].hex == "0x054c"
     assert COMMANDS["legacy_quotes"].hex == "0x053e"
     assert COMMANDS["file_content"].hex == "0x06b9"

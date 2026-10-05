@@ -1,5 +1,6 @@
 pub mod auctions;
 pub mod corporate;
+pub mod delisted_bars;
 pub mod klines;
 pub mod limits;
 pub mod minutes;

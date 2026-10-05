@@ -3,6 +3,7 @@ use crate::commands::{
     corporate::{
         CapitalChangesRequest, FinanceBatchRequest, TYPE_CAPITAL_CHANGES, TYPE_FINANCE_BATCH,
     },
+    delisted_bars::{DelistedKlinesRequest, TYPE_DELISTED_KLINES},
     klines::{KlinesRequest, TYPE_KLINES},
     limits::{SpecialLimitsRequest, TYPE_SPECIAL_LIMITS},
     minutes::{
@@ -25,7 +26,7 @@ use crate::commands::{
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 
-pub const SUPPORTED_COMMAND_CODES: [u16; 22] = [
+pub const SUPPORTED_COMMAND_CODES: [u16; 23] = [
     TYPE_HEARTBEAT,
     TYPE_HANDSHAKE,
     TYPE_CAPITAL_CHANGES,
@@ -34,6 +35,7 @@ pub const SUPPORTED_COMMAND_CODES: [u16; 22] = [
     TYPE_SECURITY_COUNT,
     TYPE_SPECIAL_LIMITS,
     TYPE_INTRADAY_AUX,
+    TYPE_DELISTED_KLINES,
     TYPE_KLINES,
     TYPE_TODAY_INTRADAY,
     TYPE_LEGACY_QUOTES,
@@ -60,6 +62,7 @@ pub enum CommandRequest {
     SecurityCount(SecurityCountRequest),
     SpecialLimits(SpecialLimitsRequest),
     IntradayAux(IntradayAuxRequest),
+    DelistedKlines(DelistedKlinesRequest),
     Klines(KlinesRequest),
     TodayIntraday(TodayIntradayRequest),
     LegacyQuotes(LegacyQuotesRequest),
@@ -87,6 +90,7 @@ impl CommandRequest {
             Self::SecurityCount(_) => TYPE_SECURITY_COUNT,
             Self::SpecialLimits(_) => TYPE_SPECIAL_LIMITS,
             Self::IntradayAux(_) => TYPE_INTRADAY_AUX,
+            Self::DelistedKlines(_) => TYPE_DELISTED_KLINES,
             Self::Klines(_) => TYPE_KLINES,
             Self::TodayIntraday(_) => TYPE_TODAY_INTRADAY,
             Self::LegacyQuotes(_) => TYPE_LEGACY_QUOTES,
@@ -118,6 +122,7 @@ impl CommandRequest {
             Self::SecurityCount(request) => request.frame(msg_id),
             Self::SpecialLimits(request) => request.frame(msg_id),
             Self::IntradayAux(request) => request.frame(msg_id),
+            Self::DelistedKlines(request) => request.frame(msg_id),
             Self::Klines(request) => request.frame(msg_id),
             Self::TodayIntraday(request) => request.frame(msg_id),
             Self::LegacyQuotes(request) => return request.frame(msg_id),
@@ -148,6 +153,7 @@ pub const fn is_supported_command(command: u16) -> bool {
             | TYPE_SECURITY_COUNT
             | TYPE_SPECIAL_LIMITS
             | TYPE_INTRADAY_AUX
+            | TYPE_DELISTED_KLINES
             | TYPE_KLINES
             | TYPE_TODAY_INTRADAY
             | TYPE_LEGACY_QUOTES
@@ -171,6 +177,7 @@ mod tests {
     use crate::commands::{
         auctions::AuctionSeriesRequest,
         corporate::{CapitalChangesRequest, FinanceBatchRequest},
+        delisted_bars::DelistedKlinesRequest,
         klines::{KlineKind, KlinesRequest},
         limits::SpecialLimitsRequest,
         minutes::{
@@ -191,8 +198,8 @@ mod tests {
     use crate::ProtocolError;
 
     #[test]
-    fn exact_twenty_one_command_codes_are_registered() {
-        assert_eq!(SUPPORTED_COMMAND_CODES.len(), 22);
+    fn exact_twenty_three_command_codes_are_registered() {
+        assert_eq!(SUPPORTED_COMMAND_CODES.len(), 23);
         assert!(SUPPORTED_COMMAND_CODES
             .windows(2)
             .all(|pair| pair[0] < pair[1]));
@@ -220,6 +227,7 @@ mod tests {
                 CommandRequest::CapitalChanges(value) => assert!(!value.include_raw),
                 CommandRequest::FinanceBatch(value) => assert!(!value.include_raw()),
                 CommandRequest::IntradayAux(value) => assert!(!value.include_raw),
+                CommandRequest::DelistedKlines(value) => assert!(!value.include_raw),
                 CommandRequest::Klines(value) => assert!(!value.include_raw),
                 CommandRequest::TodayIntraday(value) => assert!(!value.include_raw),
                 CommandRequest::AuctionSeries(value) => assert!(!value.include_raw),
@@ -237,6 +245,7 @@ mod tests {
                 CommandRequest::CapitalChanges(value) => value.include_raw,
                 CommandRequest::FinanceBatch(value) => value.include_raw(),
                 CommandRequest::IntradayAux(value) => value.include_raw,
+                CommandRequest::DelistedKlines(value) => value.include_raw,
                 CommandRequest::Klines(value) => value.include_raw,
                 CommandRequest::TodayIntraday(value) => value.include_raw,
                 CommandRequest::AuctionSeries(value) => value.include_raw,
@@ -270,6 +279,7 @@ mod tests {
                 code.clone(),
                 IntradayAuxKind::BuySellStrength,
             )),
+            CommandRequest::DelistedKlines(DelistedKlinesRequest::new(code.clone(), 0, 1, false)?),
             CommandRequest::Klines(KlinesRequest::new(
                 code.clone(),
                 KlinePeriod::normalize("day")?,
@@ -320,6 +330,7 @@ mod tests {
                 IntradayAuxKind::BuySellStrength,
                 true,
             )),
+            CommandRequest::DelistedKlines(DelistedKlinesRequest::new(code.clone(), 0, 1, true)?),
             CommandRequest::Klines(KlinesRequest::with_include_raw(
                 code.clone(),
                 KlinePeriod::normalize("day")?,

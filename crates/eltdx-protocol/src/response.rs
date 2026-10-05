@@ -4,6 +4,7 @@ use crate::commands::{
         parse_capital_changes_payload, parse_finance_batch_payload, CapitalChangeBatch,
         FinanceBatch,
     },
+    delisted_bars::{parse_delisted_klines_payload, DelistedKlineSeries},
     klines::{parse_klines_payload, KlineSeries},
     limits::{parse_special_limits_payload, SpecialLimitPage},
     minutes::{
@@ -38,6 +39,7 @@ pub enum CommandResponse {
     SecurityCount(u16),
     SpecialLimits(SpecialLimitPage),
     IntradayAux(MinuteAuxSeries),
+    DelistedKlines(DelistedKlineSeries),
     Klines(KlineSeries),
     TodayIntraday(MinuteSeries<TodayIntradayRequest>),
     LegacyQuotes(Vec<LegacyQuote>),
@@ -76,6 +78,9 @@ impl CommandResponse {
             }
             CommandRequest::IntradayAux(request) => {
                 parse_intraday_aux_payload(payload, request).map(Self::IntradayAux)
+            }
+            CommandRequest::DelistedKlines(request) => {
+                parse_delisted_klines_payload(payload, request).map(Self::DelistedKlines)
             }
             CommandRequest::Klines(request) => {
                 parse_klines_payload(payload, request).map(Self::Klines)

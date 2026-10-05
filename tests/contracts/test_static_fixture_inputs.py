@@ -27,6 +27,7 @@ EXPECTED_CODES = {
     "security_count": 0x044E,
     "special_limits": 0x0452,
     "intraday_aux": 0x051B,
+    "delisted_bars": 0x052B,
     "klines": 0x052D,
     "today_intraday": 0x0537,
     "legacy_quotes": 0x053E,
@@ -57,9 +58,9 @@ EXPECTED_EXTRA_CASES = {
 }
 
 
-def test_static_input_definitions_cover_all_21_commands() -> None:
+def test_static_input_definitions_cover_all_22_commands() -> None:
     assert {name: case.code for name, case in CASES.items()} == EXPECTED_CODES
-    assert len({case.message_id for case in CASES.values()}) == 21
+    assert len({case.message_id for case in CASES.values()}) == 22
     assert all(case.response_payload for case in CASES.values())
     assert set(EXTRA_CASES) == EXPECTED_EXTRA_CASES
     normal_cases = {f"{command}/normal" for command in EXPECTED_CODES}

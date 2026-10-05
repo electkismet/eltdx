@@ -2,6 +2,7 @@
 
 from .auctions import AuctionApi
 from .bars import BarApi
+from .delisted_bars import DelistedBarApi
 from .codes import CodeApi
 from .corporate import CorporateApi
 from .health import ping
@@ -16,6 +17,7 @@ from .trades import TradeApi
 __all__ = [
     "AuctionApi",
     "BarApi",
+    "DelistedBarApi",
     "CodeApi",
     "CorporateApi",
     "LimitApi",

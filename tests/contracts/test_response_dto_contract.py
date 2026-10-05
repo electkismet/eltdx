@@ -27,6 +27,7 @@ EXPECTED_TAGS = {
     "special_limits",
     "intraday_aux",
     "klines",
+    "delisted_klines",
     "today_intraday",
     "legacy_quotes",
     "refresh_stream",

@@ -33,7 +33,7 @@
           "kind": "rust_unit_property",
           "path": "crates/eltdx-protocol/src/request.rs",
           "anchors": [
-            "exact_twenty_one_command_codes_are_registered",
+            "exact_twenty_three_command_codes_are_registered",
             "every_request_variant_builds_its_registered_type"
           ]
         },

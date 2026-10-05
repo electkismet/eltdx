@@ -6,6 +6,7 @@ use eltdx_protocol::commands::{
     corporate::{
         CapitalChangesRequest, FinanceBatchRequest, TYPE_CAPITAL_CHANGES, TYPE_FINANCE_BATCH,
     },
+    delisted_bars::{DelistedKlinesRequest, TYPE_DELISTED_KLINES},
     klines::{KlineKind, KlinesRequest, TYPE_KLINES},
     limits::{SpecialLimitsRequest, TYPE_SPECIAL_LIMITS},
     minutes::{
@@ -69,6 +70,7 @@ pub fn from_python(
         TYPE_SECURITY_COUNT => security_count(py, payload),
         TYPE_SPECIAL_LIMITS => special_limits(payload),
         TYPE_INTRADAY_AUX => intraday_aux(payload),
+        TYPE_DELISTED_KLINES => delisted_klines(payload),
         TYPE_KLINES => klines(payload),
         TYPE_TODAY_INTRADAY => today_intraday(payload),
         TYPE_LEGACY_QUOTES => legacy_quotes(payload),
@@ -189,6 +191,30 @@ fn klines(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
         include_raw,
     ))
     .map(CommandRequest::Klines)
+}
+
+fn delisted_klines(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
+    let value = required(payload, &["code"], "code")?;
+    let text = string_value(&value, "code")?;
+    let text = text.trim();
+    // The terminal's T prefix marks delisting; it is not part of the wire code.
+    let number = if text.len() == 7 && (text.starts_with('T') || text.starts_with('t')) {
+        &text[1..]
+    } else {
+        text
+    };
+    let code = protocol(NormalizedCode::parse(number))?;
+    let start = u16_field(payload, &["start"], 0, 0, u16::MAX)?;
+    let count = u16_field(
+        payload,
+        &["count"],
+        MAX_KLINE_PAGE_SIZE,
+        1,
+        MAX_KLINE_PAGE_SIZE,
+    )?;
+    let include_raw = bool_field(payload, "include_raw", false)?;
+    protocol(DelistedKlinesRequest::new(code, start, count, include_raw))
+        .map(CommandRequest::DelistedKlines)
 }
 
 fn today_intraday(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {

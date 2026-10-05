@@ -8,6 +8,7 @@ from threading import RLock
 
 from .api.auctions import AuctionApi
 from .api.bars import BarApi
+from .api.delisted_bars import DelistedBarApi
 from .api.codes import CodeApi
 from .api.corporate import CorporateApi
 from .api.limits import LimitApi
@@ -74,6 +75,7 @@ class TdxClient:
     quotes: QuoteApi = field(init=False)
     resources: ResourceApi = field(init=False)
     bars: BarApi = field(init=False)
+    delisted_bars: DelistedBarApi = field(init=False)
     minutes: MinuteApi = field(init=False)
     money_flow: MoneyFlowApi = field(init=False)
     trades: TradeApi = field(init=False)
@@ -217,6 +219,7 @@ class TdxClient:
         self.quotes = QuoteApi(self.transport, price_resolver=self._normalize_prices)
         self.resources = ResourceApi(self.transport)
         self.bars = BarApi(self.transport)
+        self.delisted_bars = DelistedBarApi(self.transport)
         self.minutes = MinuteApi(self.transport, price_resolver=self._normalize_prices)
         self.money_flow = MoneyFlowApi(
             self.transport,

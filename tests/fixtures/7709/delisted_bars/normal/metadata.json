@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "golden_schema_version": 1,
+  "registry_key": "delisted_bars",
+  "command_code": 1323,
+  "message_id": 805306390,
+  "request_context": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "code"
+        },
+        {
+          "$type": "str",
+          "value": "sz000038"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "start"
+        },
+        {
+          "$type": "int",
+          "value": "0"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "count"
+        },
+        {
+          "$type": "int",
+          "value": "20"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "include_raw"
+        },
+        {
+          "$type": "bool",
+          "value": true
+        }
+      ]
+    ]
+  },
+  "push_generation": null,
+  "push_host": null,
+  "expected_exception": null,
+  "frame_header": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "control"
+        },
+        {
+          "$type": "int",
+          "value": "1"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "message_id"
+        },
+        {
+          "$type": "int",
+          "value": "805306390"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "message_type"
+        },
+        {
+          "$type": "int",
+          "value": "1323"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "zip_length"
+        },
+        {
+          "$type": "int",
+          "value": "14"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "length"
+        },
+        {
+          "$type": "int",
+          "value": "14"
+        }
+      ]
+    ]
+  }
+}

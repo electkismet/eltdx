@@ -183,6 +183,38 @@ def _cases() -> dict[str, Case]:
             {"code": "sz000988", "kind": "buy_sell_strength", "include_raw": True},
             bytes.fromhex("01000506"),
         ),
+        # Captured 000038 start=0/count=20 payload, 2023-04-24..2023-07-11.
+        # Source: 052b-ui-20261005/live-query-example.json record_hex values.
+        # Only the response envelope message id is replaced for fixture replay.
+        Case(
+            "delisted_bars",
+            0x052B,
+            0x30000016,
+            {"code": "sz000038", "start": 0, "count": 20, "include_raw": True},
+            bytes.fromhex(
+                "1400"
+                "18b13401b833b40288030084e49a04dbb8674b00000100"
+                "19b13401c2025ea401689490850692bba14b00000100"
+                "1ab134015468ae01728cfee904a9c0804b00000100"
+                "1bb13401e4019a0196024aa0d489046db3534b00000100"
+                "1cb134014aaa02aa02008cdaed05eb179f4b00000100"
+                "dbb13401ce2c142854abfbe02a4a8ecf4b00000100"
+                "dcb134014a540a68b3b7f417a61f634b00000100"
+                "ddb134010014284aa6c7a8135dac3a4b00000100"
+                "e2b134010a4a0a5eb7ced40e93790f4b00000100"
+                "e3b13401003c3c0097b29d14463d514b00000100"
+                "e4b13401147200d001b79e950fa9ce1d4b00000100"
+                "e5b13401005e005ebd9b9b0a207dca4a00000100"
+                "e6b1340100000a548febe30891c8a94a00000100"
+                "2fb234014a540a548eafa30ae4d4c24a00000100"
+                "30b2340100000a54b7bfe40abe13c64a00000100"
+                "31b234010072007296e2ad0cd3efda4a00000100"
+                "32b234010a00144aa8e3b209273fa34a00000100"
+                "33b2340100540054bcd89908a0a08a4a00000100"
+                "36b234010a14284a92eccf0cceffde4a00000100"
+                "37b234014a540a5ea39afc13c3cb264b00000100"
+            ),
+        ),
         Case(
             "klines",
             0x052D,

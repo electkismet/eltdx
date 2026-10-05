@@ -1,0 +1,3464 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.kline",
+  "qualname": "KlineSeries",
+  "fields": [
+    [
+      "exchange",
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      "market_id",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "code",
+      {
+        "$type": "str",
+        "value": "000038"
+      }
+    ],
+    [
+      "period_raw",
+      {
+        "$type": "int",
+        "value": "4"
+      }
+    ],
+    [
+      "period_param_raw",
+      {
+        "$type": "int",
+        "value": "1"
+      }
+    ],
+    [
+      "period_name",
+      {
+        "$type": "str",
+        "value": "day"
+      }
+    ],
+    [
+      "start",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "request_count",
+      {
+        "$type": "int",
+        "value": "20"
+      }
+    ],
+    [
+      "adjust_mode_raw",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "adjust_mode",
+      {
+        "$type": "str",
+        "value": "none"
+      }
+    ],
+    [
+      "anchor_date_raw",
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      "anchor_date",
+      {
+        "$type": "none"
+      }
+    ],
+    [
+      "bars",
+      {
+        "$type": "tuple",
+        "items": [
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-04-24T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "400a8f5c28f5c28f",
+                  "readable_hex": "0x1.a8f5c28f5c28fp+1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "400c000000000000",
+                  "readable_hex": "0x1.c000000000000p+1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "400c28f5c28f5c29",
+                  "readable_hex": "0x1.c28f5c28f5c29p+1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "400a8f5c28f5c28f",
+                  "readable_hex": "0x1.a8f5c28f5c28fp+1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3320"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3500"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3520"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3320"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "4413700"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1265088731"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "4150d64100000000",
+                  "readable_hex": "0x1.0d64100000000p+22"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40e58d2000000000",
+                  "readable_hex": "0x1.58d2000000000p+15"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "416cf71b60000000",
+                  "readable_hex": "0x1.cf71b60000000p+23"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "3320"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "180"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "200"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "18b13401b833b40288030084e49a04dbb8674b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-04-25T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "400af5c28f5c28f6",
+                  "readable_hex": "0x1.af5c28f5c28f6p+1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "400ab851eb851eb8",
+                  "readable_hex": "0x1.ab851eb851eb8p+1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "400bc28f5c28f5c3",
+                  "readable_hex": "0x1.bc28f5c28f5c3p+1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "400aa3d70a3d70a4",
+                  "readable_hex": "0x1.aa3d70a3d70a4p+1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3370"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3340"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3470"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3330"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3500"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "6333460"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1268890514"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "4158290500000000",
+                  "readable_hex": "0x1.8290500000000p+22"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40eeecd333333333",
+                  "readable_hex": "0x1.eecd333333333p+15"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4174377240000000",
+                  "readable_hex": "0x1.4377240000000p+24"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-130"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-30"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "100"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-40"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "19b13401c2025ea401689490850692bba14b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-04-26T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "400a8f5c28f5c28f",
+                  "readable_hex": "0x1.a8f5c28f5c28fp+1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "400a3d70a3d70a3d",
+                  "readable_hex": "0x1.a3d70a3d70a3dp+1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "400b70a3d70a3d71",
+                  "readable_hex": "0x1.b70a3d70a3d71p+1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "400a28f5c28f5c29",
+                  "readable_hex": "0x1.a28f5c28f5c29p+1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3320"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3280"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3430"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3270"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3340"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "5062540"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1266729129"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "41534fe300000000",
+                  "readable_hex": "0x1.34fe300000000p+22"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40e8b82ccccccccd",
+                  "readable_hex": "0x1.8b82ccccccccdp+15"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4170181520000000",
+                  "readable_hex": "0x1.0181520000000p+24"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-40"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "110"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-50"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "1ab134015468ae01728cfee904a9c0804b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-04-27T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "400970a3d70a3d71",
+                  "readable_hex": "0x1.970a3d70a3d71p+1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "400a28f5c28f5c29",
+                  "readable_hex": "0x1.a28f5c28f5c29p+1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "400aa3d70a3d70a4",
+                  "readable_hex": "0x1.aa3d70a3d70a4p+1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "40095c28f5c28f5c",
+                  "readable_hex": "0x1.95c28f5c28f5cp+1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3180"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3270"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3330"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3170"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3280"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "4273440"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1263776621"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "41504d4800000000",
+                  "readable_hex": "0x1.04d4800000000p+22"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40e4ddcccccccccd",
+                  "readable_hex": "0x1.4ddcccccccccdp+15"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "416a766da0000000",
+                  "readable_hex": "0x1.a766da0000000p+23"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-100"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "90"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "150"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-10"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "1bb13401e4019a0196024aa0d489046db3534b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-04-28T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "400a147ae147ae14",
+                  "readable_hex": "0x1.a147ae147ae14p+1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "400b70a3d70a3d71",
+                  "readable_hex": "0x1.b70a3d70a3d71p+1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "400b70a3d70a3d71",
+                  "readable_hex": "0x1.b70a3d70a3d71p+1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "400a147ae147ae14",
+                  "readable_hex": "0x1.a147ae147ae14p+1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3260"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3430"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3430"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3260"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3270"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "6141580"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1268717547"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "41576da300000000",
+                  "readable_hex": "0x1.76da300000000p+22"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40edfcf99999999a",
+                  "readable_hex": "0x1.dfcf99999999ap+15"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4173e2fd60000000",
+                  "readable_hex": "0x1.3e2fd60000000p+24"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-10"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "170"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "170"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "1cb134014aaa02aa02008cdaed05eb179f4b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-06-19T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3333333333333",
+                  "readable_hex": "0x1.3333333333333p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3d70a3d70a3d7",
+                  "readable_hex": "0x1.3d70a3d70a3d7p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe47ae147ae147b",
+                  "readable_hex": "0x1.47ae147ae147bp-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe28f5c28f5c28f",
+                  "readable_hex": "0x1.28f5c28f5c28fp-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "600"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "620"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "640"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "3430"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "44834539"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1271893578"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "418560f758000000",
+                  "readable_hex": "0x1.560f758000000p+25"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "411b5d658f5c28f6",
+                  "readable_hex": "0x1.b5d658f5c28f6p+18"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4179f1c940000000",
+                  "readable_hex": "0x1.9f1c940000000p+24"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-2830"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "20"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "40"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "dbb13401ce2c142854abfbe02a4a8ecf4b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-06-20T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe2e147ae147ae1",
+                  "readable_hex": "0x1.2e147ae147ae1p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3d70a3d70a3d7",
+                  "readable_hex": "0x1.3d70a3d70a3d7p-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe23d70a3d70a3d",
+                  "readable_hex": "0x1.23d70a3d70a3dp-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "590"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "620"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "570"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "620"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "25071091"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1264787366"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "4177e8df30000000",
+                  "readable_hex": "0x1.7e8df30000000p+24"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "410e9ab747ae147b",
+                  "readable_hex": "0x1.e9ab747ae147bp+17"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "416c63f4c0000000",
+                  "readable_hex": "0x1.c63f4c0000000p+23"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-10"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-40"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "dcb134014a540a68b3b7f417a61f634b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-06-21T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe2e147ae147ae1",
+                  "readable_hex": "0x1.2e147ae147ae1p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe428f5c28f5c29",
+                  "readable_hex": "0x1.428f5c28f5c29p-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe28f5c28f5c28f",
+                  "readable_hex": "0x1.28f5c28f5c28fp-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "590"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "630"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "590"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "20255206"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1262136413"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "4173511e60000000",
+                  "readable_hex": "0x1.3511e60000000p+24"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "4108b9c07ae147ae",
+                  "readable_hex": "0x1.8b9c07ae147aep+17"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4167558ba0000000",
+                  "readable_hex": "0x1.7558ba0000000p+23"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "20"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "40"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-10"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "ddb134010014284aa6c7a8135dac3a4b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-06-26T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3d70a3d70a3d7",
+                  "readable_hex": "0x1.3d70a3d70a3d7p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe428f5c28f5c29",
+                  "readable_hex": "0x1.428f5c28f5c29p-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe2e147ae147ae1",
+                  "readable_hex": "0x1.2e147ae147ae1p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "620"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "630"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "590"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "15373239"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1259305363"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "416d5276e0000000",
+                  "readable_hex": "0x1.d5276e0000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "4102c4231eb851ec",
+                  "readable_hex": "0x1.2c4231eb851ecp+17"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4161ef3260000000",
+                  "readable_hex": "0x1.1ef3260000000p+23"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-10"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-30"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "e2b134010a4a0a5eb7ced40e93790f4b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-06-27T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe570a3d70a3d71",
+                  "readable_hex": "0x1.570a3d70a3d71p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe570a3d70a3d71",
+                  "readable_hex": "0x1.570a3d70a3d71p-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "670"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "670"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "21212311"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1263615302"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "41743ac970000000",
+                  "readable_hex": "0x1.43ac970000000p+24"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "4109e4d8e147ae14",
+                  "readable_hex": "0x1.9e4d8e147ae14p+17"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "416a27a8c0000000",
+                  "readable_hex": "0x1.a27a8c0000000p+23"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "60"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "60"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "e3b13401003c3c0097b29d14463d514b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-06-28T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe6147ae147ae14",
+                  "readable_hex": "0x1.6147ae147ae14p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe47ae147ae147b",
+                  "readable_hex": "0x1.47ae147ae147bp-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe6147ae147ae14",
+                  "readable_hex": "0x1.6147ae147ae14p-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "690"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "640"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "690"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "670"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "15902647"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1260244649"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "416e54f6e0000000",
+                  "readable_hex": "0x1.e54f6e0000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "41036993c28f5c29",
+                  "readable_hex": "0x1.36993c28f5c29p+17"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4163b9d520000000",
+                  "readable_hex": "0x1.3b9d520000000p+23"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "20"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-50"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-80"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "e4b13401147200d001b79e950fa9ce1d4b00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-06-29T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe47ae147ae147b",
+                  "readable_hex": "0x1.47ae147ae147bp-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe47ae147ae147b",
+                  "readable_hex": "0x1.47ae147ae147bp-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "640"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "640"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "640"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "10708733"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1254784288"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "41646cdfa0000000",
+                  "readable_hex": "0x1.46cdfa0000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40fa24f547ae147b",
+                  "readable_hex": "0x1.a24f547ae147bp+16"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "41594fa400000000",
+                  "readable_hex": "0x1.94fa400000000p+22"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-30"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-30"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "e5b13401005e005ebd9b9b0a207dca4a00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-06-30T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3d70a3d70a3d7",
+                  "readable_hex": "0x1.3d70a3d70a3d7p-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe2e147ae147ae1",
+                  "readable_hex": "0x1.2e147ae147ae1p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "620"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "590"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "9206479"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1252640913"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "41618f59e0000000",
+                  "readable_hex": "0x1.18f59e0000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40f67a0ca3d70a3d",
+                  "readable_hex": "0x1.67a0ca3d70a3dp+16"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4155391220000000",
+                  "readable_hex": "0x1.5391220000000p+22"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "e6b1340100000a548febe30891c8a94a00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-07-03T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3333333333333",
+                  "readable_hex": "0x1.3333333333333p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe28f5c28f5c28f",
+                  "readable_hex": "0x1.28f5c28f5c28fp-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe3851eb851eb85",
+                  "readable_hex": "0x1.3851eb851eb85p-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe28f5c28f5c28f",
+                  "readable_hex": "0x1.28f5c28f5c28fp-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "600"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "610"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "10775502"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1254282468"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "41648d79c0000000",
+                  "readable_hex": "0x1.48d79c0000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40fa4eb051eb851f",
+                  "readable_hex": "0x1.a4eb051eb851fp+16"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "41585a9c80000000",
+                  "readable_hex": "0x1.85a9c80000000p+22"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-10"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "2fb234014a540a548eafa30ae4d4c24a00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-07-04T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe28f5c28f5c28f",
+                  "readable_hex": "0x1.28f5c28f5c28fp-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe28f5c28f5c28f",
+                  "readable_hex": "0x1.28f5c28f5c28fp-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe2e147ae147ae1",
+                  "readable_hex": "0x1.2e147ae147ae1p-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe1eb851eb851ec",
+                  "readable_hex": "0x1.1eb851eb851ecp-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "590"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "560"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "11309047"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1254495166"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "416591fee0000000",
+                  "readable_hex": "0x1.591fee0000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40fb9c27851eb852",
+                  "readable_hex": "0x1.b9c27851eb852p+16"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4158c277c0000000",
+                  "readable_hex": "0x1.8c277c0000000p+22"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "30b2340100000a54b7bfe40abe13c64a00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-07-05T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe28f5c28f5c28f",
+                  "readable_hex": "0x1.28f5c28f5c28fp-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe0f5c28f5c28f6",
+                  "readable_hex": "0x1.0f5c28f5c28f6p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe28f5c28f5c28f",
+                  "readable_hex": "0x1.28f5c28f5c28fp-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe0f5c28f5c28f6",
+                  "readable_hex": "0x1.0f5c28f5c28f6p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "530"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "530"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "580"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "12957846"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1255862227"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "4168b712c0000000",
+                  "readable_hex": "0x1.8b712c0000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40ffa2a75c28f5c3",
+                  "readable_hex": "0x1.fa2a75c28f5c3p+16"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "415b5dfa60000000",
+                  "readable_hex": "0x1.b5dfa60000000p+22"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-50"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-50"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "31b234010072007296e2ad0cd3efda4a00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-07-06T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe147ae147ae148",
+                  "readable_hex": "0x1.147ae147ae148p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe147ae147ae148",
+                  "readable_hex": "0x1.147ae147ae148p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe1eb851eb851ec",
+                  "readable_hex": "0x1.1eb851eb851ecp-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe0f5c28f5c28f6",
+                  "readable_hex": "0x1.0f5c28f5c28f6p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "540"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "540"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "560"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "530"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "530"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "9853160"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1252212519"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "4162cb1d00000000",
+                  "readable_hex": "0x1.2cb1d00000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40f80e399999999a",
+                  "readable_hex": "0x1.80e399999999ap+16"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "415467e4e0000000",
+                  "readable_hex": "0x1.467e4e0000000p+22"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "20"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-10"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "32b234010a00144aa8e3b209273fa34a00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-07-07T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe147ae147ae148",
+                  "readable_hex": "0x1.147ae147ae148p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe0a3d70a3d70a4",
+                  "readable_hex": "0x1.0a3d70a3d70a4p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe147ae147ae148",
+                  "readable_hex": "0x1.147ae147ae148p-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe0a3d70a3d70a4",
+                  "readable_hex": "0x1.0a3d70a3d70a4p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "540"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "520"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "540"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "520"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "540"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "8599100"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1250599072"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "416066c780000000",
+                  "readable_hex": "0x1.066c780000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "40f4fe7000000000",
+                  "readable_hex": "0x1.4fe7000000000p+16"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4151541400000000",
+                  "readable_hex": "0x1.1541400000000p+22"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "0"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "33b2340100540054bcd89908a0a08a4a00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-07-10T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe0f5c28f5c28f6",
+                  "readable_hex": "0x1.0f5c28f5c28f6p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe199999999999a",
+                  "readable_hex": "0x1.199999999999ap-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe23d70a3d70a3d",
+                  "readable_hex": "0x1.23d70a3d70a3dp-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe0a3d70a3d70a4",
+                  "readable_hex": "0x1.0a3d70a3d70a4p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "530"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "550"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "570"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "520"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "520"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "13237010"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1256128462"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "41693f6240000000",
+                  "readable_hex": "0x1.93f6240000000p+23"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "41002890cccccccd",
+                  "readable_hex": "0x1.02890cccccccdp+17"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "415bdff9c0000000",
+                  "readable_hex": "0x1.bdff9c0000000p+22"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "20"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "40"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-10"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "36b234010a14284a92eccf0cceffde4a00000100"
+                }
+              ]
+            ]
+          },
+          {
+            "$type": "dataclass",
+            "module": "eltdx.models.kline",
+            "qualname": "KlineBar",
+            "fields": [
+              [
+                "time",
+                {
+                  "$type": "datetime",
+                  "value": "2023-07-11T00:00:00+08:00",
+                  "timezone": "Asia/Shanghai",
+                  "fold": 0
+                }
+              ],
+              [
+                "open",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe147ae147ae148",
+                  "readable_hex": "0x1.147ae147ae148p-1"
+                }
+              ],
+              [
+                "close",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe0a3d70a3d70a4",
+                  "readable_hex": "0x1.0a3d70a3d70a4p-1"
+                }
+              ],
+              [
+                "high",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe199999999999a",
+                  "readable_hex": "0x1.199999999999ap-1"
+                }
+              ],
+              [
+                "low",
+                {
+                  "$type": "float",
+                  "f64_bits": "3fe051eb851eb852",
+                  "readable_hex": "0x1.051eb851eb852p-1"
+                }
+              ],
+              [
+                "open_price_milli",
+                {
+                  "$type": "int",
+                  "value": "540"
+                }
+              ],
+              [
+                "close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "520"
+                }
+              ],
+              [
+                "high_price_milli",
+                {
+                  "$type": "int",
+                  "value": "550"
+                }
+              ],
+              [
+                "low_price_milli",
+                {
+                  "$type": "int",
+                  "value": "510"
+                }
+              ],
+              [
+                "last_close_price_milli",
+                {
+                  "$type": "int",
+                  "value": "550"
+                }
+              ],
+              [
+                "volume_raw",
+                {
+                  "$type": "int",
+                  "value": "20940451"
+                }
+              ],
+              [
+                "amount_raw",
+                {
+                  "$type": "int",
+                  "value": "1260833731"
+                }
+              ],
+              [
+                "volume_wire_value",
+                {
+                  "$type": "float",
+                  "f64_bits": "4173f86a30000000",
+                  "readable_hex": "0x1.3f86a30000000p+24"
+                }
+              ],
+              [
+                "volume_lots",
+                {
+                  "$type": "float",
+                  "f64_bits": "41098fe4147ae148",
+                  "readable_hex": "0x1.98fe4147ae148p+17"
+                }
+              ],
+              [
+                "amount",
+                {
+                  "$type": "float",
+                  "f64_bits": "4164d97860000000",
+                  "readable_hex": "0x1.4d97860000000p+23"
+                }
+              ],
+              [
+                "open_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-10"
+                }
+              ],
+              [
+                "close_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-20"
+                }
+              ],
+              [
+                "high_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "10"
+                }
+              ],
+              [
+                "low_delta_raw",
+                {
+                  "$type": "int",
+                  "value": "-30"
+                }
+              ],
+              [
+                "up_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "down_count",
+                {
+                  "$type": "none"
+                }
+              ],
+              [
+                "record_hex",
+                {
+                  "$type": "str",
+                  "value": "37b234014a540a5ea39afc13c3cb264b00000100"
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    [
+      "raw_payload",
+      {
+        "$type": "bytes",
+        "hex": "140018b13401b833b40288030084e49a04dbb8674b0000010019b13401c2025ea401689490850692bba14b000001001ab134015468ae01728cfee904a9c0804b000001001bb13401e4019a0196024aa0d489046db3534b000001001cb134014aaa02aa02008cdaed05eb179f4b00000100dbb13401ce2c142854abfbe02a4a8ecf4b00000100dcb134014a540a68b3b7f417a61f634b00000100ddb134010014284aa6c7a8135dac3a4b00000100e2b134010a4a0a5eb7ced40e93790f4b00000100e3b13401003c3c0097b29d14463d514b00000100e4b13401147200d001b79e950fa9ce1d4b00000100e5b13401005e005ebd9b9b0a207dca4a00000100e6b1340100000a548febe30891c8a94a000001002fb234014a540a548eafa30ae4d4c24a0000010030b2340100000a54b7bfe40abe13c64a0000010031b234010072007296e2ad0cd3efda4a0000010032b234010a00144aa8e3b209273fa34a0000010033b2340100540054bcd89908a0a08a4a0000010036b234010a14284a92eccf0cceffde4a0000010037b234014a540a5ea39afc13c3cb264b00000100"
+      }
+    ]
+  ]
+}

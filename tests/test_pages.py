@@ -66,7 +66,7 @@ def test_common_interface_docs_have_collapsible_real_json_samples() -> None:
 
     assert "assets/return-samples.css" in mkdocs
     assert stylesheet.is_file()
-    assert len(return_sample_docs) == 45
+    assert len(return_sample_docs) == 46
     for relative_path in return_sample_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert '??? return-sample "' in detail, relative_path
@@ -84,10 +84,10 @@ def test_pages_catalog_has_expected_public_interfaces() -> None:
     catalog = _catalog()
     items = catalog["items"]
 
-    assert catalog["schema_version"] == 13
-    assert len(items) == 67
+    assert catalog["schema_version"] == 14
+    assert len(items) == 68
     assert Counter(item["source"] for item in items) == {
-        "7709": 22,
+        "7709": 23,
         "F10": 22,
         "Helper": 23,
     }
@@ -135,7 +135,7 @@ hide:
 [← 返回接口目录](../index.md){ .interface-detail-back }
 """
 
-    assert len(detail_docs) == 67
+    assert len(detail_docs) == 68
     for relative_path in detail_docs:
         detail = (REPO_ROOT / "docs" / relative_path).read_text(encoding="utf-8")
         assert detail.startswith(expected_header), relative_path
@@ -153,11 +153,11 @@ def test_pages_catalog_has_three_flat_source_menus() -> None:
         ("helpers", "Helpers 封装"),
     ]
     assert Counter(layer_id for layer_id, _ in assignments.values()) == {
-        "7709": 22,
+        "7709": 23,
         "7615": 22,
         "helpers": 23,
     }
-    expected_counts = {"7709": 22, "7615": 22, "helpers": 23}
+    expected_counts = {"7709": 23, "7615": 22, "helpers": 23}
     assert all(layer["description"].startswith(f"{expected_counts[layer['id']]} 个") for layer in ordered_layers)
     assert all("groups" not in layer for layer in ordered_layers)
     assert {layer["source"] for layer in ordered_layers} == {"7709", "F10", "Helper"}
@@ -205,7 +205,7 @@ def test_pages_catalog_has_complete_function_menus() -> None:
         "codes": 5,
         "realtime": 15,
         "history": 4,
-        "bars": 3,
+        "bars": 4,
         "auction-shortline": 8,
         "f10": 24,
         "common": 6,
@@ -253,7 +253,7 @@ def test_pages_catalog_covers_every_registered_7709_command() -> None:
     }
     binary_protocols = [item["protocol"].lower() for item in catalog["items"] if item["id"] in binary_ids]
 
-    assert len(COMMANDS) == len(binary_ids) == 21
+    assert len(COMMANDS) == len(binary_ids) == 22
     assert Counter(binary_protocols) == Counter(command.hex for command in COMMANDS.values())
 
 

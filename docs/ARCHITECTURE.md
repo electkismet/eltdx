@@ -30,7 +30,7 @@ TdxClient
   -> existing Python dataclass
 ```
 
-`Transport.execute(command, payload)` 仍是公开动态边界，因此自定义 Transport 和 `InMemoryTransport` 不受影响。进入 native 后，payload 在一次 PyO3 调用内转换成 21 分支的强类型枚举；Rust 核心不传递 Python dict，也不使用 JSON 或 MessagePack 作为 FFI 中间格式。
+`Transport.execute(command, payload)` 仍是公开动态边界，因此自定义 Transport 和 `InMemoryTransport` 不受影响。进入 native 后，payload 在一次 PyO3 调用内转换成强类型枚举，包含 22 个 registry 命令及独立资金流向命令；Rust 核心不传递 Python dict，也不使用 JSON 或 MessagePack 作为 FFI 中间格式。
 
 公开 `eltdx.protocol` 继续提供 `RequestFrame`、`ResponseFrame`、`build_command_frame()`、`decode_response()` 和 `parse_command_response()`。这些函数全部委托无状态 Rust 入口，不创建 Engine，也不能组合成纯 Python backend。
 
@@ -52,7 +52,7 @@ Supervisor 是以下状态的唯一写入者：Engine epoch、FIFO 等待队列�
 
 每个请求只有一个 monotonic absolute deadline，覆盖排队、连接、握手、发送、响应和最多一次安全重试。自定义 hostname 的首次标准库 DNS 是兼容例外：它在公开 timeout 和 Slot 外完成，发布 endpoint 前会重新检查 epoch 和 close 状态。
 
-当前 21 个命令都在 manifest 中显式标记为 retry-safe，最多重试一次；未来命令默认不可重试。partial send 后的重试仍必须先完成旧 generation retirement，并继续使用原 deadline。
+当前 22 个 registry 命令都在 manifest 中显式标记为 retry-safe，最多重试一次；未来命令默认不可重试。partial send 后的重试仍必须先完成旧 generation retirement，并继续使用原 deadline。
 
 ## Pin、heartbeat 和 push
 

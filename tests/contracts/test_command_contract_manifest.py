@@ -20,9 +20,9 @@ def _load(path: Path) -> dict:
 def test_command_manifest_covers_exact_registry() -> None:
     manifest = _load(MANIFEST)
     commands = manifest["commands"]
-    assert len(commands) == 21
+    assert len(commands) == 22
     assert set(commands) == set(COMMANDS)
-    assert len({contract["code"] for contract in commands.values()}) == 21
+    assert len({contract["code"] for contract in commands.values()}) == 22
 
     for name, contract in commands.items():
         spec = COMMANDS[name]

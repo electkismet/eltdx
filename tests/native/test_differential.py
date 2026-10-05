@@ -31,9 +31,9 @@ def _cases() -> list[DifferentialCase]:
 ALL_CASES = _cases()
 
 
-def test_differential_matrix_covers_all_21_commands() -> None:
+def test_differential_matrix_covers_all_22_commands() -> None:
     cases = ALL_CASES
-    assert len(COMMANDS) == 21
+    assert len(COMMANDS) == 22
     assert {case.command for case in cases} == set(COMMANDS)
     assert len({case.case_id for case in cases}) == len(cases)
     assert all(case.command_code == COMMANDS[case.command].code for case in cases)

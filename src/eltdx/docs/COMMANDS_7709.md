@@ -10,6 +10,7 @@
 | <a id="cmd-0x044e"></a>`0x044e` | `0x044e-代码数量接口.md`        | 代码数量        | `client.codes.count(market)`                                  | 核心           |
 | <a id="cmd-0x0452"></a>`0x0452` | `0x0452-特殊品种涨跌停限制表接口.md`  | 特殊品种涨跌停限制   | `client.limits.special()`                               | 已接入          |
 | <a id="cmd-0x051b"></a>`0x051b` | `0x051b-个股分时副图数据接口.md`    | 分时副图        | `client.minutes.aux()`                                  | 已接入          |
+| <a id="cmd-0x052b"></a>`0x052b` | `7709-退市K线日线接口.md`      | 退市 K 线（日线、不复权） | `client.delisted_bars.get()` | 已接入（仅验证日线、不复权） |
 | <a id="cmd-0x052d"></a>`0x052d` | `0x052d-K线周期数据接口.md`      | K线 / 周期线    | `client.bars.get()`                                     | 核心           |
 | <a id="cmd-0x0537"></a>`0x0537` | `0x0537-个股当前日分时图接口.md`    | 当日分时        | `client.minutes.today()`                                  | 核心           |
 | <a id="cmd-0x053e"></a>`0x053e` | `0x053e-旧版批量行情接口.md`       | 旧版批量行情      | `client.quotes.legacy()`                         | 已接入          |

@@ -41,6 +41,21 @@ print(qfq.adjust_mode, qfq.bars[-1].close)
 print(hfq.adjust_mode, hfq.bars[-1].close)
 ```
 
+## 退市 K 线（日线、不复权）
+
+```python
+from eltdx import TdxClient
+
+with TdxClient(timeout=3) as client:
+    page = client.delisted_bars.get("T000038", count=20)
+    history = client.delisted_bars.get("sz000038", all_pages=True)
+
+for bar in page.bars:
+    print(bar.time.date(), bar.close, bar.volume_wire_value, bar.amount)
+```
+
+`volume_wire_value` 是股数，`volume_lots` 是手数；当前只支持日线、不复权。不同主站的历史覆盖可能不同，详见[退市 K 线接口](methods/7709-退市K线日线接口.md)。
+
 ## 分时
 
 ```python
