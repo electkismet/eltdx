@@ -33,10 +33,14 @@ from .helpers import (
     BoardQuoteRow,
     BoardQuoteTable,
     BoardMemberQuoteTable,
+    FundFlow,
+    MarketStat,
 )
 from .serialization import to_json, to_jsonable
-from .models import TradeBatch
+from .models import BlockMeta, CompanyInfoCategory, Market, TradeBatch
 from .workday import WorkdayService
+from .ex import ExMarket, ExTdxClient, MacExClient
+from .mac import MacClient
 
 __all__ = [
     "TradeBatch",
@@ -69,6 +73,15 @@ __all__ = [
     "BoardQuoteRow",
     "BoardQuoteTable",
     "BoardMemberQuoteTable",
+    "BlockMeta",
+    "CompanyInfoCategory",
+    "ExMarket",
+    "ExTdxClient",
+    "FundFlow",
+    "MacClient",
+    "MacExClient",
+    "Market",
+    "MarketStat",
     "WorkdayService",
     "__version__",
     "to_json",

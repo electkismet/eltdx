@@ -8,8 +8,9 @@ from threading import RLock
 
 from .api.auctions import AuctionApi
 from .api.bars import BarApi
-from .api.delisted_bars import DelistedBarApi
 from .api.codes import CodeApi
+from .api.company_info import CompanyInfoApi
+from .api.delisted_bars import DelistedBarApi
 from .api.corporate import CorporateApi
 from .api.limits import LimitApi
 from .api.minutes import MinuteApi
@@ -81,6 +82,7 @@ class TdxClient:
     trades: TradeApi = field(init=False)
     auctions: AuctionApi = field(init=False)
     corporate: CorporateApi = field(init=False)
+    company_info: CompanyInfoApi = field(init=False)
     limits: LimitApi = field(init=False)
     workdays: WorkdayService = field(init=False)
     f10: F10Client = field(init=False)
@@ -214,6 +216,9 @@ class TdxClient:
             self.pool_size = DEFAULT_POOL_SIZE
         if self.connections_per_server is None:
             self.connections_per_server = DEFAULT_CONNECTIONS_PER_SERVER
+        # 必须在构造各 API 之前完成排序：MoneyFlowApi 需要 _dedicated_hosts 作为
+        # 空数据故障转移的候选主机列表（构造期取值，之后不再刷新）。
+        self._prepare_host_rankings()
         self.session = SessionApi(self.transport)
         self.codes = CodeApi(self.transport, metadata_sink=self._cache_security_rows)
         self.quotes = QuoteApi(self.transport, price_resolver=self._normalize_prices)
@@ -228,6 +233,7 @@ class TdxClient:
                 if isinstance(self.transport, PooledSocketTransport)
                 else None
             ),
+            candidate_hosts=self._dedicated_hosts,
         )
         self.trades = TradeApi(self.transport)
         self.auctions = AuctionApi(
@@ -239,11 +245,11 @@ class TdxClient:
             ),
         )
         self.corporate = CorporateApi(self.transport)
+        self.company_info = CompanyInfoApi(self.transport)
         self.limits = LimitApi(self.transport)
         self.workdays = WorkdayService(self)
         self.f10 = F10Client(timeout=self.timeout)
         self.helpers = HelperApi(self)
-        self._prepare_host_rankings()
 
     def _prepare_host_rankings(self) -> None:
         """Rank both host groups once without opening business connections."""
@@ -276,10 +282,18 @@ class TdxClient:
         self.money_flow.close()
         self.auctions._close()
 
-    def _build_dedicated_market_transport(self) -> PooledSocketTransport:
-        """Create a pool using the money-flow and auction-capable host list."""
+    def _build_dedicated_market_transport(
+        self, host: str | None = None
+    ) -> PooledSocketTransport:
+        """Create a pool using the money-flow and auction-capable host list.
+
+        ``host`` 非空时只连这一台主机，供资金流的空数据故障转移逐台实测使用；
+        为 ``None``（默认）时覆盖全部候选主机，行为与之前完全一致。
+        """
+
+        hosts = self._dedicated_hosts if host is None else (host,)
         transport = PooledSocketTransport(
-            hosts=self._dedicated_hosts,
+            hosts=hosts,
             timeout=self.timeout,
             pool_size=self.pool_size,
             server_count=self.server_count,
@@ -298,12 +312,14 @@ class TdxClient:
             push_queue_size=self.push_queue_size,
             push_queue_bytes=self.push_queue_bytes,
         )
-        transport._set_ranked_hosts(self._dedicated_hosts)
+        transport._set_ranked_hosts(hosts)
         return transport
 
-    def _build_money_flow_transport(self) -> PooledSocketTransport:
+    def _build_money_flow_transport(
+        self, host: str | None = None
+    ) -> PooledSocketTransport:
         """Backward-compatible name for the dedicated 7709 market pool."""
-        return self._build_dedicated_market_transport()
+        return self._build_dedicated_market_transport(host)
 
     def __enter__(self) -> TdxClient:
         self.connect()

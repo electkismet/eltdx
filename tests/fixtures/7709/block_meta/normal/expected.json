@@ -1,0 +1,21 @@
+{
+  "$type": "dataclass",
+  "module": "eltdx.models.corporate",
+  "qualname": "BlockMeta",
+  "fields": [
+    [
+      "size",
+      {
+        "$type": "int",
+        "value": "12345"
+      }
+    ],
+    [
+      "md5",
+      {
+        "$type": "str",
+        "value": "0123456789abcdef0123456789abcdef"
+      }
+    ]
+  ]
+}

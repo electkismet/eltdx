@@ -140,17 +140,18 @@
       }
     },
     "eltdx.api.resources:ResourceApi": {
-      "members": ["download_file", "read", "read_stats"],
+      "members": ["block_meta", "download_file", "read", "read_stats"],
       "signatures": {
         "read": "(self, path, *, offset=0, size=30000)",
         "download_file": "(self, path, *, chunk_size=30000, max_bytes=None)",
-        "read_stats": "(self, path='zhb.zip', *, chunk_size=30000)"
+        "read_stats": "(self, path='zhb.zip', *, chunk_size=30000)",
+        "block_meta": "(self, filename)"
       }
     },
     "eltdx.api.bars:BarApi": {
       "members": ["get"],
       "signatures": {
-        "get": "(self, code, *, period='day', start=0, count=800, adjust=None, anchor_date=None, kind=None, include_raw=False, all_pages=False, page_size=800, max_pages=200, batch_size=None)"
+        "get": "(self, code, *, period='day', start=0, count=800, adjust=None, anchor_date=None, kind=None, include_raw=False, all_pages=False, page_size=800, max_pages=200, batch_size=None, bar_time='start')"
       }
     },
     "eltdx.api.delisted_bars:DelistedBarApi": {

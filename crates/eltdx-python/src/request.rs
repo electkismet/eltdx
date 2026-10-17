@@ -4,7 +4,9 @@ use eltdx_protocol::commands::{
         DEFAULT_AUCTION_START, TYPE_AUCTION_SERIES,
     },
     corporate::{
-        CapitalChangesRequest, FinanceBatchRequest, TYPE_CAPITAL_CHANGES, TYPE_FINANCE_BATCH,
+        CapitalChangesRequest, CompanyInfoCategoryRequest, CompanyInfoContentRequest,
+        FinanceBatchRequest, TYPE_CAPITAL_CHANGES, TYPE_COMPANY_INFO_CATEGORY,
+        TYPE_COMPANY_INFO_CONTENT, TYPE_FINANCE_BATCH,
     },
     delisted_bars::{DelistedKlinesRequest, TYPE_DELISTED_KLINES},
     klines::{KlineKind, KlinesRequest, TYPE_KLINES},
@@ -22,7 +24,7 @@ use eltdx_protocol::commands::{
         RefreshCursor, RefreshStreamRequest, SnapshotsRequest, TYPE_CATEGORY_QUOTES,
         TYPE_LEGACY_QUOTES, TYPE_REFRESH_STREAM, TYPE_SNAPSHOTS,
     },
-    resources::{FileContentRequest, TYPE_FILE_CONTENT},
+    resources::{BlockMetaRequest, FileContentRequest, TYPE_BLOCK_META, TYPE_FILE_CONTENT},
     security::{
         SecurityCountRequest, SecurityListRequest, TYPE_SECURITY_COUNT, TYPE_SECURITY_LIST,
     },
@@ -66,6 +68,9 @@ pub fn from_python(
         TYPE_HANDSHAKE => Ok(CommandRequest::Handshake(HandshakeRequest)),
         TYPE_CAPITAL_CHANGES => capital_changes(payload),
         TYPE_FINANCE_BATCH => finance_batch(payload),
+        TYPE_COMPANY_INFO_CATEGORY => company_info_category(payload),
+        TYPE_COMPANY_INFO_CONTENT => company_info_content(payload),
+        TYPE_BLOCK_META => block_meta(payload),
         TYPE_SECURITY_LIST => security_list(payload),
         TYPE_SECURITY_COUNT => security_count(py, payload),
         TYPE_SPECIAL_LIMITS => special_limits(payload),
@@ -111,6 +116,36 @@ fn finance_batch(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
     let include_raw = bool_field(payload, "include_raw", false)?;
     protocol(FinanceBatchRequest::with_include_raw(codes, include_raw))
         .map(CommandRequest::FinanceBatch)
+}
+
+fn company_info_category(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
+    let market = required_market(payload, &["market", "market_id"])?;
+    let code = required_code(payload, "code")?;
+    protocol(CompanyInfoCategoryRequest::new(market, code.number()))
+        .map(CommandRequest::CompanyInfoCategory)
+}
+
+fn company_info_content(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
+    let market = required_market(payload, &["market", "market_id"])?;
+    let code = required_code(payload, "code")?;
+    let value = required(payload, &["filename"], "filename")?;
+    let filename = string_value(&value, "filename")?;
+    let offset = u32_field(payload, &["offset"], 0, 0, u32::MAX)?;
+    let length = u32_field(payload, &["length"], 0, 1, u32::MAX)?;
+    protocol(CompanyInfoContentRequest::new(
+        market,
+        code.number(),
+        &filename,
+        offset,
+        length,
+    ))
+    .map(CommandRequest::CompanyInfoContent)
+}
+
+fn block_meta(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {
+    let value = required(payload, &["filename"], "filename")?;
+    let filename = string_value(&value, "filename")?;
+    protocol(BlockMetaRequest::new(&filename)).map(CommandRequest::BlockMeta)
 }
 
 fn security_list(payload: Payload<'_, '_>) -> PyResult<CommandRequest> {

@@ -1,0 +1,55 @@
+{
+  "$type": "dict",
+  "items": [
+    [
+      {
+        "$type": "str",
+        "value": "market"
+      },
+      {
+        "$type": "str",
+        "value": "sz"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "code"
+      },
+      {
+        "$type": "str",
+        "value": "000001"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "filename"
+      },
+      {
+        "$type": "str",
+        "value": "000001.txt"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "offset"
+      },
+      {
+        "$type": "int",
+        "value": "0"
+      }
+    ],
+    [
+      {
+        "$type": "str",
+        "value": "length"
+      },
+      {
+        "$type": "int",
+        "value": "24"
+      }
+    ]
+  ]
+}

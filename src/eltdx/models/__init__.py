@@ -6,9 +6,11 @@ from .corporate import (
     AdjustmentFactor,
     AdjustmentFactorBatch,
     AdjustmentFactorResponse,
+    BlockMeta,
     CapitalChangeBatch,
     CapitalChangeBlock,
     CapitalChangeRecord,
+    CompanyInfoCategory,
     EquityRecord,
     EquityResponse,
     FactorRecord,
@@ -18,6 +20,7 @@ from .corporate import (
     XdxrRecord,
 )
 from .kline import KlineBar, KlineSeries
+from .enums import Market
 from .limit import SpecialLimitPage, SpecialLimitRecord
 from .minute import MinuteAuxPoint, MinuteAuxSeries, MinutePoint, MinuteSeries, SparklineSeries
 from .money_flow import MoneyFlowBatch, MoneyFlowBlock, MoneyFlowDaily
@@ -42,9 +45,11 @@ __all__ = [
     "AdjustmentFactorResponse",
     "AuctionPoint",
     "AuctionSeries",
+    "BlockMeta",
     "CapitalChangeBatch",
     "CapitalChangeBlock",
     "CapitalChangeRecord",
+    "CompanyInfoCategory",
     "EquityRecord",
     "EquityResponse",
     "FactorRecord",
@@ -57,6 +62,7 @@ __all__ = [
     "KlineBar",
     "KlineSeries",
     "LegacyQuote",
+    "Market",
     "MinuteAuxPoint",
     "MinuteAuxSeries",
     "MinutePoint",

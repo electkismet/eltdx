@@ -1354,7 +1354,11 @@ def _normalize_host(host: str | None) -> str | None:
         raise ValueError("host must not be empty")
     normalized = normalize_host(host)
     if normalized is None:
-        raise ValueError("host must use host:port with a port between 1 and 65535")
+        raise ValueError(
+            "host must be a hostname or IP address, optionally with a port "
+            "(for example '116.205.183.150' or '116.205.183.150:7709'); "
+            "the port defaults to 7709"
+        )
     return normalized
 
 

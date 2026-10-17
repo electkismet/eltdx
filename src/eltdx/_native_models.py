@@ -14,11 +14,13 @@ from typing import TYPE_CHECKING, Any
 from eltdx.models import (
     AuctionPoint,
     AuctionSeries,
+    BlockMeta,
     CapitalChangeBatch,
     CapitalChangeBlock,
     CapitalChangeRecord,
     CategoryQuotePage,
     CategoryQuoteRecord,
+    CompanyInfoCategory,
     FileContentChunk,
     FinanceBatch,
     FinanceRecord,
@@ -344,6 +346,17 @@ def response_from_dto(dto: Any) -> Any:
         return FinanceBatch(_records(records, tag, _finance_record), raw_payload)
     if tag == "security_list":
         return [_security(item) for item in _list(payload, tag)]
+    if tag == "company_info_category":
+        return [
+            CompanyInfoCategory(*_tuple(item, tag, 4)) for item in _list(payload, tag)
+        ]
+    if tag == "company_info_content":
+        if not isinstance(payload, str):
+            raise TypeError("native company info content must be a string")
+        return payload
+    if tag == "block_meta":
+        size, md5 = _tuple(payload, tag, 2)
+        return BlockMeta(size, md5)
     if tag == "security_count":
         if not isinstance(payload, int):
             raise TypeError("native security count must be an integer")

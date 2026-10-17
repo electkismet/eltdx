@@ -6,6 +6,9 @@
 | <a id="cmd-0x000d"></a>`0x000d` | `0x000d-连接握手接口.md`        | 连接握手        | `client.session.handshake()`                            | 核心           |
 | <a id="cmd-0x000f"></a>`0x000f` | `0x000f-股本变迁查询接口.md`      | 股本变迁 / 除权基础 | `client.corporate.capital_changes()`                    | 已接入          |
 | <a id="cmd-0x0010"></a>`0x0010` | `0x0010-财务信息批量查询&下发接口.md` | 财务信息批量查询    | `client.corporate.finance_batch()`                      | 已接入          |
+| <a id="cmd-0x02c5"></a>`0x02c5` | `0x02c5-板块文件元数据接口.md`    | 板块文件元数据     | `client.resources.block_meta(filename)`                 | 已接入          |
+| <a id="cmd-0x02cf"></a>`0x02cf` | `0x02cf-公司信息目录接口.md`     | 公司信息目录       | `client.company_info.category(code, market)`            | 已接入          |
+| <a id="cmd-0x02d0"></a>`0x02d0` | `0x02d0-公司信息内容接口.md`     | 公司信息内容       | `client.company_info.content(code, market, ...)`        | 已接入          |
 | <a id="cmd-0x044d"></a>`0x044d` | `0x044d-代码表分页接口.md`       | 代码表分页       | `client.codes.list(market, ...)`                                   | 核心           |
 | <a id="cmd-0x044e"></a>`0x044e` | `0x044e-代码数量接口.md`        | 代码数量        | `client.codes.count(market)`                                  | 核心           |
 | <a id="cmd-0x0452"></a>`0x0452` | `0x0452-特殊品种涨跌停限制表接口.md`  | 特殊品种涨跌停限制   | `client.limits.special()`                               | 已接入          |

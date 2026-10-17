@@ -41,6 +41,9 @@ EXPECTED_TAGS = {
     "sparkline",
     "recent_intraday",
     "money_flow",
+    "company_info_category",
+    "company_info_content",
+    "block_meta",
 }
 
 EXPECTED_MODEL_FIELDS = {

@@ -1,8 +1,9 @@
 use crate::commands::{
     auctions::{parse_auction_series_payload, AuctionSeries},
     corporate::{
-        parse_capital_changes_payload, parse_finance_batch_payload, CapitalChangeBatch,
-        FinanceBatch,
+        parse_capital_changes_payload, parse_company_info_category_payload,
+        parse_company_info_content_payload, parse_finance_batch_payload, CapitalChangeBatch,
+        CompanyInfoCategory, FinanceBatch,
     },
     delisted_bars::{parse_delisted_klines_payload, DelistedKlineSeries},
     klines::{parse_klines_payload, KlineSeries},
@@ -18,7 +19,9 @@ use crate::commands::{
         parse_category_quotes_payload, parse_legacy_quotes_payload, parse_refresh_stream_payload,
         parse_snapshots_payload, CategoryQuotePage, LegacyQuote, QuoteRefreshPage, QuoteSnapshot,
     },
-    resources::{parse_file_content_payload, FileContentChunk},
+    resources::{
+        parse_block_meta_payload, parse_file_content_payload, BlockMeta, FileContentChunk,
+    },
     security::{parse_security_count_payload, parse_security_list_payload, SecurityCode},
     session::{parse_handshake_payload, parse_heartbeat_payload, HandshakeInfo, HeartbeatAck},
     trades::{
@@ -35,6 +38,9 @@ pub enum CommandResponse {
     Handshake(HandshakeInfo),
     CapitalChanges(CapitalChangeBatch),
     FinanceBatch(FinanceBatch),
+    CompanyInfoCategory(Vec<CompanyInfoCategory>),
+    CompanyInfoContent(String),
+    BlockMeta(BlockMeta),
     SecurityList(Vec<SecurityCode>),
     SecurityCount(u16),
     SpecialLimits(SpecialLimitPage),
@@ -67,6 +73,13 @@ impl CommandResponse {
             CommandRequest::FinanceBatch(request) => {
                 parse_finance_batch_payload(payload, request).map(Self::FinanceBatch)
             }
+            CommandRequest::CompanyInfoCategory(_) => {
+                parse_company_info_category_payload(payload).map(Self::CompanyInfoCategory)
+            }
+            CommandRequest::CompanyInfoContent(_) => {
+                parse_company_info_content_payload(payload).map(Self::CompanyInfoContent)
+            }
+            CommandRequest::BlockMeta(_) => parse_block_meta_payload(payload).map(Self::BlockMeta),
             CommandRequest::SecurityList(request) => {
                 parse_security_list_payload(payload, request.market).map(Self::SecurityList)
             }

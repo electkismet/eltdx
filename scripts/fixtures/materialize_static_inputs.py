@@ -130,6 +130,50 @@ def _sparkline_payload() -> bytes:
     return header + struct.pack("<ff", 10.0, 10.1)
 
 
+def _block_meta_payload(size: int, md5_hex: str) -> bytes:
+    """0x02c5 响应体：38 字节 = size(u32 LE) + 1 保留字节 + md5(32 ASCII)。"""
+
+    hash_bytes = md5_hex.encode("ascii")
+    if len(hash_bytes) != 32:
+        raise ValueError("block meta md5 must be 32 ASCII characters")
+    payload = bytearray(38)
+    payload[0:4] = size.to_bytes(4, "little")
+    payload[5:37] = hash_bytes
+    return bytes(payload)
+
+
+def _company_info_category_payload(
+    records: list[tuple[str, str, int, int]],
+) -> bytes:
+    """0x02cf 响应体：count(u16 LE) + count × 152 字节记录。
+
+    单条记录 = name(64, GBK) + filename(80, GBK) + start(u32 LE) + length(u32 LE)。
+    """
+
+    payload = bytearray(len(records).to_bytes(2, "little"))
+    for name, filename, start, length in records:
+        name_bytes = name.encode("gbk")
+        filename_bytes = filename.encode("gbk")
+        if len(name_bytes) > 64 or len(filename_bytes) > 80:
+            raise ValueError("company info record field exceeds its fixed width")
+        payload += name_bytes.ljust(64, b"\x00")
+        payload += filename_bytes.ljust(80, b"\x00")
+        payload += start.to_bytes(4, "little")
+        payload += length.to_bytes(4, "little")
+    return bytes(payload)
+
+
+def _company_info_content_payload(text: str) -> bytes:
+    """0x02d0 响应体：12 字节头（正文长度在 [10:12]）+ GBK 正文。"""
+
+    encoded = text.encode("gbk")
+    if len(encoded) > 0xFFFF:
+        raise ValueError("company info content exceeds uint16 length")
+    header = bytearray(12)
+    header[10:12] = len(encoded).to_bytes(2, "little")
+    return bytes(header) + encoded
+
+
 def _cases() -> dict[str, Case]:
     snapshot_record = bytes.fromhex(
         "00303030303031e61185115b5c005fa4a3cf0ec51187e9aa01bfe40e40afb44eb0994298cf6800"
@@ -313,6 +357,41 @@ def _cases() -> dict[str, Case]:
             0x30000015,
             {"code": "sz300308", "trading_date": 20260511, "include_raw": True},
             recent,
+        ),
+        # 0x02c5 板块文件元数据：38 字节 = size(u32 LE) + 1 保留字节 + md5(32 ASCII)
+        Case(
+            "block_meta",
+            0x02C5,
+            0x30000019,
+            {"filename": "block_zs.dat"},
+            _block_meta_payload(12_345, "0123456789abcdef0123456789abcdef"),
+        ),
+        # 0x02cf 公司信息目录：count(u16 LE) + count × 152 字节记录
+        Case(
+            "company_info_category",
+            0x02CF,
+            0x3000001A,
+            {"market": "sz", "code": "000001"},
+            _company_info_category_payload(
+                [
+                    ("最新提示", "000001.txt", 0, 23426),
+                    ("公司概况", "000001_gsgk.txt", 23426, 4096),
+                ]
+            ),
+        ),
+        # 0x02d0 公司信息内容：12 字节头（长度在 [10:12]）+ GBK 正文
+        Case(
+            "company_info_content",
+            0x02D0,
+            0x3000001B,
+            {
+                "market": "sz",
+                "code": "000001",
+                "filename": "000001.txt",
+                "offset": 0,
+                "length": 24,
+            },
+            _company_info_content_payload("平安银行最新提示"),
         ),
     )
     return {case.command: case for case in cases}

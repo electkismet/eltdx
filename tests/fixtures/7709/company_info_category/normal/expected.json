@@ -1,0 +1,75 @@
+{
+  "$type": "list",
+  "items": [
+    {
+      "$type": "dataclass",
+      "module": "eltdx.models.corporate",
+      "qualname": "CompanyInfoCategory",
+      "fields": [
+        [
+          "name",
+          {
+            "$type": "str",
+            "value": "最新提示"
+          }
+        ],
+        [
+          "filename",
+          {
+            "$type": "str",
+            "value": "000001.txt"
+          }
+        ],
+        [
+          "start",
+          {
+            "$type": "int",
+            "value": "0"
+          }
+        ],
+        [
+          "length",
+          {
+            "$type": "int",
+            "value": "23426"
+          }
+        ]
+      ]
+    },
+    {
+      "$type": "dataclass",
+      "module": "eltdx.models.corporate",
+      "qualname": "CompanyInfoCategory",
+      "fields": [
+        [
+          "name",
+          {
+            "$type": "str",
+            "value": "公司概况"
+          }
+        ],
+        [
+          "filename",
+          {
+            "$type": "str",
+            "value": "000001_gsgk.txt"
+          }
+        ],
+        [
+          "start",
+          {
+            "$type": "int",
+            "value": "23426"
+          }
+        ],
+        [
+          "length",
+          {
+            "$type": "int",
+            "value": "4096"
+          }
+        ]
+      ]
+    }
+  ]
+}

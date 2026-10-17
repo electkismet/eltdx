@@ -311,9 +311,11 @@ def test_mcp_tool_validates_codes_before_connecting(monkeypatch) -> None:
 def test_mcp_registry_rejects_invalid_host_before_registering_pending_key() -> None:
     registry = _ClientRegistry()
 
+    # 注意：省略端口的 host（如 "invalid-host"）现在是**合法**的（默认补 7709），
+    # 所以这里必须用一个真正非法的端口才能触发拒绝。
     for _ in range(2):
-        with pytest.raises(ValueError, match="host:port"):
-            _use_registry_once(registry, timeout=1, host="invalid-host")
+        with pytest.raises(ValueError, match="host must be"):
+            _use_registry_once(registry, timeout=1, host="invalid-host:abc")
         assert not registry._clients
         assert not registry._pending_keys
 

@@ -369,7 +369,7 @@ stat, stat2 = stats.row(0, "000001")
 
 ## `client.bars`
 
-### `get(code, period="day", start=0, count=800, adjust=None, anchor_date=None, kind=None, include_raw=False, all_pages=False, page_size=800, max_pages=200, batch_size=None)`
+### `get(code, period="day", start=0, count=800, adjust=None, anchor_date=None, kind=None, include_raw=False, all_pages=False, page_size=800, max_pages=200, batch_size=None, bar_time="start")`
 
 查询 K 线 / 周期线，对应 `0x052d`。
 
@@ -378,11 +378,14 @@ client.bars.get("sz000001", period="day", count=800)
 client.bars.get("sz000001", period="day", adjust="qfq")
 client.bars.get("sz000001", period="day", all_pages=True, page_size=800)
 client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_size=2)
+client.bars.get("sz000001", period="5m", count=48, bar_time="end")
 ```
 
 `all_pages=False` 时校验并使用 `count`，只请求一页。`all_pages=True` 时使用 `page_size` 自动请求到空页，`max_pages` 防止异常情况下无限循环，返回合并后的 `KlineSeries`。短页不会提前停止。
 
 `code` 传入字符串时返回单个 `KlineSeries`；传入代码列表时按连接池并发逐只请求，返回以规范化完整代码为键的字典。`batch_size` 控制同时请求的最大代码数，默认跟随连接池容量；列表中的重复代码会去重。
+
+`bar_time` 控制分钟级 bar 的时间戳语义：`"start"`（默认）= 通达信原始的开始时间（上午最后一根 5 分钟 bar 标 `11:25`、下午第一根标 `13:00`）；`"end"` = 右端点（= 开始 + 一个周期时长，同一根标 `11:30`），用于对齐 Tushare / 同花顺。**日线及以上周期不受影响**（只有日期，无"一根 bar 跨多久"的问题），因此对现有日线调用完全无影响。周期时长取自响应中已解析的 `period_raw` / `period_param_raw`，故 `period="13m"` 这类多分钟周期也能正确偏移 13 分钟；非法取值抛 `ValueError`。
 
 返回字段包括 `period_name`、`adjust_mode`、`bars`；每根 K 线提供 `time`、`open/high/low/close`、`volume_lots` 和 `amount`。
 
@@ -604,3 +607,120 @@ with TdxClient(timeout=3) as client:
 - [K 线、自动分页和服务端复权](methods/7709-K线周期线.md)
 - [退市 K 线（日线、不复权）](methods/7709-退市K线日线接口.md)
 - [资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)
+
+### `client.helpers.market_stat()`
+
+全市场涨跌统计概览，来自统计指数 `sh880005` / `sh880001` / `sh880006`（`0x053e` 旧版批量行情一次取回）。
+
+```python
+with TdxClient(timeout=3) as client:
+    stat = client.helpers.market_stat()
+    print(stat.up_count, stat.down_count, stat.limit_up_count, stat.total_amount)
+```
+
+返回 `MarketStat`（`up_count` / `down_count` / `neutral_count` / `suspended_count` / `total_count` / `total_amount` / `total_volume` / `total_market_cap` / `limit_up_count` / `limit_down_count`）。详见 [helpers/全市场统计.md](helpers/全市场统计.md)。
+
+### `client.helpers.today_fund_flow(code)`
+
+个股当日资金流向分布，基于当日 L1 逐笔成交（`0x0fc5`）本地分类。
+
+```python
+with TdxClient(timeout=3) as client:
+    flow = client.helpers.today_fund_flow("sz000001")
+    print(flow.main_net_inflow, flow.total_net_inflow)
+```
+
+返回 `FundFlow`（`super_in` / `large_in` / `medium_in` / `small_in` 与对应 `_out`，以及 `main_net_inflow` / `total_net_inflow`）。详见 [helpers/当日资金流.md](helpers/当日资金流.md)。
+
+## `client.company_info`
+
+F10 公司信息的 **7709 协议通道**（与 HTTP 的 `client.f10` 并列）。
+
+### `category(code, market)` — [`0x02cf`](COMMANDS_7709.md#cmd-0x02cf)
+
+读取公司信息文件的段落目录，返回 `list[CompanyInfoCategory]`（`name` / `filename` / `start` / `length`）。
+
+### `content(code, market, filename, offset, length)` — [`0x02d0`](COMMANDS_7709.md#cmd-0x02d0)
+
+按目录读取某段正文，返回 GBK 解码后的 `str`。
+
+详见 [methods/0x02cf-公司信息目录接口.md](methods/0x02cf-公司信息目录接口.md) 与 [methods/0x02d0-公司信息内容接口.md](methods/0x02d0-公司信息内容接口.md)。
+
+## `client.resources.block_meta(filename)` — [`0x02c5`](COMMANDS_7709.md#cmd-0x02c5)
+
+查询板块文件在服务器上的字节大小与 MD5，返回 `BlockMeta`（`size` / `md5`）。详见 [methods/0x02c5-板块文件元数据接口.md](methods/0x02c5-板块文件元数据接口.md)。
+
+## 扩展行情 `eltdx.ex`（端口 7727）
+
+期货、期权、港股、外盘、外汇等非 A 股市场走独立的扩展行情协议（7727）。它是独立子包，自带连接与帧编解码，不经过 7709 引擎。
+
+```python
+from eltdx.ex import ExTdxClient
+
+with ExTdxClient.from_best_host() as client:
+    print(client.get_instrument_count())
+    quote = client.get_instrument_quote(47, "IFL0")
+    bars = client.get_instrument_bars(4, 47, "IFL0", count=100)   # category, market, code
+    intraday = client.get_instrument_bars(0, 47, "IFL0", count=48, bar_time="end")
+```
+
+> **注意 `get_instrument_bars` 的第一个参数是 `category`（周期），第二个才是 `market`。**
+> 早期文档曾把它写成 `get_instrument_bars(market, code)`，那是**错的**——会把 market 当成
+> category，请以 `EXTENDED_MARKET.md` 的签名为准。
+
+> **不要用 `get_markets()` 做首条调用。** 实测所有内置主站都不回应 `0x23f4`，
+> 该调用只会阻塞到超时；这与 eltdx 无关——easy_tdx 1.20.7 在同一主机上同样超时，
+> 且两者请求帧逐字节相同。需要市场清单请直接用 `ExMarket` 枚举。
+> 证据链见 [EXTENDED_MARKET.md](EXTENDED_MARKET.md)。
+
+`ExTdxClient` 提供 `get_markets` / `get_instrument_count` / `get_instrument_info` / `get_instrument_quote` / `get_instrument_quote_list` / `get_instrument_bars` / `history_instrument_bars_range` / `minute_time` / `history_minute_time` / `transaction` / `history_transaction`；港股逐笔自动翻页。`ExMarket` 枚举描述支持的扩展市场。详见 [EXTENDED_MARKET.md](EXTENDED_MARKET.md)。
+
+## MAC 协议 `eltdx.mac` 与 MAC-EX `eltdx.ex.MacExClient`
+
+MAC 协议（0x1c 帧）覆盖批量报价、分类排行、复权 K 线、多日分时、逐笔、板块、集合竞价、异动等。
+
+```python
+from eltdx.mac import MacClient, Period, Adjust
+
+with MacClient() as client:
+    quotes = client.get_stock_quotes([(0, "000001"), (1, "600000")])   # [(market, code), ...]
+    bars = client.get_stock_kline(0, "000001", period=Period.DAILY, adjust=Adjust.QFQ)
+    intraday = client.get_stock_kline(0, "000001", period=Period.MIN_5, count=48, bar_time="end")
+```
+
+> `get_stock_quotes` 收的是 `(market, code)` **元组**列表，不是裸代码字符串；
+> `get_stock_kline` 的前两个位置参数是 `market, code`，且周期枚举叫 `Period.DAILY`
+> （没有 `Period.DAY`）。
+
+MAC-EX（`from eltdx.ex import MacExClient`）在扩展行情连接上使用 MAC 风格命令（登录 `0x2454` + goods 系列）。详见 [EXTENDED_MARKET.md](EXTENDED_MARKET.md)。
+
+## 本地行情文件 `eltdx.offline`
+
+读写通达信本地行情文件，纯标准库实现，不联网。
+
+```python
+from eltdx import offline
+
+bars = offline.read_daily_bar("sz000001")          # vipdoc 下的 .day
+offline.write_daily_bar("sz000001", bars)          # 写回 / 追加
+mins = offline.read_min_bar("sz000001")             # .lc1/.lc5
+exbars = offline.read_ex_daily_bar(...)             # 扩展市场日线
+blocks = offline.read_gbbq(...)                     # 股本变迁
+```
+
+入口：`read_daily_bar` / `write_daily_bar` / `read_min_bar` / `write_min_bar` / `read_ex_daily_bar` / `write_ex_daily_bar` / `read_block` / `read_gbbq` / `read_history_financial`。详见 [OFFLINE.md](OFFLINE.md)。
+
+## 专业财报 `eltdx.financial`
+
+从计算服务器下载并解析专业财报文件（`tdxfin/gpcw.txt` 与 `gpcwYYYYMMDD.zip`）。底层复用 `0x06b9` 文件下载能力（`ResourceApi.download_file`），不做重复实现。
+
+```python
+from eltdx import TdxClient
+from eltdx.financial import list_archive_files, download_records, open_calc_client
+
+with open_calc_client() as client:                 # 指向计算服务器
+    files = list_archive_files(client)
+    records = download_records(client, files[0].filename)
+```
+
+详见 [FINANCIAL.md](FINANCIAL.md)。

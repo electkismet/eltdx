@@ -41,6 +41,9 @@ EXPECTED_CODES = {
     "historical_ticks": 0x0FC6,
     "sparkline": 0x0FD1,
     "recent_intraday": 0x0FEB,
+    "block_meta": 0x02C5,
+    "company_info_category": 0x02CF,
+    "company_info_content": 0x02D0,
 }
 EXPECTED_EXTRA_CASES = {
     "heartbeat/compressed",
@@ -58,9 +61,9 @@ EXPECTED_EXTRA_CASES = {
 }
 
 
-def test_static_input_definitions_cover_all_22_commands() -> None:
+def test_static_input_definitions_cover_all_25_commands() -> None:
     assert {name: case.code for name, case in CASES.items()} == EXPECTED_CODES
-    assert len({case.message_id for case in CASES.values()}) == 22
+    assert len({case.message_id for case in CASES.values()}) == 25
     assert all(case.response_payload for case in CASES.values())
     assert set(EXTRA_CASES) == EXPECTED_EXTRA_CASES
     normal_cases = {f"{command}/normal" for command in EXPECTED_CODES}

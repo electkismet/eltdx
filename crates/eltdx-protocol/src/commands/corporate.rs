@@ -3,7 +3,9 @@ use bytes::Bytes;
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{MAX_CAPITAL_CHANGE_CODES, MAX_COMMAND_ITEMS, MAX_RESPONSE_PAYLOAD_SIZE};
-use crate::unit::{little_f32, little_u16, little_u32, DateParts, Market, NormalizedCode};
+use crate::unit::{
+    decode_gbk_text, little_f32, little_u16, little_u32, DateParts, Market, NormalizedCode,
+};
 
 pub const TYPE_CAPITAL_CHANGES: u16 = 0x000f;
 pub const TYPE_FINANCE_BATCH: u16 = 0x0010;
@@ -583,6 +585,308 @@ fn encode_hex(data: &[u8]) -> String {
         output.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
     }
     output
+}
+
+pub const TYPE_COMPANY_INFO_CATEGORY: u16 = 0x02cf;
+pub const TYPE_COMPANY_INFO_CONTENT: u16 = 0x02d0;
+pub const COMPANY_INFO_NAME_SIZE: usize = 64;
+pub const COMPANY_INFO_FILENAME_SIZE: usize = 80;
+pub const COMPANY_INFO_RECORD_SIZE: usize = COMPANY_INFO_NAME_SIZE + COMPANY_INFO_FILENAME_SIZE + 8;
+pub const COMPANY_INFO_CONTENT_HEADER_SIZE: usize = 12;
+pub const COMPANY_INFO_CONTENT_FILENAME_SIZE: usize = 80;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompanyInfoCategoryRequest {
+    market: Market,
+    code: String,
+}
+
+impl CompanyInfoCategoryRequest {
+    pub fn new(market: Market, code: &str) -> Result<Self, ProtocolError> {
+        Ok(Self {
+            market,
+            code: normalize_numeric_code(code)?,
+        })
+    }
+
+    pub const fn market(&self) -> Market {
+        self.market
+    }
+
+    pub fn code(&self) -> &str {
+        &self.code
+    }
+
+    pub fn frame(&self, msg_id: u32) -> RequestFrame {
+        let mut data = Vec::with_capacity(12);
+        data.extend_from_slice(&u16::from(self.market.id()).to_le_bytes());
+        data.extend_from_slice(self.code.as_bytes());
+        data.extend_from_slice(&[0_u8; 4]);
+        RequestFrame::new(msg_id, TYPE_COMPANY_INFO_CATEGORY, data)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompanyInfoContentRequest {
+    market: Market,
+    code: String,
+    filename: Vec<u8>,
+    offset: u32,
+    length: u32,
+}
+
+impl CompanyInfoContentRequest {
+    pub fn new(
+        market: Market,
+        code: &str,
+        filename: &str,
+        offset: u32,
+        length: u32,
+    ) -> Result<Self, ProtocolError> {
+        let code = normalize_numeric_code(code)?;
+        let filename = encode_gbk_text(filename.trim());
+        if filename.is_empty() {
+            return Err(ProtocolError::invalid_argument(
+                "filename",
+                "company info filename is required",
+            ));
+        }
+        if filename.len() > COMPANY_INFO_CONTENT_FILENAME_SIZE {
+            return Err(ProtocolError::invalid_argument(
+                "filename",
+                format!(
+                    "company info filename must be <= {COMPANY_INFO_CONTENT_FILENAME_SIZE} bytes"
+                ),
+            ));
+        }
+        if length == 0 {
+            return Err(ProtocolError::invalid_argument(
+                "length",
+                "company info content length must be > 0",
+            ));
+        }
+        Ok(Self {
+            market,
+            code,
+            filename,
+            offset,
+            length,
+        })
+    }
+
+    pub const fn market(&self) -> Market {
+        self.market
+    }
+
+    pub fn code(&self) -> &str {
+        &self.code
+    }
+
+    pub fn filename_raw(&self) -> &[u8] {
+        &self.filename
+    }
+
+    pub const fn offset(&self) -> u32 {
+        self.offset
+    }
+
+    pub const fn length(&self) -> u32 {
+        self.length
+    }
+
+    pub fn frame(&self, msg_id: u32) -> RequestFrame {
+        let mut data = Vec::with_capacity(102);
+        data.extend_from_slice(&u16::from(self.market.id()).to_le_bytes());
+        data.extend_from_slice(self.code.as_bytes());
+        data.extend_from_slice(&0_u16.to_le_bytes());
+        let mut filename = self.filename.clone();
+        filename.resize(COMPANY_INFO_CONTENT_FILENAME_SIZE, 0);
+        data.extend_from_slice(&filename);
+        data.extend_from_slice(&self.offset.to_le_bytes());
+        data.extend_from_slice(&self.length.to_le_bytes());
+        data.extend_from_slice(&0_u32.to_le_bytes());
+        RequestFrame::new(msg_id, TYPE_COMPANY_INFO_CONTENT, data)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompanyInfoCategory {
+    pub name: String,
+    pub filename: String,
+    pub start: u32,
+    pub length: u32,
+}
+
+pub fn parse_company_info_category_payload(
+    payload: &[u8],
+) -> Result<Vec<CompanyInfoCategory>, ProtocolError> {
+    check_payload(payload, "company info category")?;
+    if payload.len() < 2 {
+        return Err(ProtocolError::invalid_data(
+            "company info category",
+            "invalid company info category payload",
+        ));
+    }
+    let count = usize::from(little_u16(&payload[..2])?);
+    let records_size = count.checked_mul(COMPANY_INFO_RECORD_SIZE).ok_or_else(|| {
+        ProtocolError::invalid_data(
+            "company info category",
+            "company info category length overflow",
+        )
+    })?;
+    let expected_length = 2_usize.checked_add(records_size).ok_or_else(|| {
+        ProtocolError::invalid_data(
+            "company info category",
+            "company info category length overflow",
+        )
+    })?;
+    if payload.len() < expected_length {
+        return Err(ProtocolError::invalid_data(
+            "company info category",
+            "truncated company info category payload",
+        ));
+    }
+    let mut items = Vec::with_capacity(count);
+    let mut offset = 2_usize;
+    for _ in 0..count {
+        let end = offset.saturating_add(COMPANY_INFO_RECORD_SIZE);
+        let record = &payload[offset..end];
+        items.push(CompanyInfoCategory {
+            name: decode_gbk_text(&record[..COMPANY_INFO_NAME_SIZE]),
+            filename: decode_gbk_text(
+                &record
+                    [COMPANY_INFO_NAME_SIZE..COMPANY_INFO_NAME_SIZE + COMPANY_INFO_FILENAME_SIZE],
+            ),
+            start: little_u32(
+                &record[COMPANY_INFO_NAME_SIZE + COMPANY_INFO_FILENAME_SIZE
+                    ..COMPANY_INFO_NAME_SIZE + COMPANY_INFO_FILENAME_SIZE + 4],
+            )?,
+            length: little_u32(
+                &record[COMPANY_INFO_NAME_SIZE + COMPANY_INFO_FILENAME_SIZE + 4
+                    ..COMPANY_INFO_RECORD_SIZE],
+            )?,
+        });
+        offset = end;
+    }
+    Ok(items)
+}
+
+pub fn parse_company_info_content_payload(payload: &[u8]) -> Result<String, ProtocolError> {
+    check_payload(payload, "company info content")?;
+    if payload.len() < COMPANY_INFO_CONTENT_HEADER_SIZE {
+        return Err(ProtocolError::invalid_data(
+            "company info content",
+            "invalid company info content payload",
+        ));
+    }
+    let length = usize::from(little_u16(&payload[10..12])?);
+    let end = COMPANY_INFO_CONTENT_HEADER_SIZE
+        .checked_add(length)
+        .ok_or_else(|| {
+            ProtocolError::invalid_data(
+                "company info content",
+                "company info content length overflow",
+            )
+        })?;
+    if payload.len() < end {
+        return Err(ProtocolError::invalid_data(
+            "company info content",
+            "truncated company info content payload",
+        ));
+    }
+    Ok(decode_gbk_text(
+        &payload[COMPANY_INFO_CONTENT_HEADER_SIZE..end],
+    ))
+}
+
+fn normalize_numeric_code(value: &str) -> Result<String, ProtocolError> {
+    let text = value.trim();
+    if text.len() != 6 || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(ProtocolError::invalid_argument(
+            "code",
+            format!("company info code must be 6 ASCII digits: {value:?}"),
+        ));
+    }
+    Ok(text.to_owned())
+}
+
+fn encode_gbk_text(value: &str) -> Vec<u8> {
+    let (encoded, _, _) = encoding_rs::GBK.encode(value);
+    encoded.into_owned()
+}
+
+#[cfg(test)]
+mod company_info_tests {
+    use super::{
+        parse_company_info_category_payload, parse_company_info_content_payload,
+        CompanyInfoCategoryRequest, CompanyInfoContentRequest, COMPANY_INFO_RECORD_SIZE,
+    };
+    use crate::unit::Market;
+    use crate::ProtocolError;
+
+    #[test]
+    fn company_info_requests_match_frozen_wire_layouts() -> Result<(), ProtocolError> {
+        let category = CompanyInfoCategoryRequest::new(Market::Shenzhen, "000001")?.frame(1);
+        assert_eq!(category.data.len(), 12);
+        assert_eq!(
+            &category.data[..],
+            &[0, 0, b'0', b'0', b'0', b'0', b'0', b'1', 0, 0, 0, 0]
+        );
+
+        let content =
+            CompanyInfoContentRequest::new(Market::Shenzhen, "000001", "000001.txt", 0, 4096)?
+                .frame(1);
+        assert_eq!(content.data.len(), 102);
+        assert_eq!(&content.data[..2], &[0, 0]);
+        assert_eq!(&content.data[2..8], b"000001");
+        assert_eq!(&content.data[8..10], &[0, 0]);
+        assert_eq!(&content.data[10..20], b"000001.txt");
+        assert!(content.data[20..90].iter().all(|byte| *byte == 0));
+        assert_eq!(&content.data[90..94], &0_u32.to_le_bytes());
+        assert_eq!(&content.data[94..98], &4096_u32.to_le_bytes());
+        assert_eq!(&content.data[98..102], &[0, 0, 0, 0]);
+
+        assert!(CompanyInfoCategoryRequest::new(Market::Shenzhen, "00001").is_err());
+        assert!(CompanyInfoContentRequest::new(Market::Shenzhen, "000001", "", 0, 1).is_err());
+        assert!(
+            CompanyInfoContentRequest::new(Market::Shenzhen, "000001", "000001.txt", 0, 0).is_err()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parses_company_info_category_and_content() -> Result<(), ProtocolError> {
+        let mut record = Vec::with_capacity(COMPANY_INFO_RECORD_SIZE);
+        record.extend_from_slice(&[0xb9, 0xab, 0xcb, 0xbe, 0xbc, 0xf2, 0xbd, 0xe9]);
+        record.resize(64, 0);
+        record.extend_from_slice(b"000001.txt");
+        record.resize(144, 0);
+        record.extend_from_slice(&0_u32.to_le_bytes());
+        record.extend_from_slice(&4096_u32.to_le_bytes());
+        assert_eq!(record.len(), COMPANY_INFO_RECORD_SIZE);
+
+        let mut payload = 1_u16.to_le_bytes().to_vec();
+        payload.extend_from_slice(&record);
+        let parsed = parse_company_info_category_payload(&payload)?;
+        assert_eq!(parsed.len(), 1);
+        assert_eq!(parsed[0].name, "公司简介");
+        assert_eq!(parsed[0].filename, "000001.txt");
+        assert_eq!(parsed[0].start, 0);
+        assert_eq!(parsed[0].length, 4096);
+
+        let mut content = vec![0_u8; 10];
+        content.extend_from_slice(&4_u16.to_le_bytes());
+        content.extend_from_slice(&[0xb9, 0xab, 0xcb, 0xbe]);
+        let text = parse_company_info_content_payload(&content)?;
+        assert_eq!(text, "公司");
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_truncated_company_info_payloads() {
+        assert!(parse_company_info_category_payload(&[1, 0]).is_err());
+        assert!(parse_company_info_content_payload(&[0; 11]).is_err());
+    }
 }
 
 #[cfg(test)]

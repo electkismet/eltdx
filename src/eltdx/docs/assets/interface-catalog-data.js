@@ -5,7 +5,7 @@ window.ELTDX_CATALOG = {
     "status": "stable",
     "backend": "Rust native 7709 protocol and transport engine",
     "python_api": "compatible modular API and dataclasses",
-    "native_commands": 22,
+    "native_commands": 25,
     "mcp_tools": 23,
     "mcp_resources": 8,
     "native_extensions": 1,
@@ -18,7 +18,7 @@ window.ELTDX_CATALOG = {
         "label": "7709 原生协议接口",
         "tag_label": "7709 原生",
         "stat_label": "7709 原生协议接口",
-        "description": "23 个 7709 原生协议业务能力，按业务分类展示。",
+        "description": "26 个 7709 原生协议业务能力，按业务分类展示。",
         "source": "7709"
       },
       {
@@ -1411,6 +1411,45 @@ window.ELTDX_CATALOG = {
       "return_model": "TdxStatsResource",
       "doc": "methods/7709-服务器统计文件解析.md",
       "doc_anchor": "stats-resource"
+    },
+    {
+      "id": "7709-block-meta",
+      "title": "板块文件元数据",
+      "source": "7709",
+      "category": "服务器资源",
+      "api": "client.resources.block_meta(filename)",
+      "aliases": ["block_meta", "板块文件元数据", "板块文件"],
+      "protocol": "0x02c5",
+      "kind": "底层协议",
+      "summary": "查询板块文件在服务器上的字节大小与 MD5 摘要，用于判断本地缓存是否需要更新。",
+      "return_model": "BlockMeta",
+      "doc": "methods/0x02c5-板块文件元数据接口.md"
+    },
+    {
+      "id": "7709-company-info-category",
+      "title": "公司信息目录",
+      "source": "7709",
+      "category": "公司资料",
+      "api": "client.company_info.category(code, market)",
+      "aliases": ["company_info_category", "公司信息目录", "F10 目录"],
+      "protocol": "0x02cf",
+      "kind": "底层协议",
+      "summary": "读取证券 F10 公司信息文件的段落目录（名称、文件名、偏移、长度）。",
+      "return_model": "list[CompanyInfoCategory]",
+      "doc": "methods/0x02cf-公司信息目录接口.md"
+    },
+    {
+      "id": "7709-company-info-content",
+      "title": "公司信息内容",
+      "source": "7709",
+      "category": "公司资料",
+      "api": "client.company_info.content(code, market, filename, offset, length)",
+      "aliases": ["company_info_content", "公司信息内容", "F10 正文"],
+      "protocol": "0x02d0",
+      "kind": "底层协议",
+      "summary": "按目录读取某只证券 F10 公司信息的一段 GBK 正文。",
+      "return_model": "str",
+      "doc": "methods/0x02d0-公司信息内容接口.md"
     }
   ]
 };

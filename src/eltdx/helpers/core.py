@@ -24,6 +24,7 @@ from .shortline import (
     _validate_stats_resource_dates,
 )
 from .boards import BoardMemberQuoteTable, BoardQuoteTable, BoardService
+from .market import FundFlow, MarketStat, fetch_market_stat, fetch_today_fund_flow
 
 if TYPE_CHECKING:
     from eltdx.client import TdxClient
@@ -813,6 +814,15 @@ class HelperApi:
             open_amount=open_amount,
             open_change_pct=_pct(open_price, resolved_pre_close),
         )
+    def market_stat(self) -> MarketStat:
+        """全市场涨跌统计概览（880005/880001/880006 统计指数）。"""
+
+        return fetch_market_stat(self._client)
+
+    def today_fund_flow(self, code: str) -> FundFlow:
+        """个股当日资金流向分布（基于 L1 逐笔成交统计）。"""
+
+        return fetch_today_fund_flow(self._client, code)
 
     def _security_map(self, full_codes: Sequence[str]) -> dict[str, Any]:
         markets = sorted({code[:2] for code in full_codes})

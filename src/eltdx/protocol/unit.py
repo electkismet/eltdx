@@ -61,6 +61,18 @@ def market_to_id(value: str | int) -> int:
 
 
 def normalize_code(code: str) -> str:
+    """把裸代码或带市场前缀的代码规范化为 ``<market><6 位数字>``。
+
+    裸 6 位代码按交易所代码段推断市场：
+
+    * ``5`` → 沪市基金：``51x`` ETF、``50x``/``502`` LOF、``55x``/``511`` 货币基金、
+      ``56x`` 跨境 ETF、``58x`` 科创 ETF、``580``/``581``/``582`` 权证；
+    * ``6``/``9`` → 沪市 A 股 / B 股；
+    * ``0``/``1``/``2``/``3`` → 深市主板、基金、B 股、创业板；
+    * ``4``/``8`` → 北交所（``430xxx``/``83xxxx``/``87xxxx``/``88xxxx``）；
+    * ``92`` → 北交所新号段（优先于 ``9`` 的沪市 B 股判断）。
+    """
+
     text = str(code).strip().lower()
     if len(text) == 8 and text[:2] in MARKET_TO_ID and text[2:].isdigit():
         return text
@@ -68,11 +80,12 @@ def normalize_code(code: str) -> str:
         raise ProtocolError(f"invalid code: {code!r}")
     if text.startswith("92"):
         return "bj" + text
-    if text.startswith(("6", "9")):
+    # 5 开头是沪市基金/ETF/权证号段（缺失时 ETF/LOF/货基会被误判为无法识别）。
+    if text.startswith(("5", "6", "9")):
         return "sh" + text
     if text.startswith(("0", "1", "2", "3")):
         return "sz" + text
-    if text.startswith("8"):
+    if text.startswith(("4", "8")):
         return "bj" + text
     raise ProtocolError(f"unable to infer market for code: {code!r}")
 

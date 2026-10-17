@@ -22,6 +22,7 @@ from .core import (
     ThemeStrengthTable,
 )
 from .boards import BoardMemberQuoteTable, BoardQuoteRow, BoardQuoteTable
+from .market import FundFlow, MarketStat
 
 __all__ = [
     "AuctionData",
@@ -46,4 +47,6 @@ __all__ = [
     "BoardQuoteRow",
     "BoardQuoteTable",
     "BoardMemberQuoteTable",
+    "FundFlow",
+    "MarketStat",
 ]

@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "golden_schema_version": 1,
+  "registry_key": "company_info_category",
+  "command_code": 719,
+  "message_id": 805306394,
+  "request_context": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "market"
+        },
+        {
+          "$type": "str",
+          "value": "sz"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "code"
+        },
+        {
+          "$type": "str",
+          "value": "000001"
+        }
+      ]
+    ]
+  },
+  "push_generation": null,
+  "push_host": null,
+  "expected_exception": null,
+  "frame_header": {
+    "$type": "dict",
+    "items": [
+      [
+        {
+          "$type": "str",
+          "value": "control"
+        },
+        {
+          "$type": "int",
+          "value": "1"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "message_id"
+        },
+        {
+          "$type": "int",
+          "value": "805306394"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "message_type"
+        },
+        {
+          "$type": "int",
+          "value": "719"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "zip_length"
+        },
+        {
+          "$type": "int",
+          "value": "14"
+        }
+      ],
+      [
+        {
+          "$type": "str",
+          "value": "length"
+        },
+        {
+          "$type": "int",
+          "value": "14"
+        }
+      ]
+    ]
+  }
+}

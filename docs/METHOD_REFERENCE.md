@@ -437,7 +437,7 @@ page = client.quotes.refresh(["sz000001"], cursors={"sz000001": 0})
 
 <a id="method-bars-get"></a>
 
-### `client.bars.get(code, period="day", ..., batch_size=None)`
+### `client.bars.get(code, period="day", ..., batch_size=None, bar_time="start")`
 
 对应 `0x052d`。默认只取一页，`all_pages=True` 时自动请求到空页并返回合并后的 `KlineSeries`。
 
@@ -447,6 +447,7 @@ history = client.bars.get("sz000001", period="day", all_pages=True, page_size=80
 qfq = client.bars.get("sz000001", period="day", adjust="qfq")
 fixed = client.bars.get("sz000001", period="day", adjust="fixed_qfq", anchor_date="2024-06-03")
 many = client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_size=2)
+right_edge = client.bars.get("sz000001", period="5m", count=48, bar_time="end")
 ```
 
 | 参数 | 含义 |
@@ -459,8 +460,11 @@ many = client.bars.get(["sz000001", "sh600000"], period="day", count=800, batch_
 | `all_pages` | 是否自动分页 |
 | `page_size` / `max_pages` | 自动分页的每页条数 / 最大页数 |
 | `batch_size` | 传入代码列表时的最大并发数；默认跟随连接池容量 |
+| `bar_time` | 分钟级 bar 的时间戳语义：`"start"`（默认，通达信原始）或 `"end"`（右端点，加一个周期时长） |
 
 周期支持分钟、日、周、月、季、年和协议扩展周期。复权模式支持 `none/qfq/hfq/fixed_qfq/fixed_hfq`。自动分页按实际返回条数推进，短页不停止，空页才结束。
+
+`bar_time` 只影响分钟级周期（日线及以上周期只有日期，不受影响）：默认 `"start"` 是通达信原始的开始时间，`"end"` 则加上一个周期时长得到右端点，便于与 Tushare / 同花顺对齐。周期时长取自响应里已解析的 `period_raw` / `period_param_raw`，因此 `"13m"` 这类多分钟周期也会按 13 分钟偏移。
 
 `code` 传入字符串返回单个 `KlineSeries`；传入代码列表时按连接池并发逐只请求，返回以规范化完整代码为键的字典。列表中的重复代码会去重。
 
@@ -835,6 +839,28 @@ print(latest.date, latest.main_net, latest.main_ratio)
 ```
 
 字段和真实返回样本见 [资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+
+#### 空数据主机故障转移
+
+直连 `0x0ffc` 返回**空数据**时，`daily()` 不会立刻返回空，而是按已排好的延迟顺序**逐台专用主站实测**，
+拿到非空结果即返回。这与 `easy_tdx` 的行为对齐：延迟最低的主站不一定提供该标的数据。
+
+需要注意的语义：
+
+- **所有主站都为空时返回空，而不是抛错。** 新股、退市或确实没有资金流数据的标的在所有主站上都是
+  空的，此时把「本来就没数据」当成故障上报会误导调用方。
+- **只有真正的空数据才触发换台**（响应带 `blocks` 且为空）。单台主站连不上或超时会被跳过，不会中断查询。
+- **重试次数有上界**：一次 `daily()` 调用只探测一轮，整个批次共享，因此不会出现
+  「一批 75 只空票 × 候选主站数」的连接放大。找到可用的主站后会记住它（仅进程内，`client.close()` 释放），
+  后续查询直接复用。
+- 使用自定义的非池化 transport（没有候选主站列表）时该行为自动退化为原样返回空。
+
+```python
+flow = client.money_flow.daily("sz000063")
+if not flow.records:
+    # 可能是新股/退市，也可能是主站暂时异常；这里拿到的是「确实没有数据」
+    print("无资金流数据")
+```
 
 ## 财务基础信息
 

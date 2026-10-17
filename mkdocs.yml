@@ -80,11 +80,16 @@ nav:
       - 调用方法: METHOD_REFERENCE.md
       - API 参考: API_REFERENCE.md
       - 调用示例: EXAMPLES.md
+      - 命令行: CLI.md
       - 字段手册: FIELD_REFERENCE.md
   - 7709 行情:
       - 命令映射: COMMANDS_7709.md
       - 接口单页: methods/README.md
   - 7615 F10: F10_7615.md
+  - 扩展能力:
+      - 扩展行情与 MAC: EXTENDED_MARKET.md
+      - 本地行情文件: OFFLINE.md
+      - 专业财报: FINANCIAL.md
   - Helpers: helpers/README.md
   - Helper 单页:
       - A 股常用封装总览: helpers/A股常用封装.md
@@ -100,6 +105,8 @@ nav:
       - 成交对比: helpers/成交对比.md
       - 连板天梯: helpers/连板天梯.md
       - 题材强度排行: helpers/题材强度排行.md
+      - 全市场统计: helpers/全市场统计.md
+      - 当日资金流: helpers/当日资金流.md
   - MCP: MCP.md
   - 跨语言网关: HTTP_GATEWAY.md
   - 工程参考:
@@ -110,6 +117,7 @@ nav:
       - 变更记录: CHANGELOG.md
       - 字段迁移到 2.0: FIELD_MIGRATION.md
       - API 迁移到 2.0: MIGRATION_FROM_OLD.md
+      - 从 easy_tdx 迁移: MIGRATION_FROM_EASY_TDX.md
       - 历史 v1.0 升级说明: UPDATE_FROM_0_5_1.md
       - 历史 v1.0 实现记录: ROADMAP.md
       - GitHub Pages: GITHUB_PAGES.md

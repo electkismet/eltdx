@@ -9,7 +9,8 @@ use std::sync::Arc;
 use eltdx_protocol::commands::{
     auctions::{AuctionPoint, AuctionSeries},
     corporate::{
-        CapitalChangeBatch, CapitalChangeBlock, CapitalChangeRecord, FinanceBatch, FinanceRecord,
+        CapitalChangeBatch, CapitalChangeBlock, CapitalChangeRecord, CompanyInfoCategory,
+        FinanceBatch, FinanceRecord,
     },
     klines::{KlineBar, KlineSeries},
     limits::{SpecialLimitPage, SpecialLimitRecord},
@@ -800,6 +801,25 @@ pub fn to_python(py: Python<'_>, response: CommandResponse) -> PyResult<Py<PyAny
         CommandResponse::FinanceBatch(value) => {
             tagged(py, "finance_batch", finance_batch(py, &value)?)?
         }
+        CommandResponse::CompanyInfoCategory(values) => tagged(
+            py,
+            "company_info_category",
+            list(
+                py,
+                values
+                    .iter()
+                    .map(|v| company_info_category(py, v))
+                    .collect::<PyResult<Vec<_>>>()?,
+            )?,
+        )?,
+        CommandResponse::CompanyInfoContent(value) => {
+            tagged(py, "company_info_content", any(py, value.as_str())?)?
+        }
+        CommandResponse::BlockMeta(value) => tagged(
+            py,
+            "block_meta",
+            tuple(py, vec![any(py, value.size)?, any(py, value.md5.as_str())?])?,
+        )?,
         CommandResponse::SecurityList(values) => tagged(
             py,
             "security_list",
@@ -969,6 +989,18 @@ fn finance_batch<'py>(py: Python<'py>, value: &FinanceBatch) -> PyResult<Obj> {
                     .collect::<PyResult<Vec<_>>>()?,
             )?,
             raw_payload(py, include_raw, &value.raw_payload),
+        ],
+    )
+}
+
+fn company_info_category<'py>(py: Python<'py>, value: &CompanyInfoCategory) -> PyResult<Obj> {
+    tuple(
+        py,
+        vec![
+            any(py, value.name.as_str())?,
+            any(py, value.filename.as_str())?,
+            any(py, value.start)?,
+            any(py, value.length)?,
         ],
     )
 }

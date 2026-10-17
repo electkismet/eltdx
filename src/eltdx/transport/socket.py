@@ -50,7 +50,10 @@ def _resolved_native_hosts(hosts: Sequence[str]) -> list[str]:
         if value not in values:
             values.append(value)
     if not values:
-        raise ValueError("at least one host is required")
+        raise ValueError(
+            "at least one host is required; pass hosts=['116.205.183.150:7709']. "
+            "A bare IP or hostname also works (the port defaults to 7709)."
+        )
     return values
 
 
@@ -100,7 +103,10 @@ class SocketTransport:
     ) -> None:
         self._hosts = unique_hosts(list(hosts or DEFAULT_HOSTS))
         if not self._hosts:
-            raise ValueError("at least one host is required")
+            raise ValueError(
+                "at least one host is required; pass hosts=['116.205.183.150:7709']. "
+                "A bare IP or hostname also works (the port defaults to 7709)."
+            )
         if timeout <= 0:
             raise ValueError("timeout must be > 0")
         if push_queue_size <= 0:

@@ -6,7 +6,6 @@ import ipaddress
 import json
 import os
 import socket
-import sys
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -18,6 +17,8 @@ from pathlib import Path
 from threading import Lock, get_ident
 from typing import Any
 
+from eltdx._paths import data_dir
+
 SERVER_FILE = "tdx_server.json"
 MONEY_FLOW_SERVER_FILE = "money_flow_servers.json"
 SERVER_RANKING_FILE = "tdx_server_ranking.json"
@@ -26,6 +27,7 @@ DEFAULT_PROBE_TIMEOUT = 1.2
 DEFAULT_PROBE_WORKERS = 32
 # Host probing is opt-in so constructing a client does not fan out connections.
 DEFAULT_PROBE_HOSTS = False
+DEFAULT_QUOTE_PORT = 7709
 
 _RANKING_WRITE_LOCK = Lock()
 
@@ -96,20 +98,73 @@ FALLBACK_HOSTS: tuple[str, ...] = (
 )
 
 
-def normalize_host(value: Any) -> str | None:
+def _split_host_port(host: str) -> tuple[str, str | None] | None:
+    """把主机拆成 ``(address, port_text)``；没有端口时 ``port_text`` 为 ``None``。
+
+    支持 ``host:port``、``[v6]:port``、裸 IPv4（``1.2.3.4``）、裸域名（``a.com``）、
+    裸 IPv6（``::1``）以及方括号裸 IPv6（``[::1]``）。无法识别时返回 ``None``。
+    """
+
+    if host.startswith("["):
+        end = host.find("]")
+        if end == -1:
+            return None
+        address = host[: end + 1]
+        rest = host[end + 1 :].strip()
+        if not rest:
+            return address, None
+        if not rest.startswith(":"):
+            return None
+        return address, rest[1:].strip() or None
+
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        pass
+    else:
+        # 裸 IP：IPv6 要补方括号，否则拼成 "::1:7709" 之后无法再解析回来。
+        return (f"[{host}]" if ":" in host else host), None
+
+    if ":" not in host:
+        return host, None
+    address, port_text = host.rsplit(":", 1)
+    address = address.strip()
+    if not address:
+        return None
+    return address, port_text.strip() or None
+
+
+def normalize_host(
+    value: Any, *, default_port: int | None = DEFAULT_QUOTE_PORT
+) -> str | None:
+    """把主机规整成 ``host:port``。
+
+    省略端口时补 ``default_port``（默认 7709），所以 ``"116.205.183.150"``、
+    ``"example.com"``、``"::1"`` 都能直接用，不必手写 ``:7709``；
+    传 ``default_port=None`` 则要求端口必须显式给出。
+    """
+
     if not isinstance(value, str):
         return None
     host = value.strip()
-    if not host or ":" not in host:
+    if not host:
         return None
-    address, port = host.rsplit(":", 1)
-    address = address.strip()
-    port = port.strip()
-    if not address or not port.isdigit():
+    split = _split_host_port(host)
+    if split is None:
         return None
-    try:
-        port_number = int(port)
-    except ValueError:
+    address, port_text = split
+    if not address:
+        return None
+    if port_text is None:
+        if default_port is None:
+            return None
+        port_number = default_port
+    elif port_text.isdigit():
+        try:
+            port_number = int(port_text)
+        except ValueError:
+            return None
+    else:
         return None
     if not 1 <= port_number <= 65535:
         return None
@@ -230,18 +285,7 @@ def load_money_flow_hosts() -> list[str]:
 def server_ranking_path() -> Path:
     """Return the writable per-user server ranking path."""
 
-    override = os.environ.get("ELTDX_DATA_DIR")
-    if override:
-        data_dir = Path(override).expanduser()
-    elif os.name == "nt":
-        windows_data = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
-        data_dir = Path(windows_data or Path.home()) / "eltdx"
-    elif sys.platform == "darwin":
-        data_dir = Path.home() / "Library" / "Application Support" / "eltdx"
-    else:
-        xdg_data = os.environ.get("XDG_DATA_HOME")
-        data_dir = Path(xdg_data or Path.home() / ".local" / "share") / "eltdx"
-    return data_dir / SERVER_RANKING_FILE
+    return data_dir() / SERVER_RANKING_FILE
 
 
 def load_server_ranking() -> dict[str, Any]:

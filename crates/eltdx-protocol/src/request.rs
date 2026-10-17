@@ -1,7 +1,9 @@
 use crate::commands::{
     auctions::{AuctionSeriesRequest, TYPE_AUCTION_SERIES},
     corporate::{
-        CapitalChangesRequest, FinanceBatchRequest, TYPE_CAPITAL_CHANGES, TYPE_FINANCE_BATCH,
+        CapitalChangesRequest, CompanyInfoCategoryRequest, CompanyInfoContentRequest,
+        FinanceBatchRequest, TYPE_CAPITAL_CHANGES, TYPE_COMPANY_INFO_CATEGORY,
+        TYPE_COMPANY_INFO_CONTENT, TYPE_FINANCE_BATCH,
     },
     delisted_bars::{DelistedKlinesRequest, TYPE_DELISTED_KLINES},
     klines::{KlinesRequest, TYPE_KLINES},
@@ -16,7 +18,7 @@ use crate::commands::{
         CategoryQuotesRequest, LegacyQuotesRequest, RefreshStreamRequest, SnapshotsRequest,
         TYPE_CATEGORY_QUOTES, TYPE_LEGACY_QUOTES, TYPE_REFRESH_STREAM, TYPE_SNAPSHOTS,
     },
-    resources::{FileContentRequest, TYPE_FILE_CONTENT},
+    resources::{BlockMetaRequest, FileContentRequest, TYPE_BLOCK_META, TYPE_FILE_CONTENT},
     security::{
         SecurityCountRequest, SecurityListRequest, TYPE_SECURITY_COUNT, TYPE_SECURITY_LIST,
     },
@@ -26,11 +28,14 @@ use crate::commands::{
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 
-pub const SUPPORTED_COMMAND_CODES: [u16; 23] = [
+pub const SUPPORTED_COMMAND_CODES: [u16; 26] = [
     TYPE_HEARTBEAT,
     TYPE_HANDSHAKE,
     TYPE_CAPITAL_CHANGES,
     TYPE_FINANCE_BATCH,
+    TYPE_BLOCK_META,
+    TYPE_COMPANY_INFO_CATEGORY,
+    TYPE_COMPANY_INFO_CONTENT,
     TYPE_SECURITY_LIST,
     TYPE_SECURITY_COUNT,
     TYPE_SPECIAL_LIMITS,
@@ -58,6 +63,9 @@ pub enum CommandRequest {
     Handshake(HandshakeRequest),
     CapitalChanges(CapitalChangesRequest),
     FinanceBatch(FinanceBatchRequest),
+    CompanyInfoCategory(CompanyInfoCategoryRequest),
+    CompanyInfoContent(CompanyInfoContentRequest),
+    BlockMeta(BlockMetaRequest),
     SecurityList(SecurityListRequest),
     SecurityCount(SecurityCountRequest),
     SpecialLimits(SpecialLimitsRequest),
@@ -86,6 +94,9 @@ impl CommandRequest {
             Self::Handshake(_) => TYPE_HANDSHAKE,
             Self::CapitalChanges(_) => TYPE_CAPITAL_CHANGES,
             Self::FinanceBatch(_) => TYPE_FINANCE_BATCH,
+            Self::CompanyInfoCategory(_) => TYPE_COMPANY_INFO_CATEGORY,
+            Self::CompanyInfoContent(_) => TYPE_COMPANY_INFO_CONTENT,
+            Self::BlockMeta(_) => TYPE_BLOCK_META,
             Self::SecurityList(_) => TYPE_SECURITY_LIST,
             Self::SecurityCount(_) => TYPE_SECURITY_COUNT,
             Self::SpecialLimits(_) => TYPE_SPECIAL_LIMITS,
@@ -118,6 +129,9 @@ impl CommandRequest {
             Self::Handshake(request) => request.frame(msg_id),
             Self::CapitalChanges(request) => request.frame(msg_id),
             Self::FinanceBatch(request) => request.frame(msg_id),
+            Self::CompanyInfoCategory(request) => request.frame(msg_id),
+            Self::CompanyInfoContent(request) => request.frame(msg_id),
+            Self::BlockMeta(request) => request.frame(msg_id),
             Self::SecurityList(request) => request.frame(msg_id),
             Self::SecurityCount(request) => request.frame(msg_id),
             Self::SpecialLimits(request) => request.frame(msg_id),
@@ -149,6 +163,9 @@ pub const fn is_supported_command(command: u16) -> bool {
             | TYPE_HANDSHAKE
             | TYPE_CAPITAL_CHANGES
             | TYPE_FINANCE_BATCH
+            | TYPE_BLOCK_META
+            | TYPE_COMPANY_INFO_CATEGORY
+            | TYPE_COMPANY_INFO_CONTENT
             | TYPE_SECURITY_LIST
             | TYPE_SECURITY_COUNT
             | TYPE_SPECIAL_LIMITS
@@ -176,7 +193,10 @@ mod tests {
     use super::{is_supported_command, CommandRequest, SUPPORTED_COMMAND_CODES};
     use crate::commands::{
         auctions::AuctionSeriesRequest,
-        corporate::{CapitalChangesRequest, FinanceBatchRequest},
+        corporate::{
+            CapitalChangesRequest, CompanyInfoCategoryRequest, CompanyInfoContentRequest,
+            FinanceBatchRequest,
+        },
         delisted_bars::DelistedKlinesRequest,
         klines::{KlineKind, KlinesRequest},
         limits::SpecialLimitsRequest,
@@ -189,7 +209,7 @@ mod tests {
         quotes::{
             CategoryQuotesRequest, LegacyQuotesRequest, RefreshStreamRequest, SnapshotsRequest,
         },
-        resources::FileContentRequest,
+        resources::{BlockMetaRequest, FileContentRequest},
         security::{SecurityCountRequest, SecurityListRequest},
         session::{HandshakeRequest, HeartbeatRequest},
         trades::{HistoricalTicksRequest, TodayTicksRequest},
@@ -199,7 +219,7 @@ mod tests {
 
     #[test]
     fn exact_twenty_three_command_codes_are_registered() {
-        assert_eq!(SUPPORTED_COMMAND_CODES.len(), 23);
+        assert_eq!(SUPPORTED_COMMAND_CODES.len(), 26);
         assert!(SUPPORTED_COMMAND_CODES
             .windows(2)
             .all(|pair| pair[0] < pair[1]));
@@ -310,6 +330,18 @@ mod tests {
             )),
             CommandRequest::RecentIntraday(RecentIntradayRequest::new(code, date)?),
             CommandRequest::MoneyFlow(MoneyFlowRequest::new(NormalizedCode::parse("sz000001")?)),
+            CommandRequest::CompanyInfoCategory(CompanyInfoCategoryRequest::new(
+                Market::Shenzhen,
+                "000001",
+            )?),
+            CommandRequest::CompanyInfoContent(CompanyInfoContentRequest::new(
+                Market::Shenzhen,
+                "000001",
+                "000001.txt",
+                0,
+                4096,
+            )?),
+            CommandRequest::BlockMeta(BlockMetaRequest::new("block_zs.dat")?),
         ])
     }
 

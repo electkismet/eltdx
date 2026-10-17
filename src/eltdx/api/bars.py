@@ -6,6 +6,11 @@ from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 
+from eltdx._bar_time import (
+    BAR_TIME_START,
+    align_time_bars,
+    kline_period_minutes,
+)
 from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE
 from eltdx.protocol.unit import normalize_code
 
@@ -28,7 +33,17 @@ class BarApi(ApiBase):
         page_size: int = 800,
         max_pages: int | None = 200,
         batch_size: int | None = None,
+        bar_time: str = BAR_TIME_START,
     ):
+        """获取 K 线。
+
+        Args:
+            bar_time: 时间戳语义。``"start"``（默认）= bar 开始时间（通达信原始，
+                上午最后一根 5min 标 ``11:25``、下午第一根标 ``13:00``）；``"end"`` =
+                bar 右端点（= 开始 + 周期时长，与 Tushare/同花顺对齐，上午最后一根标
+                ``11:30``）。仅对分钟级周期生效；日线及以上不受影响。
+        """
+
         _validate_batch_size(batch_size)
         if not all_pages:
             _validate_page_size(count)
@@ -53,6 +68,7 @@ class BarApi(ApiBase):
                     all_pages=all_pages,
                     page_size=page_size,
                     max_pages=max_pages,
+                    bar_time=bar_time,
                 )
 
             with ThreadPoolExecutor(max_workers=workers) as executor:
@@ -72,6 +88,7 @@ class BarApi(ApiBase):
                 anchor_date=anchor_date,
                 kind=kind,
                 include_raw=include_raw,
+                bar_time=bar_time,
             )
 
         next_start = start
@@ -88,6 +105,7 @@ class BarApi(ApiBase):
                 anchor_date=anchor_date,
                 kind=kind,
                 include_raw=include_raw,
+                bar_time=bar_time,
             )
             if not hasattr(page, "bars") or not hasattr(page, "count"):
                 return page
@@ -112,9 +130,10 @@ class BarApi(ApiBase):
         anchor_date,
         kind: str | None,
         include_raw: bool,
+        bar_time: str = BAR_TIME_START,
     ):
         resolved_kind = _resolve_kline_kind(code, kind)
-        return self._execute(
+        page = self._execute(
             "klines",
             code=code,
             period=period,
@@ -125,6 +144,18 @@ class BarApi(ApiBase):
             kind=resolved_kind,
             include_raw=include_raw,
         )
+        # 单页、批量、自动翻页三条路径都经过这里，所以对齐只做一次。
+        # 周期用响应里已解析好的 period_raw / period_param_raw，避免重复实现
+        # 「周期名 → 编号」映射而与 Rust 侧漂移。
+        if bar_time != BAR_TIME_START and hasattr(page, "bars"):
+            aligned = align_time_bars(
+                list(page.bars),
+                delta_minutes=kline_period_minutes(page.period_raw, page.period_param_raw),
+                bar_time=bar_time,
+                field="time",
+            )
+            return replace(page, bars=tuple(aligned))
+        return page
 
 
 def _validate_page_size(value: int) -> None:

@@ -157,6 +157,126 @@ fn normalize_path(value: &str) -> Result<String, ProtocolError> {
     Ok(trimmed.replace('\\', "/"))
 }
 
+pub const TYPE_BLOCK_META: u16 = 0x02c5;
+pub const BLOCK_META_FILENAME_SIZE: usize = 40;
+pub const BLOCK_META_HASH_SIZE: usize = 32;
+pub const BLOCK_META_PAYLOAD_SIZE: usize = 38;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BlockMetaRequest {
+    filename: String,
+}
+
+impl BlockMetaRequest {
+    pub fn new(filename: &str) -> Result<Self, ProtocolError> {
+        let trimmed = filename.trim();
+        if trimmed.is_empty() {
+            return Err(ProtocolError::invalid_argument(
+                "filename",
+                "block meta filename is required",
+            ));
+        }
+        if !trimmed.is_ascii() {
+            return Err(ProtocolError::invalid_argument(
+                "filename",
+                "block meta filename must be ASCII",
+            ));
+        }
+        if trimmed.len() > BLOCK_META_FILENAME_SIZE {
+            return Err(ProtocolError::invalid_argument(
+                "filename",
+                format!("block meta filename must be <= {BLOCK_META_FILENAME_SIZE} ASCII bytes"),
+            ));
+        }
+        if trimmed.as_bytes().contains(&0) {
+            return Err(ProtocolError::invalid_argument(
+                "filename",
+                "block meta filename must not contain NUL",
+            ));
+        }
+        Ok(Self {
+            filename: trimmed.to_owned(),
+        })
+    }
+
+    pub fn filename(&self) -> &str {
+        &self.filename
+    }
+
+    pub fn frame(&self, msg_id: u32) -> RequestFrame {
+        let mut data = Vec::with_capacity(BLOCK_META_FILENAME_SIZE);
+        data.extend_from_slice(self.filename.as_bytes());
+        data.resize(BLOCK_META_FILENAME_SIZE, 0);
+        RequestFrame::new(msg_id, TYPE_BLOCK_META, data)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BlockMeta {
+    pub size: u32,
+    pub md5: String,
+}
+
+pub fn parse_block_meta_payload(payload: &[u8]) -> Result<BlockMeta, ProtocolError> {
+    if payload.len() > MAX_RESPONSE_PAYLOAD_SIZE {
+        return Err(ProtocolError::LimitExceeded {
+            resource: "block meta",
+            actual: payload.len(),
+            limit: MAX_RESPONSE_PAYLOAD_SIZE,
+        });
+    }
+    if payload.len() < BLOCK_META_PAYLOAD_SIZE {
+        return Err(ProtocolError::invalid_data(
+            "block meta",
+            "invalid block meta payload",
+        ));
+    }
+    let size = little_u32(&payload[..4])?;
+    let hash = &payload[5..5 + BLOCK_META_HASH_SIZE];
+    Ok(BlockMeta {
+        size,
+        md5: decode_ascii_trimmed(hash),
+    })
+}
+
+fn decode_ascii_trimmed(value: &[u8]) -> String {
+    let end = value
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(value.len());
+    String::from_utf8_lossy(&value[..end]).trim().to_owned()
+}
+
+#[cfg(test)]
+mod block_meta_tests {
+    use super::{parse_block_meta_payload, BlockMetaRequest};
+    use crate::ProtocolError;
+
+    #[test]
+    fn block_meta_request_matches_fixed_layout() -> Result<(), ProtocolError> {
+        let frame = BlockMetaRequest::new("block_zs.dat")?.frame(1);
+        assert_eq!(frame.data.len(), 40);
+        assert_eq!(&frame.data[..12], b"block_zs.dat");
+        assert!(frame.data[12..].iter().all(|byte| *byte == 0));
+
+        assert!(BlockMetaRequest::new("").is_err());
+        assert!(BlockMetaRequest::new(&"a".repeat(41)).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn parses_block_meta_size_and_md5() -> Result<(), ProtocolError> {
+        let mut payload = vec![0_u8; 38];
+        payload[..4].copy_from_slice(&12_345_u32.to_le_bytes());
+        payload[5..37].copy_from_slice(b"0123456789abcdef0123456789abcdef");
+        let meta = parse_block_meta_payload(&payload)?;
+        assert_eq!(meta.size, 12_345);
+        assert_eq!(meta.md5, "0123456789abcdef0123456789abcdef");
+        assert!(parse_block_meta_payload(&[0_u8; 37]).is_err());
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{parse_file_content_payload, FileContentRequest};

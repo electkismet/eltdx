@@ -5,12 +5,15 @@
       "eltdx.protocol": [
         "COMMANDS",
         "CommandSpec",
+        "DecompressLimitError",
+        "MAX_FRAME_UNZIPPED_BYTES",
         "RequestFrame",
         "ResponseFrame",
         "build_command_frame",
         "command_code",
         "decode",
         "decode_response",
+        "decompress_limited",
         "encode",
         "parse_command_response",
         "required_commands"

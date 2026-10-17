@@ -229,7 +229,10 @@ class PooledSocketTransport:
     ) -> None:
         values = rank_hosts_from_cache(unique_hosts(list(hosts or DEFAULT_HOSTS)))
         if not values:
-            raise ValueError("at least one host is required")
+            raise ValueError(
+                "at least one host is required; pass hosts=['116.205.183.150:7709']. "
+                "A bare IP or hostname also works (the port defaults to 7709)."
+            )
         if timeout <= 0:
             raise ValueError("timeout must be > 0")
         max_pending_requests = positive_int(

@@ -277,3 +277,17 @@ class FinanceBatch:
     @property
     def count(self) -> int:
         return len(self.records)
+
+
+@dataclass(frozen=True, slots=True)
+class CompanyInfoCategory:
+    name: str
+    filename: str
+    start: int
+    length: int
+
+
+@dataclass(frozen=True, slots=True)
+class BlockMeta:
+    size: int
+    md5: str

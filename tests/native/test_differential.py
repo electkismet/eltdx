@@ -30,17 +30,38 @@ def _cases() -> list[DifferentialCase]:
 
 ALL_CASES = _cases()
 
+#: 已知尚无差分 fixture 的命令。**当前为空**：25 个已注册命令全部有 fixture。
+#:
+#: 历史：``7057088`` 给命令注册表与 Rust 协议层新增了 3 个命令
+#: （``block_meta`` / ``company_info_category`` / ``company_info_content``），
+#: 但没补差分 fixture；补齐需要重编 ``_native``（请求编码与响应解析都在 Rust 侧，
+#: ``eltdx.protocol`` 走 ``call_native``，旧发布版 wheel 会抛
+#: ``UnsupportedCommandError``）。现已重编 ``_native`` 并补齐这 3 个 fixture
+#: （输入由 ``scripts/fixtures/materialize_static_inputs.py`` 合成），故本集合清空。
+#:
+#: 这个机制保留给将来新增的命令：若只加注册表不写 fixture，下面的测试会失败；
+#: 反过来，一旦某命令补上了 fixture 却仍留在本集合里，也会失败（强制清理）。
+PENDING_DIFFERENTIAL_FIXTURES: frozenset[str] = frozenset()
 
-def test_differential_matrix_covers_all_22_commands() -> None:
+
+def test_differential_matrix_covers_all_commands() -> None:
     cases = ALL_CASES
-    assert len(COMMANDS) == 22
-    assert {case.command for case in cases} == set(COMMANDS)
+    assert len(COMMANDS) == 25
+    assert {case.command for case in cases} == set(COMMANDS) - PENDING_DIFFERENTIAL_FIXTURES
     assert len({case.case_id for case in cases}) == len(cases)
     assert all(case.command_code == COMMANDS[case.command].code for case in cases)
     assert all(case.metadata["golden_schema_version"] == 1 for case in cases)
     assert SUCCESS_CASES
     assert ERROR_CASES
     assert RAW_PRECISION_CASES
+
+
+def test_pending_differential_fixtures_are_still_missing() -> None:
+    """待补集合必须仍然真的缺——补完之后这条会失败，提示删除集合项。"""
+
+    covered = {case.command for case in ALL_CASES}
+    assert PENDING_DIFFERENTIAL_FIXTURES & covered == set()
+    assert PENDING_DIFFERENTIAL_FIXTURES <= set(COMMANDS)
 
 
 REQUEST_CASES = [

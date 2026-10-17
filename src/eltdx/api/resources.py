@@ -22,6 +22,11 @@ class ResourceApi(ApiBase):
 
         return self._execute("file_content", path=path, offset=offset, size=size)
 
+    def block_meta(self, filename: str):
+        """Fetch 0x02C5 metadata (byte size and MD5) for one board file."""
+
+        return self._execute("block_meta", filename=filename)
+
     def download_file(
         self,
         path: str,
