@@ -7,6 +7,7 @@ parsing protocol frames directly. Low-level command ownership stays in
 
 from __future__ import annotations
 
+import weakref
 from collections.abc import Iterable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
@@ -255,7 +256,11 @@ class HelperApi:
         board_data_dir: str | None = None,
         board_definitions_dir: str | None = None,
     ) -> None:
-        self._client = client
+        # 只存弱引用：HelperApi 由 client 持有，若这里再强引用 client 就构成
+        # 引用环，client 只能等分代 GC 才能回收（底层 worker 线程同理）。
+        # 子服务（ShortlineIndicatorService / BoardService）传真实 client，
+        # 由它们各自的 __init__ 转成弱引用。
+        self._client_ref = weakref.ref(client)
         self._shortline = ShortlineIndicatorService(client)
         self._finance_cache: dict[tuple[str, ...], Any] = {}
         self._security_cache: dict[str, tuple[Any, ...]] = {}
@@ -264,6 +269,15 @@ class HelperApi:
             data_dir=board_data_dir,
             definitions_dir=board_definitions_dir,
         )
+
+    @property
+    def _client(self) -> TdxClient:
+        """解析 TdxClient 弱引用；client 已回收时明确报错而不是静默降级。"""
+
+        client = self._client_ref()
+        if client is None:
+            raise ReferenceError("TdxClient 已被回收")
+        return client
 
     def clear_cache(self) -> None:
         self._shortline.clear_cache()

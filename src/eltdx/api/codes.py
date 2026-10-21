@@ -16,8 +16,9 @@ class CodeApi(ApiBase):
     def list(self, market: str, *, start: int = 0, limit: int = 1600):
         _validate_limit(limit)
         result = self._execute("security_list", market=market, start=start, limit=limit)
-        if self._metadata_sink is not None:
-            self._metadata_sink(result)
+        sink = self._metadata_sink() if self._metadata_sink is not None else None
+        if sink is not None:
+            sink(result)
         return result
 
     def all(self, market: str, *, page_size: int = DEFAULT_CODE_PAGE_SIZE):

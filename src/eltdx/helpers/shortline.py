@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import weakref
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -94,9 +95,20 @@ class _MarketDateContext:
 
 class ShortlineIndicatorService:
     def __init__(self, client: TdxClient) -> None:
-        self._client = client
+        # 只存弱引用：本服务由 HelperApi/client 持有，强引用 client 会构成
+        # 引用环，让 client（以及底层 ~5 条 worker 线程）只能等 GC 回收。
+        self._client_ref = weakref.ref(client)
         self._stats_cache: dict[str, TdxStatsResource] = {}
         self._stats_lock = RLock()
+
+    @property
+    def _client(self) -> TdxClient:
+        """解析 TdxClient 弱引用；client 已回收时明确报错而不是静默降级。"""
+
+        client = self._client_ref()
+        if client is None:
+            raise ReferenceError("TdxClient 已被回收")
+        return client
 
     def clear_cache(self) -> None:
         with self._stats_lock:

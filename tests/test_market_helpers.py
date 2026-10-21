@@ -56,7 +56,8 @@ def test_market_stat_decodes_statistic_indices() -> None:
             assert payload["codes"] == ["sh880005", "sh880001", "sh880006"]
             return quotes
 
-    stat = TdxClient(transport=FakeTransport()).helpers.market_stat()
+    client = TdxClient(transport=FakeTransport())
+    stat = client.helpers.market_stat()
 
     assert stat.up_count == 3000
     assert stat.down_count == 2000
@@ -82,7 +83,8 @@ def test_market_stat_suspended_count_is_derived() -> None:
         def execute(self, command: int, payload=None):
             return quotes
 
-    stat = TdxClient(transport=FakeTransport()).helpers.market_stat()
+    client = TdxClient(transport=FakeTransport())
+    stat = client.helpers.market_stat()
 
     assert stat.up_count == 1000
     assert stat.down_count == 500
@@ -96,8 +98,9 @@ def test_market_stat_raises_when_server_returns_nothing() -> None:
         def execute(self, command: int, payload=None):
             return []
 
+    client = TdxClient(transport=FakeTransport())
     with pytest.raises(RuntimeError):
-        TdxClient(transport=FakeTransport()).helpers.market_stat()
+        client.helpers.market_stat()
 
 
 def _trade_tick(side: str, price: float, volume: int, *, event_kind: str = "trade") -> TradeTick:
@@ -163,7 +166,8 @@ def test_today_fund_flow_reads_all_today_ticks() -> None:
             # ``all_today`` pages until the server returns an empty page.
             return page if payload["start"] == 0 else _empty_page()
 
-    flow = TdxClient(transport=FakeTransport()).helpers.today_fund_flow("sz000001")
+    client = TdxClient(transport=FakeTransport())
+    flow = client.helpers.today_fund_flow("sz000001")
 
     assert flow.super_in == 2_000_000.0
     assert flow.small_out == 10_000.0
@@ -189,7 +193,8 @@ def test_today_fund_flow_accepts_transport_returning_bare_tick_list() -> None:
             assert command == 0x0FC5
             return [_trade_tick("buy", 50.0, 100)]
 
-    flow = TdxClient(transport=FakeTransport()).helpers.today_fund_flow("sz000001")
+    client = TdxClient(transport=FakeTransport())
+    flow = client.helpers.today_fund_flow("sz000001")
 
     assert flow.large_in == 50.0 * 100 * 100.0
 
@@ -199,7 +204,8 @@ def test_today_fund_flow_returns_zero_when_no_ticks() -> None:
         def execute(self, command: int, payload=None):
             return _empty_page()
 
-    flow = TdxClient(transport=FakeTransport()).helpers.today_fund_flow("sz000001")
+    client = TdxClient(transport=FakeTransport())
+    flow = client.helpers.today_fund_flow("sz000001")
 
     assert flow.total_net_inflow == 0.0
     assert flow.main_net_inflow == 0.0

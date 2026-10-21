@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from threading import RLock
+from typing import Any
 
 from .api.auctions import AuctionApi
 from .api.bars import BarApi
@@ -91,6 +92,12 @@ class TdxClient:
     _decimal_cache: dict[str, int] = field(init=False, default_factory=dict, repr=False, compare=False)
     _decimal_markets: set[str] = field(init=False, default_factory=set, repr=False, compare=False)
     _decimal_lock: RLock = field(init=False, default_factory=RLock, repr=False, compare=False)
+    # ``slots=True`` 默认不生成 ``__weakref__``，子服务就无法用
+    # ``weakref.ref(client)`` / ``weakref.WeakMethod(bound)`` 打断引用环
+    # （引用环会让 ~5 条 Rust worker 线程只能等分代 GC 才回收）。
+    # 这里必须显式声明字段而不是 ``@dataclass(weakref_slot=True)``：后者是
+    # Python 3.11+ 才有的参数，而本包 ``requires-python = ">=3.10"``。
+    __weakref__: Any = field(init=False, repr=False, compare=False)
 
     @classmethod
     def from_hosts(

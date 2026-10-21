@@ -7,12 +7,16 @@ import json
 import os
 import re
 import struct
+import weakref
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from eltdx.protocol.unit import ID_TO_MARKET, MARKET_TO_ID
+
+if TYPE_CHECKING:
+    from eltdx.client import TdxClient
 
 
 BOARD_BATCH_SIZE = 80
@@ -83,7 +87,9 @@ class BoardService:
 
     def __init__(self, client: Any, *, data_dir: str | os.PathLike[str] | None = None,
                  definitions_dir: str | os.PathLike[str] | None = None) -> None:
-        self._client = client
+        # 只存弱引用：BoardService 由 HelperApi/client 持有，强引用 client 会
+        # 构成引用环，让 client（以及底层 ~5 条 worker 线程）只能等 GC 回收。
+        self._client_ref = weakref.ref(client)
         selected_data_dir: str | os.PathLike[str] = data_dir or os.environ.get(
             "ELTDX_BOARD_DATA_DIR", str(Path.cwd() / "downloads")
         )
@@ -93,6 +99,15 @@ class BoardService:
         self._boards: tuple[dict[str, Any], ...] | None = None
         self._members: dict[str, dict[str, Any]] = {}
         self._security: dict[tuple[int, str], Any] | None = None
+
+    @property
+    def _client(self) -> TdxClient:
+        """解析 TdxClient 弱引用；client 已回收时明确报错而不是静默降级。"""
+
+        client = self._client_ref()
+        if client is None:
+            raise ReferenceError("TdxClient 已被回收")
+        return client
 
     def clear_cache(self) -> None:
         self._prepared_date = None

@@ -52,6 +52,41 @@ def default_probe_command() -> "BaseCommand[Any]":
     return GetExInstrumentInfoCmd(0, 1)
 
 
+class _ProbeRegistry:
+    """登记在途的探活连接，供早退时立刻中断它们。
+
+    ``ThreadPoolExecutor`` 的 ``cancel_futures`` 只能取消**尚未开始**的任务；已经卡在
+    TCP 握手里的线程若放着不管，要等满 ``timeout`` 才退出——短时间内反复创建客户端
+    就会把进程线程数顶上去。把连接登记下来、早退时逐个 ``close``，阻塞中的
+    ``connect()`` 会立刻失败，线程随即回收。
+    """
+
+    __slots__ = ("_lock", "_connections")
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._connections: list[ExTdxConnection] = []
+
+    def add(self, connection: ExTdxConnection) -> None:
+        with self._lock:
+            self._connections.append(connection)
+
+    def discard(self, connection: ExTdxConnection) -> None:
+        with self._lock:
+            try:
+                self._connections.remove(connection)
+            except ValueError:
+                pass
+
+    def abort_all(self) -> None:
+        """关闭所有在途连接；幂等，可由任意线程调用。"""
+
+        with self._lock:
+            connections, self._connections = self._connections, []
+        for connection in connections:
+            connection.close()
+
+
 def probe_ex_host(
     host: str,
     port: int = DEFAULT_EX_PORT,
@@ -59,20 +94,26 @@ def probe_ex_host(
     *,
     command_factory: Callable[[], "BaseCommand[Any]"] = default_probe_command,
     mac_ex_mode: bool = False,
+    registry: _ProbeRegistry | None = None,
 ) -> ExHostProbe:
     """能力感知地探活单台主机：连得上**且**应答业务命令才算 ``ok``。
 
     失败不抛异常，统一返回 ``ExHostProbe(ok=False, error=...)``，便于并发汇总。
+    ``registry`` 非空时会把连接登记进去，使调用方可以中断本次探活。
     """
 
     started = time.monotonic()
     conn = ExTdxConnection(host, port, timeout, mac_ex_mode=mac_ex_mode)
+    if registry is not None:
+        registry.add(conn)
     try:
         conn.connect()
         conn.execute(command_factory())
     except (EltdxError, OSError) as exc:
         return ExHostProbe(host=host, ok=False, error=f"{type(exc).__name__}: {exc}")
     finally:
+        if registry is not None:
+            registry.discard(conn)
         conn.close()
     return ExHostProbe(
         host=host,
@@ -100,8 +141,9 @@ def probe_ex_hosts(
     ``stop_after_first=True`` 时，一旦某台主机确认应答就立即返回，不再等其余主机的
     超时。真实环境里 15/16 台主机是静默的，等待它们要把调用方拖满一个 ``timeout``
     （默认 3 秒），而可用主机通常 50 毫秒内就回——早退能把这段等待几乎完全省掉。
-    代价是未探到的主机标记为 ``error="not probed"``（是「未知」而非「不可用」），
-    需要完整排名时请保持默认的 ``False``。
+    早退时会**主动中断**在途连接（见 :class:`_ProbeRegistry`），所以不会留下一批要
+    等超时才退出的线程；未探到的主机标记为 ``error="not probed"``（是「未知」而非
+    「不可用」），需要完整排名时请保持默认的 ``False``。
     """
 
     candidates = load_ex_hosts() if hosts is None else list(hosts)
@@ -110,6 +152,7 @@ def probe_ex_hosts(
 
     workers = min(max(1, int(max_workers)), len(candidates))
     by_host: dict[str, ExHostProbe] = {}
+    registry = _ProbeRegistry()
     pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="eltdx-ex-probe")
     try:
         futures = {
@@ -120,6 +163,7 @@ def probe_ex_hosts(
                 timeout,
                 command_factory=command_factory,
                 mac_ex_mode=mac_ex_mode,
+                registry=registry,
             ): host
             for host in candidates
         }
@@ -131,10 +175,12 @@ def probe_ex_hosts(
                 result = ExHostProbe(host=host, ok=False, error=type(exc).__name__)
             by_host[host] = result
             if stop_after_first and result.ok:
+                # 先中断在途连接再退出：否则 shutdown 要么等满超时，要么留下野线程。
+                registry.abort_all()
                 break
     finally:
-        # 早退时不等待在途探活，否则省下的等待又会在 shutdown 处补回来。
-        pool.shutdown(wait=not stop_after_first, cancel_futures=stop_after_first)
+        registry.abort_all()
+        pool.shutdown(wait=True, cancel_futures=True)
 
     return [by_host.get(host, ExHostProbe(host=host, ok=False, error="not probed")) for host in candidates]
 
@@ -232,16 +278,25 @@ class ExTdxConnection:
         self._lock = threading.Lock()
 
     def connect(self) -> None:
-        """建立 TCP 连接；失败抛 TransportError。"""
+        """建立 TCP 连接；失败抛 TransportError。
+
+        socket 在 ``connect()`` **之前**就登记到 ``self._sock``：这样别的线程调用
+        :meth:`close` 可以中断正卡在 TCP 握手里的本次调用。探活早退时正是靠这一点
+        立刻回收在途线程（见 :func:`probe_ex_hosts`），否则它们要一直等到超时。
+        """
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(self.timeout)
+        self._sock = sock
         try:
             sock.connect((self.host, self.port))
         except OSError as e:
-            sock.close()
+            self._sock = None
+            try:
+                sock.close()
+            except OSError:
+                pass
             raise TransportError(f"无法连接 {self.host}:{self.port}: {e}") from e
-        self._sock = sock
 
     def close(self) -> None:
         """关闭连接（幂等）。"""

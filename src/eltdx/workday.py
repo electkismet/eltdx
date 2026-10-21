@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import weakref
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -13,20 +14,51 @@ if TYPE_CHECKING:
     from eltdx.client import TdxClient
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, init=False)
 class WorkdayService:
     """Trading-day helper backed by a benchmark daily K-line series.
 
     Without a client it falls back to weekday-only logic, which is useful for
     tests and simple date normalization. With a client it loads actual trading
     dates from ``benchmark_code`` daily bars.
+
+    ``client`` 以弱引用保存（见 ``__init__``）：本服务由 ``TdxClient`` 持有，
+    强引用回 client 会构成引用环，让 client 及其底层 worker 线程只能等分代 GC
+    回收。``__init__`` 手工声明是为了在保持 ``WorkdayService(client=...)`` /
+    ``client=None`` 语义不变的前提下，把 ``client`` 换成解析用的 property。
     """
 
-    client: TdxClient | None = None
     benchmark_code: str = "sh000001"
     _days: list[date] = field(default_factory=list, init=False, repr=False)
     _day_set: set[date] = field(default_factory=set, init=False, repr=False)
     _loaded: bool = field(default=False, init=False, repr=False)
+    _client_ref: weakref.ref[TdxClient] | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+
+    def __init__(self, client: TdxClient | None = None, benchmark_code: str = "sh000001") -> None:
+        self.benchmark_code = benchmark_code
+        self._days = []
+        self._day_set = set()
+        self._loaded = False
+        self._client_ref = None if client is None else weakref.ref(client)
+
+    @property
+    def client(self) -> TdxClient | None:
+        """解析 client 弱引用。
+
+        未绑定 client 时返回 ``None``（星期几降级逻辑依赖它）；client 已被
+        回收时抛 ``ReferenceError``，而不是悄悄退回星期几推算 —— 那会把
+        「拿不到真实交易日」伪装成一份看似正常的结果。
+        """
+
+        ref = self._client_ref
+        if ref is None:
+            return None
+        client = ref()
+        if client is None:
+            raise ReferenceError("TdxClient 已被回收")
+        return client
 
     def today(self) -> date:
         return self.normalize(None)

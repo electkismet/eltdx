@@ -11,7 +11,7 @@ from eltdx.models import MoneyFlowBatch, MoneyFlowBlock
 from eltdx.protocol.constants import TYPE_MONEY_FLOW
 from eltdx.protocol.unit import normalize_code
 
-from .base import ApiBase
+from .base import ApiBase, _weak_callback
 
 
 #: 单只标的一次故障转移最多试用的备用主机数（避免新股在几十台主机上全试一遍）。
@@ -67,7 +67,8 @@ class MoneyFlowApi(ApiBase):
     Args:
         transport: 主 transport。
         transport_factory: 可选，无参调用时返回资金流直连池；带 ``host`` 调用时返回
-            只连该主机的临时池（用于空数据故障转移）。
+            只连该主机的临时池（用于空数据故障转移）。以弱引用保存，避免子服务与
+            ``TdxClient`` 互持形成引用环。
         candidate_hosts: 空数据时按顺序尝试的主机（已按延迟排好序）。
     """
 
@@ -79,22 +80,30 @@ class MoneyFlowApi(ApiBase):
         candidate_hosts: Sequence[str] = (),
     ) -> None:
         super().__init__(transport)
-        self._transport_factory = transport_factory
+        self._transport_factory = _weak_callback(transport_factory)
         self._candidate_hosts = tuple(candidate_hosts)
         self._dedicated_transport = None
         self._preferred_transport = None
         self._preferred_host: str | None = None
         self._transport_lock = Lock()
 
+    def _resolve_transport_factory(self):
+        """解析 ``transport_factory`` 弱引用；回调已随 client 回收时返回 ``None``。"""
+
+        if self._transport_factory is None:
+            return None
+        return self._transport_factory()
+
     def _active_transport(self):
         # 一旦某台主机被证明「真有数据」，后续查询直接用它，避免每次空返回都重探一轮。
         if self._preferred_transport is not None:
             return self._preferred_transport
-        if self._transport_factory is None:
+        factory = self._resolve_transport_factory()
+        if factory is None:
             return self._transport
         with self._transport_lock:
             if self._dedicated_transport is None:
-                self._dedicated_transport = self._transport_factory()
+                self._dedicated_transport = factory()
             return self._dedicated_transport
 
     def close(self) -> None:
@@ -175,7 +184,13 @@ class MoneyFlowApi(ApiBase):
         起点，避免整批票都去死磕 ``candidate_hosts[0]``。
         """
 
-        if failover is None or not self._candidate_hosts or self._transport_factory is None:
+        # 「回调本身为 None」与「弱引用已解析不出来（client 已回收）」都走同一降级：
+        # 不做故障转移，原样返回空响应。
+        if (
+            failover is None
+            or not self._candidate_hosts
+            or self._resolve_transport_factory() is None
+        ):
             return None
         candidates = self._candidate_hosts
         total = len(candidates)
@@ -240,8 +255,11 @@ class MoneyFlowApi(ApiBase):
             return True
 
     def _open_host_transport(self, host: str):
+        factory = self._resolve_transport_factory()
+        if factory is None:
+            return None
         try:
-            return self._transport_factory(host)
+            return factory(host)
         except TransportError:
             return None
 
