@@ -387,3 +387,99 @@ def test_from_best_host_falls_back_when_nothing_answers():
     client = ex_client.ExTdxClient.from_best_host(["a", "b"], timeout=0.1, ping_timeout=0.1)
     assert client.host in {"a", "b"}
     client.close()
+
+
+# --------------------------------------------------------------------- #
+# 早退不得留下滞留线程（回归：曾用 shutdown(wait=False) 造成线程暴涨）
+# --------------------------------------------------------------------- #
+
+
+def test_probe_registry_aborts_registered_connections():
+    from eltdx.ex.transport.sync import _ProbeRegistry
+
+    closed: list[str] = []
+
+    class Conn:
+        def __init__(self, tag: str) -> None:
+            self.tag = tag
+
+        def close(self) -> None:
+            closed.append(self.tag)
+
+    registry = _ProbeRegistry()
+    first, second = Conn("a"), Conn("b")
+    registry.add(first)
+    registry.add(second)
+    registry.discard(first)
+    registry.abort_all()
+
+    assert closed == ["b"]
+    # 幂等：再次中断不得重复关闭
+    registry.abort_all()
+    assert closed == ["b"]
+
+
+def test_probe_ex_host_registers_and_releases_connection():
+    from eltdx.ex.transport.sync import _ProbeRegistry
+
+    seen: list[int] = []
+
+    class RecordingRegistry(_ProbeRegistry):
+        def add(self, connection):
+            seen.append(1)
+            super().add(connection)
+
+        def discard(self, connection):
+            seen.append(-1)
+            super().discard(connection)
+
+    FakeNet.reset({"h": "ok"})
+    result = probe_ex_host("h", registry=RecordingRegistry())
+
+    assert result.ok is True
+    assert seen == [1, -1]
+
+
+def test_early_exit_does_not_leave_probe_threads(monkeypatch):
+    """早退必须主动中断在途探活，而不是把它们留到超时。
+
+    用一个「只有被 close 才会解阻塞」的假连接模拟卡在 TCP 握手里的线程：
+    修复前这些线程要等满超时才退出，短时间内反复创建客户端就会把线程数顶上去。
+    """
+
+    import threading
+    import time
+
+    release = threading.Event()
+
+    class BlockingConnection(FakeConnection):
+        def connect(self) -> None:
+            FakeNet.connects.append(self.host)
+            if self.host == "good":
+                self._open = True
+                return
+            # 模拟阻塞中的握手：只由 close() 解开
+            release.wait(timeout=5.0)
+            raise TransportError(f"aborted: {self.host}")
+
+        def close(self) -> None:
+            self._open = False
+            release.set()
+
+    monkeypatch.setattr(ex_transport.sync, "ExTdxConnection", BlockingConnection)
+
+    before = len([t for t in threading.enumerate() if "eltdx-ex-probe" in t.name])
+    started = time.monotonic()
+    results = probe_ex_hosts(["good", "b1", "b2", "b3"], timeout=0.1, stop_after_first=True)
+    elapsed = time.monotonic() - started
+
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        if len([t for t in threading.enumerate() if "eltdx-ex-probe" in t.name]) <= before:
+            break
+        time.sleep(0.02)
+    after = [t for t in threading.enumerate() if "eltdx-ex-probe" in t.name]
+
+    assert [r.host for r in results if r.ok] == ["good"]
+    assert elapsed < 3.0, f"早退被在途探活拖住: {elapsed:.2f}s"
+    assert len(after) <= before, f"残留探活线程: {[t.name for t in after]}"

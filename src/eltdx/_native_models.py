@@ -24,6 +24,8 @@ from eltdx.models import (
     FileContentChunk,
     FinanceBatch,
     FinanceRecord,
+    FundFlowHistoryRecord,
+    FundFlowHistorySeries,
     HandshakeInfo,
     HeartbeatAck,
     KlineBar,
@@ -278,6 +280,12 @@ def _money_flow_block(value: Any) -> MoneyFlowBlock:
     )
 
 
+def _fund_flow_history_record(value: Any) -> FundFlowHistoryRecord:
+    fields = list(_tuple(value, "fund flow history record", 11))
+    fields[1] = _date(fields[1])
+    return FundFlowHistoryRecord(*fields)
+
+
 def _trade_page(value: Any) -> TradePage:
     fields = _tuple(value, "trade page", 9)
     ticks = _flat_records(fields[5], "trade ticks", _TRADE_TICK_STRIDE)
@@ -390,6 +398,19 @@ def response_from_dto(dto: Any) -> Any:
     if tag == "money_flow":
         blocks, _raw_payload = _tuple(payload, tag, 2)
         return MoneyFlowBatch(_records(blocks, tag, _money_flow_block))
+    if tag == "history_fund_flow":
+        exchange, market_id, code, start, request_count, records, raw_payload = _tuple(
+            payload, tag, 7
+        )
+        return FundFlowHistorySeries(
+            exchange,
+            market_id,
+            code,
+            start,
+            request_count,
+            _records(records, tag, _fund_flow_history_record),
+            raw_payload,
+        )
     if tag == "legacy_quotes":
         return [_legacy_quote(item) for item in _list(payload, tag)]
     if tag == "refresh_stream":

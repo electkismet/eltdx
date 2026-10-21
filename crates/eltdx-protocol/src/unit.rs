@@ -269,6 +269,10 @@ impl KlinePeriod {
             "1m" | "1min" | "minute" => Some(Self::new(7, 1)),
             "quarter" | "1q" | "q" => Some(Self::new(10, 1)),
             "year" | "1y" | "y" => Some(Self::new(11, 1)),
+            // Category 22 of the 0x052d family returns the historical money-flow
+            // series instead of OHLC bars; the parameter stays 1 like every other
+            // fixed period.
+            "flow" | "fund_flow" | "zjlx" => Some(Self::new(22, 1)),
             _ => None,
         };
         if let Some(period) = known {
@@ -302,6 +306,7 @@ impl KlinePeriod {
             (7, 1) => "1m".to_owned(),
             (10, 1) => "quarter".to_owned(),
             (11, 1) => "year".to_owned(),
+            (22, 1) => "flow".to_owned(),
             (8, parameter) => format!("{parameter}m"),
             (9, parameter) => format!("{parameter}d"),
             (13, parameter) => format!("{parameter}s"),

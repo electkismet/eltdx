@@ -160,7 +160,58 @@ class F10Client:
         selected_date = report_date or _first_value(self.business_periods(code6), "T002")
         if selected_date is None:
             raise ProtocolError(f"no business composition report date for {code6}")
-        return self.params("CWServ.tdxf10_gg_jyfx", code6, "zygc", str(selected_date))
+        return self.business_report(code, "composition", report_date=str(selected_date))
+
+    def shareholders(
+        self,
+        code: str,
+        section: str = "count",
+        *,
+        report_date: str | None = None,
+        kind: str = "000",
+        filter1: str = "",
+        filter2: str = "",
+        page: int = 1,
+        page_size: int = 20,
+    ) -> F10Response:
+        """股东研究，底层 Entry ``CWServ.tdxf10_gg_gdyj``。
+
+        section 取值：
+        ``count`` 股东人数与股价比较；``ranking`` 同行业股东人数增减量排名；
+        ``controller`` 控股股东与实际控制人；``top_circulating`` 十大流通股东；
+        ``top`` 十大股东（按报告期）；``bonds`` 十大债券持有人；
+        ``changes`` 重要股东持股变动；``institutions`` 机构持股汇总；
+        ``institution_types`` 机构持股分类汇总（``filter2`` 取 ``report_date``）；
+        ``institution_holdings`` 机构持仓明细（Entry 改用
+        ``CWServ.tdxf10_gg_gdyj_jgcgmx``，Params 使用 ``kind`` 与 ``report_date``）；
+        ``plan`` 股东增减持计划，等价于 :meth:`shareholder_change_plans`。
+
+        返回模型：:class:`eltdx.f10.models.F10Response`。
+        """
+
+        code6 = _code6(code)
+        page_text = str(page)
+        size_text = str(page_size)
+        date_text = report_date or ""
+        gdyj = "CWServ.tdxf10_gg_gdyj"
+        table: dict[str, tuple[str, tuple[Any, ...]]] = {
+            "count": (gdyj, (code6, "gdrs", filter1, filter2, page_text, page_text, size_text)),
+            "ranking": (gdyj, (code6, "thygdrs", filter1, filter2, page_text, page_text, size_text)),
+            "controller": (gdyj, (code6, "kggd", filter1, filter2, page_text, page_text, size_text)),
+            "top_circulating": (gdyj, (code6, "ltgd", filter1, filter2, page_text, page_text, size_text)),
+            "top": (gdyj, (code6, "sdgdbgq", filter1, filter2, page_text, page_text, size_text)),
+            "bonds": (gdyj, (code6, "sdzqcyr", filter1, filter2, page_text, page_text, size_text)),
+            "changes": (gdyj, (code6, "cgbd", filter1, filter2, page_text, page_text, size_text)),
+            "institutions": (gdyj, (code6, "jgcg", filter1, filter2, page_text, page_text, size_text)),
+            "institution_types": (gdyj, (code6, "jgcgz", filter1, date_text, page_text, page_text, size_text)),
+            "institution_holdings": (
+                "CWServ.tdxf10_gg_gdyj_jgcgmx",
+                (code6, kind, date_text, "99", page_text, page_text, size_text),
+            ),
+            "plan": (gdyj, (code6, "gdzjcjh", filter1, filter2, page_text, page_text, size_text)),
+        }
+        entry, params = _section_request(section, table)
+        return self.params(entry, *params)
 
     def shareholder_change_plans(
         self,
@@ -173,16 +224,317 @@ class F10Client:
     ) -> F10Response:
         """股东增减持计划。"""
 
-        return self.params(
-            "CWServ.tdxf10_gg_gdyj",
-            _code6(code),
-            "gdzjcjh",
-            filter1,
-            filter2,
-            str(page),
-            str(page),
-            str(page_size),
+        return self.shareholders(
+            code,
+            "plan",
+            page=page,
+            page_size=page_size,
+            filter1=filter1,
+            filter2=filter2,
         )
+
+    def capital_structure(
+        self,
+        code: str,
+        section: str = "structure",
+        *,
+        date: str | None = None,
+    ) -> F10Response:
+        """股本结构，底层 Entry ``CWServ.tdxf10_gg_gbjg``。
+
+        section 取值：
+        ``structure`` 股本结构；``changes`` 股本变动；``buyback`` 股票回购；
+        ``restricted`` 限售流通；``restricted_detail`` 限售解禁明细（Entry 改用
+        ``CWServ.tdxf10_gg_gbjg_xsjjmx``，必须传 ``date``）。
+
+        ``date`` 为 ``YYYYMMDD`` 字符串，仅 ``restricted_detail`` 使用。
+
+        返回模型：:class:`eltdx.f10.models.F10Response`。
+        """
+
+        code6 = _code6(code)
+        gbjg = "CWServ.tdxf10_gg_gbjg"
+        table: dict[str, tuple[str, tuple[Any, ...]]] = {
+            "structure": (gbjg, (code6, "gbjg")),
+            "changes": (gbjg, (code6, "gbbd")),
+            "buyback": (gbjg, (code6, "gphg")),
+            "restricted": (gbjg, (code6, "xslt")),
+        }
+        _require_section(section, (*table, "restricted_detail"))
+        if section == "restricted_detail":
+            if not date:
+                raise ValueError(
+                    "capital_structure section 'restricted_detail' requires date (YYYYMMDD)"
+                )
+            return self.params("CWServ.tdxf10_gg_gbjg_xsjjmx", code6, _date_text(date))
+        entry, params = table[section]
+        return self.params(entry, *params)
+
+    def business_report(
+        self,
+        code: str,
+        section: str = "business",
+        *,
+        report_date: str | None = None,
+    ) -> F10Response:
+        """经营分析，底层 Entry ``CWServ.tdxf10_gg_jyfx``。
+
+        section 取值：
+        ``business`` 主营业务概述；``composition`` 主营构成（等价于
+        :meth:`business_composition`）；``customers`` 前五名客户；
+        ``suppliers`` 前五名供应商；``price`` 产品价格；
+        ``changes`` 财务指标大幅变动说明。
+
+        ``report_date`` 为 ``YYYYMMDD`` 字符串，``composition`` / ``customers`` /
+        ``suppliers`` / ``changes`` 由服务端要求提供，未提供时按空串发送。
+
+        返回模型：:class:`eltdx.f10.models.F10Response`。
+        """
+
+        code6 = _code6(code)
+        date_text = "" if report_date is None else str(report_date)
+        jyfx = "CWServ.tdxf10_gg_jyfx"
+        table: dict[str, tuple[str, tuple[Any, ...]]] = {
+            "business": (jyfx, (code6, "zyyw", "")),
+            "composition": (jyfx, (code6, "zygc", date_text)),
+            "customers": (jyfx, (code6, "qwm", date_text)),
+            "suppliers": (jyfx, (code6, "qwmgys", date_text)),
+            "price": (jyfx, (code6, "cpjg", "")),
+            "changes": (jyfx, (code6, "0", date_text)),
+        }
+        entry, params = _section_request(section, table)
+        return self.params(entry, *params)
+
+    def industry_analysis(
+        self,
+        code: str,
+        section: str = "peers",
+        *,
+        arg: str = "",
+    ) -> F10Response:
+        """行业分析，底层 Entry ``CWServ.tdxf10_gg_hyfx``，Params 为 ``[sub, code, arg]``。
+
+        section 取值：
+        ``peers`` 同行业对比（``arg`` 默认 ``"000"``）；``dividend_rank`` 分红融资排名
+        （默认 ``"100"``）；``scale`` 公司规模（默认 ``"000"``）；``valuation`` 估值位置
+        （默认 ``"011"``）；``news`` 行业新闻；``reports`` 行业研报；
+        ``market_share`` 市场表现（默认 ``"000"``）；``summary`` 行业综述。
+
+        ``comparable`` 可比公司列表（Entry 改用 ``CWServ.tdxf10_gg_kbgs``，Params
+        ``["1", code]``）；``comparable_profile`` 本公司在本页的资料（同一 Entry，
+        Params ``["0", code]``）。
+
+        ``arg`` 为空时使用该 section 的默认值，且不影响 ``comparable`` /
+        ``comparable_profile``（它们的 Params 没有附加位）。
+
+        返回模型：:class:`eltdx.f10.models.F10Response`。
+        """
+
+        code6 = _code6(code)
+        hyfx = "CWServ.tdxf10_gg_hyfx"
+        kbgs = "CWServ.tdxf10_gg_kbgs"
+        table: dict[str, tuple[str, tuple[Any, ...]]] = {
+            "peers": (hyfx, ("cwgz", code6, arg or "000")),
+            "dividend_rank": (hyfx, ("fhrzb", code6, arg or "100")),
+            "scale": (hyfx, ("gsgm", code6, arg or "000")),
+            "valuation": (hyfx, ("gzsp", code6, arg or "011")),
+            "news": (hyfx, ("hyxw", code6, arg or "")),
+            "reports": (hyfx, ("hyyb", code6, arg or "")),
+            "market_share": (hyfx, ("scbx", code6, arg or "000")),
+            "summary": (hyfx, ("tot", code6, arg or "")),
+            "comparable": (kbgs, ("1", code6)),
+            "comparable_profile": (kbgs, ("0", code6)),
+        }
+        entry, params = _section_request(section, table)
+        return self.params(entry, *params)
+
+    def trading_report(
+        self,
+        code: str,
+        section: str = "margin",
+        *,
+        arg: str = "",
+        date: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> F10Response:
+        """交易数据，底层 Entry ``CWServ.tdxf10_gg_jyds``（``margin_history`` 走 ``CWServ.tdxf10_gg_sj``）。
+
+        section 取值：
+        ``margin`` 近期融资融券；``margin_history`` 近 6 个月融资融券（Entry
+        ``CWServ.tdxf10_gg_sj``，Params ``["rzrq_sj", code, "0", code]``）；
+        ``block_trades`` 大宗交易；``dragon_board`` 龙虎榜（``arg`` 默认 ``"2"``）；
+        ``northbound`` 沪深股通；``limit_down`` 跌停分析；``limit_up`` 涨停分析（含涨停原因）；
+        ``bonds`` 可转债；``main_force`` 主力盘口；``reports`` 研报席位；
+        ``kcb`` 科创板标记。
+
+        资金流向不在此方法内，统一由 :meth:`eltdx.api.money_flow.MoneyFlowApi.history` 提供。
+        ``date`` 当前没有 section 使用，仅为与其它报表方法保持签名一致。
+
+        返回模型：:class:`eltdx.f10.models.F10Response`。
+        """
+
+        code6 = _code6(code)
+        jyds = "CWServ.tdxf10_gg_jyds"
+        table: dict[str, tuple[str, tuple[Any, ...]]] = {
+            "margin": (jyds, (code6, "rzrq", "")),
+            "margin_history": ("CWServ.tdxf10_gg_sj", ("rzrq_sj", code6, "0", code6)),
+            "block_trades": (jyds, (code6, "dzjy", "")),
+            "dragon_board": (jyds, (code6, "lgt", arg or "2")),
+            "northbound": (jyds, (code6, "islgt", "")),
+            "limit_down": (jyds, (code6, "dtfx", "")),
+            "limit_up": (jyds, (code6, "ztfx", "")),
+            "bonds": (jyds, (code6, "zrq", "")),
+            "main_force": (jyds, (code6, "zlpskcj", "")),
+            "reports": (jyds, (code6, "yxsbxx", "")),
+            "kcb": (jyds, (code6, "checkkcb", "")),
+        }
+        entry, params = _section_request(section, table)
+        return self.params(entry, *params)
+
+    def fund_report(
+        self,
+        code: str,
+        section: str = "basic",
+        *,
+        arg: str = "",
+        date: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> F10Response:
+        """ETF / 场外基金 F10，底层 Entry 为 ``CWServ.skef10_jj_*`` 家族。
+
+        section 取值：
+        ``name`` 名称与市场类型（``skef10_jj_idreq``）；``managers`` 基金经理；
+        ``company`` 基金管理人；``basic`` 基本概况；``seats`` 交易席位；
+        ``scale`` 规模与份额；``scale_history`` 份额规模历史；``nav`` 单位净值序列；
+        ``nav_period`` 区间收益；``nav_rank`` 同类排名；``dividends`` 基金分红；
+        ``asset_allocation`` 资产配置；``industry_allocation`` 行业分布；
+        ``holdings_compare`` 重仓股变动；``holdings_rank`` 重仓排名；
+        ``holding_summary`` 基金持仓汇总；``bond_allocation`` 债券配置；
+        ``futures_allocation`` 期货持仓明细；``holdings`` 持股情况；
+        ``holdings_detail`` 持股明细；``holdings_changes`` 持有基金明细；
+        ``fund_of_funds`` 下属基金资产；``finance`` 财务指标；``sales_info`` 费率；
+        ``sales_announcements`` 销售公告；``sales_news`` 相关资讯；``etf`` 是否 ETF；
+        ``margin`` ETF 融资融券；``ratings`` 基金评级（``arg`` 默认 ``"001"``）；
+        ``categories`` 分类同类衍生表（``arg`` 默认 ``"bgqzf"``）。
+
+        ``date`` 用于 ``industry_allocation`` / ``bond_allocation`` /
+        ``futures_allocation``；``etf`` / ``margin`` 未给 ``date`` 时用 ``"3M"``。
+
+        返回模型：:class:`eltdx.f10.models.F10Response`。
+        """
+
+        code6 = _code6(code)
+        page_text = str(page)
+        size_text = str(page_size)
+        date_text = date or ""
+        jj = "CWServ.skef10_jj_"
+        jjzl = f"{jj}jjzl"
+        gmfe = f"{jj}gmfe"
+        jzhb = f"{jj}jzhb"
+        tzzh = f"{jj}tzzh"
+        cgqk = f"{jj}cgqk"
+        xsxx = f"{jj}xsxx"
+        etfzj = f"{jj}etfzj"
+        table: dict[str, tuple[str, tuple[Any, ...]]] = {
+            "name": (f"{jj}idreq", ("name", code6)),
+            "managers": (jjzl, ("1", code6, "", page_text, page_text, size_text)),
+            "company": (jjzl, ("2", code6, "", page_text, page_text, size_text)),
+            "basic": (jjzl, ("4", code6, "", page_text, page_text, size_text)),
+            "seats": (jjzl, ("5", code6, arg, page_text, page_text, size_text)),
+            "scale": (gmfe, ("4", code6, "", "")),
+            "scale_history": (gmfe, (arg or "1", code6, "", date_text)),
+            "nav": (jzhb, ("0", code6, "0", "")),
+            "nav_period": (jzhb, ("1", code6, "0", "")),
+            "nav_rank": (jzhb, ("3", code6, "0", "")),
+            "dividends": (jzhb, ("5", code6, "0", "")),
+            "asset_allocation": (tzzh, ("zcpz", code6, "")),
+            "industry_allocation": (tzzh, ("hyfb", code6, date_text)),
+            "holdings_compare": (tzzh, ("cgjzd", code6, "")),
+            "holdings_rank": (tzzh, ("zjpz", code6, "")),
+            "holding_summary": (tzzh, ("jjxtzzh", code6, "")),
+            "bond_allocation": (tzzh, ("zczq", code6, date_text)),
+            "futures_allocation": (tzzh, ("ccqhmx", code6, date_text)),
+            "holdings": (cgqk, ("cgqkbgq", code6, "", "", "1", "1", "1")),
+            "holdings_detail": (cgqk, ("cgmxbgq", code6, "", "", "1", "1", "1")),
+            "holdings_changes": (cgqk, ("cyjjmxbgq", code6, "", "", "1", "1", "1")),
+            "fund_of_funds": (cgqk, ("sxjjzcbgq", code6, "", "", "1", "1", "1")),
+            "finance": (f"{jj}cwzk", (arg or "zcfzb", code6)),
+            "sales_info": (xsxx, ("0", code6)),
+            "sales_announcements": (xsxx, ("4", code6)),
+            "sales_news": (xsxx, ("5", code6)),
+            "etf": (etfzj, ("etfzjlx", code6, date_text or "3M")),
+            "margin": (etfzj, ("etfrzrq", code6, date_text or "3M")),
+            "ratings": (f"{jj}jjpj", (arg or "001", code6)),
+            "categories": (f"{jj}fxsy", (arg or "bgqzf", code6, "")),
+        }
+        entry, params = _section_request(section, table)
+        return self.params(entry, *params)
+
+    def market_report(
+        self,
+        code: str,
+        section: str = "board_info",
+        *,
+        arg: str = "",
+        date: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> F10Response:
+        """板块 / 指数 / 大盘指数 F10，底层 Entry 为 ``CWServ.skef10_bk_*``、``skef10_zs_*``、``skef10_dpzx_*``。
+
+        section 取值：
+        ``board_info`` 板块名称与市场；``board_basics`` 板块基础资料；
+        ``board_description`` 板块说明；``board_trading`` 板块交易数据；
+        ``board_flow`` 板块资金（``arg`` 默认 ``"001_1"``）；``board_members`` 成份股数据
+        （``arg`` 默认 ``"001"``）；``board_analysis`` 板块三点分析；
+        ``board_finance_compare`` 成份股财务对比；``board_candidates`` 成份股候选数据
+        （``arg`` 默认 ``"001"``）；``board_trend`` 板块异动分析；
+        ``index_info`` 指数信息；``index_profile`` 指数概况；``index_tracking`` 跟踪标的；
+        ``index_flow`` 指数资金动向（``arg`` 默认 ``"004_1"``）；
+        ``index_flow_members`` 成份股资金（``arg`` 默认 ``"001"``）；
+        ``index_notices`` 今日提示（``arg`` 默认 ``"001"``）；
+        ``market_basic`` 大盘指数基本信息；``market_margin`` 大盘两融；
+        ``market_new_shares`` 新股分析；``market_capital`` 大盘市场概览
+        （``arg`` 默认 ``"004"``）。
+
+        ``market_new_shares`` 与 ``market_capital`` 不需要 ``code``；
+        ``page`` / ``page_size`` 仅对集合类 section 有效。
+
+        返回模型：:class:`eltdx.f10.models.F10Response`。
+        """
+
+        code6 = _code6(code)
+        page_text = str(page)
+        size_text = str(page_size)
+        bk = "CWServ.skef10_bk_"
+        zs = "CWServ.skef10_zs_"
+        dpzx = "CWServ.skef10_dpzx_"
+        table: dict[str, tuple[str, tuple[Any, ...]]] = {
+            "board_info": (f"{bk}getinfo", (code6,)),
+            "board_basics": (f"{bk}cpbd_jczl", ("001", code6, "")),
+            "board_description": (f"{bk}cpbd_jczl", ("002", code6, "")),
+            "board_trading": (f"{bk}cpbd_jczl", ("004", code6, "")),
+            "board_flow": (f"{bk}zjlx", (arg or "001_1", code6, "")),
+            "board_members": (f"{bk}scgl", (arg or "001", code6, page_text, size_text)),
+            "board_analysis": (f"{bk}sdfx", ("001", code6, "")),
+            "board_finance_compare": (f"{bk}ggdb_cwdb", (code6,)),
+            "board_candidates": (f"{bk}cfgsj", (arg or "001", code6)),
+            "board_trend": (f"{bk}ydfx", (code6,)),
+            "index_info": (f"{zs}getinfo", (code6,)),
+            "index_profile": (f"{zs}jbxx_zsgk", (code6,)),
+            "index_tracking": (f"{zs}jbxx_gzbd", (code6, page_text, size_text)),
+            "index_flow": (f"{zs}zjdx", (arg or "004_1", code6, "", "", page_text, size_text)),
+            "index_flow_members": (f"{zs}cfgsj_cfgjcsj", (arg or "001", code6, page_text, size_text)),
+            "index_notices": (f"{zs}jrts", (arg or "001", code6, page_text, size_text)),
+            "market_basic": (f"{dpzx}jbxx", ("002", code6)),
+            "market_margin": (f"{dpzx}rzrq", ("001", code6)),
+            "market_new_shares": (f"{dpzx}xgfx", ("002",)),
+            "market_capital": (f"{dpzx}scgl", (arg or "004",)),
+        }
+        entry, params = _section_request(section, table)
+        return self.params(entry, *params)
 
     def dividend_financing(self, code: str, section: str = "fh") -> F10Response:
         """分红融资类数据。section=fh 为分红方案历史。"""
@@ -214,10 +566,12 @@ class F10Client:
 
         return self.params("CWServ.tdxf10_gg_ggzp", section, _code6(code), arg, "")
 
-    def profit_forecast(self, code: str) -> F10Response:
-        """盈利预测评级统计。"""
+    def profit_forecast(self, code: str, section: str = "ylyctj") -> F10Response:
+        """盈利预测评级统计。section=ylyctj 为盈利预测统计，ylycmx 为盈利预测明细，
+        yzyq 为一致预期，tzpjtj 为投资评级统计，ycpjyjbg 为研报。"""
 
-        return self.params("CWServ.tdxf10_gg_ybpj", _code6(code), "ylyctj")
+        _require_section(section, ("ylyctj", "ylycmx", "yzyq", "tzpjtj", "ycpjyjbg"))
+        return self.params("CWServ.tdxf10_gg_ybpj", _code6(code), section)
 
     def ranking_detail(self, code: str, section: str = "scpmdela") -> F10Response:
         """市场排名 / 行业排名明细。"""
@@ -257,9 +611,53 @@ class F10Client:
         page: int = 1,
         page_size: int = 20,
     ) -> F10Response:
-        """公司资讯。section=gsyj 为研报，jgcs 为监管措施。"""
+        """公司资讯。section=gsyj 为研报，jgcs 为监管措施，finance_review 为财报点评。
 
+        ``finance_review`` 的底层 Entry 改用 ``CWServ.tdxf10_gg_cwfx_cbdp``，
+        Params 为 ``[code, str(page)]``，不使用 ``keyword`` / ``rating`` /
+        ``page_size``。
+        """
+
+        if section == "finance_review":
+            return self.params("CWServ.tdxf10_gg_cwfx_cbdp", _code6(code), str(page))
         return self.params("CWServ.tdxf10_gg_gszx", _code6(code), section, keyword, str(rating), str(page), str(page_size))
+
+    def digest(
+        self,
+        code: str,
+        section: str = "tips",
+        *,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> F10Response:
+        """最新提示，底层 Entry ``CWServ.tdxf10_gg_zxts``，Params ``[code, sub, ""]``。
+
+        section 取值：
+        ``tips`` 最新提示；``profile`` 公司概要；``events`` 公司大事；
+        ``news`` 公司新闻；``announcements`` 公司公告；``reports`` 公司研报；
+        ``roadshows`` 路演互动；``interaction`` 投资者互动（Entry 改用
+        ``CWServ.tdxf10_gg_zxtstzzhd``，Params ``[code, "1", "1", page_size]``）。
+
+        ``page`` 当前没有 section 使用，仅为与其它列表方法保持签名一致；
+        ``page_size`` 仅 ``interaction`` 使用。
+
+        返回模型：:class:`eltdx.f10.models.F10Response`。
+        """
+
+        code6 = _code6(code)
+        zxts = "CWServ.tdxf10_gg_zxts"
+        table: dict[str, tuple[str, tuple[Any, ...]]] = {
+            "tips": (zxts, (code6, "zxts", "")),
+            "profile": (zxts, (code6, "gsgy", "")),
+            "events": (zxts, (code6, "gsds", "")),
+            "news": (zxts, (code6, "gsxw", "")),
+            "announcements": (zxts, (code6, "gsgg", "")),
+            "reports": (zxts, (code6, "gsyj", "")),
+            "roadshows": (zxts, (code6, "lyhd", "")),
+            "interaction": ("CWServ.tdxf10_gg_zxtstzzhd", (code6, "1", "1", str(page_size))),
+        }
+        entry, params = _section_request(section, table)
+        return self.params(entry, *params)
 
     def northbound_holding(
         self,
@@ -522,6 +920,24 @@ def _row_dict(cells: Sequence[F10Cell]) -> dict[str, Any]:
 
 def _code6(code: str) -> str:
     return split_code(code)[2]
+
+
+def _require_section(section: str, valid: Sequence[str]) -> None:
+    """Raise ``ValueError`` listing the valid ``section`` values."""
+
+    if section not in valid:
+        names = ", ".join(sorted(valid))
+        raise ValueError(f"unknown section: {section!r}; expected one of: {names}")
+
+
+def _section_request(
+    section: str,
+    table: Mapping[str, tuple[str, tuple[Any, ...]]],
+) -> tuple[str, tuple[Any, ...]]:
+    """Return the ``(entry, params)`` pair registered for ``section``."""
+
+    _require_section(section, tuple(table))
+    return table[section]
 
 
 def _first_value(response: F10Response, field_name: str) -> Any | None:

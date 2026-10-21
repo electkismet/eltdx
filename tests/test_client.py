@@ -831,7 +831,8 @@ def test_full_quotes_merges_refresh_five_levels() -> None:
             raise AssertionError(command)
 
     transport = FakeTransport()
-    quote = TdxClient(transport=transport).helpers.full_quotes("sz000001")[0]
+    client = TdxClient(transport=transport)
+    quote = client.helpers.full_quotes("sz000001")[0]
 
     assert [command for command, _ in transport.calls] == [0x054C, TYPE_REFRESH_STREAM]
     assert quote.buy_levels == full_bids
@@ -1467,7 +1468,8 @@ def test_workday_service_uses_client_daily_bars() -> None:
     class FakeClient:
         bars = FakeBars()
 
-    service = WorkdayService(FakeClient())
+    fake_client = FakeClient()
+    service = WorkdayService(fake_client)
 
     assert service.refresh() == 3
     assert service.is_workday("2026-05-28") is False

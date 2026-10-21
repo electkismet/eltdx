@@ -53,8 +53,9 @@ class QuoteApi(ApiBase):
         if poll is None:
             return None
         result = poll(timeout=timeout, parse=parse)
-        if parse and result is not None and self._price_resolver is not None:
-            return self._price_resolver("refresh_stream", result, None)
+        resolver = self._price_resolver() if self._price_resolver is not None else None
+        if parse and result is not None and resolver is not None:
+            return resolver("refresh_stream", result, None)
         return result
 
     def drain_pushes(self, *, parse: bool = False):
@@ -62,6 +63,7 @@ class QuoteApi(ApiBase):
         if drain is None:
             return []
         result = drain(parse=parse)
-        if parse and self._price_resolver is not None:
-            return [self._price_resolver("refresh_stream", item, None) for item in result]
+        resolver = self._price_resolver() if self._price_resolver is not None else None
+        if parse and resolver is not None:
+            return [resolver("refresh_stream", item, None) for item in result]
         return result

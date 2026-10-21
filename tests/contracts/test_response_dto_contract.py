@@ -41,6 +41,7 @@ EXPECTED_TAGS = {
     "sparkline",
     "recent_intraday",
     "money_flow",
+    "history_fund_flow",
     "company_info_category",
     "company_info_content",
     "block_meta",

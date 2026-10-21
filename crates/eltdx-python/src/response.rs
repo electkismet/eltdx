@@ -12,6 +12,7 @@ use eltdx_protocol::commands::{
         CapitalChangeBatch, CapitalChangeBlock, CapitalChangeRecord, CompanyInfoCategory,
         FinanceBatch, FinanceRecord,
     },
+    history_fund_flow::{HistoryFundFlowRecord, HistoryFundFlowSeries},
     klines::{KlineBar, KlineSeries},
     limits::{SpecialLimitPage, SpecialLimitRecord},
     minutes::{MinuteAuxPoint, MinuteAuxSeries, MinutePoint, MinuteSeries, SparklineSeries},
@@ -842,6 +843,9 @@ pub fn to_python(py: Python<'_>, response: CommandResponse) -> PyResult<Py<PyAny
             tagged(py, "delisted_klines", delisted_klines(py, &value)?)?
         }
         CommandResponse::Klines(value) => tagged(py, "klines", klines(py, &value)?)?,
+        CommandResponse::HistoryFundFlow(value) => {
+            tagged(py, "history_fund_flow", history_fund_flow(py, &value)?)?
+        }
         CommandResponse::TodayIntraday(value) => {
             tagged(py, "today_intraday", today_intraday(py, &value)?)?
         }
@@ -1140,6 +1144,52 @@ fn klines<'py>(py: Python<'py>, value: &KlineSeries) -> PyResult<Obj> {
                     .collect::<PyResult<Vec<_>>>()?,
             )?,
             raw_payload(py, req.include_raw, &value.raw_payload),
+        ],
+    )
+}
+
+fn history_fund_flow<'py>(py: Python<'py>, value: &HistoryFundFlowSeries) -> PyResult<Obj> {
+    let req = &value.request;
+    tuple(
+        py,
+        vec![
+            any(py, req.code.market().as_str())?,
+            any(py, req.code.market().id())?,
+            any(py, req.code.number())?,
+            any(py, req.start)?,
+            any(py, req.count)?,
+            tuple(
+                py,
+                value
+                    .records
+                    .iter()
+                    .map(|v| fund_flow_history_record(py, v, req.include_raw))
+                    .collect::<PyResult<Vec<_>>>()?,
+            )?,
+            raw_payload(py, req.include_raw, &value.raw_payload),
+        ],
+    )
+}
+
+fn fund_flow_history_record<'py>(
+    py: Python<'py>,
+    value: &HistoryFundFlowRecord,
+    include_raw: bool,
+) -> PyResult<Obj> {
+    tuple(
+        py,
+        vec![
+            any(py, value.date_raw)?,
+            date(py, value.date)?,
+            any(py, value.super_large_in)?,
+            any(py, value.large_in)?,
+            any(py, value.medium_in)?,
+            any(py, value.small_in)?,
+            any(py, value.super_large_out)?,
+            any(py, value.large_out)?,
+            any(py, value.medium_out)?,
+            any(py, value.small_out)?,
+            record_hex(py, include_raw, &value.record_hex),
         ],
     )
 }

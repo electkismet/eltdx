@@ -31,6 +31,8 @@
 
 说明：`0x0547` 已完成请求构造、响应解析、单次刷新和未配对推送队列。实盘主站对单次超过 100 个代码的请求只返回前 100 条，因此构包层将单次上限固定为 100，避免静默截断。`0x06b9` 的协议层返回单个 `FileContentChunk`；整文件下载和 `zhb.zip` 内容解析位于上层封装。`0x0ffc` 已接入，用户直接使用 `client.money_flow.daily(code)`；底层协议参数由 SDK 自动处理。
 
+`0x052d` 只服务 OHLC 周期（`client.bars.get()`）；历史资金流向**不再**复用它的 category 22。`client.money_flow.history(code, *, days=60, start=0, count=None, include_raw=False, batch_size=75)` 走 7615 `CWServ.tdxf10_gg_sj` 的区间通道（`{"Params": ["zjlx_sj", code, str(days), code]}`，`days` 只接受 `3`/`5`/`10`/`20`/`60`），返回 `FundFlowRangeSeries`。实测所有可达主站对 7709 category 22 一律返回 2 字节 `0000`（空），因此该 category 已废弃；`period="flow"` 也不再有效，`client.bars.get(..., period="flow")` 会抛 `ValueError`。当日资金流仍用 `client.money_flow.daily()`（`0x0ffc`）。详见 [资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+
 ## 三个行情命令的边界
 
 `0x054c`、`0x0547` 和 `0x053e` 都能返回当前行情字段，但请求语义、二进制布局和使用方式不同，不能互换解析器。

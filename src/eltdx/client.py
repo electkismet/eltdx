@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from threading import RLock
+from typing import Any
 
 from .api.auctions import AuctionApi
 from .api.bars import BarApi
@@ -91,6 +92,12 @@ class TdxClient:
     _decimal_cache: dict[str, int] = field(init=False, default_factory=dict, repr=False, compare=False)
     _decimal_markets: set[str] = field(init=False, default_factory=set, repr=False, compare=False)
     _decimal_lock: RLock = field(init=False, default_factory=RLock, repr=False, compare=False)
+    # ``slots=True`` 默认不生成 ``__weakref__``，子服务就无法用
+    # ``weakref.ref(client)`` / ``weakref.WeakMethod(bound)`` 打断引用环
+    # （引用环会让 ~5 条 Rust worker 线程只能等分代 GC 才回收）。
+    # 这里必须显式声明字段而不是 ``@dataclass(weakref_slot=True)``：后者是
+    # Python 3.11+ 才有的参数，而本包 ``requires-python = ">=3.10"``。
+    __weakref__: Any = field(init=False, repr=False, compare=False)
 
     @classmethod
     def from_hosts(
@@ -233,6 +240,7 @@ class TdxClient:
                 if isinstance(self.transport, PooledSocketTransport)
                 else None
             ),
+            f10_factory=self._provide_f10_client,
             candidate_hosts=self._dedicated_hosts,
         )
         self.trades = TradeApi(self.transport)
@@ -320,6 +328,16 @@ class TdxClient:
     ) -> PooledSocketTransport:
         """Backward-compatible name for the dedicated 7709 market pool."""
         return self._build_dedicated_market_transport(host)
+
+    def _provide_f10_client(self) -> F10Client:
+        """惰性返回 7615 F10 通道客户端，供 ``MoneyFlowApi.history`` 使用。
+
+        ``self.f10`` 在 ``MoneyFlowApi`` 之后才构造，所以只能惰性取；这里弱引用的
+        是 bound method（``weakref.WeakMethod``），而不是临时 lambda —— 临时 lambda
+        建完弱引用就会立刻被回收，弱引用随即失效。
+        """
+
+        return self.f10
 
     def __enter__(self) -> TdxClient:
         self.connect()

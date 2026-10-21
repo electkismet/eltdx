@@ -76,7 +76,8 @@ def test_stock_profile_table_combines_quote_security_and_finance() -> None:
                 return FinanceBatch(records=(finance,))
             raise AssertionError(f"unexpected command: {command:#x}")
 
-    table = TdxClient(transport=FakeTransport()).helpers.stock_profile_table(["000001"])
+    client = TdxClient(transport=FakeTransport())
+    table = client.helpers.stock_profile_table(["000001"])
 
     assert table.count == 1
     row = table.rows[0]
@@ -248,7 +249,8 @@ def test_auction_data_reuses_current_market_date_for_snapshot() -> None:
         trades = FakeTrades()
         session = type("Session", (), {"handshake": staticmethod(lambda: type("Handshake", (), {"server_date_1": date(2026, 5, 20), "server_date_2": date(2026, 5, 20)})())})()
 
-    result = HelperApi(FakeClient()).auction_data(
+    fake_client = FakeClient()
+    result = HelperApi(fake_client).auction_data(
         "000001",
         include_series=False,
         include_quote=False,

@@ -43,6 +43,11 @@ class BarApi(ApiBase):
                 bar 右端点（= 开始 + 周期时长，与 Tushare/同花顺对齐，上午最后一根标
                 ``11:30``）。仅对分钟级周期生效；日线及以上不受影响。
         """
+        if period == "flow":
+            raise ValueError(
+                "period='flow' is not OHLC data; "
+                "use client.money_flow.history(code, days=...) instead"
+            )
 
         _validate_batch_size(batch_size)
         if not all_pages:

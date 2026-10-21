@@ -175,7 +175,7 @@ def test_build_parser_exposes_all_commands() -> None:
     actions = [a for a in parser._actions if isinstance(a, argparse._SubParsersAction)]
     assert actions, "缺少子命令"
     commands = set(actions[0].choices)
-    assert {"version", "quote", "kline", "ex", "mac", "macex", "fund", "offline"} <= commands
+    assert {"version", "quote", "kline", "ex", "mac", "macex", "fund", "offline", "money-flow", "f10"} <= commands
 
 
 def test_main_version_is_offline_and_succeeds(capsys: pytest.CaptureFixture[str]) -> None:
@@ -414,3 +414,236 @@ def test_ex_rejects_multiple_codes(
     assert cli.main(["ex", "quote", "--market", "33", "IFL0", "IFL1"]) == 1
     assert "只接受一个代码" in capsys.readouterr().err
     assert fake.calls == []
+
+
+# ── 7615 F10（eltdx f10）───────────────────────────────────────────────
+
+
+class _RecordingF10:
+    """记录每次调用的假 F10Client：任何方法名都可用。"""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, tuple, dict]] = []
+
+    def __getattr__(self, name: str):
+        def recorder(*args: object, **kwargs: object) -> dict[str, object]:
+            self.calls.append((name, args, kwargs))
+            return {"method": name}
+
+        return recorder
+
+
+def _record_f10(monkeypatch: pytest.MonkeyPatch) -> _RecordingF10:
+    recorder = _RecordingF10()
+    monkeypatch.setattr(cli, "_f10_client", lambda args: recorder)
+    return recorder
+
+
+@pytest.mark.parametrize(
+    ("argv", "method", "args", "kwargs"),
+    [
+        (["f10", "stock-info", "688004"], "stock_info", ("688004",), {}),
+        (["f10", "profile", "688004"], "company_profile", ("688004",), {"section": "8"}),
+        (
+            ["f10", "digest", "688004"],
+            "digest",
+            ("688004",),
+            {"section": "tips", "page_size": 20},
+        ),
+        (
+            ["f10", "shareholders", "688004"],
+            "shareholders",
+            ("688004",),
+            {"section": "count", "report_date": None, "kind": "000", "page": 1, "page_size": 20},
+        ),
+        (
+            ["f10", "shareholders", "688004", "--section", "ranking", "--report-date", "20260630"],
+            "shareholders",
+            ("688004",),
+            {"section": "ranking", "report_date": "20260630", "kind": "000", "page": 1, "page_size": 20},
+        ),
+        (
+            ["f10", "capital", "688004", "--section", "restricted_detail", "--date", "20230612"],
+            "capital_structure",
+            ("688004",),
+            {"section": "restricted_detail", "date": "20230612"},
+        ),
+        (
+            ["f10", "business", "688004", "--section", "customers", "--report-date", "20251231"],
+            "business_report",
+            ("688004",),
+            {"section": "customers", "report_date": "20251231"},
+        ),
+        (
+            ["f10", "industry", "688004", "--section", "valuation"],
+            "industry_analysis",
+            ("688004",),
+            {"section": "valuation", "arg": ""},
+        ),
+        (
+            ["f10", "industry", "688004", "--section", "comparable"],
+            "industry_analysis",
+            ("688004",),
+            {"section": "comparable", "arg": ""},
+        ),
+        (
+            ["f10", "trading", "688004", "--section", "limit_up", "--page", "2", "--page-size", "5"],
+            "trading_report",
+            ("688004",),
+            {"section": "limit_up", "arg": "", "date": None, "page": 2, "page_size": 5},
+        ),
+        (["f10", "dividend", "688004"], "dividend_financing", ("688004",), {"section": "fh"}),
+        (["f10", "finance", "688004"], "finance_report", ("688004",), {"report_type": "zcfzb"}),
+        (
+            ["f10", "governance", "688004", "--section", "gqzy"],
+            "governance",
+            ("688004",),
+            {"section": "gqzy", "arg": ""},
+        ),
+        (["f10", "forecast", "688004"], "profit_forecast", ("688004",), {"section": "ylyctj"}),
+        (["f10", "score", "688004"], "stock_score", ("688004",), {"section": "pf", "arg": ""}),
+        (["f10", "topics", "688004"], "hot_topics", ("688004",), {"section": "zttzbkz"}),
+        (
+            ["f10", "topic-compare", "688004", "--topic", "243"],
+            "topic_compare",
+            ("688004", "243"),
+            {},
+        ),
+        (["f10", "topic-compare", "688004"], "topic_compare_first", ("688004",), {}),
+        (
+            ["f10", "news", "688004", "--section", "jgcs"],
+            "company_news",
+            ("688004",),
+            {"section": "jgcs", "page": 1, "page_size": 20},
+        ),
+        (
+            ["f10", "northbound", "688004"],
+            "northbound_holding",
+            ("688004",),
+            {"section": "bszj", "page": 1, "page_size": 20},
+        ),
+        (["f10", "ranking", "688004"], "ranking_detail", ("688004",), {"section": "scpmdela"}),
+        (["f10", "valuation", "688004"], "valuation", ("688004",), {}),
+        (["f10", "limit-board", "--date", "20261013"], "limit_up_down_list", ("20261013",), {}),
+        (
+            ["f10", "fund", "510300", "--section", "dividends"],
+            "fund_report",
+            ("510300",),
+            {"section": "dividends", "arg": "", "date": None, "page": 1, "page_size": 20},
+        ),
+        (
+            ["f10", "market", "880472", "--section", "board_flow"],
+            "market_report",
+            ("880472",),
+            {"section": "board_flow", "arg": "", "date": None, "page": 1, "page_size": 20},
+        ),
+        (["f10", "detail", "xw", "22075813"], "detail", ("xw", "22075813"), {}),
+        (
+            ["f10", "call", "--entry", "CWServ.tdxf10_gg_gdyj", "--params", '["688004","gdrs"]'],
+            "call",
+            ("CWServ.tdxf10_gg_gdyj",),
+            {"params": ["688004", "gdrs"]},
+        ),
+    ],
+)
+def test_f10_action_dispatches_to_the_right_method(
+    monkeypatch: pytest.MonkeyPatch,
+    argv: list[str],
+    method: str,
+    args: tuple,
+    kwargs: dict,
+) -> None:
+    recorder = _record_f10(monkeypatch)
+    assert cli.main(argv) == 0
+    assert recorder.calls == [(method, args, kwargs)]
+
+
+def test_f10_sections_lists_every_section_without_network(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def unexpected(args: object) -> object:  # pragma: no cover - 不该被调用
+        raise AssertionError("f10 sections 不应构造网络客户端")
+
+    monkeypatch.setattr(cli, "_f10_client", unexpected)
+    assert cli.main(["f10", "sections"]) == 0
+    rows = json.loads(capsys.readouterr().out)
+    listed = {(row["action"], row["section"]) for row in rows}
+    expected = {(a, s) for a, sections in cli._F10_SECTIONS.items() for s in sections}
+    assert listed == expected
+    defaults = {row["action"] for row in rows if row["default"]}
+    assert defaults == set(cli._F10_DEFAULT_SECTION)
+
+
+def test_f10_rejects_multiple_codes(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    recorder = _record_f10(monkeypatch)
+    assert cli.main(["f10", "stock-info", "688004", "600519"]) == 1
+    assert "只接受一个代码" in capsys.readouterr().err
+    assert recorder.calls == []
+
+
+def test_f10_call_requires_entry(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    recorder = _record_f10(monkeypatch)
+    assert cli.main(["f10", "call", "--params", "[]"]) == 1
+    assert "--entry" in capsys.readouterr().err
+    assert recorder.calls == []
+
+
+# ── 资金流向：--days 走 7615 区间通道 ───────────────────────────────────
+
+
+class _RecordingMoneyFlow:
+    def __init__(self) -> None:
+        self.calls: list[tuple] = []
+
+    def daily(self, codes: object, *, include_raw: bool = False) -> list:
+        self.calls.append(("daily", tuple(codes), include_raw))
+        return []
+
+    def history(self, code: object, *, days: int, include_raw: bool = False) -> list:
+        self.calls.append(("history", code, days, include_raw))
+        return []
+
+
+def _record_money_flow(monkeypatch: pytest.MonkeyPatch) -> _RecordingMoneyFlow:
+    money_flow = _RecordingMoneyFlow()
+
+    class _FakeTdx:
+        def __init__(self) -> None:
+            self.money_flow = money_flow
+            self.closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    monkeypatch.setattr(cli, "_tdx", lambda args: _FakeTdx())
+    return money_flow
+
+
+def test_money_flow_without_days_uses_daily(monkeypatch: pytest.MonkeyPatch) -> None:
+    money_flow = _record_money_flow(monkeypatch)
+    assert cli.main(["money-flow", "000001"]) == 0
+    assert money_flow.calls == [("daily", ("000001",), False)]
+
+
+def test_money_flow_with_days_uses_7615_history(monkeypatch: pytest.MonkeyPatch) -> None:
+    money_flow = _record_money_flow(monkeypatch)
+    assert cli.main(["money-flow", "000001", "--days", "60"]) == 0
+    assert money_flow.calls == [("history", "000001", 60, False)]
+
+
+def test_money_flow_with_days_passes_multiple_codes_through(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    money_flow = _record_money_flow(monkeypatch)
+    assert cli.main(["money-flow", "000001", "600519", "--days", "20"]) == 0
+    assert money_flow.calls == [("history", ["000001", "600519"], 20, False)]
+
+
+def test_money_flow_rejects_unsupported_days() -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["money-flow", "000001", "--days", "7"])
+    assert excinfo.value.code == 2

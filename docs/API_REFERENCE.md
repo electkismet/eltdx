@@ -507,6 +507,26 @@ print(flow.records[0].date, flow.records[0].main_net)
 
 完整参数和返回字段见 [资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
 
+### `history(code, *, days=60, start=0, count=None, include_raw=False, batch_size=75)`
+
+历史日资金流向，走 7615 TQLEX 的 `CWServ.tdxf10_gg_sj` 区间通道（`{"Params": ["zjlx_sj", code, str(days), code]}`）。`days` 只接受 `3` / `5` / `10` / `20` / `60`，其它值抛 `ValueError`；`start` / `count` 是拿到响应后的客户端切片，`count` 上限 800。传单个代码返回 `FundFlowRangeSeries`（定义在 `eltdx.models.money_flow`，已由 `eltdx.models` 导出），传代码列表返回 `dict[str, FundFlowRangeSeries]`（键为规范化后的完整代码）。
+
+返回值原样保留服务端 `N00x` 列，不做语义臆测：`N001` 日期、`N002` 代码、`N003` 名称、`N004` 主力净额、`N005` 超大单净买入、`N006` 大单净买入、`N007` 主买净额、`N009` 上市日期。行序即服务端顺序。
+
+!!! warning "不再使用 7709 `0x052d` 的 category 22"
+    旧实现走 K 线命令的 22 号周期，实测 18 台可达主站（普通池 + 资金流向专用池）对该 category 一律返回 2 字节 `0000` 空 payload，而同一连接上的 `category=4`（日线）正常有数据——属服务端行为。真实客户端走的就是本 7615 通道，因此 `history()` 不再碰 7709，也不做空数据换台（旧 DTO `FundFlowHistorySeries` 仍在 Rust 侧导出，但已不是本方法的返回值）。
+
+```python
+series = client.money_flow.history("sz000001")                        # 默认 60 日
+window = client.money_flow.history("688004", days=60, start=0, count=5)
+batch = client.money_flow.history(["sz000001", "sh600000"], days=20)
+
+print(window.count, window.rows[0])
+print(sorted(batch))
+```
+
+`history()` 与 7709 `0x052d` 的 `period="flow"` 无关：`client.bars.get(..., period="flow")` 会直接抛 `ValueError`，因为它返回的不是 OHLC。完整说明见 [资金流向日数据](methods/0x0ffc-资金流向日数据接口.md)。
+
 ## `client.corporate`
 
 ### `capital_changes(code_or_codes, include_raw=False, batch_size=75)`
@@ -577,6 +597,37 @@ response = client.f10.hot_topics("000034")
 print(response.entry)
 print(response.rows[:3])
 ```
+
+### 分区驱动方法
+
+以下 9 个方法把整页的多个分区合并成一个入口，用 `section` 选择分区（合法取值见 [F10_7615.md](F10_7615.md) 与 `eltdx f10 sections`）：
+
+| 调用方法 | 分区数 | 底层 Entry |
+| --- | --- | --- |
+| `shareholders(code, section="count", *, report_date=None, kind="000", filter1="", filter2="", page=1, page_size=20)` | 11 | `CWServ.tdxf10_gg_gdyj`（`institution_holdings` 走 `CWServ.tdxf10_gg_gdyj_jgcgmx`） |
+| `capital_structure(code, section="structure", *, date=None)` | 5 | `CWServ.tdxf10_gg_gbjg`（`restricted_detail` 走 `CWServ.tdxf10_gg_gbjg_xsjjmx`） |
+| `business_report(code, section="business", *, report_date=None)` | 6 | `CWServ.tdxf10_gg_jyfx` |
+| `industry_analysis(code, section="peers", *, arg="")` | 10 | `CWServ.tdxf10_gg_hyfx`（`comparable` / `comparable_profile` 走 `CWServ.tdxf10_gg_kbgs`） |
+| `trading_report(code, section="margin", *, arg="", date=None, page=1, page_size=20)` | 11 | `CWServ.tdxf10_gg_jyds`（`margin_history` 走 `CWServ.tdxf10_gg_sj`） |
+| `fund_report(code, section="basic", *, arg="", date=None, page=1, page_size=20)` | 30 | `CWServ.skef10_jj_*` |
+| `market_report(code, section="board_info", *, arg="", date=None, page=1, page_size=20)` | 20 | `CWServ.skef10_bk_*` / `skef10_zs_*` / `skef10_dpzx_*` |
+| `profit_forecast(code, section="ylyctj")` | 5 | `CWServ.tdxf10_gg_ybpj` |
+| `digest(code, section="tips", *, page=1, page_size=20)` | 8 | `CWServ.tdxf10_gg_zxts`（`interaction` 走 `CWServ.tdxf10_gg_zxtstzzhd`） |
+
+```python
+client.f10.shareholders("688004", "count")
+client.f10.capital_structure("688004", "buyback")
+client.f10.business_report("688004", "customers", report_date="20260630")
+client.f10.industry_analysis("688004", "valuation", arg="011")
+client.f10.trading_report("688004", "margin_history")
+client.f10.fund_report("510300", "dividends")
+client.f10.market_report("880472", "board_flow")
+client.f10.profit_forecast("688004", section="yzyq")
+client.f10.digest("688004", "events")
+client.f10.industry_analysis("688004", "comparable")
+```
+
+ETF / 场外基金、板块 / 指数 / 大盘共用同一批方法，靠 `code` 与 `section` 分派；资金流向仍由 `client.money_flow.history()` 提供，`trading_report()` 不重复实现。
 
 需要直接调用 Entry 时，可以使用通用 TQLEX 调用：
 

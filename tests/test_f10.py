@@ -405,3 +405,354 @@ def test_limit_board_ladder_rejects_reversed_or_invalid_dates() -> None:
         client.limit_board_ladder("20260811", "20260810")
     with pytest.raises(ValueError, match="invalid date"):
         client.limit_board_ladder("not-a-date")
+
+
+class _RecordingF10Client(F10Client):
+    """F10Client 替身：记录 ``(entry, body)``，不真正发请求。"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = []
+
+    def _post(self, entry, body):
+        self.calls.append((entry, body))
+        return parse_tqlex_response(entry, body, {"ErrorCode": 0, "ResultSets": []})
+
+
+_F10_CODE = "000034"
+
+# 每个新方法的全部 section → (entry, Params)，用默认参数（page=1/page_size=20/
+# arg=""/kind="000"）调用；``restricted_detail`` 额外传 date="20260630"。
+_NEW_F10_METHOD_SECTIONS = {
+    "shareholders": {
+        "count": ("CWServ.tdxf10_gg_gdyj", ["000034", "gdrs", "", "", "1", "1", "20"]),
+        "ranking": ("CWServ.tdxf10_gg_gdyj", ["000034", "thygdrs", "", "", "1", "1", "20"]),
+        "controller": ("CWServ.tdxf10_gg_gdyj", ["000034", "kggd", "", "", "1", "1", "20"]),
+        "top_circulating": ("CWServ.tdxf10_gg_gdyj", ["000034", "ltgd", "", "", "1", "1", "20"]),
+        "top": ("CWServ.tdxf10_gg_gdyj", ["000034", "sdgdbgq", "", "", "1", "1", "20"]),
+        "bonds": ("CWServ.tdxf10_gg_gdyj", ["000034", "sdzqcyr", "", "", "1", "1", "20"]),
+        "changes": ("CWServ.tdxf10_gg_gdyj", ["000034", "cgbd", "", "", "1", "1", "20"]),
+        "institutions": ("CWServ.tdxf10_gg_gdyj", ["000034", "jgcg", "", "", "1", "1", "20"]),
+        "institution_types": ("CWServ.tdxf10_gg_gdyj", ["000034", "jgcgz", "", "", "1", "1", "20"]),
+        "institution_holdings": (
+            "CWServ.tdxf10_gg_gdyj_jgcgmx",
+            ["000034", "000", "", "99", "1", "1", "20"],
+        ),
+        "plan": ("CWServ.tdxf10_gg_gdyj", ["000034", "gdzjcjh", "", "", "1", "1", "20"]),
+    },
+    "capital_structure": {
+        "structure": ("CWServ.tdxf10_gg_gbjg", ["000034", "gbjg"]),
+        "changes": ("CWServ.tdxf10_gg_gbjg", ["000034", "gbbd"]),
+        "buyback": ("CWServ.tdxf10_gg_gbjg", ["000034", "gphg"]),
+        "restricted": ("CWServ.tdxf10_gg_gbjg", ["000034", "xslt"]),
+        "restricted_detail": ("CWServ.tdxf10_gg_gbjg_xsjjmx", ["000034", "20260630"]),
+    },
+    "business_report": {
+        "business": ("CWServ.tdxf10_gg_jyfx", ["000034", "zyyw", ""]),
+        "composition": ("CWServ.tdxf10_gg_jyfx", ["000034", "zygc", ""]),
+        "customers": ("CWServ.tdxf10_gg_jyfx", ["000034", "qwm", ""]),
+        "suppliers": ("CWServ.tdxf10_gg_jyfx", ["000034", "qwmgys", ""]),
+        "price": ("CWServ.tdxf10_gg_jyfx", ["000034", "cpjg", ""]),
+        "changes": ("CWServ.tdxf10_gg_jyfx", ["000034", "0", ""]),
+    },
+    "industry_analysis": {
+        "peers": ("CWServ.tdxf10_gg_hyfx", ["cwgz", "000034", "000"]),
+        "dividend_rank": ("CWServ.tdxf10_gg_hyfx", ["fhrzb", "000034", "100"]),
+        "scale": ("CWServ.tdxf10_gg_hyfx", ["gsgm", "000034", "000"]),
+        "valuation": ("CWServ.tdxf10_gg_hyfx", ["gzsp", "000034", "011"]),
+        "news": ("CWServ.tdxf10_gg_hyfx", ["hyxw", "000034", ""]),
+        "reports": ("CWServ.tdxf10_gg_hyfx", ["hyyb", "000034", ""]),
+        "market_share": ("CWServ.tdxf10_gg_hyfx", ["scbx", "000034", "000"]),
+        "summary": ("CWServ.tdxf10_gg_hyfx", ["tot", "000034", ""]),
+        "comparable": ("CWServ.tdxf10_gg_kbgs", ["1", "000034"]),
+        "comparable_profile": ("CWServ.tdxf10_gg_kbgs", ["0", "000034"]),
+    },
+    "trading_report": {
+        "margin": ("CWServ.tdxf10_gg_jyds", ["000034", "rzrq", ""]),
+        "margin_history": ("CWServ.tdxf10_gg_sj", ["rzrq_sj", "000034", "0", "000034"]),
+        "block_trades": ("CWServ.tdxf10_gg_jyds", ["000034", "dzjy", ""]),
+        "dragon_board": ("CWServ.tdxf10_gg_jyds", ["000034", "lgt", "2"]),
+        "northbound": ("CWServ.tdxf10_gg_jyds", ["000034", "islgt", ""]),
+        "limit_down": ("CWServ.tdxf10_gg_jyds", ["000034", "dtfx", ""]),
+        "limit_up": ("CWServ.tdxf10_gg_jyds", ["000034", "ztfx", ""]),
+        "bonds": ("CWServ.tdxf10_gg_jyds", ["000034", "zrq", ""]),
+        "main_force": ("CWServ.tdxf10_gg_jyds", ["000034", "zlpskcj", ""]),
+        "reports": ("CWServ.tdxf10_gg_jyds", ["000034", "yxsbxx", ""]),
+        "kcb": ("CWServ.tdxf10_gg_jyds", ["000034", "checkkcb", ""]),
+    },
+    "fund_report": {
+        "name": ("CWServ.skef10_jj_idreq", ["name", "000034"]),
+        "managers": ("CWServ.skef10_jj_jjzl", ["1", "000034", "", "1", "1", "20"]),
+        "company": ("CWServ.skef10_jj_jjzl", ["2", "000034", "", "1", "1", "20"]),
+        "basic": ("CWServ.skef10_jj_jjzl", ["4", "000034", "", "1", "1", "20"]),
+        "seats": ("CWServ.skef10_jj_jjzl", ["5", "000034", "", "1", "1", "20"]),
+        "scale": ("CWServ.skef10_jj_gmfe", ["4", "000034", "", ""]),
+        "scale_history": ("CWServ.skef10_jj_gmfe", ["1", "000034", "", ""]),
+        "nav": ("CWServ.skef10_jj_jzhb", ["0", "000034", "0", ""]),
+        "nav_period": ("CWServ.skef10_jj_jzhb", ["1", "000034", "0", ""]),
+        "nav_rank": ("CWServ.skef10_jj_jzhb", ["3", "000034", "0", ""]),
+        "dividends": ("CWServ.skef10_jj_jzhb", ["5", "000034", "0", ""]),
+        "asset_allocation": ("CWServ.skef10_jj_tzzh", ["zcpz", "000034", ""]),
+        "industry_allocation": ("CWServ.skef10_jj_tzzh", ["hyfb", "000034", ""]),
+        "holdings_compare": ("CWServ.skef10_jj_tzzh", ["cgjzd", "000034", ""]),
+        "holdings_rank": ("CWServ.skef10_jj_tzzh", ["zjpz", "000034", ""]),
+        "holding_summary": ("CWServ.skef10_jj_tzzh", ["jjxtzzh", "000034", ""]),
+        "bond_allocation": ("CWServ.skef10_jj_tzzh", ["zczq", "000034", ""]),
+        "futures_allocation": ("CWServ.skef10_jj_tzzh", ["ccqhmx", "000034", ""]),
+        "holdings": ("CWServ.skef10_jj_cgqk", ["cgqkbgq", "000034", "", "", "1", "1", "1"]),
+        "holdings_detail": ("CWServ.skef10_jj_cgqk", ["cgmxbgq", "000034", "", "", "1", "1", "1"]),
+        "holdings_changes": ("CWServ.skef10_jj_cgqk", ["cyjjmxbgq", "000034", "", "", "1", "1", "1"]),
+        "fund_of_funds": ("CWServ.skef10_jj_cgqk", ["sxjjzcbgq", "000034", "", "", "1", "1", "1"]),
+        "finance": ("CWServ.skef10_jj_cwzk", ["zcfzb", "000034"]),
+        "sales_info": ("CWServ.skef10_jj_xsxx", ["0", "000034"]),
+        "sales_announcements": ("CWServ.skef10_jj_xsxx", ["4", "000034"]),
+        "sales_news": ("CWServ.skef10_jj_xsxx", ["5", "000034"]),
+        "etf": ("CWServ.skef10_jj_etfzj", ["etfzjlx", "000034", "3M"]),
+        "margin": ("CWServ.skef10_jj_etfzj", ["etfrzrq", "000034", "3M"]),
+        "ratings": ("CWServ.skef10_jj_jjpj", ["001", "000034"]),
+        "categories": ("CWServ.skef10_jj_fxsy", ["bgqzf", "000034", ""]),
+    },
+    "market_report": {
+        "board_info": ("CWServ.skef10_bk_getinfo", ["000034"]),
+        "board_basics": ("CWServ.skef10_bk_cpbd_jczl", ["001", "000034", ""]),
+        "board_description": ("CWServ.skef10_bk_cpbd_jczl", ["002", "000034", ""]),
+        "board_trading": ("CWServ.skef10_bk_cpbd_jczl", ["004", "000034", ""]),
+        "board_flow": ("CWServ.skef10_bk_zjlx", ["001_1", "000034", ""]),
+        "board_members": ("CWServ.skef10_bk_scgl", ["001", "000034", "1", "20"]),
+        "board_analysis": ("CWServ.skef10_bk_sdfx", ["001", "000034", ""]),
+        "board_finance_compare": ("CWServ.skef10_bk_ggdb_cwdb", ["000034"]),
+        "board_candidates": ("CWServ.skef10_bk_cfgsj", ["001", "000034"]),
+        "board_trend": ("CWServ.skef10_bk_ydfx", ["000034"]),
+        "index_info": ("CWServ.skef10_zs_getinfo", ["000034"]),
+        "index_profile": ("CWServ.skef10_zs_jbxx_zsgk", ["000034"]),
+        "index_tracking": ("CWServ.skef10_zs_jbxx_gzbd", ["000034", "1", "20"]),
+        "index_flow": ("CWServ.skef10_zs_zjdx", ["004_1", "000034", "", "", "1", "20"]),
+        "index_flow_members": ("CWServ.skef10_zs_cfgsj_cfgjcsj", ["001", "000034", "1", "20"]),
+        "index_notices": ("CWServ.skef10_zs_jrts", ["001", "000034", "1", "20"]),
+        "market_basic": ("CWServ.skef10_dpzx_jbxx", ["002", "000034"]),
+        "market_margin": ("CWServ.skef10_dpzx_rzrq", ["001", "000034"]),
+        "market_new_shares": ("CWServ.skef10_dpzx_xgfx", ["002"]),
+        "market_capital": ("CWServ.skef10_dpzx_scgl", ["004"]),
+    },
+    "digest": {
+        "tips": ("CWServ.tdxf10_gg_zxts", ["000034", "zxts", ""]),
+        "profile": ("CWServ.tdxf10_gg_zxts", ["000034", "gsgy", ""]),
+        "events": ("CWServ.tdxf10_gg_zxts", ["000034", "gsds", ""]),
+        "news": ("CWServ.tdxf10_gg_zxts", ["000034", "gsxw", ""]),
+        "announcements": ("CWServ.tdxf10_gg_zxts", ["000034", "gsgg", ""]),
+        "reports": ("CWServ.tdxf10_gg_zxts", ["000034", "gsyj", ""]),
+        "roadshows": ("CWServ.tdxf10_gg_zxts", ["000034", "lyhd", ""]),
+        "interaction": ("CWServ.tdxf10_gg_zxtstzzhd", ["000034", "1", "1", "20"]),
+    },
+}
+
+_NEW_F10_METHOD_DEFAULT_SECTIONS = {
+    "shareholders": "count",
+    "capital_structure": "structure",
+    "business_report": "business",
+    "industry_analysis": "peers",
+    "trading_report": "margin",
+    "fund_report": "basic",
+    "market_report": "board_info",
+    "digest": "tips",
+}
+
+
+def _call_new_method(client, method, section):
+    if method == "capital_structure" and section == "restricted_detail":
+        return getattr(client, method)(_F10_CODE, section, date="20260630")
+    return getattr(client, method)(_F10_CODE, section)
+
+
+def test_new_f10_methods_use_expected_default_sections() -> None:
+    client = _RecordingF10Client()
+
+    for method in sorted(_NEW_F10_METHOD_DEFAULT_SECTIONS):
+        section = _NEW_F10_METHOD_DEFAULT_SECTIONS[method]
+        entry, params = _NEW_F10_METHOD_SECTIONS[method][section]
+        before = len(client.calls)
+        getattr(client, method)(_F10_CODE)
+        assert client.calls[before:] == [(entry, {"Params": params})], method
+
+
+@pytest.mark.parametrize(
+    "method,section",
+    sorted(
+        (method, section)
+        for method, sections in _NEW_F10_METHOD_SECTIONS.items()
+        for section in sections
+    ),
+)
+def test_new_f10_sections_build_expected_requests(method, section) -> None:
+    entry, params = _NEW_F10_METHOD_SECTIONS[method][section]
+    client = _RecordingF10Client()
+
+    _call_new_method(client, method, section)
+
+    assert client.calls == [(entry, {"Params": params})]
+
+
+def test_new_f10_methods_forward_optional_arguments() -> None:
+    client = _RecordingF10Client()
+
+    client.shareholders(
+        _F10_CODE, "institution_holdings", report_date="20260630", kind="001", page=2, page_size=5
+    )
+    client.shareholders("sz000034", "institution_types", report_date="20251231", filter1="a")
+    client.industry_analysis(_F10_CODE, "valuation", arg="099")
+    client.trading_report(_F10_CODE, "dragon_board", arg="1")
+    client.business_report(_F10_CODE, "composition", report_date="20251231")
+    client.fund_report("510300", "etf", date="20260101")
+    client.fund_report("510300", "scale_history", arg="3", date="20260101")
+    client.market_report("880472", "board_members", arg="003", page=3, page_size=7)
+
+    assert client.calls == [
+        (
+            "CWServ.tdxf10_gg_gdyj_jgcgmx",
+            {"Params": ["000034", "001", "20260630", "99", "2", "2", "5"]},
+        ),
+        (
+            "CWServ.tdxf10_gg_gdyj",
+            {"Params": ["000034", "jgcgz", "a", "20251231", "1", "1", "20"]},
+        ),
+        ("CWServ.tdxf10_gg_hyfx", {"Params": ["gzsp", "000034", "099"]}),
+        ("CWServ.tdxf10_gg_jyds", {"Params": ["000034", "lgt", "1"]}),
+        ("CWServ.tdxf10_gg_jyfx", {"Params": ["000034", "zygc", "20251231"]}),
+        ("CWServ.skef10_jj_etfzj", {"Params": ["etfzjlx", "510300", "20260101"]}),
+        ("CWServ.skef10_jj_gmfe", {"Params": ["3", "510300", "", "20260101"]}),
+        ("CWServ.skef10_bk_scgl", {"Params": ["003", "880472", "3", "7"]}),
+    ]
+
+
+@pytest.mark.parametrize("method", sorted(_NEW_F10_METHOD_SECTIONS))
+def test_new_f10_methods_reject_unknown_section(method) -> None:
+    client = _RecordingF10Client()
+
+    with pytest.raises(ValueError) as excinfo:
+        getattr(client, method)(_F10_CODE, "not-a-section")
+
+    message = str(excinfo.value)
+    assert "not-a-section" in message
+    assert ", ".join(sorted(_NEW_F10_METHOD_SECTIONS[method])) in message
+    assert client.calls == []
+
+
+# ``company_news`` 的 ``gsyj`` / ``jgcs`` 把 section 原样透传给 ``CWServ.tdxf10_gg_gszx``
+# （服务端不校验取值），只有 ``finance_review`` 切换 Entry，因此单独一张表覆盖；
+# ``_NEW_F10_METHOD_SECTIONS`` 里的方法都必须拒绝未知 section，不能并入。
+_COMPANY_NEWS_SECTIONS = {
+    "gsyj": ("CWServ.tdxf10_gg_gszx", ["000034", "gsyj", "", "0", "1", "20"]),
+    "jgcs": ("CWServ.tdxf10_gg_gszx", ["000034", "jgcs", "", "0", "1", "20"]),
+    "finance_review": ("CWServ.tdxf10_gg_cwfx_cbdp", ["000034", "1"]),
+}
+
+
+@pytest.mark.parametrize("section", sorted(_COMPANY_NEWS_SECTIONS))
+def test_company_news_sections_build_expected_requests(section) -> None:
+    entry, params = _COMPANY_NEWS_SECTIONS[section]
+    client = _RecordingF10Client()
+
+    _call_new_method(client, "company_news", section)
+
+    assert client.calls == [(entry, {"Params": params})]
+
+
+def test_company_news_keeps_gszx_branch_and_unused_arguments() -> None:
+    client = _RecordingF10Client()
+
+    client.company_news(_F10_CODE, "finance_review", keyword="回购", rating="5", page=3, page_size=7)
+    client.company_news(_F10_CODE, "gsyj", keyword="回购", rating="5", page=2, page_size=5)
+    client.company_news(_F10_CODE, "not-a-section")
+
+    assert client.calls == [
+        ("CWServ.tdxf10_gg_cwfx_cbdp", {"Params": ["000034", "3"]}),
+        ("CWServ.tdxf10_gg_gszx", {"Params": ["000034", "gsyj", "回购", "5", "2", "5"]}),
+        ("CWServ.tdxf10_gg_gszx", {"Params": ["000034", "not-a-section", "", "0", "1", "20"]}),
+    ]
+
+
+def test_section_driven_methods_switch_entry_for_special_sections() -> None:
+    """``digest.interaction`` 与 ``industry_analysis.comparable*`` 换用另一个 Entry。"""
+
+    client = _RecordingF10Client()
+
+    client.digest(_F10_CODE, "interaction", page=2, page_size=5)
+    client.digest(_F10_CODE, "tips")
+    client.industry_analysis(_F10_CODE, "comparable")
+    client.industry_analysis(_F10_CODE, "comparable_profile")
+    client.industry_analysis(_F10_CODE, "comparable", arg="099")
+
+    assert client.calls == [
+        ("CWServ.tdxf10_gg_zxtstzzhd", {"Params": ["000034", "1", "1", "5"]}),
+        ("CWServ.tdxf10_gg_zxts", {"Params": ["000034", "zxts", ""]}),
+        ("CWServ.tdxf10_gg_kbgs", {"Params": ["1", "000034"]}),
+        ("CWServ.tdxf10_gg_kbgs", {"Params": ["0", "000034"]}),
+        ("CWServ.tdxf10_gg_kbgs", {"Params": ["1", "000034"]}),
+    ]
+
+
+@pytest.mark.parametrize("upstream", [None, "", "20260630"])
+def test_capital_structure_restricted_detail_requires_date(upstream) -> None:
+    client = _RecordingF10Client()
+    kwargs = {} if upstream is None else {"date": upstream}
+    if upstream:
+        client.capital_structure(_F10_CODE, "restricted_detail", **kwargs)
+        assert client.calls == [
+            ("CWServ.tdxf10_gg_gbjg_xsjjmx", {"Params": ["000034", "20260630"]})
+        ]
+        return
+
+    with pytest.raises(ValueError, match="restricted_detail"):
+        client.capital_structure(_F10_CODE, "restricted_detail", **kwargs)
+    assert client.calls == []
+
+
+@pytest.mark.parametrize(
+    "section", ["ylyctj", "ylycmx", "yzyq", "tzpjtj", "ycpjyjbg"]
+)
+def test_profit_forecast_sections_build_expected_requests(section) -> None:
+    client = _RecordingF10Client()
+
+    client.profit_forecast(_F10_CODE, section)
+
+    assert client.calls == [("CWServ.tdxf10_gg_ybpj", {"Params": ["000034", section]})]
+
+
+def test_profit_forecast_rejects_unknown_section() -> None:
+    client = _RecordingF10Client()
+
+    with pytest.raises(ValueError, match="ylyctj"):
+        client.profit_forecast(_F10_CODE, "not-a-section")
+    assert client.calls == []
+
+
+def test_f10_delegating_wrappers_keep_original_requests() -> None:
+    class FakeF10Client(F10Client):
+        def __init__(self) -> None:
+            super().__init__()
+            self.calls = []
+
+        def _post(self, entry, body):
+            self.calls.append((entry, body))
+            if body == {"Params": ["zygcfx", "000034"]}:
+                raw = {
+                    "ErrorCode": 0,
+                    "ResultSets": [{"ColName": ["T002"], "Content": [["20251231"]]}],
+                }
+            else:
+                raw = {"ErrorCode": 0, "ResultSets": []}
+            return parse_tqlex_response(entry, body, raw)
+
+    client = FakeF10Client()
+    client.shareholder_change_plans("000034")
+    client.shareholder_change_plans("sz000034", page=2, page_size=5, filter1="a", filter2="b")
+    client.business_composition("000034")
+    client.profit_forecast("000034")
+
+    assert client.calls == [
+        ("CWServ.tdxf10_gg_gdyj", {"Params": ["000034", "gdzjcjh", "", "", "1", "1", "20"]}),
+        ("CWServ.tdxf10_gg_gdyj", {"Params": ["000034", "gdzjcjh", "a", "b", "2", "2", "5"]}),
+        ("CWServ.tdxf10_gg_comreq", {"Params": ["zygcfx", "000034"]}),
+        ("CWServ.tdxf10_gg_jyfx", {"Params": ["000034", "zygc", "20251231"]}),
+        ("CWServ.tdxf10_gg_ybpj", {"Params": ["000034", "ylyctj"]}),
+    ]

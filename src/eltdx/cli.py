@@ -69,6 +69,247 @@ DEFAULT_FUND_MARKET = 33
 OUTPUT_FORMATS = ("json", "jsonl", "table", "csv")
 
 
+# ── 7615 F10 section 注册表 ──────────────────────────────────────────────
+
+#: ``eltdx f10`` 各 action 对应的 ``F10Client`` 方法及其合法 ``--section`` 取值。
+#: 个股 / ETF 基金 / 板块指数 / 大盘指数**共用同一批方法**，靠 ``section`` 分派，
+#: 因此这里是一张扁平表，不再为不同标的类型写平行命令。
+_F10_SECTIONS: dict[str, dict[str, str]] = {
+    "profile": {
+        "0": "基本资料",
+        "3": "参控股公司",
+        "4": "员工构成",
+        "5": "员工效益",
+        "6": "研发投入",
+        "8": "发行上市信息",
+        "9": "指数调入调出",
+        "20": "管理层",
+        "21": "高管兼职",
+        "22": "（暂无数据）",
+        "23": "离任高管",
+    },
+    "digest": {
+        "tips": "最新提示",
+        "profile": "公司概要",
+        "events": "公司大事",
+        "news": "公司新闻",
+        "announcements": "公司公告",
+        "reports": "公司研报",
+        "roadshows": "路演互动",
+        "interaction": "投资者互动",
+    },
+    "shareholders": {
+        "count": "股东人数与股价比较",
+        "ranking": "同行业股东人数增减量排名",
+        "controller": "控股股东与实际控制人",
+        "top_circulating": "十大流通股东",
+        "top": "十大股东（按报告期）",
+        "bonds": "十大债券持有人",
+        "changes": "重要股东持股变动",
+        "institutions": "机构持股汇总",
+        "institution_types": "机构持股分类汇总",
+        "institution_holdings": "机构持仓明细",
+        "plan": "股东增减持计划",
+    },
+    "capital": {
+        "structure": "股本结构",
+        "changes": "股本变动",
+        "buyback": "股票回购",
+        "restricted": "限售流通",
+        "restricted_detail": "限售解禁明细（需 --date）",
+    },
+    "business": {
+        "business": "主营业务概述",
+        "composition": "主营构成（需 --report-date）",
+        "customers": "前五名客户（需 --report-date）",
+        "suppliers": "前五名供应商（需 --report-date）",
+        "price": "产品价格",
+        "changes": "财务指标大幅变动说明（需 --report-date）",
+    },
+    "industry": {
+        "peers": "同业对比",
+        "dividend_rank": "同业分红排名",
+        "scale": "同业规模",
+        "valuation": "同业估值",
+        "news": "行业新闻",
+        "reports": "行业研报",
+        "market_share": "市场份额",
+        "summary": "行业汇总",
+        "comparable": "可比公司",
+        "comparable_profile": "可比公司资料",
+    },
+    "trading": {
+        "margin": "近期融资融券",
+        "margin_history": "近 6 个月融资融券",
+        "block_trades": "大宗交易",
+        "dragon_board": "龙虎榜",
+        "northbound": "沪深股通",
+        "limit_down": "跌停分析",
+        "limit_up": "涨停分析",
+        "bonds": "可转债",
+        "main_force": "主力盘口",
+        "reports": "研报/席位",
+        "kcb": "科创板标记",
+    },
+    "fund": {
+        "name": "名称与市场",
+        "managers": "基金经理",
+        "company": "基金管理人",
+        "basic": "基本概况",
+        "seats": "交易席位",
+        "scale": "规模与份额",
+        "scale_history": "份额/规模历史（需 --date）",
+        "nav": "单位净值序列",
+        "nav_period": "区间收益",
+        "nav_rank": "同类排名",
+        "dividends": "基金分红",
+        "asset_allocation": "资产配置",
+        "industry_allocation": "行业分布",
+        "holdings_compare": "重仓股变动",
+        "holdings_rank": "重仓排名",
+        "holding_summary": "基金持仓汇总",
+        "bond_allocation": "债券配置",
+        "futures_allocation": "期货持仓明细",
+        "holdings": "持股情况",
+        "holdings_detail": "持股明细",
+        "holdings_changes": "持有基金明细",
+        "fund_of_funds": "下属基金资产",
+        "finance": "财务指标（--arg 选表，默认 zcfzb）",
+        "sales_info": "费率",
+        "sales_announcements": "销售公告",
+        "sales_news": "相关资讯",
+        "etf": "是否 ETF",
+        "margin": "ETF 融资融券",
+        "ratings": "基金评级",
+        "categories": "分类/同类对比",
+    },
+    "market": {
+        "board_info": "板块名称与市场",
+        "board_basics": "板块基础资料",
+        "board_description": "板块说明",
+        "board_trading": "板块交易数据",
+        "board_flow": "板块资金（--arg 001_1/002_1/003_1）",
+        "board_members": "成份股数据（--arg 001/002/003/004/005）",
+        "board_analysis": "板块三点分析",
+        "board_finance_compare": "成份股财务对比",
+        "board_candidates": "成份股候选数据（--arg 001/002）",
+        "board_trend": "板块异动分析",
+        "index_info": "指数信息",
+        "index_profile": "指数概况",
+        "index_tracking": "跟踪标的",
+        "index_flow": "指数资金动向（--arg 003/004_1/004_2）",
+        "index_flow_members": "成份股资金",
+        "index_notices": "今日提示",
+        "market_basic": "大盘指数基本信息",
+        "market_margin": "大盘两融",
+        "market_new_shares": "新股分析",
+        "market_capital": "大盘市场概览（--arg 001/002/003/004）",
+    },
+    "forecast": {
+        "ylyctj": "盈利预测统计",
+        "ylycmx": "盈利预测明细",
+        "yzyq": "一致预期",
+        "tzpjtj": "投资评级统计",
+        "ycpjyjbg": "研报明细",
+    },
+    "dividend": {
+        "fh": "分红方案历史",
+        "pf": "配股",
+        "pxmz": "募资汇总",
+        "zf": "增发",
+        "gqjl": "股权激励",
+        "fhpm_gxl": "股息率排名",
+        "fhlszs_gxl": "股息率历史走势",
+    },
+    "finance": {
+        "zcfzb": "资产负债表",
+        "lyb": "利润表",
+        "xjllb": "现金流量表",
+        "zyzb": "主要指标",
+        "dbfx": "杜邦分析",
+        "cwgc": "财务概况",
+        "zcdjt": "资产大计提",
+        "ylnl": "盈利能力",
+        "cwzd": "财务诊断",
+        "cwbg": "财报披露",
+    },
+    "governance": {
+        "wgcl": "违规处理",
+        "dbmxbgq": "担保明细",
+        "gljy": "关联交易",
+        "gqzr": "股权转让",
+        "gqzy": "股权质押",
+        "sgjb": "诉讼仲裁",
+        "zdsx": "重大事项",
+        "zjly": "资金运用",
+    },
+    "score": {"pf": "综合评分"},
+    "topics": {
+        "zttzbkz": "板块题材",
+        "zttzztk": "自选题材",
+        "sjcd": "事件驱动",
+        "xxmmg": "细项明细",
+    },
+    "news": {
+        "gsyj": "公司研报",
+        "jgcs": "监管措施",
+        "finance_review": "财报点评",
+    },
+    "northbound": {"bszj": "北向资金", "sdzj": "南向资金"},
+    "ranking": {"scpmdela": "市场排名", "hypmdela": "行业排名"},
+}
+
+#: ``eltdx f10`` 的 action 列表（选择顺序即帮助里的展示顺序）。
+_F10_ACTIONS: tuple[str, ...] = (
+    "sections",
+    "call",
+    "stock-info",
+    "profile",
+    "digest",
+    "shareholders",
+    "capital",
+    "business",
+    "industry",
+    "trading",
+    "dividend",
+    "finance",
+    "governance",
+    "forecast",
+    "score",
+    "topics",
+    "topic-compare",
+    "news",
+    "northbound",
+    "ranking",
+    "valuation",
+    "limit-board",
+    "fund",
+    "market",
+    "detail",
+)
+
+#: ``eltdx f10 sections`` 用的默认 section（与 ``F10Client`` 的默认参数一致）。
+_F10_DEFAULT_SECTION: dict[str, str] = {
+    "profile": "8",
+    "digest": "tips",
+    "shareholders": "count",
+    "capital": "structure",
+    "business": "business",
+    "industry": "peers",
+    "trading": "margin",
+    "dividend": "fh",
+    "finance": "zcfzb",
+    "governance": "wgcl",
+    "forecast": "ylyctj",
+    "score": "pf",
+    "topics": "zttzbkz",
+    "news": "gsyj",
+    "northbound": "bszj",
+    "ranking": "scpmdela",
+    "fund": "basic",
+    "market": "board_info",
+}
+
 # ── 输出 ────────────────────────────────────────────────────────────────
 
 
@@ -139,6 +380,12 @@ def emit(args: argparse.Namespace, payload: Any) -> int:
     """按 ``--output`` 输出结果，返回进程退出码。"""
 
     fmt = args.output
+    if fmt != "json":
+        # 7615 F10 回包是「Entry + 多个结果集」的信封；表格/CSV/JSONL 只关心数据行。
+        from eltdx.f10 import F10Response
+
+        if isinstance(payload, F10Response):
+            payload = [row for result_set in payload.result_sets for row in result_set.rows]
     if fmt == "json":
         sys.stdout.write(to_json(payload, ensure_ascii=False, indent=args.indent) + "\n")
         return 0
@@ -464,13 +711,175 @@ def cmd_finance(args: argparse.Namespace) -> int:
 
 
 def cmd_money_flow(args: argparse.Namespace) -> int:
+    """资金流向。
+
+    默认走 7709 ``0x0ffc``（当日 16 分档）；给了 ``--days`` 则走 7615
+    ``CWServ.tdxf10_gg_sj`` 的区间通道，可取 3/5/10/20/60 日的主力净额序列。
+    """
+
+    days = getattr(args, "days", None)
     client = _tdx(args)
     try:
-        result = client.money_flow.daily(_codes(args.code), include_raw=args.raw)
+        codes = _codes(args.code)
+        if days is None:
+            result = client.money_flow.daily(codes, include_raw=args.raw)
+        else:
+            result = client.money_flow.history(
+                codes[0] if len(codes) == 1 else codes,
+                days=days,
+                include_raw=args.raw,
+            )
         return emit(args, result)
     finally:
         client.close()
 
+
+def _f10_client(args: argparse.Namespace) -> Any:
+    """构造 7615 F10 HTTP 客户端（F10 不依赖 7709 连接）。"""
+
+    from eltdx.f10 import DEFAULT_TQLEX_BASE_URL, F10Client
+
+    return F10Client(
+        base_url=getattr(args, "base_url", None) or DEFAULT_TQLEX_BASE_URL,
+        timeout=args.timeout,
+    )
+
+
+def _f10_single_code(args: argparse.Namespace) -> str:
+    """F10 单只标的：只接受一个代码。"""
+
+    return _single_code(args.code)
+
+
+def cmd_f10(args: argparse.Namespace) -> int:
+    """7615 F10 / TQLEX 资料接口。
+
+    个股、ETF 基金、板块、指数、大盘指数**共用同一批方法**，由 ``--section`` 分派；
+    ``sections`` 会列出全部合法取值（含默认值）。
+    """
+
+    action = args.action
+    if action == "sections":
+        payload = [
+            {
+                "action": name,
+                "section": key,
+                "default": _F10_DEFAULT_SECTION.get(name) == key,
+                "说明": text,
+            }
+            for name, sections in _F10_SECTIONS.items()
+            for key, text in sections.items()
+        ]
+        return emit(args, payload)
+
+    raw_args = json.loads(args.params) if args.params else []
+    section = args.section or _F10_DEFAULT_SECTION.get(action, "")
+    page = args.page
+    page_size = args.page_size
+    arg = args.arg or ""
+
+    client = _f10_client(args)
+    if action == "call":
+        if not args.entry:
+            return fail("f10 call 需要 --entry（如 CWServ.tdxf10_gg_gdyj）")
+        return emit(args, client.call(args.entry, params=raw_args))
+    if action == "detail":
+        codes = _codes(args.code)
+        if len(codes) != 2:
+            return fail("f10 detail 需要两个位置参数：detail_type 与 record_id，如 `f10 detail xw 22075813`")
+        return emit(args, client.detail(codes[0], codes[1]))
+    if action == "limit-board":
+        return emit(args, client.limit_up_down_list(args.date or None))
+
+    code = _f10_single_code(args)
+    if action == "stock-info":
+        return emit(args, client.stock_info(code))
+    if action == "profile":
+        return emit(args, client.company_profile(code, section=section))
+    if action == "digest":
+        return emit(args, client.digest(code, section=section, page_size=page_size))
+    if action == "shareholders":
+        return emit(
+            args,
+            client.shareholders(
+                code,
+                section=section,
+                report_date=args.report_date,
+                kind=arg or "000",
+                page=page,
+                page_size=page_size,
+            ),
+        )
+    if action == "capital":
+        return emit(args, client.capital_structure(code, section=section, date=args.date))
+    if action == "business":
+        return emit(
+            args, client.business_report(code, section=section, report_date=args.report_date)
+        )
+    if action == "industry":
+        return emit(args, client.industry_analysis(code, section=section, arg=arg))
+    if action == "trading":
+        return emit(
+            args,
+            client.trading_report(
+                code, section=section, arg=arg, date=args.date, page=page, page_size=page_size
+            ),
+        )
+    if action == "dividend":
+        return emit(args, client.dividend_financing(code, section=section))
+    if action == "finance":
+        return emit(args, client.finance_report(code, report_type=section))
+    if action == "governance":
+        return emit(args, client.governance(code, section=section, arg=arg))
+    if action == "forecast":
+        return emit(args, client.profit_forecast(code, section=section))
+    if action == "score":
+        return emit(args, client.stock_score(code, section=section, arg=arg))
+    if action == "topics":
+        return emit(args, client.hot_topics(code, section=section))
+    if action == "topic-compare":
+        if args.topic:
+            return emit(args, client.topic_compare(code, args.topic))
+        return emit(args, client.topic_compare_first(code))
+    if action == "news":
+        return emit(
+            args,
+            client.company_news(code, section=section, page=page, page_size=page_size),
+        )
+    if action == "northbound":
+        return emit(
+            args,
+            client.northbound_holding(code, section=section, page=page, page_size=page_size),
+        )
+    if action == "ranking":
+        return emit(args, client.ranking_detail(code, section=section))
+    if action == "valuation":
+        return emit(args, client.valuation(code))
+    if action == "fund":
+        return emit(
+            args,
+            client.fund_report(
+                code,
+                section=section,
+                arg=arg,
+                date=args.date,
+                page=page,
+                page_size=page_size,
+            ),
+        )
+    if action == "market":
+        return emit(
+            args,
+            client.market_report(
+                code,
+                section=section,
+                arg=arg,
+                date=args.date,
+                page=page,
+                page_size=page_size,
+            ),
+        )
+    return fail(f"未知的 f10 action: {action}")
 
 def cmd_limits(args: argparse.Namespace) -> int:
     client = _tdx(args)
@@ -913,13 +1322,36 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_finance)
 
     # money-flow
-    p = sub.add_parser("money-flow", help="资金流向日数据（0x0ffc）")
+    p = sub.add_parser("money-flow", help="资金流向（默认 0x0ffc 当日；--days 走 7615 区间）")
     _add_output_options(p)
     _add_connection_options(p)
     _add_code_positional(p)
+    p.add_argument(
+        "--days", type=int, default=None, choices=(3, 5, 10, 20, 60),
+        help="区间天数（3/5/10/20/60，走 7615 CWServ.tdxf10_gg_sj；不传则走 0x0ffc 当日分档）",
+    )
     p.add_argument("--raw", action="store_true")
     p.set_defaults(func=cmd_money_flow)
 
+    # f10
+    p = sub.add_parser(
+        "f10", help="7615 F10 资料接口（个股 / ETF基金 / 板块 / 指数 / 大盘）"
+    )
+    _add_output_options(p)
+    _add_connection_options(p, host=False)
+    p.add_argument("--base-url", default=None, help="TQLEX 网关地址（默认 static.tdx.com.cn:7615）")
+    p.add_argument("action", choices=_F10_ACTIONS, help="子操作（sections 列出全部 section）")
+    _add_code_positional(p, nargs="*")
+    p.add_argument("--section", default=None, help="分区，见 `eltdx f10 sections`")
+    p.add_argument("--arg", default=None, help="分区附加参数（如 kind / reqtype / 排序键）")
+    p.add_argument("--date", default=None, help="日期（YYYYMMDD 或 YYYY-MM-DD）")
+    p.add_argument("--report-date", default=None, help="报告期（YYYYMMDD）")
+    p.add_argument("--topic", default=None, help="题材 ID（topic-compare）")
+    p.add_argument("--entry", default=None, help="TQLEX Entry（call，如 CWServ.tdxf10_gg_gdyj）")
+    p.add_argument("--params", default=None, help="Params JSON 数组（call）")
+    p.add_argument("--page", type=int, default=1, help="页码（默认 1）")
+    p.add_argument("--page-size", type=int, default=20, help="每页条数（默认 20）")
+    p.set_defaults(func=cmd_f10)
     # limits
     p = sub.add_parser("limits", help="每日涨跌停价")
     _add_output_options(p)

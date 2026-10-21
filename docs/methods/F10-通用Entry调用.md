@@ -73,3 +73,24 @@ f10.call("CWServ.tdxf10_gg_gsgk", params=["8", "000034", ""])
 ```
 
 字段名来自服务端返回的 `ColName` / `ColDes`，不同 Entry 可能返回中文字段、拼音字段或 `T001` 这类原生字段。
+
+## skef10 家族（ETF / 基金 / 板块 / 指数）
+
+7615 除 `CWServ.tdxf10_gg_*`（个股 F10）外还有另一批页面 Entry，前缀是 `CWServ.skef10_*`：ETF 与场外基金用 `skef10_jj_*`，板块与指数用 `skef10_bk_*` / `skef10_zs_*`，大盘指数用 `skef10_dpzx_*`。它们同样是 `CWServ` 的 `Params` 写法，只是页面主机和路径不同（`page1.tdx.com.cn:7615`）。已封装的入口是 `client.f10.fund_report()` 与 `client.f10.market_report()`；需要手动调用时：
+
+```python
+from eltdx import F10Client
+
+f10 = F10Client(timeout=3)
+
+# ETF / 基金：基金资料页（1=基金经理，2=基金管理人，4=基本概况，5=交易席位）
+fund = f10.params("CWServ.skef10_jj_jjzl", "4", "510300", "", "1", "1", "20")
+
+# 板块资金流向（001_1 / 002_1 / 003_1 切换口径）
+board = f10.params("CWServ.skef10_bk_zjlx", "001_1", "880472", "")
+
+print(fund.entry, fund.rows[:2])
+print(board.entry, board.rows[0])
+```
+
+同一家族内 `Params[0]` 往往是页面内的子命令，先看 [F10_7615.md](../F10_7615.md) 里的 Entry / section 表再传参。

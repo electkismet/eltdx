@@ -862,6 +862,31 @@ if not flow.records:
     print("无资金流数据")
 ```
 
+<a id="method-money-flow-history"></a>
+
+### `client.money_flow.history(code, *, days=60, start=0, count=None, include_raw=False, batch_size=75)`
+
+历史日资金流向，走 7615 TQLEX 的 `CWServ.tdxf10_gg_sj` 区间通道（`{"Params": ["zjlx_sj", code, str(days), code]}`，代码取 `split_code(code)[2]` 的 6 位部分）。`days` 只接受 `3` / `5` / `10` / `20` / `60`，其它值抛 `ValueError`；`start` / `count` 是拿到响应后的客户端切片，`count` 上限 800；`batch_size` 只影响传代码序列时的并发。
+
+传单个代码返回 `FundFlowRangeSeries`（定义在 `eltdx.models.money_flow`，已由 `eltdx.models` 导出），字段为 `code` / `days` / `codes` / `rows` / `raw_payload`，并提供 `count` 属性（切片后的行数）；传代码列表返回 `dict[str, FundFlowRangeSeries]`，键为规范化后的完整代码。
+
+```python
+series = client.money_flow.history("688004", days=60)
+print(series.days, series.count, series.rows[0])
+
+window = client.money_flow.history("688004", days=60, start=0, count=5)
+batch = client.money_flow.history(["sz000001", "sh600000"], days=20, batch_size=75)
+```
+
+`rows` **原样保留**服务端列，不做语义臆测：`N001` 日期、`N002` 代码、`N003` 名称、`N004` 主力净额、`N005` 超大单净买入、`N006` 大单净买入、`N007` 主买净额、`N009` 上市日期；其余 `N00x` 列语义未确认，同样原样保留。行序即服务端顺序。`include_raw=True` 时保留 `raw_payload`（网关响应重新序列化后的紧凑 JSON 字节）。
+
+#### 与 7709 category 22 的关系
+
+!!! warning "不再走 7709 `0x052d` 的 category 22"
+    旧实现复用 K 线命令的 22 号周期，实测 18 台可达主站（普通池 + 资金流向专用池）对该 category **一律返回 2 字节 `0000`**（`records` 为空），而同一连接上的 `category=4`（日线）正常有数据；两种 payload 布局、`parameter` 取值（`0` / `1`）和 msg_id 路由结果都相同。真实客户端走的是 7615 通道，所以 `history()` 不再碰 7709，也不做空数据换台。旧 DTO `FundFlowHistorySeries` / `FundFlowHistoryRecord` 仍在 Rust 侧导出（`tests/test_fund_flow_history.py` 锁住其字段顺序），但已不是本方法的返回值。
+
+当日分档数据仍用 `client.money_flow.daily()`（7709 `0x0ffc`）。
+
 ## 财务基础信息
 
 <a id="method-corporate-finance-batch"></a>
@@ -1013,13 +1038,21 @@ response = client.f10.params("CWServ.tdxf10_gg_gsgk", "8", "000034", "")
 | `finance_report(code, report_type="zcfzb")`            | `CWServ.tdxf10_gg_cwfx`                                  | 财务报表，默认资产负债表                              |
 | `finance_diagnosis(code, section="yynl")`              | `CWServ.tdxf10_gg_cwzd`                                  | 营运、盈利、成长、现金流、资产质量等诊断                      |
 | `stock_score(code, section="pf")`                      | `CWServ.tdxf10_gg_ggzp`                                  | 综合评分、排名、资金面 / 基本面 / 主题面评分                 |
-| `profit_forecast(code)`                                | `CWServ.tdxf10_gg_ybpj`                                  | EPS、归母净利润、营业收入预测                          |
+| `profit_forecast(code, section="ylyctj")`               | `CWServ.tdxf10_gg_ybpj`                                  | 盈利预测统计 / 明细、一致预期、投资评级统计、研报（`section` 选分区） |
+| `shareholders(code, section="count", *, report_date=None, kind="000", filter1="", filter2="", page=1, page_size=20)` | `CWServ.tdxf10_gg_gdyj`（`institution_holdings` 走 `CWServ.tdxf10_gg_gdyj_jgcgmx`） | 股东人数、同业股东人数排名、控股股东与实际控制人、十大流通股东、十大股东、十大债券持有人、持股变动、机构持股汇总 / 分类、机构持仓明细、增减持计划（11 个分区） |
+| `capital_structure(code, section="structure", *, date=None)` | `CWServ.tdxf10_gg_gbjg`（`restricted_detail` 走 `CWServ.tdxf10_gg_gbjg_xsjjmx`） | 股本结构、股本变动、股票回购、限售流通、限售解禁明细（5 个分区，明细必填 `date`） |
+| `business_report(code, section="business", *, report_date=None)` | `CWServ.tdxf10_gg_jyfx`                                  | 主营业务概述、主营构成、前五名客户、前五名供应商、产品价格、财务指标大幅变动（6 个分区） |
+| `industry_analysis(code, section="peers", *, arg="")`   | `CWServ.tdxf10_gg_hyfx`（`comparable` / `comparable_profile` 走 `CWServ.tdxf10_gg_kbgs`） | 同业对比、同业分红排名、同业规模、同业估值、行业新闻、行业研报、市场份额、行业汇总、可比公司列表、可比公司资料（10 个分区） |
+| `trading_report(code, section="margin", *, arg="", date=None, page=1, page_size=20)` | `CWServ.tdxf10_gg_jyds`（`margin_history` 走 `CWServ.tdxf10_gg_sj`） | 近期 / 近 6 个月两融、大宗交易、龙虎榜、沪深股通、涨跌停分析、可转债、主力盘口、研报席位、科创板标记（11 个分区） |
+| `fund_report(code, section="basic", *, arg="", date=None, page=1, page_size=20)` | `CWServ.skef10_jj_*`                                     | ETF 与场外基金共用的 30 个分区：经理、管理人、概况、席位、规模份额、净值回报、分红、资产与行业配置、重仓股、持股情况、财务、销售、评级 |
+| `market_report(code, section="board_info", *, arg="", date=None, page=1, page_size=20)` | `CWServ.skef10_bk_*` / `skef10_zs_*` / `skef10_dpzx_*`  | 板块 / 指数 / 大盘共用的 20 个分区：板块资料与资金、成份股数据与财务对比、指数概况与跟踪标的、大盘两融与新股分析 |
 | `ranking_detail(code, section="scpmdela")`             | `CWServ.tdxf10_gg_zxts_rqpm`                             | 市场 / 行业排名明细                               |
 | `governance(code, section="wgcl")`                     | `CWServ.tdxf10_gg_zbyz`                                  | 违规处理、担保明细等治理数据                            |
 | `hot_topics(code, section="zttzbkz")`                  | `CWServ.tdxf10_gg_rdtc`                                  | 题材名称、关联度、入选日期、入选原因、详情 ID                  |
 | `topic_compare(code, topic_id, section="gndbzfsj")`    | `CWServ.tdxf10_gg_rdtc_gndb`                             | 题材内个股对比和排名                                |
 | `topic_compare_first(code)`                            | `CWServ.tdxf10_gg_comreq` + `CWServ.tdxf10_gg_rdtc_gndb` | 先取第一个题材 ID，再查题材内对比                        |
-| `company_news(code, section="gsyj")`                   | `CWServ.tdxf10_gg_gszx`                                  | 研报、监管措施等公司资讯                              |
+| `company_news(code, section="gsyj", *, keyword="", rating="0", page=1, page_size=20)` | `CWServ.tdxf10_gg_gszx`（`finance_review` 走 `CWServ.tdxf10_gg_cwfx_cbdp`） | 研报、监管措施、财报点评等公司资讯 |
+| `digest(code, section="tips", *, page=1, page_size=20)` | `CWServ.tdxf10_gg_zxts`（`interaction` 走 `CWServ.tdxf10_gg_zxtstzzhd`） | 「最新提示」页：最新提示、公司概要、公司大事、公司新闻、公司公告、公司研报、路演互动、投资者互动（8 个分区） |
 | `northbound_holding(code, section="bszj")`             | `CWServ.tdxf10_gg_zlcc`                                  | 沪深股通持股比例、数量和变动                            |
 | `detail(detail_type, record_id)`                       | `CWServ.tdxf10_gg_idreq`                                 | 按记录 ID 查正文                                |
 | `cache_list(code, kind="gg")`                          | `CWSearch.tzx_rcache`                                    | 新闻 / 公告 / 路演缓存列表；`kind` 可传 `xw`、`gg`、`ly` |

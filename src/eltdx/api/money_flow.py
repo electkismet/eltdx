@@ -2,22 +2,34 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
 from eltdx.exceptions import TransportError
 from eltdx.models import MoneyFlowBatch, MoneyFlowBlock
-from eltdx.protocol.constants import TYPE_MONEY_FLOW
-from eltdx.protocol.unit import normalize_code
+from eltdx.models.money_flow import FundFlowRangeSeries
+from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE, TYPE_MONEY_FLOW
+from eltdx.protocol.unit import normalize_code, split_code
 
-from .base import ApiBase
+from .base import ApiBase, _weak_callback
 
 
 #: 单只标的一次故障转移最多试用的备用主机数（避免新股在几十台主机上全试一遍）。
 _MAX_PROBES_PER_CODE = 3
 #: 整批预算按前 N 只标的计算：更靠后的票即使全空也不再重试，天然给连接数封顶。
 _BUDGET_CODE_CAP = 8
+
+
+#: 7615 TQLEX 历史资金流向 Entry（``zjlx`` 给 20 日，``zjlx_sj`` 给 3/5/10/20/60 日）。
+F10_HISTORY_ENTRY = "CWServ.tdxf10_gg_sj"
+#: 服务端接受的历史窗口步长。
+HISTORY_DAY_STEPS = (3, 5, 10, 20, 60)
+#: 没有 7615 通道时的报错文案。
+F10_REQUIRED_MESSAGE = (
+    "money_flow.history 需要 7615 F10 通道：请通过 TdxClient 使用，或传入 f10_factory"
+)
 
 
 class _EmptyFailover:
@@ -67,7 +79,8 @@ class MoneyFlowApi(ApiBase):
     Args:
         transport: 主 transport。
         transport_factory: 可选，无参调用时返回资金流直连池；带 ``host`` 调用时返回
-            只连该主机的临时池（用于空数据故障转移）。
+            只连该主机的临时池（用于空数据故障转移）。以弱引用保存，避免子服务与
+            ``TdxClient`` 互持形成引用环。
         candidate_hosts: 空数据时按顺序尝试的主机（已按延迟排好序）。
     """
 
@@ -76,25 +89,47 @@ class MoneyFlowApi(ApiBase):
         transport,
         *,
         transport_factory=None,
+        f10_factory=None,
         candidate_hosts: Sequence[str] = (),
     ) -> None:
         super().__init__(transport)
-        self._transport_factory = transport_factory
+        self._transport_factory = _weak_callback(transport_factory)
+        self._f10_factory = _weak_callback(f10_factory)
         self._candidate_hosts = tuple(candidate_hosts)
         self._dedicated_transport = None
         self._preferred_transport = None
         self._preferred_host: str | None = None
         self._transport_lock = Lock()
 
+    def _resolve_transport_factory(self):
+        """解析 ``transport_factory`` 弱引用；回调已随 client 回收时返回 ``None``。"""
+
+        if self._transport_factory is None:
+            return None
+        return self._transport_factory()
+
+    def _resolve_f10(self):
+        """解析并调用 ``f10_factory`` 弱引用，返回 7615 F10 客户端。
+
+        未接线（或回调已随持有者回收）时抛 ``RuntimeError``：``history()`` 没有
+        7709 退路，宁可显式报错也不静默返回空数据。
+        """
+
+        factory = self._f10_factory() if self._f10_factory is not None else None
+        if factory is None:
+            raise RuntimeError(F10_REQUIRED_MESSAGE)
+        return factory()
+
     def _active_transport(self):
         # 一旦某台主机被证明「真有数据」，后续查询直接用它，避免每次空返回都重探一轮。
         if self._preferred_transport is not None:
             return self._preferred_transport
-        if self._transport_factory is None:
+        factory = self._resolve_transport_factory()
+        if factory is None:
             return self._transport
         with self._transport_lock:
             if self._dedicated_transport is None:
-                self._dedicated_transport = self._transport_factory()
+                self._dedicated_transport = factory()
             return self._dedicated_transport
 
     def close(self) -> None:
@@ -161,6 +196,116 @@ class MoneyFlowApi(ApiBase):
         recovered = self._recover_empty(code, include_raw=include_raw, failover=failover)
         return response if recovered is None else recovered
 
+    def history(
+        self,
+        code: str | Sequence[str],
+        *,
+        days: int = 60,
+        start: int = 0,
+        count: int | None = None,
+        include_raw: bool = False,
+        batch_size: int = 75,
+    ):
+        """历史日资金流向（7615 TQLEX ``CWServ.tdxf10_gg_sj``）。
+
+        与 :meth:`daily` 是两条独立通道：``daily()`` 走 7709 ``0x0ffc``，只给最近
+        若干个交易日、但每个交易日带 16 个原始分档值；本方法走 7615 HTTP 网关，
+        用 ``{"Params": ["zjlx_sj", code, str(days), code]}`` 取 ``days`` 日窗口的历史。
+
+        !!! warning "为什么不再用 7709 ``0x052d`` category 22"
+            原实现走 K 线命令的 22 号周期，实测 18 台可达主站（普通池 + 资金流向专用池）
+            对它一律返回 2 字节 ``0000`` 空 payload，而同一连接上的 ``category=4``（日线）
+            正常有数据 —— 这是服务端行为，不是本包的缺陷。真实客户端用的是本方法的
+            7615 通道，所以 ``history()`` 不再碰 7709，也不做空数据换台。
+
+        Args:
+            days: 服务端窗口步长，只接受 ``3`` / ``5`` / ``10`` / ``20`` / ``60``，
+                其它值抛 ``ValueError``。
+            start: 客户端切片起点（距最新偏移），``0`` 为最新一条。
+            count: 客户端切片条数，``None`` 表示 ``start`` 之后的全部；非空时上限
+                ``800``（与 K 线同一页大小）。
+            include_raw: 是否保留 ``raw_payload``（网关响应重新序列化后的紧凑 JSON 字节）。
+            batch_size: 传入代码序列时的最大并发；实际并发不超过连接池容量。
+
+        Returns:
+            单只代码返回 :class:`~eltdx.models.money_flow.FundFlowRangeSeries`；代码序列
+            返回 ``dict[str, FundFlowRangeSeries]``，键为规范化后的完整代码。
+
+        返回模型的 ``rows`` **原样保留**服务端 ``N00x`` 列（不做语义臆测）：
+        ``N001`` 日期、``N002`` 代码、``N003`` 名称、``N004`` 主力净额、
+        ``N005`` 超大单净买入、``N006`` 大单净买入、``N007`` 主买净额、
+        ``N009`` 上市日期。行序即服务端顺序。
+        """
+
+        _validate_batch_size(batch_size)
+        _validate_history_days(days)
+        _validate_history_start(start)
+        if count is not None:
+            _validate_history_count(count)
+        if isinstance(code, str):
+            return self._single_history(
+                code,
+                days=days,
+                start=start,
+                count=count,
+                include_raw=include_raw,
+            )
+
+        codes = [normalize_code(item) for item in code]
+        if not codes:
+            raise ValueError("codes must not be empty")
+        workers = _batch_workers(self._transport, len(codes), batch_size)
+        series: dict[str, FundFlowRangeSeries] = {}
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            for offset in range(0, len(codes), workers):
+                chunk = codes[offset : offset + workers]
+                responses = executor.map(
+                    lambda item: self._single_history(
+                        item,
+                        days=days,
+                        start=start,
+                        count=count,
+                        include_raw=include_raw,
+                    ),
+                    chunk,
+                )
+                for item, response in zip(chunk, responses):
+                    series[item] = response
+        return series
+
+    def _single_history(
+        self,
+        code: str,
+        *,
+        days: int,
+        start: int,
+        count: int | None,
+        include_raw: bool,
+    ) -> FundFlowRangeSeries:
+        """一次 7615 ``zjlx_sj`` 请求 + 客户端 ``start`` / ``count`` 切片。"""
+
+        response = self._resolve_f10().params(
+            F10_HISTORY_ENTRY,
+            "zjlx_sj",
+            split_code(code)[2],
+            str(days),
+            split_code(code)[2],
+        )
+        rows = tuple(response.rows)
+        window = rows[start:] if count is None else rows[start : start + count]
+        payload = b""
+        if include_raw:
+            payload = json.dumps(
+                response.raw, ensure_ascii=False, separators=(",", ":")
+            ).encode("utf-8")
+        return FundFlowRangeSeries(
+            code=code,
+            days=days,
+            codes=(split_code(code)[2],),
+            rows=window,
+            raw_payload=payload,
+        )
+
     def _recover_empty(
         self, code: str, *, include_raw: bool, failover: _EmptyFailover | None
     ) -> object | None:
@@ -175,7 +320,13 @@ class MoneyFlowApi(ApiBase):
         起点，避免整批票都去死磕 ``candidate_hosts[0]``。
         """
 
-        if failover is None or not self._candidate_hosts or self._transport_factory is None:
+        # 「回调本身为 None」与「弱引用已解析不出来（client 已回收）」都走同一降级：
+        # 不做故障转移，原样返回空响应。
+        if (
+            failover is None
+            or not self._candidate_hosts
+            or self._resolve_transport_factory() is None
+        ):
             return None
         candidates = self._candidate_hosts
         total = len(candidates)
@@ -240,8 +391,11 @@ class MoneyFlowApi(ApiBase):
             return True
 
     def _open_host_transport(self, host: str):
+        factory = self._resolve_transport_factory()
+        if factory is None:
+            return None
         try:
-            return self._transport_factory(host)
+            return factory(host)
         except TransportError:
             return None
 
@@ -277,3 +431,18 @@ def _batch_workers(transport, code_count: int, batch_size: int) -> int:
     if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity <= 0:
         capacity = 1
     return min(code_count, batch_size, capacity)
+
+def _validate_history_count(value: int) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_KLINE_PAGE_SIZE:
+        raise ValueError(f"count must be between 1 and {MAX_KLINE_PAGE_SIZE}")
+
+
+def _validate_history_days(value: int) -> None:
+    steps = ", ".join(str(step) for step in HISTORY_DAY_STEPS)
+    if isinstance(value, bool) or not isinstance(value, int) or value not in HISTORY_DAY_STEPS:
+        raise ValueError(f"days must be one of: {steps}")
+
+
+def _validate_history_start(value: int) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError("start must be a non-negative integer")

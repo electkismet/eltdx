@@ -160,7 +160,8 @@ def _handshake():
 
 
 def test_common_a_share_helpers_and_rank() -> None:
-    helper = HelperApi(_Client())
+    fake_client = _Client()
+    helper = HelperApi(fake_client)
     assert [item.full_code for item in helper.latest_st()] == ["sh600000"]
     limits = helper.daily_price_limits(["sz000001"], trade_date=date(2026, 8, 20))
     assert limits.rows[0].limit_status == "missing_pre_close"

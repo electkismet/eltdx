@@ -6,6 +6,9 @@ use crate::commands::{
         CompanyInfoCategory, FinanceBatch,
     },
     delisted_bars::{parse_delisted_klines_payload, DelistedKlineSeries},
+    history_fund_flow::{
+        parse_history_fund_flow_payload, HistoryFundFlowSeries, HISTORY_FUND_FLOW_CATEGORY,
+    },
     klines::{parse_klines_payload, KlineSeries},
     limits::{parse_special_limits_payload, SpecialLimitPage},
     minutes::{
@@ -47,6 +50,7 @@ pub enum CommandResponse {
     IntradayAux(MinuteAuxSeries),
     DelistedKlines(DelistedKlineSeries),
     Klines(KlineSeries),
+    HistoryFundFlow(HistoryFundFlowSeries),
     TodayIntraday(MinuteSeries<TodayIntradayRequest>),
     LegacyQuotes(Vec<LegacyQuote>),
     RefreshStream(QuoteRefreshPage),
@@ -96,7 +100,13 @@ impl CommandResponse {
                 parse_delisted_klines_payload(payload, request).map(Self::DelistedKlines)
             }
             CommandRequest::Klines(request) => {
-                parse_klines_payload(payload, request).map(Self::Klines)
+                // Category 22 shares the 0x052d frame but returns the historical
+                // money-flow series rather than OHLC bars.
+                if request.period.raw == HISTORY_FUND_FLOW_CATEGORY {
+                    parse_history_fund_flow_payload(payload, request).map(Self::HistoryFundFlow)
+                } else {
+                    parse_klines_payload(payload, request).map(Self::Klines)
+                }
             }
             CommandRequest::TodayIntraday(request) => {
                 parse_today_intraday_payload(payload, request).map(Self::TodayIntraday)

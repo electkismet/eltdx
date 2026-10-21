@@ -20,6 +20,7 @@
       "tests/contracts/test_static_fixture_inputs.py",
       "tests/contracts/test_unified_test_plan.py",
       "tests/integration/test_native_transport.py",
+      "tests/test_fund_flow_history.py",
       "tests/packaging/test_bytecode_exclusion_contract.py",
       "tests/packaging/test_console_scripts.py",
       "tests/packaging/test_docs_mirror.py",

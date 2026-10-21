@@ -23,7 +23,14 @@ from .kline import KlineBar, KlineSeries
 from .enums import Market
 from .limit import SpecialLimitPage, SpecialLimitRecord
 from .minute import MinuteAuxPoint, MinuteAuxSeries, MinutePoint, MinuteSeries, SparklineSeries
-from .money_flow import MoneyFlowBatch, MoneyFlowBlock, MoneyFlowDaily
+from .money_flow import (
+    FundFlowHistoryRecord,
+    FundFlowHistorySeries,
+    FundFlowRangeSeries,
+    MoneyFlowBatch,
+    MoneyFlowBlock,
+    MoneyFlowDaily,
+)
 from .quote import (
     CategoryQuotePage,
     CategoryQuoteRecord,
@@ -56,6 +63,9 @@ __all__ = [
     "FactorResponse",
     "FinanceBatch",
     "FinanceRecord",
+    "FundFlowHistoryRecord",
+    "FundFlowHistorySeries",
+    "FundFlowRangeSeries",
     "FileContentChunk",
     "HandshakeInfo",
     "HeartbeatAck",

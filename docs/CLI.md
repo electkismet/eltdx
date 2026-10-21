@@ -77,7 +77,7 @@ eltdx mac quote "SZ 000001"          # MAC 命令用市场编号 0=深 1=沪 2=�
 | `trades CODE [--date] [--all] [--start] [--count]` | 逐笔成交 |
 | `codes [--market] [--kind]` | 代码表（`stocks`/`etfs`/`indices`/`all`/`list`/`count`/`markets`）|
 | `finance CODE...` | 专业财报 |
-| `money-flow CODE...` | 资金流向日数据 |
+| `money-flow CODE... [--days 3|5|10|20|60]` | 资金流向：不传 `--days` 走 7709 `0x0ffc` 当日分档，传 `--days` 走 7615 区间通道 |
 | `limits [CODE...] [--date]` | 每日涨跌停价 |
 
 `--period` 取值：`1m` `5m` `15m` `30m` `60m`/`1h`/`hour` `day` `week` `month` `quarter` `year`。
@@ -89,6 +89,56 @@ eltdx quote "sz000001,sh600519" --depth
 eltdx codes --market sz --kind etfs --limit 20
 eltdx limits sz000001 --date 20261009
 ```
+
+### 7615 F10 资料（`eltdx f10`）
+
+F10 走 `7615/TQLEX` HTTP 网关，**不需要 7709 连接**；个股、ETF / 基金、板块 / 指数 / 大盘共用同一套 action，靠 `--section` 分派。
+
+| action | 说明 |
+| --- | --- |
+| `sections` | 列出全部合法 `--section` 取值（含默认值），不请求网关 |
+| `call` | 手动指定 `--entry` 与 `--params`（JSON 数组）直接调用任意 Entry |
+| `stock-info` | 股票基础信息（名称、代码、市场） |
+| `profile` | 公司概况（`--section`，默认 `8`） |
+| `digest` | 「最新提示」页 8 个分区：最新提示 / 公司概要 / 公司大事 / 公司新闻 / 公司公告 / 公司研报 / 路演互动 / 投资者互动 |
+| `shareholders` | 股东研究 11 个分区 |
+| `capital` | 股本结构 5 个分区（`restricted_detail` 需 `--date`） |
+| `business` | 经营分析 6 个分区（多数需 `--report-date`） |
+| `industry` | 行业分析 10 个分区（含 `comparable` 可比公司、`comparable_profile` 可比公司资料） |
+| `trading` | 交易数据 11 个分区 |
+| `dividend` | 分红融资（默认 `fh`，另有 `pf` / `pxmz` / `zf` / `gqjl` 等） |
+| `finance` | 财务报表（`--section` 选表，默认 `zcfzb`） |
+| `governance` | 资本运作治理 |
+| `forecast` | 盈利预测与评级（`--section` 选分区） |
+| `score` / `topics` / `topic-compare` | 个股总评 / 热点题材 / 题材内对比 |
+| `news` / `northbound` / `ranking` / `valuation` / `detail` | 公司资讯（含 `finance_review` 财报点评）/ 沪深股通 / 排名 / 估值 / 详情正文 |
+| `limit-board` | 涨跌停列表（`--date`） |
+| `fund` | ETF / 场外基金 30 个分区 |
+| `market` | 板块 / 指数 / 大盘 20 个分区 |
+
+| 选项 | 说明 |
+| --- | --- |
+| `--section S` | 分区，取值见 `eltdx f10 sections` |
+| `--arg S` | 分区附加参数（kind / 口径 / 表号 / 排序键） |
+| `--date D` / `--report-date D` | 日期 / 报告期（`YYYYMMDD` 或 `YYYY-MM-DD`） |
+| `--page N` / `--page-size N` | 分页，默认 `1` / `20` |
+| `--entry E` / `--params JSON` | 仅 `call` 使用 |
+| `--base-url URL` | 覆盖 TQLEX 网关地址（默认 `static.tdx.com.cn:7615`） |
+
+```bash
+eltdx f10 sections --output table
+eltdx f10 shareholders 688004 --section count -o table
+eltdx f10 digest 688004 --section events --output table
+eltdx f10 trading 688004 --section limit_up --output jsonl
+eltdx f10 fund 510300 --section dividends
+eltdx f10 market 880472 --section board_flow --arg 001_1
+eltdx f10 call --entry CWServ.tdxf10_gg_gdyj --params '["688004","gdrs","","","1","1","20"]'
+```
+
+`eltdx f10 sections` 输出 action / section / default / 说明 四列，是查合法分区的权威入口。
+F10 不接受 `--host`（它是 HTTP 网关，不是 7709 主站），需要换网关时用 `--base-url`。
+`--output table / csv / jsonl` 会把 TQLEX 回包里的结果集**展开成数据行**（多结果集按顺序拼接）；
+默认的 `-o json` 保留完整回包（`entry` / `request_body` / `result_sets` / `raw`），便于排查；只要原始回包时用 `eltdx f10 call`。
 
 ### 扩展行情 7727
 
@@ -227,6 +277,7 @@ $ eltdx macex instruments --market 33 --count 2 --output jsonl
 | `eltdx mac *` | `MacClient.*` |
 | `eltdx macex *` | `MacExClient.*` |
 | `eltdx offline *` | `eltdx.offline.*` |
+| `eltdx f10 *` | `client.f10.*`（走 7615/TQLEX HTTP 网关） |
 
 CLI 只做参数解析与输出渲染，不复制任何业务逻辑；需要更细的控制（并发、批量、
 原始字节）时请直接用 Python API。
