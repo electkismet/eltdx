@@ -15,7 +15,7 @@
   <a href="https://pypi.org/project/eltdx/"><img alt="PyPI eltdx" src="https://img.shields.io/pypi/v/eltdx?label=PyPI&amp;color=0969da"></a>
   <a href="https://electkismet.github.io/eltdx/"><img alt="文档站" src="https://img.shields.io/github/actions/workflow/status/electkismet/eltdx/pages.yml?branch=main&amp;label=%E6%96%87%E6%A1%A3"></a>
   <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&amp;logoColor=white">
-  <a href="./LICENSE"><img alt="Non-Commercial Research License" src="https://img.shields.io/badge/许可-非商业研究-6f42c1"></a>
+  <a href="./LICENSE"><img alt="Non-Commercial Learning and Data Research License" src="https://img.shields.io/badge/许可-非商业学习与数据研究-6f42c1"></a>
 </p>
 
 <a href="https://electkismet.github.io/eltdx/">
@@ -32,10 +32,11 @@
 
 通达信行情与数据 Python 库。支持 A 股行情、分时、成交明细、K 线、竞价、公司信息和题材信息；提供扩展行情（EX）、MAC / MAC-EX、基金与外盘相关接口，以及本地行情文件和专业财务数据读取能力。7709 协议核心由 Rust 实现，支持 MCP 工具和 HTTP 网关。各行情接口的数据覆盖以服务器实际支持为准。
 
-1. 本项目仅以个人学习、协议兼容性与数据解析研究为目的进行开发。
-2. 项目本身、衍生产品及通过本项目获取的数据禁止用于任何商业行为、付费服务、生产服务、转售或其他营利用途，产生的任何数据、损失或法律责任由使用者自负。
+1. 本项目仅供个人学习、数据接口与格式研究及非商业用途使用。
+2. 禁止将本项目、衍生作品或通过本项目获取的数据用于商业活动、付费服务、生产服务、转售、营利性数据服务、自动化交易服务，或违反适用法律法规、交易所规则、第三方服务协议及他人权益的用途。
 3. 对第三方服务器或服务的访问，用户需自行遵守相关法律法规及服务协议。
-4. 请勿将本项目用于侵犯他人权益、违反监管规定或滥用第三方服务的行为。
+4. 使用者对第三方服务、通过本项目获取的数据及由此产生的法律、监管、财务和运营后果自行负责。
+5. 请勿将本项目用于侵犯他人权益、违反监管规定或滥用第三方服务的行为。
 
 感谢 [injoyai/tdx](https://github.com/injoyai/tdx) 及 [rainx/pytdx](https://github.com/rainx/pytdx) 的启发。
 
@@ -466,4 +467,4 @@ print(auction.open_price, auction.open_change_pct, auction.open_amount)
 
 ## 许可证
 
-本项目仅允许个人学习、协议兼容性与数据解析研究使用，禁止商业使用和滥用。详细条款见 [LICENSE](LICENSE)。
+本项目仅供个人学习、数据接口与格式研究及非商业用途使用。禁止将本项目、衍生作品或通过本项目获取的数据用于商业活动、付费服务、生产服务、转售、营利性数据服务、自动化交易服务，或违反适用法律法规、交易所规则、第三方服务协议及他人权益的用途。完整条款以 [LICENSE](LICENSE) 为准。

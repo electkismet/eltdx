@@ -39,7 +39,7 @@ def read_dat_from_zip(
     !!! warning "必须按 ``ZipInfo`` 读取，不能按文件名"
         ``archive.read(name)`` 在存在**同名条目**时会返回最后一个条目，于是对第一个
         条目做的大小 / 加密校验就形同虚设。这里校验并读取**同一个** ``ZipInfo``，
-        并显式拒绝重名，杜绝绕过。
+        并显式拒绝重名，确保校验覆盖完整。
 
     Raises:
         ResourceFormatError: 条目过多、无 ``.dat``、``.dat`` 重名、条目加密，

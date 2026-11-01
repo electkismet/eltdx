@@ -116,7 +116,7 @@ def _make_ex_bar(
     )
 
 
-# gbbq 加密（read_gbbq 解密逻辑的逆）—— 用于构造合成字节
+# gbbq 编码测试数据生成过程——用于构造合成字节
 
 
 def _key_u32(offset: int) -> int:

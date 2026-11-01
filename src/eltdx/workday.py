@@ -48,8 +48,8 @@ class WorkdayService:
         """解析 client 弱引用。
 
         未绑定 client 时返回 ``None``（星期几降级逻辑依赖它）；client 已被
-        回收时抛 ``ReferenceError``，而不是悄悄退回星期几推算 —— 那会把
-        「拿不到真实交易日」伪装成一份看似正常的结果。
+        回收时抛 ``ReferenceError``，而不是悄悄退回星期几推算 —— 否则
+        「拿不到真实交易日」可能被误判为一份正常结果。
         """
 
         ref = self._client_ref

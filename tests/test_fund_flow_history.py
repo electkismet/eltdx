@@ -365,11 +365,11 @@ class _NoIoTransport:
     ],
 )
 def test_bar_api_rejects_every_non_ohlc_period_alias(period: str) -> None:
-    """回归：`BarApi.get()` 只拦 `"flow"`，另两个别名会绕过检查继续走 7709。
+    """回归：`BarApi.get()` 只拦 `"flow"`，另两个别名会遗漏检查并继续走 7709。
 
     协议层把 `category 22` 映射成历史资金流并接受 `flow` / `fund_flow` / `zjlx`
-    三个别名，Python 侧若只按字符串精确匹配一个，换个写法就能拿到空 payload
-    并伪装成「该股没有 K 线数据」。
+    三个别名，Python 侧若只按字符串精确匹配一个，换个写法就会得到空 payload
+    并被误判为「该股没有 K 线数据」。
     """
 
     api = BarApi(_NoIoTransport())

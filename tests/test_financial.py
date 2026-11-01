@@ -259,7 +259,7 @@ class TestDownloadRecordsZipLimits:
 
 
 class TestDownloadAndZipGuards:
-    """回归：下载前未传 ``max_bytes``；ZIP 重名条目可绕过校验。"""
+    """回归：下载前未传 ``max_bytes``；ZIP 重名条目可能导致校验遗漏。"""
 
     def test_download_archive_passes_max_bytes(self) -> None:
         """限额必须下推到传输层，否则超大响应会先被完整分配进内存。"""
@@ -273,7 +273,7 @@ class TestDownloadAndZipGuards:
         assert seen == [financial.MAX_FINANCIAL_ZIP_BYTES]
 
     def test_duplicate_dat_names_rejected(self) -> None:
-        """同名 ``.dat`` 会让 ``archive.read(name)`` 读到后一个，绕过对前一个的校验。"""
+        """同名 ``.dat`` 会让 ``archive.read(name)`` 读到后一个，导致前一个未被校验。"""
 
         buffer = io.BytesIO()
         with warnings.catch_warnings():

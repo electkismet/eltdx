@@ -759,7 +759,7 @@ Pinned proxy 的兼容面必须明确：
 - proxy 的 `close()` 不得关闭底层共享 slot；它应原子使 proxy 失效，取消并等待当前 wire quiescent，提前 exact-once 释放 pinned lease，然后幂等返回。context exit 再次清理必须是 no-op，后续 proxy 调用抛 `ConnectionClosedError`。
 - `connected_host` 必须来自所租 slot 的 snapshot。
 - `poll_push()` / `drain_pushes()` 使用 pool epoch 对应的共享 PushBuffer。
-- 同一 proxy 被多个线程调用时，使用 pin-local FIFO 串行等待并共享原始端到端 deadline；不得产生第二个 in-flight，也不能绕过 pool `max_pending_requests` 的总体容量核算。
+- 同一 proxy 被多个线程调用时，使用 pin-local FIFO 串行等待并共享原始端到端 deadline；不得产生第二个 in-flight，也不能超出 pool `max_pending_requests` 的总体容量核算。
 - context 退出会失败所有尚未 admitted 的 pin-local waiter，并按 cancel 规则处理 active ticket。
 
 ---

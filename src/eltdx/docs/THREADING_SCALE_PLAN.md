@@ -83,7 +83,7 @@ Python 同步调用线程
                 +-- 每个 Slot 最多一个业务请求在途
 ```
 
-Supervisor 继续是 epoch、FIFO、lease、pin、push、terminal owner 和 diagnostics 的唯一写入者。Tokio worker 可以并行执行 Slot I/O、解压和协议处理，但不能绕过 Supervisor 直接修改全池状态。
+Supervisor 继续是 epoch、FIFO、lease、pin、push、terminal owner 和 diagnostics 的唯一写入者。Tokio worker 可以并行执行 Slot I/O、解压和协议处理，但不得直接修改 Supervisor 管理的全池状态。
 
 ## 工作线程数量
 
@@ -181,7 +181,7 @@ Engine 全局预算随 Slot 数自动增长，不能再固定为256 MiB，否则
 | Engine 全局 decoded | `min(pool_size × 8 MiB, 2 GiB)` | 160个 Slot允许完整使用1.28 GiB |
 | Engine 全局 push | 64 MiB | 用户尚未读取的推送总和 |
 
-这些是最大允许值，不会在启动时预分配。`global_raw_bytes=None` 和 `global_decoded_bytes=None` 表示使用自动值；高配置机器可以手动提高全局预算，但不提供“无限”选项。单 Slot decoded 保持8 MiB硬上限，不能绕过全局预算。
+这些是最大允许值，不会在启动时预分配。`global_raw_bytes=None` 和 `global_decoded_bytes=None` 表示使用自动值；高配置机器可以手动提高全局预算，但不提供“无限”选项。单 Slot decoded 保持8 MiB硬上限，不能超出全局预算。
 
 容量不足时按以下顺序处理：
 

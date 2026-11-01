@@ -2451,7 +2451,7 @@ mod tests {
             Admission::Waiting(permit) => permit,
             Admission::Active(_) => {
                 return Err(RuntimeError::internal(
-                    "second request bypassed FIFO waiting",
+                    "second request violated FIFO waiting",
                 ))
             }
             Admission::Pinned(_) => {

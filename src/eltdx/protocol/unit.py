@@ -20,8 +20,8 @@ SHANGHAI_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
 #: ``Period::normalize``（``crates/eltdx-protocol/src/unit.rs``）接受
 #: ``flow`` / ``fund_flow`` / ``zjlx`` 三个别名，并在比较前统一 ``to_lowercase()``。
 #:
-#: ``BarApi.get()`` 必须以**同一套别名**拒绝，否则 ``period="fund_flow"`` 会绕过
-#: 检查继续走 7709 K 线请求，拿回空 payload 并伪装成「没有数据」。
+#: ``BarApi.get()`` 必须以**同一套别名**拒绝，否则 ``period="fund_flow"`` 会遗漏检查并
+#: 继续走 7709 K 线请求，拿回空 payload 并表现为「没有数据」。
 #: ``tests/test_fund_flow_history.py`` 有一条契约测试直接解析 ``unit.rs`` 校验本集合，
 #: 两边新增别名时必须同步。
 NON_OHLC_PERIOD_ALIASES = frozenset({"flow", "fund_flow", "zjlx"})

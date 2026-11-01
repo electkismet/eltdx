@@ -47,7 +47,7 @@ class BarApi(ApiBase):
             raise TypeError(f"period must be a string, got {type(period).__name__}")
         # 协议层（unit.rs 的 Period::normalize）把 category 22 映射成历史资金流，
         # 接受 flow / fund_flow / zjlx 三个别名且做 to_lowercase()。这里必须用同一套
-        # 别名 + 同样的规范化，否则换个写法就绕过检查、继续走 7709 K 线请求。
+        # 别名 + 同样的规范化，否则换个写法就会遗漏检查、继续走 7709 K 线请求。
         if period.strip().lower() in NON_OHLC_PERIOD_ALIASES:
             raise ValueError(
                 f"period={period!r} is not OHLC data; "

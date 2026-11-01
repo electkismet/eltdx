@@ -4,7 +4,7 @@ site_description: Rust 驱动 7709 行情与 7615 F10 的 Python 客户端
 repo_url: https://github.com/electkismet/eltdx
 repo_name: electkismet/eltdx
 edit_uri: edit/main/docs/
-copyright: 仅用于个人学习、协议兼容性与数据解析研究
+copyright: 仅供个人学习、数据接口与格式研究及非商业用途使用；完整条款见 LICENSE
 exclude_docs: /README.md
 
 theme:

@@ -132,7 +132,7 @@ def download_records(client: object, filename: str) -> list[FinancialRecord]:
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as archive:
             # 统一的 zip 校验：条目数 / .dat 存在性 / 重名 / 加密 / 解压后大小，
-            # 并且按 ZipInfo 读取（不是按文件名，避免同名条目绕过校验）。
+            # 并且按 ZipInfo 读取（不是按文件名，确保同名条目也经过校验）。
             dat_data = read_dat_from_zip(
                 archive,
                 max_dat_bytes=MAX_FINANCIAL_DAT_BYTES,
