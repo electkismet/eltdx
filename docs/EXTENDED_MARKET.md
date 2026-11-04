@@ -22,8 +22,8 @@ eltdx 除 A 股 7709 主站外，还提供三个**独立协议栈**，用于期�
 | --- | --- | --- |
 | [`get_instrument_count`](extended/ex-get_instrument_count.md) | ✅ | ✅ |
 | [`get_instrument_info`](extended/ex-get_instrument_info.md) | ✅ | ⚠️ 部分可用 |
-| [`get_markets`](extended/ex-get_markets.md) | ❌ 超时 | ❌ 超时 |
-| [`get_instrument_quote`](extended/ex-get_instrument_quote.md) / `bars` / `minute` / `txn` | ❌ 超时 | ❌ 超时或被 RST |
+| [`get_markets`](extended/ex-get_markets.md) | ❌ | ✅（完成 92B 会话握手后的 DATA 级主站） |
+| [`get_instrument_quote`](extended/ex-get_instrument_quote.md) / `bars` / `minute` / `txn` | ❌ | ⚠️ 仅 DATA 级主站在完成会话握手后应答 |
 | `MacExClient.*`（MAC 命令） | ✅ | ❌ |
 | `MacClient.*`（7709 MAC） | 不适用 | 不适用（走 `MAC_HOSTS`） |
 
@@ -31,15 +31,14 @@ eltdx 除 A 股 7709 主站外，还提供三个**独立协议栈**，用于期�
 
 - **只要 EX 协议主机都不给行情**，`get_instrument_quote` 这类命令在免费主站上取不到数据。
 - **本次场外基金等品种的有效行情路径为 MAC-EX**（见下一节）。
-- `get_markets()` 在所有内置主站上都超时；`ExMarket` 枚举提供本库已知的市场编号表，
-  需要市场清单时直接用枚举（`eltdx ex markets` 会自动回退到枚举）。
+- `get_markets()` 需要会话握手：DATA 级主站在收到 92B `ExSetupCmd1` 包后正常应答
+  （实测 52 / 37 个市场），目录级主站仍不应答。旧版「所有主站都不回应 `0x23f4`」
+  的结论来自**未发送握手包**的连接状态，见 issue #28。
 
-  > **这是服务端行为，不是 eltdx 的缺陷**（本轮已用差分实测确认）：
-  > easy_tdx 1.20.7 在**同一主机**上同样超时（`TdxConnectionError: 通信错误: timed out`），
-  > 而两者的 `GetExMarketsCmd` 请求帧**逐字节相同**（`01 02 48 69 00 01 02 00 02 00 f4 23`），
-  > 且同一连接上 `get_instrument_count()` 在两边都正常返回 `107165`。
-  > 把 `get_markets` 作为连接上的**第一条**命令发送同样超时（3 台主机均如此），
-  > 所以也与命令顺序、连接状态无关——服务器就是不回应这一条命令。
+  > **旧结论的成因**：pytdx `TdxExHq_API` 在 TCP 连接后固定发送一个 92B 会话包，
+  > eltdx 的 `connect()` 此前只建 TCP、不发此包，于是 DATA 级主站不应答任何数据类
+  > 命令（只回应 `0x23f0` 商品总数）。请求帧本身与 pytdx 逐字节相同，问题只在会话
+  > 初始化。现在 `connect()` 自动发送并读走该包的应答，`get_markets()` 可作为首条调用。
 - **不要用批量探测去打这些主站**：短时间大量连接/请求会触发限流，
   之后连 `get_instrument_count` 都会被 RST，需冷却约 2 分钟。调试时请用
   「单连接 + 先做一次 sanity 调用」的方式。
@@ -64,7 +63,7 @@ with ExTdxClient.from_best_host() as client:
 
 | 方法 | 签名要点 |
 | --- | --- |
-| [`get_markets()`](extended/ex-get_markets.md) | 无参数（服务端普遍不支持，建议改用 `ExMarket` 枚举） |
+| [`get_markets()`](extended/ex-get_markets.md) | 无参数；完成会话握手后是默认探活命令，`ExMarket` 枚举仍可作为离线回退 |
 | [`get_instrument_count()`](extended/ex-get_instrument_count.md) | **无参数**，返回全市场标的数 |
 | [`get_instrument_info(start, count=100)`](extended/ex-get_instrument_info.md) | **按全局偏移分页**，不是 `(market, code)` |
 | [`get_instrument_quote(market, code)`](extended/ex-get_instrument_quote.md) | 单合约五档行情（含持仓量） |
@@ -83,13 +82,16 @@ with ExTdxClient.from_best_host() as client:
 
 ### 主机选择：并发探活 + 失败自动负载均衡
 
-扩展行情的可用性比 7709 差得多：16 台内置主机 **TCP 全部可连**，但只有极少数会应答
-业务命令。实测 `0x23f0`（商品总数）**16 台全部应答**，而 `0x23f5`（枚举）**只有 1 台应答**。
-所以「按 TCP 顺序故障转移」没有意义——**连得上不等于用得了**。
+扩展行情的可用性比 7709 差得多：16 台内置主机 **TCP 全部可连**，但 DATA 级供数主站
+必须先收到 92B 会话握手包才会应答数据类命令。未握手时 `0x23f0`（商品总数）**16 台
+全部应答**，而 `0x23f5`（枚举）几乎无人应答；完成握手后 `0x23f4`（市场列表）在 DATA
+级主站应答、在目录级主站断开，区分度最佳。所以「按 TCP 顺序故障转移」没有意义——
+**连得上不等于用得了**。
 
 `ExTdxClient` 因此改为：
 
-1. **并发探活**：`connect()` 用真实业务命令（默认 `0x23f5` 枚举）并发探测全部候选主机，
+1. **并发探活**：`connect()` 完成会话握手后用真实业务命令（默认 `0x23f4` 市场列表）
+   并发探测全部候选主机，
    把真正应答的按延迟排在前面。16 台并发只花一个 `probe_timeout`（默认
    `min(3.0, timeout)` 秒），而不是串行超时 16 次。单主机模式（只给 `host`，或 `hosts`
    只有一台）**不探活**，行为与旧版一致、零额外开销。
@@ -178,12 +180,15 @@ save_ex_hosts(["203.0.113.10"])     # 原子写入用户配置（权限 0600）
 
 连接支持 `with` / `connect()` / `close()`。
 
-!!! warning "不要自己发 `EX_SETUP_CMD` 握手帧（公开 API 已移除）"
-    实测发送该握手后，服务器只回一帧恒定的 299 字节，**之后对任何命令都不再应答**，
-    等于把连接打死。它原本是从 `easy_tdx` / `pytdx` 移植过来的一个**无人调用的常量**，
-    此前曾被包装成公开方法 `ExTdxClient.send_setup()`；由于该 API 只会破坏连接，
-    已连同 `eltdx.ex.commands.setup` 模块一并**移除**（该模块从未随任何版本发布）。
-    `connect()` 从不发送它，这是正确的——扩展行情不需要握手。
+!!! note "会话握手由 `connect()` 自动完成"
+    `ExTdxConnection.connect()` 现在会在 TCP 建连后自动发送 pytdx `ExSetupCmd1` 同款
+    92B 固定包，并**整帧读走**应答（16B 帧头 + 压缩体）。DATA 级供数主站只在收到
+    此包后应答 `markets` / `quote` / `bars` 等数据类命令（issue #28）。
+
+    旧文档里「发了握手帧之后服务器不再应答」是**客户端流错位**造成的：只发不读时，
+    下一条业务命令会把 299B 握手应答当成自己的响应帧解析，静默返回空结果或报错，
+    并非服务端弃连。用户无需、也不应自行发送该包；`send_setup=False` 可显式关闭，
+    `mac_ex_mode=True` 的 MAC-EX 会话台另有 `0x2454` 登录流程，默认跳过握手。
 
 ## 场外基金：开放式基金、货币基金（`market=33` / `34` / `93`）
 
