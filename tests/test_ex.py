@@ -606,83 +606,83 @@ def test_history_range_seqid_never_uses_zero() -> None:
     assert seqid == GetExHistoryInstrumentBarsRangeCmd._SEQID_MAX
     seqid = GetExHistoryInstrumentBarsRangeCmd(47, "IFL0", 1, 2).build_request()[1]
     assert seqid == 1
-
-
-# ── issue #28：92B 会话握手包与探活命令 ─────────────────────────────────
-
-
-def test_connect_sends_92byte_setup_and_drains_reply(monkeypatch: pytest.MonkeyPatch) -> None:
-    from eltdx.ex.transport.sync import _EX_SETUP_PKG
-
-    setup_frame = _frame(b"S" * 299)
-    fake = FakeSocket([setup_frame[:HEADER_SIZE], setup_frame[HEADER_SIZE:]])
-    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
-    conn = ExTdxConnection("1.2.3.4", 7727)
-    conn.connect()
-    assert len(_EX_SETUP_PKG) == 92
-    assert bytes(fake.sent) == _EX_SETUP_PKG
-    conn.close()
-
-
-def test_connect_drains_setup_body_before_business_command(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """握手响应体必须整帧读走，否则下一条业务命令会把它当成自己的响应帧解析。"""
-
-    setup_frame = _frame(b"S" * 299)
-    body = b"\x00" * 19 + struct.pack("<I", 4242)
-    business_frame = _frame(body)
-    fake = FakeSocket(
-        [
-            setup_frame[:HEADER_SIZE],
-            setup_frame[HEADER_SIZE:],
-            business_frame[:HEADER_SIZE],
-            business_frame[HEADER_SIZE:],
-        ]
-    )
-    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
-    conn = ExTdxConnection("1.2.3.4", 7727)
-    conn.connect()
-    assert conn.execute(GetExInstrumentCountCmd()) == 4242
-    conn.close()
-
-
-def test_connect_setup_without_reply_raises_and_closes(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    fake = FakeSocket([])
-    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
-    conn = ExTdxConnection("1.2.3.4", 7727)
-    with pytest.raises(TransportError):
-        conn.connect()
-    assert conn._sock is None
-    assert fake.closed
-
-
-def test_connect_send_setup_false_skips_handshake(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    fake = FakeSocket([])
-    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
-    conn = ExTdxConnection("1.2.3.4", 7727, send_setup=False)
-    conn.connect()
-    assert bytes(fake.sent) == b""
-    conn.close()
-
-
-def test_mac_ex_mode_skips_setup(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake = FakeSocket([])
-    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
-    conn = ExTdxConnection("1.2.3.4", 7727, mac_ex_mode=True)
-    conn.connect()
-    assert bytes(fake.sent) == b""
-    conn.close()
-
-
-def test_default_probe_command_is_markets() -> None:
-    from eltdx.ex.commands.get_markets import GetExMarketsCmd
-    from eltdx.ex.transport.sync import default_probe_command
-
-    cmd = default_probe_command()
-    assert isinstance(cmd, GetExMarketsCmd)
-    assert cmd.build_request().hex() == "01024869000102000200f423"
+
+
+# ── issue #28：92B 会话握手包与探活命令 ─────────────────────────────────
+
+
+def test_connect_sends_92byte_setup_and_drains_reply(monkeypatch: pytest.MonkeyPatch) -> None:
+    from eltdx.ex.transport.sync import _EX_SETUP_PKG
+
+    setup_frame = _frame(b"S" * 299)
+    fake = FakeSocket([setup_frame[:HEADER_SIZE], setup_frame[HEADER_SIZE:]])
+    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
+    conn = ExTdxConnection("1.2.3.4", 7727)
+    conn.connect()
+    assert len(_EX_SETUP_PKG) == 92
+    assert bytes(fake.sent) == _EX_SETUP_PKG
+    conn.close()
+
+
+def test_connect_drains_setup_body_before_business_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """握手响应体必须整帧读走，否则下一条业务命令会把它当成自己的响应帧解析。"""
+
+    setup_frame = _frame(b"S" * 299)
+    body = b"\x00" * 19 + struct.pack("<I", 4242)
+    business_frame = _frame(body)
+    fake = FakeSocket(
+        [
+            setup_frame[:HEADER_SIZE],
+            setup_frame[HEADER_SIZE:],
+            business_frame[:HEADER_SIZE],
+            business_frame[HEADER_SIZE:],
+        ]
+    )
+    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
+    conn = ExTdxConnection("1.2.3.4", 7727)
+    conn.connect()
+    assert conn.execute(GetExInstrumentCountCmd()) == 4242
+    conn.close()
+
+
+def test_connect_setup_without_reply_raises_and_closes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = FakeSocket([])
+    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
+    conn = ExTdxConnection("1.2.3.4", 7727)
+    with pytest.raises(TransportError):
+        conn.connect()
+    assert conn._sock is None
+    assert fake.closed
+
+
+def test_connect_send_setup_false_skips_handshake(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = FakeSocket([])
+    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
+    conn = ExTdxConnection("1.2.3.4", 7727, send_setup=False)
+    conn.connect()
+    assert bytes(fake.sent) == b""
+    conn.close()
+
+
+def test_mac_ex_mode_skips_setup(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = FakeSocket([])
+    monkeypatch.setattr(sync_mod.socket, "socket", lambda *_a, **_k: fake)
+    conn = ExTdxConnection("1.2.3.4", 7727, mac_ex_mode=True)
+    conn.connect()
+    assert bytes(fake.sent) == b""
+    conn.close()
+
+
+def test_default_probe_command_is_markets() -> None:
+    from eltdx.ex.commands.get_markets import GetExMarketsCmd
+    from eltdx.ex.transport.sync import default_probe_command
+
+    cmd = default_probe_command()
+    assert isinstance(cmd, GetExMarketsCmd)
+    assert cmd.build_request().hex() == "01024869000102000200f423"
