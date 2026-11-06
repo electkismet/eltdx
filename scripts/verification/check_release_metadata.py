@@ -16,8 +16,8 @@ if str(ROOT) not in sys.path:
 from scripts.verification.verify_release_artifacts import verify_artifacts
 
 
-TARGET_CARGO_VERSION = "3.3.3"
-TARGET_PYTHON_VERSION = "3.3.3"
+TARGET_CARGO_VERSION = "3.3.5"
+TARGET_PYTHON_VERSION = "3.3.5"
 BANNER_KEYWORD = b"eltdx_release\x00" + TARGET_PYTHON_VERSION.encode("ascii")
 
 
@@ -98,14 +98,14 @@ def check(
     required = {
         "README.md": TARGET_PYTHON_VERSION,
         "docs/CHANGELOG.md": f"v{TARGET_PYTHON_VERSION}",
-        "docs/releases/v3.3.3.md": f"v{TARGET_PYTHON_VERSION}",
-        "mkdocs.yml": "releases/v3.3.3.md",
+        "docs/releases/v3.3.5.md": f"v{TARGET_PYTHON_VERSION}",
+        "mkdocs.yml": "releases/v3.3.5.md",
         "docs/assets/interface-catalog-data.js": f'"version": "{TARGET_PYTHON_VERSION}"',
     }
     for relative, needle in required.items():
         if needle not in (ROOT / relative).read_text(encoding="utf-8"):
             errors.append(f"{relative} does not contain {needle!r}")
-    banner = ROOT / ".github" / "assets" / "eltdx-readme-banner-v3.3.3.png"
+    banner = ROOT / ".github" / "assets" / "eltdx-readme-banner-v3.3.5.png"
     if BANNER_KEYWORD not in _png_text_chunks(banner):
         errors.append(
             f"README banner lacks eltdx_release={TARGET_PYTHON_VERSION} PNG metadata"
