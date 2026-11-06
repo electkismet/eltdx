@@ -61,6 +61,7 @@ nav:
   - 接口目录: index.md
   - 使用指南:
       - 产品与能力: PRODUCT.md
+      - v3.3.3 发布说明: releases/v3.3.3.md
       - v3.3.2 发布说明: releases/v3.3.2.md
       - v3.3.1 发布说明: releases/v3.3.1.md
       - v3.3.0 发布说明: releases/v3.3.0.md
