@@ -324,9 +324,7 @@ impl PinRegistry {
         now: Instant,
     ) -> Result<PinnedCallLease, RuntimeError> {
         if !self.can_admit_direct(identity, request_id, now, deadline)? {
-            return Err(RuntimeError::internal(
-                "pin call violated its local FIFO",
-            ));
+            return Err(RuntimeError::internal("pin call violated its local FIFO"));
         }
         let call = PinnedCallLease {
             pin: identity,

@@ -5776,6 +5776,7 @@ fn request_wire(
 #[derive(Debug)]
 struct MessageIdGenerator {
     counter: u32,
+    refresh_counter: u16,
     key: u64,
 }
 
@@ -5783,11 +5784,27 @@ impl MessageIdGenerator {
     fn new() -> Self {
         Self {
             counter: 0,
+            refresh_counter: 0,
             key: rand::random::<u64>(),
         }
     }
 
     fn next(&mut self, message_type: u16) -> Result<MessageIdentity, RuntimeError> {
+        if message_type == eltdx_protocol::commands::quotes::TYPE_REFRESH_STREAM {
+            // Refresh subscriptions require route 0x0029. The server
+            // sends unsolicited updates on 0x00290000 only for this route.
+            // Keep sequence zero reserved for pushes; never reuse a request
+            // identity in this generator's lifetime.
+            self.refresh_counter = self.refresh_counter.checked_add(1).ok_or_else(|| {
+                RuntimeError::internal(
+                    "refresh message identity space exhausted; create a new client",
+                )
+            })?;
+            return MessageIdentity::new(
+                0x0029_0000 | u32::from(self.refresh_counter),
+                message_type,
+            );
+        }
         loop {
             self.counter = self
                 .counter
@@ -5972,6 +5989,33 @@ mod tests {
                 "127.0.0.2:7709",
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn refresh_message_identity_uses_push_route() -> Result<(), RuntimeError> {
+        let mut generator = super::MessageIdGenerator::new();
+        let command = eltdx_protocol::commands::quotes::TYPE_REFRESH_STREAM;
+        let first = generator.next(command)?;
+        let second = generator.next(command)?;
+        assert_eq!(first.msg_id(), 0x0029_0001);
+        assert_eq!(second.msg_id(), 0x0029_0002);
+        Ok(())
+    }
+
+    #[test]
+    fn refresh_message_identity_never_reuses_push_or_request_sequence() -> Result<(), RuntimeError>
+    {
+        let mut generator = super::MessageIdGenerator::new();
+        let command = eltdx_protocol::commands::quotes::TYPE_REFRESH_STREAM;
+        for sequence in 1..=u16::MAX {
+            assert_eq!(
+                generator.next(command)?.msg_id(),
+                0x0029_0000 | u32::from(sequence)
+            );
+        }
+        assert!(generator.next(command).is_err());
+        assert!(generator.next(command).is_err());
         Ok(())
     }
 

@@ -283,3 +283,203 @@ def test_timeout_is_forwarded_to_poll_push() -> None:
     sub = client.quotes.subscribe("sz000001", lambda record: None, timeout=0.25)
     sub.run_once()
     assert transport.poll_calls == [0.25]
+
+
+@pytest.mark.parametrize("interval", ["default", None, 1.0])
+def test_run_dispatches_periodic_refresh_without_server_push(monkeypatch, interval) -> None:
+    from dataclasses import replace
+    from eltdx.api import subscription
+
+    clock = [0.0]
+    monkeypatch.setattr(subscription.time, "monotonic", lambda: clock[0])
+
+    class UpdatingTransport(ScriptedPushTransport):
+        def execute(self, command, payload=None):
+            page = super().execute(command, payload)
+            return replace(page, records=(_record("sz000001", 10.0 + len(self.refresh_calls)),))
+
+        def poll_push(self, timeout=0.0, *, parse=False):
+            clock[0] += 1.0
+            return super().poll_push(timeout, parse=parse)
+
+    transport = UpdatingTransport([])
+    seen = []
+    kwargs = {} if interval == "default" else {"reactivate_interval": interval}
+    sub = _client(transport).quotes.subscribe("sz000001", lambda r: seen.append(r.last_price), **kwargs)
+    sub.run(duration=9.0)
+    assert len(transport.refresh_calls) == (2 if interval == "default" else (1 if interval is None else 9))
+    assert seen == [11.0 + i for i in range(len(transport.refresh_calls))]
+
+
+def test_renewal_uses_most_recently_received_server_time(monkeypatch) -> None:
+    from dataclasses import replace
+    from eltdx.api import subscription
+    clock = [0.0]
+    monkeypatch.setattr(subscription.time, "monotonic", lambda: clock[0])
+
+    class CursorTransport(ScriptedPushTransport):
+        def __init__(self):
+            super().__init__([QuoteRefreshPage(("sz000001",), (
+                replace(_record("sz000001", 11.0), update_time_raw=102912),
+                replace(_record("sz000001", 10.5), update_time_raw=102906),
+            ), b"")])
+            self.payloads = []
+
+        def execute(self, command, payload=None):
+            self.payloads.append(payload)
+            return super().execute(command, payload)
+
+    transport = CursorTransport()
+    # Initial server time precedes both pushes.
+    original = transport.execute
+    def execute(command, payload=None):
+        page = original(command, payload)
+        return replace(page, records=(replace(page.records[0], update_time_raw=102851),))
+    transport.execute = execute
+    sub = _client(transport).quotes.subscribe("sz000001", lambda r: None)
+    sub.activate()
+    sub.run_once(timeout=0)
+    clock[0] = 7.0
+    sub.run_once(timeout=0)
+    assert transport.payloads[0]["cursors"] == {"sz000001": 0}
+    assert transport.payloads[1]["cursors"] == {"sz000001": 102906}
+
+
+def test_multislot_subscription_keeps_groups_on_their_original_connections(monkeypatch) -> None:
+    from contextlib import contextmanager
+    from eltdx.api import subscription
+    clock = [0.0]
+    monkeypatch.setattr(subscription.time, "monotonic", lambda: clock[0])
+
+    class Pool(ScriptedPushTransport):
+        pool_size = 2
+        def __init__(self):
+            super().__init__([])
+            self.pins = []
+            self.closed = []
+            self.calls = []
+
+        @contextmanager
+        def pin(self):
+            index = len(self.pins)
+            pool = self
+            class Pin:
+                def execute(self, command, payload=None):
+                    pool.calls.append((index, payload))
+                    return pool.execute(command, payload)
+            pin = Pin()
+            self.pins.append(pin)
+            try:
+                yield pin
+            finally:
+                self.closed.append(index)
+
+        def poll_push(self, timeout=0.0, *, parse=False):
+            clock[0] += 1.0
+            return super().poll_push(timeout, parse=parse)
+
+    pool = Pool()
+    codes = [f"sz{i:06}" for i in range(1, 201)]
+    seen = []
+    sub = _client(pool).quotes.subscribe(codes, lambda r: seen.append(r.full_code))
+    sub.run(duration=9)
+    assert len(pool.pins) == 2
+    assert [slot for slot, _ in pool.calls] == [0, 1, 0, 1]
+    assert [len(payload["codes"]) for _, payload in pool.calls] == [100]*4
+    assert pool.calls[0][1]["codes"] == pool.calls[2][1]["codes"]
+    assert pool.calls[1][1]["codes"] == pool.calls[3][1]["codes"]
+    assert len(seen) == 400
+    assert sorted(pool.closed) == [0, 1]
+
+
+@pytest.mark.parametrize("failure", ["initial", "callback"])
+def test_subscription_releases_pin_on_initial_failure(failure) -> None:
+    from contextlib import contextmanager
+
+    class Pool(ScriptedPushTransport):
+        pool_size = 1
+        released = False
+        @contextmanager
+        def pin(self):
+            try:
+                yield self
+            finally:
+                self.released = True
+
+        def execute(self, command, payload=None):
+            if failure == "initial":
+                raise RuntimeError("initial failed")
+            return super().execute(command, payload)
+
+    pool = Pool([])
+    def callback(record):
+        raise RuntimeError("callback failed")
+    sub = _client(pool).quotes.subscribe("sz000001", callback)
+    with pytest.raises(RuntimeError, match="failed"):
+        sub.run()
+    assert pool.released
+    assert sub.stopped
+
+
+def test_insufficient_slots_fails_before_sending_requests() -> None:
+    transport = ScriptedPushTransport([])
+    sub = _client(transport).quotes.subscribe([f"sz{i:06}" for i in range(1, 102)], lambda r: None)
+    with pytest.raises(ValueError, match="2 pool slots"):
+        sub.activate()
+    assert transport.refresh_calls == []
+
+
+@pytest.mark.parametrize("value", [0, -1, float("nan"), float("inf")])
+def test_invalid_renewal_interval_is_rejected(value) -> None:
+    with pytest.raises(ValueError):
+        _client(ScriptedPushTransport([])).quotes.subscribe("sz000001", lambda r: None, reactivate_interval=value)
+
+@pytest.mark.parametrize("error", [RuntimeError, KeyboardInterrupt])
+def test_partial_pin_acquisition_releases_previous_connections(error) -> None:
+    from contextlib import contextmanager
+
+    class Pool(ScriptedPushTransport):
+        pool_size = 2
+        acquired = 0
+        released = 0
+
+        @contextmanager
+        def pin(self):
+            if self.acquired:
+                raise error("pin failed")
+            self.acquired += 1
+            try:
+                yield self
+            finally:
+                self.released += 1
+
+    pool = Pool([])
+    sub = _client(pool).quotes.subscribe([f"sz{i:06}" for i in range(1, 102)], lambda r: None)
+    with pytest.raises(error, match="pin failed"):
+        sub.activate()
+    assert pool.released == 1
+    assert pool.refresh_calls == []
+
+def test_server_cursors_follow_new_session_after_previous_close_snapshot() -> None:
+    from dataclasses import replace
+
+    transport = ScriptedPushTransport([])
+    payloads = []
+    original = transport.execute
+    def execute(command, payload=None):
+        payloads.append(payload)
+        return original(command, payload)
+    transport.execute = execute
+    sub = _client(transport).quotes.subscribe("sz000001", lambda r: None)
+    try:
+        sub.activate()
+        assert sub._cursors["sz000001"] == 153306
+        # An overnight renewal can still return the previous closing value.
+        sub.activate()
+        assert payloads[-1]["cursors"] == {"sz000001": 153306}
+        # The next session's morning cursor must replace that closing value.
+        sub._remember([replace(_record("sz000001", 11.0), update_time_raw=93001)])
+        sub.activate()
+        assert payloads[-1]["cursors"] == {"sz000001": 93001}
+    finally:
+        sub.close()

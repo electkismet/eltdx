@@ -83,12 +83,12 @@ class QuoteApi(ApiBase):
         timeout: float = 0.5,
         filter_codes: bool = True,
         on_error: ErrorCallback | None = None,
-        reactivate_interval: float | None = None,
+        reactivate_interval: float | None = 7.0,
     ) -> QuoteSubscription:
         """订阅一组代码的实时行情推送（对齐 TQ ``subscribe_hq`` 心智模型）。
 
-        ``refresh`` 激活 + ``poll_push`` 轮询的组合封装：服务端每推来一帧，
-        就按代码派发给 ``callback(record)``，``record`` 为
+        ``refresh`` 激活 + ``poll_push`` 读取服务器主动推送的组合封装，
+        初始行情和后续推送记录均派发给 ``callback(record)``，``record`` 为
         :class:`eltdx.models.quote.QuoteRefreshRecord`。
 
         Args:
@@ -97,7 +97,7 @@ class QuoteApi(ApiBase):
             timeout: 单次轮询的阻塞超时（秒），默认 0.5。
             filter_codes: 只派发订阅代码的记录，默认开启。
             on_error: 轮询或回调抛错时的兜底回调。
-            reactivate_interval: 定期重新激活订阅的间隔（秒），默认不续期。
+            reactivate_interval: 原连接携带最新行情游标续期，默认 7 秒；None 禁用。
 
         Returns:
             :class:`eltdx.api.subscription.QuoteSubscription` 句柄，

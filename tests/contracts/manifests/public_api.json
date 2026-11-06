@@ -191,7 +191,7 @@
         "refresh": "(self, codes=None, cursors=None)",
         "poll_push": "(self, *, timeout=0.0, parse=False)",
         "drain_pushes": "(self, *, parse=False)",
-        "subscribe": "(self, codes, callback, *, timeout=0.5, filter_codes=True, on_error=None, reactivate_interval=None)",
+        "subscribe": "(self, codes, callback, *, timeout=0.5, filter_codes=True, on_error=None, reactivate_interval=7.0)",
         "subscribe_hq": "(self, codes, callback, **kwargs)"
       }
     },
