@@ -94,7 +94,11 @@ class MacExClient:
         """测量所有 MAC 扩展行情服务器延迟，选最低延迟建立连接。"""
 
         candidates = list(hosts) if hosts else list(MAC_EX_HOSTS)
-        ranked = ping_ex_all(candidates, port, ping_timeout)
+        # MAC-EX 会话探活必须用 mac_ex_mode=True + 登录命令，与 connect() 一致；
+        # 否则以 EX 模式发 92B 握手 + markets，会把 MAC-EX 主站误判为不可用。
+        ranked = ping_ex_all(
+            candidates, port, ping_timeout, mac_ex_mode=True, command_factory=MacExLoginCmd
+        )
         best = ranked[0][0] if ranked else candidates[0]
         return cls(best, port, timeout, hosts=candidates)
 
@@ -104,9 +108,19 @@ class MacExClient:
         port: int = DEFAULT_EX_PORT,
         timeout: float = 5.0,
     ) -> list[tuple[str, float]]:
-        """并发测量多台 MAC 扩展行情服务器延迟，按延迟升序返回。"""
+        """并发测量多台 MAC 扩展行情服务器延迟，按延迟升序返回。
 
-        return ping_ex_all(hosts or list(MAC_EX_HOSTS), port, timeout)
+        与 :meth:`connect` 一致，按 MAC-EX 会话探活：``mac_ex_mode=True`` 跳过
+        EX 92B 握手，并用登录命令（0x2454）验证主机是否真正可用。
+        """
+
+        return ping_ex_all(
+            hosts or list(MAC_EX_HOSTS),
+            port,
+            timeout,
+            mac_ex_mode=True,
+            command_factory=MacExLoginCmd,
+        )
 
     # ------------------------------------------------------------------ #
     # 连接管理

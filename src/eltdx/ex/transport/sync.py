@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
-from eltdx.ex.commands.get_instrument_info import GetExInstrumentInfoCmd
+from eltdx.ex.commands.get_markets import GetExMarketsCmd
 from eltdx.ex.frame import HEADER_SIZE, decompress_body, parse_header
 from eltdx.ex.hosts import DEFAULT_EX_HOSTS, DEFAULT_EX_PORT, load_ex_hosts
 from eltdx.exceptions import EltdxError, TransportError
@@ -21,6 +21,15 @@ if TYPE_CHECKING:
 _T = TypeVar("_T")
 
 _DEFAULT_TIMEOUT = 15.0
+
+# pytdx TdxExHq_API.setup() / ExSetupCmd1 同款 92B 固定会话握手包。
+# DATA 级主站未收到此包时不回应数据类命令（markets / quote / bars），
+# 只回应 0x23f0 商品总数；见 electkismet/eltdx#28。
+_EX_SETUP_PKG = bytes.fromhex(
+    "010148650001520052005424"
+    + "1f32c6e5d53dfb41" * 8
+    + "cce16dffd5ba3fb8cbc57a054f7748ea"
+)
 
 DEFAULT_PROBE_TIMEOUT: float = 3.0
 DEFAULT_PROBE_WORKERS: int = 16
@@ -41,15 +50,15 @@ class ExHostProbe:
 
 
 def default_probe_command() -> "BaseCommand[Any]":
-    """构造探活用命令：枚举第 1 条标的。
+    """构造探活用命令：市场列表（0x23f4）。
 
-    刻意**不用** ``GetExInstrumentCountCmd``（``0x23f0``）：实测全部 16 台内置主机
-    都应答它，毫无区分度——``ping_all()`` 于是会给出「16 台都健康」的错误结论，
-    而真正能取数的只有极少数。``0x23f5``（枚举）只有应答业务命令的主机才回，
-    正好用来筛掉「TCP 通、但不应答业务命令」的主机。
+    ``0x23f0``（商品总数）16 台内置主机全部应答，毫无区分度；``0x23f5``（枚举）
+    在未完成会话握手时 DATA 级供数主站不应答，反而会筛掉真正能取数的主机。
+    完成 92B ExSetupCmd1 握手后，DATA 级主站应答 ``0x23f4``，目录级主站断开，
+    因此市场列表是区分「是否真正供数」的最佳探活命令。
     """
 
-    return GetExInstrumentInfoCmd(0, 1)
+    return GetExMarketsCmd()
 
 
 class _ProbeRegistry:
@@ -210,14 +219,20 @@ def ping_ex_host(
     host: str,
     port: int = DEFAULT_EX_PORT,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
+    *,
+    command_factory: Callable[[], "BaseCommand[Any]"] = default_probe_command,
+    mac_ex_mode: bool = False,
 ) -> float | None:
     """测量单台扩展行情服务器延迟（秒）。
 
     与 0.1 版语义的差别：**不再只看 TCP 能否连上**。实测 16 台内置主机 TCP 全通，
     但只有少数会应答业务命令，所以「连得上但不应答」现在返回 ``None``。
+    ``mac_ex_mode=True`` 时按 MAC-EX 会话探活：跳过 EX 92B 握手，改用登录/业务命令。
     """
 
-    result = probe_ex_host(host, port, timeout)
+    result = probe_ex_host(
+        host, port, timeout, command_factory=command_factory, mac_ex_mode=mac_ex_mode
+    )
     if not result.ok or result.latency_ms is None:
         return None
     return result.latency_ms / 1000.0
@@ -227,10 +242,18 @@ def ping_ex_all(
     hosts: list[str] | None = None,
     port: int = DEFAULT_EX_PORT,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
+    *,
+    command_factory: Callable[[], "BaseCommand[Any]"] = default_probe_command,
+    mac_ex_mode: bool = False,
 ) -> list[tuple[str, float]]:
-    """并发探活多台主机，按延迟升序返回**应答业务命令**的主机。"""
+    """并发探活多台主机，按延迟升序返回**应答业务命令**的主机。
 
-    results = probe_ex_hosts(hosts, port, timeout)
+    ``mac_ex_mode=True`` 时按 MAC-EX 会话探活：跳过 EX 92B 握手，改用登录命令。
+    """
+
+    results = probe_ex_hosts(
+        hosts, port, timeout, command_factory=command_factory, mac_ex_mode=mac_ex_mode
+    )
     healthy = sorted(
         (result for result in results if result.ok and result.latency_ms is not None),
         key=lambda result: result.latency_ms if result.latency_ms is not None else float("inf"),
@@ -253,13 +276,17 @@ def _recv_exact_sock(sock: socket.socket, n: int) -> bytes:
 
 
 class ExTdxConnection:
-    """扩展行情同步 TCP 连接（端口 7727，单包握手）。
+    """扩展行情同步 TCP 连接（端口 7727，92B 会话握手）。
 
     Parameters
     ----------
     mac_ex_mode : bool
         为 True 时自动把 MAC 命令的 head_flag 从 0x1C 转为 0x01，
         以兼容 MAC EX 服务器（要求 head_flag=0x01）。
+    send_setup : bool
+        是否在 TCP 建连后发送 92B ``ExSetupCmd1`` 会话握手包并读走应答。
+        DATA 级供数主站缺少此包时不应答任何数据类命令，默认开启；
+        MAC-EX 会话台另有 ``0x2454`` 登录流程，默认跳过握手。
     """
 
     def __init__(
@@ -269,20 +296,27 @@ class ExTdxConnection:
         timeout: float = _DEFAULT_TIMEOUT,
         *,
         mac_ex_mode: bool = False,
+        send_setup: bool = True,
     ) -> None:
         self.host = host if host is not None else _first_host()
         self.port = port
         self.timeout = timeout
         self.mac_ex_mode = mac_ex_mode
+        # MAC-EX 会话台的登录流程与 EX 握手互斥，保守地不发握手包。
+        self.send_setup = send_setup and not mac_ex_mode
         self._sock: socket.socket | None = None
         self._lock = threading.Lock()
 
     def connect(self) -> None:
-        """建立 TCP 连接；失败抛 TransportError。
+        """建立 TCP 连接并完成 exhq 会话握手；失败抛 TransportError。
 
         socket 在 ``connect()`` **之前**就登记到 ``self._sock``：这样别的线程调用
         :meth:`close` 可以中断正卡在 TCP 握手里的本次调用。探活早退时正是靠这一点
         立刻回收在途线程（见 :func:`probe_ex_hosts`），否则它们要一直等到超时。
+
+        握手的应答必须**整帧读走**（帧头 + 压缩体）。只发不读会让下一条业务命令
+        把 299B 握手帧当成自己的响应解析，静默返回空结果或报错——这是旧文档里
+        「发了握手之后服务器不再应答」结论的真实成因（流错位，而非服务端弃连）。
         """
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -290,13 +324,18 @@ class ExTdxConnection:
         self._sock = sock
         try:
             sock.connect((self.host, self.port))
-        except OSError as e:
+            if self.send_setup:
+                sock.sendall(_EX_SETUP_PKG)
+                header = parse_header(self._recv_exact(HEADER_SIZE))
+                # 读走应答体，保持字节流与后续业务命令对齐。
+                self._recv_exact(header.zipsize)
+        except (OSError, EltdxError) as e:
             self._sock = None
             try:
                 sock.close()
             except OSError:
                 pass
-            raise TransportError(f"无法连接 {self.host}:{self.port}: {e}") from e
+            raise TransportError(f"扩展行情连接/握手失败 {self.host}:{self.port}: {e}") from e
 
     def close(self) -> None:
         """关闭连接（幂等）。"""

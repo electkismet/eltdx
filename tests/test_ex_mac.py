@@ -172,3 +172,42 @@ def test_goods_list_parse_response() -> None:
 def test_chart_sampling_parse_response() -> None:
     body = b"\x00" * 40 + struct.pack("<H", 2) + struct.pack("<ff", 1.0, 2.0)
     assert ChartSamplingCmd(31, "00700").parse_response(body) == [1.0, 2.0]
+
+
+# ── 探活入口使用 MAC-EX 连接模式（issue #28 审计回补） ─────────────────
+
+
+def test_ping_all_probes_with_mac_ex_mode_and_login(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict] = []
+
+    def fake_ping(hosts, port, timeout, *, command_factory, mac_ex_mode):
+        calls.append(
+            {"hosts": hosts, "mac_ex_mode": mac_ex_mode, "factory": command_factory}
+        )
+        return [("a", 1.0), ("b", 2.0)]
+
+    monkeypatch.setattr(mc, "ping_ex_all", fake_ping)
+    result = MacExClient.ping_all(["a", "b"])
+    assert result == [("a", 1.0), ("b", 2.0)]
+    assert calls[0]["mac_ex_mode"] is True
+    assert calls[0]["factory"] is MacExLoginCmd
+
+
+def test_from_best_host_probes_with_mac_ex_mode_and_login(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[dict] = []
+
+    def fake_ping(hosts, port, timeout, *, command_factory, mac_ex_mode):
+        calls.append(
+            {"hosts": hosts, "mac_ex_mode": mac_ex_mode, "factory": command_factory}
+        )
+        return [("best.example", 0.5)]
+
+    monkeypatch.setattr(mc, "ping_ex_all", fake_ping)
+    client = MacExClient.from_best_host(["best.example"])
+    assert calls[0]["mac_ex_mode"] is True
+    assert calls[0]["factory"] is MacExLoginCmd
+    assert client._host == "best.example"

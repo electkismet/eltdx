@@ -745,9 +745,9 @@ with ExTdxClient.from_best_host() as client:
 > 早期文档曾把它写成 `get_instrument_bars(market, code)`，那是**错的**——会把 market 当成
 > category，请以 `EXTENDED_MARKET.md` 的签名为准。
 
-> **不要用 `get_markets()` 做首条调用。** 2026-10 采样的内置主站未回应 `0x23f4`，
-> 该调用只会阻塞到超时；这与 eltdx 无关——easy_tdx 1.20.7 在同一主机上同样超时，
-> 且两者请求帧逐字节相同。需要市场清单请直接用 `ExMarket` 枚举。
+> `get_markets()` 现在可作为首条调用：`connect()` 会自动完成 92B 会话握手（issue #28），
+> DATA 级供数主站随后正常应答 `0x23f4`，并作为默认探活命令。旧版「所有主站都不回应」
+> 的结论来自未握手的连接状态。离线场景仍可用 `ExMarket` 枚举作为市场清单回退。
 > 证据链见 [EXTENDED_MARKET.md](EXTENDED_MARKET.md)。
 
 `ExTdxClient` 提供 `get_markets` / `get_instrument_count` / `get_instrument_info` / `get_instrument_quote` / `get_instrument_quote_list` / `get_instrument_bars` / `get_history_instrument_bars_range` / `get_minute_time_data` / `get_history_minute_time_data` / `get_transaction_data` / `get_history_transaction_data`；均为单次请求，不自动翻页。港股分页封装在 `MacExClient.goods_transaction` / `goods_transaction_all`。`ExMarket` 枚举描述支持的扩展市场。完整参数、返回字段及分页规则见 [EX / MAC / MAC-EX 单页索引](extended/README.md)，通道概览见 [EXTENDED_MARKET.md](EXTENDED_MARKET.md)。
