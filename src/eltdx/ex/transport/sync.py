@@ -219,14 +219,20 @@ def ping_ex_host(
     host: str,
     port: int = DEFAULT_EX_PORT,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
+    *,
+    command_factory: Callable[[], "BaseCommand[Any]"] = default_probe_command,
+    mac_ex_mode: bool = False,
 ) -> float | None:
     """测量单台扩展行情服务器延迟（秒）。
 
     与 0.1 版语义的差别：**不再只看 TCP 能否连上**。实测 16 台内置主机 TCP 全通，
     但只有少数会应答业务命令，所以「连得上但不应答」现在返回 ``None``。
+    ``mac_ex_mode=True`` 时按 MAC-EX 会话探活：跳过 EX 92B 握手，改用登录/业务命令。
     """
 
-    result = probe_ex_host(host, port, timeout)
+    result = probe_ex_host(
+        host, port, timeout, command_factory=command_factory, mac_ex_mode=mac_ex_mode
+    )
     if not result.ok or result.latency_ms is None:
         return None
     return result.latency_ms / 1000.0
@@ -236,10 +242,18 @@ def ping_ex_all(
     hosts: list[str] | None = None,
     port: int = DEFAULT_EX_PORT,
     timeout: float = DEFAULT_PROBE_TIMEOUT,
+    *,
+    command_factory: Callable[[], "BaseCommand[Any]"] = default_probe_command,
+    mac_ex_mode: bool = False,
 ) -> list[tuple[str, float]]:
-    """并发探活多台主机，按延迟升序返回**应答业务命令**的主机。"""
+    """并发探活多台主机，按延迟升序返回**应答业务命令**的主机。
 
-    results = probe_ex_hosts(hosts, port, timeout)
+    ``mac_ex_mode=True`` 时按 MAC-EX 会话探活：跳过 EX 92B 握手，改用登录命令。
+    """
+
+    results = probe_ex_hosts(
+        hosts, port, timeout, command_factory=command_factory, mac_ex_mode=mac_ex_mode
+    )
     healthy = sorted(
         (result for result in results if result.ok and result.latency_ms is not None),
         key=lambda result: result.latency_ms if result.latency_ms is not None else float("inf"),
