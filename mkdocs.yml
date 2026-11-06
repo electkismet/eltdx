@@ -90,6 +90,7 @@ nav:
   - 7709 行情:
       - 命令映射: COMMANDS_7709.md
       - 接口单页: methods/README.md
+      - 行情订阅接口: methods/7709-增量刷新推送队列.md
   - 7615 F10: F10_7615.md
   - 扩展能力:
       - 扩展行情与 MAC: EXTENDED_MARKET.md

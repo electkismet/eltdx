@@ -374,7 +374,7 @@ def test_quote_command_docs_explain_the_three_distinct_roles() -> None:
     items = {item["id"]: item for item in _catalog()["items"]}
     assert items["7709-quote-snapshots"]["protocol"] == "0x054c"
     assert "旧版完整快照" in items["7709-legacy-quotes"]["summary"]
-    assert "代码和游标" in items["7709-quote-refresh"]["summary"]
+    assert "自动维护游标" in items["7709-quote-refresh"]["summary"]
 
 
 def test_quote_catalog_keeps_each_public_entry_in_one_primary_doc() -> None:
@@ -388,7 +388,7 @@ def test_quote_catalog_keeps_each_public_entry_in_one_primary_doc() -> None:
     assert complete["api"] == "client.helpers.full_quotes(codes)"
     assert complete["doc"] == "helpers/完整行情.md"
     assert "get_depth" not in complete["api"]
-    assert "client.quotes.get_depth()" in refresh["api"]
+    assert refresh["api"] == "client.quotes.subscribe(codes, callback)"
     assert refresh["doc"] == "methods/7709-增量刷新推送队列.md"
 
     snapshot_doc = (REPO_ROOT / "docs" / snapshot["doc"]).read_text(encoding="utf-8")

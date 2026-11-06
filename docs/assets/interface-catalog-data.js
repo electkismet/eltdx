@@ -415,29 +415,15 @@ window.ELTDX_CATALOG = {
     },
     {
       "id": "7709-quote-refresh",
-      "title": "增量刷新 / 推送队列",
+      "title": "行情订阅接口",
       "source": "7709",
       "category": "行情",
-      "api": "client.quotes.get_depth() / client.quotes.refresh() / client.quotes.poll_push() / client.quotes.drain_pushes()",
-      "calls": [
-        {
-          "label": "五档快捷入口",
-          "api": "client.quotes.get_depth(codes)"
-        },
-        {
-          "label": "行情刷新",
-          "api": "client.quotes.refresh(...)"
-        },
-        {
-          "label": "读取推送",
-          "api": "client.quotes.poll_push(...)"
-        },
-        {
-          "label": "清空队列",
-          "api": "client.quotes.drain_pushes(...)"
-        }
-      ],
+      "api": "client.quotes.subscribe(codes, callback)",
       "aliases": [
+        "subscribe",
+        "subscribe_hq",
+        "行情订阅",
+        "实时推送",
         "refresh",
         "get_depth",
         "poll_push",
@@ -445,9 +431,9 @@ window.ELTDX_CATALOG = {
         "push queue"
       ],
       "protocol": "0x0547",
-      "kind": "底层协议",
-      "summary": "按代码和游标刷新行情，单次最多 100 只；用于增量更新并配合推送队列。",
-      "return_model": "QuoteRefreshPage",
+      "kind": "订阅接口",
+      "summary": "订阅股票并持续接收行情推送；自动维护游标、每 7 秒续期，支持多连接批量订阅。",
+      "return_model": "QuoteSubscription",
       "doc": "methods/7709-增量刷新推送队列.md"
     },
     {

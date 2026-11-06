@@ -61,7 +61,7 @@ eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用�
 | 完整实时行情 | 批量快照、最新价、成交量额和完整五档 | [`client.helpers.full_quotes()`](docs/helpers/完整行情.md) | `7709` + `Helpers 封装` |
 | 板块行情与成分股 | 所有板块行情、指定板块有效成分股行情 | [`client.helpers.board_quotes()`](docs/helpers/板块行情.md) / [`client.helpers.board_member_quotes()`](docs/helpers/板块行情.md) | `0x06b9` + `0x044d` + `0x054c` |
 | 五档实时刷新 | 为代码列表建立或刷新实时五档 | [`client.quotes.get_depth()`](docs/methods/7709-增量刷新推送队列.md) | `7709 原生协议` |
-| push 队列 | 读取未匹配的实时更新帧 | [`client.quotes.poll_push()`](docs/methods/7709-增量刷新推送队列.md) | `7709 原生协议` |
+| 行情订阅 | 持续接收行情推送，自动续期 | [`client.quotes.subscribe()`](docs/methods/7709-增量刷新推送队列.md) | `7709 原生协议` |
 | K 线与复权 | 分钟/日/周/月/季/年 K 线、自动分页、前/后/定点复权 | [`client.bars.get()`](docs/methods/7709-K线周期线.md) | `7709 原生协议` |
 | 退市 K 线 | 退市股票日线、不复权、批量查询、自动分页 | [`client.delisted_bars.get()`](docs/methods/7709-退市K线日线接口.md) | `0x052B 原生协议` |
 | 当日分时 | 当日每分钟价格、成交量和均价 | [`client.minutes.today()`](docs/methods/7709-当日分时.md) | `7709 原生协议` |
@@ -195,7 +195,7 @@ print(f10.company_profile("000034").rows[0])
 | 批量行情快照       | `client.quotes.get_snapshots()`            | [`0x054c`](docs/COMMANDS_7709.md#cmd-0x054c) | 返回现价、成交量额和一档盘口（买一、卖一）                   | [文档](docs/methods/7709-批量快照.md)       |
 | 完整行情 / 五档盘口 | `client.helpers.full_quotes()` | [`0x054c`](docs/COMMANDS_7709.md#cmd-0x054c) + [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 查询完整当前行情，自动组合基础快照与实时五档 | [文档](docs/helpers/完整行情.md) |
 | 原生批量行情       | `client.quotes.legacy()`                              | [`0x053e`](docs/COMMANDS_7709.md#cmd-0x053e)                                                | 原生旧版完整快照，保留五档盘口和协议状态原始字段                    | [文档](docs/methods/7709-旧版批量行情.md)     |
-| 五档刷新 / 推送队列 | `client.quotes.get_depth()` / `client.quotes.refresh()` / `client.quotes.poll_push()` | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 原生五档快捷入口、游标刷新与推送队列；面向高级实时更新场景 | [文档](docs/methods/7709-增量刷新推送队列.md) |
+| 行情订阅接口 | `client.quotes.subscribe(codes, callback)` | [`0x0547`](docs/COMMANDS_7709.md#cmd-0x0547) | 持续接收行情推送，自动维护游标并续期，支持多连接批量订阅 | [文档](docs/methods/7709-增量刷新推送队列.md) |
 | 分类行情         | `client.quotes.list_by_category()`                         | [`0x054b`](docs/COMMANDS_7709.md#cmd-0x054b)                                                | 按市场或板块分页返回行情列表；可按涨幅、价格、成交额等服务端排序                               | [文档](docs/methods/7709-分类行情.md)       |
 | K 线 / 周期线    | `client.bars.get(code_or_codes, ..., all_pages=False)` | [`0x052d`](docs/COMMANDS_7709.md#cmd-0x052d) | 单页或自动分页返回 K 线；支持单只或多只证券并发查询，以及分钟、日、周、月、季、年线和服务端复权参数 | [文档](docs/methods/7709-K线周期线.md) |
 | 退市 K 线 | `client.delisted_bars.get(code, ..., all_pages=False, batch_size=None)` | [`0x052b`](docs/COMMANDS_7709.md#cmd-0x052b) | 退市股票的不复权日线，支持单只或批量查询、自动分页 | [文档](docs/methods/7709-退市K线日线接口.md) |
