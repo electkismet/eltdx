@@ -1,0 +1,1851 @@
+{
+  "schema_version": 1,
+  "source_revision": "af471f1adf38757f6aa0188968db8110eb23f6ad",
+  "counts": {
+    "wire_codes": 26,
+    "python_registry_entries": 25,
+    "catalog_capabilities": 124,
+    "static_fixture_cases": 37
+  },
+  "allowed_differences": [
+    {
+      "left": "wire_codes",
+      "right": "python_registry_entries",
+      "difference": 1,
+      "reason": "0x0FFC is a dedicated money-flow wire path and is not a COMMANDS registry entry."
+    },
+    {
+      "left": "wire_codes",
+      "right": "catalog_capabilities",
+      "difference": -98,
+      "reason": "Catalog records are business capabilities, including aliases, helpers, metadata, and multi-wire operations."
+    },
+    {
+      "left": "category22",
+      "right": "wire_codes",
+      "difference": 0,
+      "reason": "0x052D category22 is a request/response variant, not another wire code."
+    }
+  ],
+  "records": [
+    {
+      "id": "7709-handshake",
+      "source_files": [
+        "docs/methods/7709-握手.md",
+        "src/eltdx/api/session.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x000d",
+      "api": "client.session.handshake()",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-heartbeat",
+      "source_files": [
+        "docs/methods/7709-心跳.md",
+        "src/eltdx/api/session.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0004",
+      "api": "client.session.heartbeat()",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-code-count",
+      "source_files": [
+        "docs/methods/7709-代码数量.md",
+        "src/eltdx/api/codes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x044e",
+      "api": "client.codes.count(market)",
+      "kind": "底层协议 / 便捷筛选"
+    },
+    {
+      "id": "7709-code-list",
+      "source_files": [
+        "docs/methods/7709-代码表.md",
+        "src/eltdx/api/codes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x044d",
+      "api": "client.codes.list() / client.codes.all()",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-quote-snapshots",
+      "source_files": [
+        "docs/methods/7709-批量快照.md",
+        "src/eltdx/api/quotes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x054c",
+      "api": "client.quotes.get_snapshots(codes)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-legacy-quotes",
+      "source_files": [
+        "docs/methods/7709-旧版批量行情.md",
+        "src/eltdx/api/quotes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x053e",
+      "api": "client.quotes.legacy(codes)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-quote-depth",
+      "source_files": [
+        "docs/helpers/完整行情.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x054c + 0x0547",
+      "api": "client.helpers.full_quotes(codes)",
+      "kind": "协议封装"
+    },
+    {
+      "id": "7709-category-quotes",
+      "source_files": [
+        "docs/methods/7709-分类行情.md",
+        "src/eltdx/api/quotes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x054b",
+      "api": "client.quotes.list_by_category(...)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-quote-refresh",
+      "source_files": [
+        "docs/methods/7709-增量刷新推送队列.md",
+        "src/eltdx/api/quotes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0547",
+      "api": "client.quotes.subscribe(codes, callback)",
+      "kind": "订阅接口"
+    },
+    {
+      "id": "7709-kline",
+      "source_files": [
+        "docs/methods/7709-K线周期线.md",
+        "src/eltdx/api/bars.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "0x052D request/response variant; category22 is not an additional wire code.",
+      "wire_code": "0x052d",
+      "api": "client.bars.get(code_or_codes, ...)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-delisted-bars",
+      "source_files": [
+        "docs/methods/7709-退市K线日线接口.md",
+        "src/eltdx/api/delisted_bars.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x052b",
+      "api": "client.delisted_bars.get(code, ...)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-minute-today",
+      "source_files": [
+        "docs/methods/7709-当日分时.md",
+        "src/eltdx/api/minutes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0537",
+      "api": "client.minutes.today(code)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-minute-history",
+      "source_files": [
+        "docs/methods/7709-指定日期历史分时.md",
+        "src/eltdx/api/minutes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0fb4",
+      "api": "client.minutes.history(code, date)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-minute-recent",
+      "source_files": [
+        "docs/methods/7709-近期历史分时.md",
+        "src/eltdx/api/minutes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0feb",
+      "api": "client.minutes.recent()",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-minute-aux",
+      "source_files": [
+        "docs/methods/7709-分时副图.md",
+        "src/eltdx/api/minutes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x051b",
+      "api": "client.minutes.aux()",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-sparkline",
+      "source_files": [
+        "docs/methods/7709-小走势图.md",
+        "src/eltdx/api/minutes.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0fd1",
+      "api": "client.minutes.sparkline()",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-trades-today",
+      "source_files": [
+        "docs/methods/7709-当日成交明细.md",
+        "src/eltdx/api/trades.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0fc5",
+      "api": "client.trades.today(code, ..., batch_size=None) / client.trades.all_today(code, ..., batch_size=None)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-trades-history",
+      "source_files": [
+        "docs/methods/7709-历史成交明细.md",
+        "src/eltdx/api/trades.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0fc6",
+      "api": "client.trades.history(code, date, ..., batch_size=None) / client.trades.all_history(code, date, ..., batch_size=None)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-auction-series",
+      "source_files": [
+        "docs/methods/7709-集合竞价明细.md",
+        "src/eltdx/api/auctions.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x056a",
+      "api": "client.auctions.series(code, date=None)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-opening-match-today",
+      "source_files": [
+        "docs/methods/7709-当日0925正式撮合.md",
+        "src/eltdx/api/trades.py"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0fc5",
+      "api": "client.trades.opening_match_today(code, ..., batch_size=None)",
+      "kind": "组合接口"
+    },
+    {
+      "id": "7709-opening-match-history",
+      "source_files": [
+        "docs/methods/7709-历史0925正式撮合.md",
+        "src/eltdx/api/trades.py"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0fc6",
+      "api": "client.trades.opening_match_history(code, date, ..., batch_size=None)",
+      "kind": "组合接口"
+    },
+    {
+      "id": "7709-gbbq",
+      "source_files": [
+        "docs/methods/7709-股本变迁GBBQ.md",
+        "src/eltdx/api/corporate.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x000f",
+      "api": "client.corporate.capital_changes(code_or_codes, batch_size=75)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-money-flow",
+      "source_files": [
+        "docs/methods/0x0ffc-资金流向日数据接口.md",
+        "src/eltdx/api/money_flow.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Dedicated 0x0FFC money-flow path; absent from Python COMMANDS registry.",
+      "wire_code": "0x0ffc",
+      "api": "client.money_flow.daily(code, ..., batch_size=75)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-local-factors",
+      "source_files": [
+        "docs/methods/7709-本地复权系数.md",
+        "src/eltdx/api/corporate.py"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x000f",
+      "api": "client.corporate.adjustment_factors(code_or_codes, anchor_date=None, *, start_date=None, batch_size=75)",
+      "kind": "组合接口"
+    },
+    {
+      "id": "7709-finance",
+      "source_files": [
+        "docs/methods/7709-财务基础信息.md",
+        "src/eltdx/api/corporate.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0010",
+      "api": "client.corporate.finance_batch(codes)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-special-limits",
+      "source_files": [
+        "docs/methods/7709-特殊品种涨跌停限制.md",
+        "src/eltdx/api/limits.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0452",
+      "api": "client.limits.special() / client.limits.scan_special()",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-file-content",
+      "source_files": [
+        "docs/methods/7709-服务器文件读取.md",
+        "src/eltdx/api/resources.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x06b9",
+      "api": "client.resources.read(path, ...)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "f10-generic-entry",
+      "source_files": [
+        "docs/methods/F10-通用Entry调用.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.call(...) / client.f10.params(...)",
+      "kind": "高级调用"
+    },
+    {
+      "id": "f10-stock-info",
+      "source_files": [
+        "docs/methods/F10-股票基础信息.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.stock_info() / client.f10.business_periods() / client.f10.topic_ids()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-limit-board-ladder",
+      "source_files": [
+        "docs/methods/F10-涨跌停列表.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.limit_up_down_list()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-company-profile",
+      "source_files": [
+        "docs/methods/F10-公司概况.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.company_profile()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-business-composition",
+      "source_files": [
+        "docs/methods/F10-主营构成.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.business_composition()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-shareholder-change",
+      "source_files": [
+        "docs/methods/F10-股东增减持.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.shareholder_change_plans()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-dividend-financing",
+      "source_files": [
+        "docs/methods/F10-分红融资.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.dividend_financing()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-allotment",
+      "source_files": [
+        "docs/methods/F10-增发获配.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.allotment_dates() / client.f10.allotment_details()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-finance-report",
+      "source_files": [
+        "docs/methods/F10-财务报表.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.finance_report()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-finance-diagnosis",
+      "source_files": [
+        "docs/methods/F10-财务诊断.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.finance_diagnosis()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-stock-score",
+      "source_files": [
+        "docs/methods/F10-个股总评.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.stock_score()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-profit-forecast",
+      "source_files": [
+        "docs/methods/F10-盈利预测.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.profit_forecast()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-theme-market",
+      "source_files": [
+        "docs/methods/F10-题材概念行情.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.theme_market()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-valuation",
+      "source_files": [
+        "docs/methods/F10-估值市场数据.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.valuation()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-ranking",
+      "source_files": [
+        "docs/methods/F10-市场行业排名.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.ranking_detail()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-governance",
+      "source_files": [
+        "docs/methods/F10-资本运作治理.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.governance()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-hot-topics",
+      "source_files": [
+        "docs/methods/F10-热点题材.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.hot_topics()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-topic-compare",
+      "source_files": [
+        "docs/methods/F10-题材内对比.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.topic_compare() / client.f10.topic_compare_first()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-market-news",
+      "source_files": [
+        "docs/methods/F10-首页要闻.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.market_news()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-channel-news",
+      "source_files": [
+        "docs/methods/F10-频道资讯.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.channel_news()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-news-channels",
+      "source_files": [
+        "docs/methods/F10-资讯频道列表.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.news_channels()",
+      "kind": "静态枚举"
+    },
+    {
+      "id": "f10-company-news",
+      "source_files": [
+        "docs/methods/F10-公司资讯研报.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.company_news()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-northbound",
+      "source_files": [
+        "docs/methods/F10-沪深股通持仓.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.northbound_holding()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-detail",
+      "source_files": [
+        "docs/methods/F10-详情正文.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.detail()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "f10-news-cache",
+      "source_files": [
+        "docs/methods/F10-新闻公告路演.md"
+      ],
+      "feature": "f10",
+      "stage": "P3",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.f10.cache_list() / client.f10.news() / client.f10.announcements() / client.f10.roadshows()",
+      "kind": "Entry 封装"
+    },
+    {
+      "id": "helper-latest-stock-list",
+      "source_files": [
+        "docs/helpers/最新股票列表.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x044d",
+      "api": "client.helpers.latest_stock_list(market=None)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-latest-st",
+      "source_files": [
+        "docs/helpers/最新ST列表.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x044d",
+      "api": "client.helpers.latest_st(market=None)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-latest-suspended",
+      "source_files": [
+        "docs/helpers/最新停牌列表.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x044d + 0x053e",
+      "api": "client.helpers.latest_suspended(market=None)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-daily-share-capital",
+      "source_files": [
+        "docs/helpers/每日股本.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x0010 + 0x06b9",
+      "api": "client.helpers.daily_share_capital(codes=None)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-daily-price-limits",
+      "source_files": [
+        "docs/helpers/每日涨跌停价.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x054c + 业务规则",
+      "api": "client.helpers.daily_price_limits(codes=None, trade_date=...)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-realtime-rank",
+      "source_files": [
+        "docs/helpers/实时榜单.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x054b",
+      "api": "client.helpers.realtime_rank(sort_by=\"涨幅\")",
+      "kind": "业务封装"
+    },
+    {
+      "id": "helper-board-quotes",
+      "source_files": [
+        "docs/helpers/板块行情.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x06b9 + 0x044d + 0x054c",
+      "api": "client.helpers.board_quotes(category=\"概念\", refresh=False)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-board-member-quotes",
+      "source_files": [
+        "docs/helpers/板块成分股行情.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x06b9 + 0x044d + 0x054c",
+      "api": "client.helpers.board_member_quotes(board_code, refresh=False)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-buy-sell-strength",
+      "source_files": [
+        "docs/helpers/买卖力道.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x051b",
+      "api": "client.helpers.buy_sell_strength(code)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-volume-comparison",
+      "source_files": [
+        "docs/helpers/成交对比.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x051b",
+      "api": "client.helpers.volume_comparison(code)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-limit-ladder",
+      "source_files": [
+        "docs/helpers/连板天梯.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.helpers.limit_ladder(codes=None)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-theme-strength-rank",
+      "source_files": [
+        "docs/helpers/题材强度排行.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.helpers.theme_strength_rank(codes=None)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-stock-profile",
+      "source_files": [
+        "docs/helpers/股票信息汇总.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x054c + 0x044d + 0x0010",
+      "api": "client.helpers.stock_profile_table(codes)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-shortline-indicators",
+      "source_files": [
+        "docs/helpers/短线指标.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x06b9 + 0x054c + 0x0547 + 0x044d + 0x052d",
+      "api": "client.helpers.shortline_indicators(codes)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-stock-topics",
+      "source_files": [
+        "docs/helpers/个股概念板块.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.helpers.stock_topics(code)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-topic-stocks",
+      "source_files": [
+        "docs/helpers/概念板块成分股.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.helpers.topic_stocks(seed_code, ...)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-auction-data",
+      "source_files": [
+        "docs/helpers/竞价数据.md"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.helpers.auction_data(code, date=None)",
+      "kind": "组合能力"
+    },
+    {
+      "id": "helper-server-download",
+      "source_files": [
+        "docs/methods/7709-服务器文件下载.md",
+        "src/eltdx/api/resources.py"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.resources.download_file(path, ...)",
+      "kind": "协议封装"
+    },
+    {
+      "id": "helper-server-stats",
+      "source_files": [
+        "docs/methods/7709-服务器统计文件解析.md",
+        "src/eltdx/api/resources.py"
+      ],
+      "feature": "helper",
+      "stage": "P2",
+      "status": "compatibility_adapter_retained",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "client.resources.read_stats(path=..., ...)",
+      "kind": "协议封装"
+    },
+    {
+      "id": "7709-block-meta",
+      "source_files": [
+        "docs/methods/0x02c5-板块文件元数据接口.md",
+        "src/eltdx/api/resources.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x02c5",
+      "api": "client.resources.block_meta(filename)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-company-info-category",
+      "source_files": [
+        "docs/methods/0x02cf-公司信息目录接口.md",
+        "src/eltdx/api/company_info.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x02cf",
+      "api": "client.company_info.category(code, market)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "7709-company-info-content",
+      "source_files": [
+        "docs/methods/0x02d0-公司信息内容接口.md",
+        "src/eltdx/api/company_info.py"
+      ],
+      "feature": "7709",
+      "stage": "P2",
+      "status": "migrated",
+      "fixtures": [
+        "tests/fixtures/7709"
+      ],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x02d0",
+      "api": "client.company_info.content(code, market, filename, offset, length)",
+      "kind": "底层协议"
+    },
+    {
+      "id": "ex-connection",
+      "source_files": [
+        "docs/extended/ex-连接与主机.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "ExTdxClient(...)",
+      "kind": "客户端管理"
+    },
+    {
+      "id": "ex-markets",
+      "source_files": [
+        "docs/extended/ex-get_markets.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x23f4 / 7727",
+      "api": "ExTdxClient.get_markets(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-count",
+      "source_files": [
+        "docs/extended/ex-get_instrument_count.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x23f0 / 7727",
+      "api": "ExTdxClient.get_instrument_count(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-info",
+      "source_files": [
+        "docs/extended/ex-get_instrument_info.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x23f5 / 7727",
+      "api": "ExTdxClient.get_instrument_info(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-quote",
+      "source_files": [
+        "docs/extended/ex-get_instrument_quote.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x23fa / 7727",
+      "api": "ExTdxClient.get_instrument_quote(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-quotes",
+      "source_files": [
+        "docs/extended/ex-get_instrument_quote_list.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x2400 / 7727",
+      "api": "ExTdxClient.get_instrument_quote_list(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-bars",
+      "source_files": [
+        "docs/extended/ex-get_instrument_bars.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x23ff / 7727",
+      "api": "ExTdxClient.get_instrument_bars(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-history-bars",
+      "source_files": [
+        "docs/extended/ex-get_history_instrument_bars_range.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x240d / 7727",
+      "api": "ExTdxClient.get_history_instrument_bars_range(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-minute",
+      "source_files": [
+        "docs/extended/ex-get_minute_time_data.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x240b / 7727",
+      "api": "ExTdxClient.get_minute_time_data(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-history-minute",
+      "source_files": [
+        "docs/extended/ex-get_history_minute_time_data.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x240c / 7727",
+      "api": "ExTdxClient.get_history_minute_time_data(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-trades",
+      "source_files": [
+        "docs/extended/ex-get_transaction_data.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x23fc / 7727",
+      "api": "ExTdxClient.get_transaction_data(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "ex-history-trades",
+      "source_files": [
+        "docs/extended/ex-get_history_transaction_data.md"
+      ],
+      "feature": "ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x2406 / 7727",
+      "api": "ExTdxClient.get_history_transaction_data(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-connection",
+      "source_files": [
+        "docs/extended/mac-连接与主机.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "MacClient(...)",
+      "kind": "客户端管理"
+    },
+    {
+      "id": "mac-quotes",
+      "source_files": [
+        "docs/extended/mac-get_stock_quotes.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122b / 7709",
+      "api": "MacClient.get_stock_quotes(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-ranking",
+      "source_files": [
+        "docs/extended/mac-get_stock_quotes_list.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122c / 7709",
+      "api": "MacClient.get_stock_quotes_list(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-bars",
+      "source_files": [
+        "docs/extended/mac-get_stock_kline.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122e / 7709",
+      "api": "MacClient.get_stock_kline(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-minute",
+      "source_files": [
+        "docs/extended/mac-get_tick_chart.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122d / 7709",
+      "api": "MacClient.get_tick_chart(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-tick-charts",
+      "source_files": [
+        "docs/extended/mac-get_tick_charts.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x123e / 7709",
+      "api": "MacClient.get_tick_charts(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-chart-sampling",
+      "source_files": [
+        "docs/extended/mac-get_chart_sampling.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x254d / 7709",
+      "api": "MacClient.get_chart_sampling(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-trades",
+      "source_files": [
+        "docs/extended/mac-get_transactions.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122f / 7709",
+      "api": "MacClient.get_transactions(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-symbol-info",
+      "source_files": [
+        "docs/extended/mac-get_symbol_info.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122a / 7709",
+      "api": "MacClient.get_symbol_info(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-boards",
+      "source_files": [
+        "docs/extended/mac-get_board_list.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x1231 / 7709",
+      "api": "MacClient.get_board_list(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-board-members",
+      "source_files": [
+        "docs/extended/mac-get_board_members.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122c / 7709",
+      "api": "MacClient.get_board_members(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-belong-board",
+      "source_files": [
+        "docs/extended/mac-get_belong_board.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x1218 / head_flag=1 / 7709",
+      "api": "MacClient.get_belong_board(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-board-summary",
+      "source_files": [
+        "docs/extended/mac-get_board_summary.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122c / 本地聚合 / 7709",
+      "api": "MacClient.get_board_summary(...)",
+      "kind": "同步客户端 / 组合调用"
+    },
+    {
+      "id": "mac-get-board-ranking",
+      "source_files": [
+        "docs/extended/mac-get_board_ranking.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x1231 + 0x122c / 本地聚合 / 7709",
+      "api": "MacClient.get_board_ranking(...)",
+      "kind": "同步客户端 / 组合调用"
+    },
+    {
+      "id": "mac-get-board-change-ranking",
+      "source_files": [
+        "docs/extended/mac-get_board_change_ranking.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x1231 + 0x122e / 本地计算 / 7709",
+      "api": "MacClient.get_board_change_ranking(...)",
+      "kind": "同步客户端 / 组合调用"
+    },
+    {
+      "id": "mac-get-capital-flow",
+      "source_files": [
+        "docs/extended/mac-get_capital_flow.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x1218 / head_flag=2 / 7709",
+      "api": "MacClient.get_capital_flow(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-auction",
+      "source_files": [
+        "docs/extended/mac-get_auction.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x123d / 7709",
+      "api": "MacClient.get_auction(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-unusual",
+      "source_files": [
+        "docs/extended/mac-get_unusual.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x1237 / 7709",
+      "api": "MacClient.get_unusual(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-server-info",
+      "source_files": [
+        "docs/extended/mac-get_server_info.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x120f / 7709",
+      "api": "MacClient.get_server_info(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-kline-offset",
+      "source_files": [
+        "docs/extended/mac-get_kline_offset.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x124a / 7709",
+      "api": "MacClient.get_kline_offset(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-file-meta",
+      "source_files": [
+        "docs/extended/mac-get_file_meta.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x1215 / 7709",
+      "api": "MacClient.get_file_meta(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-download-file-chunk",
+      "source_files": [
+        "docs/extended/mac-download_file_chunk.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x1217 / 7709",
+      "api": "MacClient.download_file_chunk(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-download-file",
+      "source_files": [
+        "docs/extended/mac-download_file.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x1215 + 0x1217 / 7709",
+      "api": "MacClient.download_file(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "mac-get-goods-list",
+      "source_files": [
+        "docs/extended/mac-get_goods_list.md"
+      ],
+      "feature": "mac",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x2562 / 7709",
+      "api": "MacClient.get_goods_list(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-connection",
+      "source_files": [
+        "docs/extended/macex-连接与主机.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": null,
+      "api": "MacExClient(...)",
+      "kind": "客户端管理"
+    },
+    {
+      "id": "macex-instruments",
+      "source_files": [
+        "docs/extended/macex-instruments.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x23f0 + 0x23f5 / 7727",
+      "api": "MacExClient.instruments(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-goods-count",
+      "source_files": [
+        "docs/extended/macex-goods_count.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x23f0 / 0x2562 / 0x23f5 / 7727",
+      "api": "MacExClient.goods_count(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-goods-list",
+      "source_files": [
+        "docs/extended/macex-goods_list.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x2562 / 0x23f5 / 7727",
+      "api": "MacExClient.goods_list(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-quotes",
+      "source_files": [
+        "docs/extended/macex-goods_quotes.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122b / 7727",
+      "api": "MacExClient.goods_quotes(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-goods-quotes-list",
+      "source_files": [
+        "docs/extended/macex-goods_quotes_list.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x2562 / 0x23f5 + 0x122b / 7727",
+      "api": "MacExClient.goods_quotes_list(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-bars",
+      "source_files": [
+        "docs/extended/macex-goods_kline.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122e / 7727",
+      "api": "MacExClient.goods_kline(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-minute",
+      "source_files": [
+        "docs/extended/macex-goods_tick_chart.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122d / 7727",
+      "api": "MacExClient.goods_tick_chart(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-goods-chart-sampling",
+      "source_files": [
+        "docs/extended/macex-goods_chart_sampling.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x254d / 7727",
+      "api": "MacExClient.goods_chart_sampling(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-trades",
+      "source_files": [
+        "docs/extended/macex-goods_transaction.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122f / 0x23fc / 0x2406 / 7727",
+      "api": "MacExClient.goods_transaction(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-goods-transaction-all",
+      "source_files": [
+        "docs/extended/macex-goods_transaction_all.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x23fc / 0x2406 / 7727",
+      "api": "MacExClient.goods_transaction_all(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-macro-indicators",
+      "source_files": [
+        "docs/extended/macex-macro_indicators.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x2562 / 市场38 / 7727",
+      "api": "MacExClient.macro_indicators(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-macro-quotes",
+      "source_files": [
+        "docs/extended/macex-macro_quotes.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122b / 市场38 / 7727",
+      "api": "MacExClient.macro_quotes(...)",
+      "kind": "同步客户端 / 协议接口"
+    },
+    {
+      "id": "macex-macro-kline",
+      "source_files": [
+        "docs/extended/macex-macro_kline.md"
+      ],
+      "feature": "mac_ex",
+      "stage": "P4",
+      "status": "planned",
+      "fixtures": [],
+      "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
+      "wire_code": "0x122e / 市场38 / 7727",
+      "api": "MacExClient.macro_kline(...)",
+      "kind": "同步客户端 / 协议接口"
+    }
+  ]
+}
