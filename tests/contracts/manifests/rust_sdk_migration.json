@@ -3276,17 +3276,19 @@
   "public_sdk_evidence_policy": {
     "implemented_requires": [
       "public_sdk_status=implemented",
-      "sdk_evidence contains crate-relative Rust source paths and exactly one publicly declared symbol per reference",
-      "each sdk_evidence source resolves within crates/eltdx/src and is listed in the record source_files",
-      "compatibility is an exact collectable pytest test node in a pytest-named file"
+      "sdk_evidence resolves to a crate-root public declaration or single-symbol pub use in crates/eltdx/src/lib.rs",
+      "the crate root source resolves within crates/eltdx/src and is listed in the record source_files",
+      "compatibility is an exact collectable pytest test node in a test_*.py or *_test.py file, excluding fixture and __test__=False nodes and Test* classes with custom constructors"
     ],
-    "sdk_evidence_format": "crates/eltdx/src/path.rs::PublicSymbol",
+    "sdk_evidence_format": "crates/eltdx/src/lib.rs::PublicSymbol",
     "compatibility_format": "tests/test_file.py::TestClass::test_name or tests/test_file.py::test_name",
-    "protocol_only_rule": "rust_protocol_status=wire_supported never implies public SDK migration"
+    "protocol_only_rule": "rust_protocol_status=wire_supported never implies public SDK migration",
+    "rust_visibility_rule": "nested declarations, comments, and string literals do not prove a crate-root public symbol; use a root declaration or one-symbol root pub use",
+    "pytest_collection_rule": "use pytest default test filename patterns; reject classes with custom __init__/__new__, __test__=False nodes, and fixture-decorated functions"
   },
   "python_module_coverage_policy": {
     "frozen_static_baseline": "path must occur in baseline-python-api.json modules",
-    "migration_manifest": "record_id must resolve and path must occur in that record source_files",
-    "compatibility_contract": "test_reference must resolve to an exact pytest node that imports the corresponding eltdx Python module"
+    "migration_manifest": "record_id must resolve to a record with a valid migration status and path must occur in that record source_files",
+    "compatibility_contract": "test_reference must resolve to an exact pytest node; imports at test-module scope or within that node must import the corresponding eltdx Python module"
   }
 }
