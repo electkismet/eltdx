@@ -10,7 +10,7 @@
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
 | 当前阶段 | P0 / T01，第4轮修复：迁移证据解析、pytest 精确节点与模块覆盖来源绑定 |
-| 已提交进度 | 第3轮 `edacc482` 复审未通过；第4轮修复待提交，未进入 T02 |
+| 已提交进度 | 第3轮 `edacc482` 复审未通过；第4轮修复提交 `8cc1a0b`，未进入 T02 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
 | 下一步 | 第4轮修复提交后等待限定复审；T01 通过后再标记完成并开始 T02 样本/证据清单 |
 
@@ -64,7 +64,7 @@
 | `c0e2c1c` | T01 修复 round 1 | 区分协议支持与 SDK 迁移状态并增加运行期反射快照 |
 | `02de834` | T01 修复 round 2 | 加入反射细节、状态词表与 Python 模块覆盖清单；复审仍有迁移证据和覆盖扩展问题 |
 | `edacc482` | T01 修复 round 3 | 加入独立 SDK 证据、可扩展覆盖来源及路径归一化；等待限定复审 |
-| 待提交 | T01 修复 round 4 | 第三轮未通过；增加 crate 公共符号、精确 pytest 节点、三类模块覆盖来源绑定及正反契约源码 |
+| `8cc1a0b` | T01 修复 round 4 | 第三轮未通过；增加 crate 公共符号、精确 pytest 节点、三类模块覆盖来源绑定及正反契约源码；所有验证仍按要求禁止 |
 
 ## 阻塞与风险
 

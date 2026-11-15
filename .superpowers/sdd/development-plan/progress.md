@@ -81,13 +81,13 @@
 - Task 1: fix round 2 commit `02de834`; scoped re-review: decorator/property/dataclass comparisons ADDRESSED; migration evidence model and extensible module-coverage routes NOT ADDRESSED. Controller also found `current` module paths are absolute while baseline/coverage paths are repository-relative, making the new path-set assertion inconsistent. No tests or collection run.
 - Task 1: fix round 3 commit `edacc482`; added separate public SDK evidence, migration-positive fixture shape, relative path normalization, extensible coverage source validation, and concrete test target checks. Re-review pending. No tests, collection, builds/checks, clippy, doctests, or network validation run.
 - Task 1: round 3 re-review FAILED. Findings: SDK evidence was only truthy and did not resolve to public implementation in `crates/eltdx`; compatibility references accepted arbitrary same-name AST nodes rather than exact pytest-collectable `test_*` paths; module coverage sources were not individually bound to the snapshot, migration record/source_files, or corresponding Python module. Path normalization is accepted. Round 4 is scoped to these three findings, T01 contract regressions, and status documentation. Do not run pytest or collection, cargo test/build/check/clippy/doctest, network validation, AST compilation scripts, or `git diff --check`. No Rust crate is present yet, so no capability may be upgraded to migrated in this round.
-- Task 1: round 4 edits in progress. Added source-level positive/negative contract cases and validators for crate-relative public Rust symbols, exact pytest node hierarchy, and explicit Python module imports; manifest policy now records the evidence formats. Verification remains forbidden under the user constraint.
+- Task 1: fix round 4 commit `8cc1a0b`; added source-level positive/negative contract cases and validators for crate-relative public Rust symbols, exact pytest node hierarchy, and explicit Python module imports; manifest policy records evidence formats. No pytest/collection, cargo test/build/check/clippy/doctest, network validation, AST compilation scripts, or `git diff --check` run, per user instruction. Scoped re-review remains pending.
 
 ## Execution state
 
 | Task | Status |
 |---|---|
-| T01 | Review fix round 4; verification forbidden |
+| T01 | Round 4 committed as `8cc1a0b`; scoped re-review pending; verification forbidden |
 | T02 | Not started |
 | T03 | Not started |
 | T04 | Not started |
