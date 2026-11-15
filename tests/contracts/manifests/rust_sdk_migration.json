@@ -36,7 +36,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -46,7 +46,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-握手.md",
-      "catalog_protocol": "0x000d"
+      "catalog_protocol": "0x000d",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-heartbeat",
@@ -56,7 +57,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -66,7 +67,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-心跳.md",
-      "catalog_protocol": "0x0004"
+      "catalog_protocol": "0x0004",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-code-count",
@@ -76,7 +78,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -86,7 +88,8 @@
       "kind": "底层协议 / 便捷筛选",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-代码数量.md",
-      "catalog_protocol": "0x044e"
+      "catalog_protocol": "0x044e",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-code-list",
@@ -96,7 +99,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -106,7 +109,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-代码表.md",
-      "catalog_protocol": "0x044d"
+      "catalog_protocol": "0x044d",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-quote-snapshots",
@@ -116,7 +120,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -126,7 +130,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-批量快照.md",
-      "catalog_protocol": "0x054c"
+      "catalog_protocol": "0x054c",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-legacy-quotes",
@@ -136,7 +141,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -146,7 +151,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-旧版批量行情.md",
-      "catalog_protocol": "0x053e"
+      "catalog_protocol": "0x053e",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-quote-depth",
@@ -163,7 +169,8 @@
       "kind": "协议封装",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/完整行情.md",
-      "catalog_protocol": "0x054c + 0x0547"
+      "catalog_protocol": "0x054c + 0x0547",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "7709-category-quotes",
@@ -173,7 +180,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -183,7 +190,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-分类行情.md",
-      "catalog_protocol": "0x054b"
+      "catalog_protocol": "0x054b",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-quote-refresh",
@@ -193,7 +201,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -203,7 +211,8 @@
       "kind": "订阅接口",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-增量刷新推送队列.md",
-      "catalog_protocol": "0x0547"
+      "catalog_protocol": "0x0547",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-kline",
@@ -213,7 +222,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -223,7 +232,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-K线周期线.md",
-      "catalog_protocol": "0x052d"
+      "catalog_protocol": "0x052d",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-delisted-bars",
@@ -233,7 +243,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -243,7 +253,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-退市K线日线接口.md",
-      "catalog_protocol": "0x052b"
+      "catalog_protocol": "0x052b",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-minute-today",
@@ -253,7 +264,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -263,7 +274,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-当日分时.md",
-      "catalog_protocol": "0x0537"
+      "catalog_protocol": "0x0537",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-minute-history",
@@ -273,7 +285,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -283,7 +295,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-指定日期历史分时.md",
-      "catalog_protocol": "0x0fb4"
+      "catalog_protocol": "0x0fb4",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-minute-recent",
@@ -293,7 +306,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -303,7 +316,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-近期历史分时.md",
-      "catalog_protocol": "0x0feb"
+      "catalog_protocol": "0x0feb",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-minute-aux",
@@ -313,7 +327,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -323,7 +337,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-分时副图.md",
-      "catalog_protocol": "0x051b"
+      "catalog_protocol": "0x051b",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-sparkline",
@@ -333,7 +348,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -343,7 +358,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-小走势图.md",
-      "catalog_protocol": "0x0fd1"
+      "catalog_protocol": "0x0fd1",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-trades-today",
@@ -353,7 +369,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -363,7 +379,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-当日成交明细.md",
-      "catalog_protocol": "0x0fc5"
+      "catalog_protocol": "0x0fc5",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-trades-history",
@@ -373,7 +390,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -383,7 +400,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-历史成交明细.md",
-      "catalog_protocol": "0x0fc6"
+      "catalog_protocol": "0x0fc6",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-auction-series",
@@ -393,7 +411,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -403,7 +421,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-集合竞价明细.md",
-      "catalog_protocol": "0x056a"
+      "catalog_protocol": "0x056a",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-opening-match-today",
@@ -421,7 +440,8 @@
       "kind": "组合接口",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-当日0925正式撮合.md",
-      "catalog_protocol": "0x0fc5"
+      "catalog_protocol": "0x0fc5",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "7709-opening-match-history",
@@ -439,7 +459,8 @@
       "kind": "组合接口",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-历史0925正式撮合.md",
-      "catalog_protocol": "0x0fc6"
+      "catalog_protocol": "0x0fc6",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "7709-gbbq",
@@ -449,7 +470,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -459,7 +480,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-股本变迁GBBQ.md",
-      "catalog_protocol": "0x000f"
+      "catalog_protocol": "0x000f",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-money-flow",
@@ -469,7 +491,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -479,7 +501,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/0x0ffc-资金流向日数据接口.md",
-      "catalog_protocol": "0x0ffc"
+      "catalog_protocol": "0x0ffc",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-local-factors",
@@ -497,7 +520,8 @@
       "kind": "组合接口",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-本地复权系数.md",
-      "catalog_protocol": "0x000f"
+      "catalog_protocol": "0x000f",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "7709-finance",
@@ -507,7 +531,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -517,7 +541,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-财务基础信息.md",
-      "catalog_protocol": "0x0010"
+      "catalog_protocol": "0x0010",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-special-limits",
@@ -527,7 +552,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -537,7 +562,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-特殊品种涨跌停限制.md",
-      "catalog_protocol": "0x0452"
+      "catalog_protocol": "0x0452",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-file-content",
@@ -547,7 +573,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -557,7 +583,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-服务器文件读取.md",
-      "catalog_protocol": "0x06b9"
+      "catalog_protocol": "0x06b9",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "f10-generic-entry",
@@ -574,7 +601,8 @@
       "kind": "高级调用",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-通用Entry调用.md",
-      "catalog_protocol": "7615 / TQLEX"
+      "catalog_protocol": "7615 / TQLEX",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-stock-info",
@@ -591,7 +619,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-股票基础信息.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_comreq"
+      "catalog_protocol": "CWServ.tdxf10_gg_comreq",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-limit-board-ladder",
@@ -608,7 +637,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-涨跌停列表.md",
-      "catalog_protocol": "CWServ.cfg_fx_lbtt"
+      "catalog_protocol": "CWServ.cfg_fx_lbtt",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-company-profile",
@@ -625,7 +655,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-公司概况.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_gsgk"
+      "catalog_protocol": "CWServ.tdxf10_gg_gsgk",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-business-composition",
@@ -642,7 +673,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-主营构成.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_jyfx"
+      "catalog_protocol": "CWServ.tdxf10_gg_jyfx",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-shareholder-change",
@@ -659,7 +691,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-股东增减持.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_gdyj"
+      "catalog_protocol": "CWServ.tdxf10_gg_gdyj",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-dividend-financing",
@@ -676,7 +709,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-分红融资.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_fhrz"
+      "catalog_protocol": "CWServ.tdxf10_gg_fhrz",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-allotment",
@@ -693,7 +727,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-增发获配.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_fhrz_zfhpmx"
+      "catalog_protocol": "CWServ.tdxf10_gg_fhrz_zfhpmx",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-finance-report",
@@ -710,7 +745,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-财务报表.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_cwfx"
+      "catalog_protocol": "CWServ.tdxf10_gg_cwfx",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-finance-diagnosis",
@@ -727,7 +763,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-财务诊断.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_cwzd"
+      "catalog_protocol": "CWServ.tdxf10_gg_cwzd",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-stock-score",
@@ -744,7 +781,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-个股总评.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_ggzp"
+      "catalog_protocol": "CWServ.tdxf10_gg_ggzp",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-profit-forecast",
@@ -761,7 +799,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-盈利预测.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_ybpj"
+      "catalog_protocol": "CWServ.tdxf10_gg_ybpj",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-theme-market",
@@ -778,7 +817,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-题材概念行情.md",
-      "catalog_protocol": "HQServ.hq_nlp_tcihq"
+      "catalog_protocol": "HQServ.hq_nlp_tcihq",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-valuation",
@@ -795,7 +835,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-估值市场数据.md",
-      "catalog_protocol": "HQServ.hq_nlp_gpsj"
+      "catalog_protocol": "HQServ.hq_nlp_gpsj",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-ranking",
@@ -812,7 +853,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-市场行业排名.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_zxts_rqpm"
+      "catalog_protocol": "CWServ.tdxf10_gg_zxts_rqpm",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-governance",
@@ -829,7 +871,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-资本运作治理.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_zbyz"
+      "catalog_protocol": "CWServ.tdxf10_gg_zbyz",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-hot-topics",
@@ -846,7 +889,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-热点题材.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_rdtc"
+      "catalog_protocol": "CWServ.tdxf10_gg_rdtc",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-topic-compare",
@@ -863,7 +907,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-题材内对比.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_rdtc_gndb"
+      "catalog_protocol": "CWServ.tdxf10_gg_rdtc_gndb",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-market-news",
@@ -880,7 +925,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-首页要闻.md",
-      "catalog_protocol": "CWServ.tdxi_zxxwsy"
+      "catalog_protocol": "CWServ.tdxi_zxxwsy",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-channel-news",
@@ -897,7 +943,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-频道资讯.md",
-      "catalog_protocol": "CWServ.tdxi_zxxwnews"
+      "catalog_protocol": "CWServ.tdxi_zxxwnews",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-news-channels",
@@ -914,7 +961,8 @@
       "kind": "静态枚举",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-资讯频道列表.md",
-      "catalog_protocol": "—（静态枚举，不发网络请求）"
+      "catalog_protocol": "—（静态枚举，不发网络请求）",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-company-news",
@@ -931,7 +979,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-公司资讯研报.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_gszx"
+      "catalog_protocol": "CWServ.tdxf10_gg_gszx",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-northbound",
@@ -948,7 +997,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-沪深股通持仓.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_zlcc"
+      "catalog_protocol": "CWServ.tdxf10_gg_zlcc",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-detail",
@@ -965,7 +1015,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-详情正文.md",
-      "catalog_protocol": "CWServ.tdxf10_gg_idreq"
+      "catalog_protocol": "CWServ.tdxf10_gg_idreq",
+      "rust_protocol_status": "none"
     },
     {
       "id": "f10-news-cache",
@@ -982,7 +1033,8 @@
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-新闻公告路演.md",
-      "catalog_protocol": "CWSearch.tzx_rcache"
+      "catalog_protocol": "CWSearch.tzx_rcache",
+      "rust_protocol_status": "none"
     },
     {
       "id": "helper-latest-stock-list",
@@ -999,7 +1051,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/最新股票列表.md",
-      "catalog_protocol": "0x044d"
+      "catalog_protocol": "0x044d",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-latest-st",
@@ -1016,7 +1069,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/最新ST列表.md",
-      "catalog_protocol": "0x044d"
+      "catalog_protocol": "0x044d",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-latest-suspended",
@@ -1033,7 +1087,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/最新停牌列表.md",
-      "catalog_protocol": "0x044d + 0x053e"
+      "catalog_protocol": "0x044d + 0x053e",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-daily-share-capital",
@@ -1050,7 +1105,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/每日股本.md",
-      "catalog_protocol": "0x0010 + 0x06b9"
+      "catalog_protocol": "0x0010 + 0x06b9",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-daily-price-limits",
@@ -1067,7 +1123,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/每日涨跌停价.md",
-      "catalog_protocol": "0x054c + 业务规则"
+      "catalog_protocol": "0x054c + 业务规则",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-realtime-rank",
@@ -1084,7 +1141,8 @@
       "kind": "业务封装",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/实时榜单.md",
-      "catalog_protocol": "0x054b"
+      "catalog_protocol": "0x054b",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-board-quotes",
@@ -1101,7 +1159,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/板块行情.md",
-      "catalog_protocol": "0x06b9 + 0x044d + 0x054c"
+      "catalog_protocol": "0x06b9 + 0x044d + 0x054c",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-board-member-quotes",
@@ -1118,7 +1177,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/板块成分股行情.md",
-      "catalog_protocol": "0x06b9 + 0x044d + 0x054c"
+      "catalog_protocol": "0x06b9 + 0x044d + 0x054c",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-buy-sell-strength",
@@ -1135,7 +1195,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/买卖力道.md",
-      "catalog_protocol": "0x051b"
+      "catalog_protocol": "0x051b",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-volume-comparison",
@@ -1152,7 +1213,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/成交对比.md",
-      "catalog_protocol": "0x051b"
+      "catalog_protocol": "0x051b",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-limit-ladder",
@@ -1169,7 +1231,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/连板天梯.md",
-      "catalog_protocol": "实时快照 + 0x06b9"
+      "catalog_protocol": "实时快照 + 0x06b9",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-theme-strength-rank",
@@ -1186,7 +1249,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/题材强度排行.md",
-      "catalog_protocol": "连板天梯 + 7615 F10"
+      "catalog_protocol": "连板天梯 + 7615 F10",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-stock-profile",
@@ -1203,7 +1267,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/股票信息汇总.md",
-      "catalog_protocol": "0x054c + 0x044d + 0x0010"
+      "catalog_protocol": "0x054c + 0x044d + 0x0010",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-shortline-indicators",
@@ -1220,7 +1285,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/短线指标.md",
-      "catalog_protocol": "0x06b9 + 0x054c + 0x0547 + 0x044d + 0x052d"
+      "catalog_protocol": "0x06b9 + 0x054c + 0x0547 + 0x044d + 0x052d",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-stock-topics",
@@ -1237,7 +1303,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/个股概念板块.md",
-      "catalog_protocol": "F10 多 Entry"
+      "catalog_protocol": "F10 多 Entry",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-topic-stocks",
@@ -1254,7 +1321,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/概念板块成分股.md",
-      "catalog_protocol": "F10 多 Entry"
+      "catalog_protocol": "F10 多 Entry",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-auction-data",
@@ -1271,7 +1339,8 @@
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/竞价数据.md",
-      "catalog_protocol": "当日 0x056a + 0x0fc5 + 0x054c / 历史 0x056a + 0x0fc6"
+      "catalog_protocol": "当日 0x056a + 0x0fc5 + 0x054c / 历史 0x056a + 0x0fc6",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-server-download",
@@ -1289,7 +1358,8 @@
       "kind": "协议封装",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-服务器文件下载.md",
-      "catalog_protocol": "基于 0x06b9"
+      "catalog_protocol": "基于 0x06b9",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "helper-server-stats",
@@ -1307,7 +1377,8 @@
       "kind": "协议封装",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-服务器统计文件解析.md",
-      "catalog_protocol": "基于 0x06b9"
+      "catalog_protocol": "基于 0x06b9",
+      "rust_protocol_status": "python_helper"
     },
     {
       "id": "7709-block-meta",
@@ -1317,7 +1388,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -1327,7 +1398,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/0x02c5-板块文件元数据接口.md",
-      "catalog_protocol": "0x02c5"
+      "catalog_protocol": "0x02c5",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-company-info-category",
@@ -1337,7 +1409,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -1347,7 +1419,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/0x02cf-公司信息目录接口.md",
-      "catalog_protocol": "0x02cf"
+      "catalog_protocol": "0x02cf",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "7709-company-info-content",
@@ -1357,7 +1430,7 @@
       ],
       "feature": "7709",
       "stage": "P2",
-      "status": "migrated",
+      "status": "planned",
       "fixtures": [
         "tests/fixtures/7709"
       ],
@@ -1367,7 +1440,8 @@
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/0x02d0-公司信息内容接口.md",
-      "catalog_protocol": "0x02d0"
+      "catalog_protocol": "0x02d0",
+      "rust_protocol_status": "wire_supported"
     },
     {
       "id": "ex-connection",
@@ -1384,7 +1458,8 @@
       "kind": "客户端管理",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-连接与主机.md",
-      "catalog_protocol": "连接管理 / 7727"
+      "catalog_protocol": "连接管理 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-markets",
@@ -1401,7 +1476,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_markets.md",
-      "catalog_protocol": "0x23F4 / 7727"
+      "catalog_protocol": "0x23F4 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-count",
@@ -1418,7 +1494,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_instrument_count.md",
-      "catalog_protocol": "0x23F0 / 7727"
+      "catalog_protocol": "0x23F0 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-info",
@@ -1435,7 +1512,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_instrument_info.md",
-      "catalog_protocol": "0x23F5 / 7727"
+      "catalog_protocol": "0x23F5 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-quote",
@@ -1452,7 +1530,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_instrument_quote.md",
-      "catalog_protocol": "0x23FA / 7727"
+      "catalog_protocol": "0x23FA / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-quotes",
@@ -1469,7 +1548,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_instrument_quote_list.md",
-      "catalog_protocol": "0x2400 / 7727"
+      "catalog_protocol": "0x2400 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-bars",
@@ -1486,7 +1566,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_instrument_bars.md",
-      "catalog_protocol": "0x23FF / 7727"
+      "catalog_protocol": "0x23FF / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-history-bars",
@@ -1503,7 +1584,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_history_instrument_bars_range.md",
-      "catalog_protocol": "0x240D / 7727"
+      "catalog_protocol": "0x240D / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-minute",
@@ -1520,7 +1602,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_minute_time_data.md",
-      "catalog_protocol": "0x240B / 7727"
+      "catalog_protocol": "0x240B / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-history-minute",
@@ -1537,7 +1620,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_history_minute_time_data.md",
-      "catalog_protocol": "0x240C / 7727"
+      "catalog_protocol": "0x240C / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-trades",
@@ -1554,7 +1638,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_transaction_data.md",
-      "catalog_protocol": "0x23FC / 7727"
+      "catalog_protocol": "0x23FC / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "ex-history-trades",
@@ -1571,7 +1656,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "EX",
       "catalog_doc": "extended/ex-get_history_transaction_data.md",
-      "catalog_protocol": "0x2406 / 7727"
+      "catalog_protocol": "0x2406 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-connection",
@@ -1588,7 +1674,8 @@
       "kind": "客户端管理",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-连接与主机.md",
-      "catalog_protocol": "连接管理 / 7709"
+      "catalog_protocol": "连接管理 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-quotes",
@@ -1605,7 +1692,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_stock_quotes.md",
-      "catalog_protocol": "0x122B / 7709"
+      "catalog_protocol": "0x122B / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-ranking",
@@ -1622,7 +1710,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_stock_quotes_list.md",
-      "catalog_protocol": "0x122C / 7709"
+      "catalog_protocol": "0x122C / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-bars",
@@ -1639,7 +1728,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_stock_kline.md",
-      "catalog_protocol": "0x122E / 7709"
+      "catalog_protocol": "0x122E / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-minute",
@@ -1656,7 +1746,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_tick_chart.md",
-      "catalog_protocol": "0x122D / 7709"
+      "catalog_protocol": "0x122D / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-tick-charts",
@@ -1673,7 +1764,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_tick_charts.md",
-      "catalog_protocol": "0x123E / 7709"
+      "catalog_protocol": "0x123E / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-chart-sampling",
@@ -1690,7 +1782,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_chart_sampling.md",
-      "catalog_protocol": "0x254D / 7709"
+      "catalog_protocol": "0x254D / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-trades",
@@ -1707,7 +1800,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_transactions.md",
-      "catalog_protocol": "0x122F / 7709"
+      "catalog_protocol": "0x122F / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-symbol-info",
@@ -1724,7 +1818,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_symbol_info.md",
-      "catalog_protocol": "0x122A / 7709"
+      "catalog_protocol": "0x122A / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-boards",
@@ -1741,7 +1836,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_board_list.md",
-      "catalog_protocol": "0x1231 / 7709"
+      "catalog_protocol": "0x1231 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-board-members",
@@ -1758,7 +1854,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_board_members.md",
-      "catalog_protocol": "0x122C / 7709"
+      "catalog_protocol": "0x122C / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-belong-board",
@@ -1775,7 +1872,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_belong_board.md",
-      "catalog_protocol": "0x1218 / head_flag=1 / 7709"
+      "catalog_protocol": "0x1218 / head_flag=1 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-board-summary",
@@ -1792,7 +1890,8 @@
       "kind": "同步客户端 / 组合调用",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_board_summary.md",
-      "catalog_protocol": "0x122C / 本地聚合 / 7709"
+      "catalog_protocol": "0x122C / 本地聚合 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-board-ranking",
@@ -1809,7 +1908,8 @@
       "kind": "同步客户端 / 组合调用",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_board_ranking.md",
-      "catalog_protocol": "0x1231 + 0x122C / 本地聚合 / 7709"
+      "catalog_protocol": "0x1231 + 0x122C / 本地聚合 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-board-change-ranking",
@@ -1826,7 +1926,8 @@
       "kind": "同步客户端 / 组合调用",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_board_change_ranking.md",
-      "catalog_protocol": "0x1231 + 0x122E / 本地计算 / 7709"
+      "catalog_protocol": "0x1231 + 0x122E / 本地计算 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-capital-flow",
@@ -1843,7 +1944,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_capital_flow.md",
-      "catalog_protocol": "0x1218 / head_flag=2 / 7709"
+      "catalog_protocol": "0x1218 / head_flag=2 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-auction",
@@ -1860,7 +1962,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_auction.md",
-      "catalog_protocol": "0x123D / 7709"
+      "catalog_protocol": "0x123D / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-unusual",
@@ -1877,7 +1980,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_unusual.md",
-      "catalog_protocol": "0x1237 / 7709"
+      "catalog_protocol": "0x1237 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-server-info",
@@ -1894,7 +1998,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_server_info.md",
-      "catalog_protocol": "0x120F / 7709"
+      "catalog_protocol": "0x120F / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-kline-offset",
@@ -1911,7 +2016,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_kline_offset.md",
-      "catalog_protocol": "0x124A / 7709"
+      "catalog_protocol": "0x124A / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-file-meta",
@@ -1928,7 +2034,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_file_meta.md",
-      "catalog_protocol": "0x1215 / 7709"
+      "catalog_protocol": "0x1215 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-download-file-chunk",
@@ -1945,7 +2052,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-download_file_chunk.md",
-      "catalog_protocol": "0x1217 / 7709"
+      "catalog_protocol": "0x1217 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-download-file",
@@ -1962,7 +2070,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-download_file.md",
-      "catalog_protocol": "0x1215 + 0x1217 / 7709"
+      "catalog_protocol": "0x1215 + 0x1217 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "mac-get-goods-list",
@@ -1979,7 +2088,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC",
       "catalog_doc": "extended/mac-get_goods_list.md",
-      "catalog_protocol": "0x2562 / 7709"
+      "catalog_protocol": "0x2562 / 7709",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-connection",
@@ -1996,7 +2106,8 @@
       "kind": "客户端管理",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-连接与主机.md",
-      "catalog_protocol": "连接管理 / 7727"
+      "catalog_protocol": "连接管理 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-instruments",
@@ -2013,7 +2124,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-instruments.md",
-      "catalog_protocol": "0x23F0 + 0x23F5 / 7727"
+      "catalog_protocol": "0x23F0 + 0x23F5 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-goods-count",
@@ -2030,7 +2142,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-goods_count.md",
-      "catalog_protocol": "0x23F0 / 0x2562 / 0x23F5 / 7727"
+      "catalog_protocol": "0x23F0 / 0x2562 / 0x23F5 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-goods-list",
@@ -2047,7 +2160,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-goods_list.md",
-      "catalog_protocol": "0x2562 / 0x23F5 / 7727"
+      "catalog_protocol": "0x2562 / 0x23F5 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-quotes",
@@ -2064,7 +2178,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-goods_quotes.md",
-      "catalog_protocol": "0x122B / 7727"
+      "catalog_protocol": "0x122B / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-goods-quotes-list",
@@ -2081,7 +2196,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-goods_quotes_list.md",
-      "catalog_protocol": "0x2562 / 0x23F5 + 0x122B / 7727"
+      "catalog_protocol": "0x2562 / 0x23F5 + 0x122B / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-bars",
@@ -2098,7 +2214,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-goods_kline.md",
-      "catalog_protocol": "0x122E / 7727"
+      "catalog_protocol": "0x122E / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-minute",
@@ -2115,7 +2232,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-goods_tick_chart.md",
-      "catalog_protocol": "0x122D / 7727"
+      "catalog_protocol": "0x122D / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-goods-chart-sampling",
@@ -2132,7 +2250,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-goods_chart_sampling.md",
-      "catalog_protocol": "0x254D / 7727"
+      "catalog_protocol": "0x254D / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-trades",
@@ -2149,7 +2268,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-goods_transaction.md",
-      "catalog_protocol": "0x122F / 0x23FC / 0x2406 / 7727"
+      "catalog_protocol": "0x122F / 0x23FC / 0x2406 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-goods-transaction-all",
@@ -2166,7 +2286,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-goods_transaction_all.md",
-      "catalog_protocol": "0x23FC / 0x2406 / 7727"
+      "catalog_protocol": "0x23FC / 0x2406 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-macro-indicators",
@@ -2183,7 +2304,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-macro_indicators.md",
-      "catalog_protocol": "0x2562 / 市场38 / 7727"
+      "catalog_protocol": "0x2562 / 市场38 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-macro-quotes",
@@ -2200,7 +2322,8 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-macro_quotes.md",
-      "catalog_protocol": "0x122B / 市场38 / 7727"
+      "catalog_protocol": "0x122B / 市场38 / 7727",
+      "rust_protocol_status": "none"
     },
     {
       "id": "macex-macro-kline",
@@ -2217,8 +2340,16 @@
       "kind": "同步客户端 / 协议接口",
       "catalog_source": "MAC-EX",
       "catalog_doc": "extended/macex-macro_kline.md",
-      "catalog_protocol": "0x122E / 市场38 / 7727"
+      "catalog_protocol": "0x122E / 市场38 / 7727",
+      "rust_protocol_status": "none"
     }
   ],
-  "catalog_source_path": "docs/assets/interface-catalog-data.js"
+  "catalog_source_path": "docs/assets/interface-catalog-data.js",
+  "status_semantics": {
+    "planned": "Capability is cataloged for SDK migration; public crates/services are not yet complete.",
+    "migrated": "Public Rust SDK capability is implemented and compatibility evidence exists.",
+    "compatibility_adapter_retained": "Python compatibility surface remains authoritative while shared implementation is migrated.",
+    "experimental": "Available only behind explicit experimental evidence; not a stable commitment.",
+    "unsupported": "Cataloged but explicitly unavailable in the target SDK."
+  }
 }
