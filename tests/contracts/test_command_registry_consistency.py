@@ -162,7 +162,7 @@ def _contract_test_node(root: Path, reference: str) -> tuple[ast.Module, ast.Fun
             if index == len(parts) - 1 and node.name.startswith("test_") and not _pytest_function_disabled(tree, node):
                 return tree, node
             return None
-        if not node.name.startswith("Test"):
+        if index != 0 or not node.name.startswith("Test"):
             return None
         if _pytest_disabled(node.body):
             return None
@@ -506,12 +506,23 @@ def test_pytest_reference_requires_exact_collectable_test_path(tmp_path: Path) -
     assert not _contract_target_exists(tmp_path, "test_contract.py::test_exact")
     assert not _contract_target_exists(tmp_path, "test_contract.py::TestGroup::helper")
     assert not _contract_target_exists(tmp_path, "contract.py::TestGroup::test_exact")
+    nested_class_file = tmp_path / "test_nested_class.py"
+    nested_class_file.write_text(
+        "class TestOuter:\n"
+        "    class TestInner:\n"
+        "        def test_case(self): pass\n",
+        encoding="utf-8",
+    )
+    assert not _contract_target_exists(tmp_path, "test_nested_class.py::TestOuter::TestInner::test_case")
     uncollectable = tmp_path / "test_uncollectable.py"
     uncollectable.write_text("class TestNotCollected:\n    def __init__(self): pass\n    def test_case(self): pass\n", encoding="utf-8")
     assert not _contract_target_exists(tmp_path, "test_uncollectable.py::TestNotCollected::test_case")
     uncollectable_new = tmp_path / "test_uncollectable_new.py"
     uncollectable_new.write_text("class TestNotCollected:\n    def __new__(cls): return super().__new__(cls)\n    def test_case(self): pass\n", encoding="utf-8")
     assert not _contract_target_exists(tmp_path, "test_uncollectable_new.py::TestNotCollected::test_case")
+    uncollectable_assigned_new = tmp_path / "test_uncollectable_assigned_new.py"
+    uncollectable_assigned_new.write_text("class TestNotCollected:\n    __new__ = lambda cls: object.__new__(cls)\n    def test_case(self): pass\n", encoding="utf-8")
+    assert not _contract_target_exists(tmp_path, "test_uncollectable_assigned_new.py::TestNotCollected::test_case")
     wrong_suffix = tmp_path / "test_contract.txt"
     wrong_suffix.write_text("def test_case(): pass\n", encoding="utf-8")
     assert not _contract_target_exists(tmp_path, "test_contract.txt::test_case")
@@ -521,6 +532,9 @@ def test_pytest_reference_requires_exact_collectable_test_path(tmp_path: Path) -
     disabled_file = tmp_path / "test_disabled.py"
     disabled_file.write_text("__test__ = False\ndef test_case(): pass\n", encoding="utf-8")
     assert not _contract_target_exists(tmp_path, "test_disabled.py::test_case")
+    disabled_class_file = tmp_path / "test_disabled_class.py"
+    disabled_class_file.write_text("class TestNotCollected:\n    __test__ = False\n    def test_case(self): pass\n", encoding="utf-8")
+    assert not _contract_target_exists(tmp_path, "test_disabled_class.py::TestNotCollected::test_case")
 
 
 def test_python_module_evidence_requires_source_association(tmp_path: Path) -> None:
