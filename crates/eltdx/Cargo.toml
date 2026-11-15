@@ -1,0 +1,24 @@
+[package]
+name = "eltdx"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+serde = ["dep:serde"]
+offline = []
+f10 = []
+ex = []
+mac = ["ex"]
+full = ["serde", "offline", "f10", "ex", "mac"]
+
+[dependencies]
+eltdx-protocol = { path = "../eltdx-protocol" }
+eltdx-runtime = { path = "../eltdx-runtime" }
+serde = { workspace = true, optional = true }
+
+[lints]
+workspace = true

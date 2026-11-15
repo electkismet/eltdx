@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/eltdx",
   "crates/eltdx-protocol",
   "crates/eltdx-runtime",
   "crates/eltdx-python",
