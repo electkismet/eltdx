@@ -12,8 +12,9 @@ pub use types::batch::{
     BatchItem, BatchItemState, BatchOutcome, MissingPolicy, MissingReason, SnapshotBatch,
 };
 pub use types::numeric::{
-    Amount, AmountUnit, NumericValue, Price, Quantity, QuantityUnit, Ratio, RatioUnit,
+    Amount, AmountUnit, NumericValue, Price, PriceSource, Quantity, QuantityUnit, Ratio,
+    RatioUnit, RoundingMode,
 };
 pub use types::raw::RawPolicy;
 pub use types::security::{HqMarket, SecurityId};
-pub use types::time::{EventTime, TradingDate};
+pub use types::time::{EventTime, EventTimeSource, TradingDate};

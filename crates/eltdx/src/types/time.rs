@@ -1,7 +1,7 @@
 use crate::error::{Error, ErrorKind, Result};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TradingDate {
     year: u16,
     month: u8,
@@ -22,11 +22,11 @@ impl TradingDate {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct EventTime(EventTimeKind);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 enum EventTimeKind {
     TradingDate(TradingDate),
     Shanghai {
@@ -67,6 +67,42 @@ impl EventTime {
         validate_clock(hour, minute, second)?;
         Ok(Self(EventTimeKind::TimeOfDay { hour, minute, second }))
     }
+
+    pub const fn source_kind(self) -> EventTimeSource {
+        match self.0 {
+            EventTimeKind::TradingDate(_) => EventTimeSource::TradingDate,
+            EventTimeKind::Shanghai { .. } => EventTimeSource::Shanghai,
+            EventTimeKind::Local { .. } => EventTimeSource::Local,
+            EventTimeKind::TimeOfDay { .. } => EventTimeSource::TimeOfDay,
+        }
+    }
+
+    pub const fn date(self) -> Option<TradingDate> {
+        match self.0 {
+            EventTimeKind::TradingDate(date)
+            | EventTimeKind::Shanghai { date, .. }
+            | EventTimeKind::Local { date, .. } => Some(date),
+            EventTimeKind::TimeOfDay { .. } => None,
+        }
+    }
+
+    pub const fn clock(self) -> Option<(u8, u8, u8)> {
+        match self.0 {
+            EventTimeKind::TradingDate(_) => None,
+            EventTimeKind::Shanghai { hour, minute, second, .. }
+            | EventTimeKind::Local { hour, minute, second, .. }
+            | EventTimeKind::TimeOfDay { hour, minute, second } => Some((hour, minute, second)),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum EventTimeSource {
+    TradingDate,
+    Shanghai,
+    Local,
+    TimeOfDay,
 }
 
 fn validate_clock(hour: u8, minute: u8, second: u8) -> Result<()> {
