@@ -1,7 +1,8 @@
+use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ops::Deref;
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{mpsc as std_mpsc, Arc, Condvar, Mutex, MutexGuard, TryLockError};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -594,6 +595,14 @@ struct ControlState {
     close_requested: bool,
     close_timed_out: bool,
     cancellations: BTreeMap<RequestId, Arc<Completion<Result<(), RuntimeError>>>>,
+    pin_cancellations: BTreeMap<RequestId, PinCancellation>,
+    pin_closes: Vec<PinIdentity>,
+}
+
+#[derive(Debug)]
+struct PinCancellation {
+    confirmation: Arc<Completion<Result<(), RuntimeError>>>,
+    result_terminal: Arc<AtomicBool>,
 }
 
 #[derive(Debug)]
@@ -642,12 +651,45 @@ impl ControlCell {
         Ok(())
     }
 
+    fn request_pin_cancel(
+        &self,
+        request_id: RequestId,
+        result_terminal: Arc<AtomicBool>,
+        confirmation: Arc<Completion<Result<(), RuntimeError>>>,
+    ) -> Result<(), RuntimeError> {
+        let mut state = lock_mutex(&self.state, "runtime control")?;
+        if result_terminal.load(Ordering::Acquire) {
+            drop(state);
+            confirmation.publish(Ok(()));
+            return Ok(());
+        }
+        state.pin_cancellations.entry(request_id).or_insert(PinCancellation {
+            confirmation,
+            result_terminal,
+        });
+        drop(state);
+        self.changed.notify_one();
+        Ok(())
+    }
+
+    fn request_pin_close(&self, pin: PinIdentity) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        state.pin_closes.push(pin);
+        drop(state);
+        self.changed.notify_one();
+    }
+
     fn take_snapshot(&self) -> Result<ControlSnapshot, RuntimeError> {
         let mut state = lock_mutex(&self.state, "runtime control")?;
         Ok(ControlSnapshot {
             close_requested: state.close_requested,
             close_timed_out: std::mem::take(&mut state.close_timed_out),
             cancellations: std::mem::take(&mut state.cancellations),
+            pin_cancellations: std::mem::take(&mut state.pin_cancellations),
+            pin_closes: std::mem::take(&mut state.pin_closes),
         })
     }
 }
@@ -657,6 +699,8 @@ struct ControlSnapshot {
     close_requested: bool,
     close_timed_out: bool,
     cancellations: BTreeMap<RequestId, Arc<Completion<Result<(), RuntimeError>>>>,
+    pin_cancellations: BTreeMap<RequestId, PinCancellation>,
+    pin_closes: Vec<PinIdentity>,
 }
 
 #[derive(Debug)]
@@ -678,6 +722,23 @@ struct RawExecution {
 }
 
 #[derive(Debug)]
+struct PinResultSender {
+    sender: std_mpsc::SyncSender<Result<PinDelivery, RuntimeError>>,
+    terminal: Arc<AtomicBool>,
+}
+
+impl PinResultSender {
+    fn send(
+        &self,
+        result: Result<PinDelivery, RuntimeError>,
+    ) -> Result<(), std_mpsc::SendError<Result<PinDelivery, RuntimeError>>> {
+        let sent = self.sender.send(result);
+        self.terminal.store(true, Ordering::Release);
+        sent
+    }
+}
+
+#[derive(Debug)]
 pub struct PendingExecution {
     created_pid: u32,
     request_id: RequestId,
@@ -694,7 +755,46 @@ pub struct PendingPin {
     request_id: RequestId,
     control: Arc<ControlCell>,
     admission_rx: Option<std_mpsc::Receiver<Result<(), RuntimeError>>>,
-    result_rx: std_mpsc::Receiver<Result<PinIdentity, RuntimeError>>,
+    result_rx: std_mpsc::Receiver<Result<PinDelivery, RuntimeError>>,
+    result_terminal: Arc<AtomicBool>,
+    terminal: Cell<bool>,
+}
+
+#[derive(Debug)]
+struct PinDelivery {
+    identity: Option<PinIdentity>,
+    control: Arc<ControlCell>,
+}
+
+impl PinDelivery {
+    fn into_identity(mut self) -> Result<PinIdentity, RuntimeError> {
+        self.identity
+            .take()
+            .ok_or_else(|| RuntimeError::internal("pin delivery identity is missing"))
+    }
+}
+
+impl Drop for PinDelivery {
+    fn drop(&mut self) {
+        if let Some(identity) = self.identity.take() {
+            self.control.request_pin_close(identity);
+        }
+    }
+}
+
+impl Drop for PendingPin {
+    fn drop(&mut self) {
+        if !self.terminal.get() {
+            let confirmation = Arc::new(Completion::new());
+            let _ = self
+                .control
+                .request_pin_cancel(
+                    self.request_id,
+                    Arc::clone(&self.result_terminal),
+                    confirmation,
+                );
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -809,7 +909,10 @@ impl PendingPin {
         if let Some(admission_rx) = self.admission_rx.as_ref() {
             match receive_std_timeout(admission_rx, timeout) {
                 Ok(Ok(())) => self.admission_rx = None,
-                Ok(Err(error)) => return Err(error),
+                Ok(Err(error)) => {
+                    self.terminal.set(true);
+                    return Err(error);
+                }
                 Err(std_mpsc::RecvTimeoutError::Timeout) => return Ok(PendingPoll::Pending),
                 Err(std_mpsc::RecvTimeoutError::Disconnected) => {
                     return Err(RuntimeError::internal(
@@ -820,11 +923,17 @@ impl PendingPin {
         }
         let remaining = timeout.saturating_sub(started.elapsed());
         match receive_std_timeout(&self.result_rx, remaining) {
-            Ok(Ok(identity)) => Ok(PendingPoll::Ready(PinHandle {
-                engine: self.engine.clone(),
-                identity,
-            })),
-            Ok(Err(error)) => Err(error),
+            Ok(Ok(delivery)) => {
+                self.terminal.set(true);
+                Ok(PendingPoll::Ready(PinHandle {
+                    engine: self.engine.clone(),
+                    identity: delivery.into_identity()?,
+                }))
+            }
+            Ok(Err(error)) => {
+                self.terminal.set(true);
+                Err(error)
+            }
             Err(std_mpsc::RecvTimeoutError::Timeout) => Ok(PendingPoll::Pending),
             Err(std_mpsc::RecvTimeoutError::Disconnected) => Err(RuntimeError::internal(
                 "runtime pin channel disconnected before terminal publication",
@@ -843,16 +952,34 @@ impl PendingPin {
 
     pub fn cancel_and_confirm(&self, timeout: Duration) -> Result<(), RuntimeError> {
         check_pid(self.created_pid)?;
+        if self.terminal.get() {
+            return Ok(());
+        }
         match self.result_rx.try_recv() {
-            Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => return Ok(()),
+            Ok(result) => {
+                self.terminal.set(true);
+                drop(result);
+                return Ok(());
+            }
+            Err(std_mpsc::TryRecvError::Disconnected) => {
+                self.terminal.set(true);
+                return Ok(());
+            }
             Err(std_mpsc::TryRecvError::Empty) => {}
         }
         let confirmation = Arc::new(Completion::new());
-        self.control
-            .request_cancel(self.request_id, Arc::clone(&confirmation))?;
+        self.control.request_pin_cancel(
+            self.request_id,
+            Arc::clone(&self.result_terminal),
+            Arc::clone(&confirmation),
+        )?;
         match confirmation.wait(timeout)? {
-            Some(result) => result,
+            Some(result) => {
+                self.terminal.set(true);
+                result
+            }
             None => {
+                self.terminal.set(true);
                 let error = RuntimeError::timeout(TimeoutPhase::CancelConfirmation)
                     .with_context("request_id", self.request_id.get().to_string());
                 self.control.mark_close_timeout()?;
@@ -1181,13 +1308,17 @@ impl Engine {
         let deadline = Deadline::after(self.inner.config.request_timeout)?;
         let (admission_tx, admission_rx) = std_mpsc::sync_channel(1);
         let (result_tx, result_rx) = std_mpsc::sync_channel(1);
+        let result_terminal = Arc::new(AtomicBool::new(false));
         runtime
             .command_tx
             .try_send(RuntimeCommand::OpenPin {
                 request_id,
                 deadline,
                 admission: admission_tx,
-                result: result_tx,
+                result: PinResultSender {
+                    sender: result_tx,
+                    terminal: Arc::clone(&result_terminal),
+                },
                 ingress,
             })
             .map_err(|error| match error {
@@ -1207,6 +1338,8 @@ impl Engine {
             control: runtime.control,
             admission_rx: Some(admission_rx),
             result_rx,
+            result_terminal,
+            terminal: Cell::new(false),
         })
     }
 
@@ -1901,7 +2034,7 @@ enum RuntimeCommand {
         request_id: RequestId,
         deadline: Deadline,
         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
-        result: std_mpsc::SyncSender<Result<PinIdentity, RuntimeError>>,
+        result: PinResultSender,
         ingress: IngressOwnership,
     },
     ExecutePinned {
@@ -2155,7 +2288,7 @@ struct PendingRequest {
 
 #[derive(Debug)]
 struct PendingPinReservation {
-    result: std_mpsc::SyncSender<Result<PinIdentity, RuntimeError>>,
+    result: PinResultSender,
     _ingress: IngressOwnership,
     admission: Admission,
 }
@@ -2312,6 +2445,7 @@ struct RuntimeCore {
     sessions: Arc<Mutex<SessionCache>>,
     pending: BTreeMap<RequestId, PendingRequest>,
     pin_reservations: BTreeMap<RequestId, PendingPinReservation>,
+    opened_pin_reservations: BTreeSet<RequestId>,
     pin_connects: BTreeMap<SlotId, RequestId>,
     pin_close_waiters: BTreeMap<u64, Vec<std_mpsc::SyncSender<Result<(), RuntimeError>>>>,
     internal_request_counter: u64,
@@ -2380,6 +2514,7 @@ impl RuntimeCore {
             sessions,
             pending: BTreeMap::new(),
             pin_reservations: BTreeMap::new(),
+            opened_pin_reservations: BTreeSet::new(),
             pin_connects: BTreeMap::new(),
             pin_close_waiters: BTreeMap::new(),
             internal_request_counter: 0,
@@ -3524,7 +3659,7 @@ impl RuntimeCore {
                     }
                     match result {
                         Ok(()) => {
-                            if let Some(batch) = self.complete_pin_reservation(request_id)? {
+                            if let Some(batch) = self.complete_pin_reservation(request_id).await? {
                                 self.process_terminal_batch(batch).await?;
                             }
                         }
@@ -3736,6 +3871,10 @@ impl RuntimeCore {
         let pin_promotion = batch.pin_promotion;
         let ordinary_promotion = batch.ordinary_promotion;
         let pin_released = batch.pin_released;
+        if pin_released {
+            self.opened_pin_reservations
+                .remove(&pin.reservation_request_id);
+        }
         self.process_notifications(batch.notifications).await?;
         if let Some(promotion) = pin_promotion {
             self.apply_pin_promotion(promotion).await?;
@@ -3903,7 +4042,7 @@ impl RuntimeCore {
         self.dispatch_initial(promotion.request_id).await
     }
 
-    fn complete_pin_reservation(
+    async fn complete_pin_reservation(
         &mut self,
         request_id: RequestId,
     ) -> Result<Option<TerminalBatch>, RuntimeError> {
@@ -3932,12 +4071,55 @@ impl RuntimeCore {
                 return Ok(Some(batch));
             }
         };
+        let (reservation, delivery) = self.prepare_pin_delivery(request_id, identity)?;
+        self.publish_pin_delivery(reservation, delivery).await?;
+        Ok(None)
+    }
+
+    fn prepare_pin_delivery(
+        &mut self,
+        request_id: RequestId,
+        identity: PinIdentity,
+    ) -> Result<(PendingPinReservation, PinDelivery), RuntimeError> {
+        let delivery = PinDelivery {
+            identity: Some(identity),
+            control: Arc::clone(&self.control),
+        };
         let reservation = self
             .pin_reservations
             .remove(&request_id)
             .ok_or_else(|| RuntimeError::internal("opened pin reservation disappeared"))?;
-        let _ = reservation.result.send(Ok(identity));
-        Ok(None)
+        if !self.opened_pin_reservations.insert(request_id) {
+            return Err(RuntimeError::internal(
+                "opened pin reservation identity is already owned",
+            ));
+        }
+        Ok((reservation, delivery))
+    }
+
+    async fn publish_pin_delivery(
+        &mut self,
+        reservation: PendingPinReservation,
+        delivery: PinDelivery,
+    ) -> Result<(), RuntimeError> {
+        if let Err(error) = reservation.result.send(Ok(delivery)) {
+            let delivery = match error.0 {
+                Ok(delivery) => delivery,
+                Err(_) => {
+                    return Err(RuntimeError::internal(
+                        "pin reservation send failed with an error payload",
+                    ));
+                }
+            };
+            let identity = delivery.into_identity()?;
+            let Some(batch) = self.supervisor.close_pin(identity, Instant::now())? else {
+                return Err(RuntimeError::internal(
+                    "undelivered pin reservation could not be closed",
+                ));
+            };
+            self.process_pin_terminal_batch(identity, batch).await?;
+        }
+        Ok(())
     }
 
     fn start_pin_connection(
@@ -4071,10 +4253,31 @@ impl RuntimeCore {
         for (request_id, confirmation) in snapshot.cancellations {
             self.cancel_request(request_id, confirmation).await?;
         }
+        for (request_id, cancellation) in snapshot.pin_cancellations {
+            self.cancel_pin_request(request_id, cancellation).await?;
+        }
+        for pin in snapshot.pin_closes {
+            let (reply, receiver) = std_mpsc::sync_channel(1);
+            drop(receiver);
+            self.close_pin(pin, reply).await?;
+        }
         if snapshot.close_requested && !self.closing {
             self.begin_close().await?;
         }
         Ok(())
+    }
+
+    async fn cancel_pin_request(
+        &mut self,
+        request_id: RequestId,
+        cancellation: PinCancellation,
+    ) -> Result<(), RuntimeError> {
+        if cancellation.result_terminal.load(Ordering::Acquire) {
+            cancellation.confirmation.publish(Ok(()));
+            return Ok(());
+        }
+        self.cancel_request(request_id, cancellation.confirmation)
+            .await
     }
 
     async fn cancel_request(
@@ -4117,6 +4320,13 @@ impl RuntimeCore {
             };
         }
         let Some(pending) = self.pending.get(&request_id) else {
+            if self.opened_pin_reservations.contains(&request_id)
+                || self.closing
+                || self.supervisor.state() != EngineState::Running
+            {
+                confirmation.publish(Ok(()));
+                return Ok(());
+            }
             self.pre_cancelled_submissions.insert(request_id);
             self.cancel_confirmations.insert(request_id, confirmation);
             return Ok(());
@@ -4224,6 +4434,7 @@ impl RuntimeCore {
 
     async fn begin_close(&mut self) -> Result<(), RuntimeError> {
         self.closing = true;
+        self.opened_pin_reservations.clear();
         match self.supervisor.begin_close()? {
             CloseClaim::Owner(attempt) | CloseClaim::Existing(attempt) => {
                 self.close_attempt = Some(attempt);
@@ -5853,7 +6064,8 @@ fn keyed_permutation(value: u32, key: u64) -> u32 {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Barrier;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -5916,6 +6128,54 @@ mod tests {
                 push_queue_bytes: 64 * 1024 * 1024,
             },
         )
+    }
+
+    fn pin_reservation_runtime(
+        request_id: RequestId,
+    ) -> Result<(
+        RuntimeCore,
+        tokio::runtime::Runtime,
+        std_mpsc::Receiver<Result<super::PinDelivery, RuntimeError>>,
+    ), RuntimeError> {
+        let (_command_tx, command_rx) = tokio::sync::mpsc::channel(2);
+        let runtime_config = config(1, 1)?;
+        let diagnostics = super::DiagnosticsCache::stopped(&runtime_config);
+        let mut core = RuntimeCore::new(
+            runtime_config,
+            0,
+            command_rx,
+            Arc::new(ControlCell::new()),
+            Arc::new(AtomicUsize::new(0)),
+            Arc::new(std::sync::Mutex::new(diagnostics)),
+            Arc::new(std::sync::Mutex::new(super::SessionCache::default())),
+        )?;
+        let super::StartClaim::Owner(start) = core.supervisor.begin_start()? else {
+            return Err(RuntimeError::internal("test runtime did not own startup"));
+        };
+        assert!(core.supervisor.publish_start(start)?);
+        let now = std::time::Instant::now();
+        let admission = core.supervisor.submit_with_retry_policy(
+            request_id,
+            crate::deadline::Deadline::at(now + Duration::from_secs(10)),
+            crate::request::RetryPolicy::ordinary(false),
+            now,
+        )?;
+        let (result, receiver) = std_mpsc::sync_channel(1);
+        let result_terminal = Arc::new(AtomicBool::new(false));
+        core.pin_reservations.insert(
+            request_id,
+            super::PendingPinReservation {
+                result: super::PinResultSender {
+                    sender: result,
+                    terminal: result_terminal,
+                },
+                _ingress: super::IngressOwnership {
+                    owned: Arc::new(AtomicUsize::new(1)),
+                },
+                admission,
+            },
+        );
+        Ok((core, build_tokio_runtime(1)?, receiver))
     }
 
     #[test]
@@ -6066,6 +6326,328 @@ mod tests {
         let snapshot = control.take_snapshot()?;
         assert!(snapshot.close_requested);
         assert!(snapshot.cancellations.contains_key(&request_id));
+        Ok(())
+    }
+
+    #[test]
+    fn dropping_unwaited_pin_registers_cancellation_without_waiting() -> Result<(), RuntimeError> {
+        let engine = Engine::new(config(1, 1)?)?;
+        let control = Arc::new(ControlCell::new());
+        let request_id = RequestId::new(41)?;
+        let (_admission_tx, admission_rx) = std_mpsc::sync_channel(1);
+        let (_result_tx, result_rx) = std_mpsc::sync_channel(1);
+        let pending = super::PendingPin {
+            created_pid: std::process::id(),
+            engine,
+            request_id,
+            control: Arc::clone(&control),
+            admission_rx: Some(admission_rx),
+            result_rx,
+            result_terminal: Arc::new(AtomicBool::new(false)),
+            terminal: std::cell::Cell::new(false),
+        };
+        let barrier = Arc::new(Barrier::new(2));
+        let (dropped_tx, dropped_rx) = std_mpsc::sync_channel(1);
+        let worker_barrier = Arc::clone(&barrier);
+        let worker = std::thread::spawn(move || {
+            worker_barrier.wait();
+            drop(pending);
+            dropped_tx.send(()).expect("drop acknowledgement receiver is present");
+        });
+
+        barrier.wait();
+        dropped_rx.recv().expect("pending drop completed");
+        worker.join().expect("drop worker completed");
+        let snapshot = control.take_snapshot()?;
+        assert!(snapshot.pin_cancellations.contains_key(&request_id));
+        Ok(())
+    }
+
+    #[test]
+    fn undelivered_pin_success_registers_exact_pin_close() -> Result<(), RuntimeError> {
+        let control = Arc::new(ControlCell::new());
+        let identity = crate::pin::PinIdentity {
+            engine_epoch: crate::slot::EngineEpoch::new(1)?,
+            pin_id: crate::pin::PinId::new(9)?,
+            lease_id: crate::request::LeaseId::from_raw(12),
+            slot_id: crate::slot::SlotId::new(0),
+            reservation_request_id: RequestId::new(43)?,
+        };
+        let (sender, receiver) = std_mpsc::sync_channel(1);
+        drop(receiver);
+        let result = sender.send(Ok(super::PinDelivery {
+            identity: Some(identity),
+            control: Arc::clone(&control),
+        }));
+        let undelivered = result.expect_err("dropped receiver rejects pin delivery");
+        drop(undelivered);
+
+        let snapshot = control.take_snapshot()?;
+        assert_eq!(snapshot.pin_closes, vec![identity]);
+        Ok(())
+    }
+
+    #[test]
+    fn cancellation_before_pin_success_releases_reservation_once() -> Result<(), RuntimeError> {
+        let request_id = RequestId::new(45)?;
+        let (mut core, runtime, receiver) = pin_reservation_runtime(request_id)?;
+        let confirmation = Arc::new(super::Completion::new());
+        runtime.block_on(core.cancel_request(request_id, Arc::clone(&confirmation)))?;
+
+        assert_eq!(core.supervisor.active_count(), 0);
+        assert_eq!(core.supervisor.pin_count(), 0);
+        assert!(receiver.recv().expect("terminal result is published").is_err());
+        assert_eq!(confirmation.wait(Duration::ZERO)?, Some(Ok(())));
+        Ok(())
+    }
+
+    #[test]
+    fn cancellation_between_pin_open_and_delivery_preserves_the_grant_owner(
+    ) -> Result<(), RuntimeError> {
+        let request_id = RequestId::new(46)?;
+        let (mut core, runtime, receiver) = pin_reservation_runtime(request_id)?;
+        let identity = core.supervisor.open_pin(request_id)?;
+        let result_terminal = core
+            .pin_reservations
+            .get(&request_id)
+            .map(|reservation| Arc::clone(&reservation.result.terminal))
+            .ok_or_else(|| RuntimeError::internal("opened reservation has no result state"))?;
+        let (reservation, delivery) = core.prepare_pin_delivery(request_id, identity)?;
+        let confirmation = Arc::new(super::Completion::new());
+        let worker_control = Arc::clone(&core.control);
+        let worker_confirmation = Arc::clone(&confirmation);
+        let barrier = Arc::new(Barrier::new(2));
+        let worker_barrier = Arc::clone(&barrier);
+        let (queued_tx, queued_rx) = std_mpsc::sync_channel(1);
+        let worker = std::thread::spawn(move || {
+            worker_barrier.wait();
+            worker_control
+                .request_pin_cancel(request_id, result_terminal, worker_confirmation)
+                .expect("control accepts cancellation");
+            queued_tx
+                .send(())
+                .expect("runtime observes queued cancellation");
+        });
+
+        barrier.wait();
+        queued_rx.recv().expect("cancellation reached control state");
+        worker.join().expect("cancellation worker completed");
+        let mut snapshot = core.control.take_snapshot()?;
+        let queued_confirmation = snapshot
+            .pin_cancellations
+            .remove(&request_id)
+            .ok_or_else(|| RuntimeError::internal("pin cancellation was not queued"))?;
+        runtime.block_on(core.cancel_pin_request(request_id, queued_confirmation))?;
+        assert_eq!(confirmation.wait(Duration::ZERO)?, Some(Ok(())));
+        assert!(core.pre_cancelled_submissions.is_empty());
+        assert_eq!(core.supervisor.active_count(), 1);
+        assert_eq!(core.supervisor.pin_count(), 1);
+
+        runtime.block_on(core.publish_pin_delivery(reservation, delivery))?;
+        let delivered = receiver
+            .recv()
+            .expect("opened pin is delivered to the waiting receiver")?;
+        assert_eq!(delivered.into_identity()?, identity);
+        assert_eq!(core.supervisor.active_count(), 1);
+
+        let (reply, reply_rx) = std_mpsc::sync_channel(1);
+        runtime.block_on(core.close_pin(identity, reply))?;
+        reply_rx.recv().expect("pin close is acknowledged")?;
+        assert_eq!(core.supervisor.active_count(), 0);
+        assert_eq!(core.supervisor.pin_count(), 0);
+        assert!(core.opened_pin_reservations.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn cancellation_racing_with_failed_pin_publication_is_acknowledged() -> Result<(), RuntimeError>
+    {
+        let request_id = RequestId::new(52)?;
+        let (mut core, runtime, receiver) = pin_reservation_runtime(request_id)?;
+        let result_terminal = core
+            .pin_reservations
+            .get(&request_id)
+            .map(|reservation| Arc::clone(&reservation.result.terminal))
+            .ok_or_else(|| RuntimeError::internal("pin reservation has no result state"))?;
+        let confirmation = Arc::new(super::Completion::new());
+        core.control.request_pin_cancel(
+            request_id,
+            Arc::clone(&result_terminal),
+            Arc::clone(&confirmation),
+        )?;
+        let crate::request::Admission::Active(lease) = core
+            .pin_reservations
+            .get(&request_id)
+            .map(|reservation| reservation.admission)
+            .ok_or_else(|| RuntimeError::internal("pin reservation disappeared"))?
+        else {
+            return Err(RuntimeError::internal(
+                "test pin reservation is not active",
+            ));
+        };
+        let batch = core
+            .supervisor
+            .terminal_active(
+                wire_without_generation(lease),
+                crate::request::TerminalKind::Failed,
+                Some(RuntimeError::connection_closed("pin connection failed")),
+                std::time::Instant::now(),
+            )?
+            .ok_or_else(|| RuntimeError::internal("pin failure terminal was rejected"))?;
+        runtime.block_on(core.process_terminal_batch(batch))?;
+        assert!(result_terminal.load(Ordering::Acquire));
+        assert!(receiver
+            .recv()
+            .expect("failed pin result is published")
+            .is_err());
+
+        let mut snapshot = core.control.take_snapshot()?;
+        let cancellation = snapshot
+            .pin_cancellations
+            .remove(&request_id)
+            .ok_or_else(|| RuntimeError::internal("racing pin cancellation disappeared"))?;
+        runtime.block_on(core.cancel_pin_request(request_id, cancellation))?;
+        assert_eq!(confirmation.wait(Duration::ZERO)?, Some(Ok(())));
+        assert!(core.pre_cancelled_submissions.is_empty());
+        assert!(core.cancel_confirmations.is_empty());
+        assert_eq!(core.supervisor.active_count(), 0);
+        assert_eq!(core.supervisor.pin_count(), 0);
+        Ok(())
+    }
+
+    #[test]
+    fn successful_pin_then_cancel_keeps_guard_ownership_and_releases_once(
+    ) -> Result<(), RuntimeError> {
+        let request_id = RequestId::new(47)?;
+        let (mut core, runtime, receiver) = pin_reservation_runtime(request_id)?;
+        let result_terminal = core
+            .pin_reservations
+            .get(&request_id)
+            .map(|reservation| Arc::clone(&reservation.result.terminal))
+            .ok_or_else(|| RuntimeError::internal("pin reservation has no result state"))?;
+        runtime.block_on(core.complete_pin_reservation(request_id))??;
+        let confirmation = Arc::new(super::Completion::new());
+        core.control.request_pin_cancel(
+            request_id,
+            result_terminal,
+            Arc::clone(&confirmation),
+        )?;
+        assert_eq!(confirmation.wait(Duration::ZERO)?, Some(Ok(())));
+        assert!(core.control.take_snapshot()?.pin_cancellations.is_empty());
+
+        let delivery = receiver
+            .recv()
+            .expect("pin delivery remains available after the late cancel")?;
+        let identity = delivery.into_identity()?;
+        assert_eq!(core.supervisor.active_count(), 1);
+        assert_eq!(core.supervisor.pin_count(), 1);
+        assert!(core.pre_cancelled_submissions.is_empty());
+
+        let (reply, reply_rx) = std_mpsc::sync_channel(1);
+        runtime.block_on(core.close_pin(identity, reply))?;
+        reply_rx.recv().expect("pin close is acknowledged")?;
+        assert_eq!(core.supervisor.active_count(), 0);
+        assert_eq!(core.supervisor.pin_count(), 0);
+        assert!(core.opened_pin_reservations.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn completed_pending_pin_does_not_register_a_late_cancellation() -> Result<(), RuntimeError> {
+        let engine = Engine::new(config(1, 1)?)?;
+        let control = Arc::new(ControlCell::new());
+        let request_id = RequestId::new(48)?;
+        let (result_tx, result_rx) = std_mpsc::sync_channel(1);
+        result_tx
+            .send(Err(RuntimeError::internal("pin reservation failed")))
+            .expect("pending receiver is present");
+        let mut pending = super::PendingPin {
+            created_pid: std::process::id(),
+            engine,
+            request_id,
+            control: Arc::clone(&control),
+            admission_rx: None,
+            result_rx,
+            result_terminal: Arc::new(AtomicBool::new(true)),
+            terminal: std::cell::Cell::new(false),
+        };
+
+        assert!(pending.wait_timeout(Duration::ZERO).is_err());
+        pending.cancel_and_confirm(Duration::ZERO)?;
+        drop(pending);
+
+        assert!(!control
+            .take_snapshot()?
+            .cancellations
+            .contains_key(&request_id));
+        Ok(())
+    }
+
+    #[test]
+    fn unconfirmed_pin_cancellation_requests_fail_closed_cleanup() -> Result<(), RuntimeError> {
+        let engine = Engine::new(config(1, 1)?)?;
+        let control = Arc::new(ControlCell::new());
+        let request_id = RequestId::new(49)?;
+        let (_admission_tx, admission_rx) = std_mpsc::sync_channel(1);
+        let (_result_tx, result_rx) = std_mpsc::sync_channel(1);
+        let pending = super::PendingPin {
+            created_pid: std::process::id(),
+            engine,
+            request_id,
+            control: Arc::clone(&control),
+            admission_rx: Some(admission_rx),
+            result_rx,
+            result_terminal: Arc::new(AtomicBool::new(false)),
+            terminal: std::cell::Cell::new(false),
+        };
+
+        assert!(pending.cancel_and_confirm(Duration::ZERO).is_err());
+        drop(pending);
+
+        let snapshot = control.take_snapshot()?;
+        assert!(snapshot.close_timed_out);
+        assert!(snapshot.close_requested);
+        assert!(snapshot.pin_cancellations.contains_key(&request_id));
+        Ok(())
+    }
+
+    #[test]
+    fn failed_pin_delivery_closes_the_opened_grant() -> Result<(), RuntimeError> {
+        let request_id = RequestId::new(49)?;
+        let (mut core, runtime, receiver) = pin_reservation_runtime(request_id)?;
+        drop(receiver);
+        runtime.block_on(core.complete_pin_reservation(request_id))??;
+
+        assert_eq!(core.supervisor.active_count(), 0);
+        assert_eq!(core.supervisor.pin_count(), 0);
+        assert!(core.opened_pin_reservations.is_empty());
+
+        let next_request_id = RequestId::new(50)?;
+        let now = std::time::Instant::now();
+        let admission = core.supervisor.submit_with_retry_policy(
+            next_request_id,
+            crate::deadline::Deadline::at(now + Duration::from_secs(10)),
+            crate::request::RetryPolicy::ordinary(false),
+            now,
+        )?;
+        let crate::request::Admission::Active(lease) = admission else {
+            return Err(RuntimeError::internal(
+                "released pin lease was not available to a later reservation",
+            ));
+        };
+        let identity = core.supervisor.open_pin(next_request_id)?;
+        assert_eq!(identity.lease_id, lease.lease_id);
+        let closed = core
+            .supervisor
+            .close_pin(identity, std::time::Instant::now())?
+            .ok_or_else(|| RuntimeError::internal("later pin could not be closed"))?;
+        assert!(closed.pin_released);
+        assert!(core
+            .supervisor
+            .close_pin(identity, std::time::Instant::now())?
+            .is_none());
+        assert_eq!(core.supervisor.active_count(), 0);
+        assert_eq!(core.supervisor.pin_count(), 0);
         Ok(())
     }
 

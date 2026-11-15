@@ -145,10 +145,10 @@ fn build_and_close_without_network() -> eltdx::Result<()> {
 
 **接口：** 现有公开 typed 方法保持；内部未交付 pin 必须退还；取消确认和正常完成共享唯一终态。
 
-- [ ] 用 barrier/channel 精确暂停在 pin 分配前、成功发送前、receiver 丢弃后；禁止用短 sleep 作为竞态证明。
-- [ ] 覆盖“先成功后取消”“先取消后成功”“成功发送失败”“PendingPin 未 wait 就 drop”四条路径。
-- [ ] 成功交付时断言仅一个活跃 grant，交付的 guard 释放后 active leases=0；取消/未交付路径直接归零。各路径后续新 pin 可取得、无双重 release。
-- [ ] 为 pending request 丢弃提供非阻塞取消登记；取消确认超时走现有受控 fail-closed，不把成功结果误认为仍在执行。
+- [x] 用 barrier/channel 固定 pending drop 和“pin 已打开、结果尚未发送”的取消顺序；源码也覆盖失败结果发布前已排队的取消，公开回环以 channel 协调，不使用短 sleep。
+- [x] 为“先成功后取消”“先取消后成功”“成功发送失败”“PendingPin 未 wait 就 drop”及失败结果交付竞态编写源码用例。
+- [x] 源码断言成功 grant 只有一个所有者，释放后 active leases=0；取消/未交付后归零，后续 pin 可重新取得且重复 release 无效。
+- [x] 为 pending request 丢弃添加非阻塞取消登记；源码覆盖取消确认超时触发现有 fail-closed 路径，并避免把成功结果误认为仍在执行。
 - [ ] 运行 `cargo test -p eltdx-runtime pin --locked` 和完整 runtime 测试；评审不得破坏原 FIFO/fencing。
 
 ### T06：增加原始回复与绝对执行期限
