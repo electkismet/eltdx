@@ -112,6 +112,20 @@ def test_manifest_matches_authoritative_catalog_records() -> None:
         assert f"docs/{item['doc']}" in record["source_files"] if item.get("doc") else True
 
 
+def test_python_module_coverage_accounts_for_every_current_module() -> None:
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
+    current = {path.as_posix() for path in (ROOT / "src/eltdx").rglob("*.py") if "/docs/" not in path.as_posix()}
+    frozen = {module["path"] for module in baseline["modules"]}
+    coverage = {entry["path"]: entry for entry in manifest["python_module_coverage"]}
+    assert set(coverage) == frozen
+    assert current <= frozen | set(coverage)
+    for path in current:
+        entry = coverage[path]
+        assert entry["coverage_source"] in {"frozen_static_baseline", "migration_manifest", "compatibility_contract"}
+        assert "::" in entry["test_reference"]
+
+
 def test_manifest_keeps_wire_registry_and_catalog_counts_distinct() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     assert manifest["counts"] == {"wire_codes": 26, "python_registry_entries": 25, "catalog_capabilities": 124, "static_fixture_cases": 37}
@@ -131,6 +145,19 @@ def test_registry_and_wire_sets_document_only_allowed_difference() -> None:
     assert len(registry_codes) == 25 and len(codes) == 26
     assert codes - registry_codes == {0x0FFC} and registry_codes - codes == set()
     assert any(entry["left"] == "wire_codes" and entry["right"] == "python_registry_entries" for entry in manifest["allowed_differences"])
+
+
+def test_migration_status_vocabulary_enforces_protocol_sdk_boundary() -> None:
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    allowed_statuses = {"planned", "migrated", "compatibility_adapter_retained", "experimental", "unsupported"}
+    allowed_protocol = {"none", "wire_supported", "python_helper"}
+    assert set(manifest["status_semantics"]) == allowed_statuses
+    for record in manifest["records"]:
+        assert record["status"] in allowed_statuses
+        assert record["rust_protocol_status"] in allowed_protocol
+        assert not (record["status"] == "migrated" and record["rust_protocol_status"] == "wire_supported")
+        if record["rust_protocol_status"] == "wire_supported":
+            assert record["status"] in {"planned", "experimental", "unsupported"}
 
 
 def test_static_python_baseline_matches_authoritative_source_revision() -> None:
@@ -172,10 +199,24 @@ def test_runtime_reflection_matches_versioned_artifact() -> None:
             assert record["mro"] == [base.__module__ + "." + base.__qualname__ for base in cls.__mro__]
             assert record["signature"] == str(inspect.signature(cls))
             assert record["dataclass"]["is_dataclass"] == dataclasses.is_dataclass(cls)
+            expected_decorators = set(record["decorators"])
+            assert ("dataclasses.dataclass" in expected_decorators) == dataclasses.is_dataclass(cls)
+            assert ("enum.Enum" in expected_decorators) == issubclass(cls, Enum)
             if dataclasses.is_dataclass(cls):
-                assert [field["name"] for field in record["dataclass"]["fields"]] == [field.name for field in dataclasses.fields(cls)]
+                fields = dataclasses.fields(cls)
+                recorded = record["dataclass"]["fields"]
+                assert [field["name"] for field in recorded] == [field.name for field in fields]
+                for saved, field in zip(recorded, fields):
+                    assert saved["type"] == str(field.type)
+                    assert saved["default"] == (None if field.default is dataclasses.MISSING else repr(field.default))
+                    assert saved["default_factory"] == (None if field.default_factory is dataclasses.MISSING else repr(field.default_factory))
             if issubclass(cls, Enum):
                 assert record["enum"]["members"] == {name: value.value for name, value in cls.__members__.items()}
+            properties = {name: value for name, value in cls.__dict__.items() if isinstance(value, property)}
+            assert {item["name"] for item in record["properties"]} == set(properties)
+            for item in record["properties"]:
+                getter = properties[item["name"]].fget
+                assert item["getter"] == (str(inspect.signature(getter)) if getter else None)
 
 
 def test_runtime_artifact_covers_reflection_categories() -> None:

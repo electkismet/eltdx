@@ -2351,5 +2351,677 @@
     "compatibility_adapter_retained": "Python compatibility surface remains authoritative while shared implementation is migrated.",
     "experimental": "Available only behind explicit experimental evidence; not a stable commitment.",
     "unsupported": "Cataloged but explicitly unavailable in the target SDK."
-  }
+  },
+  "python_module_coverage": [
+    {
+      "path": "src/eltdx/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/__main__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/_bar_time.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/_command.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/_native_abi.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/_native_models.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/_paths.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/_batch.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/auctions.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/bars.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/base.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/codes.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/company_info.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/corporate.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/delisted_bars.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/health.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/limits.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/minutes.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/money_flow.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/quotes.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/resources.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/session.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/subscription.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/api/trades.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/cli.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/client.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/equity.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/_binary.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/_hk_transaction.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/client.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/base.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/get_history_bars_range.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/get_instrument_bars.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/get_instrument_count.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/get_instrument_info.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/get_instrument_quote.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/get_instrument_quote_list.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/get_markets.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/get_minute_time.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/get_transaction.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/commands/login.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/datetime_.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/enums.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/frame.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/hosts.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/mac_client.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/mac_commands.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/mac_models.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/models.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/transport/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/ex/transport/sync.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/exceptions.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/f10/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/f10/_http.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/f10/client.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/f10/fields.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/f10/fields_mg_hk.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/f10/models.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/f10/news.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/f10_smoke.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/financial.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/helpers/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/helpers/boards.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/helpers/core.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/helpers/market.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/helpers/shortline.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/hosts.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/http_server.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/_binary.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/adjust.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/bitmap.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/client.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/codec.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/commands.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/enums.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/hosts.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/models.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/price_rules.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mac/transport.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/mcp.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/auction.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/corporate.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/enums.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/kline.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/limit.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/minute.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/money_flow.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/quote.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/resource.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/response.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/security.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/session.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/trade.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/models/trade_batch.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/alignment.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/block.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/daily_bar.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/ex_daily_bar.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/gbbq.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/history_financial.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/industry.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/min_bar.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/models.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/paths.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/write_daily.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/write_ex_daily.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/offline/write_min_bar.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/protocol/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/protocol/codec.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/protocol/commands/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/protocol/commands/codec.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/protocol/commands/registry.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/protocol/constants.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/protocol/decompress.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/protocol/frame.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/protocol/unit.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/serialization.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/smoke.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/stats.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/transport/__init__.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/transport/_config.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/transport/actor.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/transport/base.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/transport/memory.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/transport/native.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/transport/pool.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/transport/socket.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    },
+    {
+      "path": "src/eltdx/workday.py",
+      "coverage_source": "frozen_static_baseline",
+      "test_reference": "tests/contracts/test_command_registry_consistency.py::test_current_worktree_ast_contract_matches_frozen_snapshot"
+    }
+  ]
 }
