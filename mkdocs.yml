@@ -119,6 +119,20 @@ nav:
       - 当日资金流: helpers/当日资金流.md
   - MCP: MCP.md
   - 跨语言网关: HTTP_GATEWAY.md
+  - Rust SDK 设计（提案）:
+      - 设计与安装边界: rust-sdk/index.md
+      - 架构设计: rust-sdk/architecture.md
+      - 公共 API 与行为契约: rust-sdk/public-api.md
+      - HQ 逐接口规格: rust-sdk/hq-api-spec.md
+      - 扩展逐接口规格: rust-sdk/extension-api-spec.md
+      - 内部执行与兼容实现: rust-sdk/execution-and-compatibility.md
+      - 能力迁移矩阵: rust-sdk/capability-matrix.md
+      - Python API 基线: rust-sdk/python-baseline.md
+      - 逐项兼容案例: rust-sdk/compatibility-cases.md
+      - 决策与默认值: rust-sdk/decision-register.md
+      - 详细开发计划: rust-sdk/development-plan.md
+      - 实施进度与恢复点: rust-sdk/IMPLEMENTATION_STATUS.md
+      - 验证与发布规范: rust-sdk/verification.md
   - 工程参考:
       - 架构: ARCHITECTURE.md
       - 线程层扩容方案: THREADING_SCALE_PLAN.md
