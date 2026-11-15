@@ -76,6 +76,9 @@ P3 与 P4 可由不同人员并行；公共类型、owner 和 operation 的修�
 - [ ] 清单对每条能力记录 `id/source_files/feature/stage/status/fixtures/compatibility`，wire code 独立字段；money_flow 缺 registry 不是通过改数字掩盖。
 - [ ] 校验静态快照的签名、默认表达式、导出、属性及模型字段；补真实 import/继承/decorator/dataclass/enum 反射记录，不能把候选定义计数当稳定接口数。
 - [ ] 新增 registry 集合差异断言：显式记录允许的差异及原因，不硬编码“所有集合都相等”。
+- [ ] `migrated` 记录的 `sdk_evidence` 必须是 `crates/eltdx/src/相对路径.rs::PublicSymbol`，解析为 crate 源文件中的公开声明，路径不得逃出 crate 源目录且证据源文件必须列在该记录 `source_files`；协议层 wire 支持不能充当 SDK 实现证据。
+- [ ] `compatibility` 必须是 pytest 可收集的精确节点：文件名符合 pytest 测试文件规则，节点路径逐级匹配 `Test*` 类及 `test_*` 函数（或模块级 `test_*` 函数）；不得仅凭 AST 中任意同名节点通过。
+- [ ] Python 模块覆盖按来源分别校验：`frozen_static_baseline` 必须映射到冻结快照模块；`migration_manifest` 必须以 `record_id` 绑定记录且模块路径出现在该记录 `source_files`；`compatibility_contract` 的精确 pytest 节点必须显式导入对应 `eltdx` Python 模块。
 - [ ] 运行 `python -m pytest -q tests/contracts/test_unified_test_plan.py tests/contracts/test_command_registry_consistency.py`；输出必须列真实收集数，无网络。
 
 ### T02：补充独立样本与差分基线

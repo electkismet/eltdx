@@ -9,10 +9,10 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P0 / T01，复审第三轮迁移证据与 Python 模块覆盖修复 |
-| 已提交进度 | T01 实现与修复已提交至 `edacc482`；本轮限定复审待完成，未进入 T02 |
-| 测试约束 | 用户要求 T01–T30 实现完成前不运行任何测试；不运行pytest、cargo test、build/check、clippy、doctest或网络验证 |
-| 下一步 | 完成 `edacc482` 限定静态复审；通过后标记 T01 完成并开始 T02 样本/证据清单 |
+| 当前阶段 | P0 / T01，第4轮修复：迁移证据解析、pytest 精确节点与模块覆盖来源绑定 |
+| 已提交进度 | 第3轮 `edacc482` 复审未通过；第4轮修复待提交，未进入 T02 |
+| 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
+| 下一步 | 第4轮修复提交后等待限定复审；T01 通过后再标记完成并开始 T02 样本/证据清单 |
 
 ## 阶段进度
 
@@ -64,10 +64,11 @@
 | `c0e2c1c` | T01 修复 round 1 | 区分协议支持与 SDK 迁移状态并增加运行期反射快照 |
 | `02de834` | T01 修复 round 2 | 加入反射细节、状态词表与 Python 模块覆盖清单；复审仍有迁移证据和覆盖扩展问题 |
 | `edacc482` | T01 修复 round 3 | 加入独立 SDK 证据、可扩展覆盖来源及路径归一化；等待限定复审 |
-| 待提交 | T01 第三轮复审进度 | 更新复审结果并决定进入 T02 或继续修复 |
+| 待提交 | T01 修复 round 4 | 第三轮未通过；增加 crate 公共符号、精确 pytest 节点、三类模块覆盖来源绑定及正反契约源码 |
 
 ## 阻塞与风险
 
 - 涨跌停权威规则、EX/MAC部分协议字段和真实服务器样本仍按设计文档中的证据缺口处理；未知值不能伪造成正确结果。
 - 计划的 Python 业务迁移必须保留当前公开API并按域切换。尚未有native adapter入口前，不先移除Python实现。
 - 全流程测试延期意味着各提交在最终测试前均未声明可编译或可运行；代码静态编辑不能作为通过证据。
+- 第三轮复审未通过：迁移证据未解析到 crates/eltdx 公共实现，兼容证据未证明可由 pytest 精确收集，模块覆盖来源未建立逐类关联。第四轮只处理这些 T01 契约缺口和状态文档；没有运行任何测试/collection、Rust 验证、网络验证、AST 编译脚本或 diff whitespace 检查。

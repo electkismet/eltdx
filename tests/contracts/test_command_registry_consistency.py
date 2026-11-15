@@ -100,21 +100,108 @@ def _git_source(revision: str, path: str) -> bytes:
 def _contract_target_exists(root: Path, reference: str) -> bool:
     target, *parts = reference.split("::")
     path = root / target
-    if not path.is_file() or not parts:
+    if not path.is_file() or not parts or not _pytest_file(path) or ".." in Path(target).parts:
+        return False
+    if not path.resolve().is_relative_to(root.resolve()):
         return False
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    names = {node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
-    return parts[-1] in names
+    current = tree.body
+    for index, part in enumerate(parts):
+        matches = [
+            node for node in current
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            and node.name == part
+        ]
+        if len(matches) != 1:
+            return False
+        node = matches[0]
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return index == len(parts) - 1 and node.name.startswith("test_")
+        if not node.name.startswith("Test"):
+            return False
+        if any(
+            isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) and child.name == "__init__"
+            for child in node.body
+        ):
+            return False
+        current = node.body
+    return False
 
 
-def _validate_status_record(record: dict, allowed_statuses: set[str], allowed_protocol: set[str], allowed_sdk: set[str]) -> None:
+def _pytest_file(path: Path) -> bool:
+    return path.name.startswith("test_") or path.name.endswith("_test.py")
+
+
+def _rust_public_symbol_exists(root: Path, reference: str) -> bool:
+    source, *symbols = reference.split("::")
+    path = root / source
+    if len(symbols) != 1 or not source.startswith("crates/eltdx/src/") or path.suffix != ".rs" or not path.is_file():
+        return False
+    if ".." in Path(source).parts:
+        return False
+    if not path.resolve().is_relative_to(root.resolve()):
+        return False
+    text = path.read_text(encoding="utf-8")
+    return any(
+        re.search(rf"(?m)^\s*pub\s+(?:(?:async|unsafe|const|extern\s+\"[^\"]+\")\s+)*{kind}\s+{re.escape(symbol)}\b", text)
+        for symbol in symbols
+        for kind in ("fn", "struct", "enum", "trait", "type", "const", "static", "mod", "union")
+    )
+
+
+def _python_module(path: str) -> str:
+    relative = Path(path).relative_to("src").with_suffix("")
+    parts = list(relative.parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
+
+
+def _test_imports_module(root: Path, reference: str, python_path: str) -> bool:
+    target = root / reference.split("::", 1)[0]
+    if not target.is_file():
+        return False
+    module = _python_module(python_path)
+    tree = ast.parse(target.read_text(encoding="utf-8"), filename=str(target))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(alias.name == module or alias.name.startswith(module + ".") for alias in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported = node.module
+            if imported == module or imported.startswith(module + "."):
+                return True
+            if module.startswith(imported + ".") and any(alias.name == module[len(imported) + 1:].split(".")[0] for alias in node.names):
+                return True
+    return False
+
+
+def _validate_coverage_entry(root: Path, path: str, entry: dict, frozen: set[str], records: dict[str, dict]) -> None:
+    assert _contract_target_exists(root, entry["test_reference"])
+    source = entry["coverage_source"]
+    if source == "frozen_static_baseline":
+        assert path in frozen
+    elif source == "migration_manifest":
+        assert entry["record_id"] in records
+        assert path in records[entry["record_id"]]["source_files"]
+    elif source == "compatibility_contract":
+        assert _test_imports_module(root, entry["test_reference"], path)
+    else:
+        raise AssertionError(f"unknown Python module coverage source: {source}")
+
+
+def _validate_status_record(root: Path, record: dict, allowed_statuses: set[str], allowed_protocol: set[str], allowed_sdk: set[str]) -> None:
     assert record["status"] in allowed_statuses
     assert record["rust_protocol_status"] in allowed_protocol
     assert record["public_sdk_status"] in allowed_sdk
     if record["status"] == "migrated":
         assert record["public_sdk_status"] == "implemented"
-        assert record["sdk_evidence"]
-        assert record["compatibility"]
+        assert record["sdk_evidence"] and all(
+            _rust_public_symbol_exists(root, ref)
+            and ref.split("::", 1)[0] in record["source_files"]
+            for ref in record["sdk_evidence"]
+        )
+        assert isinstance(record["compatibility"], str) and _contract_target_exists(root, record["compatibility"])
     if record["rust_protocol_status"] == "wire_supported":
         assert record["status"] in {"planned", "experimental", "unsupported"} or record["public_sdk_status"] == "implemented"
 
@@ -143,10 +230,11 @@ def test_python_module_coverage_accounts_for_every_current_module() -> None:
     assert frozen <= set(coverage)
     assert current <= frozen | set(coverage)
     allowed_sources = {"frozen_static_baseline", "migration_manifest", "compatibility_contract"}
+    records = {record["id"]: record for record in manifest["records"]}
     for path in current:
         entry = coverage[path]
         assert entry["coverage_source"] in allowed_sources
-        assert _contract_target_exists(ROOT, entry["test_reference"])
+        _validate_coverage_entry(ROOT, path, entry, frozen, records)
     for path in current - frozen:
         assert coverage[path]["coverage_source"] in {"migration_manifest", "compatibility_contract"}
 
@@ -179,9 +267,71 @@ def test_migration_status_vocabulary_enforces_protocol_sdk_boundary() -> None:
     allowed_sdk = {"unimplemented", "implemented"}
     assert {key for key in manifest["status_semantics"] if key in allowed_statuses} == allowed_statuses
     for record in manifest["records"]:
-        _validate_status_record(record, allowed_statuses, allowed_protocol, allowed_sdk)
-    positive = {"status": "migrated", "rust_protocol_status": "wire_supported", "public_sdk_status": "implemented", "sdk_evidence": ["crates/eltdx/src/lib.rs"], "compatibility": "tests/contracts/test_command_registry_consistency.py::test_migration_status_vocabulary_enforces_protocol_sdk_boundary"}
-    _validate_status_record(positive, allowed_statuses, allowed_protocol, allowed_sdk)
+        _validate_status_record(ROOT, record, allowed_statuses, allowed_protocol, allowed_sdk)
+
+
+def test_migration_evidence_rejects_protocol_only_missing_or_unsafe_sources(tmp_path: Path) -> None:
+    source = tmp_path / "crates/eltdx/src/lib.rs"
+    source.parent.mkdir(parents=True)
+    source.write_text("pub struct TdxClient;\npub(crate) fn internal() {}\n", encoding="utf-8")
+    test_file = tmp_path / "tests" / "test_contract.py"
+    test_file.parent.mkdir(parents=True)
+    test_file.write_text("def test_compatibility(): pass\n", encoding="utf-8")
+    status = {"status": "migrated", "rust_protocol_status": "wire_supported", "public_sdk_status": "implemented", "sdk_evidence": ["crates/eltdx/src/lib.rs::TdxClient"], "source_files": ["crates/eltdx/src/lib.rs"], "compatibility": "tests/test_contract.py::test_compatibility"}
+    _validate_status_record(tmp_path, status, {"planned", "migrated"}, {"none", "wire_supported"}, {"unimplemented", "implemented"})
+    assert _rust_public_symbol_exists(tmp_path, "crates/eltdx/src/lib.rs::TdxClient")
+    assert not _rust_public_symbol_exists(tmp_path, "crates/eltdx/src/lib.rs::internal")
+    assert not _rust_public_symbol_exists(tmp_path, "crates/eltdx/src/../src/lib.rs::TdxClient")
+    assert not _rust_public_symbol_exists(tmp_path, "crates/eltdx/src/lib.rs::Missing")
+    status["source_files"] = []
+    try:
+        _validate_status_record(tmp_path, status, {"planned", "migrated"}, {"none", "wire_supported"}, {"unimplemented", "implemented"})
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("migration evidence outside source_files must be rejected")
+
+
+def test_pytest_reference_requires_exact_collectable_test_path(tmp_path: Path) -> None:
+    test_file = tmp_path / "test_contract.py"
+    test_file.write_text(
+        "class TestGroup:\n"
+        "    def test_exact(self): pass\n"
+        "def helper(): pass\n"
+        "def test_exact(self): pass\n",
+        encoding="utf-8",
+    )
+    assert _contract_target_exists(tmp_path, "test_contract.py::TestGroup::test_exact")
+    assert not _contract_target_exists(tmp_path, "test_contract.py::test_exact")
+    assert not _contract_target_exists(tmp_path, "test_contract.py::TestGroup::helper")
+    assert not _contract_target_exists(tmp_path, "contract.py::TestGroup::test_exact")
+    uncollectable = tmp_path / "test_uncollectable.py"
+    uncollectable.write_text("class TestNotCollected:\n    def __init__(self): pass\n    def test_case(self): pass\n", encoding="utf-8")
+    assert not _contract_target_exists(tmp_path, "test_uncollectable.py::TestNotCollected::test_case")
+
+
+def test_python_module_evidence_requires_source_association(tmp_path: Path) -> None:
+    test_file = tmp_path / "test_module_contract.py"
+    test_file.write_text("import eltdx.offline.models\n\ndef test_model(): pass\n", encoding="utf-8")
+    assert _test_imports_module(tmp_path, "test_module_contract.py::test_model", "src/eltdx/offline/models.py")
+    assert not _test_imports_module(tmp_path, "test_module_contract.py::test_model", "src/eltdx/offline/paths.py")
+    reference = "test_module_contract.py::test_model"
+    records = {"sdk-models": {"source_files": ["src/eltdx/offline/models.py"]}}
+    _validate_coverage_entry(tmp_path, "src/eltdx/offline/models.py", {"coverage_source": "migration_manifest", "record_id": "sdk-models", "test_reference": reference}, set(), records)
+    try:
+        _validate_coverage_entry(tmp_path, "src/eltdx/offline/paths.py", {"coverage_source": "migration_manifest", "record_id": "sdk-models", "test_reference": reference}, set(), records)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("migration coverage must bind the Python path to record source_files")
+    _validate_coverage_entry(tmp_path, "src/eltdx/offline/models.py", {"coverage_source": "compatibility_contract", "test_reference": reference}, set(), records)
+    try:
+        _validate_coverage_entry(tmp_path, "src/eltdx/offline/paths.py", {"coverage_source": "compatibility_contract", "test_reference": reference}, set(), records)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("compatibility coverage must import its Python module")
+    _validate_coverage_entry(tmp_path, "src/eltdx/offline/models.py", {"coverage_source": "frozen_static_baseline", "test_reference": reference}, {"src/eltdx/offline/models.py"}, records)
 
 
 def test_static_python_baseline_matches_authoritative_source_revision() -> None:
