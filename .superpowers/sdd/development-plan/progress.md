@@ -92,7 +92,9 @@
 - Task 4: initial implementation committed as `1777e4f`; scoped review found unresolved validated deserialization on `SecurityId`/`TradingDate`/`EventTime`, missing `EventTime` inspection APIs, missing `Price` provenance/rounding conversion, and incomplete source coverage for no-startup side effects. The review's proposed acceptance of bare `127` conflicts with the identity contract; ruling above preserves ambiguity and requires explicit `sz` for Shenzhen. No test/build/check/Cargo/network validation has run.
 - Task 4: fix round 1 committed as `4cb8511`; removed unchecked identity/time deserialization, added EventTime inspection and Price source/conversion APIs, extended loopback side-effect source tests, and added explicit `sz127001` coverage. Static scoped re-review pending from `1777e4f..4cb8511` in `review-1777e4f..4cb8511.diff`. No tests, collection, builds/checks, clippy, doctests, Cargo commands, or network validation run.
 - Task 4: round 1 scoped re-review found findings 1 and 2 addressed; finding 3 remains open because `Price::to_scaled_integer` converts `ScaledInteger` through `f64` and can corrupt values above exact f64 integer precision. Finding 4 is partially supported by loopback tests; source structure was checked and has no runtime/thread/filesystem startup path, so the remaining direct probes are deferred under the ruling above. No tests or other verification ran.
-- Task 4: fix round 2 in progress from base `4cb8511`, limited to integer-aware Price conversion/rounding and source test cases; all verification remains forbidden until T01-T30 implementation code is complete.
+- Task 4: fix round 2 committed as `4b6a524`; scaled-integer rounding uses checked integer arithmetic with authored large-value/tie/overflow cases. Scoped re-review from `4cb8511..4b6a524` marked the precision-loss finding ADDRESSED with no new breakage. All tests and verification remain forbidden until T01-T30 implementation code is complete.
+- Task 4: minor (deferred): no source case explicitly covers `i64::MIN`; the scoped reviewer inspected the `i128` reduction arithmetic and found no issue. Carry this coverage note into the final whole-branch review.
+- Task 4: complete (commits `f7b02fc..4b6a524`, scoped reviews clean after two fix rounds; final verification deferred until T01-T30 implementation is complete).
 
 ## Execution state
 
@@ -101,8 +103,8 @@
 | T01 | Implementation complete; final verification deferred until all T01–T30 implementation is complete |
 | T02 | Implementation complete: fixture provenance, hashes, supplemental cases, and evidence gaps recorded; final verification deferred |
 | T03 | Implementation complete: policy fixtures, compatibility decisions, public docs, and test source; commit `8d11baa`; final verification deferred |
-| T04 | In progress: fix round 2 addressing integer precision loss in Price conversion |
-| T05 | Not started |
+| T04 | Implementation complete; validated identities/time, lazy configuration, source-aware event time, price conversion; final verification deferred |
+| T05 | Ready to start: pin/pending ownership and terminal transition |
 | T06 | Not started |
 | T07 | Not started |
 | T08 | Not started |
