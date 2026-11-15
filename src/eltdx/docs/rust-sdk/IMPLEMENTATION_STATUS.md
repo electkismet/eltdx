@@ -6,10 +6,11 @@
 
 | 项目 | 值 |
 |---|---|
-| 实施分支 | `codex/rust-sdk-full-implementation` |
+| 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
-| 当前阶段 | P0 / T01，准备实现基线清单与命令注册覆盖 |
-| 已提交进度 | 规格文件已在此分支；运行实现尚未开始 |
+| 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
+| 当前阶段 | P0 / T01，核对验证runner与命令注册并实现迁移清单 |
+| 已提交进度 | 规格文件和初始恢复点已在分支；运行实现尚未开始 |
 | 测试约束 | 用户要求 T01–T30 实现完成前不运行任何测试；不运行pytest、cargo test、build/check、clippy、doctest或网络验证 |
 | 下一步 | 保存规格检查点；核对命令注册源、验证runner与既有manifest，设计迁移manifest schema，再实现T01 |
 
@@ -24,6 +25,26 @@
 | P4 | T24–T27 EX、MAC、Python迁移 | 未开始 | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
 
+## 依赖与冲突预审
+
+| 任务/工作线 | 共用文件或接口 | 预审结论与处理 |
+|---|---|---|
+| T01 ↔ T02 | 迁移manifest、fixture目录、registry覆盖 | T01先冻结ID/schema及源映射；T02只使用该manifest，不重复定义registry来源。 |
+| T04 ↔ T07 ↔ T08 | `TdxClient`、ClientConfig、SessionOwner、Error、OperationOptions | 高耦合；公共类型和生命周期由同一主线先实现，业务域不可自造平行类型。 |
+| T05 ↔ T06 | runtime engine/request/deadline、pending/pin交接 | 高耦合；pin终态/所有权优先，后新增deadline raw-reply路径；共享代码不得复制Engine执行循环。 |
+| T09 ↔ T10 | protocol parser上下文、metadata snapshot、数值投影 | protocol层只定义语言中立解析trait/value；SDK metadata owner与缓存保持在eltdx。 |
+| T11 ↔ T18 | batch/query/service、Python HQ facade | T11先定批量和缺失契约；T18按域替换facade，不提前删除未迁移实现。 |
+| T12 ↔ T18 ↔ T23 ↔ T27 | native service bridge、Python公开入口 | 每阶段只迁移有Rust域实现及兼容范围的入口；保留既有外观，custom transport单独适配。 |
+| T13 ↔ T14 ↔ T15 | 时间、owner、metadata、quote pin与push | 共享类型先冻结；订阅独立dispatcher唯一消费push，不能与旧poll路径双读。 |
+| T16 ↔ T18 | corporate/limits/adjustment/calendar/helpers | 未取得涨跌停权威依据的路径返回Unknown；不从旧冲突实现猜定。 |
+| T17 ↔ T22 ↔ T23 | HQ resources、offline DAT/ZIP、财报下载 | T17先定完整下载契约和zip实现；T22复用同一decoder；Python直接DAT旧上限保持。 |
+| T19 ↔ T20 | F10 HTTP、JSON、query/response types | T19冻结传输层与byte cap；T20只实现入口/解析，不再引第二HTTP栈。 |
+| T24 ↔ T26 ↔ T27 | EX session/commands/catalog/Python bridge | T24先提供有界profile；目录/组合服务等session稳定后实现。 |
+| T25 ↔ T26 ↔ T27 | MAC bitmap/routing/services/Python bridge | 位图与profile为唯一解析来源；MAC-EX复用MAC模型并独立登录路由。 |
+| T28 ↔ T29 ↔ T30 | features/package/consumer/evidence/docs | T28确定consumer矩阵，T29定package metadata，T30汇总实际证据；用户要求的测试延迟覆盖整个实施期。 |
+
+**实施裁定：** 用户要求在全部实现代码完成前不运行测试；测试代码仍按计划逐任务写好，延迟到末尾统一运行。现有规格中的P0样例和默认值为新API设计输入，不表示已有生产协议已验证。联网事实不确定的域实现显式Unknown/Unsupported，不以猜测解锁。用户未授权发布、推tag或合并。
+
 ## 恢复规则
 
 1. 以当前实施分支最新提交为准；不切回或直接提交 `main`。
@@ -37,7 +58,8 @@
 
 | Commit | 任务 | 内容 |
 |---|---|---|
-| 待提交 | 规格检查点 | 已审阅的架构、接口、计划与兼容规格，以及本进度文件 |
+| `e36c71e` | 规格检查点 | 已审阅的架构、接口、计划与兼容规格，以及初始进度文件 |
+| 待提交 | P0进度记录 | 切换到隔离工作区；添加任务依赖预审表和无测试执行规则 |
 
 ## 阻塞与风险
 
