@@ -439,7 +439,13 @@ impl CommandResponse {
 
 `HqMarket::{Shenzhen, Shanghai, Beijing}` 只表示 HQ 市场；`SecurityId` 的字段私有，支持 `FromStr`、`Display`、`market()`、`number()` 与显式 market 构造。六位代码规范化沿用已验证的推断规则，显式前缀优先；规范化不执行证券存在性检查。EX/MAC 保留各自的市场/商品 identity，不能强制塞进六位 `SecurityId`。
 
+新 Rust 的构造只接收字符串代码或显式 `HqMarket + 六位 ASCII 数字`；不做整数、空值、未知市场或任意对象到证券代码的隐式转换。裸代码只在已有无歧义规则覆盖时推断市场；显式 `sh`/`sz`/`bj` 前缀优先。扩展协议的 market id、香港股票和期货代码使用各自类型。Python facade 继续执行当前 `normalize_code`/`normalize_market` 与 host 输入投影，包括 `normalize_code` 的字符串化行为、大小写/外围空白、`0`/`1`/`2`、`sza`/`sha`/`bse`、中文市场别名，以及 `normalize_host` 对裸域名和 IPv6 补默认 7709 端口；这些宽松行为不泄漏到 Rust 类型构造。Rust 显式 endpoint 使用带端口的 `SocketAddr`。
+
+精度预取的旧实现不是 `normalize_code` 的等价映射：例如裸 `510300` 和 `430047` 可分别规范化为沪市、北交所身份，但 `_ensure_decimals` 不识别 5/4 开头，回退为同时请求沪深北三份目录。Python 兼容路径保留旧请求范围；Rust 先得到严格 `SecurityId`，再只按该身份与 owner namespace 查找元数据。新路径的解析不得读写 `eltdx-protocol` 的 legacy 全局精度表。
+
 `TradingDate` 使用校验后的年/月/日，公开构造不可产生无效日期。`EventTime` 明确区分：仅交易日期、交易所本地日期时间（已知 Shanghai +08:00）、来源未明确时区的 local 日期时间、仅日内时间。来源未明确不得默认成 UTC；仅有 time+用户 date 的值也不能伪装成服务端完整时间。
+
+`TradingDate` 只验证 Gregorian 日期，不验证交易所是否开市；开市状态来自显式 `TradingCalendar` 数据。Python 未绑定 client 的 workday helper 保留 weekday fallback。Python `yyyymmdd(None)` 继续使用 `date.today()`；Rust 的默认“当前日”必须来自注入时钟或 server session，不能暗中读取主机本地日期。HQ 时间保留已知 +08:00；MAC naive datetime 保留为 source-local/时区未知。Rust 派生 bar end 使用真实日期进位并同时保留源时刻，不能把次日 00:03 回绕成同日。
 
 高阶默认“今天/最近交易日”通过会话的时钟与 calendar 策略决定，测试可以注入，不能在每个 parser 自行调用系统当前日期。时间排序必须保留秒；MAC 秒级时间是当天秒数，不能压到分钟。同一日期重复 bar 的合并规则由业务契约定义，不能因为时间精度损失自动去重。
 
@@ -450,6 +456,18 @@ impl CommandResponse {
 若某条现有 typed parser 只输出经过取整/缩放后的 f64，新的上下文解析路径必须补齐建立 Price 所需的原始数值/尺度信息，或明确该字段只能提供派生精度；不能先丢精度，再把 f64 包成 Price 就宣称无损。
 
 `Quantity`、`Amount`、`Ratio` 显式携带单位/尺度：股、手、张、元、百分数与比例等不得仅靠字段名约定。未知单位用明确 Unknown/raw typed 值，不填猜测单位。F10/financial 原生 f32、扩展行情价格可保留其浮点性质。wire bits 在 raw 模式可用，不应由于每个值都附一份大 raw buffer 而显著放大默认 DTO。
+
+单位在字段与协议维度冻结，不存在“行情数值统一乘/除一个常数”的转换：
+
+| 来源字段 | 规范化单位 | 规则与兼容边界 |
+| --- | --- | --- |
+| HQ 逐笔证券价格 | CNY；原值为 milli-yuan 的字段保留整数及 scale | 125528 → 125.528；逐笔成交量原始手数按字段语义转换为股时乘100。Python `TradeTick.volume` 及 `trade_amount_yuan = price * volume * 100` 保留。 |
+| HQ A股K线成交量 | wire value 为股，`volume_lots = shares / 100` | 不能套用逐笔的手数输入，也不能把原始压缩字段误标为股数。 |
+| HQ 已验证可转债 K线 | wire value 为手，保持手数 | 已覆盖沪市110/113/118、深市123/127/128；不得再除以100。其他债券不能仅凭相似前缀推断。 |
+| EX 港股逐笔 | wire price 为 milli-HKD，公开价格为 HKD | 除数1000仅用于该来源字段；不套用 HQ tick 或普通 EX 原生整数价格。 |
+| 金额、比例、市场统计 | 逐字段保留已证实的 CNY、native、fraction 或 percentage-points | 例如市场统计指数880005计数缩放、880001市值×1e10只作用于对应来源字段；没有字段证据时单位为 Unknown。 |
+
+每个转换结果保留 wire 原值及 scale provenance。协议字段单位没有证据时，Rust 返回 Unknown 单位而不是用名称猜测；Python 的既有数值和属性投影继续按旧路径提供。独立示例与预期见 [units policy fixture](../../tests/fixtures/sdk/policy/units.json)。
 
 复权价是计算结果，须带调整模式、anchor、因子来源/版本和 rounding 信息；不能改写原始价并丢失来源。对 Python 的兼容转换保持历史 float/整数表现，在新 Rust 类型之外完成。
 
@@ -486,6 +504,36 @@ MAC 自定义字段有位图布局，不宜用 `HashMap<String, f64>` 作为完�
 未知原始4字节是 forward-compatible 语义数据，即使 RawPolicy::Omit 也保留。已识别但未证实单位的字段标记单位未知。截断行不能作为完整结果静默返回；按该域明确 partial/framing 契约报告。
 
 Python 兼容 adapter 可以继续把已知字段投影为原来的字典形状；Rust 内部保留未知字段不要求擅自在旧 Python 返回字典中添加新键，也不能影响已知字段的 wire offset。
+
+### 8.5 P0 policy 冻结与兼容边界
+
+#### 涨跌停
+
+现有 Python 的 `daily_price_limits`、shortline 与 MAC 各有独立规则，不存在可直接提升为唯一规则源的实现。Rust 统一使用带 `id`、有效期、证券类别、交易所范围和证据 provenance 的规则 profile。没有已审核 profile 时返回 `LimitStatus::UnknownRule` 和 `LimitRule::Unknown`，上下限留空；不能用 `NoPriceLimit` 代替“规则未知”。缺少前收盘价是 `MissingReference`，与规则未知、已确认不设限分开。
+
+| 案例 | Python 兼容投影 | 新 Rust 默认 |
+| --- | --- | --- |
+| 主板 ST | daily helper 10%；shortline 5%；MAC 5% | `UnknownRule` |
+| 创业/科创 ST | daily helper 20%；shortline ST 优先而为5%；MAC 20% | `UnknownRule` |
+| 未分配的 `30x` 代码段 | daily/shortline 的 `30` 前缀逻辑为20%；MAC 只承认300/301/302而退回10% | `UnknownRule` |
+| 北交所 IPO 第2交易日 | daily helper 缺省按上市前5日逻辑；shortline按30%；MAC首日窗口后按30% | `UnknownRule`，等待有日期的上市阶段规则 |
+| 指数/板块 identity | daily/shortline 可能按10%；MAC可按指数分类为不适用 | 只有分类及规则都有证据后才可 `NoPriceLimit`，否则 `UnknownRule` |
+| 退市整理期 ST | 三个 Python 投影受各自 ST 判断影响；没有独立退市规则 profile | `UnknownRule` |
+
+旧 Python 的名称检查、IPO窗口、价格舍入方式在迁移期分别保留：daily/shortline 使用两位 `round(value + 1e-9)`，MAC 使用 `round(value + 1e-5)`。共享 Rust 算法不覆盖旧投影；已批准的 Rust profile 必须同时给出最小价格单位和明示舍入模式，不能从任一 Python 函数复制一个默认值。六个样本、各入口旧值和证据缺口记录在 [price-limit policy fixture](../../tests/fixtures/sdk/policy/price_limits.json)。取得有效日期的交易所/监管规则和边界样本后，才可按版本批准 profile 并改变 Rust 结果。
+
+#### 已知行为差异
+
+| 场景 | Rust 业务契约 | Python 兼容契约 | 样本 |
+| --- | --- | --- | --- |
+| today bulk | Rust trade service 支持 today batch | native Socket/Pool 保留 `ValueError("trade batch only supports historical ticks")`；既有 custom transport 成功路径不收窄 | COMP-016/017，`legacy_boundaries.json` |
+| 裸代码与精度预取 | 一个严格 `SecurityId` 驱动单市场 metadata lookup | `normalize_code` 与 `_ensure_decimals` 的不一致及全市场 fallback 保留 | `normalization.json` |
+| 多个不同名 DAT | 未给 selector 是 ambiguity；显式 selector 才选取 | 继续按ZIP顺序选择第一个不同名 DAT；同名重复仍拒绝 | COMP-042，`042_financial_zip_dat.json` |
+| 缺中间市场统计指数 | 按证券身份关联；缺 `sh880001` 时不把 `sh880006` 投影成市值 | 保留旧位置投影，不能把错值称为真实统计 | COMP-027，`legacy_boundaries.json` |
+| 财务补充失败 | cache 区分成功空、失败和过期，失败不是完整的空缓存 | 保留吞掉单页异常并可能缓存空 tuple 的当前结果 | COMP-025，`legacy_boundaries.json` |
+| 页数与期限 | Rust complete collect 使用有限页数和整次 operation deadline | Python `max_pages=None` 继续到协议终止页；timeout、startup、prefetch、恢复请求按既有分层预算 | COMP-006–011，`legacy_boundaries.json` |
+
+以上是迁移隔离契约，不代表 Python 缺陷已修复。要调整 Python 表现需另列版本化变更并更新签名/行为基线。契约样本见 [legacy-boundary policy fixture](../../tests/fixtures/sdk/policy/legacy_boundaries.json)。
 
 ## 9. 批量结果、缺失和分页
 

@@ -99,18 +99,18 @@ P3 与 P4 可由不同人员并行；公共类型、owner 和 operation 的修�
 
 ### T03：冻结差异决策、单位和代码规范化
 
-**文件：** 维护本目录 `public-api.md`、`capability-matrix.md`；新增 `tests/fixtures/sdk/policy/price_limits.json`、`normalization.json`、`units.json`、`dates.json`。
+**文件：** 维护本目录 `public-api.md`、`capability-matrix.md`；新增 `tests/fixtures/sdk/policy/{price_limits,normalization,units,dates,legacy_boundaries}.json` 和 `tests/contracts/test_sdk_policy_fixtures.py`。
 
 **产物：** 每项冲突有明确新 Rust 行为、Python 兼容方式、证据和变更条件。
 
-- [ ] 涨跌停规则逐一记录主板 ST、注册制 ST、北交所首日、指数、退市整理等案例；引用有效日期的可靠规则来源后才批准当前规则 profile。
-- [ ] 有争议且无法证明的场景返回 `Unknown`/明确错误；不默认选一份现有实现当权威。
-- [ ] 将 today_batch 不支持、裸代码推断遗漏、不同名多 DAT 选择、按位置关联指数、吞错缓存空值分别建立回归样本。
-- [ ] 为每个已知缺陷注明“新 Rust 可修正”与“Python 仍兼容/另行批准修复”，不能因共享实现就自动改变 Python 行为。
-- [ ] 明确 Rust `SecurityId` 的严格构造与 Python lenient alias/默认值转换；定义价格/量/金额/比例和时区来源。
-- [ ] 冻结 Python 每请求 timeout、startup 计时起点、预取/分页/补查的独立尝试限制，以及 `max_pages=None`；新 Rust 总期限另立规则，不能混用预期。
-- [ ] 按 [决策清单](decision-register.md) 审核默认值和E类待证据项；每个开始实现的域具备签名、字段、单位、错误、至少一个非空与一个失败案例。
-- [ ] 审阅所有样本是否能由不看实现的人判断期望；完成后再进入依赖这些规则的任务。
+- [x] 涨跌停规则逐一记录主板 ST、注册制 ST、北交所上市阶段、指数、退市整理等案例；当前没有有效日期的权威来源，故不批准任何争议 profile，Rust 返回 `UnknownRule`。
+- [x] 有争议且无法证明的场景返回 `Unknown`/明确错误；不默认选一份现有实现当权威。
+- [x] 将 today_batch 不支持、裸代码推断遗漏、不同名多 DAT 选择、按位置关联指数、吞错缓存空值分别建立回归样本。
+- [x] 为每个已知缺陷注明“新 Rust 可修正”与“Python 仍兼容/另行批准修复”，不能因共享实现就自动改变 Python 行为。
+- [x] 明确 Rust `SecurityId` 的严格构造与 Python lenient alias/默认值转换；定义价格/量/金额/比例和时区来源。
+- [x] 冻结 Python 每请求 timeout、startup 计时起点、预取/分页/补查的独立尝试限制，以及 `max_pages=None`；新 Rust 总期限另立规则，不能混用预期。
+- [x] 按 [决策清单](decision-register.md) 审核默认值和E类待证据项；尚无开始实现的业务域，T03 已列出无证据时的明确限制。
+- [x] 审阅所有样本是否能由不看实现的人判断期望；完成后再进入依赖这些规则的任务。最终执行验证按用户要求延期。
 
 ## 3. P1：独立 SDK 基础与运行时契约
 

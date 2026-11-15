@@ -25,3 +25,12 @@ Known real-input gaps are listed in `inventory.json`. In particular, no
 non-empty `0x052d` category-22 server response is fabricated, and that
 experimental path remains separate from stable `0x0ffc` daily flow and the
 7615 F10 history endpoint.
+
+Files under `policy/` freeze date, unit, code-identity, price-limit, and legacy
+compatibility decisions before the Rust SDK exists. Their expected values are
+source-reviewed contracts, arithmetic examples, or explicit evidence gaps;
+they are not live captures or authoritative exchange rules. Price-limit
+profiles remain unapproved until dated regulatory/exchange sources and boundary
+samples are recorded. `tests/contracts/test_sdk_policy_fixtures.py` describes
+the contract checks; execution is deferred until all T01-T30 implementation
+code is complete.

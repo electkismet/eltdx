@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "policy_id": "price_limits_v1",
+  "source_revision": "af471f1adf38757f6aa0188968db8110eb23f6ad",
+  "decision": {
+    "rust_default": "unknown_rule_until_dated_authoritative_profile_is_approved",
+    "python": "preserve_each_existing_entry_point_projection",
+    "rounding": {
+      "python_daily_and_shortline": "round(value + 1e-9, 2)",
+      "python_mac": "round(value + 1e-5, 2)",
+      "rust_approved_profile_must_define_tick_and_rounding_mode": true
+    },
+    "approval_requires": [
+      "exchange_or_regulator_rule_source",
+      "effective_from_and_optional_effective_to",
+      "instrument_class_and_exchange_scope",
+      "listing_phase_and_st_status_where_applicable",
+      "boundary_examples_with_source_provenance"
+    ]
+  },
+  "cases": [
+    {
+      "case_id": "main_board_st",
+      "request": {
+        "security_id": "sh600000",
+        "instrument_name": "ST 样本",
+        "trading_date": "2026-10-27",
+        "pre_close_cny": 10.0,
+        "listing_day": 120
+      },
+      "python_compat": {
+        "daily_price_limits": {"rule": "st_main_10pct", "ratio_pct": 10.0, "limit_up_cny": 11.0, "limit_down_cny": 9.0},
+        "shortline": {"ratio_pct": 5.0},
+        "mac": {"ratio_pct": 5.0, "limit_up_cny": 10.5, "limit_down_cny": 9.5}
+      },
+      "rust": {
+        "limit_status": "unknown_rule",
+        "limit_rule": {"kind": "unknown", "reason_code": "unapproved_profile"},
+        "limit_up_cny": null,
+        "limit_down_cny": null
+      },
+      "evidence": {
+        "level": "python_source_review",
+        "rule_profile_approved": false,
+        "dated_authoritative_rule_sources": [],
+        "implementation_sources": ["src/eltdx/helpers/core.py::_price_limit_ratio", "src/eltdx/helpers/shortline.py::_price_limit_ratio", "src/eltdx/mac/price_rules.py::compute_price_limits"],
+        "spec_ref": "docs/rust-sdk/compatibility-cases.md#COMP-044",
+        "independent_oracle": false
+      }
+    },
+    {
+      "case_id": "registration_board_st",
+      "request": {
+        "security_id": "sz300001",
+        "instrument_name": "ST 样本",
+        "trading_date": "2026-10-27",
+        "pre_close_cny": 10.0,
+        "listing_day": 120
+      },
+      "python_compat": {
+        "daily_price_limits": {"rule": "chinext_20pct", "ratio_pct": 20.0, "limit_up_cny": 12.0, "limit_down_cny": 8.0},
+        "shortline": {"ratio_pct": 5.0},
+        "mac": {"ratio_pct": 20.0, "limit_up_cny": 12.0, "limit_down_cny": 8.0}
+      },
+      "rust": {"limit_status": "unknown_rule", "limit_rule": {"kind": "unknown", "reason_code": "unapproved_profile"}, "limit_up_cny": null, "limit_down_cny": null},
+      "evidence": {
+        "level": "python_source_review",
+        "rule_profile_approved": false,
+        "dated_authoritative_rule_sources": [],
+        "implementation_sources": ["src/eltdx/helpers/core.py::_price_limit_ratio", "src/eltdx/helpers/shortline.py::_price_limit_ratio", "src/eltdx/mac/price_rules.py::compute_price_limits"],
+        "spec_ref": "docs/rust-sdk/compatibility-cases.md#COMP-045",
+        "independent_oracle": false
+      }
+    },
+    {
+      "case_id": "unassigned_30_segment",
+      "request": {"security_id": "sz303001", "instrument_name": "普通股票", "trading_date": "2026-10-27", "pre_close_cny": 10.0},
+      "python_compat": {
+        "daily_price_limits": {"ratio_pct": 20.0, "limit_up_cny": 12.0, "limit_down_cny": 8.0},
+        "shortline": {"ratio_pct": 20.0},
+        "mac": {"ratio_pct": 10.0, "limit_up_cny": 11.0, "limit_down_cny": 9.0}
+      },
+      "rust": {"limit_status": "unknown_rule", "limit_rule": {"kind": "unknown", "reason_code": "unapproved_profile"}, "limit_up_cny": null, "limit_down_cny": null},
+      "evidence": {
+        "level": "python_source_review",
+        "rule_profile_approved": false,
+        "dated_authoritative_rule_sources": [],
+        "implementation_sources": ["src/eltdx/helpers/core.py::_price_limit_ratio", "src/eltdx/helpers/shortline.py::_price_limit_ratio", "src/eltdx/mac/price_rules.py::_CHINEXT_CODES"],
+        "spec_ref": "docs/rust-sdk/compatibility-cases.md#COMP-045",
+        "independent_oracle": false
+      }
+    },
+    {
+      "case_id": "beijing_ipo_day_two",
+      "request": {"security_id": "bj920001", "instrument_name": "普通股票", "trading_date": "2026-10-27", "pre_close_cny": 10.0, "listing_day": 2},
+      "python_compat": {
+        "daily_price_limits": {"rule": "ipo_first_5_days", "status": "no_price_limit"},
+        "shortline": {"ratio_pct": 30.0},
+        "mac": {"no_limit_window_days": 1, "ratio_pct": 30.0, "limit_up_cny": 13.0, "limit_down_cny": 7.0}
+      },
+      "rust": {"limit_status": "unknown_rule", "limit_rule": {"kind": "unknown", "reason_code": "unapproved_listing_window"}, "limit_up_cny": null, "limit_down_cny": null},
+      "evidence": {
+        "level": "python_source_review",
+        "rule_profile_approved": false,
+        "dated_authoritative_rule_sources": [],
+        "implementation_sources": ["src/eltdx/helpers/core.py::_new_stock_phase", "src/eltdx/helpers/core.py::_price_limit_ratio", "src/eltdx/helpers/shortline.py::_price_limit_ratio", "src/eltdx/mac/price_rules.py::get_no_limit_window_days"],
+        "spec_ref": "docs/rust-sdk/compatibility-cases.md#COMP-045",
+        "independent_oracle": false
+      }
+    },
+    {
+      "case_id": "index_identity",
+      "request": {"security_id": "sh880001", "instrument_name": "指数样本", "instrument_class": "index", "trading_date": "2026-10-27", "pre_close_cny": 3000.0},
+      "python_compat": {
+        "daily_price_limits": {"ratio_pct": 10.0},
+        "shortline": {"ratio_pct": 10.0},
+        "mac": {"status": "no_price_limit", "ratio_pct": null}
+      },
+      "rust": {"limit_status": "unknown_rule", "limit_rule": {"kind": "unknown", "reason_code": "unapproved_instrument_classification"}, "limit_up_cny": null, "limit_down_cny": null},
+      "evidence": {
+        "level": "python_source_review",
+        "rule_profile_approved": false,
+        "dated_authoritative_rule_sources": [],
+        "implementation_sources": ["src/eltdx/helpers/core.py::_price_limit_ratio", "src/eltdx/helpers/shortline.py::_price_limit_ratio", "src/eltdx/mac/price_rules.py::_is_index_like"],
+        "independent_oracle": false
+      }
+    },
+    {
+      "case_id": "delisting_st",
+      "request": {"security_id": "sz000038", "instrument_name": "*ST 退市样本", "instrument_class": "delisting_arrangement", "trading_date": "2026-10-27", "pre_close_cny": 10.0},
+      "python_compat": {
+        "daily_price_limits": {"rule": "st_main_10pct", "ratio_pct": 10.0, "limit_up_cny": 11.0, "limit_down_cny": 9.0},
+        "shortline": {"ratio_pct": 5.0},
+        "mac": {"ratio_pct": 5.0, "limit_up_cny": 10.5, "limit_down_cny": 9.5}
+      },
+      "rust": {"limit_status": "unknown_rule", "limit_rule": {"kind": "unknown", "reason_code": "unapproved_delisting_profile"}, "limit_up_cny": null, "limit_down_cny": null},
+      "evidence": {
+        "level": "python_source_review",
+        "rule_profile_approved": false,
+        "dated_authoritative_rule_sources": [],
+        "implementation_sources": ["src/eltdx/helpers/core.py::_price_limit_ratio", "src/eltdx/helpers/shortline.py::_price_limit_ratio", "src/eltdx/mac/price_rules.py::compute_price_limits"],
+        "independent_oracle": false
+      }
+    }
+  ]
+}
