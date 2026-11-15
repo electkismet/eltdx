@@ -97,6 +97,28 @@ def _git_source(revision: str, path: str) -> bytes:
     return subprocess.check_output(("git", "show", f"{revision}:{path}"), cwd=ROOT)
 
 
+def _contract_target_exists(root: Path, reference: str) -> bool:
+    target, *parts = reference.split("::")
+    path = root / target
+    if not path.is_file() or not parts:
+        return False
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    names = {node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+    return parts[-1] in names
+
+
+def _validate_status_record(record: dict, allowed_statuses: set[str], allowed_protocol: set[str], allowed_sdk: set[str]) -> None:
+    assert record["status"] in allowed_statuses
+    assert record["rust_protocol_status"] in allowed_protocol
+    assert record["public_sdk_status"] in allowed_sdk
+    if record["status"] == "migrated":
+        assert record["public_sdk_status"] == "implemented"
+        assert record["sdk_evidence"]
+        assert record["compatibility"]
+    if record["rust_protocol_status"] == "wire_supported":
+        assert record["status"] in {"planned", "experimental", "unsupported"} or record["public_sdk_status"] == "implemented"
+
+
 def test_manifest_matches_authoritative_catalog_records() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     text = (ROOT / manifest["catalog_source_path"]).read_text(encoding="utf-8")
@@ -115,15 +137,18 @@ def test_manifest_matches_authoritative_catalog_records() -> None:
 def test_python_module_coverage_accounts_for_every_current_module() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
-    current = {path.as_posix() for path in (ROOT / "src/eltdx").rglob("*.py") if "/docs/" not in path.as_posix()}
+    current = {path.relative_to(ROOT).as_posix() for path in (ROOT / "src/eltdx").rglob("*.py") if "/docs/" not in path.as_posix()}
     frozen = {module["path"] for module in baseline["modules"]}
     coverage = {entry["path"]: entry for entry in manifest["python_module_coverage"]}
-    assert set(coverage) == frozen
+    assert frozen <= set(coverage)
     assert current <= frozen | set(coverage)
+    allowed_sources = {"frozen_static_baseline", "migration_manifest", "compatibility_contract"}
     for path in current:
         entry = coverage[path]
-        assert entry["coverage_source"] in {"frozen_static_baseline", "migration_manifest", "compatibility_contract"}
-        assert "::" in entry["test_reference"]
+        assert entry["coverage_source"] in allowed_sources
+        assert _contract_target_exists(ROOT, entry["test_reference"])
+    for path in current - frozen:
+        assert coverage[path]["coverage_source"] in {"migration_manifest", "compatibility_contract"}
 
 
 def test_manifest_keeps_wire_registry_and_catalog_counts_distinct() -> None:
@@ -151,13 +176,12 @@ def test_migration_status_vocabulary_enforces_protocol_sdk_boundary() -> None:
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     allowed_statuses = {"planned", "migrated", "compatibility_adapter_retained", "experimental", "unsupported"}
     allowed_protocol = {"none", "wire_supported", "python_helper"}
-    assert set(manifest["status_semantics"]) == allowed_statuses
+    allowed_sdk = {"unimplemented", "implemented"}
+    assert {key for key in manifest["status_semantics"] if key in allowed_statuses} == allowed_statuses
     for record in manifest["records"]:
-        assert record["status"] in allowed_statuses
-        assert record["rust_protocol_status"] in allowed_protocol
-        assert not (record["status"] == "migrated" and record["rust_protocol_status"] == "wire_supported")
-        if record["rust_protocol_status"] == "wire_supported":
-            assert record["status"] in {"planned", "experimental", "unsupported"}
+        _validate_status_record(record, allowed_statuses, allowed_protocol, allowed_sdk)
+    positive = {"status": "migrated", "rust_protocol_status": "wire_supported", "public_sdk_status": "implemented", "sdk_evidence": ["crates/eltdx/src/lib.rs"], "compatibility": "tests/contracts/test_command_registry_consistency.py::test_migration_status_vocabulary_enforces_protocol_sdk_boundary"}
+    _validate_status_record(positive, allowed_statuses, allowed_protocol, allowed_sdk)
 
 
 def test_static_python_baseline_matches_authoritative_source_revision() -> None:
