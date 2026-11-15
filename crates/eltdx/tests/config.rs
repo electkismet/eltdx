@@ -169,3 +169,40 @@ fn price_reports_provenance_and_requires_explicit_rounding() -> eltdx::Result<()
     assert_eq!(wire.to_scaled_integer(1, RoundingMode::HalfAwayFromZero)?, 13);
     Ok(())
 }
+
+#[test]
+fn scaled_price_rounding_preserves_large_integers_and_integer_boundaries() -> eltdx::Result<()> {
+    let large = 9_007_199_254_740_993_i64;
+    assert_eq!(
+        Price::scaled_integer(large, 0).to_scaled_integer(0, RoundingMode::TowardZero)?,
+        large
+    );
+
+    let cases = [
+        (15, RoundingMode::TowardZero, 1),
+        (15, RoundingMode::Floor, 1),
+        (15, RoundingMode::Ceiling, 2),
+        (15, RoundingMode::HalfAwayFromZero, 2),
+        (15, RoundingMode::HalfToEven, 2),
+        (25, RoundingMode::HalfToEven, 2),
+        (25, RoundingMode::HalfAwayFromZero, 3),
+        (-15, RoundingMode::TowardZero, -1),
+        (-15, RoundingMode::Floor, -2),
+        (-15, RoundingMode::Ceiling, -1),
+        (-15, RoundingMode::HalfAwayFromZero, -2),
+        (-15, RoundingMode::HalfToEven, -2),
+        (-25, RoundingMode::HalfToEven, -2),
+        (-25, RoundingMode::HalfAwayFromZero, -3),
+    ];
+    for (value, mode, expected) in cases {
+        assert_eq!(Price::scaled_integer(value, 1).to_scaled_integer(0, mode)?, expected);
+    }
+    assert!(Price::scaled_integer(i64::MAX, 0)
+        .to_scaled_integer(1, RoundingMode::TowardZero)
+        .is_err());
+    assert_eq!(
+        Price::scaled_integer(-1, u32::MAX).to_scaled_integer(0, RoundingMode::Floor)?,
+        -1
+    );
+    Ok(())
+}

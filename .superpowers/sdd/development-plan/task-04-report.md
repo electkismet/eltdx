@@ -38,3 +38,7 @@ No tests, test collection, build, check, clippy, doctest, network validation, or
 ### Remaining uncertainty
 
 E06 still leaves the serialized schema and non-finite numeric policy unresolved. Serialization derives are retained where currently present, but validated identity/time types intentionally have no deserialization implementation until that policy is approved. Rounded conversion from float sources is explicitly lossy by nature and is only offered with a named rounding mode; strict exact conversion requires scaled-integer provenance.
+
+## Fix Round 2
+
+`Price::to_scaled_integer` now dispatches scaled-integer values to checked integer arithmetic, preserving values above f64's exact-integer range. Scale increases use checked multiplication; scale reductions use integer quotient/remainder rounding for toward-zero, floor, ceiling, half-away-from-zero, and half-to-even, including negative ties and extreme scale reductions. Wire `f32`/`f64` values retain the explicit-rounding floating-point path. Added source-only cases for `9_007_199_254_740_993` at unchanged scale and positive/negative halfway boundaries across the rounding modes. No tests, collection, builds, checks, clippy, doctests, Cargo commands, network validation, or equivalent verification ran; compile and runtime success are not claimed.

@@ -68,23 +68,15 @@ impl Price {
         scale: u32,
         rounding: RoundingMode,
     ) -> crate::error::Result<i64> {
-        let scaled = self.as_f64() * 10_f64.powf(f64::from(scale));
-        if !scaled.is_finite() {
-            return Err(conversion_error("price cannot be represented as a finite scaled integer"));
-        }
-        let rounded = match rounding {
-            RoundingMode::TowardZero => scaled.trunc(),
-            RoundingMode::Floor => scaled.floor(),
-            RoundingMode::Ceiling => scaled.ceil(),
-            RoundingMode::HalfAwayFromZero => {
-                if scaled.is_sign_negative() { (scaled - 0.5).ceil() } else { (scaled + 0.5).floor() }
+        match self.0 {
+            NumericValue::ScaledInteger { value, scale: source_scale } => {
+                convert_scaled_integer(value, source_scale, scale, rounding)
             }
-            RoundingMode::HalfToEven => round_half_to_even(scaled),
-        };
-        if rounded < i64::MIN as f64 || rounded >= 9_223_372_036_854_775_808.0 {
-            return Err(conversion_error("scaled price is outside the i64 range"));
+            NumericValue::F32(_) | NumericValue::F64(_) => {
+                let scaled = self.as_f64() * 10_f64.powf(f64::from(scale));
+                round_f64_to_i64(scaled, rounding)
+            }
         }
-        Ok(rounded as i64)
     }
 
     pub fn to_scaled_integer_exact(self, scale: u32) -> crate::error::Result<i64> {
@@ -104,6 +96,89 @@ impl Price {
         }
         Ok(value / factor)
     }
+}
+
+fn round_f64_to_i64(scaled: f64, rounding: RoundingMode) -> crate::error::Result<i64> {
+    if !scaled.is_finite() {
+        return Err(conversion_error("price cannot be represented as a finite scaled integer"));
+    }
+    let rounded = match rounding {
+        RoundingMode::TowardZero => scaled.trunc(),
+        RoundingMode::Floor => scaled.floor(),
+        RoundingMode::Ceiling => scaled.ceil(),
+        RoundingMode::HalfAwayFromZero => {
+            if scaled.is_sign_negative() { (scaled - 0.5).ceil() } else { (scaled + 0.5).floor() }
+        }
+        RoundingMode::HalfToEven => round_half_to_even(scaled),
+    };
+    if rounded < i64::MIN as f64 || rounded >= 9_223_372_036_854_775_808.0 {
+        return Err(conversion_error("scaled price is outside the i64 range"));
+    }
+    Ok(rounded as i64)
+}
+
+fn convert_scaled_integer(
+    value: i64,
+    source_scale: u32,
+    target_scale: u32,
+    rounding: RoundingMode,
+) -> crate::error::Result<i64> {
+    if target_scale >= source_scale {
+        let factor = 10_i64.checked_pow(target_scale - source_scale)
+            .ok_or_else(|| conversion_error("price scale conversion overflows i64"))?;
+        return value.checked_mul(factor)
+            .ok_or_else(|| conversion_error("price scale conversion overflows i64"));
+    }
+
+    let exponent = source_scale - target_scale;
+    let Some(divisor) = 10_u128.checked_pow(exponent) else {
+        let rounded = match rounding {
+            RoundingMode::Floor if value < 0 => -1,
+            RoundingMode::Ceiling if value > 0 => 1,
+            _ => 0,
+        };
+        return Ok(rounded);
+    };
+    let value_wide = i128::from(value);
+    let quotient = value_wide / (divisor as i128);
+    let remainder = value_wide - quotient * (divisor as i128);
+    round_integer_quotient(quotient, remainder, divisor, rounding)
+}
+
+fn round_integer_quotient(
+    quotient: i128,
+    remainder: i128,
+    divisor: u128,
+    rounding: RoundingMode,
+) -> crate::error::Result<i64> {
+    if remainder == 0 {
+        return i64::try_from(quotient)
+            .map_err(|_| conversion_error("scaled price is outside the i64 range"));
+    }
+    let adjust_away = match rounding {
+        RoundingMode::TowardZero => false,
+        RoundingMode::Floor => remainder < 0,
+        RoundingMode::Ceiling => remainder > 0,
+        RoundingMode::HalfAwayFromZero | RoundingMode::HalfToEven => {
+            let magnitude = remainder.unsigned_abs();
+            let doubled = magnitude.saturating_mul(2);
+            if doubled > divisor {
+                true
+            } else if doubled < divisor {
+                false
+            } else if rounding == RoundingMode::HalfAwayFromZero {
+                true
+            } else {
+                quotient % 2 != 0
+            }
+        }
+    };
+    let rounded = if adjust_away {
+        quotient + if remainder < 0 { -1 } else { 1 }
+    } else {
+        quotient
+    };
+    i64::try_from(rounded).map_err(|_| conversion_error("scaled price is outside the i64 range"))
 }
 
 fn round_half_to_even(value: f64) -> f64 {
