@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import inspect
 import os
 import re
@@ -283,25 +282,27 @@ def test_external_evidence_is_content_addressed(tmp_path: Path) -> None:
         unified_test._check_gate(step, state)
 
 
-def _python_node_exists(root: Path, node_id: str) -> bool:
-    target, *parts = node_id.split("::")
-    path = root / target
-    if not path.is_file():
-        return False
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    names = {node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
-    return bool(parts) and parts[-1] in names
+
+def _pytest_node_collects(root: Path, node_id: str) -> bool:
+    previous = Path.cwd()
+    try:
+        os.chdir(root)
+        result = pytest.main(["--collect-only", "-q", node_id], plugins=[])
+    finally:
+        os.chdir(previous)
+    return result == pytest.ExitCode.OK
 
 
 def test_every_unified_pytest_node_resolves_and_regression_target_is_current() -> None:
     root = Path(unified_test.ROOT)
-    nodes = []
-    for round_spec in unified_test.ROUNDS:
-        for step in round_spec.steps:
-            for argument in step.argv:
-                if "::" in argument:
-                    nodes.append(argument)
+    nodes = [
+        argument
+        for round_spec in unified_test.ROUNDS
+        for step in round_spec.steps
+        for argument in step.argv
+        if "::" in argument
+    ]
     assert nodes
-    assert all(_python_node_exists(root, node) for node in nodes), nodes
+    assert all(_pytest_node_collects(root, node) for node in nodes), nodes
     assert "tests/native/test_differential.py::test_differential_matrix_covers_all_commands" in nodes
     assert "test_differential_matrix_covers_all_22_commands" not in "\n".join(nodes)
