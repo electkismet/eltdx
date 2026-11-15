@@ -9,17 +9,17 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1 / T05：修复底层 pin/pending 交接和终态所有权 |
-| 已提交进度 | T01 契约实现及反例源码完成；T02 来源库存、哈希、7个补充案例和测试源码完成；T03 policy fixture、差异裁决、文档和契约测试源码完成；T04 crate、配置、基础类型完成并经两轮静态复审；T05 pin grant RAII、共享结果终态标记、取消/交付竞态仲裁和回环/源用例已编写，待检查点提交；统一验证延期 |
+| 当前阶段 | P1 / T06：增加 raw reply 与绝对执行期限 |
+| 已提交进度 | T01 契约实现及反例源码完成；T02 来源库存、哈希、7个补充案例和测试源码完成；T03 policy fixture、差异裁决、文档和契约测试源码完成；T04 crate、配置、基础类型完成并经两轮静态复审；T05 pin grant RAII、共享结果终态标记、取消/交付竞态仲裁和回环/源用例已提交 `3ba3902`；统一验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | 提交 T05 检查点后执行 T06：增加原始回复与绝对执行期限；继续只写实现与测试源码，不运行任何验证 |
+| 下一步 | 执行 T06：增加原始回复与绝对执行期限；继续只写实现与测试源码，不运行任何验证 |
 
 ## 阶段进度
 
 | 阶段 | 任务 | 实现状态 | 测试状态 |
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
-| P1 | T04–T10 SDK基础、runtime、metadata | T04 完成，T05 源码完成待提交；统一验证延期 | 按用户要求暂不运行 |
+| P1 | T04–T10 SDK基础、runtime、metadata | T04、T05 实现与源码测试完成，T06 实施中；统一验证延期 | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | 未开始 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | 未开始 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | 未开始 | 按用户要求暂不运行 |

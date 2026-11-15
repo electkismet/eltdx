@@ -95,7 +95,8 @@
 - Task 4: fix round 2 committed as `4b6a524`; scaled-integer rounding uses checked integer arithmetic with authored large-value/tie/overflow cases. Scoped re-review from `4cb8511..4b6a524` marked the precision-loss finding ADDRESSED with no new breakage. All tests and verification remain forbidden until T01-T30 implementation code is complete.
 - Task 4: minor (deferred): no source case explicitly covers `i64::MIN`; the scoped reviewer inspected the `i128` reduction arithmetic and found no issue. Carry this coverage note into the final whole-branch review.
 - Task 4: complete (commits `f7b02fc..4b6a524`, scoped reviews clean after two fix rounds; final verification deferred until T01-T30 implementation is complete).
-- Task 5: implementation authored in `crates/eltdx-runtime/src/engine.rs`; private RAII delivery transfers pin identity to the public handle, drop/send-failure close through existing supervisor release transitions, and active opened-reservation tracking plus a shared result-terminal marker prevent late success/failure cancellation from becoming stale pre-admission state. Inline source cases cover pending drop, receiver loss, cancellation before success, between open and send, racing with failed result publication, success before cancellation, fail-closed confirmation timeout, exactly-once release, and later pin reuse. The public loopback target covers cancel-after-success and subsequent pin admission. See `task-05-report.md`. No tests, test collection, build/check/clippy/doctest, network validation, `git diff --check`, or equivalent verification ran; no compilation or runtime success is claimed. Commit SHA: pending.
+- Task 5 complete (`3ba3902`): private RAII delivery transfers pin identity to the public handle, drop/send-failure close through existing supervisor release transitions, and opened-reservation tracking plus a shared result-terminal marker prevent late success/failure cancellation from becoming stale pre-admission state. Inline source cases cover pending drop, receiver loss, cancellation before success, between open and send, racing with failed result publication, success before cancellation, fail-closed confirmation timeout, exactly-once release, and later pin reuse. The public loopback target covers cancel-after-success and subsequent pin admission. See `task-05-report.md`. No tests, test collection, build/check/clippy/doctest, network validation, `git diff --check`, or equivalent verification ran; no compilation or runtime success is claimed.
+- Task 6: brief prepared from `development-plan.md` and runtime specs; implementation not yet started. Preserve `execute(CommandRequest)` by routing typed and raw requests through one scheduler; add absolute submission options, raw reply with request/epoch/slot/generation/host context, and deadline-aware pending response. No verification commands run.
 
 ## Execution state
 
@@ -105,8 +106,8 @@
 | T02 | Implementation complete: fixture provenance, hashes, supplemental cases, and evidence gaps recorded; final verification deferred |
 | T03 | Implementation complete: policy fixtures, compatibility decisions, public docs, and test source; commit `8d11baa`; final verification deferred |
 | T04 | Implementation complete; validated identities/time, lazy configuration, source-aware event time, price conversion; final verification deferred |
-| T05 | Implementation and source cases authored; commit pending; final verification deferred until T01-T30 implementation is complete |
-| T06 | Not started |
+| T05 | Implementation and source cases committed in `3ba3902`; final verification deferred until T01-T30 implementation is complete |
+| T06 | In progress: shared raw/typed execution path and absolute operation deadline |
 | T07 | Not started |
 | T08 | Not started |
 | T09 | Not started |
