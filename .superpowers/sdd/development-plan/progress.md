@@ -104,7 +104,7 @@
 | T02 | Implementation complete: fixture provenance, hashes, supplemental cases, and evidence gaps recorded; final verification deferred |
 | T03 | Implementation complete: policy fixtures, compatibility decisions, public docs, and test source; commit `8d11baa`; final verification deferred |
 | T04 | Implementation complete; validated identities/time, lazy configuration, source-aware event time, price conversion; final verification deferred |
-| T05 | Ready to start: pin/pending ownership and terminal transition |
+| T05 | In progress: repair owned pin grant handoff, cancellation/complete race, and pending drop |
 | T06 | Not started |
 | T07 | Not started |
 | T08 | Not started |

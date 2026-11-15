@@ -9,17 +9,17 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1 / T04：建立纯Rust SDK crate、基础类型和无网络 builder |
-| 已提交进度 | T01 契约实现及反例源码完成；T02 来源库存、哈希、7个补充案例和测试源码完成；T03 policy fixture、差异裁决、文档和契约测试源码完成；统一验证延期 |
+| 当前阶段 | P1 / T05：修复底层 pin/pending 交接和终态所有权 |
+| 已提交进度 | T01 契约实现及反例源码完成；T02 来源库存、哈希、7个补充案例和测试源码完成；T03 policy fixture、差异裁决、文档和契约测试源码完成；T04 crate、配置、基础类型完成并经两轮静态复审；统一验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | 执行 T04：新增 `crates/eltdx`、公共基础类型及惰性无网络 builder；继续只写实现与测试源码，不运行测试 |
+| 下一步 | 执行 T05：修复 pin grant 交付/取消/receiver drop 的 exactly-once 终态；继续只写实现与测试源码，不运行任何验证 |
 
 ## 阶段进度
 
 | 阶段 | 任务 | 实现状态 | 测试状态 |
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
-| P1 | T04–T10 SDK基础、runtime、metadata | T04 实施中；统一验证延期 | 按用户要求暂不运行 |
+| P1 | T04–T10 SDK基础、runtime、metadata | T04 完成，T05 实施中；统一验证延期 | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | 未开始 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | 未开始 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | 未开始 | 按用户要求暂不运行 |
@@ -71,6 +71,11 @@
 | `7026d5d` | T01 进度 round 5 | 记录三项复审发现的静态闭合判断、验证延期及进入 T02 的恢复点 |
 | `ea4721c` | T02 样本与证据库存 | 逐例记录 37 个既有 7709 样本来源/哈希、7 个补充案例、期望值证据等级和真实抓包缺口；最终验证延期 |
 | `8d11baa` | T03 策略契约 | 冻结涨跌停冲突、身份/精度预取、字段级单位和日期；添加跨域兼容边界样本与契约测试源码；未运行测试、构建、check或diff whitespace检查 |
+| `1777e4f` | T04 crate foundation | 新建纯Rust `eltdx` facade、配置/错误/基础类型与惰性 builder；只添加测试源码 |
+| `4cb8511` | T04 review fix 1 | 移除受校验类型的直接反序列化、增加时间/价格 getter 与 loopback side-effect 源测试 |
+| `eb0935f` | T04 review checkpoint | 记录裸 `127` 歧义裁定、复审 finding 与 no-startup 证据裁定 |
+| `4b6a524` | T04 review fix 2 | 修正大整数价格舍入经 `f64` 精度丢失，添加大值/边界/极端 scale 源测试 |
+| `c1b8c34` | T04 completion checkpoint | 记录两轮 scoped review 关闭与待最终复审的 `i64::MIN` 覆盖观察 |
 
 ## 阻塞与风险
 
@@ -82,3 +87,4 @@
 - 第五轮静态复核：三项发现已在契约实现中覆盖，T01 实现状态关闭；全部测试和构建仍待 T01–T30 实现代码完成后统一执行。没有 Rust SDK crate 或 migrated 记录，尚不宣称 SDK 能力已经实现。
 - T02 库存确认既有 7709 样本中 36 个来自合成输入，`delisted_bars/normal` 引用了仓库中缺失的 UI 样例记录；37 个 `expected.json` 均为 Python 回归基线，不是独立 oracle。新增 7 个案例均为合成输入；完整 `0x0FFC` 抓包、非空 category22 和 EX/MAC/F10 实测响应仍是明确缺口。
 - T03 未取得有日期的权威涨跌停规则来源，因此六个 Rust 涨跌停案例均保持 `UnknownRule`，而 Python 的 daily/shortline/MAC 三套投影分别保留。T03 policy fixture 是代码审阅/兼容及算术契约，不是监管规则、线上抓包或独立业务事实的证明；全部契约测试源码待 T01–T30 实现完成后统一执行。
+- T04 两轮静态 scoped review 已关闭；`Price` 的 `i64::MIN` 缩放边界没有单独 authored case，最终全分支复审需再次检查。serde schema E06 仍未解决，身份/日期/时间仅保留 Serialize，未暴露不安全 Deserialize。
