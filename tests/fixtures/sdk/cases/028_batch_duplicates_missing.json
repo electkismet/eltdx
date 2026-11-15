@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "case_id": "COMP-028/batch-duplicates-missing",
+  "source_type": "synthetic",
+  "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+  "request": {
+    "service": "snapshots.batch",
+    "input_codes": ["sh600000", "sz000001", "sh600000"],
+    "recovery_steps": [
+      {"codes": ["sh600000", "sz000001", "sh600000"], "outcome": "count_mismatch"},
+      {"codes": ["sh600000"], "occurrence": 0, "last": 10},
+      {"codes": ["sz000001", "sh600000"], "outcome": "count_mismatch"},
+      {"codes": ["sz000001"], "outcome": "empty"},
+      {"codes": ["sh600000"], "occurrence": 2, "last": 12}
+    ]
+  },
+  "response": {
+    "transport": "scripted-pages",
+    "items": [
+      {"input_index": 0, "code": "sh600000", "last": 10},
+      {"input_index": 1, "code": "sz000001", "missing": true},
+      {"input_index": 2, "code": "sh600000", "last": 12}
+    ]
+  },
+  "expected": {
+    "python_compat": {
+      "on_missing_raise": {"error": "MissingCodesError", "missing_codes": ["sz000001"]},
+      "on_missing_skip": {
+        "warning_count": 1,
+        "codes": ["sh600000", "sh600000"],
+        "last": [10, 12]
+      },
+      "business_requests": 5
+    },
+    "rust": {
+      "default": {
+        "error": "MissingData",
+        "missing": [{"code": "sz000001", "input_index": 1}]
+      },
+      "allow_partial_slots": [
+        {"code": "sh600000", "input_index": 0, "last": 10},
+        {"code": "sz000001", "input_index": 1, "missing": true},
+        {"code": "sh600000", "input_index": 2, "last": 12}
+      ]
+    }
+  },
+  "evidence_level": "frozen_python_contract",
+  "spec_refs": ["docs/rust-sdk/compatibility-cases.md#COMP-028", "docs/rust-sdk/hq-api-spec.md"]
+}

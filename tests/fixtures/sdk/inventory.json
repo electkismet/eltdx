@@ -1,0 +1,1194 @@
+{
+  "schema_version": 1,
+  "legacy_cases": [
+    {
+      "case_id": "auction_series/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/auction_series/normal/request.json",
+        "sha256": "8fbdc595e244e16543b81f91e24bdbc31d728b632f6a09272059bb08792677ba"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/auction_series/normal/response.bin",
+        "sha256": "ccfa4df02da3949ce14892a5b45d300d93eecf3bc1706c0a7a23d6dc82c2d414"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/auction_series/normal/expected.json",
+        "sha256": "37a038d252d75330358084a1e1182079f3d895c510af508c12c40b795f070dd2",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "block_meta/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/block_meta/normal/request.json",
+        "sha256": "d5f4744da0757cd16834ef8fcd22a51358fa8959865f518e0bfaf66e6d004b15"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/block_meta/normal/response.bin",
+        "sha256": "757e802f6ef347c39e52492f0857f51eb1f4eb0a30c0ff3caf0e54a48e67bc71"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/block_meta/normal/expected.json",
+        "sha256": "708d68de3646f268a1bbb295a48b2916acc20eab417d2890875acb04bb59b875",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "capital_changes/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/capital_changes/normal/request.json",
+        "sha256": "7c30e35c51ae0939453e559eb62147f8a3138e257c261f2430554098050a2884"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/capital_changes/normal/response.bin",
+        "sha256": "181c412a9a48717f1f2e46608dbbaacfd25b8a9173d5584b9731f792f5dad0c6"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/capital_changes/normal/expected.json",
+        "sha256": "0d23084792aee12e1a4f3eba6733987424ad2dda4b47af984db48b7bf8c0c861",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "category_quotes/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/category_quotes/normal/request.json",
+        "sha256": "831665e06a111e5871b6d3f2146c8bce8b304fdc8253d7c686b150bc9111075c"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/category_quotes/normal/response.bin",
+        "sha256": "b0e766aefc0919ac2338c1c353e01836479daf26236f7a71073dd92479ec59a6"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/category_quotes/normal/expected.json",
+        "sha256": "8cd4b35408dcc806997c249c2932224058769adec078a9f06109b0d33beb22d0",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "category_quotes/trailing_byte",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/category_quotes/trailing_byte/request.json",
+        "sha256": "831665e06a111e5871b6d3f2146c8bce8b304fdc8253d7c686b150bc9111075c"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/category_quotes/trailing_byte/response.bin",
+        "sha256": "3d586262d388ccd258df6ad8f6c335765a44b19c4f980f6779d6131fa9fcff55"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/category_quotes/trailing_byte/expected.json",
+        "sha256": "3cafab8af07427d95637ff9136e323600a38dffeb2459ca22b0e0c52e72c4988",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "company_info_category/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/company_info_category/normal/request.json",
+        "sha256": "b60d3fff52ae4a9f52b447974641f284569f1a54807e651c0c36fcad2977586b"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/company_info_category/normal/response.bin",
+        "sha256": "babce81cea9b661310d921b39436d5fc6497fa5592194a4ea97b5771fba37217"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/company_info_category/normal/expected.json",
+        "sha256": "3f2d081099d80f0ba702513bd6ca4e0c514c1b992ea401fac1059bb351d079f9",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "company_info_content/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/company_info_content/normal/request.json",
+        "sha256": "e954700bc27e22e774ecf832e5da10659dd8ec1b8ebceea1b880a8b20eecde40"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/company_info_content/normal/response.bin",
+        "sha256": "f49f7149c16cc9a648c997ae95f03e691ce9be9eea8814d42f45b53522f72078"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/company_info_content/normal/expected.json",
+        "sha256": "cba71a20f9b50344dd15181b533ad9a45e7a71fcfa1896ed10d30f754f918759",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "delisted_bars/normal",
+      "source_type": "reference",
+      "source_revision": "052b-ui-20261005",
+      "input_provenance": {
+        "reference_id": "052b-ui-20261005",
+        "original_path": "052b-ui-20261005/live-query-example.json",
+        "available_in_repository": false,
+        "construction": "synthetic 7709 frame around referenced record_hex values",
+        "frame_generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/delisted_bars/normal/request.json",
+        "sha256": "a41406b62cfe52c24d9ef7f479041a2ae781cef11069cc2104f938bfdae6b0c2"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/delisted_bars/normal/response.bin",
+        "sha256": "5767286455606c87a47e74d768036f931e7c384d4bffb0a52114edd1076a7f49"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/delisted_bars/normal/expected.json",
+        "sha256": "1c6e329a7ef18222fbc619dfdbbb1d9c6218e4178626b84e72b6c22c04a774d5",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "file_content/max_chunk_empty",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/file_content/max_chunk_empty/request.json",
+        "sha256": "6c7c5466082b59fb915f3f08869d7029e7a59d6408c77e0269a9903063b5cc4b"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/file_content/max_chunk_empty/response.bin",
+        "sha256": "61093897c02f9f606588571998b532f8ac9b36e68ad1ee880e8c1a6fca53539d"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/file_content/max_chunk_empty/expected.json",
+        "sha256": "2b4aca09e90e767d8bc94d422503d64dbd970ede66d9e7233f67bc2cf856b0a7",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "file_content/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/file_content/normal/request.json",
+        "sha256": "2301ec345948370909c6cbe7d742798b72a2604474ef681c4830b8145af61136"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/file_content/normal/response.bin",
+        "sha256": "367ac4187f8ad5c99fb7a0cc21880e4a0b602377fecab268920a3927452ecab9"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/file_content/normal/expected.json",
+        "sha256": "a4d144872f870eb0f8420d098d2f726562632d228dc940d3451fd4f568461d7d",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "finance_batch/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/finance_batch/normal/request.json",
+        "sha256": "1bb949fe22711105ac43a3f3760391f076619639853752aaacdbecba8a29c208"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/finance_batch/normal/response.bin",
+        "sha256": "7642f083ce1073f3942a330a4572de4544fc2abe267b89fd5d13d892ad622638"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/finance_batch/normal/expected.json",
+        "sha256": "4c412f4f1b1c9fc5fc6bc43681d7c9ec4910328f1aca33892bce78fee41c460d",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "handshake/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/handshake/normal/request.json",
+        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/handshake/normal/response.bin",
+        "sha256": "a6b9540d3de0ad2b280e9661d42e55b65fdd996de64d9c3babbd23f6850493c9"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/handshake/normal/expected.json",
+        "sha256": "aca0a508f0c87210d929cd2a606e38337d22c9b3f071e1c201278720730e566e",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "heartbeat/bad_compression",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/heartbeat/bad_compression/request.json",
+        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/heartbeat/bad_compression/response.bin",
+        "sha256": "78965c10fe7fbb69de4886482aecdd2d4ea265017d5bcfab3378d5206bd0e556"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/heartbeat/bad_compression/expected.json",
+        "sha256": "3cafab8af07427d95637ff9136e323600a38dffeb2459ca22b0e0c52e72c4988",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "heartbeat/compressed",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/heartbeat/compressed/request.json",
+        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/heartbeat/compressed/response.bin",
+        "sha256": "5b3d42d9f602d94e39a33c1e01daf76cb9e2076863ddf9f290d2d64aa56071e9"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/heartbeat/compressed/expected.json",
+        "sha256": "ff2ac0558dbcb961529b30e209957ca37578c8f4b8a1b56cad6a9719cc1dbd7d",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "heartbeat/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/heartbeat/normal/request.json",
+        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/heartbeat/normal/response.bin",
+        "sha256": "4f42bf55b9a367227221d2acfc61ec00e7dcad1c92a77d43f529cd786d93fd5f"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/heartbeat/normal/expected.json",
+        "sha256": "ff2ac0558dbcb961529b30e209957ca37578c8f4b8a1b56cad6a9719cc1dbd7d",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "heartbeat/stale_message",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/heartbeat/stale_message/request.json",
+        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/heartbeat/stale_message/response.bin",
+        "sha256": "a8dde82631487bca6cedc78c8c940c3a1ffa783c4749b6606b32ce928d9df132"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/heartbeat/stale_message/expected.json",
+        "sha256": "3cafab8af07427d95637ff9136e323600a38dffeb2459ca22b0e0c52e72c4988",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "historical_intraday/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/historical_intraday/normal/request.json",
+        "sha256": "94ae05a1575113bf9d430df5abfb53e816d041f3f1d3fd3c316ccf70f7dd8e6c"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/historical_intraday/normal/response.bin",
+        "sha256": "2007bbc9de32b4fe4abb5a08033887fedffa329890ab56bd9e37a78b589d7d04"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/historical_intraday/normal/expected.json",
+        "sha256": "7a0c3635e9f8de5e8cc91ed396f87609835962db175eace560850f5075770c13",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "historical_ticks/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/historical_ticks/normal/request.json",
+        "sha256": "12984ad2bd4624e954a841944a034da946a4ea81c7e42e480e8cf0f73488d251"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/historical_ticks/normal/response.bin",
+        "sha256": "103c4e1ef0192a98a16fb857c870cd3ff002acd5c5b8337d7a9bb198e0bd69f2"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/historical_ticks/normal/expected.json",
+        "sha256": "dac236c57869cc040fb2b10f9c9de1f84cdf81eab8b57037e41ecf173db62512",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "intraday_aux/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/intraday_aux/normal/request.json",
+        "sha256": "79b0fe42c8c744520eb38a019f5973e7259ae05a282d006c3dfd1c65b056ba3e"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/intraday_aux/normal/response.bin",
+        "sha256": "7e6a72da5bde39a340f73978aa66b3ef3ebb3e414265852fa4b38ad9e24f278d"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/intraday_aux/normal/expected.json",
+        "sha256": "24214fa01da523230cdc6ef1307de801b015ddc93e1ea2eba19536b25a9b5704",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "klines/include_raw_false",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/klines/include_raw_false/request.json",
+        "sha256": "26f35c5b53ee4bb9cb7b3bd55e7824bd325759ce77db172dca418b5553deeb29"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/klines/include_raw_false/response.bin",
+        "sha256": "9d441fca02ec84e2505f3b9c118f12ec12625c0481a8eb5231a5dd97fb6e5039"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/klines/include_raw_false/expected.json",
+        "sha256": "eae5fa4050cb0cf6044df8d141ef081286f39419cd45e62cb2534703085bcc44",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "klines/max_page_empty",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/klines/max_page_empty/request.json",
+        "sha256": "02ddbedd3d9c14545602773ccad634792e5a1e100f38314cebd644f7a0d96893"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/klines/max_page_empty/response.bin",
+        "sha256": "f66d0611babb93040b71cd81de69a5d45bba535c0042f06eb2041eea5e7fe337"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/klines/max_page_empty/expected.json",
+        "sha256": "3c6e1866a07808e369daeeb8cf040d28a877e7ebd430abf4546c22d54e7dd57d",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "klines/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/klines/normal/request.json",
+        "sha256": "42eaf7ddb8ab561d199948e559105ee81d7f70ba0f046aa8081cf632a0b63fb4"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/klines/normal/response.bin",
+        "sha256": "360449fcbd11f46c4212179a2db4dc607b25f7d96be0c2ef49202cf889dbd2fb"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/klines/normal/expected.json",
+        "sha256": "a94f30f8dbc4929916aeda2188b2a7e9d568b69e6e7d4ce8c9b528f6b0eb2286",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "legacy_quotes/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/legacy_quotes/normal/request.json",
+        "sha256": "1dd381e0bfaa7f18c04e8f3a477f76910221d5b9b041311967e10c2881fa2b15"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/legacy_quotes/normal/response.bin",
+        "sha256": "a605e9f843a89811c697317980bb33da0d1352099c62fcfb0de4e2141dd259d9"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/legacy_quotes/normal/expected.json",
+        "sha256": "4292cca829418a4df0b56fd467b0f1d020520bb8cc1c1d99fd6733c109293b70",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "recent_intraday/include_raw_false",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/recent_intraday/include_raw_false/request.json",
+        "sha256": "4d9af911e73ac7f171a5c347cea7024ea6379f1cd1f119b5594dacda2231929d"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/recent_intraday/include_raw_false/response.bin",
+        "sha256": "ec210eda2a593827d290cef2de6b236e28ce08714c93d3ea08d61a35ed36f876"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/recent_intraday/include_raw_false/expected.json",
+        "sha256": "79ef31ce8a14fbb9f062aa3278fc947b996ecb9df3fdca59151b038ee21ba626",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "recent_intraday/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/recent_intraday/normal/request.json",
+        "sha256": "94ae05a1575113bf9d430df5abfb53e816d041f3f1d3fd3c316ccf70f7dd8e6c"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/recent_intraday/normal/response.bin",
+        "sha256": "4a1122fb9ce9b1d7f5ae1b9efa3d9e8592acbfc695f239e1c6c1c3a0cbf962b6"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/recent_intraday/normal/expected.json",
+        "sha256": "d85597d50e4c0171e84e3286d830717c418fbb403e9868fb6a1af8aa3eef59ac",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "refresh_stream/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/refresh_stream/normal/request.json",
+        "sha256": "b9330bd7f4ab1149ad67bcae5e907bb1382ddf2ec6ece490b82d5cfdc1e45a61"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/refresh_stream/normal/response.bin",
+        "sha256": "1e8d3751373c0a097101eafbfc4a50ff7e543044d765b6e54b4d57dd2740af61"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/refresh_stream/normal/expected.json",
+        "sha256": "13e8c552083066f94f000ebe10199ab070a4b9c538ccad8aed539b3a3821f34a",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "security_count/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/security_count/normal/request.json",
+        "sha256": "3b0aaa9377066297616b948326953276ebe29b8af4f6c4736d3d26da3562817d"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/security_count/normal/response.bin",
+        "sha256": "b74482c03f78d39577d3ac2e7f799e2f45b061983df477d1ebd06a5da101753a"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/security_count/normal/expected.json",
+        "sha256": "9a10b94fa0ba8385799202de5a8adb9e8f15d0028a589a9f7b183a7abb5e3f12",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "security_list/bj_empty",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/security_list/bj_empty/request.json",
+        "sha256": "4d5b7b3b49145850aacf7823a9123800b85ee4eba59e18cd0acfffd55f250929"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/security_list/bj_empty/response.bin",
+        "sha256": "3fdc9978f037e919a6aab421387c87f83a3a78badf513eb4cea6efadd9ec865e"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/security_list/bj_empty/expected.json",
+        "sha256": "1fbca9960221cdfef34814b761791c531f3a56e2671f79d073d755b3bd0a639c",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "security_list/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/security_list/normal/request.json",
+        "sha256": "2846a2cdca4faa93c32cc7e55862b2eae95c732b03fceb67fb669b508d3bee21"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/security_list/normal/response.bin",
+        "sha256": "187b6e2a9bb2810183a35c60aa4fd6084c7c6af558b8130e5669cdf7b1f99188"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/security_list/normal/expected.json",
+        "sha256": "4d0b03dc38c71b4ba47604dfa322bf0e11f0a61c84ae2f2dbceef879ba36644a",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "security_list/sh_empty",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/security_list/sh_empty/request.json",
+        "sha256": "48762ce1d82eac1c51950fdbb66093829d1e3388b6b198a0838891ba1cc3aa65"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/security_list/sh_empty/response.bin",
+        "sha256": "7dfbced9827f02b2b8d3419b3cd34d91cbc1b6979c7f30b8fecb634b8fb44acb"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/security_list/sh_empty/expected.json",
+        "sha256": "1fbca9960221cdfef34814b761791c531f3a56e2671f79d073d755b3bd0a639c",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "snapshots/etf_index_empty",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/snapshots/etf_index_empty/request.json",
+        "sha256": "d394383418bb12f5acff2ac8bd6035d45ddd50ad6eeeb9cc42fb5104ab42b31d"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/snapshots/etf_index_empty/response.bin",
+        "sha256": "dd6497c18628747092f3794343e20385f0cfbd3b142c0d39efdf3eaf8bee5567"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/snapshots/etf_index_empty/expected.json",
+        "sha256": "1fbca9960221cdfef34814b761791c531f3a56e2671f79d073d755b3bd0a639c",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "snapshots/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/snapshots/normal/request.json",
+        "sha256": "1dd381e0bfaa7f18c04e8f3a477f76910221d5b9b041311967e10c2881fa2b15"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/snapshots/normal/response.bin",
+        "sha256": "f07c6ac1195c737243f2752f5bcc3b7f5516746972b07e1fbb451059fdbede29"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/snapshots/normal/expected.json",
+        "sha256": "638b56cf4185590b03ef4dedc6e872a593b99e85f8c9c545ebd91271186d8fc5",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "snapshots/truncated_record",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/snapshots/truncated_record/request.json",
+        "sha256": "1dd381e0bfaa7f18c04e8f3a477f76910221d5b9b041311967e10c2881fa2b15"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/snapshots/truncated_record/response.bin",
+        "sha256": "695cc4dd81a47733a9c1940f0f87e8e109332c07d7fffb3be6694dd2bedb3c99"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/snapshots/truncated_record/expected.json",
+        "sha256": "3cafab8af07427d95637ff9136e323600a38dffeb2459ca22b0e0c52e72c4988",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "sparkline/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/sparkline/normal/request.json",
+        "sha256": "659e2787bd3a4de156c1da0944423638d3b46994ab1ba59380e9d8698157ab37"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/sparkline/normal/response.bin",
+        "sha256": "bd713abf9a3f074498d3697373a1758cbda27ed3affe71af4ec084ac7a3bc0d0"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/sparkline/normal/expected.json",
+        "sha256": "0e9da48f6825a80b5fd4619602a151b1c7d89e8284715d65abca9d3193c80c35",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "special_limits/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/special_limits/normal/request.json",
+        "sha256": "013f3e15761e819fd3d809e4d949b09c5456df7072ac24085a8579614c6c739b"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/special_limits/normal/response.bin",
+        "sha256": "97815b101bdf1e821847a6a0f87e843763636f8a7850bf11b3a2bc86a0f8a60d"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/special_limits/normal/expected.json",
+        "sha256": "854408725c6f510938b21f407204f5077b4e4b98fbba77311524c28dc47d6f3a",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "today_intraday/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/today_intraday/normal/request.json",
+        "sha256": "8fbdc595e244e16543b81f91e24bdbc31d728b632f6a09272059bb08792677ba"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/today_intraday/normal/response.bin",
+        "sha256": "6087e1cd0134b5c74337761116871d6db89b3f9ad2b98836e3d825e0b490d0fb"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/today_intraday/normal/expected.json",
+        "sha256": "19787531a51d6966773564efdc2217d31bb0a0525efaae674c013cf37447485f",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    },
+    {
+      "case_id": "today_ticks/normal",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "input_provenance": {
+        "generator": "scripts/fixtures/materialize_static_inputs.py",
+        "generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c"
+      },
+      "request": {
+        "path": "tests/fixtures/7709/today_ticks/normal/request.json",
+        "sha256": "454ef839940930fce3b42c7b32d72301b3960969a901465e6f695207c2fd5698"
+      },
+      "response": {
+        "path": "tests/fixtures/7709/today_ticks/normal/response.bin",
+        "sha256": "800052fa2cb188ae1a66e126b1417719788b69c5ad6bf2e15f3aece0fec3672f"
+      },
+      "expected": {
+        "path": "tests/fixtures/7709/today_ticks/normal/expected.json",
+        "sha256": "70cba51cb83c3086154b7689dfa4f8644ae7765f768a7a87a1c3103756575da1",
+        "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+        "generated_by": "scripts/fixtures/export_current_golden.py",
+        "evidence_level": "python_regression_baseline",
+        "independent_oracle": false
+      },
+      "evidence_level": "python_regression_baseline"
+    }
+  ],
+  "supplemental_cases": [
+    {
+      "case_id": "COMP-028/batch-duplicates-missing",
+      "source_type": "synthetic",
+      "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+      "request": {
+        "path": "tests/fixtures/sdk/cases/028_batch_duplicates_missing.json",
+        "sha256": "3389379c5f0eec2e90b1fc64e639de86aa8ce53684881fa8f2a2b3113c5fa0f6",
+        "json_pointer": "/request"
+      },
+      "response": {
+        "path": "tests/fixtures/sdk/cases/028_batch_duplicates_missing.json",
+        "sha256": "3389379c5f0eec2e90b1fc64e639de86aa8ce53684881fa8f2a2b3113c5fa0f6",
+        "json_pointer": "/response"
+      },
+      "expected": {
+        "path": "tests/fixtures/sdk/cases/028_batch_duplicates_missing.json",
+        "sha256": "3389379c5f0eec2e90b1fc64e639de86aa8ce53684881fa8f2a2b3113c5fa0f6",
+        "json_pointer": "/expected",
+        "evidence_level": "frozen_python_contract",
+        "independent_oracle": false
+      },
+      "evidence_level": "frozen_python_contract",
+      "spec_refs": [
+        "docs/rust-sdk/compatibility-cases.md#COMP-028",
+        "docs/rust-sdk/hq-api-spec.md"
+      ]
+    },
+    {
+      "case_id": "COMP-030/bars-short-pages",
+      "source_type": "synthetic",
+      "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+      "request": {
+        "path": "tests/fixtures/sdk/cases/030_bars_short_pages.json",
+        "sha256": "cc6c622935809e8de3941a2dae9cb543016d0ae31f4826ff6b0dafebf036b537",
+        "json_pointer": "/request"
+      },
+      "response": {
+        "path": "tests/fixtures/sdk/cases/030_bars_short_pages.json",
+        "sha256": "cc6c622935809e8de3941a2dae9cb543016d0ae31f4826ff6b0dafebf036b537",
+        "json_pointer": "/response"
+      },
+      "expected": {
+        "path": "tests/fixtures/sdk/cases/030_bars_short_pages.json",
+        "sha256": "cc6c622935809e8de3941a2dae9cb543016d0ae31f4826ff6b0dafebf036b537",
+        "json_pointer": "/expected",
+        "evidence_level": "frozen_python_contract",
+        "independent_oracle": false
+      },
+      "evidence_level": "frozen_python_contract",
+      "spec_refs": [
+        "docs/rust-sdk/compatibility-cases.md#COMP-030",
+        "docs/rust-sdk/hq-api-spec.md"
+      ]
+    },
+    {
+      "case_id": "COMP-042/financial-zip-dat-selection",
+      "source_type": "synthetic",
+      "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+      "request": {
+        "path": "tests/fixtures/sdk/cases/042_financial_zip_dat.json",
+        "sha256": "1f7ba9dc67b3e22c3264a1730a4872ea5c3ff62f4583c486beb1358e49930477",
+        "json_pointer": "/request"
+      },
+      "response": {
+        "path": "tests/fixtures/sdk/cases/042_financial_zip_dat.json",
+        "sha256": "1f7ba9dc67b3e22c3264a1730a4872ea5c3ff62f4583c486beb1358e49930477",
+        "json_pointer": "/response"
+      },
+      "expected": {
+        "path": "tests/fixtures/sdk/cases/042_financial_zip_dat.json",
+        "sha256": "1f7ba9dc67b3e22c3264a1730a4872ea5c3ff62f4583c486beb1358e49930477",
+        "json_pointer": "/expected",
+        "evidence_level": "frozen_python_contract",
+        "independent_oracle": false
+      },
+      "evidence_level": "frozen_python_contract",
+      "spec_refs": [
+        "docs/rust-sdk/compatibility-cases.md#COMP-042",
+        "docs/rust-sdk/extension-api-spec.md"
+      ]
+    },
+    {
+      "case_id": "COMP-047/f10-duplicate-columns",
+      "source_type": "synthetic",
+      "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+      "request": {
+        "path": "tests/fixtures/sdk/cases/047_f10_duplicate_columns.json",
+        "sha256": "995163d0667e122e90a5f5e6d4fc5adb7938a1e79089899808d893c84e18d365",
+        "json_pointer": "/request"
+      },
+      "response": {
+        "path": "tests/fixtures/sdk/cases/047_f10_duplicate_columns.json",
+        "sha256": "995163d0667e122e90a5f5e6d4fc5adb7938a1e79089899808d893c84e18d365",
+        "json_pointer": "/response"
+      },
+      "expected": {
+        "path": "tests/fixtures/sdk/cases/047_f10_duplicate_columns.json",
+        "sha256": "995163d0667e122e90a5f5e6d4fc5adb7938a1e79089899808d893c84e18d365",
+        "json_pointer": "/expected",
+        "evidence_level": "frozen_python_contract",
+        "independent_oracle": false
+      },
+      "evidence_level": "frozen_python_contract",
+      "spec_refs": [
+        "docs/rust-sdk/compatibility-cases.md#COMP-047",
+        "docs/rust-sdk/extension-api-spec.md"
+      ]
+    },
+    {
+      "case_id": "COMP-052/mac-unknown-bitmap-bit",
+      "source_type": "synthetic",
+      "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+      "request": {
+        "path": "tests/fixtures/sdk/cases/052_mac_unknown_bitmap_bit.json",
+        "sha256": "c11a332c0c6df320617c7113c0c748d63f41d56b17736665929e7324f46b80a6",
+        "json_pointer": "/request"
+      },
+      "response": {
+        "path": "tests/fixtures/sdk/cases/052_mac_unknown_bitmap_bit.json",
+        "sha256": "c11a332c0c6df320617c7113c0c748d63f41d56b17736665929e7324f46b80a6",
+        "json_pointer": "/response"
+      },
+      "expected": {
+        "path": "tests/fixtures/sdk/cases/052_mac_unknown_bitmap_bit.json",
+        "sha256": "c11a332c0c6df320617c7113c0c748d63f41d56b17736665929e7324f46b80a6",
+        "json_pointer": "/expected",
+        "evidence_level": "independent_protocol_calculation",
+        "independent_oracle": true
+      },
+      "evidence_level": "independent_protocol_calculation",
+      "spec_refs": [
+        "docs/rust-sdk/compatibility-cases.md#COMP-052",
+        "docs/rust-sdk/extension-api-spec.md"
+      ]
+    },
+    {
+      "case_id": "COMP-056/cross-day-asset-precision",
+      "source_type": "synthetic",
+      "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+      "request": {
+        "path": "tests/fixtures/sdk/cases/056_cross_day_asset_precision.json",
+        "sha256": "1f0aad9162b0e7387a56aac7d1838cb76d6ed5872ca32f9c9a78f48ef4911ce8",
+        "json_pointer": "/request"
+      },
+      "response": {
+        "path": "tests/fixtures/sdk/cases/056_cross_day_asset_precision.json",
+        "sha256": "1f0aad9162b0e7387a56aac7d1838cb76d6ed5872ca32f9c9a78f48ef4911ce8",
+        "json_pointer": "/response"
+      },
+      "expected": {
+        "path": "tests/fixtures/sdk/cases/056_cross_day_asset_precision.json",
+        "sha256": "1f0aad9162b0e7387a56aac7d1838cb76d6ed5872ca32f9c9a78f48ef4911ce8",
+        "json_pointer": "/expected",
+        "evidence_level": "independent_protocol_calculation",
+        "independent_oracle": true
+      },
+      "evidence_level": "independent_protocol_calculation",
+      "spec_refs": [
+        "docs/rust-sdk/compatibility-cases.md#COMP-056",
+        "docs/rust-sdk/hq-api-spec.md",
+        "docs/rust-sdk/extension-api-spec.md"
+      ]
+    },
+    {
+      "case_id": "7709/heartbeat/invalid-compression",
+      "source_type": "synthetic",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "request": {
+        "path": "tests/fixtures/sdk/cases/7709_invalid_compression.json",
+        "sha256": "102222befbf3e1049ecfca25b11bf15711e905e31698dfad6e0cafcad27029da",
+        "json_pointer": "/request"
+      },
+      "response": {
+        "path": "tests/fixtures/sdk/cases/7709_invalid_compression.json",
+        "sha256": "102222befbf3e1049ecfca25b11bf15711e905e31698dfad6e0cafcad27029da",
+        "json_pointer": "/response"
+      },
+      "expected": {
+        "path": "tests/fixtures/sdk/cases/7709_invalid_compression.json",
+        "sha256": "102222befbf3e1049ecfca25b11bf15711e905e31698dfad6e0cafcad27029da",
+        "json_pointer": "/expected",
+        "evidence_level": "protocol_regression_input",
+        "independent_oracle": false
+      },
+      "evidence_level": "protocol_regression_input",
+      "spec_refs": [
+        "tests/fixtures/7709/heartbeat/bad_compression",
+        "docs/rust-sdk/development-plan.md#T02"
+      ]
+    }
+  ],
+  "evidence_gaps": [
+    {
+      "case_id": "money_flow/0x0FFC/nonempty-wire-capture",
+      "status": "missing",
+      "source_type": "capture",
+      "source_revision": null,
+      "reason": "The documentation sample contains a truncated record_hex, not the complete 88-byte wire record.",
+      "handling": "Do not label the documentation values as a replayable packet; add an independently recorded response when available."
+    },
+    {
+      "case_id": "klines/0x052D/category22/nonempty-response",
+      "status": "empty-only-reported",
+      "source_type": "capture",
+      "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+      "reason": "The repository reports reachable-host responses as the two-byte empty payload 0000; no non-empty response is stored.",
+      "handling": "Keep category22 experimental and distinct from stable 0x0FFC daily flow and 7615 F10 history."
+    },
+    {
+      "case_id": "extension/ex/mac/f10/real-response-captures",
+      "status": "synthetic-only",
+      "source_type": "capture",
+      "source_revision": null,
+      "reason": "Current SDK fixtures cover selected codec and table contracts with synthetic inputs; they do not contain exchange/HTTP captures for EX response correlation, unknown MAC bits, or duplicate F10 columns.",
+      "handling": "Preserve each protocol as a separately labeled experimental evidence domain until dated, source-attributed captures are checked in."
+    }
+  ],
+  "provenance_policy": {
+    "legacy_generator_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+    "legacy_expected_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
+    "legacy_expected_independent_oracle": false,
+    "note": "Python-generated expected values are regression baselines only; supplemental contracts identify their evidence level per case."
+  }
+}

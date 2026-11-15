@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "case_id": "COMP-047/f10-duplicate-columns",
+  "source_type": "synthetic",
+  "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+  "request": {
+    "transport": "7615-json",
+    "entry": "fixture.dynamic_table"
+  },
+  "response": {
+    "ErrorCode": 0,
+    "ResultSets": [
+      {"ColName": ["x", "x", ""], "Content": [[1, 2, 3, 4], 7]},
+      {"ResultSetKey": "detail", "Content": [[{"k": true}, 9007199254740993]]}
+    ]
+  },
+  "expected": {
+    "python_compat": {
+      "result_sets": [
+        {"key": "table0", "rows": [{"x": 1, "x__2": 2, "col_2": 3, "col_3": 4}, {"x": 7}]},
+        {"key": "detail", "rows": [{"col_0": {"k": true}, "col_0__2": 9007199254740993}]}
+      ],
+      "response_rows_alias": [{"x": 1, "x__2": 2, "col_2": 3, "col_3": 4}, {"x": 7}],
+      "row_cells_first_table": [
+        [{"name": "x", "index": 0, "value": 1}, {"name": "x", "index": 1, "value": 2}, {"name": "col_2", "index": 2, "value": 3}, {"name": "col_3", "index": 3, "value": 4}],
+        [{"name": "x", "index": 0, "value": 7}]
+      ],
+      "first_table_only_rows_alias": true
+    },
+    "rust": {
+      "table_count": 2,
+      "first_table_cells": [
+        [{"name": "x", "index": 0, "value": 1}, {"name": "x", "index": 1, "value": 2}, {"name": "col_2", "index": 2, "value": 3}, {"name": "col_3", "index": 3, "value": 4}],
+        [{"name": "x", "index": 0, "value": 7}]
+      ],
+      "second_table_integer": 9007199254740993,
+      "python_projection_first_row": {"x": 1, "x__2": 2, "col_2": 3, "col_3": 4}
+    }
+  },
+  "evidence_level": "frozen_python_contract",
+  "spec_refs": ["docs/rust-sdk/compatibility-cases.md#COMP-047", "docs/rust-sdk/extension-api-spec.md"]
+}

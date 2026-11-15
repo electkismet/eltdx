@@ -89,11 +89,13 @@ P3 与 P4 可由不同人员并行；公共类型、owner 和 operation 的修�
 
 先把 [COMP 兼容案例](compatibility-cases.md) 中本域案例落到这里的 fixture 目录；每例同时保存新 Rust 与旧/新 Python 的预期，不能只比较两个都调用同一新 Rust 函数的输出。
 
-- [ ] 先检查现有 25 normal +12 extra 生成样本与提交样本的映射，列出 money_flow、非空 category22、EX/MAC/F10 的实际缺口。
-- [ ] 为批量重复/乱序/缺失、短页后还有数据、日期跨日、ETF/债券精度、无效压缩、ZIP/DAT、重复 F10 列和未知 MAC bit 建立具体样本。
-- [ ] 期望值来自已冻结旧行为、协议手算或独立参考；当前 Rust→Python 生成的期望只算回归基线，不标为独立 oracle。
-- [ ] category22 没有非空实测响应时标为实验能力，不伪造“已实测”记录，也不阻止稳定 F10 历史资金流路径。
+- [x] 先检查现有 25 normal +12 extra 生成样本与提交样本的映射，列出 money_flow、非空 category22、EX/MAC/F10 的实际缺口；逐样本来源和 SHA-256 见 `tests/fixtures/sdk/inventory.json`。
+- [x] 为批量重复/乱序/缺失、短页后还有数据、日期跨日、ETF/债券精度、无效压缩、ZIP/DAT、重复 F10 列和未知 MAC bit 建立具体样本，位于 `tests/fixtures/sdk/cases/`。
+- [x] 期望值来源与独立性逐例记录；既有 Python 生成的期望只标为回归基线，不标为独立 oracle。
+- [x] category22 没有非空实测响应时标为实验能力，不伪造“已实测”记录，也不阻止稳定 `0x0FFC` 日资金流和 F10 历史资金流路径。
 - [ ] 运行 `python -m pytest -q tests/contracts/test_sdk_fixture_inventory.py tests/native/test_differential.py`；原生命令测试需要先按项目既有方式安装当前绑定。
+
+实现与测试源码已完成；上述测试执行按用户要求推迟到 T01–T30 全部实现代码完成后统一进行。当前库存导出脚本只生成来源/哈希清单，不调用协议解析器。
 
 ### T03：冻结差异决策、单位和代码规范化
 

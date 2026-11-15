@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "case_id": "COMP-052/mac-unknown-bitmap-bit",
+  "source_type": "synthetic",
+  "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+  "request": {
+    "command": "0x122b",
+    "market": 31,
+    "code": "00700",
+    "requested_field_bits": [72]
+  },
+  "response": {
+    "encoding": "hex",
+    "layout": "20-byte bitmap, <IH> counts, 68-byte identity, one 4-byte slot per set bit",
+    "bitmap_hex": "0000000000800000000100000000000000000001",
+    "count_header_hex": "010000000100",
+    "row_hex": "1f003030373030000000000000000000000000000000000054454e43454e5400000000000000000000000000000000000000000000000000000000000000000000000000deadbeef00004841",
+    "whole_body_hex": "00000000008000000001000000000000000000010100000001001f003030373030000000000000000000000000000000000054454e43454e5400000000000000000000000000000000000000000000000000000000000000000000000000deadbeef00004841"
+  },
+  "expected": {
+    "python_compat": {
+      "fields": {"bid2_price": 12.5},
+      "unknown_keys": [],
+      "consumed_data_bytes": 8
+    },
+    "rust": {
+      "fields": {"bid2_price": 12.5},
+      "unknown_fields": [{"bit": 47, "raw_hex": "deadbeef"}],
+      "reserved_bits": [152],
+      "consumed_data_bytes": 8
+    }
+  },
+  "evidence_level": "independent_protocol_calculation",
+  "spec_refs": ["docs/rust-sdk/compatibility-cases.md#COMP-052", "docs/rust-sdk/extension-api-spec.md"]
+}

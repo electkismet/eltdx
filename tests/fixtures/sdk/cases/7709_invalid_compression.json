@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "case_id": "7709/heartbeat/invalid-compression",
+  "source_type": "synthetic",
+  "source_revision": "401dda95dd337ddf1440c18629be37d39d134d2c",
+  "request": {
+    "command_code": 4,
+    "message_id": 822083586,
+    "registry_key": "heartbeat"
+  },
+  "response": {
+    "encoding": "7709_frame_hex",
+    "frame_hex": "b1cb7400000200003100040003000a00789c00",
+    "payload_hex": "789c00",
+    "declared_uncompressed_length": 10
+  },
+  "expected": {
+    "python_compat": {
+      "error_type": "eltdx.exceptions:ProtocolError",
+      "message": "compressed response ended before zlib stream EOF"
+    },
+    "rust": {
+      "error_kind": "Protocol",
+      "context": {"phase": "decompression", "message_id": 822083586}
+    }
+  },
+  "evidence_level": "protocol_regression_input",
+  "spec_refs": ["tests/fixtures/7709/heartbeat/bad_compression", "docs/rust-sdk/development-plan.md#T02"]
+}
