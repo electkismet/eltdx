@@ -304,7 +304,7 @@ impl CodeService {
         Ok(collected)
     }
 
-    fn collect_in_context(&self, context: &OperationContext, markets: &[HqMarket], query: &CodeScanQuery,
+    pub(crate) fn collect_in_context(&self, context: &OperationContext, markets: &[HqMarket], query: &CodeScanQuery,
         predicate: impl Fn(&Security) -> bool) -> Result<Collected<Security>> {
         let mut scan = self.scan(&context, markets, query)?;
         scan.items.retain(|item| query.category().map_or(true, |category| item.category() == category) && predicate(item));
@@ -436,8 +436,8 @@ fn security_row(market: HqMarket, row: &eltdx_protocol::commands::security::Secu
 }
 
 fn is_stock(item: &Security) -> bool { matches!(item.category(), SecurityCategory::AShare | SecurityCategory::BShare) }
-fn is_a_share(item: &Security) -> bool { item.category() == &SecurityCategory::AShare }
-fn is_st_name(name: &str) -> bool {
+pub(crate) fn is_a_share(item: &Security) -> bool { item.category() == &SecurityCategory::AShare }
+pub(crate) fn is_st_name(name: &str) -> bool {
     let name = name.trim().to_ascii_uppercase();
     ["ST", "*ST", "SST", "S*ST"].iter().any(|prefix| name.starts_with(prefix))
 }

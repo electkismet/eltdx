@@ -74,8 +74,15 @@ impl MinuteService {
     pub fn aux(&self, id: &SecurityId, kind: AuxKind, options: &OperationOptions) -> Result<MinuteAuxSeries> {
         let entry = Instant::now();
         let mut context = self.executor.begin_context_at(entry, "minutes_aux", &self.config, options)?;
-        checked_ids(std::slice::from_ref(id))?;
         context.set_work_limits(WorkLimits { pages: None, records: Some(MAX_OPERATION_RECORDS), bytes: None })?;
+        let result = self.aux_in_context(&context, id, kind)?;
+        context.finish()?;
+        Ok(result)
+    }
+
+    pub(crate) fn aux_in_context(&self, context: &OperationContext, id: &SecurityId,
+        kind: AuxKind) -> Result<MinuteAuxSeries> {
+        checked_ids(std::slice::from_ref(id))?;
         let request = IntradayAuxRequest::new(normalized_id(id)?, kind.wire());
         let command = CommandRequest::IntradayAux(request);
         let metadata = request_metadata(&self.executor, &self.engine, &context, &self.config, &self.namespace,
@@ -104,7 +111,6 @@ impl MinuteService {
         let ranges = response.record_ranges.clone();
         let meta = response_meta(&context, &self.config, &metadata, &decoded, &ranges, "minutes.aux");
         context.check_boundary(TimeoutPhase::Aggregate)?;
-        context.finish()?;
         Ok(MinuteAuxSeries::new(id.clone(), kind, points, meta))
     }
 

@@ -29,8 +29,54 @@ matching the explicit Python/source formula. Root/mirror HQ spec and decision
 record now fix the addition example only. No goldens regenerated or independent
 runtime evidence claimed.
 
-Remaining: M79–M94/M96–M97 full HQ helpers and shared context/cache/board work;
+Remaining after first checkpoint: M79–M94/M96–M97 full HQ helpers and shared context/cache/board work;
 ALL remaining HQ Python/native bridge migrations, compatibility/custom transport,
 actual manifest evidence, examples/consumers and source suites. No HelperService
 stub or premature migrated capability was introduced by this first pure function.
 Continue from this report and task-18-brief.md; do not repeat T17 implementation.
+
+## Second source checkpoint — shared-context HQ helper services
+
+Authored, not compiled or executed:
+
+- Registered lazy TdxClient::helpers() and public HelperService. New FullQuote,
+  RankQuery, RealtimeRankRow root/types reexports are default-HQ, Python-free.
+- M79 full_quotes: freeze all input markets before first decoding; chunks80
+  primary snapshots then optional pinned depth. Both sources use the same
+  context/deadline/cancellation/extra budget. Identity/occurrence association
+  retains input order and duplicates. Main snapshot failures terminate; depth
+  failure records Failed, missing/insufficient sides Unavailable. Only bids,
+  asks and open_amount change after >=5 levels on both sides. Primary prices,
+  wire fields, raw ranges and source stamp stay intact; depth provenance and
+  diagnostics remain separate. Shared metadata aggregates actual responses.
+- M80/M81 reuse the bounded directory collector for A-shares/ST. M82 returns
+  Security records by joining their validated legacy suspension status, unlike
+  the CodeService ID-only API. All these compositions own one context.
+- M83/M84 reuse extracted MinuteService::aux_in_context, with outer limits
+  frozen before the first child. No nested public deadline reset or finish.
+- M85 uses optional name-directory enrichment before quote metadata capture;
+  paginates within explicit finite pages/records/wire offset, binds later
+  pages to the first endpoint, preserves source order and duplicates, numbers
+  ranks globally from1. Some(count) yields RequestedWindow; None requires a
+  legal empty EOF. No unproven short-page EOF shortcut. Added Table::end()
+  optional completion evidence (ordinary company tables return None), recorded
+  in HQ spec/decision register and mirrored documents.
+- QuoteService has reusable prepare/snapshot/legacy/category/depth context
+  seams. Existing public methods still own their own outer context and limits;
+  pinned child release does not finish a caller's parent context. CodeService
+  exposes crate-only collector/predicates; BatchItem can be consumed internally
+  without adding public mutation.
+- Source cases: exact depth-field preservation, insufficient/missing sides,
+  structured failure diagnostics and foreign identity; lazy empty/closed/zero
+  deadline/pre-cancel entry;81-row80/1 chunks with reversed snapshot/depth
+  responses; optional malformed depth versus cancellation; rank argument bounds,
+  server order/repeated IDs/global ranks, empty EOF versus page cap. Shared
+  loopback category fixture is synthetic, not a real capture. All authored only.
+
+No Python facade or migration-manifest status was changed here. M79–M85 have
+their initial complete source paths, but T18 is still partial. Next: M86 profile
+and shared cache, M87 cache clearing, M88–M94/M96–M97 remaining compositions,
+then ALL outstanding HQ Python/native migration, compatibility/consumer/example
+sources and exact evidence. T19–T30 remaining work still precedes any execution.
+No tests/collection/build/check/clippy/doctest/network/dependency resolution/
+AST/format/diff checks ran. Goal remains active without token quota; no agents.

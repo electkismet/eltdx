@@ -384,6 +384,8 @@ full_quotes每80个snapshots后可选depth，按identity合并；主snapshots缺
 
 rank按服务端返回顺序，不客户端重新排名；Some(count)达目标标RequestedWindow，None到合法空/经该command确认短页EOF；同页/页间重复不能无证据去重。name目录是可选补充。helper.latest_suspended返回Security行，而codes.latest_suspended返回SecurityId，两个现存Python外观不同；Rust同样明确类型。
 
+T18源码接口补充：`Table<T>::end() -> Option<EndEvidence>`暴露组合收集器的结束证据；rank达到Some(count)为Some(RequestedWindow)，真正空页为Some(EmptyPage)。普通非分页table（如公司资料目录）为None。当前category的短页尚无独立EOF证明，Rust继续到空页或显式有限上限，不把短页当完整数据。此为尚未发布Rust入口的新增只读方法，不更改Python结果外观；实现与用例尚未执行验证。
+
 ## 12. 每日股本、涨跌停、短线与天梯（T16、T18）
 
 旧daily_share_capital(codes=None,stats_path="zhb.zip",refresh_stats=False)，daily_price_limits(codes=None,*,trade_date)；shortline_indicators(codes,stats_path="zhb.zip",refresh_stats=False)；limit_ladder(codes=None,include_touched=False,count=None)。daily_shares/stock_daily_price_limits/stock_limit_ladder只是Python别名。

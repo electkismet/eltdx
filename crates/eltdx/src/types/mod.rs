@@ -26,7 +26,7 @@ pub use corporate::{AdjustmentFactor, AdjustmentFactors, CapitalChangeBlock, Cap
     FactorQuery, FinanceField, FinanceProjection, FinanceQuery, FinanceRecord, FinanceValue};
 pub use limits::{LimitDecision, LimitRule, LimitStatus, SpecialLimit, SpecialLimitQuery};
 pub use calendar::{CalendarQuery, CalendarSnapshot};
-pub use helpers::FundFlow;
+pub use helpers::{FullQuote, FundFlow, RankQuery, RealtimeRankRow};
 pub use resources::{BlockMeta, DownloadCompletion, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
 pub use company_info::{CompanySection, CompanySectionQuery, CompanyText, Table};
 pub use session::{HandshakeInfo, HeartbeatAck, HealthReport, PingReply};

@@ -218,6 +218,24 @@ impl Snapshot {
     pub fn asks(&self) -> &[QuoteLevel] { &self.asks }
     pub fn meta(&self) -> &ResultMeta { &self.meta }
 
+    /// Full-quote enrichment changes exactly these fields. Original scalar
+    /// prices, wire words, event time and primary raw ranges remain untouched.
+    pub(crate) fn replace_depth(&mut self, depth: &Snapshot) -> Result<()> {
+        if self.id != depth.id || depth.bids.len() < 5 || depth.asks.len() < 5 {
+            return Err(Error::new(ErrorKind::Internal, "invalid full-quote depth association"));
+        }
+        let mut bids = Vec::new();
+        let mut asks = Vec::new();
+        bids.try_reserve(depth.bids.len()).map_err(crate::services::allocation_error)?;
+        asks.try_reserve(depth.asks.len()).map_err(crate::services::allocation_error)?;
+        bids.extend_from_slice(&depth.bids);
+        asks.extend_from_slice(&depth.asks);
+        self.bids = bids;
+        self.asks = asks;
+        self.open_amount = depth.open_amount;
+        Ok(())
+    }
+
     pub fn change(&self) -> Price {
         match (self.last.value(), self.pre_close.value()) {
             (NumericValue::ScaledInteger { value: last, scale }, NumericValue::ScaledInteger { value: previous, scale: other }) if scale == other => {

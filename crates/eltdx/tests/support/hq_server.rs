@@ -209,6 +209,28 @@ pub fn refresh(rows: &[(&str, u32)]) -> Vec<u8> {
     payload
 }
 
+/// Category fixtures deliberately retain the supplied order and duplicates.
+pub fn category(rows: &[&str]) -> Vec<u8> {
+    let mut payload = vec![0, 0];
+    payload.extend_from_slice(&(rows.len() as u16).to_le_bytes());
+    for number in rows {
+        payload.push(1);
+        payload.extend_from_slice(number.as_bytes());
+        payload.extend_from_slice(&1_u16.to_le_bytes());
+        append_varint(&mut payload, 1_000);
+        for _ in 0..8 { append_varint(&mut payload, 0); }
+        payload.extend_from_slice(&0_u32.to_le_bytes());
+        for _ in 0..8 { append_varint(&mut payload, 0); }
+        payload.extend_from_slice(&[0; 56]);
+    }
+    payload
+}
+
+pub fn category_window(request: &RequestFrame) -> (u16, u16) {
+    (u16::from_le_bytes(request.data[4..6].try_into().unwrap()),
+        u16::from_le_bytes(request.data[6..8].try_into().unwrap()))
+}
+
 pub fn snapshot_codes(request: &RequestFrame) -> Vec<String> {
     request.data[10..].chunks_exact(7).map(|row| String::from_utf8(row[1..].to_vec()).unwrap()).collect()
 }

@@ -43,7 +43,8 @@ pub use types::corporate::{AdjustmentFactor, AdjustmentFactors, CapitalChangeBlo
     FactorQuery, FinanceField, FinanceProjection, FinanceQuery, FinanceRecord, FinanceValue};
 pub use types::limits::{LimitDecision, LimitRule, LimitStatus, SpecialLimit, SpecialLimitQuery};
 pub use types::calendar::{CalendarQuery, CalendarSnapshot};
-pub use types::helpers::FundFlow;
+pub use helpers::HelperService;
+pub use types::helpers::{FullQuote, FundFlow, RankQuery, RealtimeRankRow};
 pub use types::resources::{BlockMeta, DownloadCompletion, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
 pub use types::company_info::{CompanySection, CompanySectionQuery, CompanyText, Table};
 pub use types::session::{HandshakeInfo, HeartbeatAck, HealthReport, PingReply};

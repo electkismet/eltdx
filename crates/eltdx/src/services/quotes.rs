@@ -152,6 +152,24 @@ impl QuoteService {
         })
     }
 
+    /// Freeze precision for the entire composition before any child decodes.
+    pub(crate) fn prepare_in_context(&self, context: &OperationContext, ids: &[SecurityId])
+        -> Result<Arc<MetadataSnapshot>> {
+        let codes = checked_ids(ids)?;
+        let requests = snapshot_requests(&codes, 80)?;
+        request_metadata(&self.executor, &self.engine, context, &self.config, &self.namespace, &requests)
+    }
+
+    pub(crate) fn snapshots_in_context(&self, context: &OperationContext, ids: &[SecurityId],
+        policy: MissingPolicy, chunk_size: usize) -> Result<SnapshotBatch> {
+        let codes = checked_ids(ids)?;
+        if ids.is_empty() { return Ok(BatchOutcome::new(Vec::new())); }
+        let requests = snapshot_requests(&codes, chunk_size)?;
+        let metadata = request_metadata(&self.executor, &self.engine, context, &self.config, &self.namespace, &requests)?;
+        let raw = self.snapshot_rows_in_context(context, &codes, chunk_size)?;
+        project_snapshot_batch(ids, policy, context, &self.config, &metadata, raw)
+    }
+
     pub(crate) fn retrieve_snapshot_rows(
         &self, context: &OperationContext, codes: &[NormalizedCode], chunk_size: usize,
         execute: impl FnMut(&[NormalizedCode], ChildPurpose, Option<RecoveryLimit>) -> Result<DecodedReply>,
@@ -163,12 +181,21 @@ impl QuoteService {
     pub fn legacy(&self, ids: &[SecurityId], options: &OperationOptions) -> Result<BatchOutcome<LegacyQuote>> {
         let entry = Instant::now();
         let mut context = self.executor.begin_context_at(entry, "quotes_legacy", &self.config, options)?;
-        let codes = checked_ids(ids)?;
+        checked_ids(ids)?;
         if ids.is_empty() { context.finish()?; return Ok(BatchOutcome::new(Vec::new())); }
         context.set_work_limits(WorkLimits {
             pages: std::num::NonZeroUsize::new(ids.len().div_ceil(LEGACY_CHUNK_SIZE)),
             records: Some(ids.len()), bytes: None,
         })?;
+        let batch = self.legacy_in_context(&context, ids)?;
+        context.finish()?;
+        Ok(batch)
+    }
+
+    pub(crate) fn legacy_in_context(&self, context: &OperationContext, ids: &[SecurityId])
+        -> Result<BatchOutcome<LegacyQuote>> {
+        let codes = checked_ids(ids)?;
+        if ids.is_empty() { return Ok(BatchOutcome::new(Vec::new())); }
         let requests = legacy_requests(&codes)?;
         let metadata = request_metadata(&self.executor, &self.engine, &context, &self.config, &self.namespace, &requests)?;
         let mut items = Vec::new();
@@ -194,7 +221,6 @@ impl QuoteService {
                 &rows.iter().map(|row| row.record_range).collect::<Vec<_>>(), "quotes.legacy"));
         }
         let meta = aggregate_meta(&context, &metas, Some(metadata.version()))?;
-        context.finish()?;
         Ok(BatchOutcome::with_meta(items, meta))
     }
 
@@ -251,6 +277,17 @@ impl QuoteService {
     pub fn category(&self, query: &CategoryQuery, options: &OperationOptions) -> Result<DataPage<CategoryQuote>> {
         let entry = Instant::now();
         let mut context = self.executor.begin_context_at(entry, "quotes_category", &self.config, options)?;
+        context.set_work_limits(WorkLimits { pages: std::num::NonZeroUsize::new(1),
+            records: Some(query.count()), bytes: None })?;
+        let page = self.category_in_context(&context, query, None, ChildPurpose::Required)?;
+        context.finish()?;
+        Ok(page)
+    }
+
+    /// Reuses the outer deadline, metadata and counters. A collector binds all
+    /// later pages to the first successful endpoint, without a new public call.
+    pub(crate) fn category_in_context(&self, context: &OperationContext, query: &CategoryQuery,
+        endpoint: Option<&str>, purpose: ChildPurpose) -> Result<DataPage<CategoryQuote>> {
         if !(1..=80).contains(&query.count()) { return Err(Error::new(ErrorKind::InvalidArgument, "category count must be between 1 and 80")); }
         let fingerprint = category_fingerprint(query);
         let markets = [HqMarket::Shanghai, HqMarket::Shenzhen, HqMarket::Beijing];
@@ -259,16 +296,15 @@ impl QuoteService {
         let end_offset = u32::from(query.start()).checked_add(u32::try_from(query.count()).map_err(|_| offset_overflow())?)
             .ok_or_else(offset_overflow)?;
         if end_offset > u32::from(u16::MAX) + 1 { return Err(offset_overflow()); }
-        context.set_work_limits(WorkLimits { pages: std::num::NonZeroUsize::new(1),
-            records: Some(query.count()), bytes: None })?;
-        let engine = endpoint_engine(&self.executor, &self.config, &self.engine, query.cursor().and_then(PageCursor::endpoint))?;
+        let engine = endpoint_engine(&self.executor, &self.config, &self.engine,
+            query.cursor().and_then(PageCursor::endpoint).or(endpoint))?;
         let request = CommandRequest::CategoryQuotes(CategoryQuotesRequest::new(query.category().raw(), query.sort().raw(),
             query.start(), query.count() as u16, query.ascending(), None, 0));
         let metadata = request_metadata(&self.executor, &engine, &context, &self.config, &self.namespace, std::slice::from_ref(&request))?;
         if let Some(cursor) = query.cursor() {
             if cursor.metadata_version() != Some(metadata.version()) { return Err(Error::new(ErrorKind::InvalidArgument, "category metadata changed before continuation")); }
         }
-        let raw = self.executor.execute_raw(&engine, &context, request, ChildPurpose::Required, None)?;
+        let raw = self.executor.execute_raw(&engine, context, request, purpose, None)?;
         let decoded = self.executor.decode_received(&context, raw)?;
         let CommandResponse::CategoryQuotes(page) = &decoded.response else { return Err(wrong_response("category quotes")); };
         if page.records.len() > query.count() { return Err(Error::new(ErrorKind::Protocol, "category response exceeds requested count")); }
@@ -293,7 +329,6 @@ impl QuoteService {
                     Some(source.host), Some(metadata.version()))))
             }
         };
-        context.finish()?;
         Ok(DataPage::new(items, u64::from(query.start()), query.count(), cursor, end, meta))
     }
 
@@ -304,6 +339,15 @@ impl QuoteService {
         if ids.is_empty() { context.finish()?; return Ok(QuoteUpdates::new(Vec::new(), Vec::new(), ResultMeta::default())); }
         context.set_work_limits(WorkLimits { pages: std::num::NonZeroUsize::new(codes.len().div_ceil(100)),
             records: Some(codes.len()), bytes: None })?;
+        let result = self.depth_in_context(&context, ids, ChildPurpose::Required)?;
+        context.finish()?;
+        Ok(result)
+    }
+
+    pub(crate) fn depth_in_context(&self, context: &OperationContext, ids: &[SecurityId],
+        first_purpose: ChildPurpose) -> Result<QuoteUpdates> {
+        let codes = checked_ids(ids)?;
+        if ids.is_empty() { return Ok(QuoteUpdates::new(Vec::new(), Vec::new(), ResultMeta::default())); }
         let requests = refresh_requests(&codes)?;
         let metadata = request_metadata(&self.executor, &self.engine, &context, &self.config, &self.namespace, &requests)?;
         let mut pin = self.executor.acquire_pin(&self.engine, &context)?;
@@ -313,7 +357,7 @@ impl QuoteService {
             let mut metas = Vec::new();
             metas.try_reserve(requests.len()).map_err(allocation_error)?;
             for (index, (chunk, request)) in ids.chunks(100).zip(requests).enumerate() {
-                let purpose = if index == 0 { ChildPurpose::Required } else { ChildPurpose::Page };
+                let purpose = if index == 0 { first_purpose } else { ChildPurpose::Page };
                 let raw = self.executor.execute_pinned_raw(&self.engine, pin.handle()?, &context, request, purpose, None)?;
                 let decoded = self.executor.decode_received(&context, raw)?;
                 let page = project_refresh_updates(chunk, &context, &self.config, &metadata, &decoded, "quotes.depth")?;
@@ -327,7 +371,7 @@ impl QuoteService {
             Ok(QuoteUpdates::new(requested, updates, aggregate_meta(&context, &metas, Some(metadata.version()))?))
         })();
         match result {
-            Ok(updates) => { self.executor.release_pin(&context, &mut pin, None)?; context.finish()?; Ok(updates) }
+            Ok(updates) => { self.executor.release_pin(context, &mut pin, None)?; Ok(updates) }
             Err(root) => match self.executor.release_pin(&context, &mut pin, Some(root)) {
                 Err(error) => Err(error),
                 Ok(()) => Err(Error::new(ErrorKind::Internal, "temporary depth failure lost its root cause")),

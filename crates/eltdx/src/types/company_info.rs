@@ -2,12 +2,16 @@ use crate::{Error, ErrorKind, Result};
 use super::{ResultMeta, SecurityId};
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Table<T> { rows: Vec<T>, meta: ResultMeta }
+pub struct Table<T> { rows: Vec<T>, meta: ResultMeta, end: Option<super::EndEvidence> }
 impl<T> Table<T> {
-    pub(crate) fn new(rows: Vec<T>, meta: ResultMeta) -> Self { Self { rows, meta } }
+    pub(crate) fn new(rows: Vec<T>, meta: ResultMeta) -> Self { Self { rows, meta, end: None } }
+    pub(crate) fn with_end(mut self, end: super::EndEvidence) -> Self { self.end = Some(end); self }
     pub fn rows(&self) -> &[T] { &self.rows }
     pub fn into_rows(self) -> Vec<T> { self.rows }
     pub fn meta(&self) -> &ResultMeta { &self.meta }
+    /// Collection evidence where the table is built by a paginated helper.
+    /// A non-collection table (for example a company directory) returns None.
+    pub const fn end(&self) -> Option<super::EndEvidence> { self.end }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

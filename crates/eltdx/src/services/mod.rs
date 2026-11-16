@@ -22,6 +22,7 @@ mod trades;
 pub(crate) mod pagination;
 
 pub use codes::CodeService;
+pub(crate) use codes::{is_a_share, is_st_name};
 pub use auctions::AuctionService;
 pub(crate) use codes::{legacy_directory_pages, publish_legacy_directory_metadata};
 pub use klines::KlineService;

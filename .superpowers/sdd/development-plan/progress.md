@@ -78,6 +78,14 @@
 
 ## Task log
 
+2026-11-16 T18 second source checkpoint: authored lazy HelperService/M79–M85,
+shared-context quote/depth/legacy/category/minute and directory seams, typed
+FullQuote/RankQuery/RealtimeRankRow, optional Table.end completion evidence and
+synthetic depth/rank/entry/80+1/cancellation source cases. No Python facade or
+manifest migration upgrade. Source task totals remain18 complete/4 partial/8
+unstarted. Continue M86–M94/M96–M97 and full HQ compatibility migration. All
+execution deferred until T01–T30 implementation is fully authored; no subagents.
+
 - Task 1: fix round 1; initial commit `b6c2ea6` has six review findings. Critical: typed Rust command constants are not matched; runtime reflection is not persisted; baseline hashes are unchecked. Important: node lookup is not pytest collection; manifest does not compare to catalog IDs/source mappings; API baseline only checks shape. Working-tree hash mismatches may be caused by CRLF conversion and must be compared to raw Git-tree bytes. No tests or builds run.
 - Controller finding for fix round 1: the manifest labels some current SDK capabilities `migrated` before the new `crates/eltdx` public SDK/business layer exists. The fix must define migration-status semantics and separate already-existing Rust protocol support from migration of the public/business capability.
 - Task 1: fix round 1 commits `5a096aa` and `c0e2c1c`; scoped re-review found two Important contract gaps and one coverage question to resolve before T02: the runtime reflection contract does not compare all stored decorator/property/dataclass details; the manifest does not assert that public SDK migration status is supported by Rust SDK implementation rather than only protocol wire support; newly added Python modules need an explicit coverage route beyond the frozen module list. No tests, collection, builds, checks, clippy, doctests, or network validation run.

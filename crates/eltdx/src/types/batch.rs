@@ -43,6 +43,9 @@ impl<T> BatchItem<T> {
     pub const fn input_index(&self) -> usize { self.input_index }
     pub fn security(&self) -> &SecurityId { &self.security }
     pub fn state(&self) -> &BatchItemState<T> { &self.state }
+    pub(crate) fn into_parts(self) -> (usize, SecurityId, BatchItemState<T>) {
+        (self.input_index, self.security, self.state)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
