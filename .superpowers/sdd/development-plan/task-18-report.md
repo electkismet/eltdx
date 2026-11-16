@@ -843,3 +843,24 @@ No tests/collection/build/check/clippy/doctest/dependency/network/AST/compile/
 format/diff-check ran. T18 remains partial, counts18/4/8. Next calendar, resources,
 stats/health, outer batch scheduling and ALL helper/subscription/evidence/consumer
 work. Goal active without token cap; no agents or publication.
+
+Eighteenth source stage committed as **fc3088e**; all execution deferred.
+
+## Nineteenth source checkpoint — calendar dates and legacy weekdays
+
+- Added common ordered-day construction, membership, inclusive bounds and
+  directional neighbor functions for strict snapshots and Python normalized
+  dates. Strict coverage checks and owner clock remain. Python keeps its own
+  cache lifecycle, weak-client failure, mutable _day_set, observed out-of-range
+  False/None and benchmark all-pages request through the migrated bars domain.
+- Added separate legacy weekday arithmetic for unbound WorkdayService, including
+  Monday ordinal origin and date.max/date.min overflow. Original normalization,
+  local date.today, custom date/container and truthy include_self fallbacks stay.
+- Authored9 contract functions and2 Rust functions for loading/dedup/cache/range,
+  reversed/inclusive/duplicates, empty coverage, neighbors, fallback, date bounds,
+  weakrefs and custom truth evaluation. Calendar has no record in the frozen124
+  capabilities: record module/source evidence here, do not invent catalog IDs.
+
+No execution verification of any kind. T18 remains partial18/4/8; continue
+resources/stats/health, remaining capital/moneyflow batch, helpers/subscriptions,
+manifest and installed-wheel consumer. Goal active/no cap; no agents/publication.

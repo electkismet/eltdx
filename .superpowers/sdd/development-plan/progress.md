@@ -78,6 +78,10 @@
 
 ## Task log
 
+2026-11-17 T18 nineteenth checkpoint: equity committedfc3088e. Shared calendar
+index/weekday source and Python bridge,9 contract/2 Rust functions authored;
+all unexecuted. Counts18/4/8; next resources/stats/health then remaining T18.
+
 2026-11-17 T18 eighteenth checkpoint: corporate committed851774a. Shared affine
 factor source plus Python model bridge authored;9 contract/3 Rust source functions,
 one source-only manifest. All unexecuted;18/4/8 unchanged. Calendar is next, then

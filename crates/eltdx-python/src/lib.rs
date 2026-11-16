@@ -2,6 +2,7 @@
 
 mod error;
 mod corporate;
+mod calendar;
 mod protocol;
 mod request;
 mod response;
@@ -27,6 +28,13 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(corporate::assemble_finance, module)?)?;
     module.add_function(wrap_pyfunction!(corporate::project_finance_fields, module)?)?;
     module.add_function(wrap_pyfunction!(corporate::adjustment_factors, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::calendar_window, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::calendar_days, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::calendar_contains, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::calendar_neighbor, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::weekday_range, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::weekday_neighbor, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::weekday, module)?)?;
     transport::register(module)?;
     Ok(())
 }

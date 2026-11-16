@@ -27,8 +27,8 @@ pub struct CalendarSnapshot {
     complete: bool, loaded_on: TradingDate, meta: ResultMeta,
 }
 impl CalendarSnapshot {
-    pub(crate) fn new(benchmark: SecurityId, mut days: Vec<TradingDate>, loaded_on: TradingDate, meta: ResultMeta) -> Self {
-        days.sort_unstable(); days.dedup();
+    pub(crate) fn new(benchmark: SecurityId, days: Vec<TradingDate>, loaded_on: TradingDate, meta: ResultMeta) -> Self {
+        let days = crate::calendar::index::calendar_days(days);
         Self { benchmark, coverage_start: days.first().copied(), coverage_end: days.last().copied(), days,
             complete: true, loaded_on, meta }
     }

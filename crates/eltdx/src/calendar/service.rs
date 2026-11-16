@@ -7,6 +7,7 @@ use crate::operation::{OperationContext, OperationOptions};
 use crate::services::KlineService;
 use crate::types::{AdjustMode, CalendarQuery, CalendarSnapshot, EndEvidence, KlineKind, KlinePeriod, KlineQuery};
 use crate::{Error, ErrorKind, Result, SecurityId, TimeoutPhase, TradingDate};
+use super::index::{calendar_window, calendar_neighbor, calendar_contains};
 
 #[derive(Debug, Default)]
 struct CacheState { generation: u64, disabled: bool, entries: Vec<Arc<CalendarSnapshot>> }
@@ -56,13 +57,13 @@ impl CalendarService {
     pub fn is_workday(&self, date: TradingDate, query: &CalendarQuery, options: &OperationOptions) -> Result<bool> {
         let entry = Instant::now(); let mut context = self.executor.begin_context_at(entry, "calendar_is_workday", &self.config, options)?;
         let snapshot = self.load(&mut context, query, false)?; snapshot.require_coverage(date)?;
-        let result = snapshot.days().binary_search(&date).is_ok(); context.finish()?; Ok(result)
+        let result = calendar_contains(snapshot.days(), &date); context.finish()?; Ok(result)
     }
     pub fn range(&self, mut start: TradingDate, mut end: TradingDate, descending: bool, query: &CalendarQuery, options: &OperationOptions) -> Result<Vec<TradingDate>> {
         let entry = Instant::now(); let mut context = self.executor.begin_context_at(entry, "calendar_range", &self.config, options)?;
         if start > end { std::mem::swap(&mut start, &mut end); }
         let snapshot = self.load(&mut context, query, false)?; snapshot.require_coverage(start)?; snapshot.require_coverage(end)?;
-        let left = snapshot.days().partition_point(|date| *date < start); let right = snapshot.days().partition_point(|date| *date <= end);
+        let (left, right) = calendar_window(snapshot.days(), &start, &end);
         let mut dates = Vec::new(); dates.try_reserve(right - left).map_err(crate::services::allocation_error)?;
         dates.extend_from_slice(&snapshot.days()[left..right]); if descending { dates.reverse(); }
         context.finish()?; Ok(dates)
@@ -76,9 +77,8 @@ impl CalendarService {
     fn neighbor(&self, entry: Instant, date: TradingDate, include_self: bool, forward: bool, query: &CalendarQuery, options: &OperationOptions) -> Result<Option<TradingDate>> {
         let mut context = self.executor.begin_context_at(entry, if forward { "calendar_next" } else { "calendar_previous" }, &self.config, options)?;
         let snapshot = self.load(&mut context, query, false)?; snapshot.require_coverage(date)?;
-        let index = if forward { snapshot.days().partition_point(|at| if include_self { *at < date } else { *at <= date }) }
-            else { snapshot.days().partition_point(|at| if include_self { *at <= date } else { *at < date }) };
-        let result = if forward { snapshot.days().get(index).copied() } else { index.checked_sub(1).and_then(|index| snapshot.days().get(index)).copied() };
+        let result = calendar_neighbor(snapshot.days(), &date, include_self, forward)
+            .and_then(|index| snapshot.days().get(index)).copied();
         context.finish()?; Ok(result)
     }
     pub fn clear_cache(&self) { self.executor.owner().calendar().clear(); }

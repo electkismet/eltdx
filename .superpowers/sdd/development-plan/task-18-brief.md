@@ -73,6 +73,14 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Nineteenth recovery: equity committedfc3088e. Calendar ordered-day collection,
+window/neighbor/contains and legacy weekday fallback sources authored. Python
+retains benchmark loading, independent _day_set, cache/weakref behavior, empty
+coverage False/None, date overflow and custom container/date adapters. Added9
+contract/2 Rust source functions, unexecuted. No124-record calendar capability
+exists; module coverage/report is evidence. Next resources/stats/health and all
+remaining batch/helper/subscription/manifest/consumer work; counts18/4/8.
+
 Eighteenth recovery: corporate committed851774a. Equity normal plain-float model
 events now use the shared Rust stable affine composition. Preserve same-day
 source order, both offsets, anchor/start and legacy nonfinite/nonpositive error;

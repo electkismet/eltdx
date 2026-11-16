@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from eltdx.protocol.unit import date_from_yyyymmdd, yyyymmdd
+from eltdx.transport.native import native_module
 
 if TYPE_CHECKING:
     from eltdx.client import TdxClient
@@ -83,7 +84,12 @@ class WorkdayService:
             return 0
 
         series = self.client.bars.get(self.benchmark_code, period="day", kind="index", all_pages=True)
-        days = sorted({bar.time.date() for bar in series.bars})
+        source_days = [bar.time.date() for bar in series.bars]
+        if all(type(day) is date for day in source_days):
+            days = [date.fromordinal(day) for day in native_module().calendar_days(
+                [day.toordinal() for day in source_days])]
+        else:
+            days = sorted(set(source_days))
         self._days = days
         self._day_set = set(days)
         self._loaded = True
@@ -97,9 +103,13 @@ class WorkdayService:
     def is_workday(self, value=None) -> bool:
         trading_day = self.normalize(value)
         if self.client is None:
+            if type(trading_day) is date:
+                return native_module().weekday(trading_day.toordinal())
             return trading_day.weekday() < 5
 
         self._ensure_loaded()
+        if type(self._day_set) is set and all(type(day) is date for day in self._day_set) and type(trading_day) is date:
+            return native_module().calendar_contains([day.toordinal() for day in self._day_set], trading_day.toordinal())
         return trading_day in self._day_set
 
     def today_is_workday(self) -> bool:
@@ -115,8 +125,12 @@ class WorkdayService:
             days = _weekday_range(start_day, end_day)
         else:
             self._ensure_loaded()
-            left = bisect_left(self._days, start_day)
-            right = bisect_right(self._days, end_day)
+            ordinals = self._native_days()
+            if ordinals is not None and type(start_day) is date and type(end_day) is date:
+                left, right = native_module().calendar_window(ordinals, start_day.toordinal(), end_day.toordinal())
+            else:
+                left = bisect_left(self._days, start_day)
+                right = bisect_right(self._days, end_day)
             days = list(self._days[left:right])
 
         if descending:
@@ -129,6 +143,8 @@ class WorkdayService:
     def next_workday(self, value=None, *, include_self: bool = False) -> date | None:
         trading_day = self.normalize(value)
         if self.client is None:
+            if type(trading_day) is date and type(include_self) is bool:
+                return date.fromordinal(native_module().weekday_neighbor(trading_day.toordinal(), include_self, True))
             current = trading_day if include_self else trading_day + timedelta(days=1)
             while True:
                 if current.weekday() < 5:
@@ -136,6 +152,10 @@ class WorkdayService:
                 current += timedelta(days=1)
 
         self._ensure_loaded()
+        ordinals = self._native_days()
+        if ordinals is not None and type(trading_day) is date and type(include_self) is bool:
+            index = native_module().calendar_neighbor(ordinals, trading_day.toordinal(), include_self, True)
+            return None if index is None else self._days[index]
         index = bisect_left(self._days, trading_day) if include_self else bisect_right(self._days, trading_day)
         if index >= len(self._days):
             return None
@@ -144,6 +164,8 @@ class WorkdayService:
     def previous_workday(self, value=None, *, include_self: bool = False) -> date | None:
         trading_day = self.normalize(value)
         if self.client is None:
+            if type(trading_day) is date and type(include_self) is bool:
+                return date.fromordinal(native_module().weekday_neighbor(trading_day.toordinal(), include_self, False))
             current = trading_day if include_self else trading_day - timedelta(days=1)
             while True:
                 if current.weekday() < 5:
@@ -151,6 +173,10 @@ class WorkdayService:
                 current -= timedelta(days=1)
 
         self._ensure_loaded()
+        ordinals = self._native_days()
+        if ordinals is not None and type(trading_day) is date and type(include_self) is bool:
+            index = native_module().calendar_neighbor(ordinals, trading_day.toordinal(), include_self, False)
+            return None if index is None else self._days[index]
         index = bisect_right(self._days, trading_day) - 1 if include_self else bisect_left(self._days, trading_day) - 1
         if index < 0:
             return None
@@ -160,8 +186,15 @@ class WorkdayService:
         if not self._loaded:
             self.refresh()
 
+    def _native_days(self):
+        if type(self) is WorkdayService and type(self._days) is list and all(type(day) is date for day in self._days):
+            return [day.toordinal() for day in self._days]
+        return None
+
 
 def _weekday_range(start_day: date, end_day: date) -> list[date]:
+    if type(start_day) is date and type(end_day) is date:
+        return [date.fromordinal(day) for day in native_module().weekday_range(start_day.toordinal(), end_day.toordinal())]
     days: list[date] = []
     current = start_day
     while current <= end_day:
