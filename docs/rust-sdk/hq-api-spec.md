@@ -415,6 +415,8 @@ T18 profile/cache源码补充：`ProfileQuery::new()`默认启用security/financ
 
 daily_price_limits用选定trade_date之前最近**不复权**日bar作reference，再按当日tag1资本事件顺序作 `(reference-o)/m`；要求交易日，缺价为MissingReference。新Rust规则必须是按生效日期冻结的Approved，证据不足UnknownRule，不能默认猜10%。现存Python冲突必须保留到独立修复决策：core.py普通主板ST仍10%、任意sz30前缀20%、IPO统一前5交易日；shortline.py ST优先5%、N/C名字不设限制。这些不能直接合成一套“已正确”的policy。新Rust精确涨跌停取整方法须与规则版本一同批准，未批准不能宣称可交易价。
 
+T18 M88/M89源码补充（未执行）：SecuritySelection::Explicit保留重复及顺序，Explicit(empty)在准入后不读clock/日历/目录/会话/资源。M88 trade_date为服务端target；接受previous日stats时保留其源日诊断，不重标当日。双表主日期各覆盖>=95%（缺失/非法日计入分母），且同日、属于target或previous；普通格式/双表不同日为ResourceFormat，共同日期超出接受范围附code=stats_date_mismatch。只缓存已对齐成功的stats，key含完整StatsQuery/target/previous/本地加载日/RawPolicy，900秒TTL、最多2项/65536权重（行数+保留raw字节/4KiB），超大返回但不存；refresh失败仍报错、clear隔离旧在途发布。M89需要有覆盖证据的交易日，完整不复权日线按最大前序源日选参考，同日冲突收盘报Protocol，按原序使用tag1系数；缺参考status=MissingReference同时保留Unknown rule，有参考仍UnknownRule且upper/lower=None。新内部resource/calendar/Kline/capital collector不重设外层limits、不finish父操作。Python尚未切换，不能据此声称兼容验证通过。
+
 ## 13. 竞价组合、市场统计与逐笔资金流（T14、T18）
 
 旧auction_data(code,date=None,include_series=True,include_snapshot=True,include_quote=True,pre_close_price=None)；market_stat()；today_fund_flow(code)；纯classify_fund_flow(ticks)。

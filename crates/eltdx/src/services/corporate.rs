@@ -76,6 +76,14 @@ impl CorporateService {
         query.validate()?; let codes = checked_ids(ids)?;
         if codes.is_empty() { return Ok(BatchOutcome::new(Vec::new())); }
         context.set_work_limits(WorkLimits { pages: std::num::NonZeroUsize::new(ids.len()), records: Some(ids.len()), bytes: None })?;
+        self.capital_collect_in_context(context, ids, query)
+    }
+
+    pub(crate) fn capital_collect_in_context(&self, context: &OperationContext, ids: &[SecurityId], query: &CapitalQuery)
+        -> Result<BatchOutcome<CapitalChangeBlock>> {
+        context.check_boundary(TimeoutPhase::Admission)?;
+        query.validate()?; let codes = checked_ids(ids)?;
+        if codes.is_empty() { return Ok(BatchOutcome::new(Vec::new())); }
         // This wire domain needs no security-table precision. Freeze the
         // operation's existing metadata instead of introducing catalog I/O.
         super::capture_existing_metadata(context, &self.namespace, ids)?;

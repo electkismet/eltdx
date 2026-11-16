@@ -2,7 +2,82 @@ use crate::{Error, ErrorKind, Result};
 use super::{Amount, CategoryQuote, Diagnostic, EnrichmentStatus, PageOptions, Price,
     Quantity, QuoteCategory, QuoteSort, Ratio, ResultMeta, SecurityId, Snapshot, SourceStamp,
     AuctionQuery, AuctionSeries, FinanceRecord, MarketDateChoice, Security, SecurityBoard,
-    SecurityCategory, TradeTick, TradingDate};
+    SecurityCategory, TradeTick, TradingDate, LimitRule, LimitStatus, StatsQuery};
+
+/// AllAShares scans the current directory. Explicit preserves occurrences,
+/// including an empty list; it never silently becomes a whole-market request.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub enum SecuritySelection { #[default] AllAShares, Explicit(Vec<SecurityId>) }
+impl SecuritySelection {
+    pub(crate) fn validate(&self) -> Result<()> {
+        if let Self::Explicit(ids) = self { crate::services::checked_ids(ids)?; }
+        Ok(())
+    }
+    pub(crate) fn is_empty(&self) -> bool { matches!(self, Self::Explicit(ids) if ids.is_empty()) }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct DailySharesQuery { selection: SecuritySelection, stats: StatsQuery, refresh_stats: bool }
+impl DailySharesQuery {
+    pub fn new() -> Self { Self::default() }
+    pub fn with_selection(mut self, value: SecuritySelection) -> Result<Self> { value.validate()?; self.selection = value; Ok(self) }
+    pub fn with_stats(mut self, value: StatsQuery) -> Result<Self> { value.validate()?; self.stats = value; Ok(self) }
+    pub fn with_refresh_stats(mut self, value: bool) -> Result<Self> { self.refresh_stats = value; Ok(self) }
+    pub fn selection(&self) -> &SecuritySelection { &self.selection }
+    pub fn stats(&self) -> &StatsQuery { &self.stats }
+    pub const fn refresh_stats(&self) -> bool { self.refresh_stats }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DailyLimitsQuery { trade_date: TradingDate, selection: SecuritySelection }
+impl DailyLimitsQuery {
+    pub fn new(trade_date: TradingDate) -> Self { Self { trade_date, selection: SecuritySelection::AllAShares } }
+    pub fn with_selection(mut self, value: SecuritySelection) -> Result<Self> { value.validate()?; self.selection = value; Ok(self) }
+    pub const fn trade_date(&self) -> TradingDate { self.trade_date }
+    pub fn selection(&self) -> &SecuritySelection { &self.selection }
+}
+
+/// The target day is supplied by the current source. Each contributing row's
+/// actual date and units remain in meta; free float never substitutes circulation.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DailyShareCapital {
+    pub(crate) id: SecurityId, pub(crate) trade_date: TradingDate,
+    pub(crate) total: Option<Quantity>, pub(crate) circulating: Option<Quantity>,
+    pub(crate) free_float: Option<Quantity>, pub(crate) finance_updated: Option<TradingDate>,
+    pub(crate) sources: Vec<String>, pub(crate) meta: ResultMeta,
+}
+impl DailyShareCapital {
+    pub fn id(&self) -> &SecurityId { &self.id }
+    pub const fn trade_date(&self) -> TradingDate { self.trade_date }
+    pub const fn total(&self) -> Option<Quantity> { self.total }
+    pub const fn circulating(&self) -> Option<Quantity> { self.circulating }
+    pub const fn free_float(&self) -> Option<Quantity> { self.free_float }
+    pub const fn finance_updated(&self) -> Option<TradingDate> { self.finance_updated }
+    pub fn sources(&self) -> &[String] { &self.sources }
+    pub fn meta(&self) -> &ResultMeta { &self.meta }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DailyPriceLimit {
+    pub(crate) id: SecurityId, pub(crate) trade_date: TradingDate, pub(crate) name: Option<String>,
+    pub(crate) reference_date: Option<TradingDate>, pub(crate) reference: Option<Price>,
+    pub(crate) upper: Option<Price>, pub(crate) lower: Option<Price>,
+    pub(crate) rule: LimitRule, pub(crate) status: LimitStatus,
+    pub(crate) reference_source: Option<String>, pub(crate) meta: ResultMeta,
+}
+impl DailyPriceLimit {
+    pub fn id(&self) -> &SecurityId { &self.id }
+    pub const fn trade_date(&self) -> TradingDate { self.trade_date }
+    pub fn name(&self) -> Option<&str> { self.name.as_deref() }
+    pub const fn reference_date(&self) -> Option<TradingDate> { self.reference_date }
+    pub const fn reference(&self) -> Option<Price> { self.reference }
+    pub const fn upper(&self) -> Option<Price> { self.upper }
+    pub const fn lower(&self) -> Option<Price> { self.lower }
+    pub fn rule(&self) -> &LimitRule { &self.rule }
+    pub const fn status(&self) -> LimitStatus { self.status }
+    pub fn reference_source(&self) -> Option<&str> { self.reference_source.as_deref() }
+    pub fn meta(&self) -> &ResultMeta { &self.meta }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AuctionDataQuery {

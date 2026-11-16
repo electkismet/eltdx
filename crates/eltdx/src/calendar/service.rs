@@ -83,6 +83,13 @@ impl CalendarService {
     }
     pub fn clear_cache(&self) { self.executor.owner().calendar().clear(); }
     fn load(&self, context: &mut OperationContext, query: &CalendarQuery, force: bool) -> Result<Arc<CalendarSnapshot>> {
+        // Preserve the standalone K-line workload allowance before any child.
+        context.set_work_limits(crate::operation::WorkLimits {
+            pages: std::num::NonZeroUsize::new(query.pages().max_pages().saturating_sub(1)),
+            records: Some(query.pages().max_records()), bytes: None })?;
+        self.load_in_context(context, query, force)
+    }
+    pub(crate) fn load_in_context(&self, context: &OperationContext, query: &CalendarQuery, force: bool) -> Result<Arc<CalendarSnapshot>> {
         query.validate()?; context.check_boundary(TimeoutPhase::Admission)?;
         let today = self.today()?; let cache = self.executor.owner().calendar();
         if !force && !query.refresh() { if let Some(snapshot) = cache.get(query.benchmark(), today)? { return Ok(snapshot); } }
@@ -90,7 +97,7 @@ impl CalendarService {
         let klines = KlineService::new(self.executor.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone());
         let query_bars = KlineQuery::new().with_period(KlinePeriod::Day)?.with_kind(KlineKind::Index)?
             .with_adjust(AdjustMode::None)?.with_pages(query.pages().clone())?;
-        let series = klines.collect_in_context(context, query.benchmark(), &query_bars)?;
+        let series = klines.collect_with_parent_context(context, query.benchmark(), &query_bars)?;
         if series.bars().end() != EndEvidence::EmptyPage { return Err(Error::new(ErrorKind::MetadataUnavailable, "calendar refresh has no complete source evidence")); }
         let mut days = Vec::new(); days.try_reserve(series.bars().items().len()).map_err(crate::services::allocation_error)?;
         for bar in series.bars().items() { days.push(bar.source_time().date().ok_or_else(|| Error::new(ErrorKind::Protocol, "calendar daily bar has no date"))?); }

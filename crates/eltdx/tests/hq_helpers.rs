@@ -1,6 +1,7 @@
 //! Authored public default-HQ helper source cases. Execution deferred.
 use eltdx::{helpers::classify_fund_flow, AmountUnit};
 #[path = "support/hq_server.rs"] mod hq_server;
+#[path = "support/daily_helpers_cases.rs"] mod daily_helpers_cases;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::time::Duration;

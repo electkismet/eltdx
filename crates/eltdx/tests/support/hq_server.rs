@@ -333,7 +333,7 @@ pub fn refresh_requests(request: &RequestFrame) -> Vec<(String, u32)> {
         u32::from_le_bytes(row[7..11].try_into().unwrap()))).collect()
 }
 
-fn append_varint(target: &mut Vec<u8>, value: i64) {
+pub(crate) fn append_varint(target: &mut Vec<u8>, value: i64) {
     let mut magnitude = value.unsigned_abs();
     let mut first = (magnitude & 0x3f) as u8;
     magnitude >>= 6;

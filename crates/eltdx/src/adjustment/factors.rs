@@ -56,7 +56,7 @@ pub(crate) fn build_with_boundary(changes: &CapitalChangeBlock, query: &FactorQu
     Ok(AdjustmentFactors::new(changes.id().clone(), query, rows, changes.meta().clone()))
 }
 
-fn coefficients(event: &CapitalEvent) -> Result<(f64, f64)> {
+pub(crate) fn coefficients(event: &CapitalEvent) -> Result<(f64, f64)> {
     let [cash, rights_price, bonus, rights] = *event.coefficients();
     if ![cash, rights_price, bonus, rights].into_iter().all(f64::is_finite) { return Err(invalid("non-finite adjustment coefficient")); }
     let multiplier = (10.0 + bonus + rights) / 10.0;

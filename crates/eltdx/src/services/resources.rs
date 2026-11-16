@@ -140,15 +140,21 @@ impl ResourceService {
     pub fn read_stats(&self, query: &StatsQuery, options: &OperationOptions) -> Result<StatsResource> {
         let entry = Instant::now();
         let context = self.executor.begin_context_at(entry, "read_stats", &self.config, options)?;
+        let result = self.read_stats_in_context(&context, query)?;
+        context.finish()?; Ok(result)
+    }
+
+    /// Required resource work belongs to the composition's existing deadline.
+    pub(crate) fn read_stats_in_context(&self, context: &OperationContext, query: &StatsQuery) -> Result<StatsResource> {
+        context.check_boundary(TimeoutPhase::Admission)?;
         query.validate()?;
         let cap = crate::stats::MAX_STATS_ZIP_BYTES;
-        let download = self.download_in_context(&context, query.path(), cap.checked_add(1).ok_or_else(|| incomplete(cap))?, query.chunk_size(), true)?;
+        let download = self.download_in_context(context, query.path(), cap.checked_add(1).ok_or_else(|| incomplete(cap))?, query.chunk_size(), true)?;
         if download.result.data.len() > cap { return Err(incomplete(cap)); }
         if download.result.completion != DownloadCompletion::Complete { return Err(incomplete(cap)); }
         let parsed = crate::stats::parse_stats_archive(&download.result.data, &format!("tdx://{}", query.path()),
             &mut || context.check_boundary(TimeoutPhase::Decode))?;
-        let result = super::stats_projection::project(parsed, download.meta, &context)?;
-        context.finish()?; Ok(result)
+        super::stats_projection::project(parsed, download.meta, context)
     }
 }
 

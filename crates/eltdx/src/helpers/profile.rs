@@ -132,7 +132,7 @@ impl HelperService {
         Ok((source, false))
     }
 
-    fn profile_finance(&self, context: &OperationContext, ids: &[SecurityId]) -> Result<(CachedSource<FinanceBundle>, bool)> {
+    pub(super) fn profile_finance(&self, context: &OperationContext, ids: &[SecurityId]) -> Result<(CachedSource<FinanceBundle>, bool)> {
         let version = context.metadata()?.map(|snapshot| snapshot.version());
         let stamp = self.cache_stamp(context, version)?;
         let cache = context.owner().helpers();
@@ -178,7 +178,7 @@ impl HelperService {
         Ok((source, false))
     }
 
-    fn cache_stamp(&self, context: &OperationContext, version: Option<u64>) -> Result<CacheStamp> {
+    pub(super) fn cache_stamp(&self, context: &OperationContext, version: Option<u64>) -> Result<CacheStamp> {
         context.check_boundary(TimeoutPhase::Admission)?;
         Ok(CacheStamp { date: context.current_market_date()?, version, raw: context.raw(),
             loaded_at: self.config.clock().unix_seconds()? })
@@ -218,7 +218,7 @@ fn build_profile(quote: FullQuote, security: Supplement<Security>, finance: Supp
         finance_status: finance.status, meta })
 }
 
-fn shares(finance: Option<&FinanceRecord>, field: FinanceField, stage: &str, meta: &mut ResultMeta) -> Option<Quantity> {
+pub(super) fn shares(finance: Option<&FinanceRecord>, field: FinanceField, stage: &str, meta: &mut ResultMeta) -> Option<Quantity> {
     match finance?.value(field) {
         Some(FinanceValue::Shares(value)) if value.unit() == QuantityUnit::Shares && value.value().as_f64().is_finite()
             && value.value().as_f64() >= 0.0 => Some(value),

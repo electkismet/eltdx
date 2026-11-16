@@ -195,3 +195,61 @@ consumer/examples. M79–M87/M92–M95 now have initial source implementations
 Do not repeat authored methods; continue from their shared context seams.
 
 Fourth source stage committed as **ab5f8bf** (26 files). Tests/checks/builds/network execution remain forbidden until all T01–T30 implementation code is complete. Next shares/limits/shortline/ladder/boards, then full HQ migration. Shortline must add its stricter datetime/09:25/stat-date gates before reusing the auction source-date seam.
+
+## Fifth source checkpoint — M88/M89 daily capital and limits
+
+Authored source only, following recovery27dbe91. T18 remains partial; task totals
+remain18 source-complete/4 partial/8 unstarted. M79–M89 and M92–M95 now have
+initial source implementations (15 of19 helper methods). No Python facade or
+migration-manifest upgrade, no execution, no agents, no publication operations.
+
+- Added SecuritySelection, DailySharesQuery, DailyLimitsQuery, DailyShareCapital,
+  DailyPriceLimit and public root/type exports. AllAShares performs the existing
+  strict current directory scan; Explicit preserves occurrences. Explicit(empty)
+  returns after admission, without clock/calendar/handshake/catalog/file I/O.
+- M88 uses server current source date, observed calendar previous trading day,
+  required complete stats ZIP and optional finance. Target date remains the
+  server target even when accepted statistics belong to the previous trading
+  day. Finance total/circulating shares and stat free float remain independent;
+  preserve original units, source updated date, metadata versions/raw and row
+  source-date diagnostics. Missing/unaligned free float never substitutes finance.
+  Optional finance failure keeps stats-derived fields; cancellation/outer deadline
+  still terminate through the shared profile-finance seam.
+- Added helpers/stats_alignment.rs: both tables must independently have at least
+  95 percent coverage, including undated/invalid-date rows in the denominator,
+  use the same main date, and match target or previous observed trading day.
+  Disagreement/low coverage/no date are ResourceFormat; an inadmissible common
+  day is ResourceFormat with code=stats_date_mismatch for the later legacy
+  TdxStatsDateError mapping. No local-clock replacement for server dates.
+- Statistics cache reuses owner/generation/TTL/RawPolicy infrastructure. Key
+  includes full StatsQuery, target and previous days; local load date is only
+  cache context. Only validated success is published; explicit refresh downloads
+  anew and failure never silently returns or relabels old data. Bound to2 entries
+  and65536 weights (rows plus retained raw bytes/4KiB); oversized delivered but
+  not cached. clear invalidates old in-flight stats publication too.
+- M89 validates an observed trading date, requires complete unadjusted daily
+  source collection, takes maximum source date strictly before target rather than
+  trusting row order, detects conflicting closes on that date, and applies only
+  same-day tag1 events in original source order using shared `(ref-o)/m`
+  coefficients. Keeps original raw/source metadata. Empty/invalid prior reference
+  yields MissingReference, independently retaining Unknown rule evidence.
+  With a reference, the deliberately empty approved registry yields UnknownRule
+  and no upper/lower prices; no guessed10/5/20percent executable rules.
+- Extracted resource read_stats_in_context, corporate capital_collect_in_context,
+  Kline collect_with_parent_context and calendar load_in_context. These retain
+  original service wrappers while nested helper calls never reset consumed
+  limits or finish a parent; download/parse/calendar/finance/reference/action
+  passes share outer cancellation/deadline/pin cleanup.
+- Authored private arithmetic/date/cache cases and public hq_helpers support
+  cases for empty/closed/cancelled/expired entry, server-vs-local date, three share
+  sources, cache/reload/clear, required dual-stat date failure before finance,
+  finance degradation versus cancellation, ordered actions/reference/unknown
+  policy/missing reference, and nontrading-date rejection. All remain unexecuted.
+
+Next: M90 shortline/M91 ladder, M96/M97 boards, then all HQ Python/native
+migration/evidence and consumer/example sources. Shortline readiness MUST require
+usable server_datetime and its09:25 gate before quote/finance work; the new
+daily/auction source-date fallback alone is not a readiness proof. Do not repeat
+M88/M89 or reset caller budgets in the new internal service seams. Final full
+compilation, behavior, compatibility, packaging and performance evidence remains
+outstanding until all T01–T30 implementation sources are authored.

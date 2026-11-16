@@ -63,6 +63,13 @@ impl KlineService {
         let continuation_pages = query.pages().max_pages().saturating_sub(1);
         context.set_work_limits(WorkLimits { pages: std::num::NonZeroUsize::new(continuation_pages),
             records: Some(query.pages().max_records()), bytes: None })?;
+        self.collect_with_parent_context(context, id, query)
+    }
+
+    pub(crate) fn collect_with_parent_context(&self, context: &OperationContext, id: &SecurityId, query: &KlineQuery) -> Result<KlineSeries> {
+        context.check_boundary(TimeoutPhase::Admission)?;
+        checked_ids(std::slice::from_ref(id))?; query.validate()?;
+        validate_page_options(query.pages())?;
         let engine = self.engine_for_cursor(&context, query.cursor())?;
         let metadata = self.capture_metadata(&context, std::slice::from_ref(id))?;
         verify_cursor(query.cursor(), ordinary_fingerprint(&context, id, query, resolve_kind(id, query.kind()))?,
