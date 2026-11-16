@@ -71,6 +71,39 @@ pub(crate) fn legacy_directory_pages(
     Ok(replies)
 }
 
+pub(crate) fn publish_legacy_directory_metadata(
+    context: &OperationContext,
+    namespace: &str,
+    market: HqMarket,
+    replies: &[DecodedReply],
+) -> Result<()> {
+    if !context.is_legacy() {
+        return Err(query_error("profile", "legacy directory metadata requires a compatibility operation"));
+    }
+    let mut candidate = MarketCandidate::for_legacy_scan(SnapshotKey::hq(namespace, market))?;
+    let mut offset = 0u32;
+    for reply in replies {
+        let CommandResponse::SecurityList(rows) = &reply.response else { return Err(wrong_response()); };
+        let mut records = Vec::new();
+        records.try_reserve(rows.len()).map_err(allocation_error)?;
+        for row in rows {
+            let id = identity_from_market(row.market, &row.code)?;
+            let precision = PrecisionMetadata::new(row.decimal, ValueProvenance::SecurityTable)?;
+            records.push(MetadataRecord::new(id, Some(precision), None, None));
+        }
+        candidate.push_page(offset, records, if rows.is_empty() { PageEvidence::TerminalEmpty } else { PageEvidence::More })?;
+        if !rows.is_empty() {
+            offset = advance_offset(offset, rows.len())?;
+        }
+    }
+    context.owner().metadata().publish_code_scans(
+        vec![candidate],
+        Duration::from_secs(24 * 60 * 60),
+        context,
+    )?;
+    Ok(())
+}
+
 #[derive(Clone, Debug)]
 pub struct CodeService {
     executor: HqExecutor,

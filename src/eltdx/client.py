@@ -226,9 +226,18 @@ class TdxClient:
         # 必须在构造各 API 之前完成排序：MoneyFlowApi 需要 _dedicated_hosts 作为
         # 空数据故障转移的候选主机列表（构造期取值，之后不再刷新）。
         self._prepare_host_rankings()
+        native_services = type(self.transport) in (PooledSocketTransport, SocketTransport)
         self.session = SessionApi(self.transport)
-        self.codes = CodeApi(self.transport, metadata_sink=self._cache_security_rows)
-        self.quotes = QuoteApi(self.transport, price_resolver=self._normalize_prices)
+        self.codes = CodeApi(
+            self.transport,
+            metadata_sink=self._cache_security_rows,
+            native_services=native_services,
+        )
+        self.quotes = QuoteApi(
+            self.transport,
+            price_resolver=self._normalize_prices,
+            native_services=native_services,
+        )
         self.resources = ResourceApi(self.transport)
         self.bars = BarApi(self.transport)
         self.delisted_bars = DelistedBarApi(self.transport)

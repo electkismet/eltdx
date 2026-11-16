@@ -11,6 +11,7 @@ name = "_native"
 crate-type = ["cdylib"]
 
 [dependencies]
+eltdx = { path = "../eltdx" }
 eltdx-protocol = { path = "../eltdx-protocol" }
 eltdx-runtime = { path = "../eltdx-runtime" }
 pyo3 = { workspace = true, features = ["abi3-py310", "extension-module"] }

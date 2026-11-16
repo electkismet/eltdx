@@ -1,0 +1,177 @@
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+
+use eltdx::__python_compat::LegacyExecutor;
+use eltdx::types::HqMarket;
+use eltdx::{CancellationToken, Error, ErrorKind, RawPolicy};
+use eltdx_protocol::response::CommandResponse;
+use eltdx_protocol::unit::{Market, NormalizedCode};
+use eltdx_runtime::engine::SIGNAL_POLL_INTERVAL;
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::prelude::*;
+
+use crate::{error, response};
+
+pub fn snapshots(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    namespace: String,
+    codes: Vec<String>,
+) -> PyResult<Py<PyAny>> {
+    let markets = precision_markets(&codes);
+    let batch = run_legacy(py, move |token| {
+        let operation = executor.begin_operation(
+            "python_quotes_snapshots",
+            RawPolicy::Omit,
+            Some(token),
+        )?;
+        operation.prepare_hq_metadata(&namespace, &markets)?;
+        let normalized = codes
+            .iter()
+            .map(|code| {
+                NormalizedCode::parse(code)
+                    .map_err(|source| Error::new(ErrorKind::InvalidArgument, format!("{source}")))
+            })
+            .collect::<eltdx::Result<Vec<_>>>()?;
+        let batch = operation.recover_snapshots(&normalized)?;
+        operation.finish()?;
+        Ok(batch)
+    })?;
+    response::legacy_snapshot_batch_to_python(py, &batch)
+}
+
+pub fn security_pages(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    namespace: String,
+    market: String,
+    page_size: usize,
+) -> PyResult<Vec<Py<PyAny>>> {
+    let market = hq_market(Market::normalize(&market).map_err(|source| {
+        Error::new(ErrorKind::InvalidArgument, format!("{source}"))
+    })?)
+    .map_err(|sdk_error| error::from_sdk(py, sdk_error))?;
+    let pages = run_legacy(py, move |token| {
+        let operation = executor.begin_operation(
+            "python_codes_all",
+            RawPolicy::Omit,
+            Some(token),
+        )?;
+        let pages = operation.security_pages(&namespace, market, page_size)?;
+        operation.finish()?;
+        Ok(pages)
+    })?;
+    pages
+        .into_iter()
+        .map(|page| response::to_python(py, CommandResponse::SecurityList(page.rows)))
+        .collect()
+}
+
+fn hq_market(market: Market) -> eltdx::Result<HqMarket> {
+    Ok(match market {
+        Market::Shenzhen => HqMarket::Shenzhen,
+        Market::Shanghai => HqMarket::Shanghai,
+        Market::Beijing => HqMarket::Beijing,
+    })
+}
+
+fn precision_markets(codes: &[String]) -> Vec<HqMarket> {
+    let mut markets = Vec::new();
+    for value in codes {
+        let code = value.trim().to_ascii_lowercase();
+        let market = if code.starts_with("sh") {
+            Some(HqMarket::Shanghai)
+        } else if code.starts_with("sz") {
+            Some(HqMarket::Shenzhen)
+        } else if code.starts_with("bj") {
+            Some(HqMarket::Beijing)
+        } else if code.len() == 6 && code.bytes().all(|byte| byte.is_ascii_digit()) {
+            let first = code.as_bytes().first().copied();
+            if code.starts_with("92") || first == Some(b'8') {
+                Some(HqMarket::Beijing)
+            } else if matches!(first, Some(b'6' | b'9')) || ["110", "113", "118"].iter().any(|p| code.starts_with(p)) {
+                Some(HqMarket::Shanghai)
+            } else if matches!(first, Some(b'0' | b'1' | b'2' | b'3')) {
+                Some(HqMarket::Shenzhen)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(market) = market {
+            if !markets.contains(&market) {
+                markets.push(market);
+            }
+        }
+    }
+    if markets.is_empty() {
+        markets.extend([HqMarket::Shanghai, HqMarket::Shenzhen, HqMarket::Beijing]);
+    }
+    markets.sort_by_key(|market| market.code());
+    markets
+}
+
+fn run_legacy<T>(
+    py: Python<'_>,
+    task: impl FnOnce(CancellationToken) -> eltdx::Result<T> + Send + 'static,
+) -> PyResult<T>
+where
+    T: Send + 'static,
+{
+    let token = CancellationToken::default();
+    let worker_token = token.clone();
+    let (sender, receiver) = mpsc::sync_channel(1);
+    thread::Builder::new()
+        .name("eltdx-python-service".to_owned())
+        .spawn(move || {
+            let _ = sender.send(task(worker_token));
+        })
+        .map_err(|error| PyRuntimeError::new_err(format!("{error}")))?;
+    let receiver = Arc::new(Mutex::new(receiver));
+
+    loop {
+        let pending = Arc::clone(&receiver);
+        let received = py.detach(move || {
+            pending
+                .lock()
+                .ok()
+                .map(|receiver| receiver.recv_timeout(SIGNAL_POLL_INTERVAL))
+        });
+        match received {
+            Some(Ok(value)) => return value.map_err(|error| error::from_sdk(py, error)),
+            Some(Err(mpsc::RecvTimeoutError::Timeout)) => {}
+            Some(Err(mpsc::RecvTimeoutError::Disconnected)) | None => {
+                return Err(PyRuntimeError::new_err(
+                    "native SDK service worker ended without a result",
+                ));
+            }
+        }
+
+        if let Err(signal_error) = py.check_signals() {
+            token.cancel();
+            let pending = Arc::clone(&receiver);
+            let cleanup = py.detach(move || {
+                pending
+                    .lock()
+                    .ok()
+                    .map(|receiver| receiver.recv())
+            });
+            match cleanup {
+                Some(Ok(_)) => {}
+                Some(Err(error)) => {
+                    signal_error.set_cause(py, Some(error::from_sdk(py, error)));
+                }
+                None => {
+                    signal_error.set_cause(
+                        py,
+                        Some(PyRuntimeError::new_err(
+                            "native SDK service cancellation could not be confirmed",
+                        )),
+                    );
+                }
+            }
+            return Err(signal_error);
+        }
+    }
+}

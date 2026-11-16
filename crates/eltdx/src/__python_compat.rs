@@ -148,7 +148,12 @@ impl LegacyOperation {
 
     /// Runs the same SDK directory paginator with Python's unlimited legacy
     /// page policy and the caller's one continuous operation context.
-    pub fn security_pages(&self, market: HqMarket, page_size: usize) -> Result<Vec<LegacySecurityPage>> {
+    pub fn security_pages(
+        &self,
+        namespace: &str,
+        market: HqMarket,
+        page_size: usize,
+    ) -> Result<Vec<LegacySecurityPage>> {
         let replies = legacy_directory_pages(&self.context, market, page_size, |offset| {
             let limit = u16::try_from(page_size).map_err(|error| Error::new(ErrorKind::InvalidArgument,
                 "legacy security page size is outside the protocol range").with_source(error))?;
@@ -158,6 +163,15 @@ impl LegacyOperation {
             let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context, request, purpose, None)?;
             self.executor.executor.decode_unpriced(&self.context, raw)
         })?;
+        // Publish only a complete directory. Metadata is opportunistic here;
+        // quote preparation can use the Rust source loader if publication fails.
+        // The Python facade still receives each page and runs its metadata sink.
+        let _ = crate::services::publish_legacy_directory_metadata(
+            &self.context,
+            namespace,
+            market,
+            &replies,
+        );
         let mut pages = Vec::new();
         pages.try_reserve(replies.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded,
             "unable to reserve legacy security pages").with_source(error))?;

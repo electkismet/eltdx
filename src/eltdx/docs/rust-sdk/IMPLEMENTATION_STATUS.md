@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-16 补充：quote bridge 已恢复 resolver 的请求前缓存和结果投影；legacy Rust code paginator 在完整目录终止后尝试原子发布 owner scoped precision metadata，以供后续 quote operation 复用；覆写 `execute` 的 native transport 子类回退原 facade；新增对应合同测试源码。T12 生命周期、错误映射与兼容边界仍待审阅。
+
 | 项目 | 值 |
 |---|---|
 | 实施分支 | `codex/rust-sdk-implementation` |

@@ -29,6 +29,7 @@ use eltdx_protocol::commands::{
 use eltdx_protocol::response::CommandResponse;
 use eltdx_protocol::unit::{DateParts, DateTimeParts, Market};
 use eltdx_runtime::push::PushFrame;
+use eltdx::__python_compat::{LegacySnapshotBatch, LegacySnapshotState};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList, PyString, PyTuple};
@@ -581,6 +582,34 @@ fn quote_snapshots<'py>(py: Python<'py>, values: &[QuoteSnapshot]) -> PyResult<O
         extend_quote_snapshot(py, &mut fields, value)?;
     }
     tuple(py, fields)
+}
+
+pub fn legacy_snapshot_batch_to_python(
+    py: Python<'_>,
+    batch: &LegacySnapshotBatch,
+) -> PyResult<Py<PyAny>> {
+    let mut items = Vec::with_capacity(batch.items.len());
+    let mut missing = Vec::new();
+    for item in &batch.items {
+        match &item.state {
+            LegacySnapshotState::Present { row, .. } => {
+                items.push(quote_snapshots(py, std::slice::from_ref(row))?);
+            }
+            LegacySnapshotState::Missing => {
+                items.push(none(py));
+                missing.push(any(py, item.requested.full_code())?);
+            }
+        }
+    }
+    let payload = tuple(
+        py,
+        vec![
+            list(py, items)?,
+            tuple(py, missing)?,
+            any(py, batch.recovered)?,
+        ],
+    )?;
+    tagged(py, "legacy_snapshots", payload)
 }
 
 fn market_id_name(value: u8) -> &'static str {

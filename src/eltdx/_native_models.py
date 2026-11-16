@@ -465,6 +465,23 @@ def response_from_dto(dto: Any) -> Any:
     raise ValueError(f"unsupported native response tag: {tag}")
 
 
+def legacy_snapshot_batch_from_dto(dto: Any) -> tuple[list[QuoteSnapshot | None], tuple[str, ...]]:
+    """Convert ordered snapshot occurrences returned by the Rust compatibility service."""
+    tag, payload = _tuple(dto, "legacy snapshot batch", 2)
+    if tag != "legacy_snapshots":
+        raise TypeError("native DTO must be a legacy_snapshots response")
+    items, missing, _recovered = _tuple(payload, tag, 3)
+    converted = []
+    for item in _list(items, tag):
+        converted.append(
+            None if item is None else _quote_snapshot_at(_tuple(item, tag, _SNAPSHOT_STRIDE), 0)
+        )
+    missing_codes = _tuple(missing, "missing snapshot codes")
+    if any(not isinstance(code, str) for code in missing_codes):
+        raise TypeError("native missing snapshot codes must be strings")
+    return converted, missing_codes
+
+
 def push_frame_from_dto(dto: Any) -> tuple[int, int, int, str, ResponseFrame, bool]:
     """Convert the metadata-bearing native push DTO without parsing it."""
 
@@ -475,4 +492,8 @@ def push_frame_from_dto(dto: Any) -> tuple[int, int, int, str, ResponseFrame, bo
     return epoch, slot_id, generation, connected_host, _response_frame(frame), parse
 
 
-__all__ = ["push_frame_from_dto", "response_from_dto"]
+__all__ = [
+    "legacy_snapshot_batch_from_dto",
+    "push_frame_from_dto",
+    "response_from_dto",
+]

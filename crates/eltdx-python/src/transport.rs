@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use eltdx::__python_compat::LegacyExecutor;
 use eltdx_protocol::CommandResponse;
 use eltdx_runtime::diagnostics::{
     ActorSnapshot, BrokerSnapshot, PoolDiagnostics, TransportDiagnostics,
@@ -15,6 +16,8 @@ use crate::{error, request, response};
 #[pyclass(name = "NativeEngine", module = "eltdx._native", frozen)]
 pub struct NativeEngine {
     engine: Engine,
+    legacy: LegacyExecutor,
+    namespace: String,
 }
 
 #[pyclass(name = "NativePin", module = "eltdx._native", frozen)]
@@ -46,6 +49,7 @@ impl NativeEngine {
     // immediately groups them into EngineConfigOptions below.
     #[allow(clippy::too_many_arguments)]
     fn new(
+        py: Python<'_>,
         hosts: Vec<String>,
         timeout: f64,
         pool_size: usize,
@@ -61,6 +65,7 @@ impl NativeEngine {
         push_queue_size: usize,
         push_queue_bytes: usize,
     ) -> PyResult<Self> {
+        let namespace = format!("python:7709:{}", hosts.join(","));
         let config = EngineConfig::new(
             hosts,
             timeout,
@@ -81,7 +86,19 @@ impl NativeEngine {
         )
         .map_err(error::from_runtime)?;
         let engine = Engine::new(config).map_err(error::from_runtime)?;
-        Ok(Self { engine })
+        let request_timeout = duration("timeout", timeout)?;
+        let legacy = LegacyExecutor::new(
+            engine.clone(),
+            request_timeout,
+            request_timeout,
+            CANCEL_CONFIRM_TIMEOUT,
+        )
+        .map_err(|sdk_error| error::from_sdk(py, sdk_error))?;
+        Ok(Self {
+            engine,
+            legacy,
+            namespace,
+        })
     }
 
     fn connect(&self, py: Python<'_>) -> PyResult<()> {
@@ -167,6 +184,25 @@ impl NativeEngine {
             },
         };
         response::to_python(py, result)
+    }
+
+    fn sdk_snapshots(&self, py: Python<'_>, codes: Vec<String>) -> PyResult<Py<PyAny>> {
+        service::snapshots(py, self.legacy.clone(), self.namespace.clone(), codes)
+    }
+
+    fn sdk_security_pages(
+        &self,
+        py: Python<'_>,
+        market: String,
+        page_size: usize,
+    ) -> PyResult<Vec<Py<PyAny>>> {
+        service::security_pages(
+            py,
+            self.legacy.clone(),
+            self.namespace.clone(),
+            market,
+            page_size,
+        )
     }
 
     fn pin(&self, py: Python<'_>) -> PyResult<NativePin> {

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable, Sequence
 from typing import Any
+
+from eltdx.exceptions import MissingCodesError, MissingCodesWarning
 
 from .base import ApiBase
 from ._batch import recover_batch
@@ -13,6 +16,27 @@ from .subscription import ErrorCallback, QuoteCallback, QuoteSubscription
 class QuoteApi(ApiBase):
     def get_snapshots(self, codes: str | Sequence[str], *, on_missing: str = "raise"):
         code_list = [codes] if isinstance(codes, str) else list(codes)
+        if (
+            self._native_services
+            and code_list
+            and all(isinstance(code, str) for code in code_list)
+        ):
+            if on_missing not in ("raise", "skip"):
+                raise ValueError("on_missing must be 'raise' or 'skip'")
+            resolver = self._price_resolver() if self._price_resolver is not None else None
+            if resolver is not None:
+                resolver("snapshots", None, code_list)
+            items, missing = self._transport.sdk_snapshots(code_list)
+            if missing:
+                if on_missing == "raise":
+                    raise MissingCodesError(missing)
+                warnings.warn(
+                    "batch skipped missing codes: " + ", ".join(missing),
+                    MissingCodesWarning,
+                    stacklevel=2,
+                )
+            result = [item for item in items if item is not None]
+            return result if resolver is None else resolver("snapshots", result, code_list)
         return recover_batch(
             code_list,
             lambda part: self._execute_priced("snapshots", codes=part, price_codes=part),

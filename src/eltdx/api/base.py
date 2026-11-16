@@ -40,10 +40,18 @@ def _weak_callback(callback: Any) -> Any:
 class ApiBase:
     """Base class for capability-specific APIs."""
 
-    def __init__(self, transport: Transport, *, price_resolver=None, metadata_sink=None) -> None:
+    def __init__(
+        self,
+        transport: Transport,
+        *,
+        price_resolver=None,
+        metadata_sink=None,
+        native_services: bool = False,
+    ) -> None:
         self._transport = transport
         self._price_resolver = _weak_callback(price_resolver)
         self._metadata_sink = _weak_callback(metadata_sink)
+        self._native_services = native_services
 
     def _execute(self, command_name: str, **payload: Any) -> Any:
         return self._transport.execute(command_code(command_name), payload)

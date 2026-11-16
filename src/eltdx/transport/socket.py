@@ -6,7 +6,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from eltdx._native_models import push_frame_from_dto, response_from_dto, trade_batch_from_dto
+from eltdx._native_models import (
+    legacy_snapshot_batch_from_dto,
+    push_frame_from_dto,
+    response_from_dto,
+    trade_batch_from_dto,
+)
 from eltdx.hosts import DEFAULT_HOSTS, resolve_hosts, unique_hosts
 from eltdx.transport.native import call_native, native_module
 
@@ -210,6 +215,14 @@ class SocketTransport:
     def execute(self, command: int, payload: dict[str, Any] | None = None) -> Any:
         dto = call_native(self._native().execute, command, payload or {})
         return response_from_dto(dto)
+
+    def sdk_snapshots(self, codes: Sequence[str]):
+        dto = call_native(self._native().sdk_snapshots, list(codes))
+        return legacy_snapshot_batch_from_dto(dto)
+
+    def sdk_security_pages(self, market: str, page_size: int):
+        dtos = call_native(self._native().sdk_security_pages, market, page_size)
+        return [response_from_dto(dto) for dto in dtos]
 
     def execute_trade_batch(self, command: int, payload: dict[str, Any] | None = None):
         if command != 0x0FC6:

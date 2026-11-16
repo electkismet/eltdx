@@ -4,6 +4,7 @@ mod error;
 mod protocol;
 mod request;
 mod response;
+mod service;
 mod transport;
 
 use pyo3::prelude::*;

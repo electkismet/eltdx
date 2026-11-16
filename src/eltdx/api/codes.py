@@ -23,6 +23,23 @@ class CodeApi(ApiBase):
 
     def all(self, market: str, *, page_size: int = DEFAULT_CODE_PAGE_SIZE):
         _validate_page_size(page_size)
+        if (
+            self._native_services
+            and isinstance(market, str)
+            and isinstance(page_size, int)
+            and not isinstance(page_size, bool)
+        ):
+            items = []
+            for page in self._transport.sdk_security_pages(market, page_size):
+                if not isinstance(page, (list, tuple)):
+                    return items
+                sink = self._metadata_sink() if self._metadata_sink is not None else None
+                if sink is not None:
+                    sink(page)
+                items.extend(page)
+                if not page:
+                    return items
+            return items
         start = 0
         items = []
         while True:

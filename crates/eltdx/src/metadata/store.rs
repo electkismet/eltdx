@@ -66,6 +66,10 @@ impl MarketCandidate {
         Self::with_limits(key, CatalogLimits::code_scan(max_records, max_pages))
     }
 
+    pub(crate) fn for_legacy_scan(key: SnapshotKey) -> Result<Self> {
+        Self::with_limits(key, CatalogLimits::LEGACY)
+    }
+
     pub(super) fn with_limits(key: SnapshotKey, limits: CatalogLimits) -> Result<Self> {
         if key.family() != super::ProtocolFamily::Hq || !matches!(key.market(), super::snapshot::MarketScope::Hq(_)) {
             return Err(Error::new(ErrorKind::InvalidArgument, "HQ market candidate requires an HQ snapshot key"));
