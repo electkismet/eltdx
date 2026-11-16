@@ -285,3 +285,140 @@ def test_f10_legacy_network_timeout_keeps_transport_error_cause(monkeypatch):
         client.params("Example")
     assert str(caught.value) == "TQLEX request timed out for Example"
     assert caught.value.__cause__ is failure
+
+
+@pytest.mark.parametrize("method,code,options,entry,arguments", [
+    ("stock_info", "sh600000", {}, "CWServ.tdxf10_gg_comreq", ("gpquery", "600000")),
+    ("company_profile", "sh600000", {"section": "9"}, "CWServ.tdxf10_gg_gsgk", ("9", "600000", "")),
+    ("profit_forecast", "sh600000", {"section": "ycpjyjbg"}, "CWServ.tdxf10_gg_ybpj", ("600000", "ycpjyjbg")),
+    ("mg_name", "BRK.B", {}, "CWServ.skef10_mg_idreq", ("name", "B")),
+    ("mg_tips", "us.AAPL", {"section": "gsgy"}, "CWServ.skef10_mg_zxdt", ("gsgy", "AAPL", "")),
+    ("mg_dividend", "AAPL", {"section": "cf"}, "CWServ.skef10_mg_fhrz", ("AAPL", "cf")),
+    ("mg_rating", "AAPL", {"section": "open"}, "CWServ.skef10_mg_gspj", ("open", "AAPL")),
+    ("hk_topic", "700", {}, "CWServ.skef10_hk_rdtc", ("001", "00700", "", "0", "0")),
+    ("hk_shareholders", "123456", {"section": "13"}, "CWServ.skef10_hk_gdcg", ("13", "123456", "")),
+    ("sb_profile", "bj430047", {"section": "custom"}, "CWServ.skef10_sb_gsgk", ("430047", "custom")),
+    ("bond_profile", "sh113043", {}, "CWServ.skef10_bond_kzz_zqgk", ("sdcyrbgq", "113043", "")),
+    ("gz_profile", "sz123001", {}, "CWServ.skef10_bond_gz_zjgk", ("zqgk", "123001", "0")),
+    ("qyz_review", "113043", {}, "CWServ.skef10_bond_qyz_gsps", ("113043", "1")),
+    ("gzhg_quotes", "sh204001", {"section": "zqsj"}, "CWServ.skef10_bond_gzhg_zqxx", ("zqsj", "204001")),
+    ("zczq_finance", "sz123001", {}, "CWServ.skef10_bond_zczqh_cwfx", ("t", "123001", "0")),
+    ("kjhz_finance", "sz123001", {}, "CWServ.skef10_bond_kjhz_cwfx", ("t", "123001")),
+    ("bond_bulletin", "sz123001", {}, "CWServ.skef10_bond_zjzx", ("123001", "0")),
+    ("hy_index", "881319", {}, "CWServ.skef10_hy_idsy", ("002", "881319")),
+    ("hy_fund_holdings", "881319", {"section": "open"}, "CWServ.skef10_hy_hysj_jjzb", ("open", "881319", "")),
+    ("qh_inventory", "rb", {}, "CWServ.qhf9_sp_kcbg_kcbg", ("1", "rb")),
+])
+def test_f10_fixed_templates_preserve_original_public_requests(method, code, options, entry, arguments):
+    calls = []
+    result = object()
+
+    class Client(f10.F10Client):
+        def params(self, selected_entry, *selected_arguments):
+            calls.append((selected_entry, selected_arguments))
+            return result
+
+    assert getattr(Client(), method)(code, **options) is result
+    assert calls == [(entry, arguments)]
+
+
+def test_f10_fixed_template_resolves_params_before_code_and_market(monkeypatch):
+    events = []
+    marker = object()
+    converted = object()
+    section = object()
+    market = object()
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params lookup")
+            return lambda entry, *values: events.append((entry, values)) or marker
+
+    def code(value):
+        events.append(("code", value))
+        return converted
+
+    def sc(value):
+        events.append(("market", value))
+        return market
+
+    monkeypatch.setattr(f10, "_bond_code", code)
+    monkeypatch.setattr(f10, "_bond_sc", sc)
+    assert Client().gz_profile(marker, section) is marker
+    assert events == ["params lookup", ("code", marker), ("market", marker),
+                      ("CWServ.skef10_bond_gz_zjgk", (section, converted, market))]
+
+
+def test_f10_fixed_template_keeps_captured_params_when_converter_changes_it(monkeypatch):
+    client = f10.F10Client()
+    calls = []
+    client.params = lambda *args: calls.append(("old", args))
+
+    def convert(value):
+        client.params = lambda *args: calls.append(("new", args))
+        return "converted"
+
+    monkeypatch.setattr(f10, "_us_code", convert)
+    client.mg_name("first")
+    client.mg_name("second")
+    assert calls == [("old", ("CWServ.skef10_mg_idreq", "name", "converted")),
+                     ("new", ("CWServ.skef10_mg_idreq", "name", "converted"))]
+
+
+def test_f10_fixed_template_validates_before_params_or_conversion(monkeypatch):
+    events = []
+    failure = LookupError("section hook")
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            raise AssertionError("params lookup must follow section validation")
+
+    def require(section, choices):
+        events.append((section, choices))
+        raise failure
+
+    monkeypatch.setattr(f10, "_require_section", require)
+    monkeypatch.setattr(f10, "_us_code", lambda value: events.append("code"))
+    with pytest.raises(LookupError) as caught:
+        Client().mg_tips("AAPL", "bad")
+    assert caught.value is failure
+    assert events == [("bad", ("zxdt", "sypl", "gsgy", "zysj"))]
+
+
+@pytest.mark.parametrize("method,expected", [
+    ("hy_profile", ("CWServ.skef10_hy_hyzl_hyjs",)),
+    ("qh_inventory", ("CWServ.qhf9_sp_kcbg_kcbg", "1")),
+])
+def test_f10_fixed_template_preserves_unconverted_symbol_objects(method, expected):
+    marker = object()
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert getattr(client, method)(marker) == expected + (marker,)
+
+
+def test_f10_fixed_template_keeps_original_code_helper_exception(monkeypatch):
+    client = f10.F10Client()
+    failure = RuntimeError("conversion")
+    events = []
+
+    def convert(value):
+        raise failure
+
+    monkeypatch.setattr(f10, "_bond_code", convert)
+    monkeypatch.setattr(f10, "_bond_sc", lambda value: events.append("market"))
+    with pytest.raises(RuntimeError) as caught:
+        client.gz_profile("value")
+    assert caught.value is failure
+    assert events == []
+
+
+def test_f10_fixed_template_keeps_open_section_identity():
+    section = object()
+    client = f10.F10Client()
+    client.params = lambda entry, *args: args
+    values = client.hk_tips("700", section)
+    assert values[0] is section
+    assert values[1] == "00700"

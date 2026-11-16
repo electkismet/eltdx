@@ -2,6 +2,13 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage58: base c9d76ae. Added92 shared fixed F10
+  endpoint templates and Python dispatcher while keeping public signatures,
+  params lookup before conversion, live code/market/section hooks and raw
+  objects. Authored8 Python contract functions (20 wire cases) and3 Rust
+  template functions, unexecuted. Exact methods in simple_registry.rs; dynamic
+  selectors/pages/prerequisites remain. Read task-23-report tenth checkpoint.
+  Counts21/4/5; active unlimited goal; no execution validation/agents/publication.
 - Latest recovery2026-11-17 stage57: c3fbe18 response foundation retained.
   Shared lazy route selection and native Python request/call/params/identity/
   section adapters authored; original HTTP hooks/per-wire timeout/cause mapping

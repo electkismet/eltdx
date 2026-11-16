@@ -1,21 +1,22 @@
 //! Industry and futures endpoints retain native symbols and request dates.
 use std::time::Instant;
+use super::SimpleArgument::{Code, Literal, Section};
 use crate::{OperationOptions, Result};
 use crate::types::TradingDate;
 use crate::f10::{CallQuery, F10Client, FuturesCode, IndustryCode, Response, SectionCode};
 use crate::f10::values::{date_pair, date_text, j, text};
 
 section_endpoint!(HySummaryQuery, hy_summary, IndustryCode, "hqtj", code, section, &format!("CWServ.skef10_hy_{section}"), [j(code.as_str())]);
-code_endpoint!(HyProfileQuery, hy_profile, IndustryCode, code, "CWServ.skef10_hy_hyzl_hyjs", [j(code.as_str())]);
-section_endpoint!(HyCommentaryQuery, hy_commentary, IndustryCode, "001", code, section, "CWServ.skef10_hy_hyzl_hyplk", [j(section), j(code.as_str())]);
-section_endpoint!(HyNewsQuery, hy_news, IndustryCode, "hydt", code, section, "CWServ.skef10_hy_zxdt", [j(section), j(code.as_str())]);
+code_endpoint!(HyProfileQuery, hy_profile, IndustryCode, code, "CWServ.skef10_hy_hyzl_hyjs", wire [Code]);
+section_endpoint!(HyCommentaryQuery, hy_commentary, IndustryCode, "001", code, section, "CWServ.skef10_hy_hyzl_hyplk", wire [Section, Code]);
+section_endpoint!(HyNewsQuery, hy_news, IndustryCode, "hydt", code, section, "CWServ.skef10_hy_zxdt", wire [Section, Code]);
 section_endpoint!(HyCapitalStatsQuery, hy_capital_stats, IndustryCode, "001", code, section, "CWServ.skef10_hy_hysj_bxzjtj", [j(section), j(code.as_str()), j(if section == "001" { "n" } else { "" })]);
-section_endpoint!(HyFundHoldingsQuery, hy_fund_holdings, IndustryCode, "1", code, section, "CWServ.skef10_hy_hysj_jjzb", [j(section), j(code.as_str()), j("")]);
-section_endpoint!(HyCapitalFlowQuery, hy_capital_flow, IndustryCode, "001", code, section, "CWServ.skef10_hy_hysj_zjlx", [j(section), j(code.as_str())]);
-section_endpoint!(HyAnalystIndexQuery, hy_analyst_index, IndustryCode, "001", code, section, "CWServ.skef10_hy_hyyj_fxszs", [j(section), j(code.as_str()), j(""), j("")]);
-code_endpoint!(HyMajorHoldersQuery, hy_major_holders, IndustryCode, code, "CWServ.skef10_hy_hyyj_hymzgd", [j(code.as_str())]);
-section_endpoint!(HyRatingSummaryQuery, hy_rating_summary, IndustryCode, "001", code, section, "CWServ.skef10_hy_hyyj_hypjhz", [j(section), j(code.as_str()), j("")]);
-code_endpoint!(HyIndexQuery, hy_index, IndustryCode, code, "CWServ.skef10_hy_idsy", [j("002"), j(code.as_str())]);
+section_endpoint!(HyFundHoldingsQuery, hy_fund_holdings, IndustryCode, "1", code, section, "CWServ.skef10_hy_hysj_jjzb", wire [Section, Code, Literal("")]);
+section_endpoint!(HyCapitalFlowQuery, hy_capital_flow, IndustryCode, "001", code, section, "CWServ.skef10_hy_hysj_zjlx", wire [Section, Code]);
+section_endpoint!(HyAnalystIndexQuery, hy_analyst_index, IndustryCode, "001", code, section, "CWServ.skef10_hy_hyyj_fxszs", wire [Section, Code, Literal(""), Literal("")]);
+code_endpoint!(HyMajorHoldersQuery, hy_major_holders, IndustryCode, code, "CWServ.skef10_hy_hyyj_hymzgd", wire [Code]);
+section_endpoint!(HyRatingSummaryQuery, hy_rating_summary, IndustryCode, "001", code, section, "CWServ.skef10_hy_hyyj_hypjhz", wire [Section, Code, Literal("")]);
+code_endpoint!(HyIndexQuery, hy_index, IndustryCode, code, "CWServ.skef10_hy_idsy", wire [Literal("002"), Code]);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HyStageRiseQuery { code: IndustryCode, flag: String }
@@ -47,7 +48,7 @@ impl HyMembersRankQuery {
     }
 }
 
-code_endpoint!(QhInventoryQuery, qh_inventory, FuturesCode, code, "CWServ.qhf9_sp_kcbg_kcbg", [j("1"), j(code.as_str())]);
+code_endpoint!(QhInventoryQuery, qh_inventory, FuturesCode, code, "CWServ.qhf9_sp_kcbg_kcbg", wire [Literal("1"), Code]);
 section_endpoint!(QhIndexInfoQuery, qh_index_info, FuturesCode, "zsgk", code, section, &format!("CWServ.qhf9_gz_zszl_{section}"), [j(if section == "zsgk" { "1" } else { "2" }), j(code.as_str())]);
 
 #[derive(Clone, Debug, Eq, PartialEq)]

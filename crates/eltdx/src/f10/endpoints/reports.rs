@@ -1,22 +1,23 @@
 //! A-share and fund reports, including prerequisite report-period queries.
 use std::num::NonZeroU32;
 use std::time::Instant;
+use super::SimpleArgument::{Code, Literal, Section};
 use crate::operation::OperationContext;
 use crate::types::TradingDate;
 use crate::{Error, ErrorKind, OperationOptions, Result, TimeoutPhase};
 use crate::f10::{AshareCode, CallQuery, DateOrWindow, F10Client, JsonValue, Response, SectionCode};
 use crate::f10::values::{count, date_text, j, page, text};
 
-code_endpoint!(StockInfoQuery, stock_info, AshareCode, code, "CWServ.tdxf10_gg_comreq", [j("gpquery"), j(code.as_str())]);
-code_endpoint!(BusinessPeriodsQuery, business_periods, AshareCode, code, "CWServ.tdxf10_gg_comreq", [j("zygcfx"), j(code.as_str())]);
-code_endpoint!(TopicIdsQuery, topic_ids, AshareCode, code, "CWServ.tdxf10_gg_comreq", [j("rdtcgn"), j(code.as_str())]);
-section_endpoint!(CompanyProfileQuery, company_profile, AshareCode, "8", code, section, "CWServ.tdxf10_gg_gsgk", [j(section), j(code.as_str()), j("")]);
-section_endpoint!(DividendFinancingQuery, dividend_financing, AshareCode, "fh", code, section, "CWServ.tdxf10_gg_fhrz", [j(code.as_str()), j(section)]);
-code_endpoint!(AllotmentDatesQuery, allotment_dates, AshareCode, code, "CWServ.tdxf10_gg_fhrz_zfhpmx", [j("zfpg_bgq"), j(code.as_str()), j("")]);
-section_endpoint!(ProfitForecastQuery, profit_forecast, AshareCode, "ylyctj", code, section, "CWServ.tdxf10_gg_ybpj", [j(code.as_str()), j(section)]);
-section_endpoint!(RankingDetailQuery, ranking_detail, AshareCode, "scpmdela", code, section, "CWServ.tdxf10_gg_zxts_rqpm", [j(code.as_str()), j(section)]);
-section_endpoint!(HotTopicsQuery, hot_topics, AshareCode, "zttzbkz", code, section, "CWServ.tdxf10_gg_rdtc", [j(code.as_str()), j(section)]);
-section_endpoint!(StockFinanceWeightsQuery, stock_finance_weights, AshareCode, "zcfzb", code, section, "CWServ.tdxf10_gg_zxtscwbq", [j(code.as_str()), j(section)]);
+code_endpoint!(StockInfoQuery, stock_info, AshareCode, code, "CWServ.tdxf10_gg_comreq", wire [Literal("gpquery"), Code]);
+code_endpoint!(BusinessPeriodsQuery, business_periods, AshareCode, code, "CWServ.tdxf10_gg_comreq", wire [Literal("zygcfx"), Code]);
+code_endpoint!(TopicIdsQuery, topic_ids, AshareCode, code, "CWServ.tdxf10_gg_comreq", wire [Literal("rdtcgn"), Code]);
+section_endpoint!(CompanyProfileQuery, company_profile, AshareCode, "8", code, section, "CWServ.tdxf10_gg_gsgk", wire [Section, Code, Literal("")]);
+section_endpoint!(DividendFinancingQuery, dividend_financing, AshareCode, "fh", code, section, "CWServ.tdxf10_gg_fhrz", wire [Code, Section]);
+code_endpoint!(AllotmentDatesQuery, allotment_dates, AshareCode, code, "CWServ.tdxf10_gg_fhrz_zfhpmx", wire [Literal("zfpg_bgq"), Code, Literal("")]);
+section_endpoint!(ProfitForecastQuery, profit_forecast, AshareCode, "ylyctj", code, section, "CWServ.tdxf10_gg_ybpj", wire [Code, Section]);
+section_endpoint!(RankingDetailQuery, ranking_detail, AshareCode, "scpmdela", code, section, "CWServ.tdxf10_gg_zxts_rqpm", wire [Code, Section]);
+section_endpoint!(HotTopicsQuery, hot_topics, AshareCode, "zttzbkz", code, section, "CWServ.tdxf10_gg_rdtc", wire [Code, Section]);
+section_endpoint!(StockFinanceWeightsQuery, stock_finance_weights, AshareCode, "zcfzb", code, section, "CWServ.tdxf10_gg_zxtscwbq", wire [Code, Section]);
 
 macro_rules! section_base {
     ($name:ident, $method:literal, $default:literal, {$($field:ident: $ty:ty = $value:expr),* $(,)?}) => {

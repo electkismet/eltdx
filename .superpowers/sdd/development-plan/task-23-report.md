@@ -276,3 +276,38 @@ filtered no-write. One Rust selection case authored. All unexecuted.
 Remaining T23 work: offline models, GBBQ/block, full F10/native compatibility,
 cross-source helpers and manifest evidence; then T24–T30 before validation.
 Counts21/4/5, unlimited active goal, no tests/build/check/network or agents.
+
+## Tenth checkpoint — 92 fixed named endpoint templates
+
+Base `c9d76ae`. Replaced fixed literal request assembly for92 named methods
+with one SimpleEndpoint/ordered SimpleArgument definition per Rust query.
+The Rust query's to_call and the Python f10_simple_endpoint dispatcher both
+consume those definitions. No Python dependency is introduced into the SDK;
+Python continues exposing its original method signatures and docstrings.
+
+Scope: international fixed methods (41), all31 bond methods, ten fixed A-share
+report methods, and ten industry/futures methods. Exact names are the entries
+in crates/eltdx/src/f10/endpoints/simple_registry.rs. Complex/dynamic Entry,
+indicator mapping, paginated, prerequisite and model/field compositions remain
+outside this checkpoint and are NOT counted as migrated here.
+
+The binding validates only methods that originally called _require_section,
+using the same closed choice order and a real tuple literal equivalent. It
+captures self.params before converting any argument, then traverses shared
+slots in order. Live _code6/_us_code/_hk_code/_bond_code/_bond_sc overrides,
+unchanged custom input objects, open section identity, arbitrary return objects
+and original exceptions are retained. Industry/futures symbols remain raw
+Python objects. Bond number and market conversion are distinct calls on the
+original input; the query's checked Rust identity policy remains independent.
+
+Authored8 additional Python contract functions (including20 representative
+wire cases and2 raw-symbol cases) and3 Rust shared-template functions. Existing
+independent route inventory remains the fixed-wire oracle. No tests, build,
+collection, dependency/network execution, formatter, AST or diff check ran.
+Source reads and ordinary Git diff only. No manifest promotion or acceptance
+claim. Counts still21 source-complete/4partial/5unstarted; active unlimited goal.
+
+Resume next: complex F10 named request policies and live selector dictionaries,
+all remaining named methods/models/fields, cross-source helpers and migration
+evidence; then T24–T30 before the unified verification gate. Checkpoint58 is
+complete as a source checkpoint, not complete T23.

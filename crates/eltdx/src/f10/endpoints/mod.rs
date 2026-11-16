@@ -28,6 +28,27 @@ impl F10Client {
 }
 
 macro_rules! code_endpoint {
+    ($query:ident, $method:ident, $code:ty, $input:ident, $entry:literal, wire [$($value:expr),* $(,)?]) => {
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        pub struct $query { code: $code }
+        impl $query {
+            pub fn new(code: $code) -> Self { Self { code } }
+            pub fn code(&self) -> &$code { &self.code }
+            #[doc(hidden)]
+            pub fn simple_template() -> super::SimpleEndpoint {
+                super::template::definition::<$code>(stringify!($method), $entry, &[$($value),*])
+            }
+            pub fn to_call(&self) -> crate::Result<super::CallQuery> {
+                super::template::native(Self::simple_template(), &self.code, "")
+            }
+        }
+        impl super::F10Client {
+            pub fn $method(&self, query: &$query, options: &crate::OperationOptions) -> crate::Result<super::Response> {
+                let result = self.endpoint(concat!("f10.", stringify!($method)), std::time::Instant::now(), || query.to_call(), options)?;
+                Ok(super::inferred_bond(result, crate::f10::values::IdentityDiagnostic::inferred_bond_market(query.code())))
+            }
+        }
+    };
     ($query:ident, $method:ident, $code:ty, $input:ident, $entry:expr, [$($value:expr),* $(,)?]) => {
         #[derive(Clone, Debug, Eq, PartialEq)]
         pub struct $query { code: $code }
@@ -48,6 +69,31 @@ macro_rules! code_endpoint {
     };
 }
 macro_rules! section_endpoint {
+    ($query:ident, $method:ident, $code:ty, $default:literal, $input:ident, $section:ident, $entry:literal, wire [$($value:expr),* $(,)?]) => {
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        pub struct $query { code: $code, section: crate::f10::SectionCode }
+        impl $query {
+            pub fn new(code: $code) -> Self { Self { code, section: crate::f10::SectionCode::default_for(stringify!($method), $default) } }
+            pub fn code(&self) -> &$code { &self.code }
+            pub fn section(&self) -> &crate::f10::SectionCode { &self.section }
+            pub fn with_section(mut self, section: crate::f10::SectionCode) -> crate::Result<Self> {
+                section.checked_for(stringify!($method))?; self.section = section; Ok(self)
+            }
+            #[doc(hidden)]
+            pub fn simple_template() -> super::SimpleEndpoint {
+                super::template::definition::<$code>(stringify!($method), $entry, &[$($value),*])
+            }
+            pub fn to_call(&self) -> crate::Result<super::CallQuery> {
+                super::template::native(Self::simple_template(), &self.code, self.section.as_str())
+            }
+        }
+        impl super::F10Client {
+            pub fn $method(&self, query: &$query, options: &crate::OperationOptions) -> crate::Result<super::Response> {
+                let result = self.endpoint(concat!("f10.", stringify!($method)), std::time::Instant::now(), || query.to_call(), options)?;
+                Ok(super::inferred_bond(result, crate::f10::values::IdentityDiagnostic::inferred_bond_market(query.code())))
+            }
+        }
+    };
     ($query:ident, $method:ident, $code:ty, $default:literal, $input:ident, $section:ident, $entry:expr, [$($value:expr),* $(,)?]) => {
         #[derive(Clone, Debug, Eq, PartialEq)]
         pub struct $query { code: $code, section: crate::f10::SectionCode }
@@ -73,6 +119,10 @@ macro_rules! section_endpoint {
     };
 }
 
+mod template;
+pub use template::{SimpleArgument, SimpleEndpoint};
+mod simple_registry;
+pub use simple_registry::simple_endpoint;
 mod international;
 pub use international::*;
 mod bonds;

@@ -157,7 +157,7 @@ impl SectionCode {
     pub(crate) fn default_for(method: &'static str, value: &'static str) -> Self { Self { method, value: value.to_owned() } }
 }
 
-fn closed_sections(method: &str) -> Option<&'static [&'static str]> {
+pub(crate) fn closed_sections(method: &str) -> Option<&'static [&'static str]> {
     Some(match method {
         "shareholders" => &["count", "ranking", "controller", "top_circulating", "top", "bonds", "changes", "institutions", "institution_types", "institution_holdings", "plan"],
         "capital_structure" => &["structure", "changes", "buyback", "restricted", "restricted_detail"],

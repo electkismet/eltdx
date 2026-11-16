@@ -3,25 +3,26 @@
 use std::num::NonZeroU32;
 use std::time::Instant;
 
+use super::SimpleArgument::{Code, Literal, Section};
 use crate::types::TradingDate;
 use crate::{OperationOptions, Result};
 use crate::f10::values::{count, date_pair, date_text, j, page, text};
 use crate::f10::{CallQuery, F10Client, HongKongCode, Response, SectionCode, ThirdBoardCode, UsTicker};
 
-code_endpoint!(MgNameQuery, mg_name, UsTicker, code, "CWServ.skef10_mg_idreq", [j("name"), j(code.as_str())]);
-section_endpoint!(MgTipsQuery, mg_tips, UsTicker, "zxdt", code, section, "CWServ.skef10_mg_zxdt", [j(section), j(code.as_str()), j("")]);
-code_endpoint!(MgProfileQuery, mg_profile, UsTicker, code, "CWServ.skef10_mg_gsgk", [j("001"), j(code.as_str())]);
-section_endpoint!(MgFinanceQuery, mg_finance, UsTicker, "zcfzb", code, section, "CWServ.skef10_mg_cwfx", [j(section), j(code.as_str())]);
+code_endpoint!(MgNameQuery, mg_name, UsTicker, code, "CWServ.skef10_mg_idreq", wire [Literal("name"), Code]);
+section_endpoint!(MgTipsQuery, mg_tips, UsTicker, "zxdt", code, section, "CWServ.skef10_mg_zxdt", wire [Section, Code, Literal("")]);
+code_endpoint!(MgProfileQuery, mg_profile, UsTicker, code, "CWServ.skef10_mg_gsgk", wire [Literal("001"), Code]);
+section_endpoint!(MgFinanceQuery, mg_finance, UsTicker, "zcfzb", code, section, "CWServ.skef10_mg_cwfx", wire [Section, Code]);
 section_endpoint!(MgFinanceIndicatorQuery, mg_finance_indicator, UsTicker, "jbzb", code, section, "CWServ.skef10_mg_cwzb", [j(indicator(section, true)), j(code.as_str())]);
-code_endpoint!(MgBusinessQuery, mg_business, UsTicker, code, "CWServ.skef10_mg_jyfx", [j(code.as_str())]);
-code_endpoint!(MgIndustryQuery, mg_industry, UsTicker, code, "CWServ.skef10_mg_hyfx", [j("001"), j(code.as_str()), j("4"), j("1")]);
-code_endpoint!(MgIndustryCompareQuery, mg_industry_compare, UsTicker, code, "CWServ.skef10_mg_hydb", [j("001"), j(code.as_str()), j(""), j("0"), j("0")]);
-section_endpoint!(MgDividendQuery, mg_dividend, UsTicker, "fh", code, section, "CWServ.skef10_mg_fhrz", [j(code.as_str()), j(section)]);
-section_endpoint!(MgDirectorsQuery, mg_directors, UsTicker, "ds", code, section, "CWServ.skef10_mg_dsgg", [j(code.as_str()), j(section)]);
-code_endpoint!(MgAnnouncementsQuery, mg_announcements, UsTicker, code, "CWServ.skef10_mg_gsbd", [j("gsgg"), j(code.as_str())]);
-section_endpoint!(MgRatingQuery, mg_rating, UsTicker, "001", code, section, "CWServ.skef10_mg_gspj", [j(section), j(code.as_str())]);
-code_endpoint!(MgTopicQuery, mg_topic, UsTicker, code, "CWServ.skef10_mg_rdtc", [j("001"), j(code.as_str()), j(""), j("4"), j("1")]);
-section_endpoint!(MgDeepAnalysisQuery, mg_deep_analysis, UsTicker, "001", code, section, "CWServ.skef10_mg_sdfx", [j(section), j(code.as_str())]);
+code_endpoint!(MgBusinessQuery, mg_business, UsTicker, code, "CWServ.skef10_mg_jyfx", wire [Code]);
+code_endpoint!(MgIndustryQuery, mg_industry, UsTicker, code, "CWServ.skef10_mg_hyfx", wire [Literal("001"), Code, Literal("4"), Literal("1")]);
+code_endpoint!(MgIndustryCompareQuery, mg_industry_compare, UsTicker, code, "CWServ.skef10_mg_hydb", wire [Literal("001"), Code, Literal(""), Literal("0"), Literal("0")]);
+section_endpoint!(MgDividendQuery, mg_dividend, UsTicker, "fh", code, section, "CWServ.skef10_mg_fhrz", wire [Code, Section]);
+section_endpoint!(MgDirectorsQuery, mg_directors, UsTicker, "ds", code, section, "CWServ.skef10_mg_dsgg", wire [Code, Section]);
+code_endpoint!(MgAnnouncementsQuery, mg_announcements, UsTicker, code, "CWServ.skef10_mg_gsbd", wire [Literal("gsgg"), Code]);
+section_endpoint!(MgRatingQuery, mg_rating, UsTicker, "001", code, section, "CWServ.skef10_mg_gspj", wire [Section, Code]);
+code_endpoint!(MgTopicQuery, mg_topic, UsTicker, code, "CWServ.skef10_mg_rdtc", wire [Literal("001"), Code, Literal(""), Literal("4"), Literal("1")]);
+section_endpoint!(MgDeepAnalysisQuery, mg_deep_analysis, UsTicker, "001", code, section, "CWServ.skef10_mg_sdfx", wire [Section, Code]);
 
 fn indicator(section: &str, us: bool) -> &'static str {
     match (section, us) {
@@ -84,23 +85,23 @@ impl F10Client {
     pub fn mg_market(&self, query: &MgMarketQuery, options: &OperationOptions) -> Result<Response> { self.endpoint("f10.mg_market", Instant::now(), || query.to_call(), options) }
 }
 
-code_endpoint!(HkNameQuery, hk_name, HongKongCode, code, "CWServ.skef10_hk_idreq", [j("name"), j(code.as_str())]);
-section_endpoint!(HkTipsQuery, hk_tips, HongKongCode, "1", code, section, "CWServ.skef10_hk_zxts", [j(section), j(code.as_str())]);
-section_endpoint!(HkEventsQuery, hk_events, HongKongCode, "1", code, section, "CWServ.skef10_hk_gsds", [j(section), j(code.as_str())]);
-section_endpoint!(HkProfileQuery, hk_profile, HongKongCode, "1", code, section, "CWServ.skef10_hk_gsgk", [j(section), j(code.as_str())]);
-section_endpoint!(HkRelatedQuery, hk_related, HongKongCode, "6", code, section, "CWServ.skef10_hk_glzq", [j(section), j(code.as_str())]);
-section_endpoint!(HkExecutivesQuery, hk_executives, HongKongCode, "1", code, section, "CWServ.skef10_hk_ggzl", [j(section), j(code.as_str())]);
-section_endpoint!(HkCapitalQuery, hk_capital, HongKongCode, "1", code, section, "CWServ.skef10_hk_gbjg", [j(section), j(code.as_str())]);
-section_endpoint!(HkShareholdersQuery, hk_shareholders, HongKongCode, "1", code, section, "CWServ.skef10_hk_gdcg", [j(section), j(code.as_str()), j("")]);
+code_endpoint!(HkNameQuery, hk_name, HongKongCode, code, "CWServ.skef10_hk_idreq", wire [Literal("name"), Code]);
+section_endpoint!(HkTipsQuery, hk_tips, HongKongCode, "1", code, section, "CWServ.skef10_hk_zxts", wire [Section, Code]);
+section_endpoint!(HkEventsQuery, hk_events, HongKongCode, "1", code, section, "CWServ.skef10_hk_gsds", wire [Section, Code]);
+section_endpoint!(HkProfileQuery, hk_profile, HongKongCode, "1", code, section, "CWServ.skef10_hk_gsgk", wire [Section, Code]);
+section_endpoint!(HkRelatedQuery, hk_related, HongKongCode, "6", code, section, "CWServ.skef10_hk_glzq", wire [Section, Code]);
+section_endpoint!(HkExecutivesQuery, hk_executives, HongKongCode, "1", code, section, "CWServ.skef10_hk_ggzl", wire [Section, Code]);
+section_endpoint!(HkCapitalQuery, hk_capital, HongKongCode, "1", code, section, "CWServ.skef10_hk_gbjg", wire [Section, Code]);
+section_endpoint!(HkShareholdersQuery, hk_shareholders, HongKongCode, "1", code, section, "CWServ.skef10_hk_gdcg", wire [Section, Code, Literal("")]);
 section_endpoint!(HkFinanceQuery, hk_finance, HongKongCode, "zcfzb", code, section, "CWServ.skef10_hk_cwfx", [j(hk_statement(section)), j(code.as_str())]);
 section_endpoint!(HkFinanceIndicatorQuery, hk_finance_indicator, HongKongCode, "jbzb", code, section, "CWServ.skef10_hk_cwzb", [j(indicator(section, false)), j(code.as_str())]);
-section_endpoint!(HkBusinessQuery, hk_business, HongKongCode, "1", code, section, "CWServ.skef10_hk_jyfx", [j(section), j(code.as_str())]);
-section_endpoint!(HkIndustryCompareQuery, hk_industry_compare, HongKongCode, "1", code, section, "CWServ.skef10_hk_hybj", [j(section), j(code.as_str()), j("0"), j("0")]);
-section_endpoint!(HkMarketQuery, hk_market, HongKongCode, "3", code, section, "CWServ.skef10_hk_schq", [j(section), j(code.as_str())]);
-section_endpoint!(HkCapitalFlowQuery, hk_capital_flow, HongKongCode, "001", code, section, "CWServ.skef10_hk_schq_zjlx", [j(section), j(code.as_str()), j("0")]);
-section_endpoint!(HkNewsQuery, hk_news, HongKongCode, "3", code, section, "CWServ.skef10_hk_gszx", [j(section), j(code.as_str())]);
-code_endpoint!(HkTopicQuery, hk_topic, HongKongCode, code, "CWServ.skef10_hk_rdtc", [j("001"), j(code.as_str()), j(""), j("0"), j("0")]);
-code_endpoint!(HkPriceChartQuery, hk_price_chart, HongKongCode, code, "CWServ.skef10_hk_sdfx_hqzft", [j(code.as_str())]);
+section_endpoint!(HkBusinessQuery, hk_business, HongKongCode, "1", code, section, "CWServ.skef10_hk_jyfx", wire [Section, Code]);
+section_endpoint!(HkIndustryCompareQuery, hk_industry_compare, HongKongCode, "1", code, section, "CWServ.skef10_hk_hybj", wire [Section, Code, Literal("0"), Literal("0")]);
+section_endpoint!(HkMarketQuery, hk_market, HongKongCode, "3", code, section, "CWServ.skef10_hk_schq", wire [Section, Code]);
+section_endpoint!(HkCapitalFlowQuery, hk_capital_flow, HongKongCode, "001", code, section, "CWServ.skef10_hk_schq_zjlx", wire [Section, Code, Literal("0")]);
+section_endpoint!(HkNewsQuery, hk_news, HongKongCode, "3", code, section, "CWServ.skef10_hk_gszx", wire [Section, Code]);
+code_endpoint!(HkTopicQuery, hk_topic, HongKongCode, code, "CWServ.skef10_hk_rdtc", wire [Literal("001"), Code, Literal(""), Literal("0"), Literal("0")]);
+code_endpoint!(HkPriceChartQuery, hk_price_chart, HongKongCode, code, "CWServ.skef10_hk_sdfx_hqzft", wire [Code]);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HkPepbBandQuery { code: HongKongCode, sjfw: String, tab_value: String, hqzq: String }
@@ -143,16 +144,16 @@ impl F10Client {
     pub fn hk_analyst_forecast(&self, query: &HkAnalystForecastQuery, options: &OperationOptions) -> Result<Response> { self.endpoint("f10.hk_analyst_forecast", Instant::now(), || query.to_call(), options) }
 }
 
-code_endpoint!(SbNameQuery, sb_name, ThirdBoardCode, code, "CWServ.skef10_sb_idreq", [j("name"), j(code.as_str())]);
-section_endpoint!(SbProfileQuery, sb_profile, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_gsgk", [j(code.as_str()), j(section)]);
-section_endpoint!(SbTipsQuery, sb_tips, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_zxts", [j(code.as_str()), j(section)]);
-section_endpoint!(SbEventsQuery, sb_events, ThirdBoardCode, "ydjy", code, section, "CWServ.skef10_sb_jyds", [j(code.as_str()), j(section)]);
-section_endpoint!(SbCapitalQuery, sb_capital, ThirdBoardCode, "gbjg", code, section, "CWServ.skef10_sb_gbjg", [j(code.as_str()), j(section)]);
-section_endpoint!(SbShareholdersQuery, sb_shareholders, ThirdBoardCode, "sdgd", code, section, "CWServ.skef10_sb_gdyj", [j(code.as_str()), j(section)]);
-section_endpoint!(SbComplianceQuery, sb_compliance, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_hgyy", [j(code.as_str()), j(section)]);
-section_endpoint!(SbDividendQuery, sb_dividend, ThirdBoardCode, "fh", code, section, "CWServ.skef10_sb_fhrz", [j(code.as_str()), j(section)]);
-section_endpoint!(SbFinanceQuery, sb_finance, ThirdBoardCode, "zcfzb", code, section, "CWServ.skef10_sb_cwfx", [j(code.as_str()), j(section)]);
-section_endpoint!(SbBusinessQuery, sb_business, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_jyfx", [j(code.as_str()), j(section)]);
-section_endpoint!(SbMajorEventsQuery, sb_major_events, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_zdsx", [j(code.as_str()), j(section)]);
-section_endpoint!(SbNewsQuery, sb_news, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_gszx", [j(code.as_str()), j(section)]);
-section_endpoint!(SbIndustryCompareQuery, sb_industry_compare, ThirdBoardCode, "hyxx", code, section, "CWServ.skef10_sb_hybj", [j(code.as_str()), j(section)]);
+code_endpoint!(SbNameQuery, sb_name, ThirdBoardCode, code, "CWServ.skef10_sb_idreq", wire [Literal("name"), Code]);
+section_endpoint!(SbProfileQuery, sb_profile, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_gsgk", wire [Code, Section]);
+section_endpoint!(SbTipsQuery, sb_tips, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_zxts", wire [Code, Section]);
+section_endpoint!(SbEventsQuery, sb_events, ThirdBoardCode, "ydjy", code, section, "CWServ.skef10_sb_jyds", wire [Code, Section]);
+section_endpoint!(SbCapitalQuery, sb_capital, ThirdBoardCode, "gbjg", code, section, "CWServ.skef10_sb_gbjg", wire [Code, Section]);
+section_endpoint!(SbShareholdersQuery, sb_shareholders, ThirdBoardCode, "sdgd", code, section, "CWServ.skef10_sb_gdyj", wire [Code, Section]);
+section_endpoint!(SbComplianceQuery, sb_compliance, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_hgyy", wire [Code, Section]);
+section_endpoint!(SbDividendQuery, sb_dividend, ThirdBoardCode, "fh", code, section, "CWServ.skef10_sb_fhrz", wire [Code, Section]);
+section_endpoint!(SbFinanceQuery, sb_finance, ThirdBoardCode, "zcfzb", code, section, "CWServ.skef10_sb_cwfx", wire [Code, Section]);
+section_endpoint!(SbBusinessQuery, sb_business, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_jyfx", wire [Code, Section]);
+section_endpoint!(SbMajorEventsQuery, sb_major_events, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_zdsx", wire [Code, Section]);
+section_endpoint!(SbNewsQuery, sb_news, ThirdBoardCode, "001", code, section, "CWServ.skef10_sb_gszx", wire [Code, Section]);
+section_endpoint!(SbIndustryCompareQuery, sb_industry_compare, ThirdBoardCode, "hyxx", code, section, "CWServ.skef10_sb_hybj", wire [Code, Section]);
