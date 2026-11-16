@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 
 use crate::error::ProtocolError;
@@ -122,6 +123,7 @@ pub struct AuctionPoint {
     pub unmatched_direction_raw: i8,
     pub reserved_zero_0e: u8,
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -134,6 +136,23 @@ pub struct AuctionSeries {
 pub fn parse_auction_series_payload(
     payload: &[u8],
     request: AuctionSeriesRequest,
+) -> Result<AuctionSeries, ProtocolError> {
+    parse_auction_series_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_auction_series_payload_with_context(
+    payload: Bytes,
+    request: AuctionSeriesRequest,
+    options: &ParseOptions<'_>,
+) -> Result<AuctionSeries, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_auction_series_payload_body(&payload, request, &context)
+}
+
+fn parse_auction_series_payload_body(
+    payload: &[u8],
+    request: AuctionSeriesRequest,
+    context: &ParseContext<'_>,
 ) -> Result<AuctionSeries, ProtocolError> {
     if payload.len() > MAX_RESPONSE_PAYLOAD_SIZE {
         return Err(ProtocolError::LimitExceeded {
@@ -206,13 +225,14 @@ pub fn parse_auction_series_payload(
             unmatched_volume: unmatched_signed_raw.unsigned_abs(),
             unmatched_direction_raw: if unmatched_signed_raw >= 0 { 1 } else { -1 },
             reserved_zero_0e,
-            record_hex: encode_hex(record),
+            record_hex: context.record_hex(record),
+            record_range: context.record_range(record),
         });
     }
     Ok(AuctionSeries {
         request,
         points,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
@@ -240,15 +260,6 @@ fn python_round_to_i64(value: f64) -> Result<i64, ProtocolError> {
     .ok_or_else(|| ProtocolError::invalid_data("auction series", "auction price overflow"))
 }
 
-fn encode_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(data.len().saturating_mul(2));
-    for byte in data {
-        output.push(char::from(DIGITS[usize::from(*byte >> 4)]));
-        output.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
-    }
-    output
-}
 
 #[cfg(test)]
 mod tests {

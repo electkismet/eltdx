@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 
 use crate::commands::klines::KlineBar;
@@ -60,6 +61,23 @@ pub struct DelistedKlineSeries {
 pub fn parse_delisted_klines_payload(
     payload: &[u8],
     request: DelistedKlinesRequest,
+) -> Result<DelistedKlineSeries, ProtocolError> {
+    parse_delisted_klines_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_delisted_klines_payload_with_context(
+    payload: Bytes,
+    request: DelistedKlinesRequest,
+    options: &ParseOptions<'_>,
+) -> Result<DelistedKlineSeries, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_delisted_klines_payload_body(&payload, request, &context)
+}
+
+fn parse_delisted_klines_payload_body(
+    payload: &[u8],
+    request: DelistedKlinesRequest,
+    context: &ParseContext<'_>,
 ) -> Result<DelistedKlineSeries, ProtocolError> {
     if payload.len() > MAX_RESPONSE_PAYLOAD_SIZE {
         return Err(ProtocolError::LimitExceeded {
@@ -129,13 +147,14 @@ pub fn parse_delisted_klines_payload(
         let volume_raw = volume_shares as u32;
         let amount_raw = read_u32(payload, offset, "truncated amount")?;
         offset += 4;
-        let _unknown_suffix = payload
+        let unknown_suffix = payload
             .get(offset..offset.saturating_add(4))
             .ok_or_else(|| ProtocolError::invalid_data("delisted klines", "truncated suffix"))?;
         offset += 4;
         last_close_milli = close_price_milli;
         bars.push(KlineBar {
             time,
+            time_raw: date_raw.to_le_bytes(),
             open: milli_to_float(open_price_milli),
             close: milli_to_float(close_price_milli),
             high: milli_to_float(high_price_milli),
@@ -156,7 +175,11 @@ pub fn parse_delisted_klines_payload(
             low_delta_raw,
             up_count: None,
             down_count: None,
-            record_hex: encode_hex(&payload[record_start..offset]),
+            unknown_suffix_raw: Some(unknown_suffix.try_into().map_err(|_| {
+                ProtocolError::invalid_data("delisted klines", "invalid suffix")
+            })?),
+            record_hex: context.record_hex(&payload[record_start..offset]),
+            record_range: context.record_range(&payload[record_start..offset]),
         });
     }
     if offset != payload.len() {
@@ -171,7 +194,7 @@ pub fn parse_delisted_klines_payload(
     Ok(DelistedKlineSeries {
         request,
         bars,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
@@ -187,15 +210,6 @@ fn checked_add(left: i64, right: i64) -> Result<i64, ProtocolError> {
         .ok_or_else(|| ProtocolError::invalid_data("delisted klines", "price overflow"))
 }
 
-fn encode_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(data.len() * 2);
-    for byte in data {
-        output.push(char::from(DIGITS[usize::from(*byte >> 4)]));
-        output.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
-    }
-    output
-}
 
 #[cfg(test)]
 mod tests {

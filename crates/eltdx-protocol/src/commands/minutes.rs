@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 
 use crate::error::ProtocolError;
@@ -5,7 +6,7 @@ use crate::frame::RequestFrame;
 use crate::limits::MAX_RESPONSE_PAYLOAD_SIZE;
 use crate::unit::{
     consume_price, consume_varint, little_f32, little_u16, little_u32, milli_to_float,
-    minute_index_datetime, minute_index_label, price_divisor, DateParts, DateTimeParts, Market,
+    minute_index_datetime, minute_index_label, DateParts, DateTimeParts, Market,
     NormalizedCode,
 };
 
@@ -276,6 +277,8 @@ pub struct MinutePoint {
     pub time: Option<DateTimeParts>,
     pub price: f64,
     pub price_milli: i64,
+    pub price_divisor: u16,
+    pub metadata_decimal: Option<u8>,
     pub volume: i64,
     pub price_field: Option<i64>,
     pub avg_field: Option<i64>,
@@ -285,6 +288,7 @@ pub struct MinutePoint {
     pub price_delta_raw: Option<i64>,
     pub aux_delta_raw: Option<i64>,
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -324,6 +328,7 @@ pub enum MinuteAuxPoint {
 pub struct MinuteAuxSeries {
     pub request: IntradayAuxRequest,
     pub response_kind: IntradayAuxKind,
+    pub record_ranges: Vec<RecordRange>,
     pub points: Vec<MinuteAuxPoint>,
     pub raw_payload: Bytes,
 }
@@ -353,6 +358,23 @@ pub fn parse_today_intraday_payload(
     payload: &[u8],
     request: TodayIntradayRequest,
 ) -> Result<MinuteSeries<TodayIntradayRequest>, ProtocolError> {
+    parse_today_intraday_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_today_intraday_payload_with_context(
+    payload: Bytes,
+    request: TodayIntradayRequest,
+    options: &ParseOptions<'_>,
+) -> Result<MinuteSeries<TodayIntradayRequest>, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_today_intraday_payload_body(&payload, request, &context)
+}
+
+fn parse_today_intraday_payload_body(
+    payload: &[u8],
+    request: TodayIntradayRequest,
+    context: &ParseContext<'_>,
+) -> Result<MinuteSeries<TodayIntradayRequest>, ProtocolError> {
     check_payload(payload, "today intraday")?;
     if payload.len() < 4 {
         return Err(ProtocolError::invalid_data(
@@ -364,6 +386,7 @@ pub fn parse_today_intraday_payload(
     let reserved_zero = little_u16(&payload[2..4])?;
     validate_variable_count(count, payload.len() - 4, 3, "today intraday")?;
 
+    let precision = context.precision(&request.code)?;
     let mut offset = 4;
     let mut first_price = None;
     let mut first_avg = None;
@@ -407,8 +430,10 @@ pub fn parse_today_intraday_payload(
             volume,
             price_raw,
             avg_raw,
-            i64::from(price_divisor(&request.code)),
+            i64::from(precision.divisor),
             &payload[record_start..offset],
+            precision.decimal,
+            context,
         )?);
     }
     ensure_consumed(payload, offset, "today intraday")?;
@@ -421,13 +446,30 @@ pub fn parse_today_intraday_payload(
         open_price: None,
         open_price_raw: None,
         date_selector_raw: None,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
 pub fn parse_historical_intraday_payload(
     payload: &[u8],
     request: HistoricalIntradayRequest,
+) -> Result<MinuteSeries<HistoricalIntradayRequest>, ProtocolError> {
+    parse_historical_intraday_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_historical_intraday_payload_with_context(
+    payload: Bytes,
+    request: HistoricalIntradayRequest,
+    options: &ParseOptions<'_>,
+) -> Result<MinuteSeries<HistoricalIntradayRequest>, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_historical_intraday_payload_body(&payload, request, &context)
+}
+
+fn parse_historical_intraday_payload_body(
+    payload: &[u8],
+    request: HistoricalIntradayRequest,
+    context: &ParseContext<'_>,
 ) -> Result<MinuteSeries<HistoricalIntradayRequest>, ProtocolError> {
     check_payload(payload, "historical intraday")?;
     if payload.len() < 6 {
@@ -440,6 +482,7 @@ pub fn parse_historical_intraday_payload(
     let (prev_close, prev_close_raw) = read_f32(payload, 2, "historical prev close")?;
     validate_variable_count(count, payload.len() - 6, 3, "historical intraday")?;
 
+    let precision = context.precision(&request.code)?;
     let mut offset = 6;
     let mut price_acc_raw = 0_i64;
     let mut points = Vec::with_capacity(count);
@@ -454,7 +497,7 @@ pub fn parse_historical_intraday_payload(
         price_acc_raw = checked_add(price_acc_raw, price_delta_raw, "historical intraday price")?;
         let price_milli = checked_scale(
             price_acc_raw,
-            i64::from(price_divisor(&request.code)),
+            i64::from(precision.divisor),
             "historical intraday price",
         )?;
         let point_index = checked_index(index)?;
@@ -465,6 +508,8 @@ pub fn parse_historical_intraday_payload(
             time: Some(minute_index_datetime(request.trading_date, minute_index)?),
             price: milli_to_float(price_milli),
             price_milli,
+            price_divisor: precision.divisor,
+            metadata_decimal: precision.decimal,
             volume,
             price_field: None,
             avg_field: None,
@@ -473,7 +518,8 @@ pub fn parse_historical_intraday_payload(
             avg_raw: None,
             price_delta_raw: Some(price_delta_raw),
             aux_delta_raw: Some(aux_delta_raw),
-            record_hex: encode_hex(&payload[record_start..offset]),
+            record_hex: context.record_hex(&payload[record_start..offset]),
+            record_range: context.record_range(&payload[record_start..offset]),
         });
     }
     ensure_consumed(payload, offset, "historical intraday")?;
@@ -486,13 +532,30 @@ pub fn parse_historical_intraday_payload(
         open_price: None,
         open_price_raw: None,
         date_selector_raw: None,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
 pub fn parse_recent_intraday_payload(
     payload: &[u8],
     request: RecentIntradayRequest,
+) -> Result<MinuteSeries<RecentIntradayRequest>, ProtocolError> {
+    parse_recent_intraday_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_recent_intraday_payload_with_context(
+    payload: Bytes,
+    request: RecentIntradayRequest,
+    options: &ParseOptions<'_>,
+) -> Result<MinuteSeries<RecentIntradayRequest>, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_recent_intraday_payload_body(&payload, request, &context)
+}
+
+fn parse_recent_intraday_payload_body(
+    payload: &[u8],
+    request: RecentIntradayRequest,
+    context: &ParseContext<'_>,
 ) -> Result<MinuteSeries<RecentIntradayRequest>, ProtocolError> {
     check_payload(payload, "recent intraday")?;
     if payload.len() < 10 {
@@ -506,6 +569,7 @@ pub fn parse_recent_intraday_payload(
     let (open_price, open_price_raw) = read_f32(payload, 6, "recent open price")?;
     validate_variable_count(count, payload.len() - 10, 3, "recent intraday")?;
 
+    let precision = context.precision(&request.code)?;
     let mut offset = 10;
     let mut first_price = None;
     let mut first_avg = None;
@@ -552,8 +616,10 @@ pub fn parse_recent_intraday_payload(
             volume,
             price_raw,
             avg_raw,
-            i64::from(price_divisor(&request.code)),
+            i64::from(precision.divisor),
             &payload[record_start..offset],
+            precision.decimal,
+            context,
         )?);
     }
     ensure_consumed(payload, offset, "recent intraday")?;
@@ -567,13 +633,30 @@ pub fn parse_recent_intraday_payload(
         open_price: Some(open_price),
         open_price_raw: Some(open_price_raw),
         date_selector_raw: Some(date_selector_raw),
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
 pub fn parse_intraday_aux_payload(
     payload: &[u8],
     request: IntradayAuxRequest,
+) -> Result<MinuteAuxSeries, ProtocolError> {
+    parse_intraday_aux_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_intraday_aux_payload_with_context(
+    payload: Bytes,
+    request: IntradayAuxRequest,
+    options: &ParseOptions<'_>,
+) -> Result<MinuteAuxSeries, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_intraday_aux_payload_body(&payload, request, &context)
+}
+
+fn parse_intraday_aux_payload_body(
+    payload: &[u8],
+    request: IntradayAuxRequest,
+    context: &ParseContext<'_>,
 ) -> Result<MinuteAuxSeries, ProtocolError> {
     check_payload(payload, "intraday aux")?;
     if payload.len() < 2 {
@@ -584,6 +667,7 @@ pub fn parse_intraday_aux_payload(
     }
     let count = usize::from(little_u16(&payload[..2])?);
     let response_kind = IntradayAuxKind::from_raw(request.kind.raw());
+    let mut record_ranges = Vec::new();
     let mut points = Vec::with_capacity(count);
     let mut offset = 2;
     if response_kind == IntradayAuxKind::VolumeComparison {
@@ -611,6 +695,7 @@ pub fn parse_intraday_aux_payload(
                 read_f32(payload, offset, "current day cumulative volume")?;
             offset += 4;
             let point_index = checked_index(index)?;
+            record_ranges.push(context.record_range(&payload[record_start..offset]));
             points.push(MinuteAuxPoint::VolumeComparison {
                 index: point_index,
                 time_label: minute_index_label(i64::from(point_index))?,
@@ -618,7 +703,7 @@ pub fn parse_intraday_aux_payload(
                 previous_day_raw,
                 current_day_cumulative_volume: current_day,
                 current_day_raw,
-                record_hex: encode_hex(&payload[record_start..offset]),
+                record_hex: context.record_hex(&payload[record_start..offset]),
             });
         }
     } else {
@@ -630,12 +715,13 @@ pub fn parse_intraday_aux_payload(
             let (series_b, next) = consume_varint(payload, offset)?;
             offset = next;
             let point_index = checked_index(index)?;
+            record_ranges.push(context.record_range(&payload[record_start..offset]));
             points.push(MinuteAuxPoint::BuySellStrength {
                 index: point_index,
                 time_label: minute_index_label(i64::from(point_index))?,
                 series_a,
                 series_b,
-                record_hex: encode_hex(&payload[record_start..offset]),
+                record_hex: context.record_hex(&payload[record_start..offset]),
             });
         }
         ensure_consumed(payload, offset, "intraday aux")?;
@@ -643,14 +729,32 @@ pub fn parse_intraday_aux_payload(
     Ok(MinuteAuxSeries {
         request,
         response_kind,
+        record_ranges,
         points,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
 pub fn parse_sparkline_payload(
     payload: &[u8],
     request: SparklineRequest,
+) -> Result<SparklineSeries, ProtocolError> {
+    parse_sparkline_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_sparkline_payload_with_context(
+    payload: Bytes,
+    request: SparklineRequest,
+    options: &ParseOptions<'_>,
+) -> Result<SparklineSeries, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_sparkline_payload_body(&payload, request, &context)
+}
+
+fn parse_sparkline_payload_body(
+    payload: &[u8],
+    request: SparklineRequest,
+    context: &ParseContext<'_>,
 ) -> Result<SparklineSeries, ProtocolError> {
     check_payload(payload, "sparkline")?;
     if payload.len() < 42 {
@@ -708,7 +812,7 @@ pub fn parse_sparkline_payload(
         base_price,
         base_price_raw,
         prices,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
@@ -723,6 +827,8 @@ fn relative_minute_point(
     avg_raw: i64,
     divisor: i64,
     record: &[u8],
+    metadata_decimal: Option<u8>,
+    context: &ParseContext<'_>,
 ) -> Result<MinutePoint, ProtocolError> {
     let index = checked_index(index)?;
     let price_milli = checked_scale(price_raw, divisor, "intraday price")?;
@@ -732,6 +838,8 @@ fn relative_minute_point(
         time,
         price: milli_to_float(price_milli),
         price_milli,
+        price_divisor: divisor as u16,
+        metadata_decimal,
         volume,
         price_field: Some(price_field),
         avg_field: Some(avg_field),
@@ -740,7 +848,8 @@ fn relative_minute_point(
         avg_raw: Some(avg_raw),
         price_delta_raw: None,
         aux_delta_raw: None,
-        record_hex: encode_hex(record),
+        record_hex: context.record_hex(record),
+        record_range: context.record_range(record),
     })
 }
 
@@ -886,15 +995,6 @@ fn is_leap_year(year: i32) -> bool {
     year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
 
-fn encode_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(data.len().saturating_mul(2));
-    for byte in data {
-        output.push(char::from(DIGITS[usize::from(*byte >> 4)]));
-        output.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
-    }
-    output
-}
 
 #[cfg(test)]
 mod tests {

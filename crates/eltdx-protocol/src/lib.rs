@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
 pub mod commands;
+pub mod context;
 pub mod error;
 pub mod frame;
 pub mod limits;
@@ -12,5 +13,6 @@ pub mod unit;
 mod round2_tests;
 
 pub use error::ProtocolError;
+pub use context::{ParseOptions, ParseRawPolicy, PricePrecisionSource, RecordEncoding, RecordRange};
 pub use request::CommandRequest;
 pub use response::CommandResponse;

@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 
 use crate::error::ProtocolError;
@@ -68,6 +69,7 @@ pub struct FileContentChunk {
     pub chunk_len: u32,
     pub content: Bytes,
     pub trailing_payload: Bytes,
+    pub content_range: RecordRange,
     pub raw_payload: Bytes,
 }
 
@@ -80,6 +82,23 @@ impl FileContentChunk {
 pub fn parse_file_content_payload(
     payload: &[u8],
     request: FileContentRequest,
+) -> Result<FileContentChunk, ProtocolError> {
+    parse_file_content_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_file_content_payload_with_context(
+    payload: Bytes,
+    request: FileContentRequest,
+    options: &ParseOptions<'_>,
+) -> Result<FileContentChunk, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_file_content_payload_body(&payload, request, &context)
+}
+
+fn parse_file_content_payload_body(
+    payload: &[u8],
+    request: FileContentRequest,
+    context: &ParseContext<'_>,
 ) -> Result<FileContentChunk, ProtocolError> {
     if payload.len() > MAX_RESPONSE_PAYLOAD_SIZE {
         return Err(ProtocolError::LimitExceeded {
@@ -122,9 +141,14 @@ pub fn parse_file_content_payload(
     Ok(FileContentChunk {
         request,
         chunk_len,
-        content: Bytes::copy_from_slice(&payload[4..expected_length]),
-        trailing_payload: Bytes::copy_from_slice(&payload[expected_length..]),
-        raw_payload: Bytes::copy_from_slice(payload),
+        content: if context.retains_payload() && !context.is_legacy() {
+            context.payload(payload).slice(4..expected_length)
+        } else { Bytes::copy_from_slice(&payload[4..expected_length]) },
+        trailing_payload: if context.retains_payload() {
+            context.payload(payload).slice(expected_length..)
+        } else { Bytes::new() },
+        content_range: context.record_range(&payload[4..expected_length]),
+        raw_payload: context.payload(payload),
     })
 }
 

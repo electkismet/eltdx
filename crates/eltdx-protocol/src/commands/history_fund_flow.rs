@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 
 use crate::commands::klines::KlinesRequest;
@@ -30,6 +31,7 @@ pub const HISTORY_FUND_FLOW_RECORD_SIZE: usize = 36;
 pub struct HistoryFundFlowRecord {
     pub date_raw: u32,
     pub date: Option<DateParts>,
+    pub amounts_raw: [u32; 8],
     pub super_large_in: f64,
     pub large_in: f64,
     pub medium_in: f64,
@@ -39,6 +41,7 @@ pub struct HistoryFundFlowRecord {
     pub medium_out: f64,
     pub small_out: f64,
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 impl HistoryFundFlowRecord {
@@ -59,6 +62,7 @@ impl HistoryFundFlowRecord {
 #[derive(Clone, Debug, PartialEq)]
 pub struct HistoryFundFlowSeries {
     pub request: KlinesRequest,
+    pub prefix_raw: Option<[u8; HISTORY_FUND_FLOW_PREFIX_SIZE]>,
     pub records: Vec<HistoryFundFlowRecord>,
     pub raw_payload: Bytes,
 }
@@ -82,6 +86,23 @@ pub fn parse_history_fund_flow_payload(
     payload: &[u8],
     request: KlinesRequest,
 ) -> Result<HistoryFundFlowSeries, ProtocolError> {
+    parse_history_fund_flow_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_history_fund_flow_payload_with_context(
+    payload: Bytes,
+    request: KlinesRequest,
+    options: &ParseOptions<'_>,
+) -> Result<HistoryFundFlowSeries, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_history_fund_flow_payload_body(&payload, request, &context)
+}
+
+fn parse_history_fund_flow_payload_body(
+    payload: &[u8],
+    request: KlinesRequest,
+    context: &ParseContext<'_>,
+) -> Result<HistoryFundFlowSeries, ProtocolError> {
     if payload.len() > MAX_RESPONSE_PAYLOAD_SIZE {
         return Err(ProtocolError::LimitExceeded {
             resource: "history fund flow",
@@ -98,8 +119,9 @@ pub fn parse_history_fund_flow_payload(
         }
         return Ok(HistoryFundFlowSeries {
             request,
+            prefix_raw: None,
             records: Vec::new(),
-            raw_payload: Bytes::copy_from_slice(payload),
+            raw_payload: context.payload(payload),
         });
     }
     let count_end = HISTORY_FUND_FLOW_PREFIX_SIZE + 2;
@@ -136,12 +158,15 @@ pub fn parse_history_fund_flow_payload(
         let date_raw = little_u32(&payload[offset..offset + 4])?;
         offset += 4;
         let mut amounts = [0.0_f64; 8];
-        for amount in &mut amounts {
-            *amount = get_volume(little_u32(&payload[offset..offset + 4])?);
+        let mut amounts_raw = [0_u32; 8];
+        for (amount, raw) in amounts.iter_mut().zip(amounts_raw.iter_mut()) {
+            *raw = little_u32(&payload[offset..offset + 4])?;
+            *amount = get_volume(*raw);
             offset += 4;
         }
         records.push(HistoryFundFlowRecord {
             date_raw,
+            amounts_raw,
             date: DateParts::from_yyyymmdd(date_raw),
             super_large_in: amounts[0],
             large_in: amounts[1],
@@ -151,25 +176,20 @@ pub fn parse_history_fund_flow_payload(
             large_out: amounts[5],
             medium_out: amounts[6],
             small_out: amounts[7],
-            record_hex: encode_hex(&payload[record_start..offset]),
+            record_hex: context.record_hex(&payload[record_start..offset]),
+            record_range: context.record_range(&payload[record_start..offset]),
         });
     }
     Ok(HistoryFundFlowSeries {
         request,
+        prefix_raw: Some(payload[..HISTORY_FUND_FLOW_PREFIX_SIZE].try_into().map_err(|_| {
+            ProtocolError::invalid_data("history fund flow", "invalid prefix")
+        })?),
         records,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
-fn encode_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(data.len() * 2);
-    for byte in data {
-        output.push(char::from(DIGITS[usize::from(*byte >> 4)]));
-        output.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
-    }
-    output
-}
 
 #[cfg(test)]
 mod tests {

@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 
 use crate::error::ProtocolError;
@@ -97,6 +98,7 @@ impl KlinesRequest {
 #[derive(Clone, Debug, PartialEq)]
 pub struct KlineBar {
     pub time: DateTimeParts,
+    pub time_raw: [u8; 4],
     pub open: f64,
     pub close: f64,
     pub high: f64,
@@ -117,7 +119,9 @@ pub struct KlineBar {
     pub low_delta_raw: i64,
     pub up_count: Option<u16>,
     pub down_count: Option<u16>,
+    pub unknown_suffix_raw: Option<[u8; 4]>,
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -131,6 +135,23 @@ pub struct KlineSeries {
 pub fn parse_klines_payload(
     payload: &[u8],
     request: KlinesRequest,
+) -> Result<KlineSeries, ProtocolError> {
+    parse_klines_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_klines_payload_with_context(
+    payload: Bytes,
+    request: KlinesRequest,
+    options: &ParseOptions<'_>,
+) -> Result<KlineSeries, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_klines_payload_body(&payload, request, &context)
+}
+
+fn parse_klines_payload_body(
+    payload: &[u8],
+    request: KlinesRequest,
+    context: &ParseContext<'_>,
 ) -> Result<KlineSeries, ProtocolError> {
     if payload.len() > MAX_RESPONSE_PAYLOAD_SIZE {
         return Err(ProtocolError::LimitExceeded {
@@ -208,6 +229,9 @@ pub fn parse_klines_payload(
         let volume_wire_value = get_volume(volume_raw);
         bars.push(KlineBar {
             time,
+            time_raw: time_raw.try_into().map_err(|_| {
+                ProtocolError::invalid_data("klines", "invalid time field")
+            })?,
             open: milli_to_float(open_price_milli),
             close: milli_to_float(close_price_milli),
             high: milli_to_float(high_price_milli),
@@ -232,7 +256,9 @@ pub fn parse_klines_payload(
             low_delta_raw,
             up_count,
             down_count,
-            record_hex: encode_hex(&payload[record_start..offset]),
+            unknown_suffix_raw: None,
+            record_hex: context.record_hex(&payload[record_start..offset]),
+            record_range: context.record_range(&payload[record_start..offset]),
         });
     }
     if offset != payload.len() {
@@ -253,7 +279,7 @@ pub fn parse_klines_payload(
         request,
         anchor_date,
         bars,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
@@ -278,15 +304,6 @@ fn checked_add(left: i64, right: i64) -> Result<i64, ProtocolError> {
         .ok_or_else(|| ProtocolError::invalid_data("klines", "kline price overflow"))
 }
 
-fn encode_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(data.len() * 2);
-    for byte in data {
-        output.push(char::from(DIGITS[usize::from(*byte >> 4)]));
-        output.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
-    }
-    output
-}
 
 #[cfg(test)]
 mod tests {

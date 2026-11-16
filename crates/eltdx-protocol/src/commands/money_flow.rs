@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 
 use crate::error::ProtocolError;
@@ -56,6 +57,7 @@ pub struct MoneyFlowRecord {
     pub main_net: f64,
     pub main_ratio: f64,
     pub record_hex: String,
+    pub record_range: RecordRange,
     pub main_buy_net: f64,
     pub main_buy_ratio: f64,
     pub main_buy_super_large_net: f64,
@@ -70,6 +72,7 @@ pub struct MoneyFlowRecord {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MoneyFlowBlock {
+    pub header_raw: [u8; MONEY_FLOW_HEADER_SIZE],
     pub market_id: u8,
     pub market: Option<Market>,
     pub code: String,
@@ -86,6 +89,23 @@ pub struct MoneyFlowBatch {
 pub fn parse_money_flow_payload(
     payload: &[u8],
     request: MoneyFlowRequest,
+) -> Result<MoneyFlowBatch, ProtocolError> {
+    parse_money_flow_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_money_flow_payload_with_context(
+    payload: Bytes,
+    request: MoneyFlowRequest,
+    options: &ParseOptions<'_>,
+) -> Result<MoneyFlowBatch, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_money_flow_payload_body(&payload, request, &context)
+}
+
+fn parse_money_flow_payload_body(
+    payload: &[u8],
+    request: MoneyFlowRequest,
+    context: &ParseContext<'_>,
 ) -> Result<MoneyFlowBatch, ProtocolError> {
     if payload.len() > MAX_RESPONSE_PAYLOAD_SIZE {
         return Err(ProtocolError::LimitExceeded {
@@ -142,9 +162,13 @@ pub fn parse_money_flow_payload(
             let start = header_end + index * MONEY_FLOW_RECORD_SIZE;
             records.push(parse_money_flow_record(
                 &payload[start..start + MONEY_FLOW_RECORD_SIZE],
+                context,
             )?);
         }
         blocks.push(MoneyFlowBlock {
+            header_raw: header.try_into().map_err(|_| {
+                ProtocolError::invalid_data("money flow", "invalid header")
+            })?,
             market_id,
             market,
             code,
@@ -156,11 +180,11 @@ pub fn parse_money_flow_payload(
     Ok(MoneyFlowBatch {
         request,
         blocks,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
-fn parse_money_flow_record(record: &[u8]) -> Result<MoneyFlowRecord, ProtocolError> {
+fn parse_money_flow_record(record: &[u8], context: &ParseContext<'_>) -> Result<MoneyFlowRecord, ProtocolError> {
     if record.len() != MONEY_FLOW_RECORD_SIZE {
         return Err(ProtocolError::invalid_data(
             "money flow",
@@ -197,7 +221,8 @@ fn parse_money_flow_record(record: &[u8]) -> Result<MoneyFlowRecord, ProtocolErr
         buckets,
         main_net: bucket / 50_000.0 * f64::from(total_amount),
         main_ratio: bucket / 500.0,
-        record_hex: hex(record),
+        record_hex: context.record_hex(record),
+        record_range: context.record_range(record),
         main_buy_net: main_buy_bucket / 50_000.0 * f64::from(total_amount),
         main_buy_ratio: main_buy_bucket / 500.0,
         main_buy_super_large_net: (f64::from(buckets[2]) - f64::from(buckets[3])) * scale,
@@ -211,9 +236,6 @@ fn parse_money_flow_record(record: &[u8]) -> Result<MoneyFlowRecord, ProtocolErr
     })
 }
 
-fn hex(value: &[u8]) -> String {
-    value.iter().map(|byte| format!("{byte:02x}")).collect()
-}
 
 #[cfg(test)]
 mod tests {

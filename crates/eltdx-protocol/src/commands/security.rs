@@ -1,3 +1,5 @@
+use bytes::Bytes;
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{DEFAULT_CODE_PAGE_SIZE, MAX_CODE_PAGE_SIZE, MAX_RESPONSE_PAYLOAD_SIZE};
@@ -136,6 +138,7 @@ pub struct SecurityCode {
     pub category: SecurityCategory,
     pub category_reason: &'static str,
     pub board: SecurityBoard,
+    pub record_range: RecordRange,
 }
 
 impl SecurityCode {
@@ -174,6 +177,23 @@ pub fn parse_security_list_payload(
     payload: &[u8],
     market: Market,
 ) -> Result<Vec<SecurityCode>, ProtocolError> {
+    parse_security_list_payload_body(payload, market, &ParseContext::legacy(payload))
+}
+
+pub fn parse_security_list_payload_with_context(
+    payload: Bytes,
+    market: Market,
+    options: &ParseOptions<'_>,
+) -> Result<Vec<SecurityCode>, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_security_list_payload_body(&payload, market, &context)
+}
+
+fn parse_security_list_payload_body(
+    payload: &[u8],
+    market: Market,
+    context: &ParseContext<'_>,
+) -> Result<Vec<SecurityCode>, ProtocolError> {
     ensure_payload_bound(payload, "security list")?;
     if payload.len() < 2 {
         return Err(ProtocolError::invalid_data(
@@ -203,7 +223,9 @@ pub fn parse_security_list_payload(
         let unknown3_raw = exact_four(&record[33..37], "security unknown3")?;
         let (category, category_reason) = classify_security_details(market, &code);
         let board = classify_board(market, &code, category);
-        register_security_decimal(&format!("{}{}", market.as_str(), code), record[28]);
+        if context.is_legacy() {
+            register_security_decimal(&format!("{}{}", market.as_str(), code), record[28]);
+        }
         items.push(SecurityCode {
             market,
             code,
@@ -218,6 +240,7 @@ pub fn parse_security_list_payload(
             category,
             category_reason,
             board,
+            record_range: context.record_range(record),
         });
     }
     Ok(items)
