@@ -482,7 +482,11 @@ impl PinRegistry {
         let Some(active) = record.active else {
             return Ok(None);
         };
-        if active.lease.request_id != wire.request_id || active.wire != Some(wire) {
+        let exact_wire = active.wire == Some(wire)
+            || (active.wire.is_none()
+                && wire.generation.is_none()
+                && wire.message.is_none());
+        if active.lease.request_id != wire.request_id || !exact_wire {
             return Ok(None);
         }
         let mut expired = Vec::new();
@@ -521,7 +525,12 @@ impl PinRegistry {
             if record.identity != plan.pin
                 || record.sequence != plan.sequence
                 || record.active.map(|active| active.lease) != Some(plan.call)
-                || record.active.and_then(|active| active.wire) != Some(plan.wire)
+                || !record.active.is_some_and(|active| {
+                    active.wire == Some(plan.wire)
+                        || (active.wire.is_none()
+                            && plan.wire.generation.is_none()
+                            && plan.wire.message.is_none())
+                })
             {
                 return Ok(None);
             }
@@ -848,6 +857,39 @@ mod tests {
             generation: Some(GenerationId::new(generation)?),
             message: Some(MessageIdentity::new(message, 0x044e)?),
         })
+    }
+
+    #[test]
+    fn unstarted_terminal_preserves_exact_call_identity_and_rejects_stale_plans() -> Result<(), RuntimeError> {
+        let now = Instant::now();
+        let mut pins = PinRegistry::new(1)?;
+        let identity = pins.register(PinId::new(1)?, lease(1)?)?;
+        let first = pins.admit_direct(identity, RequestId::new(2)?,
+            Deadline::at(now + Duration::from_secs(2)), now)?;
+        let unstarted = RequestWireIdentity {
+            engine_epoch: identity.engine_epoch, request_id: first.request_id,
+            lease_id: identity.lease_id, slot_id: identity.slot_id, generation: None, message: None,
+        };
+        for stale in [
+            RequestWireIdentity { request_id: RequestId::new(99)?, ..unstarted },
+            RequestWireIdentity { engine_epoch: EngineEpoch::new(2)?, ..unstarted },
+            RequestWireIdentity { lease_id: LeaseId::from_raw(99), ..unstarted },
+            RequestWireIdentity { slot_id: SlotId::new(1), ..unstarted },
+            RequestWireIdentity { generation: Some(GenerationId::new(1)?), ..unstarted },
+            RequestWireIdentity { message: Some(MessageIdentity::new(1, 0x044e)?), ..unstarted },
+        ] {
+            assert!(pins.plan_terminal(stale, now)?.is_none());
+        }
+        let next = permit(3, 1, Deadline::at(now + Duration::from_secs(2)))?;
+        pins.enqueue(identity, next, now)?;
+        let plan = pins.plan_terminal(unstarted, now)?.expect("exact unstarted plan");
+        let result = pins.commit_terminal(&plan)?.expect("committed");
+        assert_eq!(result.promotion.expect("promoted").1.request_id, next.request_id);
+        assert!(pins.commit_terminal(&plan)?.is_none());
+        assert!(pins.plan_terminal(unstarted, now)?.is_none());
+        assert_eq!(pins.active_call(identity).expect("new call survives").request_id, next.request_id);
+        pins.check_invariants()?;
+        Ok(())
     }
 
     #[test]

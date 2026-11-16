@@ -939,6 +939,21 @@ impl Supervisor {
         identity
     }
 
+    pub fn abort_retry_after_retirement(
+        &mut self,
+        acknowledgement: ReconnectAck,
+    ) -> Option<RequestWireIdentity> {
+        if self.state != EngineState::Running
+            || self.lifecycle_retirements.contains_key(&acknowledgement.request_id)
+        {
+            self.record_stale();
+            return None;
+        }
+        let wire = self.requests.abort_retry_after_retirement(acknowledgement);
+        if wire.is_none() { self.record_stale(); }
+        wire
+    }
+
     pub fn continue_connect_after_reconnect(
         &mut self,
         acknowledgement: ReconnectAck,

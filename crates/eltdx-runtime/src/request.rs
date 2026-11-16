@@ -1233,6 +1233,28 @@ impl RequestTracker {
         Some(wire)
     }
 
+    /// A reconnect acknowledgement already proves retirement. If the retry's
+    /// deadline elapsed while waiting for it, permit only this request's terminal
+    /// reducer, without attempting another connect or losing the old identity.
+    pub fn abort_retry_after_retirement(
+        &mut self,
+        acknowledgement: ReconnectAck,
+    ) -> Option<RequestWireIdentity> {
+        let record = self.records.get_mut(&acknowledgement.request_id)?;
+        let wire = record.wire?;
+        if record.state != RequestState::Retrying
+            || record.attempt.retirement_intent != Some(RetirementIntent::Retry)
+            || wire.engine_epoch != acknowledgement.engine_epoch
+            || wire.slot_id != acknowledgement.slot_id
+            || wire.generation != Some(acknowledgement.retired_generation)
+            || acknowledgement.next_generation == acknowledgement.retired_generation
+        {
+            return None;
+        }
+        record.attempt.retirement_intent = None;
+        Some(wire)
+    }
+
     pub fn continue_connect_after_reconnect(
         &mut self,
         acknowledgement: ReconnectAck,

@@ -91,12 +91,46 @@ pub(crate) enum ExecutionProfile {
     PythonLegacy { request_timeout: Duration },
 }
 
+/// A shared metadata flight can retain sponsorship without retaining the client owner.
+/// The flight selects a live sponsor for each physical attempt; it owns its own clock.
+#[derive(Clone, Debug)]
+pub(crate) struct OperationSponsor {
+    budget: Arc<OperationBudget>,
+    profile: ExecutionProfile,
+}
+
+impl OperationSponsor {
+    pub(crate) fn check_boundary(&self) -> Result<()> { self.budget.check(Instant::now()) }
+
+    pub(crate) fn deadline(&self) -> Option<Instant> {
+        match self.profile { ExecutionProfile::RustPublic { deadline, .. } => Some(deadline), _ => None }
+    }
+
+    pub(crate) fn metadata_authorization(&self) -> Result<Arc<dyn eltdx_runtime::execution::AttemptAuthorization>> {
+        self.budget.gate(Instant::now(), |state| {
+            state.counters.logical_requests = checked_add(state.counters.logical_requests, 1)?;
+            Ok(())
+        })?;
+        Ok(Arc::new(ChildAuthorization {
+            budget: Arc::clone(&self.budget), purpose: ChildPurpose::Metadata, recovery: None,
+            rust_public: matches!(self.profile, ExecutionProfile::RustPublic { .. }),
+        }))
+    }
+
+    pub(crate) fn retry_policy(&self, request: &CommandRequest) -> eltdx_runtime::request::RetryPolicy {
+        match self.profile {
+            ExecutionProfile::RustPublic { wire_attempts, .. } => rust_retry_policy(request, wire_attempts),
+            ExecutionProfile::PythonLegacy { .. } => eltdx_runtime::request::RetryPolicy::ordinary(request.retry_safe()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct RequestPermit {
     pub operation_id: u64,
     pub child_id: usize,
     profile: ExecutionProfile,
-    authorization: Arc<ChildAuthorization>,
+    authorization: Arc<dyn eltdx_runtime::execution::AttemptAuthorization>,
 }
 
 impl RequestPermit {
@@ -178,6 +212,9 @@ impl OperationContext {
     }
 
     pub(crate) fn raw(&self) -> RawPolicy { self.options.raw }
+    pub(crate) fn sponsor(&self) -> OperationSponsor {
+        OperationSponsor { budget: Arc::clone(&self.budget), profile: self.profile }
+    }
     pub(crate) fn owner(&self) -> &Arc<SessionOwner> { &self.owner }
     pub(crate) fn is_legacy(&self) -> bool { matches!(self.profile, ExecutionProfile::PythonLegacy { .. }) }
     pub(crate) fn counters(&self) -> Result<WorkCounters> { self.budget.counters() }
@@ -236,8 +273,9 @@ impl OperationContext {
     }
 
     pub(crate) fn runtime_error(&self, runtime: RuntimeError, command: u16) -> Error {
+        let recovery_limit = runtime.context().iter().any(|(key, value)| key == "code" && value == "legacy_recovery_limit");
         let mut error = Error::from_runtime(runtime);
-        if error.kind() == ErrorKind::LimitExceeded || (self.is_legacy() && error.kind() == ErrorKind::Protocol) {
+        if error.kind() == ErrorKind::LimitExceeded || recovery_limit {
             if let Some(source) = self.budget.last_recoverable() { error = error.with_source(source); }
         }
         self.annotate(error, TimeoutPhase::Response, Some(command))
@@ -254,6 +292,18 @@ impl OperationContext {
     }
 
     pub(crate) fn stop(&self, error: Error) -> Error { self.budget.stop(error) }
+
+    pub(crate) fn enrich_stop(&self, root: Error, diagnostic: Error) -> Error {
+        let mut root = self.budget.stop(root);
+        for (key, value) in diagnostic.context() {
+            if !root.context().iter().any(|(existing, _)| existing == key) {
+                root = root.with_context(key, value);
+            }
+        }
+        root = root.with_source(diagnostic);
+        if let Ok(mut state) = self.budget.state.lock() { state.root = Some(root.clone()); }
+        root
+    }
 
     pub(crate) fn finish(&self) -> Result<()> {
         self.budget.gate(Instant::now(), |state| { state.finished = true; Ok(()) })
@@ -292,3 +342,7 @@ impl Drop for OperationContext {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "operation_tests.rs"]
+mod tests;

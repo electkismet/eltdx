@@ -747,6 +747,7 @@ pub struct PendingRawExecution {
     control: Arc<ControlCell>,
     admission_rx: Option<std_mpsc::Receiver<Result<(), RuntimeError>>>,
     result_rx: std_mpsc::Receiver<Result<RawReply, RuntimeError>>,
+    terminal_received: Cell<bool>,
 }
 
 #[derive(Debug)]
@@ -902,7 +903,7 @@ impl PendingRawExecution {
         if let Some(admission_rx) = self.admission_rx.as_ref() {
             match receive_std_timeout(admission_rx, timeout) {
                 Ok(Ok(())) => self.admission_rx = None,
-                Ok(Err(error)) => return Err(error),
+                Ok(Err(error)) => { self.terminal_received.set(true); return Err(error); },
                 Err(std_mpsc::RecvTimeoutError::Timeout) => return Ok(PendingPoll::Pending),
                 Err(std_mpsc::RecvTimeoutError::Disconnected) => {
                     return Err(RuntimeError::internal(
@@ -913,8 +914,8 @@ impl PendingRawExecution {
         }
         let remaining = timeout.saturating_sub(started.elapsed());
         match receive_std_timeout(&self.result_rx, remaining) {
-            Ok(Ok(reply)) => Ok(PendingPoll::Ready(reply)),
-            Ok(Err(error)) => Err(error),
+            Ok(Ok(reply)) => { self.terminal_received.set(true); Ok(PendingPoll::Ready(reply)) },
+            Ok(Err(error)) => { self.terminal_received.set(true); Err(error) },
             Err(std_mpsc::RecvTimeoutError::Timeout) => Ok(PendingPoll::Pending),
             Err(std_mpsc::RecvTimeoutError::Disconnected) => Err(RuntimeError::internal(
                 "runtime result channel disconnected before terminal publication",
@@ -933,17 +934,25 @@ impl PendingRawExecution {
 
     pub fn begin_cancel(&self) -> Result<PendingCancellation, RuntimeError> {
         check_pid(self.created_pid)?;
-        let confirmation = match self.result_rx.try_recv() {
+        let confirmation = if self.terminal_received.get() { None } else { match self.result_rx.try_recv() {
             Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => None,
             Err(std_mpsc::TryRecvError::Empty) => {
                 let confirmation = Arc::new(Completion::new());
                 self.control.request_cancel(self.request_id, Arc::clone(&confirmation))?;
                 Some(confirmation)
             }
+        }
         };
         Ok(PendingCancellation {
             created_pid: self.created_pid, control: Arc::clone(&self.control), confirmation,
         })
+    }
+
+    #[doc(hidden)]
+    pub fn quarantine(&self) -> Result<(), RuntimeError> {
+        check_pid(self.created_pid)?;
+        self.control.mark_close_timeout()?;
+        self.control.request_close()
     }
 
     pub fn cancel_and_confirm(&self, timeout: Duration) -> Result<(), RuntimeError> {
@@ -1289,6 +1298,11 @@ impl PendingClose {
 }
 
 impl Engine {
+    #[doc(hidden)]
+    pub fn same_owner(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+
     pub fn new(config: EngineConfig) -> Result<Self, RuntimeError> {
         let _ = process_origin_pid();
         config.total_capacity()?;
@@ -1620,6 +1634,7 @@ impl Engine {
                 }
             })?;
         Ok(PendingRawExecution {
+            terminal_received: Cell::new(false),
             created_pid: self.inner.created_pid,
             request_id,
             control: runtime.control,
@@ -3619,10 +3634,53 @@ impl RuntimeCore {
     }
 
     async fn dispatch_initial(&mut self, request_id: RequestId) -> Result<(), RuntimeError> {
-        let attempt = self
+        let attempt = match self
             .supervisor
-            .begin_request_attempt(request_id, Instant::now())?;
+            .begin_request_attempt(request_id, Instant::now()) {
+            Ok(attempt) => attempt,
+            Err(error @ RuntimeError::Timeout { .. }) => {
+                let admission = self.pending.get(&request_id)
+                    .ok_or_else(|| RuntimeError::internal("expired initial request is not pending"))?
+                    .admission;
+                let wire = match admission {
+                    Admission::Active(lease) => wire_without_generation(lease),
+                    Admission::Pinned(call) => RequestWireIdentity {
+                        engine_epoch: call.pin.engine_epoch, request_id,
+                        lease_id: call.pin.lease_id, slot_id: call.pin.slot_id,
+                        generation: None, message: None,
+                    },
+                    Admission::Waiting(_) => return Err(RuntimeError::internal(
+                        "expired initial request has not been assigned",
+                    )),
+                };
+                // A promoted request can expire before dispatch. Release only its
+                // lease; boxing bounds the promotion -> dispatch recursion.
+                return Box::pin(self.fail_unstarted_request(wire, error)).await;
+            }
+            Err(error) => return Err(error),
+        };
         self.dispatch_attempt(attempt, true, true).await
+    }
+
+    async fn fail_unstarted_request(
+        &mut self,
+        wire: RequestWireIdentity,
+        error: RuntimeError,
+    ) -> Result<(), RuntimeError> {
+        let Some(pending) = self.pending.get(&wire.request_id) else { return Ok(()); };
+        let kind = if matches!(&error, RuntimeError::Timeout { .. }) {
+            TerminalKind::TimedOut
+        } else {
+            TerminalKind::Failed
+        };
+        if let Some(pin) = pending.pin {
+            if let Some(batch) = self.supervisor.terminal_pin(wire, kind, Some(error), Instant::now())? {
+                self.process_pin_terminal_batch(pin, batch).await?;
+            }
+        } else if let Some(batch) = self.supervisor.terminal_active(wire, kind, Some(error), Instant::now())? {
+            self.process_terminal_batch(batch).await?;
+        }
+        Ok(())
     }
 
     fn next_internal_request_id(&mut self) -> Result<RequestId, RuntimeError> {
@@ -3905,24 +3963,12 @@ impl RuntimeCore {
             }
             SlotEvent::UnstartedRejected { attempt, error } => {
                 if self.closing { return Ok(()); }
-                let Some(pending) = self.pending.get(&attempt.request_id) else { return Ok(()); };
                 let wire = RequestWireIdentity {
                     engine_epoch: attempt.engine_epoch, request_id: attempt.request_id,
                     lease_id: attempt.lease_id, slot_id: attempt.slot_id,
                     generation: attempt.expected_generation, message: None,
                 };
-                if let Some(pin) = pending.pin {
-                    if let Some(batch) = self.supervisor.terminal_pin(
-                        wire, TerminalKind::Failed, Some(error), Instant::now(),
-                    )? {
-                        self.process_pin_terminal_batch(pin, batch).await?;
-                    }
-                } else if let Some(batch) = self.supervisor.terminal_active(
-                    wire, TerminalKind::Failed, Some(error), Instant::now(),
-                )? {
-                    self.process_terminal_batch(batch).await?;
-                }
-                Ok(())
+                self.fail_unstarted_request(wire, error).await
             }
             SlotEvent::UnstartedCancelled { request_id } => {
                 let Some(pending) = self.pending.get(&request_id) else {
@@ -3984,6 +4030,13 @@ impl RuntimeCore {
                 same_attempt_possible,
                 reply,
             } => {
+                let mut error = error;
+                if let Some(attempt) = self.supervisor.request_attempt_count(wire.request_id) {
+                    error = error.with_context("attempt", attempt.to_string());
+                }
+                if let Some(pending) = self.pending.get(&wire.request_id) {
+                    error = error.with_context("command", format!("0x{:04x}", pending.request.command_code()));
+                }
                 let pin = self
                     .pending
                     .get(&wire.request_id)
@@ -4195,10 +4248,18 @@ impl RuntimeCore {
                 self.dispatch_attempt(attempt, false, false).await
             }
             RetirementPlan::Retry => {
-                let attempt = self
+                let attempt = match self
                     .supervisor
-                    .finish_retry_retirement(acknowledgement, Instant::now())?
-                    .ok_or_else(|| RuntimeError::internal("retry retirement was rejected"))?;
+                    .finish_retry_retirement(acknowledgement, Instant::now()) {
+                    Ok(Some(attempt)) => attempt,
+                    Ok(None) => return Err(RuntimeError::internal("retry retirement was rejected")),
+                    Err(error @ RuntimeError::Timeout { .. }) => {
+                        let wire = self.supervisor.abort_retry_after_retirement(acknowledgement)
+                            .ok_or_else(|| RuntimeError::internal("expired retry retirement was rejected"))?;
+                        return self.fail_unstarted_request(wire, error).await;
+                    }
+                    Err(error) => return Err(error),
+                };
                 self.dispatch_attempt(attempt, true, true).await
             }
             RetirementPlan::Terminal { kind, error } => {
@@ -5315,6 +5376,17 @@ impl SlotWorker {
                 retryable,
                 same_attempt_possible,
             } => {
+                let mut error = error;
+                if !error.context().iter().any(|(key, _)| key == "phase") {
+                    let phase = match self.slot.state() {
+                        SlotState::Connecting => "connect", SlotState::Handshaking => "handshake",
+                        _ => "response",
+                    };
+                    error = error.with_context("phase", phase);
+                }
+                if let Some(host) = self.slot.connected_host() {
+                    error = error.with_context("host", host);
+                }
                 let (reply, received) = oneshot::channel();
                 self.event_tx
                     .send(SlotEvent::Failed {
@@ -5618,7 +5690,7 @@ impl SlotWorker {
             Err(OperationFailure::Error(error)) => {
                 return Ok(ConnectForRequest::Outcome(WorkOutcome::Failed {
                     wire,
-                    error,
+                    error: error.with_context("host", start.attempt.endpoint.host()),
                     retryable: true,
                     same_attempt_possible: start.attempt.endpoints_remaining > 1,
                 }));
@@ -6511,10 +6583,11 @@ mod tests {
     use std::sync::Barrier;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::mpsc as std_mpsc;
     use std::time::Duration;
 
     use super::{
-        build_tokio_runtime, check_pid, keyed_permutation, runtime_epoch_reservation,
+        build_tokio_runtime, check_pid, keyed_permutation, runtime_epoch_reservation, wire_without_generation,
         ConnectAttemptId, ControlCell, Engine, EngineConfig, EngineConfigOptions,
         HostCloseAttemptId, HostConnectAttempt, HostLifecycle, IngressOwnership, PendingConnect,
         PendingPoll, RuntimeCore, CLOSE_TIMEOUT, MAX_DECODED_QUEUE_BYTES,
@@ -6620,6 +6693,125 @@ mod tests {
             },
         );
         Ok((core, build_tokio_runtime(1)?, receiver))
+    }
+
+    fn track_operation_request(
+        core: &mut RuntimeCore,
+        admission: crate::request::Admission,
+        pin: Option<crate::pin::PinIdentity>,
+    ) -> std_mpsc::Receiver<Result<crate::execution::RawReply, RuntimeError>> {
+        let request_id = match admission {
+            crate::request::Admission::Active(lease) => lease.request_id,
+            crate::request::Admission::Pinned(call) => call.request_id,
+            crate::request::Admission::Waiting(permit) => permit.request_id,
+        };
+        let (result, receiver) = std_mpsc::sync_channel(1);
+        core.pending.insert(request_id, super::PendingRequest {
+            request: eltdx_protocol::CommandRequest::SecurityCount(
+                eltdx_protocol::commands::security::SecurityCountRequest {
+                    market: eltdx_protocol::unit::Market::Shanghai, client_date: 0,
+                },
+            ),
+            authorization: None, result,
+            _ingress: super::IngressOwnership { owned: Arc::new(AtomicUsize::new(1)) },
+            admission, wire: None, response: None, dispatched: false, pin,
+        });
+        receiver
+    }
+
+    #[test]
+    fn initial_deadline_expiry_is_local_for_ordinary_and_unstarted_pinned_requests() -> Result<(), RuntimeError> {
+        for pinned in [false, true] {
+            let reservation_id = RequestId::new(200)?;
+            let (mut core, runtime, _reservation_result) = pin_reservation_runtime(reservation_id)?;
+            let reserved = core.pin_reservations.remove(&reservation_id)
+                .ok_or_else(|| RuntimeError::internal("fixture reservation is missing"))?;
+            let crate::request::Admission::Active(lease) = reserved.admission else {
+                return Err(RuntimeError::internal("fixture reservation must be active"));
+            };
+            let now = std::time::Instant::now();
+            let admitted_at = now - Duration::from_secs(2);
+            let expired = crate::deadline::Deadline::at(now - Duration::from_secs(1));
+            let request_id = RequestId::new(201)?;
+            let pin = if pinned {
+                Some(core.supervisor.open_pin(reservation_id)?)
+            } else {
+                core.supervisor.terminal_active(wire_without_generation(lease),
+                    crate::request::TerminalKind::Failed,
+                    Some(RuntimeError::connection_closed("fixture transfers ordinary slot")), now)?;
+                None
+            };
+            let admission = if let Some(pin) = pin {
+                core.supervisor.submit_pin(pin, request_id, expired,
+                    crate::request::RetryPolicy::ordinary(true), admitted_at)?
+            } else {
+                core.supervisor.submit_with_retry_policy(request_id, expired,
+                    crate::request::RetryPolicy::ordinary(true), admitted_at)?
+            };
+            let receiver = track_operation_request(&mut core, admission, pin);
+            runtime.block_on(core.dispatch_initial(request_id))?;
+            assert!(matches!(receiver.try_recv().expect("terminal delivered"), Err(RuntimeError::Timeout { .. })));
+            assert!(!core.pending.contains_key(&request_id));
+            assert!(core.slots.iter().all(Option::is_none));
+            assert!(!core.closing);
+            let next = RequestId::new(202)?;
+            let deadline = crate::deadline::Deadline::at(now + Duration::from_secs(1));
+            if let Some(pin) = pin {
+                assert!(matches!(core.supervisor.submit_pin(pin, next, deadline,
+                    crate::request::RetryPolicy::ordinary(true), now)?, crate::request::Admission::Pinned(_)));
+            } else {
+                assert!(matches!(core.supervisor.submit_with_retry_policy(next, deadline,
+                    crate::request::RetryPolicy::ordinary(true), now)?, crate::request::Admission::Active(_)));
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn retry_deadline_expiring_during_retirement_releases_only_its_request() -> Result<(), RuntimeError> {
+        let reservation_id = RequestId::new(210)?;
+        let (mut core, runtime, _reservation_result) = pin_reservation_runtime(reservation_id)?;
+        let reserved = core.pin_reservations.remove(&reservation_id)
+            .ok_or_else(|| RuntimeError::internal("fixture reservation is missing"))?;
+        let crate::request::Admission::Active(reservation) = reserved.admission else {
+            return Err(RuntimeError::internal("fixture reservation must be active"));
+        };
+        let now = std::time::Instant::now();
+        core.supervisor.terminal_active(wire_without_generation(reservation),
+            crate::request::TerminalKind::Failed,
+            Some(RuntimeError::connection_closed("fixture transfers ordinary slot")), now)?;
+        let admitted_at = now - Duration::from_secs(2);
+        let request_id = RequestId::new(211)?;
+        let admission = core.supervisor.submit_with_retry_policy(request_id,
+            crate::deadline::Deadline::at(now - Duration::from_secs(1)),
+            crate::request::RetryPolicy::ordinary(true), admitted_at)?;
+        let receiver = track_operation_request(&mut core, admission, None);
+        let attempt = core.supervisor.begin_request_attempt(request_id, admitted_at)?;
+        let wire = crate::request::RequestWireIdentity {
+            engine_epoch: attempt.engine_epoch, request_id, lease_id: attempt.lease_id,
+            slot_id: attempt.slot_id, generation: Some(crate::slot::GenerationId::new(1)?), message: None,
+        };
+        core.supervisor.transition_request(request_id, crate::request::RequestState::Connecting, Some(wire))?;
+        assert!(matches!(core.supervisor.begin_retry(wire,
+            RuntimeError::connection_closed("fixture connect failure"), true, admitted_at),
+            Some(crate::request::RetryDecision::Retire(_))));
+        core.pending.get_mut(&request_id).expect("pending").wire = Some(wire);
+        core.retirements.insert(request_id, super::RetirementPlan::Retry);
+        runtime.block_on(core.handle_retired(crate::slot::ReconnectAck {
+            engine_epoch: wire.engine_epoch, slot_id: wire.slot_id, request_id,
+            retired_generation: wire.generation.expect("generation"),
+            next_generation: crate::slot::GenerationId::new(2)?,
+            next_endpoint_index: 0, endpoints_remaining_in_attempt: 1,
+        }))?;
+        assert!(matches!(receiver.try_recv().expect("terminal delivered"), Err(RuntimeError::Timeout { .. })));
+        assert_eq!(core.supervisor.active_count(), 0);
+        assert!(!core.closing);
+        assert!(core.pending.is_empty());
+        assert!(core.retirements.is_empty());
+        assert!(matches!(core.supervisor.submit_with_retry_policy(RequestId::new(212)?,
+            crate::deadline::Deadline::at(now + Duration::from_secs(1)),
+            crate::request::RetryPolicy::ordinary(true), now)?, crate::request::Admission::Active(_)));
+        Ok(())
     }
 
     #[test]

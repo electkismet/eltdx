@@ -214,7 +214,9 @@ impl SessionOwner {
         if state.phase != SessionPhase::Open {
             return Err(closed_error());
         }
-        state.engines.push(engine);
+        if !state.engines.iter().any(|registered| registered.same_owner(&engine)) {
+            state.engines.push(engine);
+        }
         Ok(())
     }
 
