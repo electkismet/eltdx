@@ -165,7 +165,7 @@
 | T12 | Quote/code Python bridge implementation/source review complete through `684a157`; execution verification deferred |
 | T13 | Implementation/self-review checkpoint `338d99b`: all 18 methods M25-M40/M98-M99, queries/DTOs, date/cursor/raw mapping and synthetic source cases; execution verification deferred |
 | T14 | All13 M41–M52/M100 implementation/self-review sources committed at992ba98/ce46437; no execution verification |
-| T15 | Partial foundation: options/events/gap/refresh query, exact-source cursor book and bounded typed queue/source cases authored; dispatcher/lease/owner/renewal/actual event accounting/legacy controlled poll integration pending |
+| T15 | Partial foundation committed9bbafde: options/events/gap/refresh query, exact-source cursors, bounded typed queue and runtime exclusive PushConsumer/source cases; dispatcher/lease/owner/renewal/actual event accounting/legacy fanout integration pending |
 | T16 | Not started |
 | T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
 | T18 | Not started |
