@@ -6,22 +6,23 @@ use super::{bars, AppendOptions, ExDailyBar, ReadOptions, ReadResult, RecordKey,
 
 pub fn read(path: &Path, options: &ReadOptions) -> Result<ReadResult<ExDailyBar>> {
     bars::read_records(path, options, |record, retain| {
-        let prices = [4, 8, 12, 16].map(|offset| WireFloat::from_bits(bars::u32_at(record, offset)));
-        Ok(ExDailyBar::new(bars::decode_date(bars::u32_at(record, 0))?, prices,
-            bars::u32_at(record, 20), bars::u32_at(record, 24), WireFloat::from_bits(bars::u32_at(record, 28)))
-            .with_raw(retain.then_some(*record)))
+        let raw = bars::python_legacy::decode(record, bars::python_legacy::Layout::Extended);
+        let prices = raw.prices.map(WireFloat::from_bits);
+        Ok(ExDailyBar::new(bars::decode_date(raw.date)?, prices,
+            raw.amount, raw.volume, WireFloat::from_bits(raw.tail))
+            .with_raw(retain.then_some(raw.raw)))
     })
 }
 
 pub fn encode(bar: &ExDailyBar) -> Result<[u8; 32]> {
-    let mut bytes = [0_u8; 32];
-    bars::put_u32(&mut bytes, 0, bars::date_integer(bar.date()));
-    for (index, value) in bar.prices().iter().enumerate() { bars::put_u32(&mut bytes, 4 + index * 4, value.bits()); }
-    // Never derive this slot from a float-to-integer conversion.
-    bars::put_u32(&mut bytes, 20, bar.amount());
-    bars::put_u32(&mut bytes, 24, bar.volume());
-    bars::put_u32(&mut bytes, 28, bar.settlement().bits());
-    Ok(bytes)
+    use bars::python_legacy::{Layout, Slot};
+    let fields = bars::python_legacy::encode_fields(Layout::Extended, |slot| Ok::<_, crate::Error>(match slot {
+        Slot::Date => bars::date_integer(bar.date()), Slot::Price(index) => bar.prices()[index].bits(),
+        Slot::Amount => bar.amount(), Slot::Volume => bar.volume(), Slot::Tail => bar.settlement().bits(),
+        Slot::Time => unreachable!("daily layout has no time slot"),
+    }))?;
+    bars::python_legacy::pack_bits(Layout::Extended, &fields)
+        .ok_or_else(|| super::invalid("invalid extended encoder slots"))
 }
 
 pub fn last_date(path: &Path) -> Result<Option<TradingDate>> {

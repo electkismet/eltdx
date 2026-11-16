@@ -8,11 +8,13 @@ use super::{bars, invalid, malformed, AppendOptions, MinBar, MinuteKey, ReadOpti
 
 fn decode_key(record: &[u8; 32]) -> Result<MinuteKey> {
     let packed = bars::u16_at(record, 0);
-    let date = TradingDate::new(packed / 2048 + 2004, ((packed % 2048) / 100) as u8,
-        ((packed % 2048) % 100) as u8).map_err(|error| malformed("invalid packed Gregorian date").with_source(error))?;
+    let (year, month, day) = bars::python_legacy::packed_date_parts(packed);
+    let date = TradingDate::new(year, month as u8,
+        day as u8).map_err(|error| malformed("invalid packed Gregorian date").with_source(error))?;
     let minutes = bars::u16_at(record, 2);
     if minutes >= 24 * 60 { return Err(malformed("packed minute is outside the day")); }
-    MinuteKey::new(date, TimeOfDay::new((minutes / 60) as u8, (minutes % 60) as u8, 0)?)
+    let (hour, minute) = bars::python_legacy::packed_time_parts(minutes);
+    MinuteKey::new(date, TimeOfDay::new(hour as u8, minute as u8, 0)?)
 }
 
 fn encode_key(key: MinuteKey, bytes: &mut [u8; 32]) -> Result<()> {
@@ -28,10 +30,12 @@ fn encode_key(key: MinuteKey, bytes: &mut [u8; 32]) -> Result<()> {
 }
 
 fn decode(record: &[u8; 32], integer: bool, retain: bool) -> Result<MinBar> {
-    let values = [bars::u32_at(record, 4), bars::u32_at(record, 8), bars::u32_at(record, 12), bars::u32_at(record, 16)];
+    let layout = if integer { bars::python_legacy::Layout::MinuteInteger } else { bars::python_legacy::Layout::MinuteFloat };
+    let raw = bars::python_legacy::decode(record, layout);
+    let values = raw.prices;
     let prices = if integer { MinutePrices::Integers(values) } else { MinutePrices::Floats(values.map(WireFloat::from_bits)) };
-    Ok(MinBar::decoded(decode_key(record)?, prices, bars::u32_at(record, 24),
-        WireFloat::from_bits(bars::u32_at(record, 20)), bars::u32_at(record, 28), retain.then_some(*record)))
+    Ok(MinBar::decoded(decode_key(record)?, prices, raw.volume,
+        WireFloat::from_bits(raw.amount), raw.tail, retain.then_some(raw.raw)))
 }
 
 pub fn read_lc(path: &Path, options: &ReadOptions) -> Result<ReadResult<MinBar>> {
@@ -58,15 +62,18 @@ fn encode(bar: &MinBar, integer: bool) -> Result<[u8; 32]> {
                 bars::checked_f32(values[2])?, bars::checked_f32(values[3])?]
         }
     };
-    for (index, value) in values.into_iter().enumerate() { bars::put_u32(&mut bytes, 4 + index * 4, value); }
-    bars::put_u32(&mut bytes, 20, bar.amount().bits());
     let volume = match bar.source_volume() {
         Some(integer) => integer,
         None => bars::round_u32(bar.volume(), "volume")?,
     };
-    bars::put_u32(&mut bytes, 24, volume);
-    bars::put_u32(&mut bytes, 28, bar.reserved());
-    Ok(bytes)
+    use bars::python_legacy::{Layout, Slot};
+    let layout = if integer { Layout::MinuteInteger } else { Layout::MinuteFloat };
+    let fields = bars::python_legacy::encode_fields(layout, |slot| Ok::<_, crate::Error>(match slot {
+        Slot::Date => u32::from(bars::u16_at(&bytes, 0)), Slot::Time => u32::from(bars::u16_at(&bytes, 2)),
+        Slot::Price(index) => values[index], Slot::Amount => bar.amount().bits(),
+        Slot::Volume => volume, Slot::Tail => bar.reserved(),
+    }))?;
+    bars::python_legacy::pack_bits(layout, &fields).ok_or_else(|| invalid("invalid minute encoder slots"))
 }
 
 pub fn encode_lc(bar: &MinBar) -> Result<[u8; 32]> { encode(bar, false) }

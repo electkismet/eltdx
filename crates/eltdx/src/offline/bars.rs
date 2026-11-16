@@ -125,6 +125,91 @@ pub(crate) fn put_u32(bytes: &mut [u8; 32], offset: usize, value: u32) {
     bytes[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
 }
 
+/// Shared bit-level records before strict Rust date validation or Python's
+/// permissive scalar projection. No calendar or price guess is made here.
+#[doc(hidden)]
+pub mod python_legacy {
+    #[derive(Clone, Copy, Debug)]
+    pub enum Layout { Daily, MinuteFloat, MinuteInteger, Extended }
+
+    #[derive(Clone, Copy, Debug)]
+    pub enum Slot { Date, Time, Price(usize), Amount, Volume, Tail }
+
+    /// One field ordering for the strict encoders and Python Struct adapter.
+    /// Numeric conversion remains in the caller's checked/object policy.
+    pub fn encode_fields<T, E>(layout: Layout,
+        mut value: impl FnMut(Slot) -> std::result::Result<T, E>) -> std::result::Result<Vec<T>, E>
+    {
+        let mut fields = vec![value(Slot::Date)?];
+        if matches!(layout, Layout::MinuteFloat | Layout::MinuteInteger) { fields.push(value(Slot::Time)?); }
+        for index in 0..4 { fields.push(value(Slot::Price(index))?); }
+        fields.push(value(Slot::Amount)?);
+        fields.push(value(Slot::Volume)?);
+        fields.push(value(Slot::Tail)?);
+        Ok(fields)
+    }
+
+    pub fn pack_bits(layout: Layout, fields: &[u32]) -> Option<[u8; 32]> {
+        let minute = matches!(layout, Layout::MinuteFloat | Layout::MinuteInteger);
+        if fields.len() != if minute { 9 } else { 8 } { return None; }
+        let mut result = [0; 32];
+        let start = if minute {
+            result[..2].copy_from_slice(&u16::try_from(fields[0]).ok()?.to_le_bytes());
+            result[2..4].copy_from_slice(&u16::try_from(fields[1]).ok()?.to_le_bytes());
+            2
+        } else {
+            result[..4].copy_from_slice(&fields[0].to_le_bytes());
+            1
+        };
+        for (index, value) in fields[start..].iter().enumerate() {
+            super::put_u32(&mut result, 4 + index * 4, *value);
+        }
+        Some(result)
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    pub struct Record {
+        pub date: u32,
+        pub time: u16,
+        pub prices: [u32; 4],
+        pub amount: u32,
+        pub volume: u32,
+        pub tail: u32,
+        pub raw: [u8; 32],
+    }
+
+    pub fn decode(raw: &[u8; 32], layout: Layout) -> Record {
+        let minute = matches!(layout, Layout::MinuteFloat | Layout::MinuteInteger);
+        Record {
+            date: if minute { u32::from(super::u16_at(raw, 0)) } else { super::u32_at(raw, 0) },
+            time: if minute { super::u16_at(raw, 2) } else { 0 },
+            prices: [4, 8, 12, 16].map(|at| super::u32_at(raw, at)),
+            amount: super::u32_at(raw, 20), volume: super::u32_at(raw, 24),
+            tail: super::u32_at(raw, 28), raw: *raw,
+        }
+    }
+
+    pub fn visit<E>(data: &[u8], layout: Layout,
+        mut emit: impl FnMut(Record) -> std::result::Result<(), E>,
+        boundary: &mut impl FnMut() -> std::result::Result<(), E>) -> std::result::Result<(), E>
+    {
+        for bytes in data.chunks_exact(32) {
+            boundary()?;
+            let mut raw = [0; 32]; raw.copy_from_slice(bytes);
+            emit(decode(&raw, layout))?;
+        }
+        boundary()
+    }
+
+    pub const fn date_parts(date: u32) -> (u32, u32, u32) {
+        (date / 10000, (date % 10000) / 100, date % 100)
+    }
+    pub const fn packed_date_parts(date: u16) -> (u16, u16, u16) {
+        (date / 2048 + 2004, (date % 2048) / 100, (date % 2048) % 100)
+    }
+    pub const fn packed_time_parts(minutes: u16) -> (u16, u16) { (minutes / 60, minutes % 60) }
+}
+
 pub(crate) fn append_records<T>(path: &Path, rows: &[T], options: &AppendOptions,
     daily_sync: bool, mut encode: impl FnMut(&T) -> Result<[u8; 32]>,
     key: impl Fn(&T) -> RecordKey, last: impl FnOnce(&Path) -> Result<Option<RecordKey>>,

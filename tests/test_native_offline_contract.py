@@ -2,12 +2,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+import math
+import struct
 from types import SimpleNamespace
 
 import pytest
 
 from eltdx.offline import daily_bar, industry, paths
 from eltdx.offline import min_bar
+from eltdx.offline import ex_daily_bar
 
 
 def test_industry_shared_rows_keep_unicode_length_whitespace_and_last_value():
@@ -173,3 +176,158 @@ def test_industry_tests_truth_once_before_decode():
     content = Content()
     assert industry.parse_tdxhy_cfg(content) == {"abcdef": ("A", "")}
     assert content.calls == 1
+
+
+def test_daily_reader_keeps_invalid_raw_date_tail_and_runtime_coefficients(tmp_path, monkeypatch):
+    path = tmp_path / "custom.day"
+    raw = struct.pack("<IIIIIfII", 20261399, 10, 20, 30, 40, -0.0, 50, 0xFFFFFFFF)
+    path.write_bytes(raw + b"tail")
+    monkeypatch.setattr(daily_bar, "security_coefficients", lambda name: (2.0, 3.0))
+    rows = daily_bar.read_daily_bar(path)
+    assert len(rows) == 1
+    row = rows[0]
+    assert (row.year, row.month, row.day) == (2026, 13, 99)
+    assert (row.open, row.high, row.low, row.close, row.volume) == (20, 40, 60, 80, 150)
+    assert math.copysign(1.0, row.amount) == -1
+    assert row.raw == raw
+    assert row.adjust_flag == 0xFFFFFFFF
+
+
+def test_daily_short_file_does_not_lookup_coefficients(tmp_path, monkeypatch):
+    path = tmp_path / "short.day"
+    path.write_bytes(b"x" * 31)
+
+    def unexpected(name):
+        raise AssertionError("short file returns before coefficient selection")
+
+    monkeypatch.setattr(daily_bar, "security_coefficients", unexpected)
+    assert daily_bar.read_daily_bar(path) == []
+
+
+@pytest.mark.parametrize("integer", [False, True])
+def test_minute_reader_keeps_invalid_packed_time_raw_bits_and_tail(integer):
+    if integer:
+        raw = struct.pack("<HHIIIIfII", 0, 1501, 101, 102, 103, 104, math.inf, 2**32-1, 11)
+        fmt = min_bar._MIN_FMT
+    else:
+        raw = struct.pack("<HHfffffII", 0, 1501, 1.0, 2.0, 3.0, 4.0, math.inf, 2**32-1, 11)
+        fmt = min_bar._LC_MIN_FMT
+    rows = min_bar._read_bars(raw + b"tail", fmt, integer_prices=integer)
+    assert len(rows) == 1
+    row = rows[0]
+    assert (row.year, row.month, row.day, row.hour, row.minute) == (2004, 0, 0, 25, 1)
+    assert row.open == (1.01 if integer else 1.0)
+    assert row.volume == float(2**32-1)
+    assert row.raw == raw
+    assert row.amount == math.inf
+
+
+def test_minute_reader_keeps_decoder_and_model_hooks(monkeypatch):
+    raw = struct.pack("<HHfffffII", 1, 2, 1, 2, 3, 4, 5, 6, 7)
+    monkeypatch.setattr(min_bar, "_decode_tdx_date", lambda value: (9, 8, 7))
+    monkeypatch.setattr(min_bar, "_decode_tdx_time", lambda value: (6, 5))
+    monkeypatch.setattr(min_bar, "MinBar", lambda **kw: kw)
+    rows = min_bar._read_bars(raw, min_bar._LC_MIN_FMT, integer_prices=False)
+    assert (rows[0]["year"], rows[0]["month"], rows[0]["day"], rows[0]["hour"], rows[0]["minute"]) == (9, 8, 7, 6, 5)
+
+
+def test_ex_reader_retains_integer_amount_and_float_view(tmp_path):
+    path = tmp_path / "ex.day"
+    raw = struct.pack("<IffffIIf", 0, 1, 2, 3, 4, 0x80000000, 2**32-1, math.inf)
+    path.write_bytes(raw + b"short")
+    row, = ex_daily_bar.read_ex_daily_bar(path)
+    assert (row.year, row.month, row.day) == (0, 0, 0)
+    assert row.amount == 0x80000000
+    assert math.copysign(1.0, row.hk_stock_amount) == -1
+    assert row.volume == 2**32-1
+    assert row.settlement == math.inf
+    assert row.raw == raw
+
+
+def test_daily_encoder_keeps_python_rounding_and_struct_errors():
+    from eltdx.offline.models import DailyBar
+
+    bar = DailyBar(2026, 13, 99, 2.5, 3.5, 4.5, 5.5, 6.5, -0.0, 7)
+    assert daily_bar.encode_daily_bar(bar, 1.0, 1.0) == struct.pack("<IIIIIfII", 20261399, 2, 4, 4, 6, -0.0, 6, 7)
+    with pytest.raises(ZeroDivisionError):
+        daily_bar.encode_daily_bar(bar, 0.0, 1.0)
+    negative = DailyBar(2026, 1, 1, -1, 1, 1, 1, 1, 1)
+    with pytest.raises(struct.error):
+        daily_bar.encode_daily_bar(negative, 1.0, 1.0)
+
+
+def test_minute_encoders_keep_custom_date_time_round_and_pack(monkeypatch):
+    events = []
+
+    def date(year, month, day):
+        events.append(("date", year, month, day))
+        return 11
+
+    def time(hour, minute):
+        events.append(("time", hour, minute))
+        return 12
+
+    def pack(*fields):
+        events.append(("pack", fields))
+        return fields
+
+    monkeypatch.setattr(min_bar, "_encode_tdx_date", date)
+    monkeypatch.setattr(min_bar, "_encode_tdx_time", time)
+    monkeypatch.setattr(min_bar, "_MIN_FMT", SimpleNamespace(pack=pack))
+    bar = SimpleNamespace(year=1, month=2, day=3, hour=4, minute=5,
+                          open=0.025, high=0.035, low=0.045, close=0.055,
+                          volume=6.5, amount=7, reserved=8)
+    assert min_bar.encode_5min_bar(bar) == (11, 12, 2, 4, 4, 6, 7, 6, 8)
+    assert events[:2] == [("date", 1, 2, 3), ("time", 4, 5)]
+
+
+def test_ex_encoder_keeps_amount_slot_independent_of_float_view():
+    from eltdx.offline.models import ExDailyBar
+
+    bar = ExDailyBar(2026, 13, 99, 1, 2, 3, 4, 0x7FC12345, 9, -0.0, hk_stock_amount=42)
+    assert ex_daily_bar.encode_ex_daily_bar(bar) == struct.pack("<IffffIIf", 20261399, 1, 2, 3, 4, 0x7FC12345, 9, -0.0)
+
+
+def test_daily_custom_struct_reader_stays_adapter(tmp_path, monkeypatch):
+    path = tmp_path / "custom.day"
+    path.write_bytes(b"x")
+    calls = []
+
+    def unpack(raw):
+        calls.append(raw)
+        return (20260101, 1, 2, 3, 4, 5, 6, 7)
+
+    monkeypatch.setattr(daily_bar, "_DAILY_FMT", SimpleNamespace(size=1, unpack=unpack))
+    monkeypatch.setattr(daily_bar, "security_coefficients", lambda name: (1, 1))
+    row, = daily_bar.read_daily_bar(path)
+    assert row.open == 1
+    assert row.raw == b"x"
+    assert calls == [b"x"]
+
+
+def test_bar_model_lookup_occurs_before_custom_price_arithmetic(tmp_path, monkeypatch):
+    path = tmp_path / "custom.day"
+    path.write_bytes(struct.pack("<IIIIIfII", 20260101, 1, 2, 3, 4, 5, 6, 7))
+    calls = []
+
+    def original(**values):
+        calls.append("original")
+        return values
+
+    class Coefficient:
+        def __rmul__(self, value):
+            monkeypatch.setattr(daily_bar, "DailyBar", lambda **values: calls.append("changed") or values)
+            return value
+
+    monkeypatch.setattr(daily_bar, "DailyBar", original)
+    monkeypatch.setattr(daily_bar, "security_coefficients", lambda name: (Coefficient(), 1))
+    assert len(daily_bar.read_daily_bar(path)) == 1
+    assert calls == ["original"]
+
+
+def test_minute_reader_uses_live_float_constructor(monkeypatch):
+    raw = struct.pack("<HHfffffII", 1, 2, 1, 2, 3, 4, 5, 6, 7)
+    marker = object()
+    monkeypatch.setattr(min_bar, "float", lambda value: marker, raising=False)
+    row, = min_bar._read_bars(raw, min_bar._LC_MIN_FMT, integer_prices=False)
+    assert row.volume is marker

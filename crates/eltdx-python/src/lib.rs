@@ -7,6 +7,7 @@ mod resource;
 mod stats;
 mod offline_financial;
 mod offline_paths;
+mod offline_bars;
 mod limits;
 mod helpers;
 mod helper_profile;
@@ -71,6 +72,8 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(offline_paths::offline_security_coefficients, module)?)?;
     module.add_function(wrap_pyfunction!(offline_paths::offline_find_bar, module)?)?;
     module.add_function(wrap_pyfunction!(offline_paths::offline_industry, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_bars::offline_decode_bars, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_bars::offline_encode_bar, module)?)?;
     module.add_function(wrap_pyfunction!(limits::scan_special, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_fund_flow, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_full_quotes, module)?)?;

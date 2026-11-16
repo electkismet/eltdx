@@ -62,11 +62,11 @@ pub fn read(path: &Path, coefficients: Option<Coefficients>, options: &ReadOptio
 }
 
 fn decode(record: &[u8; 32], coefficients: Coefficients, retain: bool) -> Result<DailyBar> {
-    let date = bars::decode_date(bars::u32_at(record, 0))?;
-    let integers = [bars::u32_at(record, 4), bars::u32_at(record, 8), bars::u32_at(record, 12),
-        bars::u32_at(record, 16), bars::u32_at(record, 24)];
-    Ok(DailyBar::decoded(date, integers, coefficients, WireFloat::from_bits(bars::u32_at(record, 20)),
-        bars::u32_at(record, 28), retain.then_some(*record)))
+    let raw = bars::python_legacy::decode(record, bars::python_legacy::Layout::Daily);
+    let date = bars::decode_date(raw.date)?;
+    let integers = [raw.prices[0], raw.prices[1], raw.prices[2], raw.prices[3], raw.volume];
+    Ok(DailyBar::decoded(date, integers, coefficients, WireFloat::from_bits(raw.amount),
+        raw.tail, retain.then_some(raw.raw)))
 }
 
 pub fn encode(bar: &DailyBar, coefficients: Coefficients) -> Result<[u8; 32]> {
@@ -78,13 +78,14 @@ pub fn encode(bar: &DailyBar, coefficients: Coefficients) -> Result<[u8; 32]> {
             bars::round_u32(bar.close() / coefficients.price(), "close")?,
             bars::round_u32(bar.volume() / coefficients.volume(), "volume")?],
     };
-    let mut bytes = [0_u8; 32];
-    bars::put_u32(&mut bytes, 0, bars::date_integer(bar.date()));
-    for (index, value) in integers[..4].iter().enumerate() { bars::put_u32(&mut bytes, 4 + index * 4, *value); }
-    bars::put_u32(&mut bytes, 20, bar.amount().bits());
-    bars::put_u32(&mut bytes, 24, integers[4]);
-    bars::put_u32(&mut bytes, 28, bar.adjust_flag());
-    Ok(bytes)
+    use bars::python_legacy::{Layout, Slot};
+    let fields = bars::python_legacy::encode_fields(Layout::Daily, |slot| Ok::<_, crate::Error>(match slot {
+        Slot::Date => bars::date_integer(bar.date()), Slot::Price(index) => integers[index],
+        Slot::Amount => bar.amount().bits(), Slot::Volume => integers[4], Slot::Tail => bar.adjust_flag(),
+        Slot::Time => unreachable!("daily layout has no time slot"),
+    }))?;
+    bars::python_legacy::pack_bits(Layout::Daily, &fields)
+        .ok_or_else(|| super::invalid("invalid daily encoder slots"))
 }
 
 pub fn last_date(path: &Path) -> Result<Option<TradingDate>> {

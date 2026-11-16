@@ -89,7 +89,7 @@ pub fn financial_zip_member<'py>(py: Python<'py>, archive: Bound<'py, PyAny>,
 
 // Match Python iterable unpacking, including requesting only the one extra
 // element required to report excess values from a user-supplied generator.
-fn unpack<'py>(value: Bound<'py, PyAny>, count: usize) -> PyResult<Vec<Bound<'py, PyAny>>> {
+pub(crate) fn unpack<'py>(value: Bound<'py, PyAny>, count: usize) -> PyResult<Vec<Bound<'py, PyAny>>> {
     let mut iterator = value.try_iter()?;
     let mut items = Vec::with_capacity(count);
     for _ in 0..count {

@@ -27,6 +27,30 @@ fn shared_path_candidate_search_stops_at_first_match() -> TestResult {
     assert_eq!(daily::python_legacy::classify_leaf("s中00.day"), SecurityType::Unknown);
     Ok(())
 }
+
+#[test]
+fn shared_bit_records_keep_invalid_dates_tail_and_encoder_order() -> TestResult {
+    use eltdx::offline::bars::python_legacy::{self as codec, Layout, Slot};
+    let bytes = daily_bytes(1);
+    let mut with_tail = bytes.to_vec(); with_tail.extend([9; 7]);
+    let mut rows = Vec::new();
+    codec::visit(&with_tail, Layout::Daily, |row| {
+        rows.push(row); Ok::<_, eltdx::Error>(())
+    }, &mut || Ok(()))?;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].raw, bytes);
+    assert_eq!(rows[0].amount, 0x7fc12345);
+    assert_eq!(codec::date_parts(20261399), (2026, 13, 99));
+    assert_eq!(codec::packed_date_parts(0), (2004, 0, 0));
+    assert_eq!(codec::packed_time_parts(1501), (25, 1));
+    let fields = codec::encode_fields(Layout::Daily, |slot| Ok::<_, eltdx::Error>(match slot {
+        Slot::Date => rows[0].date, Slot::Price(index) => rows[0].prices[index],
+        Slot::Amount => rows[0].amount, Slot::Volume => rows[0].volume, Slot::Tail => rows[0].tail,
+        Slot::Time => unreachable!(),
+    }))?;
+    assert_eq!(codec::pack_bits(Layout::Daily, &fields), Some(bytes));
+    Ok(())
+}
 static NEXT: AtomicU64 = AtomicU64::new(1);
 struct Scratch(PathBuf);
 impl Scratch {

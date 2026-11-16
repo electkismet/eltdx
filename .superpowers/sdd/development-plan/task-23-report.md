@@ -139,3 +139,30 @@ cover shared selection/classification and industry traversal/error behavior.
 None collected, built or run. Remaining read/encode/append/alignment/GBBQ/block
 and model paths remain pending; F10/helpers/manifest andT24–T30 are unchanged.
 Counts21/4/5, goal active without token cap; no execution validation or agents.
+
+## Fifth checkpoint — shared local bar decoding and encoding
+
+Base `0ff04c4`. Added one raw32-byte record layout decoder and field-order
+encoder used by strict Rust daily/minute/EX codecs and Python adapters. Rust
+date/price validation remains after raw decode; Python retains permissive raw
+date/time arithmetic, full source bytes, float32 views and ignored partial tails.
+EX integer amount and its float view still share the same original bits.
+
+New binding offline_bars.rs projects existing Python models with live coefficient,
+date/time decoder, model and float hooks. Python still performs its original
+Path/read_bytes and empty/short-return sequence. Explicit custom Struct/buffer
+objects use the retained old decoder until generic adapter parity is verified.
+No Python input byte cap is introduced. All four public encoders now use shared
+field order and Python numeric/Struct conversion, keeping ties-to-even, division
+by zero, arbitrary numeric hooks and struct.error rather than strict SDK errors.
+The Python Struct object remains an intentional low-level codec adapter, not a
+second business loop; common field/record logic is in Rust.
+
+Changed shared offline bars/daily/minute/ex_daily, native registration plus
+offline_bars/financial unpack helper, and Python daily/minute/EX facades. Twelve
+additional Python source functions cover raw invalid dates/time, short files,
+bit views, custom decoder/model/coefficient/float hooks, encoder rounding and
+codec error behavior. One Rust function covers raw record/encoder ordering and
+date decomposition. All unexecuted. Append, alignment, model properties and
+GBBQ/block remain pending, followed by F10/helpers/manifest and T24–T30.
+Counts21/4/5; active unlimited goal; no tests/build/check/install/network/agents.

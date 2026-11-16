@@ -16,6 +16,7 @@ from .paths import market_to_exchange, resolve_vipdoc
 
 # struct 格式：日期 开 高 低 收 额(float) 量(int) 保留(int)
 _DAILY_FMT = struct.Struct("<IIIIIfII")
+_NATIVE_DAILY_FMT = _DAILY_FMT
 
 # 证券类型 → (价格系数, 量系数)
 _SECURITY_COEFFICIENTS: dict[str, tuple[float, float]] = {
@@ -78,6 +79,13 @@ def read_daily_bar(filepath: str | Path) -> list[DailyBar]:
         return []
 
     price_coeff, vol_coeff = security_coefficients(filepath.name)
+    if type(data) is bytes and _DAILY_FMT is _NATIVE_DAILY_FMT:
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_decode_bars(
+            data, "daily", sys.modules[__name__], (price_coeff, vol_coeff)
+        )
+    # Explicitly replaced Struct/buffer objects keep their original protocol.
     results: list[DailyBar] = []
     record_size = _DAILY_FMT.size
     # 上界写成 len(data) - record_size + 1，确保只遍历完整记录。
@@ -111,15 +119,10 @@ def encode_daily_bar(bar: DailyBar, price_coeff: float, vol_coeff: float) -> byt
         vol_coeff: 成交量系数（A 股 0.01，指数 1.0 等）。
     """
 
-    return _DAILY_FMT.pack(
-        bar.date_int,
-        int(round(bar.open / price_coeff)),
-        int(round(bar.high / price_coeff)),
-        int(round(bar.low / price_coeff)),
-        int(round(bar.close / price_coeff)),
-        bar.amount,
-        int(round(bar.volume / vol_coeff)),
-        bar.adjust_flag,
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_encode_bar(
+        bar, "daily", sys.modules[__name__], price_coeff, vol_coeff
     )
 
 
