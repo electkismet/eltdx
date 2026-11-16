@@ -160,8 +160,8 @@
 | T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
 | T08 | Implementation and scoped static review complete through `d8574bb`; verification deferred |
 | T09 | Source and scoped static review complete at `65ef657`; unified verification deferred |
-| T10 | Stage B 7a85f5c committed; full scoped static review running; T11 follows approval |
-| T11 | Not started |
+| T10 | Stage B `7a85f5c` and fix1 `151489f` committed; all four review findings addressed and lazy legacy registration path checked; static review complete |
+| T11 | Not started; brief and interface handoff are ready |
 | T12 | Not started |
 | T13 | Not started |
 | T14 | Not started |
@@ -172,10 +172,10 @@
 | T19 | Not started |
 | T20 | Not started |
 | T21 | Implementation and scoped source review complete through `b6e4beb`; verification deferred |
-| T22 | Stage A `9b6c8fd` DAT/list parser complete; scoped static review pending; shared ZIP/network integration deferred |
+| T22 | Stage A DAT/list parser `9b6c8fd` plus Unicode fix `a64a4a6`; fix2 scoped review approved; shared ZIP/network integration deferred |
 | T23 | Not started |
 | T24 | Stage A through04f613a scoped review approved; transport/owner integration requires Stage B |
-| T25 | Isolated Stage A bitmap/command/native model authoring authorized; owner/session integration deferred |
+| T25 | Isolated Stage A bitmap/command/native model `c87e5b0`, report `78bf121`; response coverage and owner/session integration remain Stage B |
 | T26 | Not started |
 | T27 | Not started |
 | T28 | Not started |
@@ -196,3 +196,4 @@
 - Task 10: full static review findings retained in `task-10-review.md`: (1) blocking/self-wait risk in last-owner Drop; (2) final waiter stop can race metadata publication; (3) aggregate 65535 limit leaks into Python legacy; (4) reservation start Timeout is discarded and can become Cancelled. Implementer fix round1 ongoing; no review gate passed yet.
 - Task 17: Stage A2 shared GBK refactor at `bcd6a8f` separately approved by `task-17-stage-a2-review.md`; single source table and no regeneration confirmed. T17 remains incomplete pending default Cargo ZIP dependency/service/resource/session/company/health integration.
 - Task 24: fix round1 `83540ec..04f613a` approved with all findings addressed and no new breakage (`task-24-fix1-review.md`). Ruling adding `Unknown` to PageCompletion is recorded in extension spec and decision register; complete collect must still prove EOF.
+- Recovery 2026-11-16: goal remains active with `remainingTokens=null`; no quota was added. Current HEAD is `a64a4a6`. T10 fix round1 is committed at `151489f`; its four original Important findings are addressed by scoped static re-review, and controller source inspection confirmed lazy legacy Engine registration becomes normal registration in `HqExecutor::execute_raw_inner` before raw submission. T10 is complete, with execution validation deferred. T22 Unicode fix2 is committed at `a64a4a6` and passed limited static re-review; T22 remains incomplete until shared ZIP/archive and service integration. T25 Stage A implementation `c87e5b0` and report `78bf121` are committed; several response schemas, public registration, owner/session/transport and T26/T27 composition remain incomplete. T11 is next. The tree was clean before this documentation checkpoint. No tests, collection, builds, checks, network probes, compilation/AST, formatting or diff checks have run.

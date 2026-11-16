@@ -9,20 +9,20 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1：T10 fix round1 中；T17 Stage A/A2 静态审阅批准、Stage B 待服务核心；T22 Stage A 静态审阅中；T24 Stage A 静态审阅批准、Stage B 待传输/owner |
-| 已提交进度 | T01–T09 既有实现与静态审阅完成；T08 `d8574bb`；T10 Stage B `7a85f5c` 待修复审阅；T17 Stage A `cd6735b`/GBK共享 `bcd6a8f`；T21 `b6e4beb`；T22 Stage A `9b6c8fd`；T24 Stage A `1220bf2`/fix `04f613a`；全部验证延期 |
+| 当前阶段 | P1：T10 `7a85f5c`/fix `151489f` 已完成静态审阅；T17 Stage A/A2 已批、Stage B 待服务核心；T22 Unicode修复 `a64a4a6` 已通过限定复审，ZIP/资源服务待集成；T24 Stage A 已批；T25 Stage A 已提交 |
+| 已提交进度 | T01–T09 既有实现与静态审阅完成；T08 `d8574bb`；T10 `7a85f5c`/`151489f`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | 完成 T10 owner/metadata/context 提交并静态审阅，随后推进 T11/T12；T17/T24 Stage A 后继续实际服务与传输集成；全部代码完成后统一验证 |
+| 下一步 | 开始 T11 CodeService/QuoteService；继续 T17/T22/T24/T25 Stage B 和 T12–T30；全部实现完成后统一验证 |
 
 ## 阶段进度
 
 | 阶段 | 任务 | 实现状态 | 测试状态 |
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
-| P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 对应静态审阅完成；T10 Stage A 已提交，Stage B 正接 owner/operation/实际 HQ loader | 按用户要求暂不运行 |
-| P2 | T11–T18 HQ与Python首批迁移 | T17 archive/stats/GBK source modules 静态审阅批准；服务与迁移主线待 T10 fixes/T11 common HQ services | 按用户要求暂不运行 |
-| P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Stage A `9b6c8fd` 待 review；T19 HTTP 传输未开始，依赖决策仍 provisional | 按用户要求暂不运行 |
-| P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix `04f613a` scoped approved；MAC纯codec Stage A准备中；共享传输待 Stage B | 按用户要求暂不运行 |
+| P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
+| P2 | T11–T18 HQ与Python首批迁移 | T11 待开始；T17 archive/stats/GBK 模块已批，服务集成待推进 | 按用户要求暂不运行 |
+| P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Unicode修复 `a64a4a6` 通过限定复审，ZIP/资源集成待做 | 按用户要求暂不运行 |
+| P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
 
 ## 依赖与冲突预审
@@ -52,6 +52,8 @@
 第二轮复审已返回：以上两个原问题均已处理，但 pin 超时后 Engine 退出会使下一次 pin receipt 不可创建，导致清理状态无法确认。第三轮通过精确 Engine 归属与已确认的 Engine 退出结果核销其 pin，继续返回原失败；资源已回收的事实与错误根因分开记录。未增加第二套 pin 状态机，全部验证仍延期。
 
 第三轮提交 `98e8558` 已获限定复审批准：Engine 确认退出后可以核销其保留 pin，跨 Engine 的同编号 reservation 不会互相删除，原失败原因继续向外返回。T07 实现与静态审阅完成。用户再次要求继续目标模式，当前目标保持 active 且没有额度限制；T08/T09 已获 GO，在分开的文件范围内实施。T10 brief 已保存，T11 及后续代码尚未实施。不把静态审阅当作编译或运行成功证据。
+
+2026-11-16 恢复记录：目标保持 active，`remainingTokens=null`。最新提交 `a64a4a6`。T10 fix round1 `151489f` 已通过限定静态复审，四项原始 Important 均已修复；controller 检查确认 `execute_raw_inner` 在 raw 请求提交前以正常 owner 注册启动 cleanup controller。T11 是下一任务。T22 Unicode 日期数字修复已通过限定复审，但 ZIP/archive 与服务注册未完成。T25 pure codec/model Stage A 已提交 `c87e5b0`、报告 `78bf121`；未注册，部分响应 schema、owner/session/transport 与 T26/T27 组合仍待实现。无测试、构建、check、网络、编译/AST、格式化或 diff 检查执行。
 
 ## 恢复规则
 
