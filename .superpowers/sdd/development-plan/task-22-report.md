@@ -1,5 +1,23 @@
 # T22 isolated Stage A implementation report
 
+## Current source-completion checkpoint
+
+Stage B initial integration committed `6885e00`. Added offline-only local read
+and explicit endpoint download examples with Cargo required-feature metadata,
+and a std-only hand-authored ZIP/DAT consumer in the separate one-dependency
+consumer workspace. Added cancellable bounded UTF-8 replacement decode for
+the list before projection and authored split-multibyte/invalid-tail cases.
+Financial implementation/recovery index records all public sources, limits,
+provenance, mandatory Python differences and deferred acceptance commands.
+
+T22 Rust source scope is complete. Final dependency/compile/test/platform/
+consumer verification remains entirely unexecuted. T23 owns the Python legacy
+ZIP policy and full offline/F10/financial migration; it must not expose the
+strict Rust parser as a behavior-preserving substitute for those old paths.
+Counts21 complete source/3 partial/6 unstarted. Next read task-23-brief and
+T20/T22 implementation indexes before beginning the compatibility migration.
+Goal active with no token cap, no agents/publication or execution checks.
+
 ## Current Stage B checkpoint — shared ZIP and owned HQ composition
 
 Stage A below is retained as history. After T20 source checkpoint `1722815`,

@@ -971,6 +971,8 @@ pub enum DatSelector { RequireSingle, Named(String) }
 
 `FinancialParseOptions`：`max_dat_bytes:u64=256MiB`、`max_fields_per_record:u32=4096`、`max_total_fields:u64=4*1024*1024`、`strict_index:bool=false`、`raw:RawPolicy=Omit`、`cancel:Option<CancellationToken>=None`。各上限须正、有限并checked乘加，可配置更小值。`FinancialReadOptions`内含 `parse:FinancialParseOptions`、`max_archive_bytes:u64=64MiB`、`max_entries:u32=64`、`selector:DatSelector=RequireSingle`。`CalcClientConfig`为HQ ClientConfig的惰性构造参数加`endpoint=120.76.152.87:7709`、`probe_hosts=false`；`FinancialArchiveName`为无路径分隔符、无NUL、符合HQ远端路径长度限制的叶名。
 
+T22源码补充：`DownloadOptions`是根级与financial重导出的共享类型，max_chunks允许正数且不超过4096。`CalcClientConfig`持有可替换的ClientBuilder和单个显式endpoint，构造不启动runtime；probe_hosts固定false。`FinancialRecordsQuery`/read/parse options字段私有，checked builder和getter为实际接口。新增`list_archive_files_detailed`、`download_records_detailed`、`download_records_with_options`、本地`read_detailed/parse_zip_detailed`返回来源完整的结果；普通方法维持本节签名。较小read archive cap同时下传到下载，query date/selector及OperationOptions raw为组合的最终配置。实现/用例索引见[financial-implementation-index.md](financial-implementation-index.md)，所有执行验证仍延期。
+
 这四项对应Python同名4函数；Service由现有HQclient显式取得，或open_calc_client独立client。calc默认数字地址120.76.152.87、端口按现有HQ配置、8秒、probe_hosts=false，build不connect。列表路径固定 `tdxfin/gpcw.txt`，下载用HQ资源命令0x06B9，非F10 HTTP，也不借EX会话。download_records在同一operation内list/下载/ZIP/DAT全流程，必须使用Complete，LimitReached不能送ZIP当完整输入；Python旧max_bytes截断再parse造成的原异常保持。
 
 列表UTF-8 replace，逐行strip后逗号split，少于3列/size非整数跳过，filename/hash按字段文本保留，多余列忽略；旧允许负size的事实在Python保留，Rust `FinancialFileInfo.filesize`用 `Option<u64>`+invalid诊断或strict拒绝，不能unsigned wrap。hash字符串和filesize是服务器元数据；目前没有MD5/实际大小认证，不能把“下载成功”写成“hash已验证”。FinancialArchiveName限制远端合法叶名/编码长度，不能用服务器filename作本地路径写入。

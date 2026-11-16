@@ -41,3 +41,11 @@ rcgen = { version = "=0.13.2", default-features = false, features = ["crypto", "
 
 [lints]
 workspace = true
+
+[[example]]
+name = "financial_read"
+required-features = ["offline"]
+
+[[example]]
+name = "financial_download"
+required-features = ["offline"]

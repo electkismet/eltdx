@@ -124,7 +124,7 @@ impl FinancialService {
             &read, &mut || context.check_boundary(TimeoutPhase::Decode))?;
         if result.completion() != FinancialCompletion::Complete {
             return Err(Error::new(ErrorKind::ResourceFormat, "financial DAT is incomplete")
-                .with_context("omitted_indexes", result.omitted_indexes().to_string()));
+                .with_context("omitted_indexes", format!("{}", result.omitted_indexes())));
         }
         let meta = crate::services::aggregate_meta(&context, &[listing.meta, archive.meta], None)?;
         result = result.with_source_meta(meta);

@@ -264,7 +264,7 @@ pub(crate) fn parse_dat_for_archive_with_boundary(data: &[u8], filename: &str,
         options, false, boundary)
 }
 
-/// Local DAT-only portion of `read`; archive routing is a Stage B responsibility.
+/// Direct local DAT reading through the shared bounded file loader.
 /// Filename dates are intentionally ignored on this local route.
 pub fn read_dat_file(path: &Path, options: &FinancialReadOptions) -> Result<FinancialDatResult> {
     let local = ReadOptions::new().with_max_bytes(options.parse.max_dat_bytes)?
@@ -553,7 +553,7 @@ pub(crate) fn parse_file_list_with_boundary(data: &[u8], strict: bool,
 {
     boundary()?;
     let mut result = Vec::new();
-    let text = String::from_utf8_lossy(data);
+    let text = bounded_lossy_utf8(data, boundary)?;
     for line in source_trim(&text).split('\n').map(source_trim).filter(|line| !line.is_empty()) {
         boundary()?;
         let mut columns = line.split(',');
@@ -569,6 +569,39 @@ pub(crate) fn parse_file_list_with_boundary(data: &[u8], strict: bool,
         } else { Vec::new() };
         result.push(FinancialFileInfo { filename: filename.to_owned(), hash: hash.to_owned(),
             filesize, filesize_text: size.to_owned(), diagnostics });
+    }
+    boundary()?;
+    Ok(result)
+}
+
+/// UTF-8 replacement with bounded cancellation points, including incomplete
+/// multibyte scalars split at a chunk boundary. Matches from_utf8_lossy.
+fn bounded_lossy_utf8(data: &[u8], boundary: &mut impl FnMut() -> Result<()>) -> Result<String> {
+    let mut result = String::new();
+    let mut offset = 0;
+    while offset < data.len() {
+        boundary()?;
+        let end = offset.saturating_add(16 * 1024).min(data.len());
+        while offset < end {
+            match std::str::from_utf8(&data[offset..end]) {
+                Ok(text) => {
+                    result.try_reserve(text.len()).map_err(|_| malformed("financial list text allocation failed"))?;
+                    result.push_str(text); offset = end;
+                }
+                Err(error) => {
+                    let valid_end = offset + error.valid_up_to();
+                    let valid = std::str::from_utf8(&data[offset..valid_end])
+                        .map_err(|_| malformed("invalid financial UTF-8 prefix"))?;
+                    result.try_reserve(valid.len() + 3).map_err(|_| malformed("financial list text allocation failed"))?;
+                    result.push_str(valid); offset = valid_end;
+                    if let Some(length) = error.error_len() {
+                        result.push('\u{fffd}'); offset += length;
+                    } else if end == data.len() {
+                        result.push('\u{fffd}'); offset = end;
+                    } else { break; }
+                }
+            }
+        }
     }
     boundary()?;
     Ok(result)
@@ -621,6 +654,21 @@ pub mod python_legacy {
 #[cfg(test)]
 mod source_cases {
     use super::*;
+
+    #[test]
+    fn list_utf8_replacement_and_cancellation_work_across_chunk_edges() {
+        let mut bytes = vec![b'a'; 16 * 1024 - 1];
+        bytes.extend_from_slice("中😀".as_bytes());
+        bytes.extend_from_slice(&[0xff, 0xe2, 0x82]);
+        let expected = String::from_utf8_lossy(&bytes).into_owned();
+        assert_eq!(bounded_lossy_utf8(&bytes, &mut || Ok(())).unwrap(), expected);
+        let mut calls = 0;
+        let error = bounded_lossy_utf8(&bytes, &mut || {
+            calls += 1;
+            if calls >= 2 { Err(Error::new(ErrorKind::Timeout, "list decode expired")) } else { Ok(()) }
+        }).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::Timeout);
+    }
 
     #[test]
     fn operation_boundary_errors_survive_before_any_dat_or_list_parsing() {

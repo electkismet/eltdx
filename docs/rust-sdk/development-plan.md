@@ -449,6 +449,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T22：专业财报、ZIP 与 DAT
 
+2026-11-17 Stage B第二段：财报集成已提交`6885e00`。补本地/下载Rust示例、required-feature声明及只依赖eltdx的std手写ZIP/DAT独立消费者；列表UTF-8替换解码增加有界取消检查和跨chunk用例。新增financial-implementation-index.md，明确共享ZIP/HQ、来源/完整性/日期/限制和T23差异。T22源码范围完成，所有编译/测试/示例/包消费者均未执行；21源码完整/3部分/6未开始，继续T23–T30与最终验证。
+
 2026-11-17 Stage B首段：在T20检查点`1722815`之后接入同一ZIP预检/解码循环的元数据索引选择和独立选中DAT限额，新增本地read/parse_zip与来源保留、offline根导出、FinancialService和惰性计算服务器构造。共享HQ下载支持分块数限制及u32 offset/总量校验，截断不算完整；list/download/ZIP/DAT复用同一operation。首批ZIP/本地/HQ故障用例源码已写，未执行；T22仍部分，待完整源码复核/consumer/文档收尾，T23继续Python旧策略适配。20/4/6不变，全部执行验证延期。
 
 **文件：** 新增 `src/offline/financial.rs`、`src/financial.rs`；新增 `tests/financial.rs`。

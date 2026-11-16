@@ -2,6 +2,8 @@
 //! Synthetic wire bytes are authored here, without using a production parser
 //! or encoder as the expected-value oracle. Execution is deferred until T30.
 mod server;
+#[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
+mod financial;
 use std::io;
 use std::time::Duration;
 use eltdx::{BatchItemState, CodeScanQuery, EndEvidence, ErrorKind, HqMarket, OperationOptions,
@@ -69,6 +71,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match std::env::args().nth(1).as_deref() {
         None | Some("loopback") => loopback()?,
         Some("lazy") => lazy()?,
+        #[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
+        Some("financial") => financial::run()?,
         Some(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput, "use lazy or loopback").into()),
     }
     println!("independent Rust consumer completed"); Ok(())
