@@ -13,11 +13,11 @@ Implemented the T06 runtime deadline and raw reply bridge in `crates/eltdx-runti
 - Preserved the raw frame until delivery and perform legacy typed parsing only in `PendingExecution`, after the shared runtime path has released request ownership. Raw delivery, parser failures, and dropped results therefore use the existing terminal/retirement cleanup path.
 - Added `Deadline::from_instant` and a `RequestDeadlinePolicy` bridge for absolute versus legacy-after-startup timing.
 - Added loopback source cases covering expired-before-start submission, raw frame/context delivery, typed compatibility and parser failure cleanup, queued deadline expiry, and a reconnect/retry that is held past the original absolute deadline.
-- Added asynchronous cleanup for an explicit connect caller whose own deadline expires: the caller gets a bounded timeout, the shared runtime is asked to close, and a cleanup helper finalizes the host connect attempt after runtime exit. Coalesced callers still observe the shared physical attempt result while their waits remain bounded by their own deadlines.
+- Added asynchronous cleanup for an explicit connect caller whose own deadline expires: the caller gets its own timeout while a cleanup helper remains attached to the shared physical attempt and finalizes host state after the shared attempt reaches a terminal state. A waiter's timeout does not close the runtime or publish a waiter-local error to other callers.
 
 ## Source-review notes
 
-The explicit connect path remains deadline-aware because the public API contract requires pin/connect options. The physical coalesced connect batch is governed by the creator's deadline; joining callers keep independent wait bounds. Deadline expiry now requests runtime close and schedules host-attempt cleanup so the host does not remain indefinitely in `Starting` solely because the last pending waiter returned early.
+The explicit connect path remains deadline-aware because the public API contract requires pin/connect options. The physical coalesced connect batch is governed by the creator's deadline; joining callers keep independent wait bounds. When a waiter exits early, the cleanup watcher preserves host-state cleanup without turning that waiter's deadline into the shared attempt's result.
 
 ## Checkpoint commit
 

@@ -9,17 +9,17 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1 / T06：增加 raw reply 与绝对执行期限 |
-| 已提交进度 | T01 契约实现及反例源码完成；T02 来源库存、哈希、7个补充案例和测试源码完成；T03 policy fixture、差异裁决、文档和契约测试源码完成；T04 crate、配置、基础类型完成并经两轮静态复审；T05 pin grant RAII、共享结果终态标记、取消/交付竞态仲裁和回环/源用例已提交 `3ba3902`；T06 raw reply、共享 typed/raw 调度、绝对期限传递和 pin/connect deadline 入口已提交 `4bf47d7`；第一轮 scoped review 发现并发 connect waiter 超时会取消共享尝试，修复进行中；统一验证延期 |
+| 当前阶段 | P1 / T07：SDK owner 与关闭状态机 |
+| 已提交进度 | T01 契约实现及反例源码完成；T02 来源库存、哈希、7个补充案例和测试源码完成；T03 policy fixture、差异裁决、文档和契约测试源码完成；T04 crate、配置、基础类型完成并经两轮静态复审；T05 pin grant RAII、共享结果终态标记、取消/交付竞态仲裁和回环/源用例已提交 `3ba3902`；T06 raw reply、共享 typed/raw 调度、绝对期限传递和 pin/connect deadline 入口已提交 `4bf47d7`，修复 `561dcf5` 通过限定复审；统一验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | 修复 T06 的共享 connect waiter 取消问题并完成限定复审，然后执行 T07；继续只写实现与测试源码，不运行任何验证 |
+| 下一步 | 实现 T07 owner 级生命周期与共享关闭状态机；传递一次性 owner deadline 的剩余预算到 runtime；继续只写实现与测试源码，不运行任何验证 |
 
 ## 阶段进度
 
 | 阶段 | 任务 | 实现状态 | 测试状态 |
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
-| P1 | T04–T10 SDK基础、runtime、metadata | T04、T05 实现与源码测试完成；T06 首轮复审发现短期限 connect waiter 会关闭共享 runtime，fix round 1 进行中；统一验证延期 | 按用户要求暂不运行 |
+| P1 | T04–T10 SDK基础、runtime、metadata | T04–T06 实现与源码测试完成；T06 并发 waiter deadline 修复已限定复审通过；T07 进行中；统一验证延期 | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | 未开始 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | 未开始 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | 未开始 | 按用户要求暂不运行 |
@@ -76,7 +76,8 @@
 | `eb0935f` | T04 review checkpoint | 记录裸 `127` 歧义裁定、复审 finding 与 no-startup 证据裁定 |
 | `4b6a524` | T04 review fix 2 | 修正大整数价格舍入经 `f64` 精度丢失，添加大值/边界/极端 scale 源测试 |
 | `c1b8c34` | T04 completion checkpoint | 记录两轮 scoped review 关闭与待最终复审的 `i64::MIN` 覆盖观察 |
-| `4bf47d7` | T06 runtime raw/deadline | 增加 RawReply、共同 typed/raw 执行路径、绝对期限传递及 pin/connect deadline；首轮 scoped review 发现共享 connect waiter 取消问题，fix round 1 进行中 |
+| `4bf47d7` | T06 runtime raw/deadline | 增加 RawReply、共同 typed/raw 执行路径、绝对期限传递及 pin/connect deadline；首轮 scoped review 的共享 connect waiter 问题由 `561dcf5` 修复并通过限定复审 |
+| `561dcf5` | T06 fix 1 | connect waiter 仅结束自己的等待；共享 attempt 保持运行并在终态后清理；限定复审通过；未运行验证 |
 
 ## 阻塞与风险
 

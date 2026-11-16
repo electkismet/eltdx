@@ -96,7 +96,8 @@
 - Task 4: minor (deferred): no source case explicitly covers `i64::MIN`; the scoped reviewer inspected the `i128` reduction arithmetic and found no issue. Carry this coverage note into the final whole-branch review.
 - Task 4: complete (commits `f7b02fc..4b6a524`, scoped reviews clean after two fix rounds; final verification deferred until T01-T30 implementation is complete).
 - Task 5 complete (`3ba3902`): private RAII delivery transfers pin identity to the public handle, drop/send-failure close through existing supervisor release transitions, and opened-reservation tracking plus a shared result-terminal marker prevent late success/failure cancellation from becoming stale pre-admission state. Inline source cases cover pending drop, receiver loss, cancellation before success, between open and send, racing with failed result publication, success before cancellation, fail-closed confirmation timeout, exactly-once release, and later pin reuse. The public loopback target covers cancel-after-success and subsequent pin admission. See `task-05-report.md`. No tests, test collection, build/check/clippy/doctest, network validation, `git diff --check`, or equivalent verification ran; no compilation or runtime success is claimed.
-- Task 6: brief prepared from `development-plan.md` and runtime specs; implementation not yet started. Preserve `execute(CommandRequest)` by routing typed and raw requests through one scheduler; add absolute submission options, raw reply with request/epoch/slot/generation/host context, and deadline-aware pending response. No verification commands run.
+- Task 6: implementation `4bf47d7` plus fix `561dcf5`; scoped review round 1 found one Important issue: an expired coalesced connect waiter published failure to shared completion and aborted runtime. Fix round 1 was re-reviewed from `4bf47d7..561dcf5`; the finding is ADDRESSED, with no new Critical/Important breakage. Each waiter now receives its own timeout, shared completion remains owned by the physical attempt, and cleanup waits for the attempt terminal without closing the runtime. T06 is complete; final verification is deferred. No tests, collection, build/check/clippy/doctest, network validation, AST scripts, diff checks, or equivalent commands ran.
+- Ruling: T07 must expose a runtime close operation accepting the owner's absolute `Instant` deadline and pass that same deadline through every owned pool; the existing public Engine close uses a fixed 1-second timeout and cannot honor configured `ClientConfig::close_timeout` or a shared multi-pool budget — cost if wrong: custom shutdown budgets are ignored or sequential pools can exceed the owner deadline.
 
 ## Execution state
 
@@ -107,8 +108,8 @@
 | T03 | Implementation complete: policy fixtures, compatibility decisions, public docs, and test source; commit `8d11baa`; final verification deferred |
 | T04 | Implementation complete; validated identities/time, lazy configuration, source-aware event time, price conversion; final verification deferred |
 | T05 | Implementation and source cases committed in `3ba3902`; final verification deferred until T01-T30 implementation is complete |
-| T06 | In progress: shared raw/typed execution path and absolute operation deadline |
-| T07 | Not started |
+| T06 | Implementation and scoped review complete (`4bf47d7..561dcf5`); final verification deferred |
+| T07 | In progress: owner lifecycle and close state machine, including runtime remaining-budget entry point |
 | T08 | Not started |
 | T09 | Not started |
 | T10 | Not started |
