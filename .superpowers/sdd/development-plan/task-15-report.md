@@ -1,6 +1,6 @@
-# T15 partial foundation recovery report
+# T15 source implementation recovery report
 
-Status: partial source only. M23 pinned refresh is authored at61672fe; dispatcher/cache/owner task integration and retained-memory/fixed-ring source at a964437. The latest M24 checkpoint authors subscribe, active Subscription handle, lease/read/renewal/retirement/resync and supported event prevalidation. Controlled Python raw adapter and full integration source cases remain incomplete. Read the latest recovery section below before resuming. No compile/runtime/independent-review claim. Do not mark T15 complete. Prior complete task is T14 at ce46437.
+Status: source implementation and limited self-review complete at e35b5f2, following M24 checkpoint e995825. All compilation/runtime/compatibility verification remains deferred. Historical sections below describe earlier incomplete checkpoints; the final source section supersedes their pending lists. Next task is T16. No compile/runtime/independent-review success claim.
 
 ## Authored paths
 
@@ -55,3 +55,15 @@ This section supersedes earlier pending descriptions for M24 only; T15 remains p
 - New source cases cover ordered stale/equal rejection, a lower newer time-of-day cursor, per-security snapshot fences and atomic floor validation. These cases and the existing source cases have NOT run.
 
 Remaining before T15 source completion: controlled Python raw poll/drain/fanout adapter with old overflow counts and exception projection; full deterministic active-subscription source cases from task-15-brief; source review of maximum-event bounds, source inspection and cleanup races. Do not mark T15 complete. All tests, collection, builds/checks/clippy/doctests, network probes, AST/compile/format/diff checks and equivalent verification remain deferred until ALL T01-T30 implementation code is authored. Ordinary Git/source reads and hooks-disabled checkpoints only; no subagents, push, tag, publish or merge. Goal active without token budget.
+
+## 2026-11-16 final source checkpoint e35b5f2
+
+T15 source implementation and limited source self-review are complete. No tests, collection, compilation, build/check/clippy/doctests, formatting, AST checks, diff checks or network probes have run. Runtime readiness and Python parity are unverified until the unified T01-T30 validation phase.
+
+- Python NativeEngine selects explicit exclusive raw mode with LegacyPushReader, one non-Clone runtime consumer claim shared by all its native poll/drain calls. That Engine is a separate generation from Rust TdxClient. No new buffer, parser, thread or network startup is introduced. The reader forwards RuntimeError unchanged, preserving cumulative overflow count/message/context and the existing Python error/response projection. Callback execution stays on the calling thread. T18 must preserve this adapter and legacy timing rather than adding a competing queue reader.
+- Renewal stages all group results and checks the complete operation before publication. Receive-order filtering continues to reject stale interleaved data. Retirement keeps checking its deadline even if a finished worker left retiring=true after an unexpected exit.
+- Extended the synthetic loopback fixture with controlled push/disconnect writers and exact refresh encoding. Public source cases now cover impossible/occupied pool capacity, cold101/pool2 metadata, activation rollback, independent overlapping subscriptions, read/setup cancellation, count overflow/desync, parent close/Drop, source loss without rebinding, lower morning renewal cursor, resync success/failure and renewal failure before consumer reads. A two-group renewal failure case rejects partial result publication.
+- Private source cases cover fresh independent renewal operation IDs/budgets/deadlines, real registered worker/control owner lifetime, dispatcher pause waiting for a selected delivery, actual oversized DTO publication and canonical maximum event shapes for each raw policy. Legacy loopback source preserves raw frames, actual cumulative runtime overflow, sequence ordering, exclusive reader gating and control-only pin source inspection. Python contract source checks old PushOverflowError projection.
+- Source self-review covered the exclusive-mode compatibility boundary, source ordering and pause/retirement ordering, fixture framing, retained-memory maximum, and new source-case imports/APIs. This is not independent review or execution evidence.
+
+Exact code checkpoint: e35b5f2 (12 files,714 insertions/24 deletions). Previous M24 checkpoint e995825. Source completion count16, partial4 (T17/T22/T24/T25), unstarted10; continue T16 from task-16-brief. Goal active without token budget. No subagents, pushes, tags, publication or merges.

@@ -165,7 +165,7 @@
 | T12 | Quote/code Python bridge implementation/source review complete through `684a157`; execution verification deferred |
 | T13 | Implementation/self-review checkpoint `338d99b`: all 18 methods M25-M40/M98-M99, queries/DTOs, date/cursor/raw mapping and synthetic source cases; execution verification deferred |
 | T14 | All13 M41–M52/M100 implementation/self-review sources committed at992ba98/ce46437; no execution verification |
-| T15 | Partial source: foundation9bbafde, M2361672fe, dispatcher/accountinga964437; active M24 lease/read/renewal/retirement/resync/receive-order/max-capacity source authored in the next checkpoint; controlled Python raw adapter and full integration source cases remain pending |
+| T15 | Source implementation/self-review complete:9bbafde/61672fe/a964437/e995825/e35b5f2; controlled Python raw reader and deterministic subscription source cases authored; all execution verification deferred |
 | T16 | Not started |
 | T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
 | T18 | Not started |
@@ -213,3 +213,5 @@
 - Recovery 2026-11-16 T15 dispatcher/memory: after M23 commit61672fe, authored exact-source weak fanout with one PushConsumer, per-Engine owner cache and pre-start task registration, stop/join, pause/early-push routing and delta loss; actual-capacity DTO/shared-buffer accounting and fixed-slot ring storage replace caller-supplied production charges. Tests were authored only. Active Subscription/M24, lease/read/renewal/resync, supported-max prevalidation and Python raw adapter remain missing. Read task-15-report latest section. Implementation-complete count stays15/30 with5 partial and10 unstarted; no runtime/compile evidence.
 
 - Recovery 2026-11-16 M24: active subscribe/lease/read/renewal/retirement/resync/max-event source is now authored after a964437. Added exact-connection receive sequence and per-ID snapshot fences, dispatcher active-delivery pause barrier, runtime control-only pin inspection, startup cleanup ownership and owner reaper lock-order correction. Added source cases and fixed the existing subscription fixture import/decoder retention assertions. Controlled Python raw adapter and full active integration case matrix remain pending. Count stays15 complete source/5 partial/10 unstarted. No validation ran; goal active without a token budget. Read task-15-report latest section before continuing.
+
+- Recovery 2026-11-16: T15 source implementation/self-review complete at e35b5f2 after M24 e995825. Controlled Python exclusive raw reader, renewal whole-operation staging and deterministic integration/memory/lifecycle source cases are authored. Count16 source complete/4 partial/10 unstarted. Next T16. Goal active, remainingTokens=null. No execution verification of any kind ran.

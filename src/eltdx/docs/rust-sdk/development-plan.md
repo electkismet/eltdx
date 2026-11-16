@@ -281,12 +281,14 @@ T14全部13方法实现及自审源码已写完：M41–M52/M100。专属惰性�
 
 **接口：** `subscribe(&ids, &SubscriptionOptions, &OperationOptions)`；`Subscription` 唯一所有者、typed `PushEvent`；`SubscriptionOptions` 设置长期队列容量、续订间隔和 gap 策略，建立订阅的总预算单独传入。
 
-- [ ] 先加载 metadata，静态所需槽位超过配置上限时在获取前报错；通过预检查后仍可能遇并发竞争，按 100 代码分组在总期限内逐一获取 pin，任一失败回滚本订阅已取得的全部资源。
-- [ ] 测试第二组启动失败时回滚第一组pin；失败续订时不留下活跃的假订阅。
-- [ ] 一个dispatcher消费runtime队列并按epoch/slot/generation/代码路由；多个订阅者不相互偷走消息。
-- [ ] 游标按协议处理跨日回退，不能要求日内数值单调递增；gap事件不会静默吞掉。
-- [ ] 测试显式close、Drop、父client close、慢消费者、队列溢出和重连恢复。
+- [x] 已写metadata预取、静态容量预检、100代码分组/总期限获取及全部回滚源码；执行延期。
+- [x] 已写第二组启动失败、动态占用及失败续订回收用例源码；整轮续订成功后才发布，执行延期。
+- [x] 已写唯一dispatcher精确源路由、独立订阅与Python独占raw reader；保持原overflow计数/异常投影，执行延期。
+- [x] 已写按接收顺序保留跨日游标回退和独立gap控制状态，以及相关源码用例；执行延期。
+- [x] 已写close/Drop/父close/无owner环、慢消费者、溢出、源丢失及同源重同步成功/失败用例源码；执行延期。
 - [ ] `cargo test -p eltdx --test subscription --locked`；真实1000证券在线用例单列opt-in，见验证文档。
+
+T15实现及限定源码自审检查点为`e35b5f2`，M24此前检查点为`e995825`。这里只关闭源码实施，不表示编译或运行通过；没有执行测试、构建或等价检查。下一任务T16。
 
 ### T16：股本、复权、交易日和涨跌停策略
 
