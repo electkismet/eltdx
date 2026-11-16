@@ -140,6 +140,10 @@
 - Task 21: scoped static review of `9734db3` found one Important spec mismatch plus its matching Minor source-case mismatch: an empty customer-block leaf name was skipped although the brief requires rejection; an empty block name remains a separate documented legacy skip. Original implementer resumed for fix round 1 from review head `9734db3`; change only the invalid-leaf behavior and source case, then scoped re-review. No validation commands ran.
 - Task 8: fix round 1 committed `fc90734`; limited package `task-08-fix1-fc90734.diff` from review head `b3371c0` dispatched to scoped re-review. All four original findings are addressed by implementation claims, awaiting independent verdict; no execution evidence exists.
 - Task 8: fix round 1 scoped re-review confirms all four original Important findings ADDRESSED, but found a new Important source-case type mismatch: operation_tests.rs calls concrete Reservation::commit_with_clock through Box<dyn ReservedAttempt>, whose trait lacks that method. Review retained in `task-08-fix1-review.md`. Original implementer resumed for round2 from `fc90734`, scoped to concrete test helper/construction only. T10 Stage B remains gated; no validation ran.
+- Task 8: fix round 2 committed `d8574bb`; scoped review `task-08-fix2-review.md` accepts the concrete Reservation test correction with no new breakage. All four original findings and one introduced test-source issue are closed by static review.
+- Task 8: complete (source `f837921`/`be129bb`/`b3371c0`, fix rounds `fc90734`/`d8574bb`, scoped static reviews approved; final unified verification deferred).
+- Task 10: Stage B GO issued after T08 approval; Stage A new metadata/value/clock/source cases may now be integrated with owner store, snapshot freeze and cooperative HQ loader. T10 must preserve explicit Python legacy prefetch policy and narrow common shutdown hook; review base stays `2ac3870` filtered to owned files. No arbitrary unbounded blocking loader or second retry/budget implementation.
+- Ruling: T17 Stage A may implement only the independent bounded archive/stats parsing modules and stats source cases while T10's shared owner work continues. It must keep the dependency proposal in its report without shared root/Cargo/types/service edits, and defer network/resource service integration to explicit Stage B. — Cost if wrong: later integration may need narrow type/import adaptation, while keeping one ZIP implementation avoids separate HQ/financial decoders.
 - Task 21: fix round 1 `b6e4beb` approved by scoped re-review; Important empty-leaf behavior and associated source case ADDRESSED, no new breakage. Review retained in `task-21-review.md`.
 - Task 21: complete (source `f921d81`/`9734db3`, fix `b6e4beb`, scoped source review approved; all runtime/compile/platform validation deferred).
 - Ruling: T24 may start isolated Stage A in only new `src/ex/` files and `tests/ex_wire.rs` while the T10 owner interface is pending. It authors the frame/command/model/host pure implementation without editing shared owner/operation/runtime/Cargo/root/Python paths; transport and public client integration require Stage B GO. — Cost if wrong: the later transport integration may need narrow adapters, but shared lifecycle work remains serialized and Stage A cannot be mistaken for full T24 completion.
@@ -153,16 +157,16 @@
 | T05 | Implementation and source cases committed in `3ba3902`; final verification deferred until T01-T30 implementation is complete |
 | T06 | Implementation and scoped review complete (`4bf47d7..561dcf5`); final verification deferred |
 | T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
-| T08 | Round1 original four findings addressed; round2 fixes new test trait-object mismatch, base `fc90734`; verification deferred |
+| T08 | Implementation and scoped static review complete through `d8574bb`; verification deferred |
 | T09 | Source and scoped static review complete at `65ef657`; unified verification deferred |
-| T10 | Stage A authorized and in progress; no owner/operation integration before explicit Stage B GO |
+| T10 | Stage A implementation in progress; Stage B owner/operation integration now authorized after T08 approval |
 | T11 | Not started |
 | T12 | Not started |
 | T13 | Not started |
 | T14 | Not started |
 | T15 | Not started |
 | T16 | Not started |
-| T17 | Not started |
+| T17 | Stage A bounded archive/stats source implementation authorized; service integration awaits Stage B |
 | T18 | Not started |
 | T19 | Not started |
 | T20 | Not started |
