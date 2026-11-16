@@ -319,6 +319,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T18：P2 Python 回迁及可用版本验收
 
+源码首段`e3e768c`已写M95纯classify_fund_flow、类型与阈值/单位/异常/取消用例；其余helpers和Python/native回迁仍待完成。全部执行验证延期，详情task-18-report。
+
 **文件：** 新增 `src/helpers/{mod,market,boards,shortline,profile}.rs` 和 `tests/hq_helpers.rs`；对上述服务及 HQ helpers 逐一修改 `src/eltdx/api`、`helpers`、`equity.py`、`workday.py`、`stats.py` 和 native 桥接；新增域级差分测试与 `crates/eltdx/examples/hq_query.rs`。
 
 - [ ] 在默认 HQ feature 下实现矩阵中的 full_quotes、每日股本/涨跌停价、排行、board_quotes、limit_ladder、market_stat、shortline 和完整 stock_profile_table。现有 profile 仅依赖 HQ 的 full_quotes、证券目录和 finance_batch，不虚构 F10 依赖。

@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-2026-11-16 最新恢复点：T17源码集成与限定自审检查点`88b9036`。M67–M78服务器文件、完整/有界下载、统计ZIP、公司资料、会话/健康服务及公开客户端用例源码已写；复用唯一ZIP/GBK实现，依赖选择仍待最终验证。当前18项源码完整、3项部分、9项未开始；下一任务T18完整HQ helpers与Python回迁。没有运行任何测试、构建或执行检查。
+2026-11-16 最新恢复点：T17源码集成`88b9036`、T18首段M95纯资金流`e3e768c`。M67–M78资源/公司/session/health完整源码已写；M95阈值/单位/异常/取消边界源码用例已写，F37加法笔误改为2440001。当前18项源码完整、4项部分、8项未开始；继续T18其余HQ helpers与Python回迁。没有运行任何测试、构建或执行检查。
 
-当前实际进度：T01–T17及T21实现源码已写完；T22/T24/T25为部分实现（18完整源码/3部分/9未开始）。恢复先读task-17-report最新节，再读task-18-brief及HQ规格11–14节，继续完整组合业务与兼容适配。目标保持active且不设置额度限制；全部执行验证延期。
+当前实际进度：T01–T17及T21实现源码已写完；T18/T22/T24/T25为部分实现（18完整源码/4部分/8未开始）。恢复先读task-18-report和brief及HQ规格11–14节，继续完整组合业务与兼容适配；M95已写，不重复实现。目标保持active且不设置额度限制；全部执行验证延期。
 
 2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。
 
@@ -17,8 +17,8 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | `88b9036`：T17源码集成收尾；全部执行验证延期 |
-| 当前阶段 | P2：T01–T17实现源码完成；接续T18。 |
+| 最新检查点 | `e3e768c`：T18 M95源码首段，T17收尾88b9036；全部执行验证延期 |
+| 当前阶段 | P2：T01–T17实现源码完成；T18已开始，M95已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
 | 下一步 | T18：完整HQ helpers、Python/native逐域回迁、兼容用例及consumer源码；全部实现完成后统一验证 |
@@ -29,7 +29,7 @@
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
-| P2 | T11–T18 HQ与Python首批迁移 | T11–T17实现与限定源码审阅完成；T18待做 | 按用户要求暂不运行 |
+| P2 | T11–T18 HQ与Python首批迁移 | T11–T17实现与限定源码审阅完成；T18纯函数M95已写，其余helpers/native回迁待做 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Unicode修复 `a64a4a6` 通过限定复审，ZIP/资源集成待做 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
