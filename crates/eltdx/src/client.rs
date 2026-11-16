@@ -138,6 +138,15 @@ pub struct TdxClient {
 }
 
 impl TdxClient {
+    pub fn corporate(&self) -> crate::services::CorporateService {
+        crate::services::CorporateService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+    }
+    pub fn limits(&self) -> crate::services::LimitService {
+        crate::services::LimitService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+    }
+    pub fn calendar(&self) -> crate::calendar::CalendarService {
+        crate::calendar::CalendarService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+    }
     pub fn builder() -> ClientBuilder {
         ClientBuilder::new()
     }

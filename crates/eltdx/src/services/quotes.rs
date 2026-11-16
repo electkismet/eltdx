@@ -515,15 +515,24 @@ fn recover_snapshot_tree(
     context: &OperationContext, codes: &[NormalizedCode], recovery: bool,
     query: &mut impl FnMut(&[NormalizedCode], bool) -> Result<DecodedReply>,
 ) -> Result<RawSnapshotBatch> {
+    super::recovery::ordered_tree(context, codes, recovery,
+        &mut |part, recovery| recover_snapshot_step(context, part, recovery, query), &merge_snapshot_trees)
+}
+
+fn recover_snapshot_step(
+    context: &OperationContext, codes: &[NormalizedCode], recovery: bool,
+    query: &mut impl FnMut(&[NormalizedCode], bool) -> Result<DecodedReply>,
+) -> Result<super::recovery::RecoveryStep<RawSnapshotBatch>> {
+    use super::recovery::RecoveryStep;
     let decoded = match query(codes, recovery) {
         Ok(decoded) => decoded,
         Err(error) => {
             if codes.len() == 1 && context.is_legacy() && is_legacy_single_absence(&error) {
-                return Ok(RawSnapshotBatch { slots: vec![RawSnapshotSlot::Missing], replies: Vec::new(), recovered: true });
+                return Ok(RecoveryStep::Complete(RawSnapshotBatch { slots: vec![RawSnapshotSlot::Missing], replies: Vec::new(), recovered: true }));
             }
             if codes.len() <= 1 || !is_retryable_snapshot_structure(&error) { return Err(error); }
             context.remember_recoverable(error);
-            return split_snapshot_tree(context, codes, query);
+            return Ok(RecoveryStep::Split);
         }
     };
     let CommandResponse::Snapshots(rows) = &decoded.response else { return Err(wrong_response("snapshots")); };
@@ -533,10 +542,10 @@ fn recover_snapshot_tree(
     }
     if rows.is_empty() && !codes.is_empty() {
         if codes.len() == 1 {
-            return Ok(RawSnapshotBatch { slots: vec![RawSnapshotSlot::Missing], replies: vec![Arc::new(decoded)], recovered: true });
+            return Ok(RecoveryStep::Complete(RawSnapshotBatch { slots: vec![RawSnapshotSlot::Missing], replies: vec![Arc::new(decoded)], recovered: true }));
         }
         context.remember_recoverable(Error::new(ErrorKind::Protocol, "empty snapshot response"));
-        return split_snapshot_tree(context, codes, query);
+        return Ok(RecoveryStep::Split);
     }
     if rows.len() != codes.len() {
         if !context.is_legacy() && rows.len() > codes.len() {
@@ -549,7 +558,7 @@ fn recover_snapshot_tree(
         });
         if context.is_legacy() && codes.len() == 1 { return Err(mismatch); }
         context.remember_recoverable(mismatch);
-        return split_snapshot_tree(context, codes, query);
+        return Ok(RecoveryStep::Split);
     }
     // The Python facade returned a successful first response as-is. Only its
     // recovery path rebuilt rows by requested occurrence, so preserve the
@@ -565,15 +574,10 @@ fn recover_snapshot_tree(
     slots.try_reserve(codes.len()).map_err(allocation_error)?;
     for index in order { slots.push(RawSnapshotSlot::Present { row: rows[index].clone(), reply: Arc::clone(&decoded) }); }
     context.record_work(rows.len(), 0)?;
-    Ok(RawSnapshotBatch { slots, replies: vec![decoded], recovered: recovery })
+    Ok(RecoveryStep::Complete(RawSnapshotBatch { slots, replies: vec![decoded], recovered: recovery }))
 }
 
-fn split_snapshot_tree(context: &OperationContext, codes: &[NormalizedCode],
-    query: &mut impl FnMut(&[NormalizedCode], bool) -> Result<DecodedReply>) -> Result<RawSnapshotBatch> {
-    if codes.len() <= 1 { return Err(Error::new(ErrorKind::Protocol, "cannot isolate a malformed snapshot singleton")); }
-    let middle = codes.len() / 2;
-    let mut first = recover_snapshot_tree(context, &codes[..middle], true, query)?;
-    let second = recover_snapshot_tree(context, &codes[middle..], true, query)?;
+fn merge_snapshot_trees(mut first: RawSnapshotBatch, second: RawSnapshotBatch) -> Result<RawSnapshotBatch> {
     first.slots.try_reserve(second.slots.len()).map_err(allocation_error)?;
     first.slots.extend(second.slots);
     first.replies.try_reserve(second.replies.len()).map_err(allocation_error)?;

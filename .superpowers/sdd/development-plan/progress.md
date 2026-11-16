@@ -166,7 +166,7 @@
 | T13 | Implementation/self-review checkpoint `338d99b`: all 18 methods M25-M40/M98-M99, queries/DTOs, date/cursor/raw mapping and synthetic source cases; execution verification deferred |
 | T14 | All13 M41–M52/M100 implementation/self-review sources committed at992ba98/ce46437; no execution verification |
 | T15 | Source implementation/self-review complete:9bbafde/61672fe/a964437/e995825/e35b5f2; controlled Python raw reader and deterministic subscription source cases authored; all execution verification deferred |
-| T16 | Not started |
+| T16 | In progress: corporate/finance/affine adjustment/calendar/special-limit service and DTO source authored; deterministic source cases and review pending, no execution |
 | T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
 | T18 | Not started |
 | T19 | Not started |

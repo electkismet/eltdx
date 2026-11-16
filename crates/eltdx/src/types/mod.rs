@@ -1,6 +1,9 @@
 pub mod batch;
 pub mod auctions;
 pub mod codes;
+pub mod corporate;
+pub mod calendar;
+pub mod limits;
 pub mod klines;
 pub mod minutes;
 pub mod money_flow;
@@ -15,6 +18,10 @@ pub mod trades;
 
 pub use batch::{BatchItem, BatchItemState, BatchOutcome, Collected, DataPage, EndEvidence, MissingPolicy, MissingReason, PageCursor, PageOptions, SnapshotBatch};
 pub use codes::{CodeQuery, CodeScanQuery, Security, SecurityBoard, SecurityCategory};
+pub use corporate::{AdjustmentFactor, AdjustmentFactors, CapitalChangeBlock, CapitalEvent, CapitalQuery,
+    FactorQuery, FinanceField, FinanceProjection, FinanceQuery, FinanceRecord, FinanceValue};
+pub use limits::{LimitDecision, LimitRule, LimitStatus, SpecialLimit, SpecialLimitQuery};
+pub use calendar::{CalendarQuery, CalendarSnapshot};
 pub use klines::{AdjustMode, BarTime, DelistedQuery, KlineBar, KlineKind, KlinePeriod, KlineQuery, KlineSeries};
 pub use minutes::{AuxKind, AuxValues, MinuteAuxPoint, MinuteAuxSeries, MinutePoint, MinuteQuery, MinuteSeries, SparklineQuery, SparklineSeries};
 pub use numeric::{Amount, AmountUnit, NumericValue, Price, PriceSource, Quantity, QuantityUnit, Ratio, RatioUnit, RoundingMode};

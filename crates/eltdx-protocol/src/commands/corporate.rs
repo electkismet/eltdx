@@ -180,6 +180,8 @@ pub struct CapitalChangeBlock {
 #[derive(Clone, Debug, PartialEq)]
 pub struct CapitalChangeBatch {
     pub request: CapitalChangesRequest,
+    /// Original declaration, which some servers encode as a last index.
+    pub declared_blocks: u16,
     pub blocks: Vec<CapitalChangeBlock>,
     pub raw_payload: Bytes,
 }
@@ -316,6 +318,7 @@ fn parse_capital_changes_payload_body(
     }
     Ok(CapitalChangeBatch {
         request,
+        declared_blocks: reported_block_count,
         blocks,
         raw_payload: context.payload(payload),
     })

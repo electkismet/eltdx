@@ -10,6 +10,12 @@ mod session;
 mod subscription;
 mod operation;
 mod policy;
+pub mod adjustment;
+pub mod calendar;
+/// Approved limit-price policy evaluation with explicit unknown results.
+pub mod price_limits { pub use crate::policy::limits::evaluate; }
+/// Pure corporate-action factor calculation; usable without a client or Python.
+pub mod equity { pub use crate::adjustment::build_adjustment_factors; }
 mod metadata;
 #[doc(hidden)]
 pub mod __python_compat;
@@ -30,6 +36,10 @@ pub use types::batch::{
     MissingReason, PageCursor, PageOptions, SnapshotBatch,
 };
 pub use types::codes::{CodeQuery, CodeScanQuery, Security, SecurityBoard, SecurityCategory};
+pub use types::corporate::{AdjustmentFactor, AdjustmentFactors, CapitalChangeBlock, CapitalEvent, CapitalQuery,
+    FactorQuery, FinanceField, FinanceProjection, FinanceQuery, FinanceRecord, FinanceValue};
+pub use types::limits::{LimitDecision, LimitRule, LimitStatus, SpecialLimit, SpecialLimitQuery};
+pub use types::calendar::{CalendarQuery, CalendarSnapshot};
 pub use types::quotes::{
     CategoryQuery, CategoryQuote, LegacyQuote, QuoteCategory, QuoteLevel, QuoteSort, QuoteUpdate,
     QuoteUpdates, Snapshot,

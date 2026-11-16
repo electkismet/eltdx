@@ -52,6 +52,11 @@ impl KlineService {
     pub fn collect(&self, id: &SecurityId, query: &KlineQuery, options: &OperationOptions) -> Result<KlineSeries> {
         let entry = Instant::now();
         let mut context = self.executor.begin_context_at(entry, "klines_collect", &self.config, options)?;
+        let series = self.collect_in_context(&mut context, id, query)?;
+        context.finish()?; Ok(series)
+    }
+
+    pub(crate) fn collect_in_context(&self, context: &mut OperationContext, id: &SecurityId, query: &KlineQuery) -> Result<KlineSeries> {
         checked_ids(std::slice::from_ref(id))?;
         query.validate()?;
         validate_page_options(query.pages())?;
@@ -64,7 +69,12 @@ impl KlineService {
             query.pages().page_size(), &context, Some(metadata.version()))?;
         let mut pin = self.executor.acquire_pin(&engine, &context)?;
         let result = self.collect_ordinary_with(&context, id, query, &metadata, &engine, Some(pin.handle()?));
-        self.finish_pinned(&context, &mut pin, result)
+        match result {
+            Ok(series) => { self.executor.release_pin(context, &mut pin, None)?; Ok(series) }
+            Err(root) => match self.executor.release_pin(context, &mut pin, Some(root)) {
+                Err(error) => Err(error), Ok(()) => Err(Error::new(ErrorKind::Internal, "K-line child cleanup lost its root failure")),
+            },
+        }
     }
 
     pub fn page_many(&self, ids: &[SecurityId], query: &KlineQuery, options: &OperationOptions) -> Result<BatchOutcome<KlineSeries>> {

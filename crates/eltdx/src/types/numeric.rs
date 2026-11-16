@@ -255,6 +255,7 @@ fn conversion_error(message: &str) -> crate::error::Error {
 #[non_exhaustive]
 pub enum QuantityUnit {
     Shares,
+    TenThousandShares,
     Lots,
     Bonds,
     FundUnits,
@@ -272,6 +273,11 @@ pub struct Quantity {
 }
 
 impl Quantity {
+    pub fn shares_from_ten_thousands(value: f32, provenance: ValueProvenance) -> crate::Result<Self> {
+        if !value.is_finite() { return Err(conversion_error("non-finite ten-thousand-share wire value")); }
+        Ok(Self { value: NumericValue::F64(f64::from(value) * 10_000.0), source_value: NumericValue::F32(value),
+            unit: QuantityUnit::Shares, source_unit: QuantityUnit::TenThousandShares, provenance })
+    }
     pub const fn new(value: NumericValue, unit: QuantityUnit) -> Self {
         Self { value, source_value: value, unit, source_unit: unit, provenance: ValueProvenance::Unknown }
     }
@@ -310,6 +316,7 @@ impl Quantity {
 #[non_exhaustive]
 pub enum AmountUnit {
     Cny,
+    ThousandCny,
     TenThousandCny,
     Hkd,
     Unknown,
@@ -326,6 +333,11 @@ pub struct Amount {
 }
 
 impl Amount {
+    pub fn cny_from_thousands(value: f32, provenance: ValueProvenance) -> crate::Result<Self> {
+        if !value.is_finite() { return Err(conversion_error("non-finite thousand-CNY wire value")); }
+        Ok(Self { value: NumericValue::F64(f64::from(value) * 1_000.0), source_value: NumericValue::F32(value),
+            unit: AmountUnit::Cny, source_unit: AmountUnit::ThousandCny, provenance })
+    }
     pub const fn new(value: NumericValue, unit: AmountUnit) -> Self {
         Self { value, source_value: value, unit, source_unit: unit, provenance: ValueProvenance::Unknown }
     }
@@ -347,6 +359,7 @@ impl Amount {
     pub fn as_cny(self) -> crate::error::Result<Self> {
         match self.unit {
             AmountUnit::Cny => Ok(self),
+            AmountUnit::ThousandCny => Ok(Self { value: self.value.checked_mul_integer(1_000)?, unit: AmountUnit::Cny, ..self }),
             AmountUnit::TenThousandCny => Ok(Self { value: self.value.checked_mul_integer(10_000)?, unit: AmountUnit::Cny, ..self }),
             AmountUnit::Unknown => Err(conversion_error("unknown amount unit cannot be converted")),
             AmountUnit::Hkd => Err(conversion_error("currency conversion requires an explicit exchange-rate source")),

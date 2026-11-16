@@ -4,6 +4,11 @@ mod klines;
 mod minutes;
 mod money_flow;
 mod quotes;
+mod recovery;
+mod corporate;
+mod limits;
+pub use corporate::CorporateService;
+pub use limits::LimitService;
 mod trades;
 pub(crate) mod pagination;
 
@@ -103,7 +108,7 @@ pub(crate) fn aggregate_meta(context: &OperationContext, pages: &[ResultMeta], v
         diagnostics, raw).with_sources(sources))
 }
 
-fn allocation_error(error: std::collections::TryReserveError) -> Error {
+pub(crate) fn allocation_error(error: std::collections::TryReserveError) -> Error {
     Error::new(ErrorKind::LimitExceeded, "unable to reserve bounded service result storage").with_source(error)
 }
 
