@@ -133,6 +133,9 @@
 - Task 21: source checkpoint `f921d81` authored all35 nonfinancial local functions/model codecs, paths and GBBQ constants. Source cases/self-review/report still in progress, no task approval or execution claim. Review base `230e566`, filter to `crates/eltdx/src/offline/`, four owned test targets and task report; controller registration `7c09816` may be named separately for integration without including other tasks.
 - Preparation: `/root/t19_http_prepare` assigned read-only HTTP/TLS stack assessment (no implementation GO), report `task-19-preparation.md`; no dependency/network execution or shared source edits. Later implementation must still follow task-scoped gate.
 - Task 8: first scoped review Needs fixes with four Important findings retained in `task-08-review.md`: terminal/cancel confirmation race, effective attempt deadline/stale gate time, once-only legacy recovery accounting across endpoint continuation, annotated first stop cause. Fix round1 assigned to original implementer against review head `b3371c0`; T10 GO remains pending. No validation commands ran.
+- Ruling: T10 may begin isolated Stage A after a slot opens, confined to new metadata files, shared types/value/clock modules and its metadata/unit source cases; no operation/session/executor/root/client/config/runtime/bridge edits until explicit Stage B GO after T08 approval. Frozen sponsor and Diagnostic interfaces already define this independent work. — Cost if wrong: integration may require narrow adaptation after T08 fixes; do not preempt its terminal/admission changes. This supersedes only the earlier blanket no-code wait, not the shared-file gate. Stage A is partial implementation, not task completion. Brief updated; dispatch still pending slot availability.
+- Ruling: T21 may execute a one-shot source DATA GENERATOR using only installed Python's built-in gbk codec to emit the authoritative two-byte Rust lookup table and generator provenance. This is implementation-data generation, not a project test or Rust/codec comparison: no project imports, assertions, validation/compile/AST/format/network commands, or test runners. Python GBK and WHATWG/GB18030 mappings differ, so encoding_rs alone cannot establish exact legacy decoding. — Cost if wrong: a generated table tied to this interpreter could hide platform/version behavior differences; retain generator/version provenance and independent manually specified source cases for unified parity validation. Report accurately states data generation occurred while no validation ran.
+- Recovery 2026-11-16: user resumed goal mode; existing goal is active with no token budget. T10 Stage A GO issued against base `2ac3870`, restricted to new metadata/value/type/clock modules and metadata/unit source cases; T08-owned operation/session/executor/runtime/root/bridge paths remain gated until scoped re-review approves. T21 reports one-shot GBK mapping-table generation using bundled Python 3.12.14 built-in codec, with generator/version provenance; source/report/commit are still in progress. T08 fix round 1 is still in progress. No tests or validation commands have run.
 
 | Task | Status |
 |---|---|
@@ -143,9 +146,9 @@
 | T05 | Implementation and source cases committed in `3ba3902`; final verification deferred until T01-T30 implementation is complete |
 | T06 | Implementation and scoped review complete (`4bf47d7..561dcf5`); final verification deferred |
 | T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
-| T08 | Fix round1 for four Important scoped-review findings; review head `b3371c0`, unified verification deferred |
+| T08 | Fix round1 for four Important scoped-review findings; original implementer working from review head `b3371c0`, unified verification deferred |
 | T09 | Source and scoped static review complete at `65ef657`; unified verification deferred |
-| T10 | Not started |
+| T10 | Stage A authorized and in progress; no owner/operation integration before explicit Stage B GO |
 | T11 | Not started |
 | T12 | Not started |
 | T13 | Not started |
@@ -156,7 +159,7 @@
 | T18 | Not started |
 | T19 | Not started |
 | T20 | Not started |
-| T21 | Implementing isolated offline codecs/read/write/paths; shared type registration waits for T10 and controller integration |
+| T21 | Implementing isolated offline codecs/read/write/paths and source cases; GBK static data generated with provenance; report/review pending |
 | T22 | Not started |
 | T23 | Not started |
 | T24 | Not started |

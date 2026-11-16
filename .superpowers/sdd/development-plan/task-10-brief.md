@@ -28,6 +28,8 @@ Authority: `docs/rust-sdk/development-plan.md` T10; `architecture.md` §7; `publ
 
 ## Workflow
 
+Controller may authorize two disjoint implementation stages. Stage A owns only new `src/metadata/`, shared `src/types/` DTO/value/clock files and metadata/unit source cases. It may author the immutable snapshot, candidate validation, store/flight internals and frozen Diagnostic constructor against the already agreed OperationSponsor contract. It must not edit `operation.rs`, `session.rs`, `hq/executor.rs`, root lib/client/config, runtime or Python bridge while T08's fix loop is active. Stage B integrates those shared owner/operation paths only after controller explicitly confirms T08 approval. A Stage A checkpoint is partial implementation, never task completion; coordinate type registration under `types/mod.rs` (no T08 ownership). No validation is allowed in either stage.
+
 Worktree `C:/Users/ax/.codex/worktrees/rust-sdk-implementation/tdx抓包`, branch `codex/rust-sdk-implementation`. Controller provides GO after dependency review; do not run tests/collection/build/check/clippy/doctest/network/compile/AST/format or diff checks/equivalent verification until ALL T01–T30 implementation code complete. Read and author source only, ordinary review diff generation and git status/log/add/commit allowed. No subagents, push/tag/publish/merge. No controller progress/status edits. Coordinate shared session/operation files before edits.
 
 Report `.superpowers/sdd/development-plan/task-10-report.md`: full implementation, sources authored, no-execution statement, files, self-review/concerns. Commit exact owned files/report; return compact status/SHAs/no-tests/concerns/path. Do not claim compilation/runtime success.
