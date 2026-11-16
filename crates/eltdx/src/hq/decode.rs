@@ -98,10 +98,12 @@ fn decode_frame_profile(
         response.data = Bytes::copy_from_slice(&response.data);
         if raw == RawPolicy::RetainWire { response.raw = Bytes::copy_from_slice(&response.raw); }
     }
-    // A legacy directory parse historically publishes each row's precision to
-    // the old process registry, including rows before a later parse failure.
-    // Retain that effect only for Python; typed Rust stays snapshot isolated.
-    let parsed = if legacy && matches!(&request, CommandRequest::SecurityList(_)) {
+    // Legacy directories publish row precision to the old registry, including
+    // earlier rows when a later row fails. The remaining legacy quote families
+    // historically read that registry (including saturating scale and raw byte
+    // views); do not impose immutable strict-Rust precision on those adapters.
+    let parsed = if legacy && matches!(&request, CommandRequest::SecurityList(_)
+        | CommandRequest::LegacyQuotes(_) | CommandRequest::CategoryQuotes(_) | CommandRequest::RefreshStream(_)) {
         CommandResponse::parse(request.clone(), &response.data)?
     } else {
         CommandResponse::parse_with_context(request.clone(), response.data.clone(), &options)?

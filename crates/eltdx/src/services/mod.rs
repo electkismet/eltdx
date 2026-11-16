@@ -38,6 +38,7 @@ pub use money_flow::MoneyFlowService;
 pub use quotes::{PinnedQuoteService, QuoteService};
 pub use trades::TradeService;
 pub(crate) use quotes::{legacy_snapshot_rows, RawSnapshotBatch, RawSnapshotSlot};
+pub(crate) use quotes::{legacy_quote_reply, suspended_status};
 pub(crate) use quotes::{pinned_snapshot_batch, project_refresh_updates, refresh_command, SNAPSHOT_RECOVERY_REQUESTS};
 
 use std::hash::{Hash, Hasher};

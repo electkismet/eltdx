@@ -142,6 +142,11 @@ class CodeApi(ApiBase):
             return []
         result = []
         for start in range(0, len(rows), 80):
+            if self._native_services:
+                result.extend(self._transport.sdk_suspended(
+                    [item.full_code for item in rows[start : start + 80]],
+                ))
+                continue
             quotes = self._execute(
                 "legacy_quotes",
                 codes=[item.full_code for item in rows[start : start + 80]],

@@ -118,6 +118,30 @@ pub fn directory(py: Python<'_>, executor: LegacyExecutor, request: CommandReque
     unpriced_domain(py, executor, request, "python_directory", LegacyOperation::directory)
 }
 
+pub fn quotes(
+    py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
+    pin: Option<eltdx_runtime::engine::PinHandle>,
+) -> PyResult<Py<PyAny>> {
+    let result = run_legacy(py, move |token| {
+        let operation = executor.begin_operation("python_quotes", RawPolicy::RetainPayload, Some(token))?;
+        // Python's original resolver already chose and loaded its markets. A
+        // missing resolver/pinned refresh must keep the old no-prefetch path.
+        let result = operation.quotes(request, pin.as_ref())?;
+        operation.finish()?;
+        Ok(result)
+    })?;
+    response::to_python(py, result)
+}
+
+pub fn suspended(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Vec<String>> {
+    run_legacy(py, move |token| {
+        let operation = executor.begin_operation("python_suspended", RawPolicy::RetainPayload, Some(token))?;
+        let result = operation.suspended(request)?;
+        operation.finish()?;
+        Ok(result)
+    })
+}
+
 #[pyfunction]
 pub fn select_security_rows(py: Python<'_>, rows: Vec<(String, String)>, selection: &str) -> PyResult<Vec<usize>> {
     let selection = LegacyCodeSelection::from_name(selection).map_err(|source| error::from_sdk(py, source))?;

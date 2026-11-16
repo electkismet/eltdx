@@ -283,7 +283,17 @@
       "id": "7709-legacy-quotes",
       "source_files": [
         "docs/methods/7709-旧版批量行情.md",
-        "src/eltdx/api/quotes.py"
+        "src/eltdx/api/quotes.py",
+        "src/eltdx/api/codes.py",
+        "src/eltdx/transport/socket.py",
+        "src/eltdx/transport/pool.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/quotes.rs",
+        "crates/eltdx/src/services/codes.rs",
+        "crates/eltdx/src/hq/decode.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -294,6 +304,35 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x053e",
       "api": "client.quotes.legacy(codes)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::quotes -> eltdx::services::QuoteService::legacy; CodeService::latest_suspended",
+        "python_entry": "QuoteApi.legacy -> sdk_quotes -> LegacyOperation.quotes; CodeApi.latest_suspended -> sdk_suspended -> LegacyOperation.suspended",
+        "shared_algorithm": "crates/eltdx/src/services/quotes.rs::{fetch_quote_reply,legacy_quote_reply,suspended_status}; original legacy scalar parser",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_quote_domain_routes_preserve_payload_and_result",
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_quote_domain_retains_resolver_order_and_projection",
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_suspended_retains_eighty_row_chunks_and_return_order",
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_empty_suspended_selection_never_calls_transport"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_quotes_match_original_scalars_negative_values_order_and_raw",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_quote_api_without_resolver_does_not_prefetch_metadata",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_suspended_does_not_add_metadata_request_or_identity_reordering",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_quote_protocol_errors_keep_original_type_text_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/legacy_quotes/normal", "tests/integration/test_native_quote_domain_bridge.py::_legacy_record"],
+        "temporary_adapter": {
+          "scope": "custom transports/subclasses and their arbitrary response row objects",
+          "reason": "Retain execute overrides, int(getattr(status)) conversion and custom output identities. Standard native legacy queries preserve one request and wire order; Python only keeps input/80-row orchestration.",
+          "contract_nodes": [
+            "tests/contracts/test_sdk_quote_domain_bridge.py::test_quote_transport_subclasses_retain_execute_extension",
+            "tests/contracts/test_sdk_quote_domain_bridge.py::test_custom_suspended_objects_retain_int_status_and_arbitrary_rows"
+          ],
+          "exit_condition": "Callback support preserves arbitrary custom response objects and their evaluation/error behavior before removing the adapter."
+        },
+        "validation": "Source only, not collected/compiled/executed. Legacy retains process precision (including saturated scales), negative values, duplicate/foreign rows, raw and original resolver/no-resolver behavior."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-旧版批量行情.md",
@@ -326,7 +365,15 @@
       "id": "7709-category-quotes",
       "source_files": [
         "docs/methods/7709-分类行情.md",
-        "src/eltdx/api/quotes.py"
+        "src/eltdx/api/quotes.py",
+        "src/eltdx/transport/socket.py",
+        "src/eltdx/transport/pool.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/quotes.rs",
+        "crates/eltdx/src/hq/decode.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -337,6 +384,30 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x054b",
       "api": "client.quotes.list_by_category(...)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::quotes -> eltdx::services::QuoteService::category",
+        "python_entry": "QuoteApi.list_by_category -> sdk_quotes -> NativeEngine.sdk_quotes -> LegacyOperation.quotes",
+        "shared_algorithm": "crates/eltdx/src/services/quotes.rs::fetch_quote_reply; category protocol scalar/raw projection",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_quote_domain_routes_preserve_payload_and_result",
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_quote_domain_retains_resolver_order_and_projection",
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_quote_resolver_failure_stops_before_native_request"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_quotes_match_original_scalars_negative_values_order_and_raw",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_quote_api_without_resolver_does_not_prefetch_metadata",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_quote_protocol_errors_keep_original_type_text_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/category_quotes/normal", "tests/integration/test_native_quote_domain_bridge.py::_category_record"],
+        "temporary_adapter": {
+          "scope": "custom transport/subclass execute paths and resolver callbacks",
+          "reason": "Keep original category/sort extraction, caller result transformation and errors. Legacy accepts zero count, full u16 start/count, and responses exceeding requested count; strict Rust keeps its validated window.",
+          "contract_nodes": ["tests/contracts/test_sdk_quote_domain_bridge.py::test_quote_transport_subclasses_retain_execute_extension"],
+          "exit_condition": "A callback boundary preserves custom objects, resolver invocation timing and exceptions before removing the adapter."
+        },
+        "validation": "Unexecuted source evidence only. Native resolver preparation preserves bj/sh/sz scan order and adds no second metadata scan."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-分类行情.md",
@@ -349,7 +420,16 @@
       "id": "7709-quote-refresh",
       "source_files": [
         "docs/methods/7709-增量刷新推送队列.md",
-        "src/eltdx/api/quotes.py"
+        "src/eltdx/api/quotes.py",
+        "src/eltdx/api/subscription.py",
+        "src/eltdx/transport/socket.py",
+        "src/eltdx/transport/pool.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/quotes.rs",
+        "crates/eltdx/src/hq/decode.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -360,6 +440,33 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0547",
       "api": "client.quotes.subscribe(codes, callback)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::quotes -> QuoteService::{depth,subscribe}; PinnedQuoteService::refresh",
+        "python_entry": "QuoteApi::{refresh,get_depth} -> sdk_quotes -> LegacyOperation.quotes; standard QuoteSubscription group refresh -> PinnedTransportProxy.sdk_quotes -> NativePin.sdk_quotes",
+        "shared_algorithm": "crates/eltdx/src/services/quotes.rs::fetch_quote_reply; existing T15 exclusive raw push reader; original XOR/raw/record scalar parser",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_quote_domain_routes_preserve_payload_and_result",
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_refresh_keeps_empty_wire_poll_and_copied_cursor_map",
+          "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_subscription_refresh_uses_existing_pin_after_metadata"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_quotes_match_original_scalars_negative_values_order_and_raw",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_pinned_refresh_keeps_cursors_raw_and_closed_proxy_guard",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_subscription_preloads_before_pin_and_uses_existing_refresh_path",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_empty_refresh_keeps_wire_request_and_complete_raw_views",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_refresh_preserves_cursor_only_keys_and_wire_order",
+          "tests/integration/test_native_quote_domain_bridge.py::test_native_pinned_refresh_interrupt_confirms_request_cleanup"
+        ],
+        "fixtures": ["tests/fixtures/7709/refresh_stream/normal", "tests/integration/test_native_quote_domain_bridge.py::_refresh_record"],
+        "temporary_adapter": {
+          "scope": "custom API/transport subclasses, Python callback dispatch and existing poll/drain projection",
+          "reason": "Custom execute and callbacks remain Python extension points; original resolver runs before pins are reserved. Push delivery still uses the T15 exclusive reader without adding a second consumer.",
+          "contract_nodes": ["tests/contracts/test_sdk_quote_domain_bridge.py::test_quote_transport_subclasses_retain_execute_extension"],
+          "exit_condition": "Remaining subscription orchestration migration must preserve callbacks, pin lifetime, raw-push semantics and custom extensions with one queue consumer."
+        },
+        "validation": "Authored but not collected, compiled or executed; this does not close the complete subscription orchestration migration or lifecycle audit."
+      },
       "kind": "订阅接口",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-增量刷新推送队列.md",

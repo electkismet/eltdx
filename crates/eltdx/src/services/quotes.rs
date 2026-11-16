@@ -30,6 +30,43 @@ const LEGACY_CHUNK_SIZE: usize = 300;
 const SNAPSHOT_RECOVERY: RecoveryLimit = RecoveryLimit { name: "snapshot_missing", maximum: 32 };
 pub(crate) const SNAPSHOT_RECOVERY_REQUESTS: usize = SNAPSHOT_RECOVERY.maximum;
 
+/// Shared domain boundary; projections decide which strict identity/window
+/// assertions apply. Legacy requests keep their original one-request semantics.
+pub(crate) fn fetch_quote_reply(
+    context: &OperationContext, request: CommandRequest, purpose: ChildPurpose,
+    fetch: impl FnOnce(CommandRequest, ChildPurpose) -> Result<DecodedReply>,
+) -> Result<DecodedReply> {
+    let expected = match &request {
+        CommandRequest::LegacyQuotes(_) => 0x053e,
+        CommandRequest::CategoryQuotes(_) => 0x054b,
+        CommandRequest::RefreshStream(_) => 0x0547,
+        _ => return Err(Error::new(ErrorKind::InvalidArgument, "quote service requires legacy, category or refresh command")),
+    };
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let decoded = fetch(request, purpose)?;
+    if !matches!((expected, &decoded.response),
+        (0x053e, CommandResponse::LegacyQuotes(_)) | (0x054b, CommandResponse::CategoryQuotes(_))
+        | (0x0547, CommandResponse::RefreshStream(_))) { return Err(wrong_response("quote domain")); }
+    context.check_boundary(TimeoutPhase::Decode)?;
+    Ok(decoded)
+}
+
+pub(crate) fn legacy_quote_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest, ChildPurpose) -> Result<DecodedReply>,
+) -> Result<CommandResponse> {
+    if !context.is_legacy() {
+        return Err(Error::new(ErrorKind::InvalidArgument, "legacy quotes require a compatibility operation"));
+    }
+    let decoded = fetch_quote_reply(context, request, ChildPurpose::Required, fetch)?;
+    // The legacy decoder retains original record hex, complete XOR/raw byte
+    // views and process-registry precision. Typed Rust keeps its own projection.
+    context.check_boundary(TimeoutPhase::Aggregate)?;
+    Ok(decoded.response)
+}
+
+pub(crate) fn suspended_status(status: u16) -> bool { status & 0x20 != 0 }
+
 #[derive(Clone, Debug)]
 pub struct QuoteService {
     executor: HqExecutor,
@@ -72,13 +109,15 @@ impl<'a> PinnedQuoteService<'a> {
         let metadata = executor.prepare_pinned_metadata(&source.engine, self.pin.handle()?, &context,
             &source.namespace, std::slice::from_ref(&parse_request))?;
         let result = (|| {
-            let mut raw = executor.execute_pinned_raw(&source.engine, self.pin.handle()?, &context,
-                request.clone(), ChildPurpose::Required, None)?;
-            // Empty wire polling still needs the previous activation identities
-            // to split multirow XOR payloads. Preserve the actual sent command.
-            raw.request = parse_request;
-            let mut decoded = executor.decode_received(&context, raw)?;
-            decoded.request = request;
+            let decoded = fetch_quote_reply(&context, request, ChildPurpose::Required, |request, purpose| {
+                let mut raw = executor.execute_pinned_raw(&source.engine, self.pin.handle()?, &context,
+                    request.clone(), purpose, None)?;
+                // Empty polling uses the previous activation only for parsing.
+                raw.request = parse_request;
+                let mut decoded = executor.decode_received(&context, raw)?;
+                decoded.request = request;
+                Ok(decoded)
+            })?;
             let result = project_refresh_updates(&ids, &context, &source.config, &metadata, &decoded, "quotes.refresh")?;
             context.finish()?;
             Ok(result)
@@ -227,8 +266,11 @@ impl QuoteService {
         for (chunk_index, request) in requests.into_iter().enumerate() {
             let start = chunk_index * LEGACY_CHUNK_SIZE;
             let end = (start + LEGACY_CHUNK_SIZE).min(ids.len());
-            let decoded = self.executor.execute_decoded(&self.engine, &context, &self.config, &self.namespace,
-                request, if chunk_index == 0 { ChildPurpose::Required } else { ChildPurpose::Page }, None)?;
+            let purpose = if chunk_index == 0 { ChildPurpose::Required } else { ChildPurpose::Page };
+            let decoded = fetch_quote_reply(context, request, purpose, |request, purpose| {
+                self.executor.execute_decoded(&self.engine, context, &self.config, &self.namespace,
+                    request, purpose, None)
+            })?;
             let CommandResponse::LegacyQuotes(rows) = &decoded.response else { return Err(wrong_response("legacy quotes")); };
             let order = if allow_missing {
                 sparse_occurrence_order(&ids[start..end], rows.iter().map(|row| identity_from_market(row.market, &row.code)))?
@@ -355,8 +397,10 @@ impl QuoteService {
         if let Some(cursor) = query.cursor() {
             if cursor.metadata_version() != Some(metadata.version()) { return Err(Error::new(ErrorKind::InvalidArgument, "category metadata changed before continuation")); }
         }
-        let raw = self.executor.execute_raw(&engine, context, request, purpose, None)?;
-        let decoded = self.executor.decode_received(&context, raw)?;
+        let decoded = fetch_quote_reply(context, request, purpose, |request, purpose| {
+            let raw = self.executor.execute_raw(&engine, context, request, purpose, None)?;
+            self.executor.decode_received(context, raw)
+        })?;
         let CommandResponse::CategoryQuotes(page) = &decoded.response else { return Err(wrong_response("category quotes")); };
         if page.records.len() > query.count() { return Err(Error::new(ErrorKind::Protocol, "category response exceeds requested count")); }
         let mut items = Vec::new();
@@ -409,8 +453,10 @@ impl QuoteService {
             metas.try_reserve(requests.len()).map_err(allocation_error)?;
             for (index, (chunk, request)) in ids.chunks(100).zip(requests).enumerate() {
                 let purpose = if index == 0 { first_purpose } else { ChildPurpose::Page };
-                let raw = self.executor.execute_pinned_raw(&self.engine, pin.handle()?, &context, request, purpose, None)?;
-                let decoded = self.executor.decode_received(&context, raw)?;
+                let decoded = fetch_quote_reply(context, request, purpose, |request, purpose| {
+                    let raw = self.executor.execute_pinned_raw(&self.engine, pin.handle()?, context, request, purpose, None)?;
+                    self.executor.decode_received(context, raw)
+                })?;
                 let page = project_refresh_updates(chunk, &context, &self.config, &metadata, &decoded, "quotes.depth")?;
                 let (_, rows, meta) = page.into_parts();
                 updates.extend(rows);

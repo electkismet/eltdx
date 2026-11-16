@@ -34,6 +34,15 @@ Added11 contract/7 integration functions and1 Rust case, all unexecuted; two
 manifest records carry source-only evidence, no status promotion. Resume other
 quotes/latest_suspended and ALL remaining HQ migration/evidence/consumer work.
 
+Thirteenth recovery: directory committed6fd1e05. Remaining legacy/category/
+refresh domain requests and CodeApi.latest_suspended native routes now authored;
+standard subscription group refresh uses existing NativePin/LegacyExecutor.
+Shared fetch_quote_reply/suspended_status, original registry/raw parser, resolver
+ordering and no-prefetch without resolver preserved. Added9 contract/9 local
+integration functions and3 source-only manifest entries; none executed. Resume
+trades/auctions/dailyflow/corporate/equity/calendar/resources/stats/health and ALL
+helper/remaining subscription migration/evidence/installed-wheel consumer.
+
 ## Exact plan scope
 
 New `src/helpers/{mod,market,boards,shortline,profile}.rs` (split focused files as necessary), all HQ helper DTO/query types, `tests/hq_helpers.rs`, `examples/hq_query.rs`. Migrate Python HQ `api`, `helpers`, `equity.py`, `workday.py`, `stats.py`, native bridge and manifest per completed domain; author domain differential/compatibility source tests. Implement all HQ M79–M97 including pure classify_fund_flow M95. Complete all HQ methods left by prior tasks; no exposed placeholder/Unsupported for documented valid supported HQ behavior.

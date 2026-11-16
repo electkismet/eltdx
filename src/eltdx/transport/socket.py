@@ -241,6 +241,13 @@ class SocketTransport:
     def sdk_select_codes(self, rows, selection: str):
         return call_native(native_module().select_security_rows, rows, selection)
 
+    def sdk_quotes(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_quotes, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_suspended(self, codes):
+        return call_native(self._native().sdk_suspended, {"codes": codes})
+
     def sdk_session(self, command: int, payload: dict[str, Any]):
         dto = call_native(self._native().sdk_session, command, payload)
         return response_from_dto(dto)

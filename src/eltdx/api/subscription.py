@@ -177,6 +177,15 @@ class QuoteSubscription:
             stack = ExitStack()
             try:
                 apis = [type(self._api)(stack.enter_context(pin())) for _ in self._groups]
+                # Standard subscriptions use the same Rust refresh service on
+                # their existing pins; custom API/transport subclasses keep
+                # the original execute extension point.
+                from eltdx.transport.pool import PinnedTransportProxy
+                from .quotes import QuoteApi
+
+                if type(self._api) is QuoteApi and self._api._native_services:
+                    for api in apis:
+                        api._native_services = type(api._transport) is PinnedTransportProxy
             except BaseException:
                 stack.close()
                 raise

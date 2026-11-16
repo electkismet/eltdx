@@ -618,3 +618,51 @@ entry points/latest_suspended, then trades/auctions/dailyflow/corporate/equity/
 calendar/resources/stats/health/helpers/subscription, complete manifest evidence
 and installed-wheel consumer. Do not rewrite already authored domain/helper
 sources. Goal stays active without a token limit; no subagents or publication.
+
+Twelfth source stage committed as **6fd1e05**. All execution deferred.
+
+## Thirteenth source checkpoint — remaining quote requests and pinned refresh
+
+- Added shared `fetch_quote_reply` for legacy quotes, category rows and refresh.
+  Public Rust legacy/category/depth/borrowed refresh and CodeService suspended
+  collection use the same domain boundary as LegacyOperation.quotes. The Rust
+  strict projections retain their existing identity/window/quantity checks.
+  A shared suspended_status predicate keeps the 0x20 rule in one location.
+- NativeEngine/NativePin expose sdk_quotes; both built-in Python transports and
+  PinnedTransportProxy project the unchanged tuple ABI. NativePin retains the
+  same LegacyExecutor/Engine identity as its creating NativeEngine, and sends
+  through the existing pin with no independent reservation or second consumer.
+  CodeApi.latest_suspended calls sdk_suspended in its original80-row chunks;
+  empty lists make no requests and results retain server order/foreign identities
+  just as the old facade did. The old request extractor remains authoritative.
+- Python resolver calls still occur before request extraction and after model
+  projection. No implicit second metadata scan was added: no-resolver QuoteApi,
+  pinned refresh and latest_suspended retain their old no-prefetch behavior.
+  Standard client category queries retain bj/sh/sz precision scan order, and
+  subscriptions load metadata before reserving the pool's pins. Standard group
+  refresh APIs now use the Rust boundary; custom API/transport subclasses keep
+  their old execute route. Callback/poll orchestration remains pending T18 work.
+- The legacy quote decoder deliberately uses the original protocol parser for
+  these three request families. This preserves process-registry precision,
+  saturating scales, negative/duplicate/foreign rows, optional tails, record
+  hex and the complete refresh XOR-decoded/raw byte views. A first draft of the
+  source tried immutable preparation and later raw hydration; review replaced
+  it with the narrower original-parser compatibility boundary. Direct Rust
+  calls still decode against their captured immutable metadata snapshot.
+- Added9 contract functions and9 local differential/integration functions.
+  Authored cases cover built-in/custom routing, original resolver order and
+  failure, copy/merge of cursor inputs, count0/start65535 category semantics,
+  duplicate/negative/raw rows at decimal2/3/9, no-resolver no-prefetch, exact
+  protocol exception type/text/cause, pinned refresh/closed-proxy guard,
+  subscription prefetch before pool1 pin, empty refresh byte views, cursor-only
+  identities,80-row suspended chunks and pinned KeyboardInterrupt cleanup.
+  Three capability records now have real source/fixture/exact-node evidence and
+  explicit retained adapters; migration statuses remain unpromoted.
+
+No tests, collection, build/check/clippy/doctest, dependency resolution/download,
+network probe, AST/compile/format/diff-check or equivalent verification ran.
+These are authored sources only, not compile/runtime/compatibility evidence.
+T18 remains partial and counts remain18 source complete/4 partial/8 unstarted.
+Next: trades/auctions/dailyflow/corporate/equity/calendar/resources/stats/health,
+all helper/remaining subscription migration, complete manifest and installed-wheel
+consumer, then remaining T19–T30/Stage B. Goal active, no quota or subagents.

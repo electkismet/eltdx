@@ -291,6 +291,34 @@ impl LegacyOperation {
         })
     }
 
+    /// No metadata is implicitly loaded here. The binding either prepared the
+    /// original resolver scope or deliberately uses the old global registry
+    /// (pinned refresh and CodeApi.latest_suspended historically did the latter).
+    pub fn quotes(&self, request: CommandRequest, pin: Option<&PinHandle>) -> Result<CommandResponse> {
+        crate::services::legacy_quote_reply(&self.context, request, |request, purpose| {
+            let raw = match pin {
+                Some(pin) => self.executor.executor.execute_pinned_raw(&self.executor.engine, pin,
+                    &self.context, request, purpose, None)?,
+                None => self.executor.executor.execute_raw(&self.executor.engine, &self.context, request, purpose, None)?,
+            };
+            self.executor.executor.decode_received(&self.context, raw)
+        })
+    }
+
+    pub fn suspended(&self, request: CommandRequest) -> Result<Vec<String>> {
+        let CommandResponse::LegacyQuotes(rows) = self.quotes(request, None)? else {
+            return Err(Error::new(ErrorKind::Protocol, "suspended selection requires legacy quotes"));
+        };
+        let mut selected = Vec::new();
+        for (index, row) in rows.into_iter().enumerate() {
+            if index % 256 == 0 { self.context.check_boundary(crate::error::TimeoutPhase::Aggregate)?; }
+            if crate::services::suspended_status(row.trading_status_raw) {
+                selected.push(format!("{}{}", row.market.as_str(), row.code));
+            }
+        }
+        Ok(selected)
+    }
+
     pub fn session(&self, request: CommandRequest) -> Result<CommandResponse> {
         crate::services::legacy_session_reply(&self.context, request, |request| {
             let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,

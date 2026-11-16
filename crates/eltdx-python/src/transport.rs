@@ -24,6 +24,7 @@ pub struct NativeEngine {
 #[pyclass(name = "NativePin", module = "eltdx._native", frozen)]
 pub struct NativePin {
     pin: PinHandle,
+    legacy: LegacyExecutor,
 }
 
 #[pymethods]
@@ -244,6 +245,16 @@ impl NativeEngine {
         service::directory(py, self.legacy.clone(), request)
     }
 
+    fn sdk_quotes(&self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::quotes(py, self.legacy.clone(), request, None)
+    }
+
+    fn sdk_suspended(&self, py: Python<'_>, payload: &Bound<'_, PyDict>) -> PyResult<Vec<String>> {
+        let request = request::from_python(py, 0x053e, Some(payload))?;
+        service::suspended(py, self.legacy.clone(), request)
+    }
+
     fn sdk_session(
         &self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>,
     ) -> PyResult<Py<PyAny>> {
@@ -279,7 +290,7 @@ impl NativeEngine {
                 return Err(signal_error);
             }
             match polled {
-                PendingPoll::Ready(pin) => return Ok(NativePin { pin }),
+                PendingPoll::Ready(pin) => return Ok(NativePin { pin, legacy: self.legacy.clone() }),
                 PendingPoll::Pending => {}
             }
         }
@@ -348,6 +359,13 @@ impl NativeEngine {
 
 #[pymethods]
 impl NativePin {
+    fn sdk_quotes(&self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        // The Python subscription resolver runs before pin acquisition. Never
+        // submit cold metadata through the ordinary pool while it is reserved.
+        service::quotes(py, self.legacy.clone(), request, Some(self.pin.clone()))
+    }
+
     #[pyo3(signature = (command, payload=None))]
     fn execute(
         &self,

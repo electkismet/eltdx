@@ -306,13 +306,15 @@ impl CodeService {
         let mut suspended = Vec::new();
         suspended.try_reserve(ids.len()).map_err(allocation_error)?;
         for (chunk, request) in ids.chunks(8_000).zip(requests) {
-            let decoded = self.executor.execute_decoded(&self.engine, &context, &self.config, &self.namespace,
-                request, ChildPurpose::Page, None)?;
+            let decoded = super::quotes::fetch_quote_reply(&context, request, ChildPurpose::Page, |request, purpose| {
+                self.executor.execute_decoded(&self.engine, &context, &self.config, &self.namespace,
+                    request, purpose, None)
+            })?;
             let CommandResponse::LegacyQuotes(rows) = &decoded.response else { return Err(wrong_response()); };
             let order = super::quotes::occurrence_order(chunk, rows.iter().map(|row| identity_from_market(row.market, &row.code)))?;
             for index in order {
                 let row = &rows[index];
-                if row.trading_status_raw & 0x20 != 0 { suspended.push(identity_from_market(row.market, &row.code)?); }
+                if super::quotes::suspended_status(row.trading_status_raw) { suspended.push(identity_from_market(row.market, &row.code)?); }
             }
             context.record_work(rows.len(), 0)?;
             scan.metas.push(result_meta(&context, &self.config, Some(&metadata), &ServiceSource::from_reply(&decoded),
