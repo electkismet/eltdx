@@ -1912,7 +1912,10 @@
     {
       "id": "helper-latest-suspended",
       "source_files": [
-        "docs/helpers/最新停牌列表.md"
+        "docs/helpers/最新停牌列表.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/helpers/service.rs",
+        "crates/eltdx-python/src/helper_market.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -1921,6 +1924,15 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x044d + 0x053e",
       "api": "client.helpers.latest_suspended(market=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::latest_suspended",
+        "python_entry": "HelperApi.latest_suspended -> helper_latest_suspended",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_market_composition_bridge.py::test_latest_suspended_helper_retains_list_order_and_original_rows"
+        ],
+        "validation": "Source only; list identity/order contract not executed."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/最新停牌列表.md",
@@ -2366,7 +2378,11 @@
     {
       "id": "helper-auction-data",
       "source_files": [
-        "docs/helpers/竞价数据.md"
+        "docs/helpers/竞价数据.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/helpers/auction.rs",
+        "crates/eltdx/src/helpers/calculation.rs",
+        "crates/eltdx-python/src/helper_market.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2375,6 +2391,28 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.helpers.auction_data(code, date=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::auction_data",
+        "python_entry": "HelperApi.auction_data -> helper_auction; current date and first quote -> helper_market",
+        "shared_algorithm": "percentage_change_with; strict and legacy reuse existing auction/trade/quote domain requests",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_market_composition_bridge.py::test_auction_current_preserves_source_order_original_objects_and_rounding",
+          "tests/contracts/test_sdk_market_composition_bridge.py::test_auction_history_uses_first_formal_match_and_page_price_base",
+          "tests/contracts/test_sdk_market_composition_bridge.py::test_auction_explicit_reference_and_disabled_sources_are_preserved",
+          "tests/contracts/test_sdk_market_composition_bridge.py::test_auction_history_can_fetch_reference_without_snapshot",
+          "tests/contracts/test_sdk_market_composition_bridge.py::test_auction_percentage_preserves_custom_numeric_operators",
+          "tests/contracts/test_sdk_market_composition_bridge.py::test_market_date_keeps_both_reads_and_requires_server_date",
+          "tests/contracts/test_sdk_market_composition_bridge.py::test_first_quote_preserves_scalar_sequence_and_bytes_behavior",
+          "tests/contracts/test_sdk_market_composition_bridge.py::test_snapshot_batches_keep_80_chunks_and_ignore_scalar_responses"
+        ],
+        "temporary_adapter": {
+          "scope": "Python DTO objects, round2/round3, optional flags, custom hooks and legacy per-request budget",
+          "reason": "Frozen Python behavior differs from strict typed metadata/whole-operation deadlines.",
+          "exit_condition": "Keep language projection; execute all differential and consumer cases before promoting status."
+        },
+        "validation": "Source authored only; no collection, build or execution."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/竞价数据.md",

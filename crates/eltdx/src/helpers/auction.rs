@@ -113,7 +113,9 @@ fn opening_fields(tick: Option<&TradeTick>, reference: Option<Price>, meta: &mut
         None
     };
     let change = reference.and_then(|reference| {
-        let value = (price.as_f64() - reference.as_f64()) / reference.as_f64() * 100.0;
+        let value = super::calculation::percentage_change_with::<_, std::convert::Infallible>(price.as_f64(), &reference.as_f64(),
+            |price, base| Ok(price - base), |difference, base| Ok(difference / base), |ratio| Ok(ratio * 100.0))
+            .unwrap_or_else(|never| match never {});
         if reference.as_f64() > 0.0 && value.is_finite() {
             Some(Ratio::with_provenance(NumericValue::F64(value), RatioUnit::PercentagePoints, ValueProvenance::WireRule))
         } else {

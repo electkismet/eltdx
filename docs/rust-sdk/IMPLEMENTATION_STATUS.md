@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17 第三十段源码恢复点：每日涨跌停已提交`eaecc51`。竞价汇总/当前日期/首行情/80分批、全市场统计、当日资金流取数和Helper停牌列表已迁入Rust绑定，共用百分比与乘积计算。保留历史首正式撮合/price_base、显式前收盘优先、原对象/round/异常、Python市场统计旧positional语义；新增13 Python/1 Rust合同函数源码，均未运行。T18仍部分18/4/8；剩余板块、批量、订阅、manifest/consumer和T19–T30全部继续，目标active无额度限制。
+
 2026-11-17 第二十九段源码恢复点：短线limit/日期/天梯已提交`0725189`。每日涨跌停高层、旧市场比例/规则、新股五日判断、前收盘价行选择、当日股本事件筛选和最终行构造已接入Rust绑定，逆向除权算术与strict共用；保留Python末条合格K线、查询/解析异常范围、事件顺序/两次c4读取和旧10/20/30比例，查询线程调度仍为Python adapter。新增13 Python/1 Rust合同函数源码，均未运行。T18仍部分18/4/8；继续auction/market/boards/批量/订阅/consumer，全部执行验证延期。
 
 2026-11-17 第二十八段源码恢复点：短线source/指标已提交`9f66521`。本段完成短线limit/连板/天梯与握手日期、row date和by-code绑定，strict/legacy共用lazy分类、日期等级和auction readiness；保留ST优先旧规则、NaN/round/tolerance、原对象与排序/参数校验顺序、精确日期错误和custom hook。新增10 Python/1 Rust合同函数源码，全未执行；短线业务入口已接通，T18其余daily limits/auction/market/boards/批量/订阅/consumer仍未完成。任务计数保持18完整源码/4部分/8未开始。目标active，无额度限制，所有测试/构建/检查继续延期。
@@ -59,7 +61,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | 短线limit/日期/天梯 `0725189`；每日涨跌停本段源码已写；全部执行验证延期 |
+| 最新检查点 | 每日涨跌停 `eaecc51`；竞价/市场统计等本段源码已写；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

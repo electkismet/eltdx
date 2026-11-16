@@ -50,6 +50,13 @@ pub fn inverse_affine_with<T, E>(value: T, multiplier: &T, offset: &T,
     divide(subtract(value, offset)?, multiplier)
 }
 
+pub fn percentage_change_with<T, E>(price: T, base: &T,
+    subtract: impl FnOnce(T, &T) -> Result<T, E>,
+    divide: impl FnOnce(T, &T) -> Result<T, E>,
+    hundred: impl FnOnce(T) -> Result<T, E>) -> Result<T, E> {
+    hundred(divide(subtract(price, base)?, base)?)
+}
+
 pub fn share_source_names(total: bool, circulating: bool, free_float: bool) -> Vec<&'static str> {
     let mut sources = Vec::new();
     if total || circulating { sources.push("finance_snapshot"); }
@@ -69,6 +76,16 @@ mod source_cases {
             |value, multiplier| Ok(value / multiplier)).unwrap();
         assert_eq!(after_subtraction, 4.5);
         assert_eq!(steps, [(10.0, 1.0)]);
+    }
+
+    #[test]
+    fn percentage_keeps_difference_ratio_then_hundred_without_rounding() {
+        let value = percentage_change_with::<_, ()>(12.5, &10.0,
+            |price, base| Ok(price - base), |difference, base| Ok(difference / base), |ratio| Ok(ratio * 100.0)).unwrap();
+        assert_eq!(value, 25.0);
+        let negative = percentage_change_with::<_, ()>(10.0, &-10.0,
+            |price, base| Ok(price - base), |difference, base| Ok(difference / base), |ratio| Ok(ratio * 100.0)).unwrap();
+        assert_eq!(negative, -200.0);
     }
 
     #[test]

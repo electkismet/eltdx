@@ -80,7 +80,8 @@ fn project_market_stat(quotes: &[LegacyQuote], mut meta: ResultMeta) -> Result<M
         .ok_or_else(|| protocol("market breadth count sum overflows"))?;
     let suspended_or_unclassified = total.saturating_sub(classified);
     let amount = breadth.amount(); let volume = breadth.total();
-    let capitalization = cap.last().as_f64() * 1e10;
+    let capitalization = super::calculation::product_with::<_, std::convert::Infallible>(cap.last().as_f64(), 1e10,
+        |price, scale| Ok(price * scale)).unwrap_or_else(|never| match never {});
     if !amount.value().is_finite() || amount.value().as_f64() < 0.0
         || volume.unit() != QuantityUnit::Lots || !volume.value().is_finite() || volume.value().as_f64() < 0.0
         || !capitalization.is_finite() || capitalization < 0.0 {

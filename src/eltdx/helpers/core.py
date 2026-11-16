@@ -391,8 +391,9 @@ class HelperApi:
 
     def latest_suspended(self, market: str | None = None):
         """Return current suspended A-share code-table rows reported by 0x053e."""
-        suspended = set(self._client.codes.latest_suspended(market))
-        return [item for item in self._client.codes.latest_stock_list(market) if item.full_code in suspended]
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_latest_suspended(self, market)
 
     def buy_sell_strength(self, code: str, *, include_raw: bool = False):
         """Return the normalized native buy/sell-strength minute series."""
@@ -740,59 +741,11 @@ class HelperApi:
     ) -> AuctionData:
         """Aggregate current or historical auction process and opening match data."""
 
-        full_code = normalize_code(code)
-        is_history = date is not None
-        trading_date = self._client.workdays.normalize(date) if is_history else self._current_market_date()
+        from eltdx.transport.native import native_module
 
-        series = None
-        snapshot = None
-        historical_page = None
-        if include_series:
-            series = self._client.auctions.series(full_code, trading_date if is_history else None)
-        if is_history:
-            if include_snapshot or (include_quote and pre_close_price is None):
-                historical_page = self._client.trades.all_history(full_code, trading_date)
-                if include_snapshot:
-                    opening_matches = tuple(getattr(historical_page, "opening_matches", ()))
-                    snapshot = opening_matches[0] if opening_matches else None
-        else:
-            if include_snapshot:
-                snapshot = self._client.trades.opening_match_today(full_code)
-
-        quote = None
-        if not is_history and include_quote and pre_close_price is None:
-            quote = self._first_quote(full_code)
-
-        resolved_pre_close = pre_close_price
-        if resolved_pre_close is None and include_quote:
-            if historical_page is not None:
-                price_base = getattr(historical_page, "price_base_raw_f32", None)
-                resolved_pre_close = (
-                    round(float(price_base), 3)
-                    if price_base is not None and price_base != 0
-                    else None
-                )
-            elif quote is not None:
-                resolved_pre_close = getattr(quote, "pre_close_price", None)
-
-        open_price = None
-        open_volume = None
-        open_amount = None
-        if snapshot is not None:
-            open_price = getattr(snapshot, "price", None)
-            open_volume = getattr(snapshot, "volume", None)
-            open_amount = round(snapshot.trade_amount_yuan, 2)
-
-        return AuctionData(
-            code=full_code,
-            trading_date=trading_date,
-            series=series,
-            snapshot_0925=snapshot,
-            pre_close_price=resolved_pre_close,
-            open_price=open_price,
-            open_volume=open_volume,
-            open_amount=open_amount,
-            open_change_pct=_pct(open_price, resolved_pre_close),
+        return native_module().helper_auction(
+            self, code, date, include_series, include_snapshot, include_quote,
+            pre_close_price, globals(),
         )
     def market_stat(self) -> MarketStat:
         """全市场涨跌统计概览（880005/880001/880006 统计指数）。"""
@@ -815,31 +768,19 @@ class HelperApi:
         return native_module().helper_finance_map(self, full_codes, _by_full_code)
 
     def _snapshot_batches(self, full_codes: Sequence[str]) -> list[Any]:
-        rows: list[Any] = []
-        for start in range(0, len(full_codes), 80):
-            page = self._client.quotes.get_snapshots(full_codes[start : start + 80])
-            rows.extend(page if isinstance(page, (list, tuple)) else ())
-        return rows
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_snapshot_batches(self, full_codes)
 
     def _first_quote(self, full_code: str) -> Any | None:
-        quotes = self._client.quotes.get_snapshots(full_code)
-        if isinstance(quotes, Sequence) and not isinstance(quotes, (str, bytes, bytearray)):
-            return quotes[0] if quotes else None
-        return quotes
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_first_quote(self, full_code, Sequence)
 
     def _current_market_date(self):
-        handshake = self._client.session.handshake()
-        dates = [
-            value
-            for value in (
-                getattr(handshake, "server_date_1", None),
-                getattr(handshake, "server_date_2", None),
-            )
-            if value is not None
-        ]
-        if not dates:
-            raise RuntimeError("server handshake did not provide a current market date")
-        return max(dates)
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_market_date(self)
 
     def _kline_previous_close_map(
         self, full_codes: Sequence[str], trade_date
@@ -1003,9 +944,9 @@ def _float(value: Any | None) -> float | None:
 
 
 def _pct(price: float | None, base: float | None) -> float | None:
-    if price is None or not base:
-        return None
-    return (price - base) / base * 100.0
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_percentage(price, base)
 
 
 def _build_daily_price_limit(

@@ -13,6 +13,7 @@ mod helper_numeric;
 mod helper_indicator;
 mod helper_limits;
 mod helper_daily;
+mod helper_market;
 mod protocol;
 mod request;
 mod response;
@@ -91,6 +92,14 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helper_daily::helper_capital_events, module)?)?;
     module.add_function(wrap_pyfunction!(helper_daily::daily_prior_close, module)?)?;
     module.add_function(wrap_pyfunction!(helper_daily::daily_reference_map, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_percentage, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_market_date, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_first_quote, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_snapshot_batches, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_auction, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_market_stat, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_today_flow, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_latest_suspended, module)?)?;
     transport::register(module)?;
     Ok(())
 }

@@ -1097,3 +1097,24 @@ Twenty-eighth source stage committed as **0725189**; all execution deferred.
 
 T18 remains partial18/4/8. Continue auction/market/board helpers and remaining
 batch/subscription/consumer, then T19–T30/Stage B. Active goal without quota.
+
+Twenty-ninth source stage committed as **eaecc51**; all execution deferred.
+
+## Thirtieth source checkpoint — auction and market composition
+
+- Auction composition, market-date handshake selection, first quote, snapshot
+  batches, market statistics, today-flow orchestration and suspended helper
+  list selection now execute in bindings. Shared percentage/product arithmetic
+  is reused by strict typed helpers and Python-object projections.
+- Preserved current/history source order, first formal opening match, historical
+  price_base rounded3, amount rounded2, explicit reference priority, old flags,
+  original DTO objects/custom hooks and Python sequence/scalar distinctions.
+  Python market statistics deliberately retain positional mapping; strict Rust
+  keeps identity association. Shared test file records the missing-middle case.
+- Authored13 Python and1 Rust functions, all unexecuted. Manifest auction and
+  suspended records have source-only evidence; market/today-flow are tracked
+  in this report and their existing sources, pending complete manifest audit.
+
+T18 partial18/4/8, no tests/collection/build/check/network/dependency/AST/format/
+diff-check, no agents/publication. Continue boards, batch/subscription, complete
+manifest and installed-wheel consumer, then T19–T30/Stage B. Goal active no cap.
