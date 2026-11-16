@@ -267,12 +267,12 @@ execution deferred until T01–T30 implementation is fully authored; no subagent
 | T15 | Source implementation/self-review complete:9bbafde/61672fe/a964437/e995825/e35b5f2; controlled Python raw reader and deterministic subscription source cases authored; all execution verification deferred |
 | T16 | Source implementation/self-review complete at6fa4bc7/84061e7: M53-M66 corporate/finance/affine/calendar/special/policy and deterministic source cases; no execution |
 | T17 | Source implementation/self-review complete at88b9036: M67–M78 resource/stats/company/session/health and public source cases; dependency/runtime validation deferred |
-| T18 | Partial source: all19 helpers through1bb3c1a; example/consumer39c8e3e; bars b5ed0b5/minutes ac99b99/session-company2cbcd53/directory6fd1e05; remaining quote and pinned refresh/suspended routes authored; other HQ migrations/evidence/consumer remain |
-| T19 | Not started |
-| T20 | Not started |
+| T18 | HQ source scope complete at `515a13c`, including native migrations/evidence and installed-wheel consumer source; all execution deferred |
+| T19 | HTTP/DNS/TLS/owner sources authored; dependency/platform/execution validation deferred; partial |
+| T20 | All157 F10 entries, fields, history, typed results and authored source cases complete at `1722815`; execution deferred |
 | T21 | Implementation and scoped source review complete through `b6e4beb`; verification deferred |
-| T22 | Stage A DAT/list parser `9b6c8fd` plus Unicode fix `a64a4a6`; fix2 scoped review approved; shared ZIP/network integration deferred |
-| T23 | Not started |
+| T22 | Shared ZIP/local DAT/HQ financial service/examples/consumer source complete through `df29d6b`; execution deferred |
+| T23 | Partial: shared list parser `74ccae3`, shared DAT visitor/Python projection authored; ZIP/remaining offline/F10/helpers/evidence pending |
 | T24 | Stage A through04f613a scoped review approved; transport/owner integration requires Stage B |
 | T25 | Isolated Stage A bitmap/command/native model `c87e5b0`, report `78bf121`; response coverage and owner/session integration remain Stage B |
 | T26 | Not started |
@@ -388,3 +388,5 @@ execution deferred until T01–T30 implementation is fully authored; no subagent
 - Recovery2026-11-17 stage48: initial financial integration6885e00 retained. Added financial Rust examples/required-feature and independent std-only ZIP/DAT consumer, bounded cancellable UTF-8 list decoding and source cases, financial implementation index. T22 Rust source scope complete, all actual verification deferred; Python legacy ZIP and full migration belong T23.21 complete source/3 partial/6 unstarted. Next task-23-brief plus T20/T22 indexes, then all remaining tasks/final execution gates. Goal active unlimited, no agents/publication or execution checks.
 
 - Recovery2026-11-17 stage49: T22 source/consumerdf29d6b retained. Started T23 with shared financial list row parsing and PyO3 projection via runtime Python int; exact bytes native path, custom decode adapter preserved. Four compatibility source cases authored, unexecuted. T23 DAT/ZIP/offline/F10/helpers/manifest remains largely pending.21 source complete/4 partial/5 unstarted, active unlimited goal, no execution/agents/publication. Read task-23-report before resuming.
+
+- Recovery2026-11-17 stage50: list source74ccae3 retained. Authored shared DAT streaming visitor plus exact-bytes PyO3 projection, retaining arbitrary date objects, dynamic Python limits/comparisons/errors, unique overlaps/invalid skips and custom buffer/struct adapters. Nine Python contract functions and three Rust visitor functions authored, none executed. Fixed stale central task table to reflect existing T18/T20/T22 completion records. Next ZIP legacy policy and remaining offline/F10/helpers/manifest, then T24–T30 and unified execution.21 source complete/4 partial/5 unstarted; active goal without cap, no agents/publication/verification.

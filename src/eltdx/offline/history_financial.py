@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import struct
+import sys
 import zipfile
 from pathlib import Path
 
@@ -25,6 +26,12 @@ MAX_HISTORY_REPORT_FIELDS = 4096
 # float 列表 —— 18 KB 的构造样本即可产生约 8M 个 float（约 31 MB 峰值内存）。
 # 正常全市场财报约 5 千只 × 数百字段 ≈ 1.6M，留一倍余量取 4M。
 MAX_HISTORY_TOTAL_FLOATS = 4 * 1024 * 1024
+
+# An explicit struct override keeps the original Python protocol below. Exact
+# bytes with the standard codec use the same DAT traversal as the Rust SDK.
+_NATIVE_STRUCT = struct
+_NATIVE_CALCSIZE = struct.calcsize
+_NATIVE_UNPACK = struct.unpack
 
 
 def read_dat_from_zip(
@@ -148,6 +155,16 @@ def parse_financial_dat(
     header_size = struct.calcsize(header_fmt)
     if len(data) < header_size:
         return []
+
+    if (
+        type(data) is bytes
+        and struct is _NATIVE_STRUCT
+        and struct.calcsize is _NATIVE_CALCSIZE
+        and struct.unpack is _NATIVE_UNPACK
+    ):
+        from eltdx._native_abi import load_native
+
+        return load_native().financial_dat(data, report_date, sys.modules[__name__])
 
     header = struct.unpack(header_fmt, data[:header_size])
     max_count = header[2]

@@ -423,7 +423,25 @@ fn checkpoint(options: &FinancialParseOptions, boundary: &mut impl FnMut() -> Re
 fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptions,
     legacy: bool, boundary: &mut impl FnMut() -> Result<()>) -> Result<FinancialDatResult>
 {
+    parse_core_with_adapter(data, policy, options, legacy, boundary, None)
+}
+
+fn dat_checkpoint(options: &FinancialParseOptions, boundary: &mut impl FnMut() -> Result<()>,
+    adapter: &mut Option<&mut dyn python_legacy::DatCallbacks>) -> Result<()>
+{
     checkpoint(options, boundary)?;
+    if let Some(adapter) = adapter.as_deref_mut() { adapter.checkpoint()?; }
+    Ok(())
+}
+
+/// One traversal and float decoder for owned SDK results and the streaming
+/// Python projection. The latter supplies dynamic Python limits and retains
+/// arbitrary report-date objects without narrowing them to an SDK integer.
+fn parse_core_with_adapter(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptions,
+    legacy: bool, boundary: &mut impl FnMut() -> Result<()>,
+    mut adapter: Option<&mut dyn python_legacy::DatCallbacks>) -> Result<FinancialDatResult>
+{
+    dat_checkpoint(options, boundary, &mut adapter)?;
     if !legacy && data.len() as u64 > options.max_dat_bytes {
         return Err(Error::new(ErrorKind::LimitExceeded, "financial DAT exceeds byte limit"));
     }
@@ -444,6 +462,7 @@ fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &Finan
         max_count: bars::u16_at(data, 6), unknown1: bars::u32_at(data, 8),
         report_size: bars::u32_at(data, 12), unknown2: bars::u32_at(data, 16),
     };
+    if let Some(adapter) = adapter.as_deref_mut() { adapter.header(&header)?; }
     let (date_raw, date, date_source) = resolve_date(policy, header.report_date_raw);
     if date_parts(header.report_date_raw).is_none() {
         diagnostics.push(issue("date", format!("invalid raw header date {} retained", header.report_date_raw)));
@@ -452,7 +471,10 @@ fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &Finan
         diagnostics.push(issue("date", format!("invalid legacy override date {date_raw} retained")));
     }
     let fields = header.report_size / 4;
-    if header.report_size % 4 != 0 || fields > options.max_fields_per_record {
+    if header.report_size != 0 {
+        if let Some(adapter) = adapter.as_deref_mut() { adapter.field_count(&header, fields)?; }
+    }
+    if header.report_size % 4 != 0 || (adapter.is_none() && fields > options.max_fields_per_record) {
         return Err(malformed("financial report_size is unaligned or exceeds field limit"));
     }
     let count = usize::from(header.max_count);
@@ -464,7 +486,7 @@ fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &Finan
     let mut ranges = BTreeMap::<usize, usize>::new();
     if header.report_size != 0 {
         for index in 0..count {
-            checkpoint(options, boundary)?;
+            dat_checkpoint(options, boundary, &mut adapter)?;
             let at = HEADER_BYTES + index * INDEX_BYTES; // bounded by checked index_end
             let Some(entry) = data.get(at..at + INDEX_BYTES) else {
                 index_issue(options, &mut diagnostics, index, "truncated financial index table")?;
@@ -480,10 +502,19 @@ fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &Finan
             // Python already rejects a repeated previously accepted offset. New
             // Rust additionally rejects any overlap with metadata or other rows.
             if ranges.contains_key(&start) {
-                return Err(malformed("duplicate valid financial offset").with_context("record_index", format!("{index}")));
+                let message = if legacy {
+                    format!("财报索引偏移重复: offset={start}（第 {index} 条，code={code}）")
+                } else { "duplicate valid financial offset".to_owned() };
+                return Err(malformed(message).with_context("record_index", format!("{index}")));
             }
-            let end = start.checked_add(header.report_size as usize)
-                .ok_or_else(|| malformed("financial data offset overflows"))?;
+            let end = match start.checked_add(header.report_size as usize) {
+                Some(end) => end,
+                None if legacy => {
+                    index_issue(options, &mut diagnostics, index, "financial data offset is out of range")?;
+                    omitted += 1; completion = FinancialCompletion::Incomplete; continue;
+                }
+                None => return Err(malformed("financial data offset overflows")),
+            };
             if end > data.len() {
                 index_issue(options, &mut diagnostics, index, "financial data offset is out of range")?;
                 omitted += 1; completion = FinancialCompletion::Incomplete; continue;
@@ -495,20 +526,32 @@ fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &Finan
                 return Err(malformed("overlapping financial data/index ranges").with_context("record_index", format!("{index}")));
             }
             total_fields = total_fields.checked_add(u64::from(fields))
-                .filter(|total| *total <= options.max_total_fields)
-                .ok_or_else(|| malformed("financial total field limit exceeded"))?;
+                .ok_or_else(|| malformed("financial total field count overflows"))?;
+            if let Some(adapter) = adapter.as_deref_mut() {
+                adapter.total_fields(&header, index, total_fields)?;
+            } else if total_fields > options.max_total_fields {
+                return Err(malformed("financial total field limit exceeded"));
+            }
             let mut values = Vec::new();
             values.try_reserve_exact(fields as usize).map_err(|_| malformed("financial field allocation failed"))?;
-            for bytes in data[start..end].chunks_exact(4) {
-                values.push(WireFloat::from_bits(bars::u32_at(bytes, 0)));
+            for chunk in data[start..end].chunks(16 * 1024) {
+                dat_checkpoint(options, boundary, &mut adapter)?;
+                for bytes in chunk.chunks_exact(4) {
+                    values.push(WireFloat::from_bits(bars::u32_at(bytes, 0)));
+                }
             }
             ranges.insert(start, end);
-            rows.try_reserve(1).map_err(|_| malformed("financial record allocation failed"))?;
-            rows.push(FinancialRecord { code, market_id: entry[6], report_date: date, report_date_raw: date_raw,
-                date_source, fields: values, header, index, data_range: start..end, raw: None });
+            let row = FinancialRecord { code, market_id: entry[6], report_date: date, report_date_raw: date_raw,
+                date_source, fields: values, header, index, data_range: start..end, raw: None };
+            if let Some(adapter) = adapter.as_deref_mut() {
+                adapter.record(&row)?;
+            } else {
+                rows.try_reserve(1).map_err(|_| malformed("financial record allocation failed"))?;
+                rows.push(row);
+            }
         }
     }
-    checkpoint(options, boundary)?;
+    dat_checkpoint(options, boundary, &mut adapter)?;
     // Copy only after all header/index/field budget checks have succeeded.
     let raw = retain_payload(data, options, boundary)?;
     for row in &mut rows { checkpoint(options, boundary)?; row.raw = raw.clone(); }
@@ -631,6 +674,21 @@ fn decimal_integer(text: &str) -> Option<String> {
 #[doc(hidden)]
 pub mod python_legacy {
     use super::*;
+    /// Object-language policy/projection only. Header/index traversal, accepted
+    /// offset tracking and float decoding always stay in the shared DAT core.
+    pub trait DatCallbacks {
+        fn checkpoint(&mut self) -> Result<()>;
+        fn header(&mut self, header: &FinancialHeader) -> Result<()>;
+        fn field_count(&mut self, header: &FinancialHeader, fields: u32) -> Result<()>;
+        fn total_fields(&mut self, header: &FinancialHeader, index: usize, total: u64) -> Result<()>;
+        fn record(&mut self, record: &FinancialRecord) -> Result<()>;
+    }
+    /// Streams a row at a time so the Python result never coexists with a
+    /// second full Rust table. No strict byte/overlap/default limit is added.
+    pub fn visit_dat(data: &[u8], adapter: &mut dyn DatCallbacks) -> Result<()> {
+        parse_core_with_adapter(data, DatePolicy::Legacy(0), &FinancialParseOptions::default(),
+            true, &mut || Ok(()), Some(adapter)).map(|_| ())
+    }
     /// Shared row splitting with the strict Rust parser. Numeric conversion
     /// remains Python `int` so arbitrary precision and runtime Unicode survive.
     pub fn file_list_rows(text: &str) -> impl Iterator<Item = (&str, &str, &str)> {

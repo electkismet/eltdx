@@ -480,3 +480,79 @@ fn local_zip_uses_header_date_explicit_override_and_cancellation() -> TestResult
     kind(financial::read(&path, &cancelled), ErrorKind::Cancelled);
     Ok(())
 }
+
+#[derive(Default)]
+struct DatVisitor {
+    dates: Vec<u32>,
+    counts: Vec<(usize, u64)>,
+    rows: Vec<(String, u8, Vec<u32>)>,
+    total_limit: Option<u64>,
+}
+impl python_legacy::DatCallbacks for DatVisitor {
+    fn checkpoint(&mut self) -> eltdx::Result<()> { Ok(()) }
+    fn header(&mut self, header: &financial::FinancialHeader) -> eltdx::Result<()> {
+        self.dates.push(header.report_date_raw()); Ok(())
+    }
+    fn field_count(&mut self, header: &financial::FinancialHeader, _: u32) -> eltdx::Result<()> {
+        if header.report_size() % 4 != 0 {
+            return Err(eltdx::Error::new(ErrorKind::ResourceFormat, "unaligned visitor header"));
+        }
+        Ok(())
+    }
+    fn total_fields(&mut self, _: &financial::FinancialHeader, index: usize, total: u64) -> eltdx::Result<()> {
+        self.counts.push((index, total));
+        if self.total_limit.is_some_and(|limit| total > limit) {
+            return Err(eltdx::Error::new(ErrorKind::ResourceFormat, "dynamic visitor limit"));
+        }
+        Ok(())
+    }
+    fn record(&mut self, row: &financial::FinancialRecord) -> eltdx::Result<()> {
+        self.rows.push((row.code().to_owned(), row.market_id(), row.fields().iter().map(|v| v.bits()).collect()));
+        Ok(())
+    }
+}
+
+#[test]
+fn streaming_legacy_visit_and_owned_rust_result_share_order_and_bits() -> TestResult {
+    let bytes = fixture(&[(*b"600000", 255, vec![0x80000000, 0x7fc12345]),
+        (*b"000001", 0, vec![0x7f800000, 0x00000001])], 20240331);
+    let rust = financial::parse_dat(&bytes, None, &options())?;
+    let mut visitor = DatVisitor::default();
+    python_legacy::visit_dat(&bytes, &mut visitor)?;
+    assert_eq!(visitor.dates, [20240331]);
+    assert_eq!(visitor.counts, [(0, 2), (1, 4)]);
+    let expected: Vec<_> = rust.rows().iter().map(|row|
+        (row.code().to_owned(), row.market_id(), row.fields().iter().map(|v| v.bits()).collect::<Vec<_>>())).collect();
+    assert_eq!(visitor.rows, expected);
+    Ok(())
+}
+
+#[test]
+fn streaming_legacy_visit_obeys_dynamic_limit_before_emitting_next_row() -> TestResult {
+    let bytes = fixture(&[(*b"600000", 1, vec![0]), (*b"000001", 0, vec![0])], 20240331);
+    let mut visitor = DatVisitor { total_limit: Some(1), ..DatVisitor::default() };
+    let error = python_legacy::visit_dat(&bytes, &mut visitor).unwrap_err();
+    assert_eq!(error.message(), "dynamic visitor limit");
+    assert_eq!(visitor.rows.len(), 1);
+    assert_eq!(visitor.counts, [(0, 1), (1, 2)]);
+    Ok(())
+}
+
+#[test]
+fn streaming_legacy_visit_does_not_impose_strict_default_fields_or_overlap() -> TestResult {
+    let bytes = fixture(&[(*b"600000", 1, vec![0; 4097])], 20240331);
+    kind(financial::parse_dat(&bytes, None, &options()), ErrorKind::ResourceFormat);
+    let mut visitor = DatVisitor::default();
+    python_legacy::visit_dat(&bytes, &mut visitor)?;
+    assert_eq!(visitor.rows[0].2.len(), 4097);
+
+    let mut overlap = header(2, 4, 20240331);
+    overlap.extend(entry(*b"600000", 1, 42));
+    overlap.extend(entry(*b"000001", 0, 43));
+    overlap.extend([0; 5]);
+    kind(financial::parse_dat(&overlap, None, &options()), ErrorKind::ResourceFormat);
+    let mut visitor = DatVisitor::default();
+    python_legacy::visit_dat(&overlap, &mut visitor)?;
+    assert_eq!(visitor.rows.len(), 2);
+    Ok(())
+}

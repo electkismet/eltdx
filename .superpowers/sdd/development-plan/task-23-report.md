@@ -30,3 +30,46 @@ all remaining offline codecs, F10 methods, cross-source helpers and manifest
 evidence remain required. Full T23 completion is not claimed. Counts21 source
 complete/4 partial/5 unstarted; active unlimited goal, no execution checks,
 agents or publication.
+
+## Second checkpoint — shared DAT traversal and Python streaming projection
+
+Base: `74ccae3`. Added `python_legacy::DatCallbacks`/`visit_dat` as a
+doc-hidden object-language policy seam over the existing DAT core. Strict Rust
+and legacy streaming use the same header/index traversal, accepted-offset set
+and float decoder. Fields are decoded in bounded chunks; each Python row is
+projected immediately, avoiding a second complete Rust table and input copy.
+
+The Python exact-bytes route borrows immutable bytes. Header callback applies
+the original `report_date == 0` comparison, preserving arbitrary raw objects,
+negative/huge values and comparison exceptions. Dynamic module field/total
+limits use Python rich comparisons at the original logical points. Error
+formatting uses the live ResourceFormatError constructor and original Chinese
+texts; captured Python exceptions are returned unchanged. Total limits are
+checked before allocating each row, duplicate accepted offsets before bounds,
+unique overlapping offsets remain allowed, incomplete/out-of-range records
+retain legacy skipping. On 32-bit targets an offset sum outside address space
+is skipped in legacy mode, matching Python's unbounded sum and length check.
+
+Explicit custom bytes/buffer objects or replaced struct module/calcsize/unpack
+use the retained original Python adapter. Its exit condition is a replacement
+generic buffer/codec callback adapter validated with the full compatibility
+suite; do not delete it before that evidence exists. The old body is not used
+for ordinary exact-bytes parsing. ZIP selection and file I/O are still pending.
+
+Changed production sources: crates/eltdx/src/offline/financial.rs;
+crates/eltdx-python/src/{offline_financial,lib}.rs;
+src/eltdx/offline/history_financial.py. Authored nine Python contract functions
+(one parameterized) for raw dates, evaluation order, short headers, exact
+errors, duplicates/invalid offsets, overlap/float values, struct/buffer hooks,
+dynamic comparison exception identity and incomplete tables. Added three
+Rust visitor functions for shared bits/order, early dynamic limit rejection
+and independently selected legacy field/overlap policy.
+
+Commands were source reads, ordinary Git status/diff, file edits and disabled-
+hook checkpointing only. No tests, collection, build/check, install, dependency
+resolution, network, AST, formatting or diff-whitespace checks ran. No manifest
+status is promoted. Source completion remains21/partial4/unstarted5.
+
+Resume: Python ZIP first-DAT/duplicate/selected-only policy; remaining offline
+functions/models and all financial compositions; all157 F10 methods and cross-
+source helpers; actual manifest evidence; T24–T30 before any execution gates.
