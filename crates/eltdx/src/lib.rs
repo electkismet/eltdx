@@ -10,6 +10,8 @@ mod policy;
 pub mod __python_compat;
 pub mod error;
 pub mod types;
+#[cfg(feature = "offline")]
+pub mod offline;
 
 pub use client::{ClientBuilder, TdxClient};
 pub use config::ClientConfig;

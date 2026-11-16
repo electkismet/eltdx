@@ -125,6 +125,10 @@
 - Task 8: final source work includes request-local initial/retry deadline expiry and exact unstarted pinned terminal reconciliation (matching lease identity/sequence); pin.rs is an approved narrow addition to owned review scope. Do not reset/reimplement earlier pin design. Final report/commit pending.
 - Preparation: T23–T30 briefs are now saved, covering full remaining Python migration, EX/MAC composites, independent consumers/package metadata, and final stress/docs/evidence source. They are not GO or implementation-complete claims.
 - Interface freeze for T10/T21: `crate::types::{Diagnostic, EnrichmentStatus}`; `Diagnostic::new(source: impl Into<String>, stage: impl Into<String>, status: EnrichmentStatus, error_kind: Option<ErrorKind>, message: Option<String>) -> Self`, with readonly getters for five fields. T10 owns implementation/reexport; T21 consumes it. T10 message queued while all execution slots busy; repeat in its GO handoff.
+- Task 8: final code `be129bb`, report `b3371c0`; scoped static review dispatched with `task-08-review-b3371c0.diff`, base `98e8558`, owned paths only including narrow pin terminal additions. No tests or equivalent verification ran. Domain finish/entry integration, actual Python COMP differential sources and T10 metadata sponsorship stay future task work.
+- T21 integration: controller added feature-gated public offline module and direct workspace encoding_rs dependency after T08/T09 finished shared-file edits. Ruling: encoding_rs is a common unconditional internal dependency because default HQ stats/boards also require GBK; making it offline-only now would need reversal in T17/T18. This changes no public feature availability and reuses an already present protocol dependency. — Cost if wrong: consumers keep the small existing encoding dependency in their closure; no Python/network optional domain becomes enabled.
+- Task 9: scoped static review Approved at `65ef657`, no task findings. Review retained in `task-09-review.md`; actual compile/runtime remains unverified and intentionally deferred. T10/T11 dependencies are explicitly distinct rather than re-reviewed as T09 omissions.
+- Task 9: complete (source `ae11c2a`/`65ef657`, scoped static review approved; unified verification deferred).
 
 | Task | Status |
 |---|---|
@@ -135,8 +139,8 @@
 | T05 | Implementation and source cases committed in `3ba3902`; final verification deferred until T01-T30 implementation is complete |
 | T06 | Implementation and scoped review complete (`4bf47d7..561dcf5`); final verification deferred |
 | T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
-| T08 | Implementing operation context, total budget, cancellation, structured errors and Python legacy bridge; source only |
-| T09 | Implementation/source cases committed `ae11c2a` and `65ef657`; scoped static review in progress, final verification deferred |
+| T08 | Source/report committed through `b3371c0`; scoped static review in progress, final verification deferred |
+| T09 | Source and scoped static review complete at `65ef657`; unified verification deferred |
 | T10 | Not started |
 | T11 | Not started |
 | T12 | Not started |
