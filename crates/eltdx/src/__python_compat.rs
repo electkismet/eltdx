@@ -99,6 +99,7 @@ pub enum LegacySnapshotState {
         command: u16,
     },
     Missing,
+    Unmatched,
 }
 
 #[derive(Clone, Debug)]
@@ -205,6 +206,7 @@ impl LegacyOperation {
             });
         }
         for (index, _) in batch.missing { slots[index] = Some(LegacySnapshotState::Missing); }
+        for index in batch.unmatched { slots[index] = Some(LegacySnapshotState::Unmatched); }
         let mut items = Vec::new();
         items.try_reserve(codes.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded,
             "unable to reserve legacy snapshot results").with_source(error))?;

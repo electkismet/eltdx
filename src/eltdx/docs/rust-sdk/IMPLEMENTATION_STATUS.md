@@ -4,11 +4,13 @@
 
 ## 当前状态
 
-当前实际进度：T12 quote/code native bridge 源码检查点已提交 `82bb2e6`；T12 仍在实施中，待完成 lifecycle/error/metadata-sink 边界审阅和剩余合同源码。没有运行任何测试或构建。下一步完成 T12 后进入 T13，并持续处理 T17/T22/T24/T25 的服务集成；T01–T30 实现全部完成前继续禁止验证执行。
+当前实际进度：T12 quote/code native bridge 实现源码和边界审阅已完成，测试源码覆盖普通返回顺序、恢复/缺项映射、resolver 次序、GIL/中断、错误 cause 与自定义 transport。未运行任何测试、构建或验证。下一步进入 T13；T17/T22/T24/T25 的服务集成仍待完成，T01–T30 实现全部完成前继续禁止验证执行。
 
 2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。
 
-2026-11-16 补充：quote bridge 已恢复 resolver 的请求前缓存和结果投影；legacy Rust code paginator 在完整目录终止后尝试原子发布 owner scoped precision metadata，以供后续 quote operation 复用；覆写 `execute` 的 native transport 子类回退原 facade；新增对应合同测试源码。T12 生命周期、错误映射与兼容边界仍待审阅。
+2026-11-16 第三轮 T12 兼容审阅：普通、数量正确的首个快照响应保留服务器行序；发生恢复时，按 Python facade 的代码队列重组，仅把明确空单项列为 missing，并忽略恢复响应中未匹配的行。resolver 的结果投影先于 MissingCodesError/skip warning。新增相应合同及 loopback 测试源码；未执行测试、构建或验证。
+
+当前阶段以本段和末尾“最新恢复点”为准；下方汇总表保留上一检查点的阶段字段。
 
 | 项目 | 值 |
 |---|---|

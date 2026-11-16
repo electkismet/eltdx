@@ -79,6 +79,31 @@ def test_native_snapshot_bridge_keeps_price_metadata_resolution_order() -> None:
     ]
 
 
+def test_native_snapshot_bridge_projects_partial_result_before_missing_error() -> None:
+    codes = ["sz000001"]
+    calls = []
+
+    def resolve(command, result, requested):
+        calls.append((command, result, requested))
+        return result
+
+    class NativeTransport:
+        def sdk_snapshots(self, _codes):
+            return [None], ("sz000001",)
+
+    quotes = QuoteApi(
+        NativeTransport(), price_resolver=resolve, native_services=True
+    )
+
+    with pytest.raises(MissingCodesError):
+        quotes.get_snapshots(codes)
+
+    assert calls == [
+        ("snapshots", None, codes),
+        ("snapshots", [], codes),
+    ]
+
+
 def test_custom_transport_keeps_the_existing_snapshot_recovery_path() -> None:
     row = _snapshot()
 

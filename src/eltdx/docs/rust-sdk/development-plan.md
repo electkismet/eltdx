@@ -233,6 +233,8 @@ T04–T12 的跨 crate 类型与执行顺序按 [内部实施规格](execution-a
 
 **接口：** native service 经绑定兼容桥接调用共享 Rust，输出原 tuple/dataclass；Python 特有别名、异常映射与逐请求计时保留。
 
+**实现状态（2026-11-16）：** quote/code bridge 源码和兼容边界审阅完成；测试源码已补齐，所有测试、构建和验证按用户要求延至 T01–T30 实现代码完成后统一执行。普通快照响应保留服务器顺序；恢复结果按 Python facade 的代码队列重组。
+
 - [ ] 用同一 fake/loopback 数据比较旧 Python facade、Rust service 和新 Python facade，字段/顺序/异常/原值全部相符。
 - [ ] GIL 释放、KeyboardInterrupt、`__cause__`、自定义 Transport仍被验证；回调不得在持GIL的阻塞I/O中运行。
 - [ ] 将旧算法从 native 常规路径移除，兼容 custom transport 路径显式标注和覆盖。

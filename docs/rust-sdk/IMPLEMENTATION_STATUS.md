@@ -4,21 +4,21 @@
 
 ## 当前状态
 
-当前实际进度：T12 quote/code native bridge 源码检查点已提交 `82bb2e6`；T12 仍在实施中，待完成 lifecycle/error/metadata-sink 边界审阅和剩余合同源码。没有运行任何测试或构建。下一步完成 T12 后进入 T13，并持续处理 T17/T22/T24/T25 的服务集成；T01–T30 实现全部完成前继续禁止验证执行。
+当前实际进度：T12 quote/code native bridge 实现源码和边界审阅已完成，测试源码覆盖普通返回顺序、恢复/缺项映射、resolver 次序、GIL/中断、错误 cause 与自定义 transport。未运行任何测试、构建或验证。下一步进入 T13；T17/T22/T24/T25 的服务集成仍待完成，T01–T30 实现全部完成前继续禁止验证执行。
 
 2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。
 
-2026-11-16 补充：quote bridge 已恢复 resolver 的请求前缓存和结果投影；legacy Rust code paginator 在完整目录终止后尝试原子发布 owner scoped precision metadata，以供后续 quote operation 复用；覆写 `execute` 的 native transport 子类回退原 facade；新增对应合同测试源码。T12 生命周期、错误映射与兼容边界仍待审阅。
+2026-11-16 第三轮 T12 兼容审阅：普通、数量正确的首个快照响应保留服务器行序；发生恢复时，按 Python facade 的代码队列重组，仅把明确空单项列为 missing，并忽略恢复响应中未匹配的行。resolver 的结果投影先于 MissingCodesError/skip warning。新增相应合同及 loopback 测试源码；未执行测试、构建或验证。
 
 | 项目 | 值 |
 |---|---|
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P2：T11 M01–M22 服务源码及静态自审完成，最终验证延期；下一步 T12 native bridge 与 Python quote/code facade 迁移。T17 Stage A/A2 已批、Stage B 待服务集成；T22 ZIP/资源服务待集成；T24/T25 的 Stage B 待完成 |
+| 当前阶段 | P2：T11 服务和 T12 bridge 源码审阅完成；T13 是下一任务。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T12：经窄 native service adapter 迁移 Python quotes/codes facade；先保持 Python 参数、结果、异常、别名、custom transport 与逐请求计时不变；继续 T13–T30 和未完成 Stage B；全部实现完成后统一验证 |
+| 下一步 | T13：实现 K 线、退市 K 线与分钟线分页；继续 T14–T30 和未完成 Stage B；全部实现完成后统一验证 |
 
 ## 阶段进度
 
@@ -26,7 +26,7 @@
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
-| P2 | T11–T18 HQ与Python首批迁移 | T11 M01–M22 源码及静态自审完成；测试源码未执行。T12 native bridge 待做；T17 archive/stats/GBK 模块已批，服务集成待推进 | 按用户要求暂不运行 |
+| P2 | T11–T18 HQ与Python首批迁移 | T11/T12 实现源码与静态审阅完成，测试源码未执行；T13–T18 待做，T17 Stage B 集成仍待推进 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Unicode修复 `a64a4a6` 通过限定复审，ZIP/资源集成待做 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
@@ -63,7 +63,7 @@
 
 ## 恢复规则
 
-最新恢复点（2026-11-16）：goal 模式 active，`remainingTokens=null`。T11 M01–M22 服务源码完成并经过静态自审，未编译、未运行用例。边界/失败路径源码覆盖提交于 `ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`。下一步 T12 native bridge：Python quotes/codes facade 经 `__python_compat` 调用同一 Rust 业务实现，同时保持 Python API 与 legacy execution profile。T13–T30 及 T17/T22/T24/T25 剩余集成未完成。没有运行测试、collection、构建、检查、格式化、diff 检查或网络验证。
+最新恢复点（2026-11-16）：goal 模式 active，`remainingTokens=null`。T11 服务与 T12 quote/code native bridge 源码和静态审阅完成；普通快照保留服务器行序，恢复分支按 Python 旧队列语义重组。下一步 T13 K 线、退市 K 线和分钟线分页；T14–T30 及 T17/T22/T24/T25 剩余服务集成未完成。没有运行测试、collection、构建、检查、格式化、diff 检查或网络验证。
 
 T21 于 `9734db3` 完成35个非财报本地 API、模型/格式算法、GBK 静态查表数据及四组测试源码；所有验证延期。仅运行了经授权的一次 Python 3.12.14 标准库 GBK 映射数据生成，脚本、版本和来源已在实现报告记录。任务审阅包以 `230e566` 为基线，仅含 T21 自有文件，scoped source review 进行中。T10 的 `Diagnostic`/`EnrichmentStatus` 共享实现仍待完成；这不是 T21 已验证集成的证据。
 

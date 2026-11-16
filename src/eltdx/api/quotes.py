@@ -27,6 +27,9 @@ class QuoteApi(ApiBase):
             if resolver is not None:
                 resolver("snapshots", None, code_list)
             items, missing = self._transport.sdk_snapshots(code_list)
+            result = [item for item in items if item is not None]
+            if resolver is not None:
+                result = resolver("snapshots", result, code_list)
             if missing:
                 if on_missing == "raise":
                     raise MissingCodesError(missing)
@@ -35,8 +38,7 @@ class QuoteApi(ApiBase):
                     MissingCodesWarning,
                     stacklevel=2,
                 )
-            result = [item for item in items if item is not None]
-            return result if resolver is None else resolver("snapshots", result, code_list)
+            return result
         return recover_batch(
             code_list,
             lambda part: self._execute_priced("snapshots", codes=part, price_codes=part),

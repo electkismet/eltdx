@@ -599,6 +599,7 @@ pub fn legacy_snapshot_batch_to_python(
                 items.push(none(py));
                 missing.push(any(py, item.requested.full_code())?);
             }
+            LegacySnapshotState::Unmatched => continue,
         }
     }
     let payload = tuple(

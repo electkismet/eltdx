@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from eltdx.client import TdxClient
-from eltdx.exceptions import ConnectionClosedError, ProtocolError
+from eltdx.exceptions import ConnectionClosedError, MissingCodesWarning, ProtocolError
 from eltdx.models import HandshakeInfo, HeartbeatAck, QuoteRefreshPage
 from eltdx.protocol import decode_response
 from eltdx.protocol.constants import (
@@ -49,6 +49,16 @@ def _quote_bridge_payloads() -> tuple[bytes, bytes]:
     return directory, b"\x00\x00\x01\x00" + row
 
 
+def _quote_bridge_snapshot_payload(codes: tuple[str, ...]) -> bytes:
+    _, single = _quote_bridge_payloads()
+    row_template = single[4:]
+    rows = b"".join(
+        b"\x00" + code[2:].encode("ascii") + row_template[7:]
+        for code in codes
+    )
+    return single[:2] + len(codes).to_bytes(2, "little") + rows
+
+
 def _serve_quote_bridge(connection, *, snapshot_payload: bytes | None, snapshot_seen=None) -> None:
     from eltdx.protocol.constants import TYPE_SECURITY_LIST, TYPE_SNAPSHOTS
 
@@ -71,6 +81,24 @@ def _serve_quote_bridge(connection, *, snapshot_payload: bytes | None, snapshot_
     wait_for_peer_close(connection)
 
 
+def _serve_quote_bridge_recovery(connection, snapshot_payloads: tuple[bytes, ...]) -> None:
+    from eltdx.protocol.constants import TYPE_SECURITY_LIST, TYPE_SNAPSHOTS
+
+    directory, _ = _quote_bridge_payloads()
+    answer_handshake(connection)
+    message_id, message_type, _ = read_request(connection)
+    assert message_type == TYPE_SECURITY_LIST
+    connection.sendall(response_bytes(message_id, message_type, directory))
+    message_id, message_type, _ = read_request(connection)
+    assert message_type == TYPE_SECURITY_LIST
+    connection.sendall(response_bytes(message_id, message_type, b"\x00\x00"))
+    for payload in snapshot_payloads:
+        message_id, message_type, _ = read_request(connection)
+        assert message_type == TYPE_SNAPSHOTS
+        connection.sendall(response_bytes(message_id, message_type, payload))
+    wait_for_peer_close(connection)
+
+
 def test_python_quote_facade_uses_shared_rust_snapshot_service() -> None:
     _, snapshot_payload = _quote_bridge_payloads()
 
@@ -83,6 +111,48 @@ def test_python_quote_facade_uses_shared_rust_snapshot_service() -> None:
         try:
             rows = client.quotes.get_snapshots(_BRIDGE_CODE)
             assert [row.full_code for row in rows] == [_BRIDGE_CODE]
+        finally:
+            client.close()
+        assert server.wait_for_handlers(1)
+
+
+def test_python_quote_bridge_preserves_server_order_on_initial_snapshot() -> None:
+    second_code = _BRIDGE_CODE[:-1] + "2"
+    response_codes = (second_code, _BRIDGE_CODE)
+    snapshot_payload = _quote_bridge_snapshot_payload(response_codes)
+
+    def handler(connection) -> None:
+        _serve_quote_bridge(connection, snapshot_payload=snapshot_payload)
+
+    with ScriptedServer([handler]) as server:
+        client = TdxClient(
+            transport=SocketTransport([server.host], timeout=2, heartbeat_interval=None)
+        )
+        try:
+            rows = client.quotes.get_snapshots([_BRIDGE_CODE, second_code])
+            assert [row.full_code for row in rows] == list(response_codes)
+        finally:
+            client.close()
+        assert server.wait_for_handlers(1)
+
+
+def test_python_quote_bridge_recovery_silently_omits_unmatched_rows() -> None:
+    second_code = _BRIDGE_CODE[:-1] + "2"
+    other_code_row = _quote_bridge_snapshot_payload((second_code,))
+    empty = b"\x00\x00\x00\x00"
+
+    def handler(connection) -> None:
+        _serve_quote_bridge_recovery(
+            connection, (empty, other_code_row, other_code_row)
+        )
+
+    with ScriptedServer([handler]) as server:
+        client = TdxClient(
+            transport=SocketTransport([server.host], timeout=2, heartbeat_interval=None)
+        )
+        try:
+            rows = client.quotes.get_snapshots([_BRIDGE_CODE, second_code])
+            assert [row.full_code for row in rows] == [second_code]
         finally:
             client.close()
         assert server.wait_for_handlers(1)

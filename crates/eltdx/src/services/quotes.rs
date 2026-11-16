@@ -271,6 +271,7 @@ pub struct LegacySnapshotRecord {
 pub struct LegacySnapshotBatch {
     pub records: Vec<LegacySnapshotRecord>,
     pub missing: Vec<(usize, NormalizedCode)>,
+    pub unmatched: Vec<usize>,
     pub recovered: bool,
 }
 
@@ -280,28 +281,77 @@ pub(crate) fn legacy_snapshot_rows(
 ) -> Result<LegacySnapshotBatch> {
     if !context.is_legacy() { return Err(Error::new(ErrorKind::InvalidArgument, "legacy snapshot adapter requires a Python-profile operation")); }
     if codes.is_empty() {
-        return Ok(LegacySnapshotBatch { records: Vec::new(), missing: Vec::new(), recovered: false });
+        return Ok(LegacySnapshotBatch { records: Vec::new(), missing: Vec::new(), unmatched: Vec::new(), recovered: false });
     }
     let fetched = retrieve_snapshot_rows(context, codes, codes.len(), execute)?;
     let mut records = Vec::new();
     let mut missing = Vec::new();
+    let mut unmatched = Vec::new();
     records.try_reserve(fetched.slots.len()).map_err(allocation_error)?;
     missing.try_reserve(fetched.slots.len()).map_err(allocation_error)?;
-    for (index, (requested, slot)) in codes.iter().zip(fetched.slots).enumerate() {
-        match slot {
-            RawSnapshotSlot::Missing => missing.push((index, requested.clone())),
-            RawSnapshotSlot::Present { row, reply } => records.push(LegacySnapshotRecord {
-                input_index: index,
-                requested: requested.clone(),
-                row,
-                payload: reply.payload.clone(),
-                wire: reply.wire.as_ref().map(|frame| frame.raw.clone()),
-                endpoint: reply.source.host.clone(),
-                command: reply.request.command_code(),
-            }),
+
+    if fetched.recovered {
+        let mut by_identity = HashMap::<SecurityId, VecDeque<LegacySnapshotRecord>>::new();
+        let mut missing_by_index = HashMap::new();
+        by_identity.try_reserve(codes.len()).map_err(allocation_error)?;
+        missing_by_index.try_reserve(codes.len()).map_err(allocation_error)?;
+        for (index, slot) in fetched.slots.into_iter().enumerate() {
+            let requested = codes.get(index).ok_or_else(|| Error::new(ErrorKind::Protocol,
+                "snapshot recovery returned more slots than requested"))?;
+            match slot {
+                RawSnapshotSlot::Missing => {
+                    missing_by_index.insert(index, requested.clone());
+                }
+                RawSnapshotSlot::Present { row, reply } => {
+                    let Ok(identity) = parse_identity(row.market_id, &row.code) else {
+                        continue;
+                    };
+                    let bucket = by_identity.entry(identity).or_default();
+                    bucket.try_reserve(1).map_err(allocation_error)?;
+                    bucket.push_back(LegacySnapshotRecord {
+                        input_index: index,
+                        requested: requested.clone(),
+                        row,
+                        payload: reply.payload.clone(),
+                        wire: reply.wire.as_ref().map(|frame| frame.raw.clone()),
+                        endpoint: reply.source.host.clone(),
+                        command: reply.request.command_code(),
+                    });
+                }
+            }
+        }
+        records.try_reserve(codes.len()).map_err(allocation_error)?;
+        missing.try_reserve(codes.len()).map_err(allocation_error)?;
+        unmatched.try_reserve(codes.len()).map_err(allocation_error)?;
+        for (index, requested) in codes.iter().enumerate() {
+            let identity = identity_from_market(requested.market(), requested.number())?;
+            if let Some(mut record) = by_identity.get_mut(&identity).and_then(VecDeque::pop_front) {
+                record.input_index = index;
+                record.requested = requested.clone();
+                records.push(record);
+            } else if let Some(requested) = missing_by_index.remove(&index) {
+                missing.push((index, requested));
+            } else {
+                unmatched.push(index);
+            }
+        }
+    } else {
+        for (index, (requested, slot)) in codes.iter().zip(fetched.slots).enumerate() {
+            match slot {
+                RawSnapshotSlot::Missing => missing.push((index, requested.clone())),
+                RawSnapshotSlot::Present { row, reply } => records.push(LegacySnapshotRecord {
+                    input_index: index,
+                    requested: requested.clone(),
+                    row,
+                    payload: reply.payload.clone(),
+                    wire: reply.wire.as_ref().map(|frame| frame.raw.clone()),
+                    endpoint: reply.source.host.clone(),
+                    command: reply.request.command_code(),
+                }),
+            }
         }
     }
-    Ok(LegacySnapshotBatch { records, missing, recovered: fetched.recovered })
+    Ok(LegacySnapshotBatch { records, missing, unmatched, recovered: fetched.recovered })
 }
 
 pub(crate) fn retrieve_snapshot_rows(
@@ -363,11 +413,26 @@ fn recover_snapshot_tree(
         return split_snapshot_tree(context, codes, query);
     }
     if rows.len() != codes.len() {
-        if rows.len() > codes.len() { return Err(Error::new(ErrorKind::Protocol, "snapshot response contains excess records")); }
-        context.remember_recoverable(Error::new(ErrorKind::Protocol, "snapshot response count mismatch"));
+        if !context.is_legacy() && rows.len() > codes.len() {
+            return Err(Error::new(ErrorKind::Protocol, "snapshot response contains excess records"));
+        }
+        let mismatch = Error::new(ErrorKind::Protocol, if context.is_legacy() {
+            format!("snapshot response count mismatch: expected {}, got {}", codes.len(), rows.len())
+        } else {
+            "snapshot response count mismatch".to_owned()
+        });
+        if context.is_legacy() && codes.len() == 1 { return Err(mismatch); }
+        context.remember_recoverable(mismatch);
         return split_snapshot_tree(context, codes, query);
     }
-    let order = occurrence_order(&ids, rows.iter().map(|row| parse_identity(row.market_id, &row.code)))?;
+    // The Python facade returned a successful first response as-is. Only its
+    // recovery path rebuilt rows by requested occurrence, so preserve the
+    // server order until recovery was actually needed.
+    let order = if context.is_legacy() {
+        (0..rows.len()).collect()
+    } else {
+        occurrence_order(&ids, rows.iter().map(|row| parse_identity(row.market_id, &row.code)))?
+    };
     let decoded = Arc::new(decoded);
     let CommandResponse::Snapshots(rows) = &decoded.response else { unreachable!() };
     let mut slots = Vec::new();
