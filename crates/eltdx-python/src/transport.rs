@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use eltdx::__python_compat::{LegacyExecutor, LegacyPushReader};
+use eltdx::__python_compat::{LegacyBarTime, LegacyExecutor, LegacyPushReader};
 use eltdx_protocol::CommandResponse;
 use eltdx_runtime::diagnostics::{
     ActorSnapshot, BrokerSnapshot, PoolDiagnostics, TransportDiagnostics,
@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyTuple};
 use pyo3::IntoPyObjectExt;
 
-use crate::{error, request, response};
+use crate::{error, request, response, service};
 
 #[pyclass(name = "NativeEngine", module = "eltdx._native", frozen)]
 pub struct NativeEngine {
@@ -206,6 +206,25 @@ impl NativeEngine {
             market,
             page_size,
         )
+    }
+
+    #[pyo3(signature = (command, payload, *, collect=false, max_pages=None, bar_time="start"))]
+    fn sdk_bars(
+        &self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>,
+        collect: bool, max_pages: Option<usize>, bar_time: &str,
+    ) -> PyResult<Py<PyAny>> {
+        // Reuse the existing extractor to retain input aliases, bool handling,
+        // overflow messages and the order in which request fields are checked.
+        let request = request::from_python(py, command, Some(payload))?;
+        let alignment = match bar_time {
+            "start" => LegacyBarTime::Start,
+            "end" => LegacyBarTime::End,
+            other => {
+                let representation = pyo3::types::PyString::new(py, other).repr()?.to_str()?.to_owned();
+                LegacyBarTime::DeferredInvalid(format!("bar_time 必须是 'start' 或 'end'，得到: {representation}"))
+            }
+        };
+        service::bars(py, self.legacy.clone(), request, collect, max_pages, alignment)
     }
 
     fn pin(&self, py: Python<'_>) -> PyResult<NativePin> {

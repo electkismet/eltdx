@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::time::Instant;
@@ -11,6 +10,7 @@ use eltdx_protocol::{CommandRequest, CommandResponse};
 use eltdx_runtime::engine::Engine;
 
 use crate::config::ClientConfig;
+use crate::__python_compat::{LegacyBarSeries, LegacyBarTime};
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::hq::decode::DecodedReply;
 use crate::hq::executor::HqExecutor;
@@ -22,7 +22,8 @@ use crate::types::{Amount, AmountUnit, BatchItem, BatchItemState, BatchOutcome, 
     NumericValue, PageCursor, Price, Quantity, QuantityUnit, RawPolicy, ResultMeta, SecurityId,
     TradingDate, ValueProvenance};
 
-use super::pagination::{advance_offset, CollectionLimits, PageProgress};
+use super::bar_collection::{order_bar_pages, walk_bar_pages, BarCollectionPolicy, BarOrder};
+use super::pagination::{advance_offset, CollectionLimits};
 use super::{aggregate_meta, allocation_error, checked_ids, endpoint_engine, result_meta,
     verify_cursor, ServiceSource};
 
@@ -287,36 +288,30 @@ impl KlineService {
         let resolved_kind = resolve_kind(id, query.kind());
         let fingerprint = ordinary_fingerprint(context, id, query, resolved_kind)?;
         verify_cursor(query.cursor(), fingerprint, page_size, context, Some(metadata.version()))?;
-        let mut offset = u32::from(query.start());
-        if let Some(cursor) = query.cursor() { offset = cursor.next_offset(); }
-        let collection_start = offset;
-        ensure_wire_offset(offset)?;
+        let collection_start = query.cursor().map_or(u32::from(query.start()), PageCursor::next_offset);
+        ensure_wire_offset(collection_start)?;
         let limits = CollectionLimits { pages: Some(query.pages().max_pages()), records: Some(query.pages().max_records()) };
-        let mut progress = PageProgress::default();
-        let mut seen = HashSet::<Bytes>::new();
         let mut pages = Vec::<Vec<KlineBar>>::new();
         let mut metas = Vec::<ResultMeta>::new();
         let mut anchor = query.anchor_date();
-        loop {
-            context.check_boundary(TimeoutPhase::Admission)?;
-            progress.before_request(limits)?;
-            let remaining = query.pages().max_records().saturating_sub(progress.records()).max(1);
-            let count = page_size.min(remaining);
+        let pages_read = walk_bar_pages(context, collection_start, page_size,
+            BarCollectionPolicy::Strict { limits, repeated_page: "K-line pagination repeated a response page",
+                offset_error: "K-line continuation offset exceeds the wire range before EOF" },
+            |offset, count, purpose| {
             let request = self.ordinary_request(id, query, offset, count)?;
-            let purpose = if progress.pages() == 0 { ChildPurpose::Required } else { ChildPurpose::Page };
             let (decoded, page_payload) = self.execute(context, engine, pin, CommandRequest::Klines(request), purpose)?;
             let CommandResponse::Klines(response) = &decoded.response else { return Err(wrong_response("klines")); };
             validate_count(response.bars.len(), count)?;
-            progress.accept(response.bars.len(), count, limits)?;
-            context.record_work(response.bars.len(), 0)?;
+            let actual = response.bars.len();
+            Ok((decoded, actual, page_payload))
+        }, |decoded| {
+            let CommandResponse::Klines(response) = &decoded.response else { return Err(wrong_response("klines")); };
             if response.bars.is_empty() {
                 let source = ServiceSource::from_reply(&decoded);
+                metas.try_reserve(1).map_err(allocation_error)?;
                 metas.push(page_meta(context, &self.config, metadata, &source, &decoded, &[], "klines.page"));
-                context.check_boundary(TimeoutPhase::Aggregate)?;
-                return finish_collection(context, id, query.period(), resolved_kind, query.adjust(), anchor,
-                    query.bar_time(), pages, metas, progress.pages(), collection_start, page_size, metadata.version());
+                return Ok(());
             }
-            if !seen.insert(page_payload) { return Err(Error::new(ErrorKind::Protocol, "K-line pagination repeated a response page")); }
             let page_anchor = response.anchor_date.map(date_from_parts).transpose()?;
             if let (Some(existing), Some(found)) = (anchor, page_anchor) {
                 if existing != found { return Err(Error::new(ErrorKind::Protocol, "K-line anchor changed between pages")); }
@@ -325,13 +320,14 @@ impl KlineService {
             let bars = response.bars.iter().map(|bar| project_bar(bar, query.period(), query.bar_time(), false)).collect::<Result<Vec<_>>>()?;
             let source = ServiceSource::from_reply(&decoded);
             let ranges = response.bars.iter().map(|bar| bar.record_range).collect::<Vec<_>>();
+            metas.try_reserve(1).map_err(allocation_error)?;
             metas.push(page_meta(context, &self.config, metadata, &source, &decoded, &ranges, "klines.page"));
             pages.try_reserve(1).map_err(allocation_error)?;
             pages.push(bars);
-            offset = advance_offset(offset, response.bars.len())?;
-            if offset > MAX_WIRE_OFFSET { return Err(limit_error("K-line continuation offset exceeds the wire range before EOF")); }
-            context.check_boundary(TimeoutPhase::Aggregate)?;
-        }
+            Ok(())
+        })?;
+        finish_collection(context, id, query.period(), resolved_kind, query.adjust(), anchor,
+            query.bar_time(), pages, metas, pages_read, collection_start, page_size, metadata.version())
     }
 
     fn delisted_page_in_context(&self, context: &mut OperationContext, id: &SecurityId, query: &DelistedQuery,
@@ -378,53 +374,41 @@ impl KlineService {
         let page_size = query.pages().page_size();
         let fingerprint = delisted_fingerprint(context, id)?;
         verify_cursor(query.cursor(), fingerprint, page_size, context, Some(metadata.version()))?;
-        let mut offset = query.cursor().map_or(u32::from(query.start()), PageCursor::next_offset);
-        ensure_wire_offset(offset)?;
+        let start = query.cursor().map_or(u32::from(query.start()), PageCursor::next_offset);
+        ensure_wire_offset(start)?;
         let limits = CollectionLimits { pages: Some(query.pages().max_pages()), records: Some(query.pages().max_records()) };
-        let mut progress = PageProgress::default();
-        let mut seen = HashSet::<Bytes>::new();
-        let mut bars = Vec::<(usize, KlineBar)>::new();
+        let mut pages = Vec::new();
         let mut metas = Vec::<ResultMeta>::new();
         let mut first_raw = None;
-        loop {
-            context.check_boundary(TimeoutPhase::Admission)?;
-            progress.before_request(limits)?;
-            let remaining = query.pages().max_records().saturating_sub(progress.records()).max(1);
-            let count = page_size.min(remaining);
+        let pages_read = walk_bar_pages(context, start, page_size,
+            BarCollectionPolicy::Strict { limits, repeated_page: "delisted pagination repeated a response page",
+                offset_error: "delisted continuation offset exceeds the wire range before EOF" },
+            |offset, count, purpose| {
             let request = self.delisted_request(id, offset, count)?;
-            let purpose = if progress.pages() == 0 { ChildPurpose::Required } else { ChildPurpose::Page };
             let (decoded, page_payload) = self.execute(context, engine, pin, CommandRequest::DelistedKlines(request), purpose)?;
             let CommandResponse::DelistedKlines(response) = &decoded.response else { return Err(wrong_response("delisted klines")); };
             validate_count(response.bars.len(), count)?;
-            progress.accept(response.bars.len(), count, limits)?;
-            context.record_work(response.bars.len(), 0)?;
+            let actual = response.bars.len();
+            Ok((decoded, actual, page_payload))
+        }, |decoded| {
+            let CommandResponse::DelistedKlines(response) = &decoded.response else { return Err(wrong_response("delisted klines")); };
             let source = ServiceSource::from_reply(&decoded);
             let ranges = response.bars.iter().map(|bar| bar.record_range).collect::<Vec<_>>();
+            metas.try_reserve(1).map_err(allocation_error)?;
             metas.push(page_meta(context, &self.config, metadata, &source, &decoded, &ranges, "delisted_klines.page"));
-            if response.bars.is_empty() {
-                context.check_boundary(TimeoutPhase::Aggregate)?;
-                bars.sort_by_key(|(_, bar)| (bar.time().date(), bar.time().clock()));
-                let mut row_order = Vec::new();
-                let mut ordered_bars = Vec::new();
-                row_order.try_reserve(bars.len()).map_err(allocation_error)?;
-                ordered_bars.try_reserve(bars.len()).map_err(allocation_error)?;
-                for (index, bar) in bars { row_order.push(index); ordered_bars.push(bar); }
-                let meta = aggregate_meta(context, &metas, Some(metadata.version()))?
-                    .with_raw_row_order(&row_order)?;
-                return Ok(KlineSeries::new(id.clone(), KlinePeriod::Day, KlineKind::Stock, AdjustMode::None, None,
-                    BarTime::Start, DataPage::new(ordered_bars, u64::from(query.cursor().map_or(u32::from(query.start()), PageCursor::next_offset)),
-                        page_size, None, EndEvidence::EmptyPage, meta),
-                    progress.pages(), (context.raw() != RawPolicy::Omit).then(|| first_raw.unwrap_or_default())));
-            }
-            if !seen.insert(page_payload) { return Err(Error::new(ErrorKind::Protocol, "delisted pagination repeated a response page")); }
-            if first_raw.is_none() { first_raw = Some(decoded.payload.clone()); }
+            if first_raw.is_none() && !response.bars.is_empty() { first_raw = Some(decoded.payload.clone()); }
             let decoded_bars = response.bars.iter().map(|bar| project_bar(bar, KlinePeriod::Day, BarTime::Start, true)).collect::<Result<Vec<_>>>()?;
-            bars.try_reserve(decoded_bars.len()).map_err(allocation_error)?;
-            for bar in decoded_bars { bars.push((bars.len(), bar)); }
-            offset = advance_offset(offset, response.bars.len())?;
-            if offset > MAX_WIRE_OFFSET { return Err(limit_error("delisted continuation offset exceeds the wire range before EOF")); }
-            context.check_boundary(TimeoutPhase::Aggregate)?;
-        }
+            pages.try_reserve(1).map_err(allocation_error)?;
+            pages.push(decoded_bars);
+            Ok(())
+        })?;
+        let (ordered_bars, row_order) = order_bar_pages(pages, BarOrder::Chronological,
+            |bar| (bar.time().date(), bar.time().clock()))?;
+        let meta = aggregate_meta(context, &metas, Some(metadata.version()))?.with_raw_row_order(&row_order)?;
+        context.check_boundary(TimeoutPhase::Aggregate)?;
+        Ok(KlineSeries::new(id.clone(), KlinePeriod::Day, KlineKind::Stock, AdjustMode::None, None,
+            BarTime::Start, DataPage::new(ordered_bars, u64::from(start), page_size, None, EndEvidence::EmptyPage, meta),
+            pages_read, (context.raw() != RawPolicy::Omit).then(|| first_raw.unwrap_or_default())))
     }
 
     fn ordinary_request(&self, id: &SecurityId, query: &KlineQuery, start: u32, count: usize) -> Result<KlinesRequest> {
@@ -482,21 +466,10 @@ impl KlineService {
 fn finish_collection(context: &OperationContext, id: &SecurityId, period: KlinePeriod, kind: KlineKind,
     adjust: AdjustMode, anchor: Option<TradingDate>, bar_time: BarTime, pages: Vec<Vec<KlineBar>>,
     metas: Vec<ResultMeta>, pages_read: usize, start: u32, page_size: usize, metadata_version: u64) -> Result<KlineSeries> {
-    let total = pages.iter().try_fold(0_usize, |sum, page| sum.checked_add(page.len()))
-        .ok_or_else(|| limit_error("collected K-line count overflows"))?;
-    let mut bars = Vec::new();
-    let mut row_order = Vec::new();
-    bars.try_reserve(total).map_err(allocation_error)?;
-    row_order.try_reserve(total).map_err(allocation_error)?;
-    let mut first_row = total;
-    for page in pages.into_iter().rev() {
-        first_row = first_row.checked_sub(page.len())
-            .ok_or_else(|| Error::new(ErrorKind::Internal, "K-line page row mapping underflows"))?;
-        row_order.extend(first_row..first_row + page.len());
-        bars.extend(page);
-    }
+    let (bars, row_order) = order_bar_pages(pages, BarOrder::ReversePages, |_| ())?;
     let legacy_raw = (context.raw() != RawPolicy::Omit).then(Bytes::new);
     let meta = aggregate_meta(context, &metas, Some(metadata_version))?.with_raw_row_order(&row_order)?;
+    context.check_boundary(TimeoutPhase::Aggregate)?;
     Ok(KlineSeries::new(id.clone(), period, kind, adjust, anchor, bar_time,
         DataPage::new(bars, u64::from(start), page_size, None, EndEvidence::EmptyPage, meta), pages_read, legacy_raw))
 }
@@ -506,7 +479,9 @@ fn project_bar(row: &eltdx_protocol::commands::klines::KlineBar, period: KlinePe
     let source_time = event_time(row.time)?;
     let mut time = source_time;
     if !delisted && bar_time == BarTime::End {
-        if let Some(minutes) = period.minute_width() { time = time.add_minutes(i64::from(minutes))?; }
+        if let Some(minutes) = period.minute_width() {
+            time = align_bar_time(source_time, minutes, BarClockPolicy::AdvanceDate)?;
+        }
     }
     let price = |value| Price::with_value_and_provenance(
         NumericValue::ScaledInteger { value, scale: 3 }, ValueProvenance::WireRule);
@@ -516,6 +491,114 @@ fn project_bar(row: &eltdx_protocol::commands::klines::KlineBar, period: KlinePe
         price(row.low_price_milli), row.last_close_price_milli.map(price), volume, amount,
         row.up_count.map(u32::from), row.down_count.map(u32::from), row.volume_raw, row.amount_raw,
         row.unknown_suffix_raw))
+}
+
+#[derive(Clone, Copy)]
+enum BarClockPolicy { AdvanceDate, SameDate }
+
+fn align_bar_time(source: crate::types::EventTime, minutes: u16, policy: BarClockPolicy) -> Result<crate::types::EventTime> {
+    match policy {
+        BarClockPolicy::AdvanceDate => source.add_minutes(i64::from(minutes)),
+        BarClockPolicy::SameDate => {
+            let date = source.date().ok_or_else(|| wrong_response("dated K-line time"))?;
+            let (hour, minute, second) = source.clock().ok_or_else(|| wrong_response("K-line clock"))?;
+            let total = u32::from(hour) * 60 + u32::from(minute) + u32::from(minutes);
+            crate::types::EventTime::shanghai(date, ((total / 60) % 24) as u8, (total % 60) as u8, second)
+        }
+    }
+}
+
+/// Compatibility entry to the same pagination/order machinery as the public
+/// service. It keeps first-page request/anchor/raw metadata and per-wire timing.
+pub(crate) fn legacy_bar_series(
+    context: &OperationContext, request: CommandRequest, collect: bool,
+    maximum_pages: Option<usize>, bar_time: LegacyBarTime,
+    mut fetch: impl FnMut(CommandRequest, ChildPurpose) -> Result<DecodedReply>,
+) -> Result<LegacyBarSeries> {
+    if !context.is_legacy() { return Err(query_error("profile", "legacy bars require a compatibility operation")); }
+    let (start, count, order, api) = match &request {
+        CommandRequest::Klines(request) => (request.start, request.count, BarOrder::ReversePages, "bars"),
+        CommandRequest::DelistedKlines(request) => (request.start, request.count, BarOrder::Chronological, "delisted_bars"),
+        _ => return Err(query_error("command", "legacy bars require an OHLC request")),
+    };
+    if !collect {
+        let mut reply = fetch(request, ChildPurpose::Required)?;
+        align_legacy_bars(&mut reply.response, &bar_time)?;
+        context.check_boundary(TimeoutPhase::Aggregate)?;
+        return Ok(LegacyBarSeries { response: reply.response, request_count: usize::from(count) });
+    }
+    let mut first_response = None;
+    let mut pages = Vec::new();
+    walk_bar_pages(context, u32::from(start), usize::from(count),
+        BarCollectionPolicy::Legacy { maximum_pages, api }, |offset, size, purpose| {
+            let mut page_request = request.clone();
+            // walk_bar_pages checks the wire offset before constructing a child.
+            match &mut page_request {
+                CommandRequest::Klines(request) => { request.start = offset as u16; request.count = size as u16; }
+                CommandRequest::DelistedKlines(request) => { request.start = offset as u16; request.count = size as u16; }
+                _ => return Err(wrong_response("legacy bars request")),
+            }
+            let mut reply = fetch(page_request, purpose)?;
+            align_legacy_bars(&mut reply.response, &bar_time)?;
+            let actual = match &reply.response {
+                CommandResponse::Klines(response) => response.bars.len(),
+                CommandResponse::DelistedKlines(response) => response.bars.len(),
+                _ => return Err(wrong_response("legacy bars")),
+            };
+            // Legacy did not reject repeated bytes. A repeated page can contain
+            // valid equal-time bars; the caller's page cap remains authoritative.
+            Ok((reply.response, actual, Bytes::new()))
+        }, |mut response| {
+            let bars = match &mut response {
+                CommandResponse::Klines(response) => std::mem::take(&mut response.bars),
+                CommandResponse::DelistedKlines(response) => std::mem::take(&mut response.bars),
+                _ => return Err(wrong_response("legacy bars")),
+            };
+            pages.try_reserve(1).map_err(allocation_error)?;
+            pages.push(bars);
+            if first_response.is_none() { first_response = Some(response); }
+            Ok(())
+        })?;
+    let (bars, _) = order_bar_pages(pages, order, |bar| {
+        let time = bar.time;
+        (time.date.year, time.date.month, time.date.day, time.hour, time.minute, time.second)
+    })?;
+    let request_count = bars.len();
+    let mut response = first_response.ok_or_else(|| wrong_response("first legacy bar page"))?;
+    match &mut response {
+        CommandResponse::Klines(response) => { response.bars = bars; response.raw_payload = Bytes::new(); }
+        CommandResponse::DelistedKlines(response) => response.bars = bars,
+        _ => return Err(wrong_response("legacy bar aggregate")),
+    }
+    context.check_boundary(TimeoutPhase::Aggregate)?;
+    Ok(LegacyBarSeries { response, request_count })
+}
+
+fn align_legacy_bars(response: &mut CommandResponse, bar_time: &LegacyBarTime) -> Result<()> {
+    let CommandResponse::Klines(response) = response else {
+        return if matches!(response, CommandResponse::DelistedKlines(_)) { Ok(()) }
+            else { Err(wrong_response("legacy bars")) };
+    };
+    match bar_time {
+        LegacyBarTime::Start => return Ok(()),
+        LegacyBarTime::DeferredInvalid(message) => return Err(Error::new(ErrorKind::InvalidArgument, message.clone())
+            .with_context("field", "bar_time")),
+        LegacyBarTime::End => {},
+    }
+    let width = match response.request.period.raw {
+        0 => Some(5), 1 => Some(15), 2 => Some(30), 3 => Some(60), 7 => Some(1),
+        8 => Some(response.request.period.parameter.max(1)), _ => None,
+    };
+    if let Some(width) = width {
+        for bar in &mut response.bars {
+            let aligned = align_bar_time(event_time(bar.time)?, width, BarClockPolicy::SameDate)?;
+            let (hour, minute, _) = aligned.clock().ok_or_else(|| wrong_response("aligned bar clock"))?;
+            // Preserve original date, timezone, seconds, wire scalars and hex.
+            bar.time.hour = hour;
+            bar.time.minute = minute;
+        }
+    }
+    Ok(())
 }
 
 fn event_time(value: eltdx_protocol::unit::DateTimeParts) -> Result<crate::types::EventTime> {

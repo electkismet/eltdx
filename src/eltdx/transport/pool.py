@@ -443,6 +443,12 @@ class PooledSocketTransport:
         dtos = call_native(self._native().sdk_security_pages, market, page_size)
         return [response_from_dto(dto) for dto in dtos]
 
+    def sdk_bars(self, command: int, payload: dict[str, Any], *, collect: bool,
+                 max_pages: int | None, bar_time: str = "start"):
+        dto = call_native(self._native().sdk_bars, command, payload, collect=collect,
+                          max_pages=max_pages, bar_time=bar_time)
+        return response_from_dto(dto)
+
     def execute_trade_batch(self, command: int, payload: dict[str, Any] | None = None):
         if command != 0x0FC6:
             raise ValueError("trade batch only supports historical ticks")

@@ -29,7 +29,7 @@ use eltdx_protocol::commands::{
 use eltdx_protocol::response::CommandResponse;
 use eltdx_protocol::unit::{DateParts, DateTimeParts, Market};
 use eltdx_runtime::push::PushFrame;
-use eltdx::__python_compat::{LegacySnapshotBatch, LegacySnapshotState};
+use eltdx::__python_compat::{LegacyBarSeries, LegacySnapshotBatch, LegacySnapshotState};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList, PyString, PyTuple};
@@ -1149,6 +1149,10 @@ fn minute_aux_point<'py>(
 }
 
 fn klines<'py>(py: Python<'py>, value: &KlineSeries) -> PyResult<Obj> {
+    klines_with_request_count(py, value, usize::from(value.request.count))
+}
+
+fn klines_with_request_count<'py>(py: Python<'py>, value: &KlineSeries, request_count: usize) -> PyResult<Obj> {
     let req = &value.request;
     tuple(
         py,
@@ -1160,7 +1164,7 @@ fn klines<'py>(py: Python<'py>, value: &KlineSeries) -> PyResult<Obj> {
             any(py, req.period.parameter)?,
             any(py, req.period.name())?,
             any(py, req.start)?,
-            any(py, req.count)?,
+            any(py, request_count)?,
             any(py, req.adjust as u16)?,
             any(py, req.adjust.as_str())?,
             any(py, req.anchor_date_raw)?,
@@ -1228,6 +1232,14 @@ fn delisted_klines<'py>(
     py: Python<'py>,
     value: &eltdx_protocol::commands::delisted_bars::DelistedKlineSeries,
 ) -> PyResult<Obj> {
+    delisted_klines_with_request_count(py, value, usize::from(value.request.count))
+}
+
+fn delisted_klines_with_request_count<'py>(
+    py: Python<'py>,
+    value: &eltdx_protocol::commands::delisted_bars::DelistedKlineSeries,
+    request_count: usize,
+) -> PyResult<Obj> {
     tuple(
         py,
         vec![
@@ -1238,7 +1250,7 @@ fn delisted_klines<'py>(
             any(py, 1_u16)?,
             any(py, "day")?,
             any(py, value.request.start)?,
-            any(py, value.request.count)?,
+            any(py, request_count)?,
             any(py, 0_u16)?,
             any(py, "none")?,
             any(py, 0_u32)?,
@@ -1254,6 +1266,15 @@ fn delisted_klines<'py>(
             raw_payload(py, value.request.include_raw, &value.raw_payload),
         ],
     )
+}
+
+pub fn legacy_bar_series_to_python(py: Python<'_>, value: &LegacyBarSeries) -> PyResult<Obj> {
+    let payload = match &value.response {
+        CommandResponse::Klines(series) => klines_with_request_count(py, series, value.request_count)?,
+        CommandResponse::DelistedKlines(series) => delisted_klines_with_request_count(py, series, value.request_count)?,
+        _ => return Err(PyValueError::new_err("native bar service returned a non-OHLC response")),
+    };
+    tagged(py, "klines", payload)
 }
 fn today_intraday<'py>(
     py: Python<'py>,

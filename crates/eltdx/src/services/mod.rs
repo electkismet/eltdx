@@ -1,6 +1,7 @@
 mod codes;
 mod auctions;
 mod klines;
+mod bar_collection;
 mod minutes;
 mod money_flow;
 mod quotes;
@@ -26,6 +27,7 @@ pub(crate) use codes::{is_a_share, is_st_name};
 pub use auctions::AuctionService;
 pub(crate) use codes::{legacy_directory_pages, publish_legacy_directory_metadata};
 pub use klines::KlineService;
+pub(crate) use klines::legacy_bar_series;
 pub use minutes::MinuteService;
 pub use money_flow::MoneyFlowService;
 pub use quotes::{PinnedQuoteService, QuoteService};

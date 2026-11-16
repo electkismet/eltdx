@@ -1,10 +1,10 @@
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
-use eltdx::__python_compat::LegacyExecutor;
+use eltdx::__python_compat::{LegacyBarTime, LegacyExecutor};
 use eltdx::types::HqMarket;
 use eltdx::{CancellationToken, Error, ErrorKind, RawPolicy};
-use eltdx_protocol::response::CommandResponse;
+use eltdx_protocol::{CommandRequest, CommandResponse};
 use eltdx_protocol::unit::{Market, NormalizedCode};
 use eltdx_runtime::engine::SIGNAL_POLL_INTERVAL;
 use pyo3::exceptions::PyRuntimeError;
@@ -65,6 +65,25 @@ pub fn security_pages(
         .into_iter()
         .map(|page| response::to_python(py, CommandResponse::SecurityList(page.rows)))
         .collect()
+}
+
+pub fn bars(
+    py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
+    collect: bool, maximum_pages: Option<usize>, bar_time: LegacyBarTime,
+) -> PyResult<Py<PyAny>> {
+    let raw = match &request {
+        CommandRequest::Klines(request) => request.include_raw,
+        CommandRequest::DelistedKlines(request) => request.include_raw,
+        _ => return Err(pyo3::exceptions::PyValueError::new_err("native bars require an OHLC command")),
+    };
+    let series = run_legacy(py, move |token| {
+        let operation = executor.begin_operation("python_bars",
+            if raw { RawPolicy::RetainPayload } else { RawPolicy::Omit }, Some(token))?;
+        let series = operation.bars(request, collect, maximum_pages, bar_time)?;
+        operation.finish()?;
+        Ok(series)
+    })?;
+    response::legacy_bar_series_to_python(py, &series)
 }
 
 fn hq_market(market: Market) -> eltdx::Result<HqMarket> {

@@ -2,6 +2,13 @@
 
 Read first. Authority `docs/rust-sdk/development-plan.md` T18, `hq-api-spec.md` §§3–4,11–14 and F28 onward, `public-api.md` §§6–10, `execution-and-compatibility.md` entire binding/shutdown contracts, COMP-023–027 and relevant HQ cases. T11–T17 must be reviewed; controller gives GO. Default HQ includes all methods in this brief, not only quotes.
 
+2026-11-17 recovery: reports seventh/eighth/ninth sections supersede the initial
+pending helper/example notes. All19 helper methods and example/consumer sources
+exist (example39c8e3e); first ordinary/delisted native bar migration and unexecuted
+contract/differential sources now authored. Resume minutes/ALL remaining HQ native
+migrations and evidence/installed-wheel consumer. T18 remains partial; do not rerun
+or rewrite completed sources, and do not execute any verification until T01–T30.
+
 ## Exact plan scope
 
 New `src/helpers/{mod,market,boards,shortline,profile}.rs` (split focused files as necessary), all HQ helper DTO/query types, `tests/hq_helpers.rs`, `examples/hq_query.rs`. Migrate Python HQ `api`, `helpers`, `equity.py`, `workday.py`, `stats.py`, native bridge and manifest per completed domain; author domain differential/compatibility source tests. Implement all HQ M79–M97 including pure classify_fund_flow M95. Complete all HQ methods left by prior tasks; no exposed placeholder/Unsupported for documented valid supported HQ behavior.

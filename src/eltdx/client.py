@@ -239,8 +239,8 @@ class TdxClient:
             native_services=native_services,
         )
         self.resources = ResourceApi(self.transport)
-        self.bars = BarApi(self.transport)
-        self.delisted_bars = DelistedBarApi(self.transport)
+        self.bars = BarApi(self.transport, native_services=native_services)
+        self.delisted_bars = DelistedBarApi(self.transport, native_services=native_services)
         self.minutes = MinuteApi(self.transport, price_resolver=self._normalize_prices)
         self.money_flow = MoneyFlowApi(
             self.transport,

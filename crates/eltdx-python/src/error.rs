@@ -42,6 +42,12 @@ pub fn from_runtime(error: eltdx_runtime::RuntimeError) -> PyErr {
 pub fn from_sdk(_py: Python<'_>, error: eltdx::Error) -> PyErr {
     use eltdx::ErrorKind as K;
 
+    if error.kind() == K::LimitExceeded && error.context().iter()
+        .any(|(key, value)| key == "python_kind" && value == "RuntimeError")
+    {
+        return pyo3::exceptions::PyRuntimeError::new_err(error.message().to_owned());
+    }
+
     let kind = match error.kind() {
         K::InvalidArgument => "InvalidArgument",
         K::Unsupported => "UnsupportedCommand",

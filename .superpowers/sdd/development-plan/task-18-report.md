@@ -412,3 +412,54 @@ cases and truthful manifest evidence, then installed-wheel consumer source.
 Do not count the new Rust consumer as completion of T28. Task totals remain18
 source-complete/4 partial/8 unstarted, goal active without quota; all execution
 validation remains forbidden until all T01–T30 implementation sources are done.
+
+Eighth source stage committed as **39c8e3e**. All execution deferred.
+
+## Ninth source checkpoint — ordinary and delisted Python/native bars
+
+- Added one shared `services/bar_collection.rs` walker and ordering function.
+  Public Rust collectors now use that walker with strict finite caps, repeated
+  payload rejection, count checks, unchanged wire-offset errors and raw-row
+  permutations. Legacy uses the same loop with its original optional page cap,
+  repeated-page acceptance and per-wire execution profile. Short pages continue;
+  only an empty response proves EOF. Ordinary pages reverse page order without
+  reversing rows; delisted bars sort stably by time, including equal timestamps.
+- Added `LegacyOperation::bars`, `LegacyBarSeries` and `LegacyBarTime`. Binding
+  requests reuse the old `request::from_python` extractor. The compatibility
+  operation neither prefetches a security directory nor pins the full history.
+  SDK permits Kline/Delisted requests through the fixed-scale unpriced decoder.
+  First response metadata/anchor stay first; ordinary aggregate payload clears,
+  delisted aggregate payload stays first, including an empty initial history.
+  Aggregate request_count is separate from the validated per-page wire request.
+- One timestamp shift mechanism has explicit AdvanceDate and SameDate policy.
+  Rust public End keeps elapsed rollover; Python End wraps hour/minute within
+  the original date and preserves seconds/timezone/raw/time_raw. Invalid string
+  bar_time retains the exact repr message and is raised only after first decode;
+  a malformed first response therefore still wins. Existing max_pages RuntimeError
+  text/class/cause are preserved by a narrow LimitExceeded projection.
+- `NativeEngine.sdk_bars`, service worker and both native Python transports use
+  the existing detached-GIL/signal cancellation shell and tuple/model ABI. No
+  Python model field was added. TdxClient enables native routing only for exact
+  built-in transport types; subclasses retain execute extension behavior.
+  Python sequence normalization, stable dedup, input order and pool-bounded
+  concurrency remain adapters. Existing BarApi float/bool/unlimited page-limit
+  comparisons are normalized without changing their reachable stopping boundary.
+- Temporary callback adapters explicitly remain for custom transports/untyped
+  responses and nonstandard scalar objects/evaluation semantics. Manifest
+  records7709-kline/7709-delisted-bars include real method/source paths, exact
+  authored pytest nodes, fixtures, reasons and exit conditions. Their migration
+  statuses are deliberately not promoted before the complete HQ evidence pass.
+- Added2 private ordering source cases,9 contract functions and5 parametrized
+  local integration functions. The integration source compares the existing
+  custom facade with the native public client for ordinary/delisted, raw true/
+  false and Socket/Pooled transports. It includes repeated equal-time delisted
+  pages, short-page offsets, same-date midnight wrap, empty raw/metadata,
+  RuntimeError limits, invalid bar_time ordering and exact error message.
+
+No tests, collection, build/check/clippy/doctest, dependency resolution/download,
+network probe, AST/compile, formatting, diff whitespace check or equivalent
+execution was performed. These are authored sources only, not compile/runtime
+success or verified compatibility. T18 remains partial; totals18 complete
+source/4 partial/8 unstarted. Next: minutes and all remaining HQ native domains,
+the full truthful migration evidence pass and installed-wheel consumer sources,
+then T19–T30 and remaining Stage B work. Goal active without a token quota.

@@ -236,7 +236,17 @@
       "id": "7709-kline",
       "source_files": [
         "docs/methods/7709-K线周期线.md",
-        "src/eltdx/api/bars.py"
+        "src/eltdx/api/bars.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/pool.py",
+        "src/eltdx/transport/socket.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/klines.rs",
+        "crates/eltdx/src/services/bar_collection.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs",
+        "crates/eltdx-python/src/response.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -247,6 +257,32 @@
       "compatibility": "0x052D request/response variant; category22 is not an additional wire code.",
       "wire_code": "0x052d",
       "api": "client.bars.get(code_or_codes, ...)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::klines -> eltdx::services::KlineService::{page,collect,page_many,collect_many}",
+        "python_entry": "BarApi.get -> transport.sdk_bars -> NativeEngine.sdk_bars -> LegacyOperation.bars -> legacy_bar_series",
+        "shared_algorithm": "crates/eltdx/src/services/bar_collection.rs::{walk_bar_pages,order_bar_pages}",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_bar_bridge.py::test_native_bars_returns_shared_service_result_without_second_alignment",
+          "tests/contracts/test_sdk_bar_bridge.py::test_native_bar_batch_keeps_stable_normalized_key_order"
+        ],
+        "differential_node": "tests/integration/test_native_bar_bridge.py::test_native_bar_collection_matches_old_facade_for_order_raw_and_count",
+        "fixtures": [
+          "tests/fixtures/7709/klines/normal",
+          "tests/integration/test_native_bar_bridge.py::_ordinary_payload"
+        ],
+        "temporary_adapter": {
+          "scope": "custom transports, scalar objects/subclasses with custom comparison/index/truth methods, and non-bool all_pages",
+          "reason": "Preserve the existing execute extension point, untyped response escape and repeated Python object evaluation at each request boundary.",
+          "contract_nodes": [
+            "tests/contracts/test_sdk_bar_bridge.py::test_custom_bar_transport_keeps_untyped_response_escape",
+            "tests/contracts/test_sdk_bar_bridge.py::test_socket_subclass_keeps_custom_bar_execute_extension_point",
+            "tests/contracts/test_sdk_bar_bridge.py::test_custom_limit_object_keeps_its_comparison_timing"
+          ],
+          "exit_condition": "A callback executor must preserve object evaluation, arbitrary untyped responses, reentrancy and cancellation before removing this adapter."
+        },
+        "validation": "Not collected, compiled or executed; planned migration status is retained until the complete HQ evidence pass."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-K线周期线.md",
@@ -259,7 +295,17 @@
       "id": "7709-delisted-bars",
       "source_files": [
         "docs/methods/7709-退市K线日线接口.md",
-        "src/eltdx/api/delisted_bars.py"
+        "src/eltdx/api/delisted_bars.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/pool.py",
+        "src/eltdx/transport/socket.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/klines.rs",
+        "crates/eltdx/src/services/bar_collection.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs",
+        "crates/eltdx-python/src/response.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -270,6 +316,25 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x052b",
       "api": "client.delisted_bars.get(code, ...)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::klines -> eltdx::services::KlineService::{delisted_page,delisted_collect,delisted_page_many,delisted_collect_many}",
+        "python_entry": "DelistedBarApi.get -> transport.sdk_bars -> NativeEngine.sdk_bars -> LegacyOperation.bars -> legacy_bar_series",
+        "shared_algorithm": "crates/eltdx/src/services/bar_collection.rs::{walk_bar_pages,order_bar_pages}",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_bar_bridge.py::test_native_delisted_retains_t_prefix_for_existing_request_extractor",
+          "tests/contracts/test_sdk_bar_bridge.py::test_delisted_invalid_page_limit_still_precedes_native_request"
+        ],
+        "differential_node": "tests/integration/test_native_bar_bridge.py::test_native_bar_collection_matches_old_facade_for_order_raw_and_count",
+        "fixtures": ["tests/fixtures/7709/delisted_bars/normal"],
+        "temporary_adapter": {
+          "scope": "custom transports, scalar objects/subclasses with custom index/truth methods, and non-bool all_pages",
+          "reason": "Preserve arbitrary execute return objects and Python scalar evaluation at the original request boundaries.",
+          "contract_nodes": ["tests/test_delisted_bars.py::test_delisted_paging_continues_short_pages_and_sorts_history"],
+          "exit_condition": "The callback executor supports typed and untyped custom responses, repeated scalar evaluation and original per-wire cancellation boundaries."
+        },
+        "validation": "Not collected, compiled or executed; planned migration status is retained until the complete HQ evidence pass."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-退市K线日线接口.md",

@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17 第九段源码恢复点：Rust例子/consumer已提交`39c8e3e`。普通/退市K线首批Python/native回迁源码已写：共享分页与排序循环、legacy单请求预算、不pin整段历史、首响应metadata/raw/异常/当天回绕、批量归一并发和custom对象adapter；新增合同/本机差分用例源码并在manifest保留source-only证据。尚未编译/collection/执行，不能认定迁移通过；T18仍部分，下一域分钟线及其余HQ业务/manifest总核对/installed-wheel consumer。任务总数仍18源码完成/4部分/8未开始，目标active且无额度限制。
+
 2026-11-17 最新恢复点：M90/M91已提交f6a99a8；M96/M97板块及默认HQ内部文本/DBF解析、显式来源/固定HQ下载、owner缓存和8组公开用例源码已提交1bb3c1a。M79–M97共19/19 helper方法均已有首批源码。随后新增hq_query例子和tests/consumers/rust-sdk独立manifest、仅std/eltdx的非空回环/分页/关闭consumer源码。T18仍部分，全部HQ Python/native回迁、真实manifest迁移证据及安装wheel consumer仍待完成；外部复制/依赖图/编译运行证据也尚无。当前18项源码完整、4项部分、8项未开始；没有运行任何测试、构建或执行检查。
 
 当前实际进度：T01–T17及T21实现源码已写完；T18/T22/T24/T25为部分实现（18完整源码/4部分/8未开始）。恢复先读task-18-report第七/八段和brief，继续HQ Python/native逐域回迁、真实manifest证据和installed-wheel consumer。M79–M97及Rust首批例子/consumer源码已写，不重复实现；其源码完整度不代表T18完成或已通过编译/测试。目标保持active且不设置额度限制；全部执行验证延期。
@@ -17,7 +19,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | M96/M97`1bb3c1a`后新增hq_query及独立Rust consumer源码；M90/M91`f6a99a8`；全部执行验证延期 |
+| 最新检查点 | Rust例子/consumer`39c8e3e`；后续首批普通/退市K线native回迁源码及未执行差分用例已写；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

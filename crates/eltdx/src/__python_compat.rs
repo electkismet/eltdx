@@ -140,6 +140,19 @@ pub struct LegacySnapshotBatch {
     pub recovered: bool,
 }
 
+/// The old facade validated bar_time only after receiving the first page.
+/// Store the binding's exact Python repr message without raising it early.
+#[derive(Clone, Debug)]
+pub enum LegacyBarTime { Start, End, DeferredInvalid(String) }
+
+#[derive(Clone, Debug)]
+pub struct LegacyBarSeries {
+    pub response: CommandResponse,
+    // An aggregate count is not a legal per-page request count (maximum800).
+    // Keep it separate from the original validated first request metadata.
+    pub request_count: usize,
+}
+
 impl LegacyOperation {
     /// `None` retains the legacy unlimited-page option; there is no fabricated cap.
     pub fn with_page_limit(mut self, maximum: Option<NonZeroUsize>) -> Result<Self> {
@@ -240,6 +253,20 @@ impl LegacyOperation {
                 state: state.ok_or_else(|| Error::new(ErrorKind::Protocol, "legacy snapshot occurrence was not classified"))? });
         }
         Ok(LegacySnapshotBatch { items, recovered: batch.recovered })
+    }
+
+    /// One unpinned wire request at a time, as in the original Python facade.
+    /// No directory prefetch or Rust-only collection limits are added here.
+    pub fn bars(
+        &self, request: CommandRequest, collect: bool,
+        maximum_pages: Option<usize>, bar_time: LegacyBarTime,
+    ) -> Result<LegacyBarSeries> {
+        crate::services::legacy_bar_series(&self.context, request, collect, maximum_pages,
+            bar_time, |request, purpose| {
+                let raw = self.executor.executor.execute_raw(&self.executor.engine,
+                    &self.context, request, purpose, None)?;
+                self.executor.executor.decode_unpriced(&self.context, raw)
+            })
     }
 
     pub fn remember_recoverable(&self, error: Error) { self.context.remember_recoverable(error); }
