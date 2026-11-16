@@ -20,6 +20,7 @@ mod f10_fields;
 mod f10_news;
 mod f10_values;
 mod f10_models;
+mod money_flow_history;
 mod limits;
 mod helpers;
 mod helper_profile;
@@ -55,6 +56,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(protocol::parse_command_response, module)?)?;
     module.add_function(wrap_pyfunction!(service::select_security_rows, module)?)?;
     module.add_function(wrap_pyfunction!(service::recover_money_flow, module)?)?;
+    module.add_function(wrap_pyfunction!(money_flow_history::money_flow_history, module)?)?;
     module.add_function(wrap_pyfunction!(corporate::collect_capital, module)?)?;
     module.add_function(wrap_pyfunction!(corporate::recover_finance, module)?)?;
     module.add_function(wrap_pyfunction!(corporate::assemble_finance, module)?)?;

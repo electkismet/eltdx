@@ -276,31 +276,8 @@ class MoneyFlowApi(ApiBase):
     ) -> FundFlowRangeSeries:
         """一次 7615 ``zjlx_sj`` 请求 + 客户端 ``start`` / ``count`` 切片。"""
 
-        response = self._resolve_f10().params(
-            F10_HISTORY_ENTRY,
-            "zjlx_sj",
-            split_code(code)[2],
-            str(days),
-            split_code(code)[2],
-        )
-        # 服务端回包是日期升序（最旧在前，2026-10-15 实测 days=10 首行
-        # 2026-09-23、末行 2026-10-14）。统一反转为「最新在前」，与
-        # daily()（0x0ffc，records[0] 即最新交易日）和 F10 其它日期序列
-        # （ipo_calendar / market_margin_summary / index_members）口径一致；
-        # 反转后下面的 start / count 切片（距最新偏移）语义才成立。
-        rows = tuple(reversed(response.rows))
-        window = rows[start:] if count is None else rows[start : start + count]
-        payload = b""
-        if include_raw:
-            payload = json.dumps(
-                response.raw, ensure_ascii=False, separators=(",", ":")
-            ).encode("utf-8")
-        return FundFlowRangeSeries(
-            code=code,
-            days=days,
-            codes=(split_code(code)[2],),
-            rows=window,
-            raw_payload=payload,
+        return native_module().money_flow_history(
+            self, code, days, start, count, include_raw, globals(),
         )
 
     def _recover_empty(

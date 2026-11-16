@@ -682,3 +682,25 @@ None of these consumers or other tests were executed, imported, compiled,
 collected, formatted or checked. T23 remains open for complete manifest/domain
 evidence and documentation handoff, thenT24–T30 source implementation. Counts
 remain21 source complete/4 partial/5 unstarted, goal active without token cap.
+
+## Twenty-fourth checkpoint — remaining F10 fund-flow history bridge
+
+Base6257811. Source inventory found MoneyFlowApi._single_history still owning
+the old request/window/raw/model loop. Added a native binding and delegated the
+Python private method. Shared history constants/request layout and COMP-050
+reverse-before-window composition now serve both strict Rust and legacy Python.
+Python retains params lookup before conversions, two request code conversions
+around live str(days), a third model code conversion, live Entry and globals,
+full reversed tuple before slicing, original row/code/day objects, arbitrary
+precision/negative private slice arguments, raw truthiness, captured json.dumps
+with compact Unicode kwargs and original encode/model/exception behavior.
+The public validation/executor/weak-factory policies remain in their existing
+adapters, with no HQ fallback or strict Rust operation deadline imposed.
+
+Seven Python contract functions (including parameterized slices/root errors)
+and two shared Rust functions authored. Added a public static news-channel
+case for ordered registry copies, known labels/unknown ids and no I/O. Nothing
+was compiled, collected, imported or run. The new test file uses constructed
+security strings to avoid unrelated pre-existing substituted sample literals.
+T23 still needs full manifest evidence and documentation handoff; counts remain
+21 source complete/4 partial/5 unstarted. Goal active without a token cap.

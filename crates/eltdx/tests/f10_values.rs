@@ -73,3 +73,21 @@ fn operation_byte_limit_is_independent_of_single_response_limits() -> eltdx::Res
     assert_eq!(client.config().max_response_bytes().get(), 16 * 1024 * 1024);
     client.close()
 }
+
+#[test]
+fn news_channel_registry_is_sorted_independent_and_available_without_io() -> eltdx::Result<()> {
+    let client = F10Client::builder().with_base_url("https://unresolved.invalid:65535/TQLEX").build()?;
+    let mut channels = client.news_channels();
+    assert!(channels.windows(2).all(|pair| pair[0].id() < pair[1].id()));
+    assert_eq!(channels.first().map(|value| (value.id(), value.label(), value.group())),
+        Some((200, "最新", Some("财经"))));
+    assert_eq!(channels.last().map(|value| value.id()), Some(1804));
+    assert!(channels.iter().any(|value| value.id() == 318 && value.label() == "科创板"));
+    channels.clear();
+    assert!(!client.news_channels().is_empty());
+    assert_eq!(NewsChannel::from_wire(999999), NewsChannel::Unknown(999999));
+    assert_eq!(NewsChannel::Unknown(999999).wire(), 999999);
+    assert_eq!(client.diagnostics()?.completed_requests(), 0);
+    assert!(client.diagnostics()?.active_endpoint().is_none());
+    client.close()
+}

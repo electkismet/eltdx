@@ -61,6 +61,23 @@ pub fn collection_route(method: &str) -> Option<(&'static str, &'static str, &'s
 
 pub fn ladder_parameters<T>(selector: T, start: T, end: T) -> [T; 3] { [selector, start, end] }
 
+pub const MONEY_FLOW_HISTORY_ENTRY: &str = "CWServ.tdxf10_gg_sj";
+pub const MONEY_FLOW_HISTORY_SELECTOR: &str = "zjlx_sj";
+
+/// Keep the two code conversions distinct: legacy callbacks may observe both.
+pub fn history_parameters<T>(selector: T, first_code: T, days: T, last_code: T) -> [T; 4] {
+    [selector, first_code, days, last_code]
+}
+
+/// COMP-050: reverse the source before applying the requested window. Neither
+/// adapter may sort dates or slice the original source. Callbacks retain each
+/// language's allocation, cancellation, indexing and materialization policy.
+pub fn reverse_then_window<T, U, E>(reverse: impl FnOnce() -> Result<T, E>,
+    window: impl FnOnce(T) -> Result<U, E>) -> Result<U, E>
+{
+    window(reverse()?)
+}
+
 /// Generic first-match traversal, with success distinct from an absent value.
 /// A Python match containing None must stop just like any other matched row.
 pub fn first_match<T, V, E>(rows: impl IntoIterator<Item = Result<T, E>>,
@@ -132,6 +149,22 @@ pub fn visit_promotion<L, V, E>(levels: impl IntoIterator<Item = Result<L, E>>,
 #[cfg(test)]
 mod value_tests {
     use super::*;
+
+    #[test]
+    fn history_window_reverses_before_selecting_and_preserves_duplicate_order() {
+        let rows = reverse_then_window(|| Ok::<_, ()>([9, 1, 9, 7].into_iter().rev()),
+            |rows| Ok(rows.skip(1).take(2).collect::<Vec<_>>())).unwrap();
+        assert_eq!(rows, [9, 1]);
+        assert_eq!(history_parameters("zjlx_sj", "first", "10", "last"),
+            ["zjlx_sj", "first", "10", "last"]);
+    }
+
+    #[test]
+    fn history_reverse_error_never_applies_window() {
+        let result: Result<(), &str> = reverse_then_window(|| Err::<(), _>("reverse failed"),
+            |_| panic!("cannot select an incomplete reversed source"));
+        assert_eq!(result, Err("reverse failed"));
+    }
 
     #[test]
     fn first_match_retains_nested_none_and_dates_only_read_clock_when_absent() {

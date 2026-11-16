@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第七十二段恢复点：基础提交6257811。补漏的MoneyFlowApi._single_history请求/窗口/raw/model编排已迁入native；与独立Rust共用历史请求布局和先反转再截取策略，保留Python实时globals、captured回调、完整tuple、原行对象、负值/大整数私有切片、JSON/模型求值及异常顺序。新增7个Python/2个共享Rust函数源码及1个公开静态新闻频道用例，全部未执行。T23继续完整manifest/域文档交接，随后T24–T30；21源码完整/4部分/5未开始，目标active无限额，全部执行验证延期。
+
 2026-11-17第七十一段恢复点：题材强度已提交`e6d0cd5`。补Rust独立consumer六次HTTP请求、F10 helper及共享关闭、HQ不启动、本地日线/行业读写和真正HQ财报列表/ZIP/DAT下载源码；installed-wheel consumer对应覆盖真实HTTP与HQ资源请求、缓存identity、题材组合、本地文件、公开Python模型/日期/负零。源码复查区分本地ZIP取header日期、下载取文件名日期；两个方向README补最终阶段执行模板。以上全部未编译/执行。T23仍需完整manifest/域交接，随后T24–T30；21源码完整/4部分/5未开始、目标active无额度上限，全部执行验证延期。
 
 2026-11-17第七十段恢复点：基础提交`fa891d0`。题材强度排行Rust typed入口和Python native聚合源码已写；HQ完整天梯和逐证券F10复用同一parent context、总期限及输入行/HTTP字节预算，可选来源失败保留证券/原因，取消/关闭/预算等终止错误传播。全部输入聚合后再稳定四指标排序/topN；Python保留旧异常范围、重复项、动态hooks、数值/round6、延后count校验及lazy tuple。新增8个Python/4个Rust私有/2个Rust公开用例函数，均未执行；源码复查已修正用例持有活动context时同线程close的等待问题。T23剩完整manifest与独立consumer/文档，之后T24–T30；21源码完整/4部分/5未开始、目标active无额度上限，全部执行验证延期。

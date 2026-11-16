@@ -10,7 +10,8 @@ use crate::operation::OperationContext;
 use crate::types::{AmountUnit, Diagnostic, EnrichmentStatus, ResultMeta};
 use crate::{Error, ErrorKind, OperationOptions, Result, TimeoutPhase, TradingDate};
 
-const ENTRY: &str = "CWServ.tdxf10_gg_sj";
+use crate::f10::collection::{history_parameters, reverse_then_window,
+    MONEY_FLOW_HISTORY_ENTRY, MONEY_FLOW_HISTORY_SELECTOR};
 
 /// The five history windows accepted by the F10 service.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
@@ -59,9 +60,9 @@ impl MoneyFlowHistoryQuery {
         Ok(self)
     }
     pub fn to_call(&self) -> Result<CallQuery> {
-        Ok(CallQuery::new(EntryName::new(ENTRY)?, RequestPayload::Params(vec![
-            "zjlx_sj".into(), self.code.as_str().into(), format!("{}", self.days.get()).into(), self.code.as_str().into(),
-        ])))
+        Ok(CallQuery::new(EntryName::new(MONEY_FLOW_HISTORY_ENTRY)?, RequestPayload::Params(
+            history_parameters(MONEY_FLOW_HISTORY_SELECTOR.into(), self.code.as_str().into(),
+                format!("{}", self.days.get()).into(), self.code.as_str().into()).into())))
     }
 }
 
@@ -137,7 +138,8 @@ impl MoneyFlowHistoryService {
             "cannot reserve historical fund-flow rows").with_source(error))?;
         // Traverse even skipped rows with cancellation points. Do not sort by
         // parsed dates, and do not compute start+count (which could overflow).
-        for (index, raw) in source.into_iter().rev().enumerate() {
+        reverse_then_window(|| Ok::<_, Error>(source.into_iter().rev().enumerate()), |source| {
+        for (index, raw) in source {
             context.check_boundary(TimeoutPhase::Aggregate)?;
             if index < query.start || rows.len() >= selected_count { continue; }
             let trade_date = project_date(&raw, "N001", index, &mut response, &context)?;
@@ -149,6 +151,8 @@ impl MoneyFlowHistoryService {
             }
             rows.push(FundFlowHistoryRow { raw, trade_date, listing_date });
         }
+        Ok(())
+        })?;
         let result = FundFlowRangeSeries { code: query.code.clone(), days: query.days, start: query.start,
             count: query.count, source_row_count, rows, response };
         context.finish()?;

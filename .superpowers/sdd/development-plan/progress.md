@@ -2,6 +2,15 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage72: base6257811. Discovered and migrated the
+  remaining MoneyFlowApi._single_history orchestration to native. Strict and
+  Python history share request layout and reverse-before-window policy; legacy
+  keeps captured callbacks/live globals, full materialization, Python slices,
+  raw serialization/model order and root exceptions. Seven Python/two Rust
+  shared functions plus one static-registry Rust function authored, unexecuted.
+  T23 still needs full manifest/domain handoff beforeT24–T30.21/4/5 unchanged,
+  unlimited active goal; no execution checks, agents or publication.
+
 - Latest recovery2026-11-17 stage71: basee6d0cd5. Independent Rust consumer
   now has std-only six-POST F10 mode, shared-owner/HQ-laziness assertions,
   local daily/industry mode, and real HQ financial list/ZIP/DAT composition.
