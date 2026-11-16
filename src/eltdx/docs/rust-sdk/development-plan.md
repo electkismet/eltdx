@@ -492,6 +492,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T25：MAC、MAC-EX 与未知字段
 
+2026-11-17 Stage B第一段：新增简单响应模型/严格解析，覆盖分时/多日图/快照/板块/采样/商品/竞价/异动/服务器/文件及两类27B-prefix GBK JSON；文件名70B与代码22B独立校验。新增14个未执行函数用例，保留位图/原始数值/未知单位/日期/JSON presence，详见[MAC实现交接](mac-implementation-index.md)。T25仍部分，checked queries、profile/握手、owner/client/管理和公开登记尚待实现；总数仍23/2/5，全部执行验证延期。
+
 **文件：** 新增 `src/mac/{mod,session,bitmap,commands,models,routing}.rs`；新增 `tests/{mac_wire,mac_routing}.rs`。
 
 - [ ] 三步MAC握手及无响应步骤、MAC-EX登录、head flag按profile区别。

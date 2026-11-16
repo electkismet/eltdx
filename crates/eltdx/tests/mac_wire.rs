@@ -1,10 +1,15 @@
 // Authored Stage A source cases. Execution is deferred until T01-T30 code is complete.
+#![cfg(feature = "mac")]
 #[path = "../src/mac/mod.rs"]
 mod mac;
 
-use mac::bitmap::{decode_bitmap, decode_slot, encode_bitmap, FieldContext, FieldId, FieldSelection, BitmapLayout};
+// Until Stage B registers the complete MAC client, these source modules are
+// included by path and use the same crate-local imports as their final home.
+pub use eltdx::{Error, ErrorKind, EventTime, Result, TradingDate};
+
+use mac::bitmap::{decode_bitmap, decode_slot, encode_bitmap, FieldId, FieldSelection, BitmapLayout};
 use mac::commands::{bars_request, build_request, decode_bars, decode_quote_rows, decode_hk_transaction, mac_ex_login_request, rewrite_mac_ex_head, MacResponseHeader};
-use mac::models::{MacAdjust, MacCode, MacExMarketId, MacInstrumentId, MacMarketId, MacPeriod, MacExRoute, SlotValue, TransactionPrice, WireFloat};
+use mac::models::{FieldContext, MacAdjust, MacCode, MacExMarketId, MacInstrumentId, MacMarketId, MacPeriod, MacExRoute, SlotValue, TransactionPrice, WireFloat};
 
 fn set(bitmap: &mut [u8], bit: usize) { bitmap[bit / 8] |= 1 << (bit % 8); }
 

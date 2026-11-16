@@ -1,8 +1,8 @@
 //! Pure MAC command payload codecs. Stream order, profile negotiation, transport
 //! admission and retries are deliberately left to Stage B.
-use crate::mac::bitmap::{decode_bitmap, decode_slot, encode_bitmap, quote_row_width, BitmapLayout, DecodedBitmap, FieldContext, FieldSelection};
-use crate::mac::models::{BarRecord, MacAdjust, MacCode, MacInstrumentId, MacPeriod, MacMarketId, QuoteField, QuoteRow, SlotValue, TransactionPrice, TransactionSlot, WireFloat};
-use eltdx::{Error, ErrorKind, Result};
+use crate::mac::bitmap::{decode_bitmap, decode_slot, encode_bitmap, quote_row_width, BitmapLayout, DecodedBitmap, FieldSelection};
+use crate::mac::models::{BarRecord, FieldContext, MacAdjust, MacCode, MacInstrumentId, MacPeriod, MacMarketId, QuoteField, QuoteRow, SlotValue, TransactionPrice, TransactionSlot, WireFloat};
+use crate::{Error, ErrorKind, Result};
 
 pub const MAC_HEAD_FLAG: u8 = 0x1c;
 pub const STANDARD_HEAD_FLAG: u8 = 0x0c;
@@ -86,7 +86,7 @@ pub fn server_info_request()->Result<MacRequest>{let mut body=vec![0x04,0x00,0x2
 pub fn kline_offsets_request(offset:u32,count:u32)->Result<MacRequest>{let mut body=Vec::with_capacity(13);put_u32(&mut body,offset);put_u32(&mut body,count);body.extend_from_slice(&[0;5]);build_request(0x124a,&body,MAC_HEAD_FLAG)}
 pub fn chart_sampling_request(id:&MacInstrumentId)->Result<MacRequest>{let mut body=Vec::with_capacity(40);put_u16(&mut body,id.market().get());body.extend_from_slice(&id.code().wire_bytes());put_u16(&mut body,1);put_u16(&mut body,20);body.extend_from_slice(&[0;9]);build_request(0x254d,&body,MAC_HEAD_FLAG)}
 pub fn goods_request(market:MacMarketId,start:u32,count:u32)->Result<MacRequest>{if count>1000{return Err(invalid("MAC goods page count exceeds 1000"));}let mut body=Vec::with_capacity(10);put_u16(&mut body,market.get());put_u32(&mut body,start);put_u32(&mut body,count);build_request(0x2562,&body,MAC_HEAD_FLAG)}
-fn file_name_wire(name:&str)->Result<[u8;70]>{if name.is_empty()||name.contains('\0'){return Err(invalid("remote MAC filename must be nonempty and contain no NUL"));}let code=MacCode::new(name)?;if code.encoded().len()>70{return Err(invalid("remote MAC filename exceeds 70 GBK bytes"));}let mut out=[0;70];out[..code.encoded().len()].copy_from_slice(code.encoded());Ok(out)}
+fn file_name_wire(name:&str)->Result<[u8;70]>{Ok(crate::mac::models::RemoteFileName::new(name)?.wire_bytes())}
 pub fn file_meta_request(name:&str,offset:u32)->Result<MacRequest>{let mut body=Vec::with_capacity(104);put_u32(&mut body,offset);body.extend_from_slice(&file_name_wire(name)?);body.extend_from_slice(&[0;30]);build_request(0x1215,&body,MAC_HEAD_FLAG)}
 pub fn download_chunk_request(name:&str,index:u32,offset:u32,size:u32)->Result<MacRequest>{if size==0||size>30000{return Err(invalid("MAC file chunk size must be in 1..=30000"));}let mut body=Vec::with_capacity(112);put_u32(&mut body,index);put_u32(&mut body,offset);put_u32(&mut body,size);body.extend_from_slice(&file_name_wire(name)?);body.extend_from_slice(&[0;30]);build_request(0x1217,&body,MAC_HEAD_FLAG)}
 

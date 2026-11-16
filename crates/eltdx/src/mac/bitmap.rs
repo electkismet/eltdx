@@ -1,5 +1,5 @@
 //! Source-defined MAC bitmap schema and slot positioning.
-use eltdx::{Error, ErrorKind, Result};
+use crate::{Error, ErrorKind, Result};
 use crate::mac::models::{FieldContext, FieldMeaning, NativeUnit, SlotKind, SlotValue, WireFloat};
 
 pub const BITMAP_BYTES: usize = 20;

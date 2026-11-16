@@ -1,5 +1,10 @@
 # T25 Stage A report
 
+Latest status: Stage B simple-response groundwork is now authored; read the
+Stage B checkpoint at the end of this report. T25 remains partial. Historical
+Stage A statements about missing simple codecs do not describe the latest
+tree; owners, profiles, checked queries and public registration remain pending.
+
 Status: isolated source checkpoint authored; not a public MAC feature and not a claim that T25 is complete. Authority read: `.superpowers/sdd/development-plan/task-25-stage-a-brief.md`, the complete `.superpowers/sdd/development-plan/task-25-brief.md`, extension API spec §§1, 4 and 5, development plan T25, and original Python MAC bitmap/enums/commands/models/codec plus MAC-EX command/model/login/client/HK routing sources. T24 Stage A baseline `04f613a` was treated as fixed. No shared or Python file was edited.
 
 Implementation and authored source tests are commit `c87e5b0` (`feat(mac): add stage A bitmap and wire codecs`); this report is committed separately so the implementation checkpoint stays identifiable.
@@ -39,3 +44,79 @@ The files staged for the next integration are `crates/eltdx/src/mac/{mod.rs,bitm
 The source keeps identities, bitmap selection and pure payload codecs separate from session/transport code, preserves unknown legal response slots and full bitmap bytes, records raw bar and scalar bits, and checks declared quote/bar/transaction cardinality exactly. Context aliases are chosen during projection without changing their bit. The principal incompleteness is breadth: several simple command responses and typed endpoint schemas remain for Stage B; the report intentionally does not describe those as covered. There is no MAC client, public feature registration, profile, handshake lifecycle, host selection, budget/cancellation, pagination, retry/failover, T26 composite support, or T27 compatibility implementation here.
 
 No tests, collection, build/check, clippy, doctest, dependency resolution, download/network, compiler/AST/format/diff check, or equivalent validation was run. All authored tests remain unexecuted until every T01–T30 implementation is complete, as required by the task boundary.
+
+## Stage B checkpoint 1 — simple response schemas (2026-11-17, stage76)
+
+Base `d8b0e48`. Re-read the complete original MAC commands/models/codec/transport
+and MAC-EX login/command/client routing sources, plus extension spec §§4–5.
+Authored `mac/responses.rs` and `mac/decode.rs` without copying the EX network
+loop or changing Python. This is a source checkpoint, not T25 completion.
+
+The simple codecs now cover single-day and five-day charts, symbol snapshots,
+board/leader records, sampling, goods, auction, unusual, server session,
+file metadata/download chunks, and both distinct 0x1218 JSON shapes. Existing
+Stage A quote/bar/transaction/kline-offset codecs remain the only definitions
+of their layouts. Every count-based fixed layout checks its aggregate length
+before allocating rows; truncated records fail Protocol rather than appearing
+as empty successful pages. Unknown snapshot fields, symbol/server/file tails,
+unusual raw records, source identity bytes, native float bits and unresolved
+units remain observable. New response DTO fields have private construction and
+getters. No prices/volumes are scaled from their field names.
+
+The shared chart tail is **120 bytes**, derived field by field from source
+`<44sBHf5x2I5ffIf12s2fI>`, not 128. Single-day ticks are 18 bytes; multi-day
+ticks are 14 bytes. Multi-day dates/count/page_size and exact tick payload are
+checked; a short first day is followed by complete days and then empty days.
+Bad date slots, zero active page size, totals exceeding day capacity and partial
+tails fail Protocol. Single-day valid zero-tick charts still require their
+header and snapshot tail. Symbol HHMMSS is distinct from transaction seconds;
+both zero date/time represent absent symbol event time.
+
+Server-info is parsed from source field spans: 22-byte prefix, today at22,
+timestamp at26, two16-byte window groups at30/46, flag at62, previous day at63,
+timestamp at67. The complete core is71 bytes; optional u32s occupy71/75 and
+must individually be complete. Bytes after79 are retained. This strict model
+does not copy Python's historical87-byte minimum-to-empty projection; T27 must
+preserve that projection separately. Invalid observed server dates keep raw
+and source text with parsed=None; the future DataReady path must require a
+valid today and attach diagnostics. They are not silently calendar dates.
+
+0x1218 ignores exactly27 prefix bytes before strict GBK/JSON decoding. Belonging
+boards validate9/13-element source rows; capital-flow preserves separate today
+and five-day tables, absent/null/present/derived states and source JSON scalars.
+Missing amounts are None, not fabricated0; numeric invalid/nonfinite fields
+fail Protocol. Main/small net is derived only from two present operands. Mid/
+large five-day net uses source indices4/3; no date is invented. Valid empty JSON
+arrays retain the source no-object semantics. These strict results must not
+replace Python's lenient defaults or exception/conversion order in T27.
+
+`RemoteFileName` now independently validates nonempty/NUL-free strict GBK<=70B.
+The previous helper incorrectly constructed `MacCode` first, limiting names to
+22B. Resource encoders use the new name check; chunk data validates its complete
+8-byte prefix and never exceeds requested bytes. Hash bytes/text are retained
+without asserting a digest algorithm. MacCode owns the GBK Cow before moving
+its source text. Stage A crate-local imports/FieldContext visibility were
+corrected, and source integration cases are explicitly gated by feature mac.
+
+Authored14 unexecuted `tests/mac_responses.rs` functions for filename boundaries,
+nonempty/empty/partial charts, short-first-day partition, invalid date/count/
+page size, snapshot source offsets/seconds/negative-zero/NaN bits, board leader
+identity and pairing, goods placeholder bits, signed auction quantity,
+unknown unusual kind/name suffix, observed bad server date/optional parameter,
+sampling variable length, resource prefix/hash/bounds, GBK JSON prefix and
+capital-flow presence/nonfinite/error behavior. Existing7 mac_wire functions
+remain source only. The implementation index records all36 public entries
+as pending owner/query integration rather than false completed methods.
+
+Next: checked query/enums/page DTOs and explicit conversions, standard-MAC
+OptionalReply boundary and MAC-EX login verifier/profile, then independent
+owners using T24 Session/worker/transport and full public simple methods. Keep
+T26 directory/aggregate/download/adjustment services and T27 compatibility
+separate. Production optional-setup and login-acceptance captures are still
+missing: do not invent acknowledgment fields or call a quiet timeout a proven
+boundary. T25 module remains unregistered until its actual owner exists.
+
+No test/collection/build/check/clippy/doctest/dependency/network/AST/compiler/
+format/diff-check or equivalent execution occurred. Only source reads/edits,
+ordinary Git diff/status and a hooks-disabled checkpoint are allowed. Counts
+remain23 source complete/2 partial/5 unstarted; active goal has no quota.

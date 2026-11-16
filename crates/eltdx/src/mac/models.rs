@@ -1,6 +1,6 @@
 //! Source-native MAC identities and values. No owner or transport state lives here.
 use encoding_rs::GBK;
-use eltdx::{Error, ErrorKind, Result};
+use crate::{Error, ErrorKind, Result};
 
 fn invalid(message: impl Into<String>) -> Error {
     Error::new(ErrorKind::InvalidArgument, message).with_context("domain", "mac")
@@ -26,12 +26,37 @@ impl MacCode {
         let (wire, _, had_errors) = GBK.encode(&text);
         if had_errors { return Err(invalid("MAC code is not representable in GBK")); }
         if wire.len() > 22 { return Err(invalid("MAC code exceeds the 22-byte MAC wire field")); }
-        Ok(Self { text, wire: wire.into_owned() })
+        let wire = wire.into_owned();
+        Ok(Self { text, wire })
     }
     pub fn as_str(&self) -> &str { &self.text }
     pub fn encoded(&self) -> &[u8] { &self.wire }
     pub fn wire_bytes(&self) -> [u8; 22] {
         let mut bytes = [0; 22];
+        bytes[..self.wire.len()].copy_from_slice(&self.wire);
+        bytes
+    }
+}
+
+/// A server-side resource name has its own 70-byte field. It is not a
+/// security code and is never interpreted as a local filesystem path.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct RemoteFileName { text: String, wire: Vec<u8> }
+impl RemoteFileName {
+    pub fn new(value: impl Into<String>) -> Result<Self> {
+        let text = value.into();
+        if text.is_empty() || text.contains('\0') {
+            return Err(invalid("remote MAC filename must be nonempty and contain no NUL"));
+        }
+        let (wire, _, errors) = GBK.encode(&text);
+        if errors { return Err(invalid("remote MAC filename is not representable in GBK")); }
+        if wire.len() > 70 { return Err(invalid("remote MAC filename exceeds 70 GBK bytes")); }
+        Ok(Self { wire: wire.into_owned(), text })
+    }
+    pub fn as_str(&self) -> &str { &self.text }
+    pub fn encoded(&self) -> &[u8] { &self.wire }
+    pub fn wire_bytes(&self) -> [u8; 70] {
+        let mut bytes = [0; 70];
         bytes[..self.wire.len()].copy_from_slice(&self.wire);
         bytes
     }

@@ -6,6 +6,9 @@ pub mod bitmap;
 pub mod commands;
 pub mod models;
 pub mod routing;
+pub mod responses;
+pub mod decode;
 
 pub use bitmap::{FieldId, FieldSelection, PresetField};
-pub use models::{MacCode, MacInstrumentId, MacMarketId, WireFloat};
+pub use models::{MacCode, MacInstrumentId, MacMarketId, RemoteFileName, WireFloat};
+pub use responses::*;

@@ -2,6 +2,18 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage76: based8b0e48. T25 Stage B simple-response
+  schemas/strict codecs authored in mac/{responses,decode}.rs: charts/symbol/
+  boards/sampling/goods/auction/unusual/server/files and both27B-prefixed GBK
+  JSON shapes. Preserves float bits/unknown units/observed dates/JSON presence;
+  fixes filename70B versus code22B and Stage A crate imports. Added14 unexecuted
+  mac_responses source functions; existing7 mac_wire remain source only. New
+  mac-implementation-index documents36 pending public routes/ownership and
+  T26/T27 handoff. T25 remains partial/unregistered: checked queries, profiles,
+  strict login/OptionalReply boundary, owner/client/management still required.
+  Read task-25-report Stage B checkpoint1 before continuing.23/2/5 unchanged;
+  active unlimited goal, all execution postponed, no agents/publication.
+
 - Latest recovery2026-11-17 stage75: base3bc08b4. T24 source scope complete:
   added immutable per-session SetupProfile/ExProfile and checked internal
   Encoded work seam for T25 reuse, pre-read remaining-byte admission and

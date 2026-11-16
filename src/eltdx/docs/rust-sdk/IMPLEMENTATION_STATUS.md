@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第七十六段恢复点：基础`d8b0e48`。T25补简单响应模型和严格解析源码，覆盖分时/多日图/快照/板块/采样/商品/竞价/异动/服务器/文件及27字节prefix后的两类GBK JSON；保留浮点bits、未知单位、原日期和缺失/null/零值差别。修正文件名误受22B代码限制，独立RemoteFileName按70B校验；新增14个未执行用例函数和MAC完整入口/后续归属索引。T25仍部分，尚需checked queries、握手/profile、owner/client/管理和公开登记；23源码完整/2部分/5未开始不变。全部执行验证继续延期，目标active无额度限制；下一步按task-25-report Stage B checkpoint1恢复。
+
 2026-11-17第七十五段恢复点：EX首批实现已提交`3bc08b4`。T24补齐不可变SetupProfile/ExProfile及受控Encoded内部接入点，读取前共享剩余字节检查、body前声明解码字节计账和健康排除；新增15个实际公开ExClient生命周期/回环用例函数源码与std-only ex_query示例，均未编译/执行。完整11方法/管理/配置/owner/预算/raw/关联证据边界及T25–T28交接已写入ex-implementation-index.md并镜像。T24源码范围完成；23源码完整/2部分（T19/T25）/5未开始（T26–T30）。下一步MAC/MAC-EX Stage B，复用现有门、worker、profile及frame I/O；全部执行验证继续延期，目标active无额度限制。
 
 2026-11-17第七十四段恢复点：基础提交`c648799`。T24 Stage B首批源码已接入独立ExClient/Builder、11个具名业务入口、共用owner/取消/清理和完整请求串行门；持久非阻塞socket在受登记worker间移交，完整setup响应才Ready，严格解码后才发布，传输错误退役旧socket后才用同一授权重试。补显式8并发DataReady/TcpOnly探测、刷新/最佳主机和同一总期限/字节/尝试预算；普通单页Unknown与raw显式覆盖、feature依赖/root登记已写。T24仍部分，继续生命周期/回环用例源码、限定源码自审和完整交接；22源码完整/3部分/5未开始不变。全部源码未编译/执行，全部执行验证延期；目标active无额度限制，无子代理或发布。
