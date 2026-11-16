@@ -6,6 +6,15 @@ mod money_flow;
 mod quotes;
 mod recovery;
 mod corporate;
+mod resources;
+mod company_info;
+mod session;
+mod health;
+mod stats_projection;
+pub use resources::ResourceService;
+pub use company_info::CompanyInfoService;
+pub use session::SessionService;
+pub use health::HealthService;
 mod limits;
 pub use corporate::CorporateService;
 pub use limits::LimitService;
@@ -70,6 +79,17 @@ fn result_meta(
     };
     ResultMeta::new(SourceStamp::new(source.command, source.endpoint, format!("owner-{:x}", context.session_id),
         snapshot.map(MetadataSnapshot::version), None), diagnostics, retained)
+}
+
+/// Preserve request and physical source identities for unpriced HQ domains.
+fn reply_meta(context: &OperationContext, config: &ClientConfig, reply: &DecodedReply,
+    ranges: &[RecordRange], source: &str) -> ResultMeta {
+    result_meta(context, config, None, &ServiceSource::from_reply(reply), Some(reply.payload.clone()),
+        reply.wire.as_ref().map(|wire| wire.raw.clone()), ranges, source)
+        .with_diagnostic(Diagnostic::new(source, "identity", EnrichmentStatus::Succeeded, None,
+            Some(format!("request={:?}; epoch={:?}; slot={:?}; generation={:?}; receive_sequence={}",
+                reply.source.request_id, reply.source.engine_epoch, reply.source.slot_id,
+                reply.source.generation, reply.source.receive_sequence))))
 }
 
 /// Preserve each response's origin and one shared backing payload per page.

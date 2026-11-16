@@ -14,6 +14,30 @@ pub(crate) enum InvalidBytePolicy {
     Ignore,
 }
 
+/// Encode strict Python GBK using the same source mapping as decoding. The
+/// caller's small byte bound also bounds the reverse lookup work and allocation.
+pub(crate) fn encode_gbk_bounded(value: &str, maximum: usize) -> crate::Result<Vec<u8>> {
+    use crate::{Error, ErrorKind};
+    let invalid = || Error::new(ErrorKind::InvalidArgument, "filename must be nonempty strict GBK without NUL and within its byte limit");
+    if value.is_empty() || value.len() > maximum.saturating_mul(4) || value.as_bytes().contains(&0) { return Err(invalid()); }
+    let mut output = Vec::new();
+    output.try_reserve_exact(maximum).map_err(|error| Error::new(ErrorKind::LimitExceeded, "GBK filename allocation failed").with_source(error))?;
+    for scalar in value.chars() {
+        if scalar.is_ascii() {
+            if output.len() == maximum { return Err(invalid()); }
+            output.push(scalar as u8);
+        } else {
+            if output.len().checked_add(2).is_none_or(|length| length > maximum) { return Err(invalid()); }
+            let index = gbk_pairs::GBK_PAIRS.iter().position(|candidate| *candidate == u32::from(scalar)).ok_or_else(invalid)?;
+            let lead = 0x81 + index / 190;
+            let trail_index = index % 190;
+            let trail = 0x40 + trail_index + usize::from(trail_index >= 63);
+            output.extend_from_slice(&[lead as u8, trail as u8]);
+        }
+    }
+    Ok(output)
+}
+
 /// Strict Python GBK mapping for exactly two bytes. Undefined pairs, invalid
 /// lead/trail bytes and standalone ASCII return None. Zero is the source table's
 /// undefined sentinel; ASCII NUL is handled separately by the scanner.

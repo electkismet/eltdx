@@ -138,6 +138,18 @@ pub struct TdxClient {
 }
 
 impl TdxClient {
+    pub fn resources(&self) -> crate::services::ResourceService {
+        crate::services::ResourceService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+    }
+    pub fn company_info(&self) -> crate::services::CompanyInfoService {
+        crate::services::CompanyInfoService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+    }
+    pub fn session(&self) -> crate::services::SessionService {
+        crate::services::SessionService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+    }
+    pub fn health(&self) -> crate::services::HealthService {
+        crate::services::HealthService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+    }
     pub fn corporate(&self) -> crate::services::CorporateService {
         crate::services::CorporateService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
     }

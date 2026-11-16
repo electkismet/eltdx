@@ -1,5 +1,68 @@
 # T17 Stage A — bounded archive and source statistics checkpoint
 
+## Stage B implementation checkpoint — 2026-11-16
+
+All twelve M67–M78 public method sources and their lazy TdxClient getters are
+now authored. This section supersedes historical notes that root/Cargo/shared
+GBK wiring was still missing. T17 source implementation and limited self-review
+are complete; no independent review or execution is claimed.
+
+- Registered the single archive/stats decoder in default HQ and exact provisional
+  zip0.6.6(deflate only)/crc32fast1.5.0 dependencies. Wrote
+  docs/rust-sdk/dependency-decisions.md. No resolution/download/lockfile update,
+  compiler, tests or license/advisory verification was run.
+- Added types/resources.rs, types/company_info.rs and types/session.rs with
+  DownloadResult/Completion, stats/source DTOs, Table, company queries/content,
+  handshake/heartbeat/local ping and endpoint-bearing health reports.
+- Added services/resources.rs/company_info.rs/session.rs/health.rs and private
+  stats_projection.rs. One operation and pin spans every download page. Exact
+  range/cap is not EOF; short/empty validated content is. Zero cap avoids I/O;
+  strict download rejects uncertain completeness. A compressed-cap-plus-one
+  allowance is checked before archive construction; pin is retired before CPU
+  decoding, which still checks the same operation deadline/cancellation.
+- Added explicit physical request/epoch/slot/generation/receive-sequence source
+  diagnostics. Per-response provenance is bounded to65536 pages and128MiB
+  retained payload/frame buffers, including ignored protocol tails. This new
+  Rust resource guard is documented in the HQ spec and dependency decision;
+  it must not leak into Python legacy limits or counts.
+- Stats preserves source market/code/date/integer decimals/f64 units even when
+  public identity/date/u32/converted units are unavailable. Typed share values
+  multiply source ten-thousand shares by10000 in f64 with source provenance;
+  money becomes CNY and opening volumes stay Lots. Nullable conversion failure
+  records a bounded diagnostic, never fabricates a zero. Main-date/95%/prior-day
+  helper policy remains T18.
+- Company filenames use bounded reverse lookup of the existing strict GBK table.
+  Added an encoded-byte request constructor without changing the protocol legacy
+  string constructor. Added a reusable protocol business-content slice, while
+  retaining the old text parser signature. Rust name/body replacement loss is
+  explicit and byte offsets remain exact. Existing unpriced decoder now admits
+  only the additional resource/company request variants, no metadata fetch.
+- Local ping is available after close without admission/startup. Handshake and
+  heartbeat retain semantic control bytes under Omit; probe explicitly performs
+  heartbeat in its original context and reports actual endpoint and duration.
+- Authored public resource, company, HQ loopback, stats projection/oversize and
+  source-identity loss cases. Updated stats source cases to include the real
+  shared encoding module, removing the temporary fixture mapping. Fixture write
+  shutdown errors are treated as normal controlled disconnects, matching reads.
+
+Limited self-review corrected the public CodeQuery/list/cursor source-case
+signatures, fixture identities and local pong expectation; added nonzero control
+bytes/source dates, expired entry, controlled lost-pin/no-fallback and unknown
+stats identity/date/overflow projection cases. Found and corrected the existing
+CodeService::list context binding to be mutable before its work-limit setter.
+The retained raw cap is128MiB, allowing full valid32MiB statistics with both
+payload and wire while still bounding oversized trailing bytes. No source review
+claim establishes decoder/runtime behavior. Final independent ZIP corpus and
+dependency/MSRV/license checks remain E04/final unified validation obligations.
+
+T18 handoff: all HQ service seams are now present. Keep Python zero-cap pin
+observation, optional/unlimited download cap, chunk_size and per-request timeout
+policy explicit; do not apply new Rust provenance caps to legacy work. Preserve
+original finance/stat fields and helper date/coverage rules. T22 reuses the same
+decoder/preset and in-context download seam. Update migration evidence only when
+the actual Python/native adapter is authored, not on this T17 source completion.
+All authored cases remain unexecuted; runtime dependency behavior is provisional.
+
 ## Stage A2 — approved shared GBK extraction checkpoint
 
 Controller source-only review approved Stage A `cd6735b` with no findings, then

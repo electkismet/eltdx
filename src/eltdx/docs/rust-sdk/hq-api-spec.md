@@ -356,6 +356,8 @@ M67–69与主规格逐字同契约：`DownloadResult { pub data: Bytes, pub com
 
 path为trim后非空ASCII、无NUL、<=300bytes，反斜杠规范为正斜杠；只是服务端path，不等于允许在本机写同名文件。Company filename trim后GBK编码1..80字节，目录name64字节/filename80字节/offset与length各u32；长度按字节而非Unicode字符计。旧编码遇不可编码字符的处置保留在Python桥接，新Rust拒绝有损文件名；不从传入路径扫描磁盘。stats采用32MiB+1探测，在展开前拒绝超限；必须存在唯一tdxstat.cfg与tdxstat2.cfg，拒绝重复、加密、展开超限。解析两表本身不要求同日期；供shortline/daily shares使用时才验主日期与覆盖门槛。旧Python download_file的max_bytes截取bytes/None语义不变。
 
+T17实施保护：保留逐响应来源的Rust资源下载最多65536个响应页，所保留payload及wire frame总计最多128MiB；即使content很短，合法未知尾部也计入原始缓冲区上限。达到这些独立工作量限制返回LimitExceeded并清理pin，不误标EOF。这些限制不应用于Python legacy路径。StatRow/Stat2Row的id getter为Option<&SecurityId>，未知market/code继续保留source_market/source_code；日期保留原字符串，计数和单位转换不可表示时为None并记录诊断，原始有限数值/十进制计数字符串仍可读。受限纯整数统计和原金额字段不被替换成零。
+
 ## 11. 完整行情、目录、排行与profile helpers（T18）
 
 旧签名（S05）：full_quotes(codes)；latest_stock_list/latest_st/latest_suspended(market=None)；buy_sell_strength/volume_comparison(code,include_raw=False)；realtime_rank(category="沪深A股",sort_by="涨幅",count=80,ascending=False)；stock_profile_table(codes,include_security=True,include_finance=True)。原stock_realtime_rank为alias。

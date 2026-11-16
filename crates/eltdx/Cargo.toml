@@ -17,6 +17,8 @@ full = ["serde", "offline", "f10", "ex", "mac"]
 
 [dependencies]
 bytes.workspace = true
+crc32fast.workspace = true
+zip.workspace = true
 encoding_rs.workspace = true
 eltdx-protocol = { path = "../eltdx-protocol" }
 eltdx-runtime = { path = "../eltdx-runtime" }

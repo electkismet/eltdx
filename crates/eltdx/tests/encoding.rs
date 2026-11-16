@@ -1,6 +1,8 @@
 //! Shared GBK source cases. Authored only; do not execute before the plan gate.
 #![allow(dead_code)]
 
+pub use eltdx::{Error, ErrorKind, Result};
+
 #[path = "../src/encoding/mod.rs"]
 mod encoding;
 

@@ -46,6 +46,15 @@ impl Server {
     }
 
     pub fn start_controlled(handler: impl Fn(&RequestFrame, &Connection) -> Vec<u8> + Send + Sync + 'static) -> io::Result<Self> {
+        Self::start_profile(handler, false)
+    }
+
+    /// Allows explicit session business bytes as well as ordinary commands.
+    pub fn start_all(handler: impl Fn(&RequestFrame) -> Vec<u8> + Send + Sync + 'static) -> io::Result<Self> {
+        Self::start_profile(move |request, _| handler(request), true)
+    }
+
+    fn start_profile(handler: impl Fn(&RequestFrame, &Connection) -> Vec<u8> + Send + Sync + 'static, custom_session: bool) -> io::Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         listener.set_nonblocking(true)?;
         let address = listener.local_addr()?;
@@ -75,12 +84,16 @@ impl Server {
                                         | io::ErrorKind::ConnectionAborted | io::ErrorKind::NotConnected) => return Ok(()),
                                     Err(error) => return Err(error),
                                 };
-                                let payload = match request.msg_type {
+                                let payload = if custom_session { handler(&request, &connection) } else { match request.msg_type {
                                     0x000d => vec![0; 189],
                                     0x0004 => vec![0; 10],
                                     _ => handler(&request, &connection),
-                                };
-                                connection.write(&response(&request, &payload))?;
+                                } };
+                                if let Err(error) = connection.write(&response(&request, &payload)) {
+                                    if matches!(error.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::NotConnected
+                                        | io::ErrorKind::ConnectionReset | io::ErrorKind::ConnectionAborted) { return Ok(()); }
+                                    return Err(error);
+                                }
                             }
                             Ok(())
                         }));

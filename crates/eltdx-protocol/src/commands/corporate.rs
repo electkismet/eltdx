@@ -713,6 +713,16 @@ pub struct CompanyInfoContentRequest {
 }
 
 impl CompanyInfoContentRequest {
+    /// Strict callers can supply bytes encoded by their source-compatible GBK
+    /// policy. The existing text constructor keeps its legacy encoding policy.
+    pub fn from_encoded_filename(market: Market, code: &str, filename: Vec<u8>, offset: u32, length: u32) -> Result<Self, ProtocolError> {
+        let code = normalize_numeric_code(code)?;
+        if filename.is_empty() || filename.len() > COMPANY_INFO_CONTENT_FILENAME_SIZE || filename.contains(&0)
+            || length == 0 || offset.checked_add(length).is_none() {
+            return Err(ProtocolError::invalid_argument("company info", "invalid encoded filename or byte range"));
+        }
+        Ok(Self { market, code, filename, offset, length })
+    }
     pub fn new(
         market: Market,
         code: &str,
@@ -849,6 +859,11 @@ pub fn parse_company_info_category_payload(
 }
 
 pub fn parse_company_info_content_payload(payload: &[u8]) -> Result<String, ProtocolError> {
+    Ok(decode_gbk_text(company_info_content_bytes(payload)?))
+}
+
+/// A bounded business byte slice, independent of the legacy lossy text policy.
+pub fn company_info_content_bytes(payload: &[u8]) -> Result<&[u8], ProtocolError> {
     check_payload(payload, "company info content")?;
     if payload.len() < COMPANY_INFO_CONTENT_HEADER_SIZE {
         return Err(ProtocolError::invalid_data(
@@ -871,9 +886,7 @@ pub fn parse_company_info_content_payload(payload: &[u8]) -> Result<String, Prot
             "truncated company info content payload",
         ));
     }
-    Ok(decode_gbk_text(
-        &payload[COMPANY_INFO_CONTENT_HEADER_SIZE..end],
-    ))
+    Ok(&payload[COMPANY_INFO_CONTENT_HEADER_SIZE..end])
 }
 
 fn normalize_numeric_code(value: &str) -> Result<String, ProtocolError> {

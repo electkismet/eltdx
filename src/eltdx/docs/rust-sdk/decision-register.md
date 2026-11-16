@@ -133,6 +133,8 @@ T01–T03优先冻结契约并录制基线，随后实施各域。不得以文�
 
 T16实施补正（2026-11-16）：M60 `CalendarService::today` 返回 `Result<TradingDate>`。T10已实现的Clock::unix_seconds本来就返回Result，系统时钟也可能超出受支持日期范围；返回裸TradingDate无法完整传播错误，且不得panic或编造日期。此处在未发布的新Rust入口修正签名，Python旧today由T18按原兼容边界映射。新增失败时钟源码用例，执行延期；不是已验证兼容证据。
 
+T17实施补充（2026-11-16）：共享ZIP依赖源码选定zip=0.6.6（仅deflate）与crc32fast=1.5.0，详情见dependency-decisions.md。MSRV、许可证、依赖解析/lock及运行行为仍为待最终验证，E04不解除。需要保留逐响应来源的Rust资源下载增加65536响应页/128MiB原始payload+wire工作量上限，达到上限为LimitExceeded并清理pin；Python旧路径不继承这些限额。未知统计身份保留源market/code且typed id为None；不能表示的日期/计数/单位转换为None+诊断，保留原日期字符串、计数字符串与源数值。这是新Rust投影规则，旧Python源模型不删字段、不改单位。
+
 可以验证：静态快照重新生成一致、所有源码链接对应固定提交、Markdown链接与表格/围栏、MkDocs严格构建、根文档/包内镜像一致、已有文档测试。
 
 不能据此声称：拟议Rust API编译成功、所有业务与Python一致、线上行情正确、性能提高、wheel支持某个平台或已发布。上述结论必须等待实现后的独立验收。

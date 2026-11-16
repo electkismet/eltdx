@@ -273,6 +273,12 @@ pub struct Quantity {
 }
 
 impl Quantity {
+    pub fn shares_from_ten_thousands_f64(value: f64, provenance: ValueProvenance) -> crate::Result<Self> {
+        let converted = value * 10_000.0;
+        if !value.is_finite() || !converted.is_finite() { return Err(conversion_error("ten-thousand-share value cannot be converted to finite shares")); }
+        Ok(Self { value: NumericValue::F64(converted), source_value: NumericValue::F64(value),
+            unit: QuantityUnit::Shares, source_unit: QuantityUnit::TenThousandShares, provenance })
+    }
     pub fn shares_from_ten_thousands(value: f32, provenance: ValueProvenance) -> crate::Result<Self> {
         if !value.is_finite() { return Err(conversion_error("non-finite ten-thousand-share wire value")); }
         Ok(Self { value: NumericValue::F64(f64::from(value) * 10_000.0), source_value: NumericValue::F32(value),

@@ -2,25 +2,18 @@
 //! Include private modules so these cases need no temporary public parser API.
 #![allow(dead_code)]
 
-pub use eltdx::error;
-// Temporary fixture implementation of the future crate-private shared GBK seam.
-// Production integration must use T21's complete source-derived scalar table.
-mod encoding {
-    pub(crate) fn gbk_scalar(lead: u8, trail: u8) -> Option<char> {
-        match (lead, trail) {
-            (0xb9, 0xab) => Some('公'), (0xcb, 0xbe) => Some('司'),
-            (0xa3, 0xb0..=0xb9) => char::from_u32(0xff10 + u32::from(trail - 0xb0)),
-            _ => None,
-        }
-    }
-}
+pub use eltdx::{error, Result};
+#[path = "../src/encoding/mod.rs"]
+mod encoding;
 #[path = "../src/archive.rs"]
 mod archive;
 #[path = "../src/stats.rs"]
 mod stats;
 
+#[path = "support/hq_server.rs"] mod hq_server;
+
 use std::io::{Cursor, Write};
-use eltdx::{Error, ErrorKind};
+pub use eltdx::{Error, ErrorKind};
 use zip::write::FileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
@@ -50,6 +43,73 @@ fn stat2_line() -> String {
         parts[index] = value;
     }
     parts.join("|")
+}
+
+#[test]
+fn public_stats_service_downloads_decodes_and_projects_both_source_tables() {
+    use eltdx::{AmountUnit, OperationOptions, QuantityUnit, RawPolicy, SecurityId, StatsQuery, TdxClient, TradingDate};
+    let stat = stat_line(); let stat2 = stat2_line();
+    let payload = archive(&[("tdxstat.cfg", stat.as_bytes()), ("tdxstat2.cfg", stat2.as_bytes())], CompressionMethod::Deflated);
+    let server = hq_server::Server::start(move |request| {
+        assert_eq!(request.msg_type, 0x06b9);
+        let offset = u32::from_le_bytes(request.data[..4].try_into().unwrap()) as usize;
+        let size = u32::from_le_bytes(request.data[4..8].try_into().unwrap()) as usize;
+        let data = &payload[offset.min(payload.len())..offset.saturating_add(size).min(payload.len())];
+        let mut bytes = (data.len() as u32).to_le_bytes().to_vec(); bytes.extend_from_slice(data); bytes
+    }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).pool_size(1).heartbeat_interval(None).build().unwrap();
+    let value = client.resources().read_stats(&StatsQuery::new().with_chunk_size(37).unwrap(),
+        &OperationOptions::default().with_raw(RawPolicy::RetainPayload)).unwrap();
+    let id = SecurityId::new(eltdx::HqMarket::Shenzhen, "000001").unwrap();
+    let stat = value.stat_for(&id).unwrap(); let stat2 = value.stat2_for(&id).unwrap();
+    assert_eq!(value.source_path(), "tdx://zhb.zip"); assert_eq!(stat.stats_date(), Some(TradingDate::new(2026, 7, 10).unwrap()));
+    assert_eq!(stat2.stats_date(), Some(TradingDate::new(2026, 7, 11).unwrap()));
+    assert_eq!(stat.free_float_shares().unwrap().unit(), QuantityUnit::Shares);
+    assert_eq!(stat.free_float_shares().unwrap().source_unit(), QuantityUnit::TenThousandShares);
+    assert_eq!(stat.free_float_shares().unwrap().value().as_f64(), 2_000_000.0);
+    assert_eq!(stat2.amount().unwrap().unit(), AmountUnit::Cny); assert_eq!(stat2.amount().unwrap().source_unit(), AmountUnit::TenThousandCny);
+    assert_eq!(stat2.amount().unwrap().value().as_f64(), 242501.84 * 10_000.0);
+    assert_eq!(stat2.open_volume().unwrap().unit(), QuantityUnit::Lots); assert_eq!(stat2.open_volume().unwrap().value().as_f64(), 11141.0);
+    assert_eq!(stat.source_counts()[0].as_deref(), Some("9")); assert!(value.meta().raw().unwrap().payloads().len() > 1);
+    assert!(value.meta().sources().iter().all(|source| source.endpoint() == Some(server.address)));
+    assert_eq!(server.connection_count(), 1); client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn public_stats_rejects_more_than_the_compressed_cap_before_inflate() {
+    use eltdx::{OperationOptions, StatsQuery, TdxClient};
+    let server = hq_server::Server::start(|request| {
+        let size = u32::from_le_bytes(request.data[4..8].try_into().unwrap()) as usize;
+        let mut payload = (size as u32).to_le_bytes().to_vec(); payload.resize(4 + size, b'x'); payload
+    }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).pool_size(1).heartbeat_interval(None).build().unwrap();
+    let error = client.resources().read_stats(&StatsQuery::new(), &OperationOptions::default().with_timeout(std::time::Duration::from_secs(120))).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::LimitExceeded); assert!(error.message().contains("resource byte cap"));
+    client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn public_stats_keeps_unknown_identity_dates_and_values_when_typed_projection_is_unavailable() {
+    use eltdx::{OperationOptions, StatsQuery, TdxClient};
+    let mut stat = stat_line().split('|').map(str::to_owned).collect::<Vec<_>>();
+    stat[0] = "9".to_owned(); stat[1] = "UNKNOWN".to_owned(); stat[4] = "20260230".to_owned();
+    stat[11] = "1e308".to_owned(); stat[26] = "-1".to_owned(); stat[31] = "4294967296".to_owned();
+    let mut stat2 = stat2_line().split('|').map(str::to_owned).collect::<Vec<_>>();
+    stat2[0] = "9".to_owned(); stat2[1] = "UNKNOWN".to_owned(); stat2[3] = "1e308".to_owned();
+    let stat = stat.join("|"); let stat2 = stat2.join("|");
+    let bytes = archive(&[("tdxstat.cfg", stat.as_bytes()), ("tdxstat2.cfg", stat2.as_bytes())], CompressionMethod::Stored);
+    let server = hq_server::Server::start(move |_| { let mut output = (bytes.len() as u32).to_le_bytes().to_vec(); output.extend_from_slice(&bytes); output }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+    let value = client.resources().read_stats(&StatsQuery::new(), &OperationOptions::default()).unwrap();
+    let stat = &value.stat()[0]; let stat2 = &value.stat2()[0];
+    assert!(stat.id().is_none()); assert_eq!(stat.source_market(), "9"); assert_eq!(stat.source_code(), "UNKNOWN");
+    assert!(stat.stats_date().is_none()); assert_eq!(stat.stats_date_raw(), Some("20260230"));
+    assert!(stat.free_float_shares().is_none()); assert_eq!(stat.free_float_shares_source_10k(), Some(1e308));
+    assert!(stat.year_limit_up_days().is_none()); assert!(stat.limit_stat_days().is_none());
+    assert_eq!(stat.source_counts()[0].as_deref(), Some("-1")); assert_eq!(stat.source_counts()[1].as_deref(), Some("4294967296"));
+    assert!(stat2.amount().is_none()); assert_eq!(stat2.source_values()[0], Some(1e308));
+    assert!(value.meta().diagnostics().iter().any(|value| value.stage() == "source_projection"));
+    client.close().unwrap(); server.finish().unwrap();
 }
 
 fn parse(bytes: &[u8]) -> eltdx::Result<stats::ParsedStats> {

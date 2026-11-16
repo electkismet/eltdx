@@ -145,7 +145,7 @@ impl CodeService {
 
     pub fn list(&self, market: HqMarket, query: &CodeQuery, options: &OperationOptions) -> Result<DataPage<Security>> {
         let entry = Instant::now();
-        let context = self.executor.begin_context_at(entry, "codes_list", &self.config, options)?;
+        let mut context = self.executor.begin_context_at(entry, "codes_list", &self.config, options)?;
         if query.limit() > 1_600 { return Err(query_error("limit", "must be between 0 and 1600")); }
         let version = self.executor.owner().metadata().catalog_version(&self.namespace, &[market])?;
         verify_cursor(query.cursor(), code_fingerprint(market, query.limit(), None), query.limit(), &context, version)?;
