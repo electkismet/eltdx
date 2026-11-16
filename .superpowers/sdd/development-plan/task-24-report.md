@@ -1,5 +1,66 @@
 # T24 Stage A source checkpoint report
 
+## Stage B source completion — 2026-11-17, base 3bc08b4
+
+**T24 implementation source scope is complete; no execution acceptance has
+passed.** This section supersedes older partial/GO-pending statements below.
+The first Stage B implementation commit is3bc08b4. The current checkpoint adds
+the final implementation seams, source cases, example and domain handoff.
+
+- `profile.rs` provides an immutable per-Session `SetupProfile` negotiation
+  interface and the concrete EX profile. Only that EX implementation emits
+  the92B setup; T25 must explicitly construct a different MAC/MAC-EX profile.
+  Crate-private `session/control/worker/transport` can be reused without
+  copying a second socket gate, budget, owner or frame implementation.
+  `Work::Encoded` admits an already checked internal profile command through
+  the same authorization/worker; no public bare socket API was added.
+- Shared `OperationSponsor::remaining_bytes` gates every read before acquiring
+  more bytes. The complete header's declared decoded size is charged before
+  body acquisition/decompression allocation. Existing frame limits still
+  validate the header before body accumulation. Wire and decoded work charge
+  the existing parent's byte counter, never a renewed child allowance.
+- Source review kept strict command decoding before persistent socket
+  publication, checked cancelled publication under the same session lock used
+  by caller retirement, and filtered healthy snapshots against candidates and
+  subsequent failures. Normal child completion does not consume the parent's
+  terminal cleanup budget. Profile/frame errors retain meaningful phases.
+- Authored `tests/ex_session.rs` contains15 unexecuted public-client source
+  functions: lazy defaults/clone-close/no-reopen; all11 typed methods/nonempty
+  values/compressed setup; raw default versus explicit Omit and Unknown versus
+  RequestedCount; transport-only failover with old-socket EOF barrier; strict
+  decoder Protocol without backup connect; partial-setup cancellation;
+  shared-close during partial business body; TcpOnly versus DataReady and
+  probe socket cleanup; last-owner Drop; pre-body byte cap; cancellation then
+  fresh operation without old-response leakage; concurrent different layouts;
+  parent discovery cancellation; two owners' range sequences; shared extra
+  attempt limit preventing physical backup connect with prior failure source.
+  Race cases use channels/barriers, not sleep-based readiness assertions.
+  Existing Stage A `ex_wire` carries literal requests and exhaustive pure frame
+  fragmentation/sequence-wrap/schema/time/config cases.
+- Added `examples/ex_query.rs`, required only feature ex, using std+eltdx and
+  an explicit numeric endpoint; it reads markets/one directory page and closes
+  even if the business operation returns an error. Example is not compiled/run.
+- Added/mirrored `docs/rust-sdk/ex-implementation-index.md` with complete
+  11-method and management/config maps, raw/native/page policy, ownership,
+  physical-attempt proof reasoning and T25/T26/T27/T28 handoff. Development
+  plan/status and recovery ledger now state23 source-complete/2 partial/5
+  unstarted. Every execution acceptance checkbox remains untouched.
+
+Remaining evidence is explicit: production magic/method/sequence capture rules
+and a legitimate absent-quote marker are not proven; responses retain an
+association-unverified diagnostic and a malformed/short quote is never None.
+Dependencies/lock, compiler/type checks, independent feature consumers,
+platform close/rename behavior and real-server evidence are still final-phase
+work. T25's MAC login/OptionalReply/simple schema breadth, T26 compositions,
+T27 Python timing/leniency/futures35-slots-vs34-names, and T28 public
+visibility/serde/consumer work are not described as completed T24 behavior.
+
+No tests, collection, build/check/clippy/doctest, dependency resolution,
+download/network, compiler/AST/formatter/diff-check or equivalent execution
+verification occurred. Only literal source authoring/reading, ordinary diffs,
+Git status and hooks-disabled exact-path checkpoints occurred. No agent, push,
+tag, publish or merge was used. Goal remains active without a token quota.
+
 ## Stage B first checkpoint — 2026-11-17, base c648799
 
 The user's existing all-T01–T30 execution authorization supersedes the old

@@ -151,6 +151,7 @@ impl FrameAccumulator {
     pub fn remaining(&self) -> usize {
         self.header.map_or(HEADER_SIZE, FrameHeader::frame_len).saturating_sub(self.raw.len())
     }
+    pub(crate) const fn header(&self) -> Option<FrameHeader> { self.header }
     /// EOF before completion is a protocol failure. A successful finish validates
     /// compressed setup responses exactly like business responses.
     pub fn finish(self) -> Result<Frame> {

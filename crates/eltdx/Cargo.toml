@@ -49,3 +49,7 @@ required-features = ["offline"]
 [[example]]
 name = "financial_download"
 required-features = ["offline"]
+
+[[example]]
+name = "ex_query"
+required-features = ["ex"]

@@ -30,14 +30,19 @@ pub(crate) struct Session {
     state: Mutex<State>,
     pub stopped: Arc<AtomicBool>,
     pub sequences: RangeSequence,
+    pub profile: Arc<dyn super::profile::SetupProfile>,
     next_generation: AtomicU64,
     gate: Arc<Gate>,
 }
 impl Session {
     pub fn new(candidates: Vec<SocketAddr>) -> Arc<Self> {
+        Self::with_profile(candidates, Arc::new(super::profile::ExProfile))
+    }
+    pub fn with_profile(candidates: Vec<super::hosts::Endpoint>, profile: Arc<dyn super::profile::SetupProfile>) -> Arc<Self> {
         Arc::new(Self {
             state: Mutex::new(State { connection: None, registered: false, candidates, excluded: Vec::new(), probes: Vec::new(), latest_meta: None }),
             stopped: Arc::new(AtomicBool::new(false)), sequences: RangeSequence::default(),
+            profile,
             next_generation: AtomicU64::new(1), gate: Arc::new(Gate::default()),
         })
     }

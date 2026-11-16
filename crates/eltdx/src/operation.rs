@@ -128,6 +128,12 @@ impl OperationSponsor {
         })
     }
 
+    #[cfg(feature = "ex")]
+    pub(crate) fn remaining_bytes(&self) -> Result<usize> {
+        self.budget.gate(Instant::now(), |state| Ok(self.limits.bytes
+            .map_or(usize::MAX, |maximum| maximum.saturating_sub(state.counters.bytes))))
+    }
+
     pub(crate) fn deadline(&self) -> Option<Instant> {
         match self.profile { ExecutionProfile::RustPublic { deadline, .. } => Some(deadline), _ => None }
     }

@@ -1,10 +1,11 @@
 //! Independent EX client, checked identities and bounded wire codecs.
 mod client;
-mod control;
+pub(crate) mod control;
 mod probe;
-mod session;
-mod transport;
-mod worker;
+pub(crate) mod profile;
+pub(crate) mod session;
+pub(crate) mod transport;
+pub(crate) mod worker;
 pub mod commands;
 pub mod config;
 pub mod frame;

@@ -2,6 +2,7 @@
 //! command, renewed operation clock, or independent retry budget is created.
 use std::net::SocketAddr;
 use std::sync::Arc;
+use bytes::Bytes;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use eltdx_runtime::execution::AttemptAuthorization;
@@ -9,12 +10,17 @@ use crate::{Error, ErrorKind, Result, TimeoutPhase};
 use super::commands::Request;
 use super::config::ExConfig;
 use super::control::{connection, Control};
-use super::frame::{Association, Frame, FrameAccumulator, FrameLimits, SETUP_REQUEST};
+use super::frame::{Association, Frame, FrameAccumulator, FrameLimits};
 use super::query::BarsRangeQuery;
 use super::session::{Connection, Session};
 
 #[derive(Clone, Debug)]
-pub(crate) enum Work { Connect, Request(Request), Range(BarsRangeQuery) }
+pub(crate) enum Work {
+    Connect, Request(Request), Range(BarsRangeQuery),
+    /// Already checked profile command bytes, admitted only through the same
+    /// owner/operation worker. This is not a public raw socket bypass.
+    Encoded(Bytes),
+}
 pub(crate) struct WireReply { pub frame: Option<Frame>, pub endpoint: SocketAddr, pub generation: u64 }
 
 pub(crate) async fn execute(
@@ -89,19 +95,20 @@ async fn attempt(
         (stream, session.next_generation()?)
     };
     if !was_ready {
-        write(&mut stream, &SETUP_REQUEST, TimeoutPhase::Handshake, control).await?;
         // A connection becomes Ready only after the entire setup response,
         // including decompression, validates. Never leave its body unread.
-        read_frame(&mut stream, config.frame_limits(), TimeoutPhase::Handshake, control).await?;
+        session.profile.negotiate(&mut stream, config.frame_limits(), control).await
+            .map_err(|error| error.with_context("profile", session.profile.name()))?;
     }
     let request = match work {
         Work::Connect => None,
-        Work::Request(request) => Some(request.clone()),
+        Work::Request(request) => Some(request.wire().clone()),
         Work::Range(query) => Some(super::commands::bars_range_request(query,
-            sequence.as_ref().ok_or_else(|| Error::new(ErrorKind::Internal, "range request lacks sequence lease"))?)),
+            sequence.as_ref().ok_or_else(|| Error::new(ErrorKind::Internal, "range request lacks sequence lease"))?).wire().clone()),
+        Work::Encoded(wire) => Some(wire.clone()),
     };
     let frame = if let Some(request) = request {
-        write(&mut stream, request.wire(), TimeoutPhase::Send, control).await?;
+        write(&mut stream, &request, TimeoutPhase::Send, control).await?;
         let frame = read_frame(&mut stream, config.frame_limits(), TimeoutPhase::Response, control).await?;
         control.check(TimeoutPhase::Decode)?;
         Some(frame)
@@ -116,13 +123,23 @@ pub(crate) async fn write(stream: &mut TcpStream, wire: &[u8], phase: TimeoutPha
     control.wait(phase, async { stream.write_all(wire).await.map_err(connection) }).await
 }
 pub(crate) async fn read_frame(stream: &mut TcpStream, limits: FrameLimits, phase: TimeoutPhase, control: &Control) -> Result<Frame> {
+    read_frame_inner(stream, limits, phase, control).await.map_err(|error| super::control::phase_error(error, phase))
+}
+async fn read_frame_inner(stream: &mut TcpStream, limits: FrameLimits, phase: TimeoutPhase, control: &Control) -> Result<Frame> {
     let mut accumulator = FrameAccumulator::new(limits, Association::default());
     let mut received = 0_usize;
+    let mut decode_charged = false;
     while accumulator.remaining() != 0 {
         // Exact remaining-byte reads never consume the beginning of another
         // frame, even when the peer coalesces its writes into one TCP segment.
         let mut buffer = [0_u8; 4096];
-        let maximum = buffer.len().min(accumulator.remaining());
+        let allowance = control.sponsor.remaining_bytes()?;
+        if allowance == 0 {
+            // This deliberately fails the existing limit gate before another
+            // byte is read; it never increments a separate local budget.
+            control.sponsor.record_bytes(1)?;
+        }
+        let maximum = buffer.len().min(accumulator.remaining()).min(allowance);
         let length = control.wait(phase, async { stream.read(&mut buffer[..maximum]).await.map_err(connection) }).await?;
         if length == 0 {
             return Err(if received == 0 { Error::new(ErrorKind::Connection, "EX peer closed before a response") }
@@ -132,9 +149,17 @@ pub(crate) async fn read_frame(stream: &mut TcpStream, limits: FrameLimits, phas
         let consumed = accumulator.push(&buffer[..length])?;
         if consumed != length { return Err(super::protocol("EX exact receive crossed a frame boundary")); }
         received += length;
+        if !decode_charged {
+            if let Some(header) = accumulator.header() {
+                // Charge the declared decoded bytes before body acquisition
+                // and bounded decompression allocate their output buffer.
+                control.sponsor.record_bytes(usize::from(header.decoded_len()))?;
+                decode_charged = true;
+            }
+        }
     }
-    control.check(TimeoutPhase::Decode)?;
-    let frame = accumulator.finish()?;
-    control.sponsor.record_bytes(frame.payload().len())?;
+    let decode_phase = if phase == TimeoutPhase::Handshake { phase } else { TimeoutPhase::Decode };
+    control.check(decode_phase)?;
+    let frame = accumulator.finish().map_err(|error| super::control::phase_error(error, decode_phase))?;
     Ok(frame)
 }

@@ -480,6 +480,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T24：EX profile、帧与命令族
 
+2026-11-17 Stage B源码收尾：独立ExClient/Builder、11个具名业务方法、共用owner/操作授权/串行门/取消清理、持久非阻塞socket、有界完整setup/帧/解压、显式8并发探测与最佳主机/刷新、单页Unknown及raw/provenance已写。补15个公开客户端用例函数和独立std示例源码、[完整实现交接](ex-implementation-index.md)。T24仅源码范围完成，下面验收复选框没有执行通过；23源码完整/2部分/5未开始。关联规则与缺失标记缺少生产抓包证据时保持明确unverified，不能用合成测试冒充。下一步T25复用已提供的SetupProfile/Session/worker/frame I/O接口；全部执行验证继续延期。
+
 **文件：** 新增 `src/ex/{mod,session,frame,commands,models,hosts}.rs`，命令增长时拆 `commands/`；新增 `tests/{ex_wire,ex_session}.rs`。
 
 - [ ] 精确验证92字节setup、完整响应读取、有界解压、序号规则和GBK/UTF-8差异。

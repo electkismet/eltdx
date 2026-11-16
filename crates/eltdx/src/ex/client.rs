@@ -63,7 +63,11 @@ impl ExClient {
     pub fn unhealthy_hosts(&self) -> Result<Vec<SocketAddr>> { self.inner.session.unhealthy() }
     /// Only a successful explicit DataReady probe supplies health evidence.
     pub fn healthy_hosts(&self) -> Result<Vec<super::hosts::Endpoint>> {
-        Ok(self.diagnostics()?.probes().iter().filter(|probe| probe.data_ready()).map(|probe| probe.endpoint()).collect())
+        let snapshot = self.diagnostics()?;
+        let excluded = self.unhealthy_hosts()?;
+        Ok(snapshot.probes().iter().filter(|probe| probe.data_ready()
+            && snapshot.candidates().contains(&probe.endpoint()) && !excluded.contains(&probe.endpoint()))
+            .map(|probe| probe.endpoint()).collect())
     }
     pub fn close(&self) -> Result<()> { self.inner.owner.close() }
     pub fn disconnect(&self) -> Result<()> { self.close() }

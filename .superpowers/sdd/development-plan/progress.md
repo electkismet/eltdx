@@ -2,6 +2,22 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage75: base3bc08b4. T24 source scope complete:
+  added immutable per-session SetupProfile/ExProfile and checked internal
+  Encoded work seam for T25 reuse, pre-read remaining-byte admission and
+  pre-body declared decode charging on the same sponsor, source-aware health
+  exclusions,15 public ExClient lifecycle/wire-loopback source functions and
+  std-only ex_query example. Full EX implementation/11-method/management/
+  config/budget/profile/raw/unknown-association handoff index is mirrored.
+  No source case or example was compiled/collected/run. Ordinary source reads/
+  diff self-review only; no tests/build/check/dependency/network/AST/format/
+  diff-check execution.23 source complete/2 partial(T19,T25)/5 unstarted
+  (T26–T30). Next T25 Stage B: read task-25-report/brief and original MAC
+  setup/login and missing simple schemas. Reuse ex::{session,profile,worker,
+  transport} crate-private seams; no EX92B setup on MAC-EX. Goal remains active
+  without quota; no agents/publication. T24 production association/absence
+  captures, dependency/platform checks remain explicit final-phase evidence.
+
 - Latest recovery2026-11-17 stage74: basec648799. T24 Stage B first source
   checkpoint adds independent lazy ExClient/Builder and all11 native method
   routes, irreversible shared owner close, one full-exchange gate, registered

@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第七十五段恢复点：EX首批实现已提交`3bc08b4`。T24补齐不可变SetupProfile/ExProfile及受控Encoded内部接入点，读取前共享剩余字节检查、body前声明解码字节计账和健康排除；新增15个实际公开ExClient生命周期/回环用例函数源码与std-only ex_query示例，均未编译/执行。完整11方法/管理/配置/owner/预算/raw/关联证据边界及T25–T28交接已写入ex-implementation-index.md并镜像。T24源码范围完成；23源码完整/2部分（T19/T25）/5未开始（T26–T30）。下一步MAC/MAC-EX Stage B，复用现有门、worker、profile及frame I/O；全部执行验证继续延期，目标active无额度限制。
+
 2026-11-17第七十四段恢复点：基础提交`c648799`。T24 Stage B首批源码已接入独立ExClient/Builder、11个具名业务入口、共用owner/取消/清理和完整请求串行门；持久非阻塞socket在受登记worker间移交，完整setup响应才Ready，严格解码后才发布，传输错误退役旧socket后才用同一授权重试。补显式8并发DataReady/TcpOnly探测、刷新/最佳主机和同一总期限/字节/尝试预算；普通单页Unknown与raw显式覆盖、feature依赖/root登记已写。T24仍部分，继续生命周期/回环用例源码、限定源码自审和完整交接；22源码完整/3部分/5未开始不变。全部源码未编译/执行，全部执行验证延期；目标active无额度限制，无子代理或发布。
 
 2026-11-17第七十三段恢复点：历史资金流已提交`d59a51c`。25个F10 catalog项和3个题材helper补齐source-only实现/兼容用例映射；补国际/债券/行业期货、字段模型、集合helper、历史资金流、offline及财报域证据，124能力权威计数与未验收状态不变。新增T23完整迁移/来源/feature/兼容/consumer索引，同步旧交接文档。T23源码范围完成；22源码完整/3部分（T19/T24/T25）/5未开始（T26–T30）。下一步EX/MAC Stage B，继续全部后续任务。全部执行验证延期，目标active无额度限制。
@@ -139,11 +141,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | T23源码收尾；历史资金流d59a51c、157入口/组合/manifest/consumer/交接源码齐备，全部执行验证延期 |
-| 当前阶段 | T01–T18及T20–T23源码完成；T19/T24/T25部分；22完整源码/3部分/5未开始。 |
+| 最新检查点 | T24源码收尾；ExClient/11方法/显式探测/profile/15用例函数与示例、完整交接已写，全部执行验证延期 |
+| 当前阶段 | T01–T18及T20–T24源码完成；T19/T25部分；23完整源码/2部分/5未开始。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T24/T25 EX/MAC Stage B owner/session/transport，再T26–T30；T19依赖/平台验证留到统一执行阶段 |
+| 下一步 | T25 MAC/MAC-EX Stage B owner/profile/简单响应与公开入口，再T26–T30；T19依赖/平台验证留到统一执行阶段 |
 
 ## 阶段进度
 
@@ -153,7 +155,7 @@
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | T11–T18实现源码完成；HQ桥/证据/consumer源码具备；兼容和可用版本验收全部待最终执行 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T20–T23源码完成，含Python兼容/跨源helper/manifest/consumer；T19依赖/平台验收待最终执行 | 按用户要求暂不运行 |
-| P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
+| P4 | T24–T27 EX、MAC、Python迁移 | T24源码范围完成；T25 pure codec/model Stage A 已写，MAC/MAC-EX owner/简单响应和完整组合/迁移仍待实现 | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
 
 ## 依赖与冲突预审
