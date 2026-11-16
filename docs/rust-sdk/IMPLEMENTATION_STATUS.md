@@ -9,10 +9,10 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1 / T07：SDK owner 与关闭状态机，限定复审待处理 |
+| 当前阶段 | P1 / T07：第二轮修复进行中，收紧 pin 关闭期限并保留 Drop 后资源跟踪 |
 | 已提交进度 | T01 契约实现及反例源码完成；T02 来源库存、哈希、7个补充案例和测试源码完成；T03 policy fixture、差异裁决、文档和契约测试源码完成；T04 crate、配置、基础类型完成并经两轮静态复审；T05 pin grant RAII、共享结果终态标记、取消/交付竞态仲裁和回环/源用例已提交 `3ba3902`；T06 raw reply、共享 typed/raw 调度、绝对期限传递和 pin/connect deadline 入口已提交 `4bf47d7`，修复 `561dcf5` 通过限定复审；T07 owner gate、共享绝对关闭期限和 cleanup failure lineage 已实现，等待限定复审；统一验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | 限定复审 T07；处理审查发现后继续 T08；继续只写实现与测试源码，不运行任何验证 |
+| 下一步 | 完成 T07 pin 期限/Drop 跟踪修复并限定复审；随后执行已准备的 T08 操作上下文与错误边界说明；继续只写实现与测试源码，不运行任何验证 |
 
 ## 阶段进度
 
@@ -44,6 +44,8 @@
 | T28 ↔ T29 ↔ T30 | features/package/consumer/evidence/docs | T28确定consumer矩阵，T29定package metadata，T30汇总实际证据；用户要求的测试延迟覆盖整个实施期。 |
 
 **实施裁定：** 用户要求在全部实现代码完成前不运行测试；测试代码仍按计划逐任务写好，延迟到末尾统一运行。现有规格中的P0样例和默认值为新API设计输入，不表示已有生产协议已验证。联网事实不确定的域实现显式Unknown/Unsupported，不以猜测解锁。用户未授权发布、推tag或合并。
+
+2026-11-16 恢复记录：目标模式保持 active，没有 token 额度限制。T07 已提交 `26488cf`（owner 生命周期）、`abb4285`（操作取消、pin owner 和真实 runtime 并发关闭源码）、`ca372d2`（取消 Condvar 丢失唤醒修复）。限定复审确认操作唤醒与真实 runtime 用例已处理，仍需解决 pin 无界关闭等待与 Drop 提前解除 owner 注册；第二轮修复只沿用现有 owner 列表和 runtime pending close，不增加并行资源状态机。测试/构建/检查均未执行。
 
 ## 恢复规则
 
