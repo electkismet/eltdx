@@ -111,3 +111,31 @@ Next: remaining offline codecs, append/durability/path/model functions and
 full F10/native compatibility; cross-source helpers and capability evidence.
 Counts remain21 source complete/4 partial/5 unstarted. Goal active without a
 token cap. No execution verification, agents, push, tags or publication.
+
+## Fourth checkpoint — offline paths, classification and industry parser
+
+Base `f2aabd0`. Shared first-directory selection and market mapping now serve
+the Rust filesystem API and Python object adapter. Explicit paths, environment
+priority, platform candidate order, lazy early return and Python equality/
+formatting are retained; no Python market value is narrowed to u8. Path
+composition keeps the original resolve-before-market order and joins through
+Python operators, including custom code formatting and permissive old values.
+The `.lc1`/`.lc5`/`.5` folder differences remain explicit.
+
+Daily security prefix classification now shares the original Rust table with
+the Python Path/lower adapter. Live Python detector/coefficient mapping hooks
+remain callable. Industry GBK decoding remains a Python codec adapter (custom
+decode hooks survive), followed by the shared Rust splitline/whole-line trim,
+six-Unicode-character code and field parser. Python dict insertion/replacement
+keeps first key order and last duplicate value. Shared traversal checks the
+boundary even on malformed lines; no direct-file read cap is added to Python.
+Industry local open/UnicodeDecodeError wrapping remains Python I/O glue.
+
+New binding source `crates/eltdx-python/src/offline_paths.rs`; modified shared
+offline paths/daily/industry, lib registration, Python paths/daily/minute/
+industry facades. New `tests/test_native_offline_contract.py` contains12 source
+functions with parameterized prefix/layout cases; two Rust source functions
+cover shared selection/classification and industry traversal/error behavior.
+None collected, built or run. Remaining read/encode/append/alignment/GBBQ/block
+and model paths remain pending; F10/helpers/manifest andT24–T30 are unchanged.
+Counts21/4/5, goal active without token cap; no execution validation or agents.

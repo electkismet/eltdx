@@ -8,6 +8,25 @@ use eltdx::offline::{daily, ex_daily, minute, paths, AppendOptions, Coefficients
     RecordKey, SecurityType, TailPolicy, TimeOfDay, WireFloat};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[test]
+fn shared_path_candidate_search_stops_at_first_match() -> TestResult {
+    let mut visited = Vec::new();
+    let value = paths::python_legacy::first_directory([Ok("first"), Ok("second"), Ok("third")], |value| {
+        visited.push(*value);
+        Ok::<_, eltdx::Error>(*value == "second")
+    })?;
+    assert_eq!(value, Some("second"));
+    assert_eq!(visited, ["first", "second"]);
+    let mut compared = Vec::new();
+    let market = paths::python_legacy::market_to_exchange_with(|id| {
+        compared.push(id); Ok::<_, eltdx::Error>(id == 1)
+    })?;
+    assert_eq!(market.map(|value| value.as_str()), Some("sh"));
+    assert_eq!(compared, [0, 1]);
+    assert_eq!(daily::python_legacy::classify_leaf("s中00.day"), SecurityType::Unknown);
+    Ok(())
+}
 static NEXT: AtomicU64 = AtomicU64::new(1);
 struct Scratch(PathBuf);
 impl Scratch {

@@ -61,3 +61,21 @@ fn empty_missing_limit_and_cancel_boundaries() -> TestResult {
     assert_eq!(industry::read(&path, &ReadOptions::default().with_cancel(Some(token))).err().map(|e| e.kind()), Some(ErrorKind::Cancelled));
     Ok(())
 }
+
+#[test]
+fn shared_industry_visit_preserves_rows_and_checks_invalid_lines() -> TestResult {
+    let text = "invalid\n0|abcdef|A|||S1\x1c0|abcdef|B|||S2\n0|一二三四五六|C";
+    let mut rows = Vec::new();
+    let mut boundaries = 0;
+    industry::python_legacy::visit_rows(text, |code, tdx, sw| {
+        rows.push((code.to_owned(), tdx.to_owned(), sw.to_owned()));
+        Ok::<_, eltdx::Error>(())
+    }, &mut || { boundaries += 1; Ok(()) })?;
+    assert_eq!(rows, [("abcdef".into(), "A".into(), "S1".into()),
+        ("abcdef".into(), "B".into(), "S2".into()), ("一二三四五六".into(), "C".into(), "".into())]);
+    assert_eq!(boundaries, 5);
+    let error = industry::python_legacy::visit_rows("bad\nbad", |_, _, _| Ok::<_, eltdx::Error>(()),
+        &mut || Err(eltdx::Error::new(ErrorKind::Cancelled, "source stop"))).unwrap_err();
+    assert_eq!(error.message(), "source stop");
+    Ok(())
+}

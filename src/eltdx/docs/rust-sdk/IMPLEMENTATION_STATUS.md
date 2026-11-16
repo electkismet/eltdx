@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第五十二段恢复点：ZIP/财报组合已提交`f2aabd0`。本段共享离线路径候选选择、市场映射、证券前缀分类和行业文本行解析；新增offline_paths绑定并接入Python对应入口。保留原环境/平台优先级、Path/codec/动态系数钩子、六Unicode字符代码、重复key首位置末值；行业遍历在无效行也检查中断。新增12个Python合同函数（含参数化）及2个Rust源码函数，全部未执行。剩余离线read/encode/append/alignment/GBBQ/block/model及F10/helpers/manifest仍待完成；21源码完整/4部分/5未开始。目标active无额度限制，全部执行验证延期。
+
 2026-11-17第五十一段恢复点：DAT共享解析已提交`690a825`。本段共用ZIP有序候选遍历，保留Python首DAT/精确ZipInfo读取/仅所选成员检查/原始zipfile上下文与异常；财报列表、下载后检查、日期、模型投影、本地文件dispatcher已接入绑定。自定义资源/解析/模型/Path/regex与运行时限额留在原调用点，Python不增加Rust总期限或额外list请求。新增20个Python合同函数及1个Rust选择遍历函数，全部未运行。T23仍需其余offline、F10、跨来源helper和清单，整体21源码完整/4部分/5未开始；后续T24–T30仍待完成，目标active无额度限制，所有执行验证延期。
 
 2026-11-17第五十段恢复点：财报文件列表共享解析已提交`74ccae3`。本段为T23接入DAT：同一个Rust索引/浮点解码核心增加逐条投影visitor，标准bytes通过PyO3保留原始Python日期对象、运行时字段/总量限额、精确中文异常及异常对象；自定义buffer/struct继续原适配。避免同时保留完整Rust与Python结果表；32位offset加法越界按旧Python越界记录跳过。新增9个Python合同函数（含参数化）及3个Rust共享visitor函数，全部未执行。当前仍21源码完整/4部分/5未开始；下一步ZIP原策略、其余offline、全部F10/helpers迁移及T24–T30。目标active无额度上限，没有运行编译、测试、安装或网络验证。
@@ -105,7 +107,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | T23 DAT共享解析 `690a825`；第五十一段接入共享ZIP选择与财报组合，全部执行验证延期 |
+| 最新检查点 | T23 ZIP/财报组合 `f2aabd0`；第五十二段接入路径/分类/行业解析，全部执行验证延期 |
 | 当前阶段 | T01–T18及T20–T22源码完成；T19/T23/T24/T25部分；21完整源码/4部分/5未开始。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

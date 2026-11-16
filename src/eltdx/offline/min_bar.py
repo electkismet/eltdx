@@ -8,6 +8,7 @@ OHLC 为 ``float32``，无需系数转换。日期为 2 字节压缩日期，时
 from __future__ import annotations
 
 import struct
+import sys
 from pathlib import Path
 
 from .models import MinBar
@@ -156,9 +157,9 @@ def find_lc1_bar_file(
     ``.lc1`` 文件。
     """
 
-    vipdoc_path = resolve_vipdoc(vipdoc)
-    exchange = market_to_exchange(market)
-    return vipdoc_path / exchange / "minline" / f"{exchange}{code}.lc1"
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_find_bar(market, code, vipdoc, sys.modules[__name__], "minline", "lc1")
 
 
 def find_lc5_bar_file(
@@ -168,9 +169,9 @@ def find_lc5_bar_file(
 ) -> Path:
     """根据市场和代码定位 ``.lc5`` 分钟线文件路径。"""
 
-    vipdoc_path = resolve_vipdoc(vipdoc)
-    exchange = market_to_exchange(market)
-    return vipdoc_path / exchange / "fzline" / f"{exchange}{code}.lc5"
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_find_bar(market, code, vipdoc, sys.modules[__name__], "fzline", "lc5")
 
 
 def find_5min_bar_file(
@@ -180,6 +181,6 @@ def find_5min_bar_file(
 ) -> Path:
     """根据市场和代码定位 ``.5`` 分钟线文件路径。"""
 
-    vipdoc_path = resolve_vipdoc(vipdoc)
-    exchange = market_to_exchange(market)
-    return vipdoc_path / exchange / "fzline" / f"{exchange}{code}.5"
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_find_bar(market, code, vipdoc, sys.modules[__name__], "fzline", "5")

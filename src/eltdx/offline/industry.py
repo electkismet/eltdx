@@ -18,18 +18,9 @@ def parse_tdxhy_cfg(content: bytes) -> dict[str, tuple[str, str]]:
 
     if not content:
         return {}
-    text = content.decode("gbk", errors="replace")
-    results: dict[str, tuple[str, str]] = {}
-    for line in text.splitlines():
-        parts = line.strip().split("|")
-        if len(parts) < 3:
-            continue
-        code = parts[1]
-        if len(code) != 6:
-            continue
-        sw_industry = parts[5] if len(parts) >= 6 else ""
-        results[code] = (parts[2], sw_industry)
-    return results
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_industry(content)
 
 
 def read_industry_cfg(filepath: str | Path) -> dict[str, tuple[str, str]]:

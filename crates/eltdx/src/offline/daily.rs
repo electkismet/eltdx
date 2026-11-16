@@ -8,6 +8,10 @@ use super::{bars, diagnostic, AppendOptions, CoefficientDecision, Coefficients, 
 
 pub fn detect_security_type(filename: &OsStr) -> SecurityType {
     let name = Path::new(filename).file_name().unwrap_or(filename).to_str().unwrap_or("").to_lowercase();
+    python_legacy::classify_leaf(&name)
+}
+
+fn classify_leaf(name: &str) -> SecurityType {
     let bytes = name.as_bytes();
     if bytes.len() < 4 { return SecurityType::Unknown; }
     match (&bytes[..2], &bytes[2..4]) {
@@ -23,6 +27,12 @@ pub fn detect_security_type(filename: &OsStr) -> SecurityType {
         (b"sh", b"01" | b"10" | b"11" | b"12" | b"13" | b"14" | b"20") => SecurityType::ShBond,
         _ => SecurityType::Unknown,
     }
+}
+
+#[doc(hidden)]
+pub mod python_legacy {
+    /// Receives the leaf normalized by the caller's Path/lower implementation.
+    pub fn classify_leaf(name: &str) -> super::SecurityType { super::classify_leaf(name) }
 }
 
 pub fn security_coefficients(filename: &OsStr) -> CoefficientDecision {
