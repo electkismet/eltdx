@@ -105,6 +105,10 @@
 - Preparation: T08 operation and T09 parser implementers have read-only preparation tasks only until T07 review closes. Their briefs are `task-08-brief.md` and `task-09-brief.md`; T10 metadata brief prepared as `task-10-brief.md`. T08 will own SDK operation/error/executor/compatibility plus runtime request/attempt hooks; T09 owns protocol parser/context plus SDK hq/decode.rs and hq/mod.rs, avoiding shared edits.
 - Task 7: scoped fix round 2 review marked deadline coordination and Drop tracking ADDRESSED, but found a new Important cleanup confirmation defect: after a pin timeout, Engine shutdown makes a fresh pin-close receipt unavailable forever. Fix round 3 resumed original implementer from `0656e63`; allow a narrow exact Engine-identity predicate and owner reconciliation after confirmed Engine shutdown. Review source-only, no tests/verification.
 - Ruling: revise the round-2 minimality choice in response to concrete review evidence. A `PinHandle::belongs_to_engine` identity predicate plus owner reconciliation after confirmed Engine close is needed to retire tracked pins even when their old receipt was lost or failed. Keep the existing pin vector; do not add another resource state machine. Cleanup confirmation is separate from outward error lineage: confirmed resources may set cleanup_confirmed while the original failure still returns. — Cost if wrong: if identity were too broad or close success did not prove joins, resources could be declared retired prematurely; therefore match the exact Engine inner identity and only its confirmed close result, not a generic stopped/closing phase.
+- Task 7: fix round 3 `98e8558`; scoped re-review approved the Engine-confirmed cleanup reconciliation and cross-Engine reservation identity isolation. All original findings are ADDRESSED and no new Critical/Important breakage was found in the fix diff. Source inspection only; no verification commands ran.
+- Task 7: complete (commits `26488cf..98e8558`, scoped reviews clean after three fix rounds; final verification deferred until T01–T30 implementation code is complete).
+- Recovery 2026-11-16: user resumed goal mode again. Existing goal is active and has no token budget. T08 and T09 have GO and are implementing within the disjoint scopes in their briefs; T10 brief is prepared, T11 onward remain unimplemented. Controller owns ledger/status and review coordination. Do not redispatch completed T01–T07.
+- Ruling: continue the already prepared T08/T09 work concurrently because T08 owns SDK operation/runtime and T09 owns protocol parsing plus SDK decode registration, with explicit separation of files and controller coordination for shared interfaces — cost if wrong: cross-layer interface drift can require integration rework; do not start T10's shared operation/session edits before T08/T09 are reviewed.
 
 ## Execution state
 
@@ -116,9 +120,9 @@
 | T04 | Implementation complete; validated identities/time, lazy configuration, source-aware event time, price conversion; final verification deferred |
 | T05 | Implementation and source cases committed in `3ba3902`; final verification deferred until T01-T30 implementation is complete |
 | T06 | Implementation and scoped review complete (`4bf47d7..561dcf5`); final verification deferred |
-| T07 | Fix round 2 `0656e63` closed deadline/Drop findings; fix round 3 in progress for cleanup confirmation after Engine shutdown |
-| T08 | Not started |
-| T09 | Not started |
+| T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
+| T08 | Implementing operation context, total budget, cancellation, structured errors and Python legacy bridge; source only |
+| T09 | Implementing explicit parser context, raw retention and pre-projection scalar preservation; source only |
 | T10 | Not started |
 | T11 | Not started |
 | T12 | Not started |

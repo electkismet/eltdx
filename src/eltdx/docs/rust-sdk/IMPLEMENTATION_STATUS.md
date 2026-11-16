@@ -9,17 +9,17 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1 / T07：第二轮旧问题已闭合，第三轮修复 Engine 退出后的 pin 清理确认；T08/T09 只读准备完成 |
-| 已提交进度 | T01 契约实现及反例源码完成；T02 来源库存、哈希、7个补充案例和测试源码完成；T03 policy fixture、差异裁决、文档和契约测试源码完成；T04 crate、配置、基础类型完成并经两轮静态复审；T05 pin grant RAII、共享结果终态标记、取消/交付竞态仲裁和回环/源用例已提交 `3ba3902`；T06 raw reply、共享 typed/raw 调度、绝对期限传递和 pin/connect deadline 入口已提交 `4bf47d7`，修复 `561dcf5` 通过限定复审；T07 owner gate、共享绝对关闭期限和 cleanup failure lineage 已实现，等待限定复审；统一验证延期 |
+| 当前阶段 | P1 / T08–T09：操作上下文和显式解析上下文正在实施；T07 第三轮限定复审已批准 |
+| 已提交进度 | T01–T06 实现及对应静态审阅已完成；T07 owner gate、共享关闭期限、操作唤醒、pin 有界释放、Drop 跟踪及 Engine 确认退出后的清理核销已提交至 `98e8558`，第三轮限定复审批准；T08/T09 已开始源码实现，统一验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | 完成 T07 pin 期限/Drop 跟踪修复并限定复审；随后执行已准备的 T08 操作上下文与错误边界说明；继续只写实现与测试源码，不运行任何验证 |
+| 下一步 | 完成并分别静态审阅 T08/T09；依赖稳定后实施已准备的 T10 metadata/单位/时钟，再继续 T11–T30；继续只写实现与测试源码，全部代码完成后统一验证 |
 
 ## 阶段进度
 
 | 阶段 | 任务 | 实现状态 | 测试状态 |
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
-| P1 | T04–T10 SDK基础、runtime、metadata | T04–T06 实现与源码测试完成；T06 并发 waiter deadline 修复已限定复审通过；T07 实现已提交，限定复审待处理；统一验证延期 | 按用户要求暂不运行 |
+| P1 | T04–T10 SDK基础、runtime、metadata | T04–T07 实现及对应静态审阅完成；T08/T09 正在实施；T10 已准备任务说明；统一验证延期 | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | 未开始 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | 未开始 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | 未开始 | 按用户要求暂不运行 |
@@ -50,6 +50,8 @@
 第二轮 pin 修复已提交 `0656e63`：新增有界 runtime close 等待，SDK helper 同时遵守固定本地 cap 和 owner 当前期限；owner 进入关闭时唤醒等待者，Drop 不再注销，显式释放成功才注销，保留 runtime source 与结构化上下文。限定复审尚未返回，不能声称 T07 完成。T08/T09 实施者目前仅做源码阅读；T08 尝试授权会放在 worker 真正连接/发送前，T09 解析上下文会贯穿全部嵌套报价/分钟分支，并保存除法前整数。全部实现完成前仍不运行验证。
 
 第二轮复审已返回：以上两个原问题均已处理，但 pin 超时后 Engine 退出会使下一次 pin receipt 不可创建，导致清理状态无法确认。第三轮通过精确 Engine 归属与已确认的 Engine 退出结果核销其 pin，继续返回原失败；资源已回收的事实与错误根因分开记录。未增加第二套 pin 状态机，全部验证仍延期。
+
+第三轮提交 `98e8558` 已获限定复审批准：Engine 确认退出后可以核销其保留 pin，跨 Engine 的同编号 reservation 不会互相删除，原失败原因继续向外返回。T07 实现与静态审阅完成。用户再次要求继续目标模式，当前目标保持 active 且没有额度限制；T08/T09 已获 GO，在分开的文件范围内实施。T10 brief 已保存，T11 及后续代码尚未实施。不把静态审阅当作编译或运行成功证据。
 
 ## 恢复规则
 
@@ -85,6 +87,10 @@
 | `4bf47d7` | T06 runtime raw/deadline | 增加 RawReply、共同 typed/raw 执行路径、绝对期限传递及 pin/connect deadline；首轮 scoped review 的共享 connect waiter 问题由 `561dcf5` 修复并通过限定复审 |
 | `561dcf5` | T06 fix 1 | connect waiter 仅结束自己的等待；共享 attempt 保持运行并在终态后清理；限定复审通过；未运行验证 |
 | `d4e3d37` | T06/T07 recovery checkpoint | T06完成，记录T07绝对deadline扩展与cleanup预算裁定 |
+| `26488cf` | T07 owner lifecycle | 共享 owner、绝对关闭期限及资源清理责任 |
+| `abb4285` / `ca372d2` | T07 fix round 1 | 操作取消/唤醒、pin owner、真实 runtime 并发关闭源码及 Condvar 同步 |
+| `0656e63` | T07 fix round 2 | 有界 pin close、Drop 保留注册、原 runtime source 链 |
+| `98e8558` | T07 fix round 3 | Engine 确认退出后的 pin 核销及跨 Engine reservation 身份隔离；限定复审批准 |
 
 ## 阻塞与风险
 
