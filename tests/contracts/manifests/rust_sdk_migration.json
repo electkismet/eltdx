@@ -1129,6 +1129,13 @@
       "authored_evidence": {
         "state": "source_only_unverified",
         "shared_business_source": "crates/eltdx/src/services/corporate.rs; crates/eltdx/src/services/corporate_legacy.rs::CapitalPrefix",
+        "batch_bridge_sources": ["crates/eltdx-python/src/batch.rs", "src/eltdx/api/corporate.py"],
+        "batch_contract_nodes": [
+          "tests/contracts/test_sdk_batch_bridge.py::test_capital_assembly_keeps_original_blocks_raw_order_and_custom_response",
+          "tests/contracts/test_sdk_batch_bridge.py::test_capital_assembly_reads_truthy_raw_property_twice",
+          "tests/contracts/test_sdk_batch_bridge.py::test_capital_batch_queries_all_chunks_before_custom_result_and_assembly",
+          "tests/contracts/test_sdk_batch_bridge.py::test_capital_single_chunk_never_creates_executor"
+        ],
         "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/corporate.rs", "crates/eltdx-python/src/service.rs", "crates/eltdx-python/src/transport.rs", "src/eltdx/api/corporate.py"],
         "contract_nodes": [
           "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_capital_prefix_keeps_duplicates_pages_and_raw",
@@ -1143,9 +1150,9 @@
         ],
         "fixtures": ["tests/integration/test_native_corporate_domain_bridge.py::_capital"],
         "temporary_adapter": {
-          "scope": "Outer chunk scheduling, Python model constructors/properties and custom execute hooks",
-          "reason": "Original worker capacity/chunk order and arbitrary user response objects remain Python extension contracts; the Rust prefix cursor drives every standard native chunk.",
-          "exit_condition": "Move remaining batch scheduling with equal capacity, object evaluation and error timing; retain explicit user callback hooks."
+          "scope": "Python executor context, model constructors/properties and custom execute hooks; chunking and response assembly now execute in binding",
+          "reason": "Retain module-level executor replacement, all-map-before-assembly, original object/property evaluation and context shutdown ordering.",
+          "exit_condition": "Language adapters remain for Python executor ownership and arbitrary callback objects; shared prefix work is already in the SDK. Final compatibility evidence is still unexecuted."
         },
         "validation": "Source only; not collected, compiled or executed. No migration status promotion."
       },
@@ -1175,6 +1182,12 @@
       "authored_evidence": {
         "state": "source_only_unverified",
         "shared_business_source": "crates/eltdx/src/services/money_flow.rs",
+        "batch_bridge_sources": ["crates/eltdx-python/src/batch.rs", "src/eltdx/api/money_flow.py"],
+        "batch_contract_nodes": [
+          "tests/contracts/test_sdk_batch_bridge.py::test_money_flow_custom_response_stops_later_submissions_and_exits",
+          "tests/contracts/test_sdk_batch_bridge.py::test_money_flow_batch_constructs_after_shutdown_and_shares_failover",
+          "tests/contracts/test_sdk_batch_bridge.py::test_money_flow_bridge_flattens_mixed_blocks_without_losing_identity"
+        ],
         "recovery_sources": ["crates/eltdx/src/services/money_flow_probe.rs", "crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/service.rs"],
         "bridge_sources": ["crates/eltdx-python/src/transport.rs", "src/eltdx/api/money_flow.py", "src/eltdx/transport/socket.py", "src/eltdx/transport/pool.py"],
         "contract_nodes": [
@@ -1196,10 +1209,10 @@
         ],
         "fixtures": ["tests/fixtures/7709", "tests/integration/test_native_money_flow_domain_bridge.py::_block"],
         "temporary_adapter": {
-          "scope": "Python factory/transport lifetime, custom query and result projection, batch scheduler; 7615 history remains T23 work",
+          "scope": "Python factory/transport/executor lifetime, custom query and result projection; native binding submits/collects batches; 7615 history core remains T20/T23 work",
           "reason": "Shared Rust source loop calls narrow Python callbacks to preserve exception identity, preferred ownership, factory errors, skipped-host budget debits and existing weak callback lifetimes.",
           "contract_nodes": ["tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_recovery_keeps_custom_query_callback", "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_execute_replacement_keeps_custom_response", "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_history_retains_f10_route_and_never_uses_daily"],
-          "exit_condition": "Complete native batch scheduling/typed projection without changing arbitrary callback results, worker capacity or F10 channel semantics."
+          "exit_condition": "Retain language ownership and arbitrary callback hooks; final source-to-result evidence and F10 history core remain unverified."
         },
         "validation": "Not collected, compiled or executed. Native retains legacy single/multiple/unknown blocks, invalid dates, nonfinite/negative wire values and unconditional record hex."
       },
@@ -1227,6 +1240,8 @@
       "authored_evidence": {
         "state": "source_only_unverified",
         "shared_business_source": "crates/eltdx/src/adjustment/factors.rs::compose_affine",
+        "batch_bridge_sources": ["crates/eltdx-python/src/batch.rs", "src/eltdx/api/corporate.py"],
+        "batch_contract_nodes": ["tests/contracts/test_sdk_batch_bridge.py::test_adjustment_batch_keeps_builder_hook_keywords_and_custom_passthrough"],
         "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/corporate.rs", "src/eltdx/equity.py"],
         "contract_nodes": [
           "tests/contracts/test_sdk_equity_bridge.py::test_native_equity_same_day_order_matches_original_composition",

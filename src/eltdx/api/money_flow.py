@@ -165,27 +165,19 @@ class MoneyFlowApi(ApiBase):
         if not codes:
             raise ValueError("codes must not be empty")
         workers = _batch_workers(self._transport, len(codes), batch_size)
-        blocks: list[MoneyFlowBlock] = []
         # 整批共享一个**次数预算**：重试总数有上界，但绝不因为「第一只票全空」就
         # 认定后续票也不用试备用主机（那是标级事实，不能跨票推广）。
         budget = min(len(codes), _BUDGET_CODE_CAP) * _MAX_PROBES_PER_CODE
         failover = _EmptyFailover(budget)
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            for start in range(0, len(codes), workers):
-                chunk = codes[start : start + workers]
-                for response in executor.map(
-                    lambda item: self._single(
-                        item, include_raw=include_raw, failover=failover
-                    ),
-                    chunk,
-                ):
-                    if isinstance(response, MoneyFlowBlock):
-                        blocks.append(response)
-                    elif isinstance(response, MoneyFlowBatch):
-                        blocks.extend(response.blocks)
-                    else:
-                        return response
-        return MoneyFlowBatch(tuple(blocks))
+            custom, response = native_module().map_money_flow(
+                executor, codes,
+                lambda item: self._single(item, include_raw=include_raw, failover=failover),
+                workers, MoneyFlowBlock, MoneyFlowBatch,
+            )
+            if custom:
+                return response
+        return MoneyFlowBatch(tuple(response))
 
     def _single(self, code: str, *, include_raw: bool, failover: _EmptyFailover | None = None):
         response = self._execute_daily(self._active_transport(),
@@ -264,23 +256,14 @@ class MoneyFlowApi(ApiBase):
         if not codes:
             raise ValueError("codes must not be empty")
         workers = _batch_workers(self._transport, len(codes), batch_size)
-        series: dict[str, FundFlowRangeSeries] = {}
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            for offset in range(0, len(codes), workers):
-                chunk = codes[offset : offset + workers]
-                responses = executor.map(
-                    lambda item: self._single_history(
-                        item,
-                        days=days,
-                        start=start,
-                        count=count,
-                        include_raw=include_raw,
-                    ),
-                    chunk,
-                )
-                for item, response in zip(chunk, responses):
-                    series[item] = response
-        return series
+            return native_module().map_batches(
+                executor, codes,
+                lambda item: self._single_history(
+                    item, days=days, start=start, count=count, include_raw=include_raw,
+                ),
+                workers,
+            )
 
     def _single_history(
         self,

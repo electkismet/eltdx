@@ -15,6 +15,7 @@ mod helper_limits;
 mod helper_daily;
 mod helper_market;
 mod helper_boards;
+mod batch;
 mod protocol;
 mod request;
 mod response;
@@ -122,6 +123,11 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helper_boards::board_dbf_members, module)?)?;
     module.add_function(wrap_pyfunction!(helper_boards::board_full_code, module)?)?;
     module.add_function(wrap_pyfunction!(helper_boards::board_snapshot_batches, module)?)?;
+    module.add_function(wrap_pyfunction!(batch::batch_chunks, module)?)?;
+    module.add_function(wrap_pyfunction!(batch::map_batches, module)?)?;
+    module.add_function(wrap_pyfunction!(batch::assemble_capital, module)?)?;
+    module.add_function(wrap_pyfunction!(batch::map_money_flow, module)?)?;
+    module.add_function(wrap_pyfunction!(batch::adjustment_batch, module)?)?;
     transport::register(module)?;
     Ok(())
 }

@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17 第三十二段源码恢复点：板块阶段已提交`1b49adc`。资本、复权、资金流、普通/退市K线、分钟线和逐笔的批量切片/遍历/结果拼装已接入Rust binding。保留Python executor context和自定义worker/函数覆盖、短zip/重复key语义；分钟线一次提交全部，其他既有域保持逐worker分组。资金流自定义结果在with内返回，正常batch在with退出后构造。新增15个合同函数源码（含参数化），均未执行；更新3项source-only manifest。下一步subscription编排/完整manifest/installed-wheel consumer及全部后续任务；18/4/8不变，active无额度限制，所有执行验证延期。
+
 2026-11-17 第三十一段源码恢复点：竞价/市场组合已提交`43028a4`。板块全部业务入口/准备/缓存/目录/文本与DBF解析/证券列表/成员分类/快照批次/报价构造已接入Rust binding；保留Python Path/codec/regex/JSON/hash调用、原缓存先发布顺序、末尾header计数规则、自定义批次和错误范围。新增17 Python合同函数源码，未执行。T18剩余批量/订阅编排、manifest全量证据与installed-wheel consumer；T19–T30尚按原范围继续，18/4/8不变，active无额度限制，全部验证延期。
 
 2026-11-17 第三十段源码恢复点：每日涨跌停已提交`eaecc51`。竞价汇总/当前日期/首行情/80分批、全市场统计、当日资金流取数和Helper停牌列表已迁入Rust绑定，共用百分比与乘积计算。保留历史首正式撮合/price_base、显式前收盘优先、原对象/round/异常、Python市场统计旧positional语义；新增13 Python/1 Rust合同函数源码，均未运行。T18仍部分18/4/8；剩余板块、批量、订阅、manifest/consumer和T19–T30全部继续，目标active无额度限制。
@@ -63,11 +65,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | 竞价/市场组合 `43028a4`；板块业务binding本段源码已写；全部执行验证延期 |
+| 最新检查点 | 板块业务 `1b49adc`；批量编排第三十二段源码已写；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T18：capital/money-flow批量调度、全部helper及剩余subscription编排回迁、manifest和installed-wheel consumer；已有域不重复，最终统一验证 |
+| 下一步 | T18：subscription编排、manifest全量证据和installed-wheel consumer；已有helper/批量域不重复，继续全部T19–T30及Stage B，最终统一验证 |
 
 ## 阶段进度
 

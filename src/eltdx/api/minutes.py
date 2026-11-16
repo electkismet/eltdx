@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from eltdx.protocol.unit import normalize_code
 from eltdx.protocol.commands import command_code
+from eltdx.transport.native import native_module
 
 from .base import ApiBase
 
@@ -58,7 +59,7 @@ class MinuteApi(ApiBase):
             capacity = 1
         workers = min(len(normalized), capacity if batch_size is None else batch_size)
         with ThreadPoolExecutor(max_workers=workers) as executor:
-            return dict(zip(normalized, executor.map(query, normalized)))
+            return native_module().map_batches(executor, normalized, query, None)
 
     def aux(self, code: str, kind: str | int = "buy_sell_strength", *, include_raw: bool = False):
         return self._query("intraday_aux", priced=False, code=code, kind=kind, include_raw=include_raw)

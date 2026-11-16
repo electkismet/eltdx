@@ -1,5 +1,13 @@
 # T18 — 完整 HQ helpers 与 Python 回迁
 
+Latest recovery, stage32: board stage committed1b49adc. Batch slicing/mapping/
+assembly for capital/adjustments/money flow/bars/delisted/minutes/trades authored
+in binding with15 contract functions and3 source-only manifest additions. Keep
+Python executor context and module overrides; normal money-flow batch construction
+occurs after context exit, custom response returns inside. All unexecuted. Resume
+subscription orchestration, full manifest and installed-wheel consumer, then all
+T19–T30/Stage B. Counts18/4/8, unlimited active goal, no agents/publication.
+
 Read first. Authority `docs/rust-sdk/development-plan.md` T18, `hq-api-spec.md` §§3–4,11–14 and F28 onward, `public-api.md` §§6–10, `execution-and-compatibility.md` entire binding/shutdown contracts, COMP-023–027 and relevant HQ cases. T11–T17 must be reviewed; controller gives GO. Default HQ includes all methods in this brief, not only quotes.
 
 2026-11-17 recovery: reports seventh/eighth/ninth sections supersede the initial

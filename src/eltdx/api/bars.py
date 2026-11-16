@@ -15,6 +15,7 @@ from eltdx._bar_time import (
 from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE
 from eltdx.protocol.commands import command_code
 from eltdx.protocol.unit import NON_OHLC_PERIOD_ALIASES, normalize_code
+from eltdx.transport.native import native_module
 
 from .base import ApiBase
 
@@ -84,11 +85,7 @@ class BarApi(ApiBase):
                 )
 
             with ThreadPoolExecutor(max_workers=workers) as executor:
-                results: dict[str, object] = {}
-                for offset in range(0, len(codes), workers):
-                    chunk = codes[offset : offset + workers]
-                    results.update(zip(chunk, executor.map(query, chunk)))
-                return results
+                return native_module().map_batches(executor, codes, query, workers)
 
         if self._native_services and type(all_pages) is bool and _native_bar_arguments(
             start, include_raw, max_pages if all_pages else None, bar_time

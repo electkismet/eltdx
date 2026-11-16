@@ -13,6 +13,7 @@ from eltdx.protocol.constants import MAX_TRADE_PAGE_SIZE
 from eltdx.protocol.unit import normalize_code
 from eltdx.protocol.commands import command_code
 from eltdx.models import TradeBatch, TradePage
+from eltdx.transport.native import native_module
 
 from .base import ApiBase
 
@@ -338,13 +339,10 @@ class TradeApi(ApiBase):
     ) -> dict[str, Any]:
         normalized = _normalize_codes(codes)
         workers = _batch_workers(self._transport, len(normalized), batch_size)
-        results: dict[str, Any] = {}
         with ThreadPoolExecutor(max_workers=workers) as executor:
             # Submit only one worker-sized chunk at a time so large code lists
             # do not fill the transport's pending-request queue.
-            for start in range(0, len(normalized), workers):
-                chunk = normalized[start : start + workers]
-                results.update(zip(chunk, executor.map(query, chunk)))
+            results = native_module().map_batches(executor, normalized, query, workers)
         return results
 
     def _query(self, name: str, **payload):

@@ -1139,3 +1139,26 @@ Thirtieth source stage committed as **43028a4**; all execution deferred.
 T18 partial18/4/8. Next remaining batch/subscription orchestration, manifest audit
 and installed-wheel consumer, then T19–T30/Stage B. Goal active without cap, no
 subagents or publication. Read helper_boards.rs and source cases on recovery.
+
+Thirty-first source stage committed as **1b49adc**; all execution deferred.
+
+## Thirty-second source checkpoint — outer batch mapping and assembly
+
+- Authored binding batch slice/map/assembly and adjustment builder traversals;
+  connected capital/adjustment/daily/history-money-flow, ordinary/delisted bars,
+  minutes and trades. Input validation/normalization and executor context stay
+  at their original Python boundary. The Rust SDK already owns its independent
+  typed execution; these binding traversals preserve legacy object behavior.
+- Preserve ordered worker chunks, short zip, duplicate-key last value, original
+  objects, two raw property reads and custom scalar response passthrough. Minutes
+  keep a single all-code map; other domains keep their original chunks. Capital
+  evaluates all executor results before assembly. Daily money-flow custom values
+  return within the with context, while normal batch construction follows exit.
+- Authored15 contract functions (some parameterized), including public facade
+  custom methods/executors, shared failover object, shutdown/error/interrupt
+  ordering and adjustment builder keywords. Three manifest entries expanded with
+  source-only evidence. No compilation/collection or execution occurred.
+
+T18 partial18/4/8. Next subscription, complete manifest and installed-wheel
+consumer, then all remaining T19–T30/Stage B. Goal active without cap; no tests,
+build/check/network/dependency/AST/format/diff-check, agents or publication.

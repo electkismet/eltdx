@@ -59,10 +59,7 @@ class CorporateApi(ApiBase):
         codes = [normalize_code(item) for item in code]
         if not codes:
             raise ValueError("codes must not be empty")
-        chunks = [
-            codes[index : index + batch_size]
-            for index in range(0, len(codes), batch_size)
-        ]
+        chunks = native_module().batch_chunks(codes, batch_size)
 
         if len(chunks) == 1:
             responses = [
@@ -81,19 +78,7 @@ class CorporateApi(ApiBase):
                     )
                 )
 
-        blocks = []
-        raw_payloads = []
-        for response in responses:
-            if isinstance(response, CapitalChangeBlock):
-                blocks.append(response)
-                if response.raw_payload:
-                    raw_payloads.append(response.raw_payload)
-            elif isinstance(response, CapitalChangeBatch):
-                blocks.extend(response.blocks)
-                raw_payloads.extend(response.raw_payloads)
-            else:
-                return response
-        return CapitalChangeBatch(tuple(blocks), tuple(raw_payloads))
+        return native_module().assemble_capital(responses, CapitalChangeBlock, CapitalChangeBatch)
 
     def adjustment_factors(
         self,
@@ -104,23 +89,9 @@ class CorporateApi(ApiBase):
         batch_size: int = DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
     ):
         changes = self.capital_changes(code, batch_size=batch_size)
-        if isinstance(changes, CapitalChangeBatch):
-            return AdjustmentFactorBatch(
-                tuple(
-                    build_adjustment_factor_response(
-                        block,
-                        anchor_date=anchor_date,
-                        start_date=start_date,
-                    )
-                    for block in changes.blocks
-                )
-            )
-        if not isinstance(changes, CapitalChangeBlock):
-            return changes
-        return build_adjustment_factor_response(
-            changes,
-            anchor_date=anchor_date,
-            start_date=start_date,
+        return native_module().adjustment_batch(
+            changes, anchor_date, start_date, build_adjustment_factor_response,
+            CapitalChangeBlock, CapitalChangeBatch, AdjustmentFactorBatch,
         )
 
     def _capital_changes_chunk(self, codes: list[str], *, include_raw: bool):
