@@ -6,7 +6,7 @@
 
 当前实际进度：T12 quote/code native bridge 源码检查点已提交 `82bb2e6`；T12 仍在实施中，待完成 lifecycle/error/metadata-sink 边界审阅和剩余合同源码。没有运行任何测试或构建。下一步完成 T12 后进入 T13，并持续处理 T17/T22/T24/T25 的服务集成；T01–T30 实现全部完成前继续禁止验证执行。
 
-2026-11-16 第二轮 T12 检查点：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；本轮源码检查点待提交，T12 尚未完成。
+2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。
 
 2026-11-16 补充：quote bridge 已恢复 resolver 的请求前缓存和结果投影；legacy Rust code paginator 在完整目录终止后尝试原子发布 owner scoped precision metadata，以供后续 quote operation 复用；覆写 `execute` 的 native transport 子类回退原 facade；新增对应合同测试源码。T12 生命周期、错误映射与兼容边界仍待审阅。
 
