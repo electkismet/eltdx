@@ -1,0 +1,26 @@
+# T19 — F10 HTTP 基础传输与依赖决定
+
+Read first. Requirements: `docs/rust-sdk/development-plan.md` T19, `extension-api-spec.md` §§1–2.1 (all exact settings and signatures), `public-api.md` owner/operation/error contracts, `execution-and-compatibility.md` legacy profile. T08's reviewed operation API is the common budget, not a second timeout/retry engine. Controller gives GO; dependency/network validation is deferred, not silently skipped in the eventual evidence.
+
+## Scope
+
+New SDK `src/f10/{mod,http,request,response}.rs`, supporting focused value/config/transport modules as needed, `tests/f10_http.rs`, optional HTTP dependency wiring and `docs/rust-sdk/dependency-decisions.md` F10 section. Own F10 foundational public checked types, builder and low-level call path; T20 owns the entire endpoint registry/typed convenience layer. Coordinate Cargo and root module registration. Do not modify Python yet (T23), existing ZIP decision (T17), or other domain algorithms.
+
+- Independent lazy F10 owner, owned handles, Clone/close lifecycle and no reopen. Build/getters do no DNS/TLS/proxy/root discovery or I/O. Every network call uses one shared OperationContext including DNS, transport/lock/body/decode work; cancellation/close must stop bounded work and confirm cleanup. Never hide blocking DNS/TLS/read behind a detached unbounded thread. No global monkeypatch/Python/PyO3 dependency.
+- Exact defaults: static/hot/page2 URLs from extension §2.1, request timeout8s, prefer_ipv4=true, decoded and encoded body caps16MiB each, headers64KiB, redirects0, proxyNone, SystemRoots, Bounded resolver. Caps validate before allocation and while reading/decompressing actual bytes, including chunked/gzip streams; reject oversize, do not truncate JSON. URL credentials/fragment and illegal header names/CRLF rejected locally. Header order and overrides preserved.
+- Use a production HTTP/TLS dependency with system/custom trust roots, Host/SNI verification, CONNECT and address-family fallback. IPv4 preference is connection-local and IPv6 fallback preserves hostname TLS/proxy behavior. No implicit environment proxy; support explicit proxy and record environment isolation in source cases. No default cookie/cache/retry side effects. Never turn off certificate validation or silently accept failed root loading. A dependency's configured timeout alone does not prove full-operation cancellation or header/encoded-body limits.
+- Route Entry cfg_fx_lbtt→hot, skef10_mg/hk/sb/bond/hy and qhf9→page2, all other→static. Query only percent-encoded Entry. Compact UTF8 JSON (not ASCII escapes), BOM-aware UTF8 decoding and object top-level requirement. HTTP status/network/JSON errors separated from server nonzero business code (normal Response). QSID not automatically injected by unrelated constant.
+- Common public JsonValue preserves ordered Object entries and numeric lexemes, including duplicate raw keys, exact checked i64/u64/f64 access; public f10 works without public serde feature. RequestPayload::Body/Params enum forbids ambiguous inputs. Required output value types are concrete. Omit doesn't construct complete retained JSON or row hex; RetainPayload/Wire preserve actual source with bounded byte accounting, HTTP endpoint diagnosis follows ResultMeta contract.
+- Record candidate dependency version/features/MSRV/license and constraints in dependency-decisions. Without executing validation the choice remains provisional. Reuse T17 internal ZIP decoder for later financial; do not add another ZIP stack here. No registry queries or cargo resolution yet.
+
+## Authored source evidence and handoff
+
+Author meaningful public-client fixtures for HTTP and HTTPS, hostname SNI and custom trust, invalid certificate, explicit CONNECT proxy and env-proxy isolation, IPv4 failure→IPv6, partial headers/body/EOF/chunked/compressed oversize, cancellation and bounded close during each transport phase, malformed/BOM/nonobject JSON, Unicode request, route overrides and nonzero business status. Do not actually start fixture servers or run them. Deferred command: `cargo test -p eltdx --features f10 --test f10_http --locked`.
+
+T20 consumes transport through one context-sharing internal request method; expose narrow internal hook rather than calling a public method that resets timeout. Legacy profile must later preserve Python's no new byte/header caps, per-wire timing, custom `_post`, URL override quirks and exceptions. Any infeasible dependency contract gets a concrete controller ruling, not an undocumented runtime Unsupported placeholder.
+
+## Workflow/report
+
+Workspace `C:/Users/ax/.codex/worktrees/rust-sdk-implementation/tdx抓包`, branch `codex/rust-sdk-implementation`. Until ALL T01–T30 implementation code complete: NO tests/collection/build/check/clippy/doctest/network/compile/AST/format/diff checks or equivalent verification. Ordinary source reads, review diff generation and Git checkpoints allowed. No subagents/push/tag/publish/merge or controller ledger/status edits. Commit exact owned files with hooks disabled.
+
+Report `.superpowers/sdd/development-plan/task-19-report.md`: source architecture/limits/cancellation and dependency rationale, exact files/commits, authored fixture cases, T20/T23 handoff, explicit no-execution and unresolved evidence. Return compact status/SHAs/no-tests/concerns/path; never claim TLS/HTTP/dependency verified.

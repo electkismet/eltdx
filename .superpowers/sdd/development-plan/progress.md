@@ -118,6 +118,8 @@
 
 ## Execution state
 
+- Recovery 2026-11-16: goal queried and confirmed active without token limit; continuing current T08/T09 agents rather than redispatching. T09 source checkpoint `ae11c2a` contains its22 owned parser/decode files; source cases/report are still in progress. T19/T20 briefs prepared for complete F10 transport/value/endpoint scope; no GO or implementation claim.
+
 | Task | Status |
 |---|---|
 | T01 | Implementation complete; final verification deferred until all T01–T30 implementation is complete |
