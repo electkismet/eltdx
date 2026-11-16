@@ -256,6 +256,7 @@ class TdxClient:
         self.trades = TradeApi(self.transport, native_services=native_services)
         self.auctions = AuctionApi(
             self.transport,
+            native_services=native_services,
             transport_factory=(
                 self._build_dedicated_market_transport
                 if isinstance(self.transport, PooledSocketTransport)

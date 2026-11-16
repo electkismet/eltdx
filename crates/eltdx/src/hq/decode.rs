@@ -106,7 +106,7 @@ fn decode_frame_profile(
     // original datetime errors independently of directory metadata.
     let parsed = if legacy && matches!(&request, CommandRequest::SecurityList(_)
         | CommandRequest::LegacyQuotes(_) | CommandRequest::CategoryQuotes(_) | CommandRequest::RefreshStream(_)
-        | CommandRequest::TodayTicks(_) | CommandRequest::HistoricalTicks(_)) {
+        | CommandRequest::TodayTicks(_) | CommandRequest::HistoricalTicks(_) | CommandRequest::AuctionSeries(_)) {
         CommandResponse::parse(request.clone(), &response.data)?
     } else {
         CommandResponse::parse_with_context(request.clone(), response.data.clone(), &options)?

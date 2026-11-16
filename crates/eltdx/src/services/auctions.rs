@@ -13,6 +13,32 @@ use crate::types::{AuctionPoint, AuctionQuery, AuctionSeries, EventTime, MarketD
     NumericValue, Price, Quantity, QuantityUnit, SecurityId, TradingDate, ValueProvenance};
 use super::{allocation_error, checked_ids, result_meta, ServiceSource};
 
+fn fetch_auction_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<crate::hq::decode::DecodedReply>,
+) -> Result<crate::hq::decode::DecodedReply> {
+    if !matches!(&request, CommandRequest::AuctionSeries(_)) {
+        return Err(Error::new(ErrorKind::InvalidArgument, "auction service requires an auction request"));
+    }
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let decoded = fetch(request)?;
+    if !matches!(&decoded.response, CommandResponse::AuctionSeries(_)) {
+        return Err(Error::new(ErrorKind::Protocol, "auction request returned a different response kind"));
+    }
+    context.check_boundary(TimeoutPhase::Decode)?;
+    Ok(decoded)
+}
+
+pub(crate) fn legacy_auction_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<crate::hq::decode::DecodedReply>,
+) -> Result<CommandResponse> {
+    if !context.is_legacy() {
+        return Err(Error::new(ErrorKind::InvalidArgument, "legacy auction requires a compatibility operation"));
+    }
+    Ok(fetch_auction_reply(context, request, fetch)?.response)
+}
+
 #[derive(Clone, Debug)]
 pub struct AuctionService { executor: HqExecutor, pools: Arc<DomainPools>, config: ClientConfig }
 
@@ -56,8 +82,10 @@ impl AuctionService {
             }
         };
         let engine = self.pools.auction(&self.config)?;
-        let raw = self.executor.execute_raw(&engine, &context, CommandRequest::AuctionSeries(request), ChildPurpose::Required, None)?;
-        let decoded = self.executor.decode_received(&context, raw)?;
+        let decoded = fetch_auction_reply(context, CommandRequest::AuctionSeries(request), |request| {
+            let raw = self.executor.execute_raw(&engine, context, request, ChildPurpose::Required, None)?;
+            self.executor.decode_received(context, raw)
+        })?;
         let CommandResponse::AuctionSeries(response) = &decoded.response else {
             return Err(Error::new(ErrorKind::Protocol, "auction request returned a different response kind"));
         };

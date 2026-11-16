@@ -337,6 +337,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 2026-11-17第十四段：行情已提交`d3c1215`。today/history逐笔单页、全量/历史bulk、正式开盘撮合共用Rust分页/请求边界及Python/native接入源码已写。保留原逐请求期限/无整段pin、无metadata预取、重复/超count页、页内次序、首base及非finite/raw/日期、空页优先和原max_pages/offset错误。bulk保留分块及usize总量，不构造Python逐笔对象；today bulk仍拒绝，自定义参数/日期/分页覆盖继续逐页adapter。新增14合同/12本机集成/3Rust函数源码及四项source-only manifest，全部未执行；T18仍部分，继续auctions/dailyflow及剩余HQ/helper/订阅迁移、manifest和installed-wheel consumer。
 
+2026-11-17第十五段：逐笔阶段已提交`6544772`。竞价共用Rust请求/响应边界及Python/native源码已写，保留专用pool的原延迟创建/弱回调/主机配置/关闭重建、execute扩展及legacy原time/count/raw/错误语义，不增加目录预取。新增5合同/4本机集成函数源码及1项source-only manifest，全部未执行；T18仍部分，继续dailyflow及其余HQ/native/helper/订阅/manifest/consumer。
+
 - [ ] 在默认 HQ feature 下实现矩阵中的 full_quotes、每日股本/涨跌停价、排行、board_quotes、limit_ladder、market_stat、shortline 和完整 stock_profile_table。现有 profile 仅依赖 HQ 的 full_quotes、证券目录和 finance_batch，不虚构 F10 依赖。
 - [ ] 按代码关联指数、市场统计及各批量来源；短线验证服务器日期、09:25、双文件主日期、>=95% 覆盖和前交易日对齐门槛，不能按返回位置猜对象。
 - [ ] 主数据链失败返回错误；full_quotes 刷新等已定义的可选补充源失败保留主数据并附诊断，新 Rust 取消/总 deadline 则终止操作。Python 逐请求超时、原可选请求超时降级条件与结果模型按旧样本验收。

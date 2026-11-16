@@ -309,6 +309,14 @@ impl LegacyOperation {
         })
     }
 
+    pub fn auction(&self, request: CommandRequest) -> Result<CommandResponse> {
+        crate::services::legacy_auction_reply(&self.context, request, |request| {
+            let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,
+                request, ChildPurpose::Required, None)?;
+            self.executor.executor.decode_unpriced(&self.context, raw)
+        })
+    }
+
     pub fn trade_read(&self, request: CommandRequest, collect: bool, opening: bool,
         maximum_pages: Option<usize>) -> Result<LegacyTradeRead> {
         crate::services::legacy_trade_read(&self.context, request, collect, opening, maximum_pages,

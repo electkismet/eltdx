@@ -982,6 +982,31 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x056a",
       "api": "client.auctions.series(code, date=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/auctions.rs",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/service.rs", "crates/eltdx-python/src/transport.rs", "src/eltdx/api/auctions.py"],
+        "contract_nodes": [
+          "tests/contracts/test_sdk_auction_domain_bridge.py::test_auction_native_route_keeps_public_payload_and_result",
+          "tests/contracts/test_sdk_auction_domain_bridge.py::test_auction_overridden_execute_keeps_extension_point",
+          "tests/contracts/test_sdk_auction_domain_bridge.py::test_auction_factory_stays_lazy_cached_and_recreated_after_close",
+          "tests/contracts/test_sdk_auction_domain_bridge.py::test_auction_factory_failure_keeps_original_error_and_can_retry"
+        ],
+        "integration_nodes": [
+          "tests/integration/test_native_auction_domain_bridge.py::test_native_auction_preserves_raw_unusual_times_negative_price_and_over_limit",
+          "tests/integration/test_native_auction_domain_bridge.py::test_native_auction_protocol_errors_preserve_original_type_text_and_cause",
+          "tests/integration/test_native_auction_domain_bridge.py::test_native_auction_uses_separate_dedicated_pool_and_recreates_after_close",
+          "tests/integration/test_native_auction_domain_bridge.py::test_native_auction_single_transport_reopens_its_original_generation"
+        ],
+        "fixtures": ["tests/fixtures/7709", "tests/integration/test_native_auction_domain_bridge.py::_payload"],
+        "temporary_adapter": {
+          "scope": "custom transports, transport factories and instance/class execute replacements; original dedicated-pool lifecycle",
+          "reason": "Preserve lazy construction, original host/config selection, close/recreate order, custom responses and factory failures.",
+          "contract_nodes": ["tests/contracts/test_sdk_auction_domain_bridge.py::test_auction_client_transport_subclasses_keep_custom_results", "tests/contracts/test_sdk_auction_domain_bridge.py::test_auction_overridden_execute_keeps_extension_point"],
+          "exit_condition": "Shared callback/lifetime bridge must preserve factory callbacks, original host selection and error timing."
+        },
+        "validation": "Not collected, compiled or executed. Legacy does not gain strict Rust time/count constraints or metadata prefetch."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-集合竞价明细.md",

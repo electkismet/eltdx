@@ -55,6 +55,12 @@ functions and4 source-only manifest records; none executed. Continue auctions/
 dailyflow and remaining corporate/equity/calendar/resources/stats/health/helpers/
 subscription/evidence/installed-wheel consumer. Do not repeat authored domains.
 
+Fifteenth recovery: trades committed6544772. Auction shared Rust request/response
+boundary and native facade are authored, preserving dedicated pool lifecycle,
+host/config, original parser raw/time/count semantics and execute overrides.
+Added5 contract/4 integration functions and1 source-only manifest record. None
+executed. Next daily money flow and remaining HQ/native/helper/subscription work.
+
 ## Exact plan scope
 
 New `src/helpers/{mod,market,boards,shortline,profile}.rs` (split focused files as necessary), all HQ helper DTO/query types, `tests/hq_helpers.rs`, `examples/hq_query.rs`. Migrate Python HQ `api`, `helpers`, `equity.py`, `workday.py`, `stats.py`, native bridge and manifest per completed domain; author domain differential/compatibility source tests. Implement all HQ M79–M97 including pure classify_fund_flow M95. Complete all HQ methods left by prior tasks; no exposed placeholder/Unsupported for documented valid supported HQ behavior.

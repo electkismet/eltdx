@@ -122,6 +122,10 @@ pub fn trades(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest)
     unpriced_domain(py, executor, request, "python_trades", LegacyOperation::trades)
 }
 
+pub fn auction(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
+    unpriced_domain(py, executor, request, "python_auction", LegacyOperation::auction)
+}
+
 pub fn trade_read(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
     collect: bool, opening: bool, maximum_pages: Option<usize>, bulk: bool) -> PyResult<Py<PyAny>> {
     let include_raw = match &request {

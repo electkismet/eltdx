@@ -713,3 +713,34 @@ Resume auctions/dailyflow/corporate/equity/calendar/resources/stats/health and A
 helper/remaining subscription migration, complete manifest and installed-wheel
 consumer, then T19–T30/remaining Stage B. Goal active without token cap; no agents
 or publication. Preserve this checkpoint rather than rebuilding prior domains.
+
+Fourteenth source stage committed as **6544772**. All execution deferred.
+
+## Fifteenth source checkpoint — auction request and dedicated lifetime
+
+- Added shared fetch_auction_reply for public Rust series and Python legacy
+  requests. NativeEngine/LegacyOperation/service and both Python transports expose
+  sdk_auction with the original request extractor and flat public model projection.
+  Legacy auction parsing keeps raw records, noncanonical time fields, negative
+  finite prices, response counts above the requested limit, unsigned unmatched
+  magnitude and original malformed/nonfinite payload exceptions. No metadata scan
+  was added. Strict Rust continues enforcing its original time/count rules.
+- AuctionApi retains its exact weak factory/lazy dedicated pool/lock/close-recreate
+  sequence and original host/config policy. Native standard transports enter the
+  Rust domain; arbitrary factory products, subclasses and instance/class execute
+  replacements retain their custom execute hook. Ordinary pool and auction pool
+  are still distinct; original single-transport reopen uses the same generation
+  mechanism. Source-only constructor wiring adds internal native_services like
+  the other migrated facade classes.
+- Authored5 contract and4 local integration functions for payloads, execute hooks,
+  factory failure/retry/lazy reuse/recreate, custom classes,501 rows/unusual times/
+  negative price/raw fields, exact protocol errors, dedicated host routing and
+  close/reopen. One manifest capability gains only source evidence and adapter
+  reasons/exit criteria, without changing its migration status.
+
+All tests/collection/build/check/clippy/doctest/AST/format/diff-check/dependency/
+network validation remain unexecuted. Only source reads/edits and ordinary Git
+state/diffs were used. T18 remains partial; totals18 source complete/4 partial/
+8 unstarted. Next daily money flow recovery/routing, remaining corporate/equity/
+calendar/resources/stats/health/helpers/subscription/native manifest/consumer,
+then T19–T30/Stage B. Goal active, no token cap, subagents or publication.

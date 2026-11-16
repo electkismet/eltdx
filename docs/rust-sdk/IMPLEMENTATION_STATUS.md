@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17 第十五段源码恢复点：逐笔阶段已提交`6544772`。竞价共用Rust请求/响应边界及Python/native接入源码已写，保留原专用连接池延迟创建/关闭重建/主机配置/弱回调、custom execute扩展、raw与旧time/count行为且不预取目录。新增5个合同/4个本机集成函数、1项source-only manifest；全部未执行。T18仍部分，总体18源码完成/4部分/8未开始。下一步daily money flow及其余HQ/helper/订阅/manifest/consumer；目标active无额度限制。
+
 2026-11-17 第十四段源码恢复点：上一阶段行情已提交`d3c1215`。逐笔today/history单页、全量分页、历史bulk和正式开盘撮合的Python/native共用源码已写；保留原逐请求预算、无预取目录、重复/超count页、页内顺序、首base/raw/日期与上限异常；bulk保留原分块及空终页，不提前构建Python逐笔对象。自定义参数和instance/class分页替换保留原逐页adapter，today bulk继续原拒绝。新增14个合同/12个本机集成/3个Rust函数源码，四项manifest仅增source-only证据。全部未执行，T18仍部分；总体18源码完成/4部分/8未开始。下一步auctions/dailyflow及剩余HQ/helper/订阅迁移，完整manifest和installed-wheel consumer。目标active，无额度限制。
 
 2026-11-17 第十三段源码恢复点：目录阶段已提交`6fd1e05`。旧版行情/分类排行/刷新、CodeApi停牌筛选和标准订阅group的固定连接刷新native源码已写；共用Rust域边界/停牌位规则，保留原精度registry、负值/重复/原始字节、resolver次序、无resolver不预取，以及先预取再占pin。新增9个合同/9个本机差分集成函数、三项manifest source-only证据；全部未执行。T18仍部分，总体18源码完成/4部分/8未开始；下一步逐笔/竞价/资金流等剩余HQ及helper/订阅编排回迁。目标active无额度限制。
@@ -29,11 +31,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | 行情/停牌/pin刷新 `d3c1215`；后续逐笔/历史bulk/开盘撮合共用源码已写；全部执行验证延期 |
+| 最新检查点 | 逐笔/历史bulk/开盘撮合 `6544772`；后续竞价共用请求/专用pool接入源码已写；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T18：auctions/dailyflow/corporate/equity/calendar/resources/stats/health、全部helper及剩余subscription编排回迁、manifest和installed-wheel consumer；已有域不重复，最终统一验证 |
+| 下一步 | T18：dailyflow/corporate/equity/calendar/resources/stats/health、全部helper及剩余subscription编排回迁、manifest和installed-wheel consumer；已有域不重复，最终统一验证 |
 
 ## 阶段进度
 

@@ -255,6 +255,11 @@ impl NativeEngine {
         service::trades(py, self.legacy.clone(), request)
     }
 
+    fn sdk_auction(&self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::auction(py, self.legacy.clone(), request)
+    }
+
     #[pyo3(signature = (command, payload, *, collect=false, opening=false, max_pages=None, bulk=false))]
     fn sdk_trade_read(&self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>,
         collect: bool, opening: bool, max_pages: Option<usize>, bulk: bool) -> PyResult<Py<PyAny>> {
