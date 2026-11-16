@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第三十四段源码恢复点：订阅编排已提交`8051295`。installed-wheel consumer、block-meta响应/错误及helper forwarding用例源码已写，六项manifest源映射、M93–M95补充证据和M01–M100实现索引已补齐。T18当前规格的源码范围完成，所有验收仍延期；总数更新为19源码完成/3部分/8未开始。下一步T19 HTTP/F10基础。旧P2标签中的theme-strength/topics/topic-stocks依赖F10，明确归T23，不计入本次HQ源码完成。下方旧18/4/8记录仅为历史。目标active无额度限制，无任何测试/构建/检查/网络执行。
+
 2026-11-17 第三十三段源码恢复点：批量编排已提交`d49089b`。订阅pin分组/激活合并/游标记忆/续期调度/派发/单轮及持续轮询循环已接入Rust binding；Python保留except/finally、生命周期和custom hook，保证on_error中的活动异常、refresh lookup失败顺序、清状态后关pin，复用T15唯一push消费。新增19合同函数源码（含参数化），全未执行。下一步manifest全量证据/installed-wheel consumer，然后T19–T30/Stage B；18/4/8不变，active无额度限制，禁止执行验证不变。
 
 2026-11-17 第三十二段源码恢复点：板块阶段已提交`1b49adc`。资本、复权、资金流、普通/退市K线、分钟线和逐笔的批量切片/遍历/结果拼装已接入Rust binding。保留Python executor context和自定义worker/函数覆盖、短zip/重复key语义；分钟线一次提交全部，其他既有域保持逐worker分组。资金流自定义结果在with内返回，正常batch在with退出后构造。新增15个合同函数源码（含参数化），均未执行；更新3项source-only manifest。下一步subscription编排/完整manifest/installed-wheel consumer及全部后续任务；18/4/8不变，active无额度限制，所有执行验证延期。
@@ -67,11 +69,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | 批量编排 `d49089b`；订阅编排第三十三段源码已写；全部执行验证延期 |
-| 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
+| 最新检查点 | 订阅编排 `8051295`；第三十四段HQ源码索引/consumer与证据已写；全部执行验证延期 |
+| 当前阶段 | P2源码范围完成：T01–T18及T21源码完成；T22/T24/T25部分；下一步T19。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T18：manifest全量证据和installed-wheel consumer；已有helper/批量/订阅域不重复，继续全部T19–T30及Stage B，最终统一验证 |
+| 下一步 | T19 HTTP/F10基础，继续全部T20–T30及Stage B；HQ索引见hq-implementation-index.md，最终统一验证 |
 
 ## 阶段进度
 
@@ -79,7 +81,7 @@
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
-| P2 | T11–T18 HQ与Python首批迁移 | T11–T17实现与限定源码审阅完成；T18 M79–M97首批源码已写，完整native回迁/证据/consumer待做 | 按用户要求暂不运行 |
+| P2 | T11–T18 HQ与Python首批迁移 | T11–T18实现源码完成；HQ桥/证据/consumer源码具备；兼容和可用版本验收全部待最终执行 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Unicode修复 `a64a4a6` 通过限定复审，ZIP/资源集成待做 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |

@@ -7,6 +7,35 @@
     "catalog_capabilities": 124,
     "static_fixture_cases": 37
   },
+  "consumer_sources": {
+    "state": "source_only_unverified",
+    "rust": "tests/consumers/rust-sdk/src/main.rs",
+    "rust_fixture": "tests/consumers/rust-sdk/src/server.rs",
+    "python_wheel": "tests/consumers/python-wheel/consumer.py",
+    "requirements": "Copy outside the checkout; Rust environment has no Python, wheel environment has no Rust build tools. Package/feature/MSRV/platform execution is deferred to final validation."
+  },
+  "supplemental_hq_evidence": [
+    {
+      "method_ids": ["M93"],
+      "state": "source_only_unverified",
+      "rust_entry": "HelperService::market_stat",
+      "rust_source": "crates/eltdx/src/helpers/market_service.rs",
+      "python_sources": ["src/eltdx/helpers/core.py", "src/eltdx/helpers/market.py", "crates/eltdx-python/src/helper_market.rs"],
+      "contract_nodes": ["tests/contracts/test_sdk_market_composition_bridge.py::test_market_stat_keeps_legacy_position_even_when_middle_source_is_missing", "tests/contracts/test_sdk_market_composition_bridge.py::test_market_stat_all_three_rows_and_empty_error"],
+      "rust_nodes": ["crates/eltdx/tests/hq_helpers.rs::market_statistics_join_reordered_pseudo_indices_and_keep_sources_raw_and_units", "crates/eltdx/tests/hq_helpers.rs::market_statistics_missing_middle_is_missing_data_and_foreign_or_excess_rows_are_protocol"],
+      "compatibility": "Python keeps historical positional projection; Rust joins typed identities. Supplemental method evidence does not add an item to the authoritative 124-capability catalog."
+    },
+    {
+      "method_ids": ["M94", "M95"],
+      "state": "source_only_unverified",
+      "rust_entry": "HelperService::today_fund_flow; eltdx::helpers::classify_fund_flow",
+      "rust_sources": ["crates/eltdx/src/helpers/market_service.rs", "crates/eltdx/src/helpers/market.rs"],
+      "python_sources": ["src/eltdx/helpers/market.py", "crates/eltdx-python/src/helper_market.rs", "crates/eltdx-python/src/helpers.rs"],
+      "contract_nodes": ["tests/contracts/test_sdk_market_composition_bridge.py::test_today_flow_materializes_ticks_and_calls_current_classifier", "tests/contracts/test_sdk_helpers_bridge.py::test_fund_flow_exact_thresholds_and_trade_kinds", "tests/contracts/test_sdk_helpers_bridge.py::test_fund_flow_keeps_python_negative_and_nonfinite_arithmetic"],
+      "rust_nodes": ["crates/eltdx/tests/hq_helpers.rs::today_fund_flow_waits_for_empty_eof_and_includes_opening_and_postmarket_buy_sell_trades", "crates/eltdx/tests/hq_helpers.rs::today_fund_flow_never_returns_partial_amounts_after_corruption_no_progress_or_cancellation"],
+      "compatibility": "Pure aggregation is shared; Python arbitrary numeric/nonfinite object behavior remains in binding, strict Rust requires confirmed units and complete source evidence."
+    }
+  ],
   "allowed_differences": [
     {
       "left": "wire_codes",
@@ -260,7 +289,13 @@
       "id": "7709-quote-snapshots",
       "source_files": [
         "docs/methods/7709-批量快照.md",
-        "src/eltdx/api/quotes.py"
+        "src/eltdx/api/quotes.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/quotes.rs",
+        "crates/eltdx/src/services/recovery.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -271,6 +306,17 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x054c",
       "api": "client.quotes.get_snapshots(codes)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::quotes -> QuoteService::{snapshots,snapshots_with_policy}",
+        "shared_business_source": "crates/eltdx/src/services/quotes.rs; crates/eltdx/src/services/recovery.rs",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/service.rs", "crates/eltdx-python/src/transport.rs", "src/eltdx/api/quotes.py"],
+        "contract_nodes": ["tests/contracts/test_sdk_quote_bridge.py::test_native_snapshot_bridge_skip_mode_keeps_occurrence_order", "tests/contracts/test_sdk_quote_bridge.py::test_native_snapshot_bridge_keeps_price_metadata_resolution_order", "tests/contracts/test_sdk_quote_bridge.py::test_native_snapshot_bridge_projects_partial_result_before_missing_error"],
+        "rust_nodes": ["crates/eltdx/tests/quotes_batch.rs::complete_reordered_duplicate_occurrences_preserve_distinct_values_with_zero_extra_budget", "crates/eltdx/tests/quotes_batch.rs::confirmed_missing_preserves_all_slots_and_strict_policy_reports_index_and_identity"],
+        "fixtures": ["tests/fixtures/7709/snapshots/normal", "tests/consumers/python-wheel/consumer.py::quote_row"],
+        "temporary_adapter": {"scope": "Custom transport execute/recovery, Python resolver and warnings/errors", "reason": "Keep original object identity, input occurrence ordering and resolver-before-missing-error behavior.", "exit_condition": "Language-level callbacks and warning behavior remain explicit compatibility surfaces."},
+        "validation": "Not compiled, collected or executed; both independent consumers are source fixtures only."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-批量快照.md",
@@ -1896,7 +1942,12 @@
     {
       "id": "helper-latest-stock-list",
       "source_files": [
-        "docs/helpers/最新股票列表.md"
+        "docs/helpers/最新股票列表.md",
+        "src/eltdx/helpers/core.py",
+        "src/eltdx/api/codes.py",
+        "crates/eltdx/src/helpers/service.rs",
+        "crates/eltdx/src/services/code_selection.rs",
+        "crates/eltdx-python/src/service.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -1905,6 +1956,16 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x044d",
       "api": "client.helpers.latest_stock_list(market=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "HelperService::latest_stock_list",
+        "shared_business_source": "crates/eltdx/src/helpers/service.rs; crates/eltdx/src/services/code_selection.rs",
+        "bridge_sources": ["src/eltdx/helpers/core.py", "src/eltdx/api/codes.py", "crates/eltdx-python/src/service.rs"],
+        "contract_nodes": ["tests/contracts/test_sdk_code_bridge.py::test_native_code_filters_keep_original_row_objects", "tests/contracts/test_sdk_code_bridge.py::test_native_all_market_ids_keep_market_scan_order"],
+        "integration_nodes": ["tests/integration/test_native_code_bridge.py::test_native_directory_selection_matches_existing_rows_order_and_counts"],
+        "temporary_adapter": {"scope": "Thin helper forwarding and custom directory row attributes", "reason": "Preserve list shape, original row identities and market scan order.", "exit_condition": "Helper forwarding and arbitrary custom rows remain language adapters."},
+        "validation": "Source only; the helper delegates to the migrated CodeApi selectors."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/最新股票列表.md",
@@ -1916,7 +1977,12 @@
     {
       "id": "helper-latest-st",
       "source_files": [
-        "docs/helpers/最新ST列表.md"
+        "docs/helpers/最新ST列表.md",
+        "src/eltdx/helpers/core.py",
+        "src/eltdx/api/codes.py",
+        "crates/eltdx/src/helpers/service.rs",
+        "crates/eltdx/src/services/code_selection.rs",
+        "crates/eltdx-python/src/service.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -1925,6 +1991,16 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x044d",
       "api": "client.helpers.latest_st(market=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "HelperService::latest_st",
+        "shared_business_source": "crates/eltdx/src/helpers/service.rs; crates/eltdx/src/services/code_selection.rs",
+        "bridge_sources": ["src/eltdx/helpers/core.py", "src/eltdx/api/codes.py", "crates/eltdx-python/src/service.rs"],
+        "contract_nodes": ["tests/contracts/test_sdk_code_bridge.py::test_native_st_filter_keeps_name_only_after_latest_stock_extension", "tests/contracts/test_sdk_code_bridge.py::test_native_filters_keep_custom_row_adapter_and_unicode_name_behavior"],
+        "integration_nodes": ["tests/integration/test_native_code_bridge.py::test_native_st_selection_handles_python_unicode_rules_without_starting_engine"],
+        "temporary_adapter": {"scope": "Python Unicode name and custom row behavior", "reason": "Preserve historical str.strip/upper behavior and user latest_stock_list overrides.", "exit_condition": "Custom language objects require the retained adapter."},
+        "validation": "Source only, not collected or executed."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/最新ST列表.md",
@@ -2196,7 +2272,12 @@
     {
       "id": "helper-buy-sell-strength",
       "source_files": [
-        "docs/helpers/买卖力道.md"
+        "docs/helpers/买卖力道.md",
+        "src/eltdx/helpers/core.py",
+        "src/eltdx/api/minutes.py",
+        "crates/eltdx/src/helpers/service.rs",
+        "crates/eltdx/src/services/minutes.rs",
+        "crates/eltdx-python/src/service.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2205,6 +2286,17 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x051b",
       "api": "client.helpers.buy_sell_strength(code)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "HelperService::buy_sell_strength -> MinuteService::aux",
+        "shared_business_source": "crates/eltdx/src/helpers/service.rs; crates/eltdx/src/services/minutes.rs",
+        "bridge_sources": ["src/eltdx/helpers/core.py", "src/eltdx/api/minutes.py", "crates/eltdx-python/src/service.rs"],
+        "contract_nodes": ["tests/contracts/test_sdk_minute_bridge.py::test_native_minute_aliases_keep_selectors", "tests/contracts/test_sdk_minute_bridge.py::test_native_auxiliary_minutes_do_not_resolve_prices"],
+        "integration_nodes": ["tests/integration/test_native_minute_bridge.py::test_native_minute_aux_keeps_both_layouts_unknown_selector_and_raw"],
+        "rust_nodes": ["crates/eltdx/tests/minutes.rs::auxiliary_float_bits_and_sparkline_identity_selector_are_preserved"],
+        "temporary_adapter": {"scope": "Thin helper code normalization and user aux callback", "reason": "Preserve include_raw and original selector/name behavior.", "exit_condition": "Keep public Python forwarding behavior as a language adapter."},
+        "validation": "Source only; no new metadata request or unit assumption is introduced."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/买卖力道.md",
@@ -2216,7 +2308,12 @@
     {
       "id": "helper-volume-comparison",
       "source_files": [
-        "docs/helpers/成交对比.md"
+        "docs/helpers/成交对比.md",
+        "src/eltdx/helpers/core.py",
+        "src/eltdx/api/minutes.py",
+        "crates/eltdx/src/helpers/service.rs",
+        "crates/eltdx/src/services/minutes.rs",
+        "crates/eltdx-python/src/service.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2225,6 +2322,17 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x051b",
       "api": "client.helpers.volume_comparison(code)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "HelperService::volume_comparison -> MinuteService::aux",
+        "shared_business_source": "crates/eltdx/src/helpers/service.rs; crates/eltdx/src/services/minutes.rs",
+        "bridge_sources": ["src/eltdx/helpers/core.py", "src/eltdx/api/minutes.py", "crates/eltdx-python/src/service.rs"],
+        "contract_nodes": ["tests/contracts/test_sdk_minute_bridge.py::test_native_minute_aliases_keep_selectors", "tests/contracts/test_sdk_minute_bridge.py::test_native_auxiliary_minutes_do_not_resolve_prices"],
+        "integration_nodes": ["tests/integration/test_native_minute_bridge.py::test_native_minute_aux_keeps_both_layouts_unknown_selector_and_raw"],
+        "rust_nodes": ["crates/eltdx/tests/minutes.rs::auxiliary_float_bits_and_sparkline_identity_selector_are_preserved"],
+        "temporary_adapter": {"scope": "Thin helper normalization, include_raw and custom callback", "reason": "Keep legacy three-column float projection without inferred units.", "exit_condition": "Language forwarding remains an intentional adapter."},
+        "validation": "Source only, no compilation or execution."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/成交对比.md",
@@ -2575,7 +2683,12 @@
       "id": "7709-block-meta",
       "source_files": [
         "docs/methods/0x02c5-板块文件元数据接口.md",
-        "src/eltdx/api/resources.py"
+        "src/eltdx/api/resources.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/resources.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -2586,6 +2699,17 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x02c5",
       "api": "client.resources.block_meta(filename)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "ResourceService::block_meta",
+        "shared_business_source": "crates/eltdx/src/services/resources.rs::fetch_resource_reply",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/service.rs", "crates/eltdx-python/src/transport.rs", "src/eltdx/api/resources.py"],
+        "contract_nodes": ["tests/contracts/test_sdk_resource_bridge.py::test_native_resource_single_requests_use_shared_domain", "tests/contracts/test_sdk_resource_bridge.py::test_native_resource_execute_override_remains_an_adapter"],
+        "rust_nodes": ["crates/eltdx/tests/resources.rs::block_metadata_retains_server_checksum_and_optional_raw"],
+        "integration_nodes": ["tests/integration/test_native_resource_bridge.py::test_native_block_metadata_keeps_size_hash_and_permitted_trailer", "tests/integration/test_native_resource_bridge.py::test_native_block_metadata_short_payload_preserves_protocol_error"],
+        "temporary_adapter": {"scope": "Custom resource execute and Python model projection", "reason": "Preserve original constructor fields, arbitrary custom responses and byte-range error behavior.", "exit_condition": "Keep arbitrary custom transport responses in the Python adapter."},
+        "validation": "Source only; returned MD5 remains server metadata and does not claim a verified download hash."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/0x02c5-板块文件元数据接口.md",

@@ -1183,3 +1183,28 @@ Thirty-second source stage committed as **d49089b**; all execution deferred.
 
 T18 remains partial18/4/8. Next full manifest evidence and installed-wheel
 consumer, then T19–T30/Stage B without scope reduction. Goal active with no quota.
+
+Thirty-third source stage committed as **8051295**; all execution deferred.
+
+## Thirty-fourth source checkpoint — HQ scope and independent consumers
+
+- Authored installed-wheel consumer using only stdlib/public API, independent
+  handwritten wire fixture, nonempty directory with terminal page, repeated
+  snapshots and known prices, capital chunks/raw, local ping and confirmed TCP
+  EOF. Source-location/toolchain checks and success-only evidence output are
+  authored. No import/install/fixture execution occurred.
+- Added two block-meta wire differential/error source functions and two
+  parameterized thin helper forwarding functions. Linked six previously
+  missing source records, supplemental M93–M95 and both consumers without
+  changing verified/public migration status or the 124-item catalog.
+- Added hq-implementation-index.md covering all M01–M100 ranges, shared domain
+  and bridge locations, source cases, retained Python object/codec/lifetime
+  adapters and final consumer validation requirements.
+- Catalog theme-strength/topics/topic-stocks are F10-dependent T23 work despite
+  their historical P2 labels; they are explicitly outside this HQ source gate.
+
+The currently specified T18 implementation/source-evidence scope is complete;
+its compile/runtime/consumer/compatibility acceptance remains deferred, not
+passed. Totals now19 source-complete/3 partial/8 unstarted. Next T19 HTTP/F10
+foundation; continue every remaining task before executing validation. Goal
+active without token quota. No agents, publication or execution checks.

@@ -204,6 +204,12 @@ Migration evidence truthful per124 capability records, root public symbol/source
 
 ## Workflow and report
 
+Recovery2026-11-17 stage34: subscription8051295 committed. HQ source gate now
+complete, including independent installed-wheel consumer, missing manifest
+evidence, block-meta and helper forwarding cases and M01–M100 source index.
+All remain unexecuted.19 source complete/3 partial/8 unstarted. Next T19; three
+historically P2-labeled F10 helpers belong to T23. Read task-18-report stage34.
+
 Recovery2026-11-17 stage31: market43028a4; all board business loops now native-bound,17 contract functions unexecuted. Python Path/codec/regex/JSON/hash and original cache semantics retained. Next batch/subscription/manifest/installed-wheel consumer.18/4/8, active unlimited, all execution deferred.
 
 Recovery2026-11-17 stage30: daily stageeaecc51, auction/market/small-helper binding authored. Next boards/batch/subscription/manifest/installed-wheel consumer, then all later tasks.13 Python/1 Rust source cases unexecuted; counts18/4/8, active unlimited.

@@ -319,6 +319,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T18：P2 Python 回迁及可用版本验收
 
+2026-11-17第三十四段：`8051295`订阅检查点后，installed-wheel consumer、block-meta本机差分/错误和薄helper兼容用例已写；六项manifest补证据，新增M01–M100源码索引。T18源码范围完成，编译/测试/安装/可用版本验收仍未执行，以下验收复选框不表示通过。总数19源码完成/3部分/8未开始，下一步T19；旧P2标签中的三个F10 helper明确归T23。
+
 2026-11-17第三十三段：批量编排已提交`d49089b`；订阅pin分组/激活/游标/续期/派发/run_once/run循环迁入Rust binding，Python保留异常活动上下文、finally清理和custom hooks，复用T15单一push reader。新增19合同函数源码（含参数化），均未执行。manifest仍source-only，下一步全量证据/installed-wheel consumer及后续全部任务，18/4/8不变。
 
 2026-11-17第三十二段：板块已提交`1b49adc`；资本/复权/资金流/K线/分钟/逐笔批量切片、映射和结果拼装迁入binding，保留Python executor生命周期、容量/custom覆盖、原key/zip、分钟一次map和正常资金流batch退出context后构造。新增15合同函数源码及3项manifest补充，全未执行。下一步subscription/完整manifest/installed-wheel consumer，T18仍部分18/4/8；后续范围及验证延期约定不变。
