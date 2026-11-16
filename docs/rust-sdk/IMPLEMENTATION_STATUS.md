@@ -9,10 +9,10 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P2：T11 CodeService/QuoteService 源码实现进行中；P1 的 T10 `7a85f5c`/fix `151489f` 静态审阅已完成；T17 Stage A/A2 已批、Stage B 待服务集成；T22 Unicode修复 `a64a4a6` 已通过限定复审，ZIP/资源服务待集成；T24 Stage A 已批；T25 Stage A 已提交 |
-| 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
+| 当前阶段 | P2：T11 M01–M22 服务源码及静态自审完成，最终验证延期；下一步 T12 native bridge 与 Python quote/code facade 迁移。T17 Stage A/A2 已批、Stage B 待服务集成；T22 ZIP/资源服务待集成；T24/T25 的 Stage B 待完成 |
+| 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | 完成 T11 源码自审与 T12/T13 handoff，再进入 T12；并行推进其余未完成 Stage B 与 T12–T30；全部实现完成后统一验证 |
+| 下一步 | T12：经窄 native service adapter 迁移 Python quotes/codes facade；先保持 Python 参数、结果、异常、别名、custom transport 与逐请求计时不变；继续 T13–T30 和未完成 Stage B；全部实现完成后统一验证 |
 
 ## 阶段进度
 
@@ -20,7 +20,7 @@
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
-| P2 | T11–T18 HQ与Python首批迁移 | T11 服务与批量恢复实现进行中，新增边界用例源码已写但未执行；T17 archive/stats/GBK 模块已批，服务集成待推进 | 按用户要求暂不运行 |
+| P2 | T11–T18 HQ与Python首批迁移 | T11 M01–M22 源码及静态自审完成；测试源码未执行。T12 native bridge 待做；T17 archive/stats/GBK 模块已批，服务集成待推进 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Unicode修复 `a64a4a6` 通过限定复审，ZIP/资源集成待做 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
@@ -57,7 +57,7 @@
 
 ## 恢复规则
 
-最新恢复点（2026-11-16）：goal 模式 active，`remainingTokens=null`。T11 quote 边界源码测试提交于 `ddb5e89`；category continuation offset 修复与测试提交于 `73c9365`。T11 服务源码自审和 T12/T13 handoff 仍待完成；新增源码用例未执行。T01–T10 与 T21 实现已完成；T17/T22/T24/T25 的服务集成仍有后续工作；T12–T30 按 brief 继续。没有运行测试、collection、构建、检查、格式化、diff 检查或网络验证。
+最新恢复点（2026-11-16）：goal 模式 active，`remainingTokens=null`。T11 M01–M22 服务源码完成并经过静态自审，未编译、未运行用例。边界/失败路径源码覆盖提交于 `ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`。下一步 T12 native bridge：Python quotes/codes facade 经 `__python_compat` 调用同一 Rust 业务实现，同时保持 Python API 与 legacy execution profile。T13–T30 及 T17/T22/T24/T25 剩余集成未完成。没有运行测试、collection、构建、检查、格式化、diff 检查或网络验证。
 
 T21 于 `9734db3` 完成35个非财报本地 API、模型/格式算法、GBK 静态查表数据及四组测试源码；所有验证延期。仅运行了经授权的一次 Python 3.12.14 标准库 GBK 映射数据生成，脚本、版本和来源已在实现报告记录。任务审阅包以 `230e566` 为基线，仅含 T21 自有文件，scoped source review 进行中。T10 的 `Diagnostic`/`EnrichmentStatus` 共享实现仍待完成；这不是 T21 已验证集成的证据。
 
@@ -104,6 +104,8 @@ T21 第一轮静态审阅指出 `read_custom` 将空 leaf 当作可跳过数据�
 | `a38dc32` | T11 checkpoint | Python legacy metadata 预取顺序与初始快照请求兼容 |
 | `ddb5e89` | T11 tests/checkpoint | 第二 chunk 取消、恢复超时、category 非有限必需值源码用例；同步状态文档 |
 | `73c9365` | T11 fix | category continuation 无法表示下一个 offset 时返回 `RequestedWindow` 并省略 cursor |
+| `f6ff2b3` | T11 tests | public CodeService 保留未知证券分类为 `Unknown` |
+| `c0f005d` | T11 tests | 主快照连接失败仍返回 connection error，不降级成 missing |
 
 ## 阻塞与风险
 
