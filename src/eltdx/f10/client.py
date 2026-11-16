@@ -2378,37 +2378,29 @@ def _section_request(
 
 
 def _first_value(response: F10Response, field_name: str) -> Any | None:
-    for row in response.rows:
-        if field_name in row:
-            return row[field_name]
-    return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_first_value(response, field_name)
 
 
 def _text(value: Any) -> str | None:
     """把服务端标量转成字符串；空值、占位符一律返回 ``None``。"""
 
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "text", _MODULES[__name__])
 
 
 def _int(value: Any) -> int | None:
-    if value is None or value == "":
-        return None
-    try:
-        return int(str(value).strip())
-    except (TypeError, ValueError):
-        return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "int", _MODULES[__name__])
 
 
 def _float(value: Any) -> float | None:
-    if value is None or value == "":
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "float", _MODULES[__name__])
 
 
 def _market_flag(value: Any) -> int | None:
@@ -2418,35 +2410,25 @@ def _market_flag(value: Any) -> int | None:
     由 :class:`~eltdx.f10.models.IndexMember` 按代码号段回退推断。
     """
 
-    text = _text(value)
-    if text is None:
-        return None
-    return {"1": 1, "0": 0}.get(text)
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "market", _MODULES[__name__])
 
 
 def _result_total(response: F10Response) -> int | None:
     """分页接口把样本总数放在第二个 ResultSet（列名 ``zs``）里。"""
 
-    for table in response.result_sets:
-        if table.key == "table0":
-            continue
-        for row in table.rows:
-            for value in row.values():
-                if isinstance(value, int):
-                    return value
-                parsed = _int(value)
-                if parsed is not None:
-                    return parsed
-    return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_result_total(response, _MODULES[__name__])
 
 
 def _latest_report_period(response: F10Response) -> str:
     """从 ``*bgq`` 报告期列表里取最新报告期（首行 ``rq``）；为空时返回空串。"""
 
-    rows = response.rows
-    if not rows:
-        return ""
-    return str(rows[0].get("rq") or "")
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_latest_period(response, _MODULES[__name__])
 
 
 def _normalize_limit_board_dates(
@@ -2455,87 +2437,36 @@ def _normalize_limit_board_dates(
 ) -> tuple[str, str]:
     """Normalize optional dates to the gateway's ``YYYYMMDD`` format."""
 
-    start = _date_text(start_date)
-    end = _date_text(end_date)
-    if start is None and end is None:
-        today = date.today().strftime("%Y%m%d")
-        return today, today
-    if start is None:
-        start = end
-    if end is None:
-        end = start
-    assert start is not None and end is not None
-    if start > end:
-        raise ValueError("start_date must be on or before end_date")
-    return start, end
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_ladder_dates(start_date, end_date, _MODULES[__name__])
 
 
 def _date_text(value: str | int | date | None) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        value = value.date()
-    if isinstance(value, date):
-        return value.strftime("%Y%m%d")
-    text = str(value).strip().replace("-", "").replace("/", "")
-    if len(text) != 8 or not text.isdigit():
-        raise ValueError(f"invalid date: {value!r}")
-    try:
-        datetime.strptime(text, "%Y%m%d")
-    except ValueError as exc:
-        raise ValueError(f"invalid date: {value!r}") from exc
-    return text
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_date_text(value, _MODULES[__name__])
 
 
 def _parse_limit_board_ladder_row(row: Mapping[str, Any]) -> LimitBoardLadderRow:
-    limit_type = _as_int(row.get("ztlb"))
-    board_level = _as_int(row.get("lbts"))
-    return LimitBoardLadderRow(
-        trading_date=row.get("rq"),
-        trading_date_value=row.get("rqex"),
-        board_level=(
-            board_level
-            if limit_type == 1 and board_level is not None and board_level > 0
-            else None
-        ),
-        code=_as_text(row.get("ZQDM")),
-        market_id=_as_int(row.get("SC")),
-        limit_reason=row.get("ztyy"),
-        seal_amount=_as_number(row.get("fde")),
-        name=row.get("ZQJC"),
-        limit_reason_extra=row.get("ztyy2"),
-        limit_time=row.get("ztsj"),
-        broken_count=_as_int(row.get("kbcs")),
-        industry=row.get("sshy"),
-        limit_type=limit_type,
-        success_rate=row.get("cgl"),
-        highest_board_level=_as_int(row.get("zglb")),
-        raw=dict(row),
-    )
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_ladder_row(row, _MODULES[__name__])
 
 
 def _as_text(value: Any) -> str | None:
-    return None if value is None else str(value)
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "as_text", _MODULES[__name__])
 
 
 def _as_int(value: Any) -> int | None:
-    if value is None or value == "":
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "as_int", _MODULES[__name__])
 
 
 def _as_number(value: Any) -> float | int | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, (int, float)):
-        return value
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    return int(number) if number.is_integer() else number
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "as_number", _MODULES[__name__])

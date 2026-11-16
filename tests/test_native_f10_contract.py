@@ -1532,3 +1532,101 @@ def test_f10_news_rows_reads_live_dict_for_each_row(monkeypatch):
     response = SimpleNamespace(result_sets=(None, SimpleNamespace(rows=(1, 2))))
     assert news.extract_news_rows(response) == [1, 2]
     assert calls == [("first", 1), ("second", 2)]
+
+
+def test_f10_first_value_stops_at_first_matching_none():
+    response = SimpleNamespace(rows=({}, {"x": None}, {"x": 3}))
+    assert f10._first_value(response, "x") is None
+    assert f10._first_value(SimpleNamespace(rows=({"x": 0},)), "x") == 0
+
+
+def test_f10_scalars_keep_distinct_coercion_and_nonfinite_values():
+    import math
+
+    assert f10._text("  ") is None and f10._as_text("  ") == "  "
+    assert f10._int(1.9) is None and f10._as_int(1.9) == 1
+    assert f10._int("９" * 100) == int("９" * 100)
+    assert f10._as_number(True) == 1
+    assert type(f10._as_number("2.0")) is int
+    assert math.isinf(f10._float("inf"))
+    assert math.isnan(f10._as_number("nan"))
+    with pytest.raises(OverflowError):
+        f10._as_int(float("inf"))
+
+
+def test_f10_scalar_conversion_keeps_error_boundaries():
+    class BadText:
+        def __str__(self):
+            raise ValueError("text failed")
+
+    class BadComparison:
+        def __eq__(self, value):
+            raise ValueError("comparison failed")
+
+    assert f10._int(BadText()) is None
+    with pytest.raises(ValueError, match="text failed"):
+        f10._text(BadText())
+    with pytest.raises(ValueError, match="comparison failed"):
+        f10._as_int(BadComparison())
+
+
+def test_f10_total_keeps_legacy_all_values_and_bool_policy():
+    response = SimpleNamespace(result_sets=(
+        SimpleNamespace(key="table0", rows=({"zs": 100},)),
+        SimpleNamespace(key="other", rows=({"unrelated": "bad", "first": False, "zs": 200},)),
+    ))
+    assert f10._result_total(response) is False
+    assert f10._result_total(SimpleNamespace(result_sets=(
+        SimpleNamespace(key="other", rows=({"unrelated": " -3 "},)),))) == -3
+
+
+def test_f10_latest_report_period_does_not_search_later_rows():
+    assert f10._latest_report_period(SimpleNamespace(rows=({"rq": None}, {"rq": "20261231"}))) == ""
+    assert f10._latest_report_period(SimpleNamespace(rows=({"rq": [1]},))) == "[1]"
+
+
+def test_f10_date_text_keeps_formats_validation_and_causes():
+    from datetime import date, datetime
+
+    assert f10._date_text(date(2024, 2, 29)) == "20240229"
+    assert f10._date_text(datetime(2024, 2, 29, 12, 30)) == "20240229"
+    assert f10._date_text("2024/02/29") == "20240229"
+    with pytest.raises(ValueError) as shape:
+        f10._date_text("bad")
+    assert str(shape.value) == "invalid date: 'bad'" and shape.value.__cause__ is None
+    with pytest.raises(ValueError) as invalid:
+        f10._date_text("20230229")
+    assert str(invalid.value) == "invalid date: '20230229'"
+    assert isinstance(invalid.value.__cause__, ValueError)
+
+
+def test_f10_ladder_dates_keeps_live_normalizer_order_and_default_clock(monkeypatch):
+    calls = []
+    monkeypatch.setattr(f10, "_date_text", lambda value: calls.append(value) or value)
+    assert f10._normalize_limit_board_dates(None, "20240102") == ("20240102", "20240102")
+    assert calls == [None, "20240102"]
+    with pytest.raises(ValueError, match="start_date must be on or before end_date"):
+        f10._normalize_limit_board_dates("20240103", "20240102")
+
+    class Clock:
+        @classmethod
+        def today(cls):
+            return SimpleNamespace(strftime=lambda format: "clock-day")
+
+    monkeypatch.setattr(f10, "date", Clock)
+    assert f10._normalize_limit_board_dates(None, None) == ("clock-day", "clock-day")
+
+
+def test_f10_ladder_row_keeps_raw_identity_and_preparation_order(monkeypatch):
+    calls = []
+    row = {"ztlb": 1, "lbts": 2, "ZQDM": "600000", "SC": 1, "fde": "5.0", "rq": object()}
+    original = f10._as_int
+    monkeypatch.setattr(f10, "_as_int", lambda value: calls.append(value) or original(value))
+    monkeypatch.setattr(f10, "LimitBoardLadderRow", lambda **values: values)
+    result = f10._parse_limit_board_ladder_row(row)
+    assert calls == [1, 2, 1, None, None]
+    assert result["board_level"] == 2 and result["seal_amount"] == 5
+    assert result["raw"] == row and result["raw"] is not row
+    assert result["trading_date"] is row["rq"]
+    result = f10._parse_limit_board_ladder_row({"ztlb": 3, "lbts": 5})
+    assert result["board_level"] is None and result["limit_type"] == 3

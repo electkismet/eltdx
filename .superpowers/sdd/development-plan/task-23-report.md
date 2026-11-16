@@ -516,3 +516,23 @@ all unexecuted. Only ordinary source review/diffs and hooks-disabled checkpoint
 allowed. No manifest status promoted. Still21 source complete/4 partial/5
 unstarted. Next models, scalar/date/row, cross-source helper services and full
 T23 manifest evidence; thenT24–T30 and unified validation after all sources.
+
+## Eighteenth checkpoint — scalar, dates and ladder row helpers
+
+Base05479e1. New f10_values.rs backs all remaining client scalar/date/row
+helpers, first field selection, latest report period and legacy total scan.
+Shared first_match explicitly distinguishes matching None from no match;
+strict report prerequisite also uses it. Shared date-pair/default resolution,
+ladder row field map and short-circuit positive board selection are used by
+strict and legacy adapters. Python keeps str-int versus direct-int, arbitrary
+precision, nonfinite values and old conversion-error boundaries; total still
+scans all values and treats bool as int. Date parsing uses live date/datetime
+hooks and keeps invalid-calendar ValueError cause. Model constructor, dict,
+converters and raw value identity remain live. Default clock returns before
+comparison, and row arguments preserve their old preparation/evaluation order.
+
+Eight Python contract functions and one Rust function authored, not executed.
+Stage65 authored-function count correction:13 Python functions, not14 (one
+has two parameter cases). No execution checks/collection/build/dependency/
+network/format/AST, agents or publication.21/4/5 unchanged; next model business
+loops, cross-source helper services and manifest beforeT24–T30.

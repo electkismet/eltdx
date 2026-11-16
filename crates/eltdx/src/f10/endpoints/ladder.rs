@@ -35,12 +35,8 @@ impl LimitUpDownListQuery {
     }
     fn resolve(&self, today: Option<TradingDate>) -> Result<(TradingDate, TradingDate)> {
         date_pair(self.start_date, self.end_date)?;
-        match (self.start_date, self.end_date) {
-            (Some(start), Some(end)) => Ok((start, end)),
-            (Some(date), None) | (None, Some(date)) => Ok((date, date)),
-            (None, None) => today.map(|date| (date, date)).ok_or_else(|| Error::new(
-                ErrorKind::MetadataUnavailable, "ladder query needs the client's local date clock")),
-        }
+        crate::f10::collection::resolve_dates(self.start_date, self.end_date,
+            || today.ok_or_else(|| Error::new(ErrorKind::MetadataUnavailable, "ladder query needs the client's local date clock")))
     }
 }
 
@@ -81,13 +77,13 @@ pub struct LimitBoardLadderRow {
 }
 impl LimitBoardLadderRow {
     pub fn raw(&self) -> &Row { &self.raw }
-    pub fn trading_date(&self) -> Option<&JsonValue> { value(&self.raw, "rq") }
-    pub fn trading_date_value(&self) -> Option<&JsonValue> { value(&self.raw, "rqex") }
+    pub fn trading_date(&self) -> Option<&JsonValue> { value(&self.raw, crate::f10::collection::ladder_column("trading_date")) }
+    pub fn trading_date_value(&self) -> Option<&JsonValue> { value(&self.raw, crate::f10::collection::ladder_column("trading_date_value")) }
     pub fn trade_date(&self) -> Option<TradingDate> { self.trade_date }
     pub fn board_level(&self) -> Option<u32> { self.board_level }
     pub fn consecutive_limit_days(&self) -> Option<u32> { self.board_level }
     pub fn status(&self) -> LimitBoardType { self.status }
-    pub fn code(&self) -> Option<&str> { string(&self.raw, "ZQDM") }
+    pub fn code(&self) -> Option<&str> { string(&self.raw, crate::f10::collection::ladder_column("code")) }
     pub fn market(&self) -> Option<F10MarketCode> {
         integer(&self.raw, "SC").and_then(|value| u16::try_from(value).ok()).map(F10MarketCode::new)
     }
@@ -298,8 +294,11 @@ impl F10Client {
             context.record_work(1, 0)?;
             check_fields(&raw, index, &["lbts", "SC", "kbcs", "ztlb", "zglb"], &["fde"], &context, &mut meta)?;
             let status = LimitBoardType::from_wire(integer(&raw, "ztlb"));
-            let board_level = (status == LimitBoardType::Up).then(|| integer(&raw, "lbts")).flatten()
-                .and_then(|level| u32::try_from(level).ok()).filter(|&level| level > 0);
+            let candidate = (status == LimitBoardType::Up).then(|| integer(&raw, "lbts")).flatten()
+                .and_then(|level| u32::try_from(level).ok());
+            let keep = crate::f10::collection::keep_ladder_level(|| Ok::<_, Error>(status == LimitBoardType::Up),
+                || Ok(candidate.is_some()), || Ok(candidate.is_some_and(|level| level > 0)))?;
+            let board_level = if keep { candidate } else { None };
             if status == LimitBoardType::Up && board_level.is_none() {
                 diagnostic(&context, &mut meta, index, "lbts", "positive u32 board level required for ladder statistics")?;
             }

@@ -229,18 +229,19 @@ impl GovernanceQuery { pub fn to_call(&self) -> Result<CallQuery> { super::templ
 fn first_scalar(response: &Response, field: &str, context: &OperationContext) -> Result<Option<String>> {
     if !response.ok() { return Ok(None); }
     if let Some(row) = response.first_table().and_then(|table| table.rows().first()) {
-        for cell in row.cells() {
+        let selected = crate::f10::collection::first_match(row.cells().iter().map(Ok::<_, Error>), |cell| {
             context.check_boundary(TimeoutPhase::Decode)?;
-            if cell.name() != field { continue; }
+            if cell.name() != field { return Ok(None); }
             let value = match cell.value() {
                 JsonValue::String(value) => value.as_str(),
                 JsonValue::Number(value) => value.lexeme(),
-                _ => return Ok(None),
+                _ => return Ok(Some(None)),
             };
             // Prerequisites here are dates, never arbitrary display strings.
             // Bound the copy before validating Gregorian syntax below.
-            return Ok((!value.is_empty() && value.len() <= 10).then(|| value.to_owned()));
-        }
+            Ok(Some((!value.is_empty() && value.len() <= 10).then(|| value.to_owned())))
+        })?;
+        return Ok(selected.flatten());
     }
     Ok(None)
 }

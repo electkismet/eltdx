@@ -60,3 +60,57 @@ pub fn collection_route(method: &str) -> Option<(&'static str, &'static str, &'s
 }
 
 pub fn ladder_parameters<T>(selector: T, start: T, end: T) -> [T; 3] { [selector, start, end] }
+
+/// Generic first-match traversal, with success distinct from an absent value.
+/// A Python match containing None must stop just like any other matched row.
+pub fn first_match<T, V, E>(rows: impl IntoIterator<Item = Result<T, E>>,
+    mut select: impl FnMut(T) -> Result<Option<V>, E>) -> Result<Option<V>, E>
+{
+    for row in rows { if let Some(value) = select(row?)? { return Ok(Some(value)); } }
+    Ok(None)
+}
+
+pub fn resolve_dates<T: Clone, E>(start: Option<T>, end: Option<T>,
+    today: impl FnOnce() -> Result<T, E>) -> Result<(T, T), E>
+{
+    match (start, end) {
+        (Some(start), Some(end)) => Ok((start, end)),
+        (Some(day), None) | (None, Some(day)) => Ok((day.clone(), day)),
+        (None, None) => { let day = today()?; Ok((day.clone(), day)) }
+    }
+}
+
+pub const LADDER_ROW_FIELDS: &[(&str, &str, Option<&str>)] = &[
+    ("trading_date", "rq", None), ("trading_date_value", "rqex", None),
+    ("code", "ZQDM", Some("_as_text")), ("market_id", "SC", Some("_as_int")),
+    ("limit_reason", "ztyy", None), ("seal_amount", "fde", Some("_as_number")),
+    ("name", "ZQJC", None), ("limit_reason_extra", "ztyy2", None),
+    ("limit_time", "ztsj", None), ("broken_count", "kbcs", Some("_as_int")),
+    ("industry", "sshy", None), ("limit_type", "ztlb", None),
+    ("success_rate", "cgl", None), ("highest_board_level", "zglb", Some("_as_int")),
+];
+
+pub(crate) fn ladder_column(attribute: &str) -> &'static str {
+    LADDER_ROW_FIELDS.iter().find(|&&(name, _, _)| name == attribute)
+        .expect("built-in ladder field").1
+}
+
+pub fn keep_ladder_level<E>(up: impl FnOnce() -> Result<bool, E>,
+    present: impl FnOnce() -> Result<bool, E>, positive: impl FnOnce() -> Result<bool, E>) -> Result<bool, E>
+{
+    Ok(up()? && present()? && positive()?)
+}
+
+#[cfg(test)]
+mod value_tests {
+    use super::*;
+
+    #[test]
+    fn first_match_retains_nested_none_and_dates_only_read_clock_when_absent() {
+        let values = [None, Some(None), Some(Some(2))];
+        assert_eq!(first_match(values.into_iter().map(Ok::<_, ()>), Ok).unwrap(), Some(None));
+        assert_eq!(resolve_dates(Some(2), None, || Err::<i32, _>(())).unwrap(), (2, 2));
+        assert_eq!(resolve_dates(None, None, || Ok::<_, ()>(3)).unwrap(), (3, 3));
+        assert!(!keep_ladder_level(|| Ok::<_, ()>(false), || panic!("short circuit"), || panic!("short circuit")).unwrap());
+    }
+}
