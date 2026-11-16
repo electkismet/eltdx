@@ -1,6 +1,6 @@
 #![cfg(feature = "f10")]
 
-use eltdx::f10::{EntryName, Header, JsonNumber, JsonValue, ProxyUrl, Route};
+use eltdx::f10::{EntryName, F10Client, Header, JsonNumber, JsonValue, ProxyUrl, Route};
 
 #[test]
 fn ordered_duplicate_members_and_large_numeric_text_roundtrip() -> eltdx::Result<()> {
@@ -46,5 +46,20 @@ fn route_names_and_local_header_proxy_rejections_are_explicit() -> eltdx::Result
     assert!(ProxyUrl::new("http://localhost:3128/#fragment").is_err());
     assert!(ProxyUrl::new("socks5://localhost:1080/").is_err());
     assert!(EntryName::new("").is_err());
+    Ok(())
+}
+
+#[test]
+fn independent_f10_build_close_and_header_order_need_no_network() -> eltdx::Result<()> {
+    let client = F10Client::builder().with_base_url("https://unresolved.invalid:65535/TQLEX")
+        .with_headers(vec![Header::new("Accept", "application/custom")?, Header::new("X-Repeated", "first")?,
+            Header::new("X-Repeated", "second")?]).build()?;
+    let clone = client.clone();
+    assert!(client.diagnostics()?.active_endpoint().is_none());
+    assert_eq!(client.config().headers().iter().map(|header| (header.name(), header.value())).collect::<Vec<_>>(),
+        vec![("Content-Type", "application/json"), ("Accept", "application/custom"),
+            ("X-Repeated", "first"), ("X-Repeated", "second")]);
+    clone.close()?;
+    client.close()?;
     Ok(())
 }

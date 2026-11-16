@@ -507,3 +507,28 @@ fn worker_unstarted_rejection_does_not_close_unrelated_requests() {
     engine.close().expect("close");
     assert_eq!(server.join().expect("server"), 1);
 }
+
+#[test]
+fn domain_neutral_permit_shares_existing_budget_and_refunds_unstarted_reservations() {
+    let (_owner, operation) = context(1, OperationOptions::default());
+    let authorization = operation.begin_child(ChildPurpose::Required, None).unwrap().into_transport_authorization();
+    authorization.reserve(1, None).unwrap().start(Instant::now()).unwrap();
+    let held = authorization.reserve(2, None).unwrap();
+    assert_eq!(operation.counters().unwrap().extra_reserved, 1);
+    drop(held);
+    assert_eq!(operation.counters().unwrap().extra_reserved, 0);
+    authorization.reserve(2, None).unwrap().start(Instant::now()).unwrap();
+    assert_eq!(operation.counters().unwrap().wire_attempts, 2);
+    assert_eq!(operation.counters().unwrap().extra_started, 1);
+    assert!(authorization.reserve(3, None).is_err());
+}
+
+#[test]
+fn domain_neutral_permit_cannot_start_after_owner_close() {
+    let (owner, operation) = context(1, OperationOptions::default());
+    let authorization = operation.begin_child(ChildPurpose::Required, None).unwrap().into_transport_authorization();
+    let held = authorization.reserve(1, None).unwrap();
+    drop(operation);
+    owner.close().unwrap();
+    assert!(held.start(Instant::now()).is_err());
+}

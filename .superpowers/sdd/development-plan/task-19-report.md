@@ -39,3 +39,21 @@ registration, optional serde_json/url declarations and `tests/f10_values.rs`.
 Current totals: **19 source complete, 4 partial (T19/T22/T24/T25), 7 unstarted
 (T20/T23/T26–T30)**. Goal active without token cap. No subagents or publication.
 Neither F10 nor the whole SDK is claimed usable/compilable/verified.
+
+## Second checkpoint — owner/configuration and shared authorization
+
+First value-layer checkpoint committed as `8a339c0`. Added `f10/client.rs`:
+public F10ClientBuilder/F10Client/F10Diagnostics, pure build validation, all
+specified with_* settings, ordered header defaults/overrides and an independent
+SessionOwner. Clone shares that owner; close uses the existing confirmed owner
+shutdown and cannot reopen it. No network methods have been wired yet.
+
+Added `RequestPermit::into_transport_authorization` as a narrow crate-private
+move of the existing Arc authorization. A transport must still reserve/start
+physical attempts on that authorization, without constructing an HQ command.
+Added unexecuted budget/refund/closed-owner source cases and lazy F10 build,
+header order, duplicate header and close source cases.
+
+Continue HTTP/DNS/TLS, actual public connect/call/params, bounded streaming and
+all fault fixture sources. Counts19 complete/4 partial/7 unstarted unchanged.
+No test/build/check/AST/dependency/format/network execution or subagents.

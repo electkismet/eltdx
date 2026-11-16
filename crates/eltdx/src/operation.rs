@@ -136,6 +136,13 @@ pub(crate) struct RequestPermit {
 }
 
 impl RequestPermit {
+    /// Move the same single authorization to a non-HQ transport. The caller
+    /// reserves and starts it at physical connect/send, with no synthetic HQ
+    /// command and no independent retry/recovery counters.
+    pub(crate) fn into_transport_authorization(self) -> Arc<dyn eltdx_runtime::execution::AttemptAuthorization> {
+        self.authorization
+    }
+
     pub(crate) fn into_submission(self, request: &CommandRequest) -> SubmissionOptions {
         let (options, retry) = match self.profile {
             ExecutionProfile::RustPublic { deadline, wire_attempts } =>

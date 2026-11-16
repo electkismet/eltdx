@@ -391,6 +391,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T19：HTTP 依赖验证与 F10 基础传输
 
+2026-11-17第二段源码：值层`8a339c0`后增加独立F10 owner/builder/diagnostics与现有RequestPermit授权转移。只完成本地配置/共享关闭和预算接缝，HTTP/DNS/TLS/connect/call/params仍待接线。新增用例未运行，19/4/7不变。
+
 2026-11-17首段源码：在`515a13c`后开始T19，config/json/request/response和公开值层用例已写；保留数字lexeme/重复字段/多表及Python列名碰撞视图。HTTP/TLS/DNS、客户端owner与完整本机fixture仍待实现，T19仅部分。19源码完成/4部分/7未开始，全部执行验证延期。
 
 **文件：** 新增 `src/f10/{mod,http,request,response}.rs`、测试 `tests/f10_http.rs`；修改crate feature/dependency；测试依赖评估记录放 `docs/rust-sdk/dependency-decisions.md`（实施时创建）。
