@@ -515,6 +515,8 @@ MG条件分支明确如下：capital section002发送[002,us,page]，其他分�
 
 `index_members` 与 tracking：页大小1..100（Rust越界报错；Python max/min 钳制），页码从1起；短页、已达 server total 或 all_pages=false 终止，保留服务排序与所有重复。`board_members` 实际是分红记录：key=(code, dividend_plan, announce_date, record_date, ex_date, report_period)，按此去重保留首次出现顺序；同 code 的中报与年报不能合并。推进 page 而非唯一行数；空页、短页、达到总记录数或无新增记录终止。Rust 的无新增但未达总数返回显式 `Incomplete` 诊断；收集完整要求的入口返回 `LimitExceeded`/完整性错误而非声称全部。Python 按原代码提前返回列表。达到 max_pages 且不能证明完整：Rust 严格 collect 报 `LimitExceeded`，Python 原停止规则保持。
 
+Rust分页总数只读取第一表之后明确名为`zs`的非负整数列，不把其他附加表数字当总数；同一响应多个有效`zs`冲突则该页总数未知并给诊断。Python原`_result_total`的宽松首个整数扫描由兼容层保留。三类typed集合提供`page_responses()`：各页第一表行已移动到`rows()`，列定义、附加表、业务码和顶层属性仍完整保留；即使RawPolicy::Omit也不会丢掉这些结构。首次业务码非零立即停止分页，保留该页及此前行，`ok=false`、`error_code=该码`、`completion=BusinessError`，不以短页或total将其标为完整。网络/协议错误和资源限额仍返回Err；正常停止为EndOfData或RequestedPage。
+
 普通 F10 endpoint 只返回指定页，不能全域自动分页。排序为服务端顺序；SDK 不通过本地重排使分页看似稳定。Ladder 日期全省略取调用时本地交易日期语义的 today（记录 clock 来源），只给一端复制到另一端，start>end 拒绝；include_summary 才第二次请求 `Params=["2", start, end]`，detail 为 `"1"`。两次调用共享 Rust 总期限；Python 每次独立期限及错误路径不变。
 
 Rust本地日期使用 `LocalDateClock::today() -> Result<TradingDate>`；默认 `SystemLocalDateClock` 读取调用时操作系统本机civil date，`F10ClientBuilder::with_local_date_clock(Arc<dyn LocalDateClock>)` 可注入确定来源。build与显式日期查询均不调用clock；全省日期每次公开操作仅调用一次。`LadderDateSource` 区分显式区间、复制start、复制end与本机clock，不能把HQ固定Shanghai日期无说明地替代本机日期。晋级率超1时保留原counts并给诊断，率省略，不静默裁剪。
@@ -529,6 +531,10 @@ Rust本地日期使用 `LocalDateClock::today() -> Result<TradingDate>`；默认
 | `BoardMemberTable` | board_code、total、rows；code/name/market、dividend_plan/progress、announce_date/record_date/ex_date/report_period | total是记录数；三个日期解释为 Inferred，保留源值；stocks/full_codes 另行按首次顺序去重 |
 | `IpoCalendar` | rows；apply_date、code/name/market、issue_pe、extra_pct、issue_price、apply_limit、raise_amount | N006 issue_price元、N008 raise_amount元；N004 PE、N007申购上限为推断（上限疑似万股），N005意义未知不能强制Percent；兼容字段名 extra_pct 仅保留历史命名并标Unknown |
 | 通用 `Response` | 所有表、列、任意JSON数组/对象/字符串/数值 | 字段字典命中才给单位和别名；scope不同独立。空值不视为0；非零业务码保留数据和 `ok=false` |
+
+四类市场行继续提供原始日期getter，另有`parsed_join_date/parsed_inception_date/parsed_announce_date/parsed_record_date/parsed_ex_date/parsed_report_period/parsed_apply_date`，接受8位ASCII日期或`YYYY-MM-DD`/`YYYY/MM/DD`且检查Gregorian日期；空值为None，非法非空值为None并诊断。数字getter只给有限f64视图，不替换raw里的原始数值和lexeme。`field_info(原始字段名)`返回`MarketFieldInfo`，分别以`MarketFieldEvidence::{SourceMapping,Inferred,Unknown}`和`MarketFieldUnit::{Yuan,PercentagePoints,NetAssetValuePerUnit,Unknown}`表达证据和单位；SourceMapping仅指本仓库既定映射，不宣称本次已联网核验。board三个推断日期、IPO的N004/N007明确为Inferred；IPO N005、tracking N004/N007及未知列均为Unknown。
+
+集合的`count()`为实际保留行数；IndexMemberTable的codes/full_codes保留行顺序和重复，IndexTrackingTable的etfs仅前缀粗筛；BoardMemberTable的stocks为首次出现的行引用，codes为首次出现的代码，full_codes为首次出现的已解析完整代码，记录行本身仍按完整分红身份去重。`full_code()`仅在原市场或可解释的代码推断得到身份时产生，原始market单独保留，不假称推断身份是服务端事实。IpoCalendar提供response/ok/error_code，保留附加表及属性；第一表行移动到rows。raise_amount_yi显式按已知元值除1e8，不改变原值。
 
 F10 模块辅助映射：`parse_tqlex_response` → `f10::parse_response(entry: &EntryName, request: &RequestPayload, json: JsonValue, raw: RawPolicy) -> Result<Response>`；`extract_news_rows` → `f10::news::extract_rows(&Response) -> Vec<&Row>`；`channel_name(NewsChannel)->Option<&'static str>`；`home_tab_name(NewsHomeTab)->Option<&'static str>`。保留8个首页tab与84个频道 registry、频道分组和标签，不在本次规格声称服务端仍覆盖每个频道。news第二结果集优先的事实由 fixture固定。
 

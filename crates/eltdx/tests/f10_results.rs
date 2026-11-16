@@ -336,3 +336,186 @@ fn topic_compare_first_stops_on_absent_or_failed_prerequisite() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn index_collection_ignores_unrelated_numbers_and_preserves_every_page_response() -> TestResult {
+    let first = br#"{"ErrorCode":0,"page":"first","ResultSets":[{"ColName":["N001","N002","N003","N004"],"Content":[["600000","A","2024-02-29","1"],["000001","B","20240230","0"]]},{"ResultSetKey":"unrelated","ColName":["price"],"Content":[[1]]}]}"#;
+    let second = br#"{"page":"second","ResultSets":[{"ColName":["N001","N002","N003","N004"],"Content":[["430001","C",20240701,2]]},{"ResultSetKey":"notes","ColName":["note"],"Content":[["keep"]]}]}"#;
+    let (url, worker) = fixture(vec![
+        ("CWServ.skef10_zs_cfgsj_cfgjcsj".to_owned(), br#"{"Params":["001","000300","1","2"]}"#.to_vec(), first.to_vec()),
+        ("CWServ.skef10_zs_cfgsj_cfgjcsj".to_owned(), br#"{"Params":["001","000300","2","2"]}"#.to_vec(), second.to_vec()),
+    ])?;
+    let client = F10Client::builder().with_base_url(url).build()?;
+    let query = IndexMembersQuery::new(AshareCode::new(F10MarketCode::new(1), "000300")?)
+        .with_page_size(std::num::NonZeroU32::new(2).ok_or("zero size")?)?;
+    let result = client.index_members(&query, &OperationOptions::default().with_raw(RawPolicy::RetainPayload))?;
+    assert!(result.ok());
+    assert_eq!(result.count(), 3);
+    assert_eq!(result.total(), None);
+    assert_eq!(result.completion(), CollectionCompletion::EndOfData);
+    assert_eq!(result.codes(), vec!["600000", "000001", "430001"]);
+    assert_eq!(result.full_codes(), vec!["sh600000", concat!("sz", "000001"), concat!("bj", "430001")]);
+    assert_eq!(result.rows()[0].parsed_join_date(), Some(TradingDate::new(2024, 2, 29)?));
+    assert_eq!(result.rows()[1].parsed_join_date(), None);
+    assert_eq!(result.rows()[1].join_date().and_then(JsonValue::as_str), Some("20240230"));
+    assert_eq!(result.page_responses().len(), 2);
+    assert!(result.page_responses()[0].first_table().ok_or("missing first table")?.rows().is_empty());
+    assert_eq!(result.page_responses()[0].result_sets()[1].rows().len(), 1);
+    assert_eq!(result.page_responses()[1].attributes()[0], ("page".to_owned(), "second".into()));
+    assert_eq!(result.meta().sources().len(), 2);
+    assert_eq!(result.meta().raw().ok_or("missing raw")?.payloads()[1].as_ref(), second);
+    assert!(result.meta().diagnostics().iter().any(|item| item.message().is_some_and(|text| text.contains("N003"))));
+    client.close()?;
+    worker.join().map_err(|_| "fixture panicked")??;
+    Ok(())
+}
+
+#[test]
+fn collection_business_failure_retains_partial_rows_and_status_without_a_third_request() -> TestResult {
+    let first = br#"{"ErrorCode":0,"ResultSets":[{"ColName":["N001"],"Content":[["600000"],["600001"]]},{"ColName":["zs"],"Content":[[5]]}]}"#;
+    let second = br#"{"ErrorCode":17,"reason":"source failure","ResultSets":[{"ColName":["N001"],"Content":[["600002"]]},{"ColName":["detail"],"Content":[["partial"]]}]}"#;
+    let (url, worker) = fixture(vec![
+        ("CWServ.skef10_zs_cfgsj_cfgjcsj".to_owned(), br#"{"Params":["001","000300","1","2"]}"#.to_vec(), first.to_vec()),
+        ("CWServ.skef10_zs_cfgsj_cfgjcsj".to_owned(), br#"{"Params":["001","000300","2","2"]}"#.to_vec(), second.to_vec()),
+    ])?;
+    let client = F10Client::builder().with_base_url(url).build()?;
+    let query = IndexMembersQuery::new(AshareCode::new(F10MarketCode::new(1), "000300")?)
+        .with_page_size(std::num::NonZeroU32::new(2).ok_or("zero size")?)?;
+    let result = client.index_members(&query, &OperationOptions::default())?;
+    assert!(!result.ok());
+    assert_eq!(result.error_code(), Some(17));
+    assert_eq!(result.completion(), CollectionCompletion::BusinessError);
+    assert_eq!(result.count(), 3);
+    assert_eq!(result.total(), Some(5));
+    assert_eq!(result.page_responses()[1].result_sets()[1].rows().len(), 1);
+    assert!(result.meta().raw().is_none());
+    assert_eq!(client.diagnostics()?.completed_requests(), 2);
+    client.close()?;
+    worker.join().map_err(|_| "fixture panicked")??;
+    Ok(())
+}
+
+#[test]
+fn board_collection_deduplicates_records_then_exposes_unique_security_views() -> TestResult {
+    let first = br#"{"ResultSets":[{"ColName":["N001","N003","N005","N006","N007","N008","sc"],"Content":[["600000","annual","20240701","20240702","20240703","20231231",1],["000001","annual","20240701","20240702","20240703","20231231",0]]},{"ColName":["zs"],"Content":[["3"]]}]}"#;
+    let second = br#"{"ResultSets":[{"ColName":["N001","N003","N005","N006","N007","N008","sc"],"Content":[["600000","annual","20240701","20240702","20240703","20231231",1],["600000","interim","20240901","20240902","bad","20240630",1]]}]}"#;
+    let (url, worker) = fixture(vec![
+        ("CWServ.skef10_bk_scgl".to_owned(), br#"{"Params":["001","880472","1","2"]}"#.to_vec(), first.to_vec()),
+        ("CWServ.skef10_bk_scgl".to_owned(), br#"{"Params":["001","880472","2","2"]}"#.to_vec(), second.to_vec()),
+    ])?;
+    let client = F10Client::builder().with_base_url(url).build()?;
+    let query = BoardMembersQuery::new(AshareCode::new(F10MarketCode::new(1), "880472")?)
+        .with_page_size(std::num::NonZeroU32::new(2).ok_or("zero size")?)?;
+    let result = client.board_members(&query, &OperationOptions::default())?;
+    assert_eq!(result.count(), 3);
+    assert_eq!(result.total(), Some(3));
+    assert_eq!(result.codes(), vec!["600000", "000001"]);
+    assert_eq!(result.stocks().len(), 2);
+    assert_eq!(result.full_codes(), vec!["sh600000", concat!("sz", "000001")]);
+    assert_eq!(result.rows()[2].dividend_plan(), Some("interim"));
+    assert_eq!(result.rows()[2].parsed_ex_date(), None);
+    assert_eq!(result.rows()[0].field_info("N005").evidence(), MarketFieldEvidence::Inferred);
+    assert_eq!(result.rows()[0].field_info("N008").evidence(), MarketFieldEvidence::SourceMapping);
+    assert_eq!(result.completion(), CollectionCompletion::EndOfData);
+    client.close()?;
+    worker.join().map_err(|_| "fixture panicked")??;
+    Ok(())
+}
+
+#[test]
+fn tracking_numeric_units_are_explicit_and_unknown_columns_are_not_interpreted() -> TestResult {
+    let reply = br#"{"ResultSets":[{"ColName":["N001","N002","N003","N004","N005","N006","N007","N008","N011","N012","sc"],"Content":[["510300","ETF","100.25",9007199254740993,"1.5","bad",{"unknown":true},"2024/02/29","2.5","NaN",1],["000051","fund",null,null,null,null,null,null,null,null,33]]}]}"#;
+    let (url, worker) = fixture(vec![("CWServ.skef10_zs_jbxx_gzbd".to_owned(),
+        br#"{"Params":["000300","1","100"]}"#.to_vec(), reply.to_vec())])?;
+    let client = F10Client::builder().with_base_url(url).build()?;
+    let result = client.index_tracking_products(&IndexTrackingProductsQuery::new(
+        AshareCode::new(F10MarketCode::new(1), "000300")?), &OperationOptions::default())?;
+    let row = &result.rows()[0];
+    assert_eq!(row.scale_yuan(), Some(100.25));
+    assert_eq!(row.change_pct(), Some(1.5));
+    assert_eq!(row.amount_yuan(), None);
+    assert_eq!(row.fee_rate_pct(), None);
+    assert_eq!(row.nav(), Some(2.5));
+    assert_eq!(row.parsed_inception_date(), Some(TradingDate::new(2024, 2, 29)?));
+    assert_eq!(row.field_info("N003").unit(), MarketFieldUnit::Yuan);
+    assert_eq!(row.field_info("N005").unit(), MarketFieldUnit::PercentagePoints);
+    assert_eq!(row.field_info("N011").unit(), MarketFieldUnit::NetAssetValuePerUnit);
+    assert_eq!(row.field_info("N004").evidence(), MarketFieldEvidence::Unknown);
+    assert_eq!(row.field_info("N007").unit(), MarketFieldUnit::Unknown);
+    assert_eq!(result.etfs().len(), 1);
+    assert_eq!(result.rows()[1].market(), Some(F10MarketCode::new(33)));
+    assert!(result.meta().diagnostics().iter().any(|item| item.message().is_some_and(|text| text.contains("N006"))));
+    client.close()?;
+    worker.join().map_err(|_| "fixture panicked")??;
+    Ok(())
+}
+
+#[test]
+fn ipo_retains_business_status_additional_tables_and_uncertain_field_semantics() -> TestResult {
+    let reply = br#"{"ErrorCode":17,"HitCache":false,"ResultSets":[{"ColName":["N001","N002","N003","N004","N005","N006","N007","N008","sc","future"],"Content":[["20240230","688001","IPO","12.5","3.5","20","1.2",250000000,1,{"opaque":true}]]},{"ResultSetKey":"extra","ColName":["note"],"Content":[["retained"]]}]}"#;
+    let (url, worker) = fixture(vec![("CWServ.skef10_dpzx_xgfx".to_owned(),
+        br#"{"Params":["002"]}"#.to_vec(), reply.to_vec())])?;
+    let client = F10Client::builder().with_base_url(url).build()?;
+    let result = client.ipo_calendar(&OperationOptions::default().with_raw(RawPolicy::RetainPayload))?;
+    assert!(!result.ok());
+    assert_eq!(result.error_code(), Some(17));
+    assert_eq!(result.count(), 1);
+    assert_eq!(result.full_codes(), vec!["sh688001"]);
+    assert_eq!(result.response().result_sets()[1].rows().len(), 1);
+    assert!(result.response().first_table().ok_or("missing first table")?.rows().is_empty());
+    assert_eq!(result.meta().raw().ok_or("missing raw")?.payloads()[0].as_ref(), reply);
+    let row = &result.rows()[0];
+    assert_eq!(row.parsed_apply_date(), None);
+    assert_eq!(row.issue_price(), Some(20.0));
+    assert_eq!(row.raise_amount_yi(), Some(2.5));
+    assert_eq!(row.field_info("N004").evidence(), MarketFieldEvidence::Inferred);
+    assert_eq!(row.field_info("N005").unit(), MarketFieldUnit::Unknown);
+    assert_eq!(row.field_info("N005").evidence(), MarketFieldEvidence::Unknown);
+    assert_eq!(row.field_info("N007").unit(), MarketFieldUnit::Unknown);
+    assert_eq!(row.field_info("N008").unit(), MarketFieldUnit::Yuan);
+    assert!(result.meta().diagnostics().iter().any(|item| item.message().is_some_and(|text| text.contains("N001"))));
+    client.close()?;
+    worker.join().map_err(|_| "fixture panicked")??;
+    Ok(())
+}
+
+#[test]
+fn page_cap_and_no_progress_are_not_reported_as_end_of_data() -> TestResult {
+    let reply = br#"{"ResultSets":[{"ColName":["N001","N003"],"Content":[["600000","annual"],["000001","annual"]]}]}"#;
+    for all_repeated in [false, true] {
+        let mut calls = vec![("CWServ.skef10_bk_scgl".to_owned(),
+            br#"{"Params":["001","880472","1","2"]}"#.to_vec(), reply.to_vec())];
+        if all_repeated {
+            calls.push(("CWServ.skef10_bk_scgl".to_owned(),
+                br#"{"Params":["001","880472","2","2"]}"#.to_vec(), reply.to_vec()));
+        }
+        let (url, worker) = fixture(calls)?;
+        let client = F10Client::builder().with_base_url(url).build()?;
+        let mut query = BoardMembersQuery::new(AshareCode::new(F10MarketCode::new(1), "880472")?)
+            .with_page_size(std::num::NonZeroU32::new(2).ok_or("zero size")?)?;
+        if !all_repeated { query = query.with_max_pages(std::num::NonZeroU32::new(1).ok_or("zero max")?)?; }
+        let error = client.board_members(&query, &OperationOptions::default()).unwrap_err();
+        assert_eq!(error.kind(), if all_repeated { eltdx::ErrorKind::MissingData } else { eltdx::ErrorKind::LimitExceeded });
+        client.close()?;
+        worker.join().map_err(|_| "fixture panicked")??;
+    }
+    Ok(())
+}
+
+#[test]
+fn requested_page_preserves_unknown_total_and_conflicting_total_diagnostic() -> TestResult {
+    let reply = br#"{"ResultSets":[{"ColName":["N001"],"Content":[["600000"],["000001"]]},{"ColName":["price","zs","zs"],"Content":[[1,2,3]]}]}"#;
+    let (url, worker) = fixture(vec![("CWServ.skef10_zs_cfgsj_cfgjcsj".to_owned(),
+        br#"{"Params":["001","000300","1","2"]}"#.to_vec(), reply.to_vec())])?;
+    let client = F10Client::builder().with_base_url(url).build()?;
+    let query = IndexMembersQuery::new(AshareCode::new(F10MarketCode::new(1), "000300")?)
+        .with_all_pages(false).with_page_size(std::num::NonZeroU32::new(2).ok_or("zero size")?)?;
+    let result = client.index_members(&query, &OperationOptions::default())?;
+    assert_eq!(result.total(), None);
+    assert_eq!(result.completion(), CollectionCompletion::RequestedPage);
+    assert!(result.meta().diagnostics().iter().any(|item| item.message().is_some_and(|text| text.contains("conflicting totals"))));
+    assert_eq!(result.page_responses()[0].result_sets()[1].rows()[0].get_all("zs").count(), 2);
+    client.close()?;
+    worker.join().map_err(|_| "fixture panicked")??;
+    Ok(())
+}

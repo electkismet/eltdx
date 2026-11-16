@@ -191,3 +191,36 @@ the setter-order bypass. Added success/two-source/failure source cases.
 
 Counts19/5/6; goal active unlimited. No tests/collection/build/check/AST/format/
 diff-check/dependency/network validation, agents or publication occurred.
+
+## Seventh checkpoint — typed market results and pagination provenance
+
+The route inventory is committed as `5b67774`. Continued source-only work on
+market.rs: all three collectors now retain each page Response after moving
+the first-table rows into the typed result. Extra tables, columns, business
+status, attributes and optional raw bytes survive with original source order.
+IPO likewise retains its Response instead of discarding non-row content.
+
+The new Rust total selector reads only explicit `zs` cells after the first
+table. Invalid values are diagnosed; conflicting valid totals in a response
+are ignored. The original Python first-integer scan remains a T23 legacy
+requirement. First nonzero business code stops collection, retaining partial
+rows and returning BusinessError completion/ok=false/code rather than fake
+EndOfData. Transport/protocol failures and resource caps remain errors.
+
+Added checked Gregorian date views alongside all raw getters, finite-number
+and market validation diagnostics, per-field unit/evidence descriptors,
+ordered convenience views and explicit heuristic ETF filtering. Descriptors
+distinguish repository source mappings, inferred meanings and unknown fields;
+they do not claim any new live evidence. N005 IPO is never labeled percent,
+N007 IPO scale remains unknown, tracking N004/N007 stay unknown. All row
+projection and owned result allocation remains inside the original context.
+
+Seven public source case groups cover nonempty two-page data/unrelated numeric
+tables, business failure with retained data, board record identity/unique code
+views, tracking field units and invalid numbers, IPO raw/business/additional
+table retention, limits/no-progress, and conflicting total/RequestedPage.
+None was compiled or executed. No Python source was changed in this stage.
+
+T20 remains partial pending the rest of the named-entry/branch binding audit.
+Next complete that source coverage and continue T22/T23/T24–T30. Counts19/5/6,
+active unlimited goal; no execution checks, agents, push/tag/publish/merge.
