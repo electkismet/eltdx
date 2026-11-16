@@ -4,7 +4,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::services::allocation_error;
 use crate::types::{Collected, Diagnostic, EnrichmentStatus, FinanceRecord, HqMarket,
-    RawPolicy, ResultMeta, Security, SecurityId, StatsQuery, StatsResource, TradingDate};
+    RawPolicy, ResultMeta, Security, SecurityId, StatsQuery, StatsResource, TradingDate, BoardQuery};
+use super::board_decode::BoardData;
 use crate::{Error, ErrorKind, Result};
 
 const MAX_ENTRIES: usize = 16;
@@ -98,6 +99,8 @@ impl<K: Eq, T> SourceCache<K, T> {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct StatsCacheKey { pub query: StatsQuery, pub target: TradingDate, pub previous: TradingDate }
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct BoardCacheKey { pub query: BoardQuery, pub target: TradingDate }
 
 #[derive(Debug, Default)]
 struct CacheState {
@@ -105,6 +108,7 @@ struct CacheState {
     catalog: SourceCache<HqMarket, Collected<Security>>,
     finance: SourceCache<Vec<SecurityId>, FinanceBundle>,
     stats: SourceCache<StatsCacheKey, StatsResource>,
+    boards: SourceCache<BoardCacheKey, BoardData>,
 }
 
 /// Cloned services all refer to this owner's memory. Clear invalidates every
@@ -112,6 +116,16 @@ struct CacheState {
 #[derive(Debug, Default)]
 pub(crate) struct HelperCache { state: Mutex<CacheState> }
 impl HelperCache {
+    pub(super) fn boards(&self, key: &BoardCacheKey, now: CacheStamp) -> Result<(u64, Option<CachedSource<BoardData>>)> {
+        let state = self.state.lock().map_err(|_| poisoned())?;
+        Ok((state.generation, state.boards.get(key, now)))
+    }
+    pub(super) fn publish_boards(&self, generation: u64, key: BoardCacheKey, source: CachedSource<BoardData>) -> Result<()> {
+        let weight = source.result.as_ref().map_or(1, |data| data.weight());
+        let mut state = self.state.lock().map_err(|_| poisoned())?;
+        if !state.disabled && state.generation == generation { state.boards.put_bounded(key, source, weight, 2, 131_072)?; }
+        Ok(())
+    }
     pub(super) fn stats(&self, key: &StatsCacheKey, now: CacheStamp) -> Result<(u64, Option<CachedSource<StatsResource>>)> {
         let state = self.state.lock().map_err(|_| poisoned())?;
         Ok((state.generation, state.stats.get(key, now)))
@@ -163,7 +177,7 @@ impl HelperCache {
         let mut state = self.state.lock().unwrap_or_else(|poison| poison.into_inner());
         if state.generation == u64::MAX { state.disabled = true; }
         state.generation = state.generation.saturating_add(1);
-        state.catalog.clear(); state.finance.clear(); state.stats.clear();
+        state.catalog.clear(); state.finance.clear(); state.stats.clear(); state.boards.clear();
     }
 }
 fn poisoned() -> Error { Error::new(ErrorKind::Internal, "helper cache is poisoned") }
@@ -240,5 +254,21 @@ mod source_cases {
         assert!(cache.stats(&key, CacheStamp { raw: RawPolicy::RetainPayload, ..stamp(101) }).unwrap().1.is_none());
         cache.clear(); cache.publish_stats(generation, key.clone(), source).unwrap();
         assert!(cache.stats(&key, stamp(101)).unwrap().1.is_none());
+    }
+
+    #[test]
+    fn board_cache_keys_keep_explicit_sources_dates_raw_and_clear_is_generation_scoped() {
+        let cache = HelperCache::default(); let key = BoardCacheKey { query: BoardQuery::new(), target: stamp(100).date };
+        let data = BoardData { definitions: Vec::new(), files: Vec::new(), concepts: std::collections::HashMap::new(), meta: ResultMeta::default() };
+        let source = CachedSource::new(Ok(Arc::new(data)), stamp(100), true).unwrap();
+        let generation = cache.boards(&key, stamp(100)).unwrap().0;
+        cache.publish_boards(generation, key.clone(), source.clone()).unwrap();
+        assert!(cache.boards(&key, stamp(101)).unwrap().1.is_some());
+        let different = BoardCacheKey { query: key.query.clone().with_data_dir(Some(std::path::PathBuf::from("explicit"))).unwrap(), ..key.clone() };
+        assert!(cache.boards(&different, stamp(101)).unwrap().1.is_none());
+        assert!(cache.boards(&BoardCacheKey { target: key.target.add_days(1).unwrap(), ..key.clone() }, stamp(101)).unwrap().1.is_none());
+        assert!(cache.boards(&key, CacheStamp { raw: RawPolicy::RetainPayload, ..stamp(101) }).unwrap().1.is_none());
+        cache.clear(); cache.publish_boards(generation, key.clone(), source).unwrap();
+        assert!(cache.boards(&key, stamp(101)).unwrap().1.is_none());
     }
 }

@@ -318,3 +318,70 @@ and default-HQ internal bounded parsers, never add a mandatory offline dependenc
 No tests, collection, cargo/dependency/build/check/clippy/doctest/format/AST,
 network probes, diff-check or equivalent execution occurred. No agents or remote
 publication operations. Goal remains active with no token budget.
+
+Sixth source stage committed as **f6a99a8**. All execution validation is deferred.
+
+## Seventh source checkpoint — M96/M97 boards and member quotes
+
+Authored on2026-11-17 afterf6a99a8. All M79–M97 (19 of19 helper methods)
+now have initial Rust source implementations. T18 is still partial: no claim of
+completed Python/native migration, compilation, behavior or compatibility.
+Task totals remain18 source-complete/4 partial/8 unstarted; goal stays active
+without a token budget. No subagents or remote publication actions.
+
+- Added types/boards.rs, helpers/board_decode.rs and helpers/boards.rs with
+  crate-root exports. BoardId is a six-digit lookup with optional explicit HQ
+  market. BoardQuery is lazy and explicit, default Concept/refresh false. Named
+  in-memory BoardFile bytes override explicit directories; only five fixed
+  filenames are admitted. Each source is capped32MiB, aggregate64MiB. There is
+  no ambient path discovery or disk write. Explicit definitions_dir requires
+  both definition files; base.dbf must be a real explicit source, never a
+  fictitious third HQ download.
+- Source preparation loads the same complete fixed source set irrespective of
+  requested category, enabling cross-category memory reuse. Missing HQ pair
+  members are downloaded through the existing pinned ResourceService. Optional
+  counterpart failure keeps an independently complete requested source, retains
+  Failed/error_kind diagnostics, and shortens cache expiry. Missing selected
+  membership sources are ResourceFormat, not an empty successful board table.
+- Internal default-HQ parsers share the existing GBK table, with no dependency
+  on optional offline/f10. Definition first occurrence wins. Known category/key
+  mappings include X+2/4/6-digit industry depth; unknown mappings are excluded
+  with diagnostics rather than guessed Concept. Inferred market is diagnosed.
+  infoharbor verifies unique actual counts, rejects repeated sections and
+  preserves stable first occurrence. Industry uses column2/5 prefix matching.
+  DBF checks header/record spans, duplicate/bounded fields, terminator, truncation,
+  deleted records and ASCII selected SC/GPDM/DY fields. Limits:65535 boards,
+  one million aggregate concept members,32KiB text lines. Parser loops retain
+  the caller's cancellation/deadline boundaries.
+- M97 requires successful current three-market directory collection, keeps raw,
+  display and excluded members in source order, and records the absent reason in
+  raw and excluded rows. Only current display members request quotes. Both
+  methods join snapshots by identity,80 per wire batch; quote absence stays
+  Unavailable, source failures Failed, cancel/close/outer deadline Err. Aggregate
+  diagnostics expose confirmed missing counts as well as per-row states. Above
+  65535 members, metadata preparation captures all HQ markets instead of
+  degrading a local public-batch-size limit into failure for all members.
+- Owner cache key includes all explicit source bytes/paths and target date;
+  category/refresh are normalized because preparation loads all sources. Stamp
+  retains local load day and RawPolicy. Complete successes expire900s, successful
+  sources with counterpart failure30s; at most2 entries/131072 weights include
+  definitions, parsed concept members and file/raw bytes per4KiB. Oversized data
+  is returned without retention. Memory clear also invalidates old in-flight
+  publications. Refresh rereads selected sources and never relabels stale data.
+  Local/memory/download source dates remain explicitly unproven; prepared_date
+  and load_date do not certify file freshness.
+- Authored8 public source cases in tests/support/board_cases.rs, registered in
+  hq_helpers.rs: lazy/rejected entry, explicit memory and reversed quote identity,
+  member filtering/raw facts, corrupt/confirmed-missing/cancelled optional quotes,
+  required directory/membership/DBF failures, fixed downloads/cache/refresh/clear,
+  partial-source short TTL, cross-category cache and81 members in80+1 batches.
+  Added6 parser,1 member-filter and1 cache private source cases. Corrected5
+  earlier daily helper authored cases to use the actual Table::rows getter and
+  corrected draft identity expectations by constructing typed SecurityIds.
+
+All source cases remain unexecuted. No tests/collection/build/check/clippy/
+doctest/dependency resolution/network/AST/format/diff-check commands ran. Next:
+ALL HQ Python/native domain adapters, compatibility/differential source cases,
+truthful migration manifest evidence, independent consumer and HQ example. Do
+not repeat the19 authored helper methods or mark T18 complete before these
+remaining requirements and the later unified verification are satisfied.

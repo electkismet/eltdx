@@ -61,8 +61,8 @@ fn explicit_empty_is_lazy_and_still_honors_closed_cancelled_and_expired_entry() 
     let server = hq_server::Server::start(|_| panic!("explicit empty must not send")).unwrap(); let client = client(&server);
     let shares = DailySharesQuery::new().with_selection(SecuritySelection::Explicit(vec![])).unwrap();
     let limits = DailyLimitsQuery::new(date(16)).with_selection(SecuritySelection::Explicit(vec![])).unwrap();
-    assert!(client.helpers().daily_share_capital(&shares, &OperationOptions::default()).unwrap().items().is_empty());
-    assert!(client.helpers().daily_price_limits(&limits, &OperationOptions::default()).unwrap().items().is_empty());
+    assert!(client.helpers().daily_share_capital(&shares, &OperationOptions::default()).unwrap().rows().is_empty());
+    assert!(client.helpers().daily_price_limits(&limits, &OperationOptions::default()).unwrap().rows().is_empty());
     let token = CancellationToken::default(); token.cancel();
     assert_eq!(client.helpers().daily_share_capital(&shares, &OperationOptions::default().with_cancellation(token)).unwrap_err().kind(), ErrorKind::Cancelled);
     assert_eq!(client.helpers().daily_price_limits(&limits, &OperationOptions::default().with_timeout(std::time::Duration::ZERO)).unwrap_err().kind(), ErrorKind::Timeout);
@@ -85,7 +85,7 @@ fn capital_uses_server_target_preserves_three_share_sources_and_reuses_or_refres
     let query = DailySharesQuery::new().with_selection(explicit()).unwrap();
     let options = OperationOptions::default().with_raw(RawPolicy::RetainPayload);
     for _ in 0..2 {
-        let table = client.helpers().daily_share_capital(&query, &options).unwrap(); let row = &table.items()[0];
+        let table = client.helpers().daily_share_capital(&query, &options).unwrap(); let row = &table.rows()[0];
         assert_eq!(row.trade_date(), date(16)); assert_eq!(row.total().unwrap().value().as_f64(), 30000.0);
         assert_eq!(row.circulating().unwrap().value().as_f64(), 20000.0); assert_eq!(row.free_float().unwrap().value().as_f64(), 15000.0);
         assert_eq!(row.free_float().unwrap().unit(), QuantityUnit::Shares);
@@ -132,7 +132,7 @@ fn capital_optional_finance_failure_preserves_free_float_but_cancellation_escape
         let query = DailySharesQuery::new().with_selection(explicit()).unwrap();
         let result = client.helpers().daily_share_capital(&query, &OperationOptions::default().with_cancellation(token));
         if cancel { assert!(matches!(result.unwrap_err().kind(), ErrorKind::Cancelled | ErrorKind::CancelUnconfirmed)); }
-        else { let table = result.unwrap(); let row = &table.items()[0];
+        else { let table = result.unwrap(); let row = &table.rows()[0];
             assert!(row.total().is_none()); assert!(row.circulating().is_none()); assert!(row.free_float().is_some());
             assert!(row.meta().diagnostics().iter().any(|item| item.status() == eltdx::types::EnrichmentStatus::Failed)); }
         client.close().unwrap(); server.finish().unwrap();
@@ -163,7 +163,7 @@ fn daily_limits_retains_ordered_reference_with_unknown_rule_and_separate_missing
             }
         }).unwrap(); let client = client(&server);
         let table = client.helpers().daily_price_limits(&DailyLimitsQuery::new(date(16)).with_selection(explicit()).unwrap(),
-            &OperationOptions::default().with_raw(RawPolicy::RetainPayload)).unwrap(); let row = &table.items()[0];
+            &OperationOptions::default().with_raw(RawPolicy::RetainPayload)).unwrap(); let row = &table.rows()[0];
         assert!(matches!(row.rule(), LimitRule::Unknown { .. })); assert!(row.upper().is_none()); assert!(row.lower().is_none());
         if missing { assert_eq!(row.status(), LimitStatus::MissingReference); assert!(row.reference().is_none()); assert!(row.reference_date().is_none()); }
         else { assert_eq!(row.status(), LimitStatus::UnknownRule); assert_eq!(row.reference_date(), Some(date(13)));

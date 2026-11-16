@@ -4,6 +4,7 @@ pub mod codes;
 pub mod corporate;
 pub mod helpers;
 pub mod shortline;
+pub mod boards;
 pub mod resources;
 pub mod company_info;
 pub mod session;
@@ -30,6 +31,7 @@ pub use calendar::{CalendarQuery, CalendarSnapshot};
 pub use helpers::{AuctionData, AuctionDataQuery, DailyLimitsQuery, DailyPriceLimit, DailyShareCapital,
     DailySharesQuery, FullQuote, FundFlow, MarketStat, ProfileQuery, RankQuery, RealtimeRankRow, SecuritySelection, StockProfile};
 pub use shortline::{LadderQuery, ShortlineIndicator, ShortlineQuery, ShortlineTable, StatsAlignment};
+pub use boards::{BoardCategory, BoardDefinition, BoardFile, BoardId, BoardMember, BoardMemberQuotes, BoardQuery, BoardQuote};
 pub use resources::{BlockMeta, DownloadCompletion, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
 pub use company_info::{CompanySection, CompanySectionQuery, CompanyText, Table};
 pub use session::{HandshakeInfo, HeartbeatAck, HealthReport, PingReply};

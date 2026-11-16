@@ -464,6 +464,8 @@ T18 M92–M94源码补充（未执行）：market_stat按id识别必需三项，
 
 DBF header/record length、deleted标记、field offset/width和编码均需有界；旧DBF set顺序不保证，Rust首次出现顺序为新增确定性选择，Python桥接原有顺序不偷偷修改。默认只有concept可用且资料不足时返回明确错误，不编造全类别。可选行情/更新下载失败允许使用**仍符合所选缓存策略**的已知来源并标状态，不能把上次日期标成今天；Rust未确认日期/哈希的磁盘缓存不宣称fresh。内存clear不删除用户文件。
 
+T18 M96/M97源码补充（未执行）：BoardQuery增加固定五文件名allowlist的with_file(BoardFile)，优先显式内存、其次显式目录、最后固定HQ infoharbor/tdxhy双文件；每文件32MiB、总计64MiB，不发现环境/cwd/C盘也不写磁盘。显式definitions_dir要求两份定义文件，Region要求真实base.dbf。内部decoder复用共享GBK，不依赖offline/f10；UTF-8 BOM与无效编码有明确处理。定义首次出现优先，未知分类/key排除并诊断；infoharbor校验去重后数量、拒绝重复section，最多65535定义/100万aggregate成员/32KiB行。行业按列2/5及prefix，DBF按有界header/record/fields/deleted及选定ASCII字段读取。board_quotes检查类别的真实membership来源；member_quotes要求当前三个市场目录成功，raw和excluded均保留缺席原因。行情每批80，按id接回，confirmed missing为Unavailable，故障为Failed且汇总诊断，取消/owner close/总期限仍Err。来源缓存key保留全部显式来源和target，category/refresh归一；成功900秒、有失败诊断30秒，最多2项/131072权重（定义+成员+文件和raw字节/4KiB），超大返回不缓存，clear generation隔离旧在途发布。刷新重新读取所选来源，不回退或重标旧日期；prepared_date/load_date和实际源文件日期证据分开。8组公开及8组私有用例源码已写，全部未编译/运行，Python旧发现/磁盘缓存/DBF顺序仍待兼容adapter迁移。
+
 ## 15. 每域具体输入→输出语料建议
 
 所有F例同时记录原请求、非空wire回包、原typed输出及Rust期望；伪造symbol用固定id即可，不需要在线查询。总deadline用虚拟时钟，不能用真实sleep拖测试。下面数字是可直接写入fixture的期望，不是行情预测。

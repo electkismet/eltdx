@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-2026-11-17 最新恢复点：在4823fb8后新增T18 M90短线/M91天梯首批源码和未执行用例；当前M79–M95共17/19 helper方法已有首批源码。短线要求服务端datetime/双日期及09:25就绪、双统计95%覆盖/对齐门槛，先准备全部报价/分类市场元数据，再复用日历/统计/报价/finance/日bar。单位与源计数分开保留；开盘抢筹>=80输入才补扫，最多200x80、固定来源和重复页检测，可选失败不吞取消/总期限。规则仍UnknownRule，天梯空榜带未分类数，不能当作当天无涨停的证明。T18仍部分，M96/M97板块和完整Python回迁待做。当前18项源码完整、4项部分、8项未开始；没有运行任何测试、构建或执行检查。
+2026-11-17 最新恢复点：M90/M91已提交f6a99a8；此后新增T18 M96/M97板块行情/成分股行情、默认HQ内部文本/DBF解析、显式目录/内存来源、固定HQ双文件下载、owner有界缓存和8组公开用例源码。M79–M97共19/19 helper方法均已有首批源码；T18仍部分，全部HQ Python/native回迁、真实manifest迁移证据、独立consumer与example仍待完成。板块保留raw/display/excluded事实和来源日期未知诊断，Region缺真实base.dbf报ResourceFormat，行情80一批按id关联，可选失败不吞取消/总期限。当前18项源码完整、4项部分、8项未开始；没有运行任何测试、构建或执行检查。
 
-当前实际进度：T01–T17及T21实现源码已写完；T18/T22/T24/T25为部分实现（18完整源码/4部分/8未开始）。恢复先读task-18-report第六段和brief及HQ规格14节，从M96/M97继续。M79–M95已有首批源码（17/19 HQ helper方法），不重复实现；Python/native完整回迁与consumer仍待做。目标保持active且不设置额度限制；全部执行验证延期。
+当前实际进度：T01–T17及T21实现源码已写完；T18/T22/T24/T25为部分实现（18完整源码/4部分/8未开始）。恢复先读task-18-report第七段和brief，继续HQ Python/native逐域回迁及consumer。M79–M97已有首批源码（19/19 HQ helper方法），不重复实现；其源码完整度不代表T18完成或已通过编译/测试。目标保持active且不设置额度限制；全部执行验证延期。
 
 2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。
 
@@ -17,11 +17,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | M88/M89`4823fb8`后新增M90/M91源码/用例；profile/cache`14f590c`，M92–M94`ab5f8bf`；全部执行验证延期 |
-| 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M95首批源码已写。 |
+| 最新检查点 | M90/M91`f6a99a8`后新增M96/M97板块源码/用例；M88/M89`4823fb8`，M92–M94`ab5f8bf`；全部执行验证延期 |
+| 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T18：M96/M97板块、Python/native逐域回迁及consumer源码；已有实现待最终统一验证 |
+| 下一步 | T18：全部HQ Python/native逐域回迁、manifest真实证据及consumer/example源码；已有实现待最终统一验证 |
 
 ## 阶段进度
 
@@ -29,7 +29,7 @@
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
-| P2 | T11–T18 HQ与Python首批迁移 | T11–T17实现与限定源码审阅完成；T18 M79–M95源码已写，板块/native回迁待做 | 按用户要求暂不运行 |
+| P2 | T11–T18 HQ与Python首批迁移 | T11–T17实现与限定源码审阅完成；T18 M79–M97首批源码已写，完整native回迁/证据/consumer待做 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Unicode修复 `a64a4a6` 通过限定复审，ZIP/资源集成待做 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |

@@ -47,6 +47,7 @@ pub use helpers::HelperService;
 pub use types::helpers::{AuctionData, AuctionDataQuery, DailyLimitsQuery, DailyPriceLimit, DailyShareCapital,
     DailySharesQuery, FullQuote, FundFlow, MarketStat, ProfileQuery, RankQuery, RealtimeRankRow, SecuritySelection, StockProfile};
 pub use types::shortline::{LadderQuery, ShortlineIndicator, ShortlineQuery, ShortlineTable, StatsAlignment};
+pub use types::boards::{BoardCategory, BoardDefinition, BoardFile, BoardId, BoardMember, BoardMemberQuotes, BoardQuery, BoardQuote};
 pub use types::resources::{BlockMeta, DownloadCompletion, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
 pub use types::company_info::{CompanySection, CompanySectionQuery, CompanyText, Table};
 pub use types::session::{HandshakeInfo, HeartbeatAck, HealthReport, PingReply};
