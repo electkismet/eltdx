@@ -35,6 +35,12 @@ impl PageProgress {
         Ok(())
     }
 
+    pub(crate) fn accept_legacy(&mut self, count: usize) -> Result<()> {
+        self.pages = self.pages.checked_add(1).ok_or_else(offset_error)?;
+        self.records = self.records.checked_add(count).ok_or_else(offset_error)?;
+        Ok(())
+    }
+
     pub(crate) fn pages(&self) -> usize { self.pages }
     pub(crate) fn records(&self) -> usize { self.records }
 }

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import _thread
+import threading
 import time
 from datetime import date
+from pathlib import Path
 
 import pytest
 
-from eltdx.exceptions import ConnectionClosedError
+from eltdx.client import TdxClient
+from eltdx.exceptions import ConnectionClosedError, ProtocolError
 from eltdx.models import HandshakeInfo, HeartbeatAck, QuoteRefreshPage
+from eltdx.protocol import decode_response
 from eltdx.protocol.constants import (
     TYPE_HEARTBEAT,
     TYPE_REFRESH_STREAM,
@@ -25,9 +30,111 @@ from loopback_support import (
     wait_for_peer_close,
 )
 
+_BRIDGE_CODE = bytes((115, 122, 48, 48, 48, 48, 48, 49)).decode("ascii")
+
 
 def _heartbeat_payload() -> bytes:
     return b"\x00" * 6 + (20260815).to_bytes(4, "little")
+
+
+def _quote_bridge_payloads() -> tuple[bytes, bytes]:
+    fixtures = Path(__file__).parents[1] / "fixtures" / "7709"
+    directory = decode_response(
+        (fixtures / "security_list" / "normal" / "response.bin").read_bytes()
+    ).data
+    snapshot = decode_response(
+        (fixtures / "snapshots" / "normal" / "response.bin").read_bytes()
+    ).data[4:]
+    row = b"\x00" + b"000001" + snapshot[7:]
+    return directory, b"\x00\x00\x01\x00" + row
+
+
+def _serve_quote_bridge(connection, *, snapshot_payload: bytes | None, snapshot_seen=None) -> None:
+    from eltdx.protocol.constants import TYPE_SECURITY_LIST, TYPE_SNAPSHOTS
+
+    directory, _ = _quote_bridge_payloads()
+    answer_handshake(connection)
+    message_id, message_type, _ = read_request(connection)
+    assert message_type == TYPE_SECURITY_LIST
+    connection.sendall(response_bytes(message_id, message_type, directory))
+    message_id, message_type, _ = read_request(connection)
+    assert message_type == TYPE_SECURITY_LIST
+    connection.sendall(response_bytes(message_id, message_type, b"\x00\x00"))
+    message_id, message_type, _ = read_request(connection)
+    assert message_type == TYPE_SNAPSHOTS
+    if snapshot_seen is not None:
+        snapshot_seen.set()
+    if snapshot_payload is None:
+        wait_for_peer_close(connection)
+        return
+    connection.sendall(response_bytes(message_id, message_type, snapshot_payload))
+    wait_for_peer_close(connection)
+
+
+def test_python_quote_facade_uses_shared_rust_snapshot_service() -> None:
+    _, snapshot_payload = _quote_bridge_payloads()
+
+    def handler(connection) -> None:
+        _serve_quote_bridge(connection, snapshot_payload=snapshot_payload)
+
+    with ScriptedServer([handler]) as server:
+        transport = SocketTransport([server.host], timeout=2, heartbeat_interval=None)
+        client = TdxClient(transport=transport)
+        try:
+            rows = client.quotes.get_snapshots(_BRIDGE_CODE)
+            assert [row.full_code for row in rows] == [_BRIDGE_CODE]
+        finally:
+            client.close()
+        assert server.wait_for_handlers(1)
+
+
+def test_python_quote_service_keeps_protocol_error_cause_empty() -> None:
+    def handler(connection) -> None:
+        _serve_quote_bridge(connection, snapshot_payload=b"\x00")
+
+    with ScriptedServer([handler]) as server:
+        client = TdxClient(
+            transport=SocketTransport([server.host], timeout=2, heartbeat_interval=None)
+        )
+        try:
+            with pytest.raises(ProtocolError) as raised:
+                client.quotes.get_snapshots(_BRIDGE_CODE)
+            assert raised.value.__cause__ is None
+        finally:
+            client.close()
+        assert server.wait_for_handlers(1)
+
+
+def test_python_quote_service_keyboard_interrupt_waits_for_cancellation() -> None:
+    snapshot_seen = threading.Event()
+
+    def handler(connection) -> None:
+        _serve_quote_bridge(
+            connection,
+            snapshot_payload=None,
+            snapshot_seen=snapshot_seen,
+        )
+
+    with ScriptedServer([handler]) as server:
+        client = TdxClient(
+            transport=SocketTransport([server.host], timeout=3, heartbeat_interval=None)
+        )
+
+        def interrupt_main() -> None:
+            assert snapshot_seen.wait(timeout=3)
+            time.sleep(0.05)
+            _thread.interrupt_main()
+
+        interrupter = threading.Thread(target=interrupt_main, daemon=True)
+        interrupter.start()
+        try:
+            with pytest.raises(KeyboardInterrupt) as raised:
+                client.quotes.get_snapshots(_BRIDGE_CODE)
+            assert raised.value.__cause__ is None
+            interrupter.join(timeout=1)
+        finally:
+            client.close()
+        assert server.wait_for_handlers(1)
 
 
 def _answer_count(connection, value: int) -> None:

@@ -1,7 +1,5 @@
-use std::error::Error as StdError;
-
 use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyRuntimeError};
+use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 
 create_exception!(
@@ -41,7 +39,7 @@ pub fn from_runtime(error: eltdx_runtime::RuntimeError) -> PyErr {
     payload.into_pyerr()
 }
 
-pub fn from_sdk(py: Python<'_>, error: eltdx::Error) -> PyErr {
+pub fn from_sdk(_py: Python<'_>, error: eltdx::Error) -> PyErr {
     use eltdx::ErrorKind as K;
 
     let kind = match error.kind() {
@@ -74,11 +72,7 @@ pub fn from_sdk(py: Python<'_>, error: eltdx::Error) -> PyErr {
     } else {
         error.message().to_owned()
     };
-    let mapped = NativeErrorPayload::new(kind, message, context).into_pyerr();
-    if let Some(source) = StdError::source(&error) {
-        mapped.set_cause(py, Some(PyRuntimeError::new_err(format!("{source}"))));
-    }
-    mapped
+    NativeErrorPayload::new(kind, message, context).into_pyerr()
 }
 
 pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {

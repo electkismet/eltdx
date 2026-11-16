@@ -24,11 +24,17 @@ use super::code_fingerprint;
 
 const ALL_MARKETS: [HqMarket; 3] = [HqMarket::Shanghai, HqMarket::Shenzhen, HqMarket::Beijing];
 
+#[derive(Clone, Copy)]
+enum DirectoryValidation {
+    Strict,
+    Legacy,
+}
+
 /// One directory algorithm for strict Rust collectors and the native legacy
 /// bridge. The callback owns transport/ABI policy; pagination owns progress.
 pub(crate) fn walk_directory(
     context: &OperationContext, market: HqMarket, start: u32, page_size: usize,
-    limits: CollectionLimits, progress: &mut PageProgress,
+    limits: CollectionLimits, validation: DirectoryValidation, progress: &mut PageProgress,
     mut fetch: impl FnMut(u32) -> Result<DecodedReply>,
     mut consume: impl FnMut(u32, DecodedReply) -> Result<()>,
 ) -> Result<()> {
@@ -40,12 +46,17 @@ pub(crate) fn walk_directory(
         progress.before_request(limits)?;
         let decoded = fetch(offset)?;
         let CommandResponse::SecurityList(rows) = &decoded.response else { return Err(wrong_response()); };
-        progress.accept(rows.len(), page_size, limits)?;
-        seen.try_reserve(rows.len()).map_err(allocation_error)?;
-        for row in rows {
-            if row.market != protocol_market(market) { return Err(Error::new(ErrorKind::Protocol, "directory row has a foreign market")); }
-            let id = identity_from_market(row.market, &row.code)?;
-            if !seen.insert(id.clone()) { return Err(duplicate_identity(&id)); }
+        match validation {
+            DirectoryValidation::Strict => {
+                progress.accept(rows.len(), page_size, limits)?;
+                seen.try_reserve(rows.len()).map_err(allocation_error)?;
+                for row in rows {
+                    if row.market != protocol_market(market) { return Err(Error::new(ErrorKind::Protocol, "directory row has a foreign market")); }
+                    let id = identity_from_market(row.market, &row.code)?;
+                    if !seen.insert(id.clone()) { return Err(duplicate_identity(&id)); }
+                }
+            }
+            DirectoryValidation::Legacy => progress.accept_legacy(rows.len())?,
         }
         let count = rows.len();
         context.record_work(count, 0)?;
@@ -63,6 +74,7 @@ pub(crate) fn legacy_directory_pages(
     if !context.is_legacy() { return Err(query_error("profile", "legacy directory requires a compatibility operation")); }
     let mut replies = Vec::new();
     walk_directory(context, market, 0, page_size, CollectionLimits { pages: None, records: None },
+        DirectoryValidation::Legacy,
         &mut PageProgress::default(), fetch, |_, reply| {
             replies.try_reserve(1).map_err(allocation_error)?;
             replies.push(reply);
@@ -344,7 +356,8 @@ impl CodeService {
             let offset = query.cursor().map_or(0, PageCursor::next_offset);
             let mut candidate = if offset == 0 { Some(MarketCandidate::for_code_scan(
                 SnapshotKey::hq(&self.namespace, market), query.pages().max_records(), query.pages().max_pages())?) } else { None };
-            walk_directory(context, market, offset, query.pages().page_size(), limits, &mut progress, |offset| {
+            walk_directory(context, market, offset, query.pages().page_size(), limits,
+                DirectoryValidation::Strict, &mut progress, |offset| {
                 let purpose = if first_request {
                     first_request = false;
                     ChildPurpose::Required
