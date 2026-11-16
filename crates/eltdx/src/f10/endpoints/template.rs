@@ -8,6 +8,7 @@ pub enum SimpleArgument {
     Literal(&'static str), Integer(i64), Code, Section, Market,
     Input(&'static str), MappedSection(SectionMap),
     DateInput(&'static str), SectionChoice(&'static str, &'static str, &'static str),
+    TextInput(&'static str), IntTextInput(&'static str),
 }
 
 #[doc(hidden)]
@@ -61,6 +62,10 @@ identity!(UsTicker, Some("_us_code"));
 identity!(HongKongCode, Some("_hk_code"));
 identity!(IndustryCode, None);
 identity!(FuturesCode, None);
+impl TemplateIdentity for () {
+    fn number(&self) -> &str { "" }
+    fn python_helper(_: &str) -> Option<&'static str> { None }
+}
 impl TemplateIdentity for BondCode {
     fn number(&self) -> &str { self.as_str() }
     fn market(&self) -> Option<u16> { Some(self.market().get()) }
@@ -103,7 +108,8 @@ pub(super) fn native_inputs<I: TemplateIdentity>(definition: SimpleEndpoint, cod
             crate::Error::new(crate::ErrorKind::Internal, "F10 template requires market"))?)),
         SimpleArgument::MappedSection(map) => JsonValue::from(map.value(section).ok_or_else(||
             crate::Error::new(crate::ErrorKind::InvalidArgument, "unknown F10 mapped section"))?),
-        SimpleArgument::Input(name) | SimpleArgument::DateInput(name) => input(name)?,
+        SimpleArgument::Input(name) | SimpleArgument::DateInput(name)
+            | SimpleArgument::TextInput(name) | SimpleArgument::IntTextInput(name) => input(name)?,
         SimpleArgument::SectionChoice(value, yes, no) => JsonValue::from(if section == value { yes } else { no }),
     }))?;
     let entry = if definition.append_section { format!("{}{section}", definition.entry) } else { definition.entry.to_owned() };
@@ -114,7 +120,7 @@ pub(super) fn native_inputs<I: TemplateIdentity>(definition: SimpleEndpoint, cod
 /// Python keeps arbitrary paging objects; Rust supplies checked numeric values.
 #[doc(hidden)]
 pub fn page_template<E>(method: &str, mut equals: impl FnMut(&str) -> Result<bool, E>) -> Result<Option<SimpleEndpoint>, E> {
-    use SimpleArgument::{Code, Input, Integer, Literal, Section};
+    use SimpleArgument::{Code, Input, Integer, Literal, Section, TextInput};
     let (method, entry, arguments): (&'static str, &'static str, &'static [SimpleArgument]) = match method {
         "mg_capital" => ("mg_capital", "CWServ.skef10_mg_gbjg", if equals("001")? {
             &[Literal("001"), Code, Integer(1)]
@@ -125,9 +131,13 @@ pub fn page_template<E>(method: &str, mut equals: impl FnMut(&str) -> Result<boo
         "mg_market" => ("mg_market", "CWServ.skef10_mg_schq", if equals("001")? {
             &[Literal("001"), Code, Input("page"), Input("page_size")]
         } else { &[Literal("003"), Code, Integer(0), Integer(0)] }),
+        "company_news" => ("company_news", "CWServ.tdxf10_gg_gszx", if equals("finance_review")? {
+            return Ok(Some(definition::<AshareCode>("company_news", "CWServ.tdxf10_gg_cwfx_cbdp", &[Code, TextInput("page")])));
+        } else { &[Code, Section, Input("keyword"), TextInput("rating"), TextInput("page"), TextInput("page_size")] }),
         _ => return Ok(None),
     };
-    Ok(Some(definition::<UsTicker>(method, entry, arguments)))
+    Ok(Some(if method == "company_news" { definition::<AshareCode>(method, entry, arguments) }
+        else { definition::<UsTicker>(method, entry, arguments) }))
 }
 
 pub(super) fn native_page(method: &str, code: &UsTicker, section: &str, page: u32, page_size: u32) -> crate::Result<CallQuery> {
@@ -142,7 +152,7 @@ pub(super) fn native_page(method: &str, code: &UsTicker, section: &str, page: u3
 
 #[doc(hidden)]
 pub fn input_template(method: &str) -> Option<SimpleEndpoint> {
-    use SimpleArgument::{Code, DateInput, Input, Literal, Section, SectionChoice};
+    use SimpleArgument::{Code, DateInput, Input, IntTextInput, Literal, Section, SectionChoice, TextInput};
     Some(match method {
         "hk_pepb_band" => definition::<HongKongCode>("hk_pepb_band", "CWServ.skef10_hk_sdfx_pepb_band",
             &[Literal("001"), Code, Input("sjfw"), Input("tab_value"), Input("hqzq")]),
@@ -157,6 +167,11 @@ pub fn input_template(method: &str) -> Option<SimpleEndpoint> {
         "hy_capital_stats" => definition::<IndustryCode>("hy_capital_stats", "CWServ.skef10_hy_hysj_bxzjtj", &[Section, Code, SectionChoice("001", "n", "")]),
         "qh_basis_spread" => definition::<FuturesCode>("qh_basis_spread", "CWServ.qhf9_sp_jcjcfx", &[Section, Code, Input("period"), Literal(""), Literal("")]),
         "qh_warehouse_receipt" => definition::<FuturesCode>("qh_warehouse_receipt", "CWServ.qhf9_sp_ckrb_ckrb", &[Literal("1"), Code, DateInput("date")]),
+        "topic_compare" => definition::<AshareCode>("topic_compare", "CWServ.tdxf10_gg_rdtc_gndb", &[Section, Code, TextInput("topic_id"), Input("sort_by")]),
+        "northbound_holding" => definition::<AshareCode>("northbound_holding", "CWServ.tdxf10_gg_zlcc", &[Code, Section, Input("filter_value"), TextInput("page"), TextInput("page"), TextInput("page_size")]),
+        "detail" => definition::<()>("detail", "CWServ.tdxf10_gg_idreq", &[Input("detail_type"), TextInput("record_id")]),
+        "market_news" => definition::<()>("market_news", "CWServ.tdxi_zxxwsy", &[IntTextInput("tab"), TextInput("page"), TextInput("page_size")]),
+        "channel_news" => definition::<()>("channel_news", "CWServ.tdxi_zxxwnews", &[TextInput("query1"), IntTextInput("channel"), TextInput("page"), TextInput("page_size"), Input("keyword")]),
         _ => return None,
     })
 }

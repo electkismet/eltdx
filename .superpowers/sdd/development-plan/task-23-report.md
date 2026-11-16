@@ -380,3 +380,31 @@ Next40 named methods: report-table/prerequisite/market, news/cache/valuation,
 result collectors and aliases; then fields/models/cross-source helpers and
 manifest evidence. Complete all remaining T24–T30 implementation sources
 before entering the unified execution gate. Stage60 source checkpoint only.
+## Thirteenth checkpoint — news inputs and cache payloads
+
+Base `f8fd116`. Eleven additional methods share Rust composition source:
+topic_compare, company_news, northbound_holding, detail, market_news,
+channel_news, cache_list, announcements, news, roadshows, news_channels.
+The named-entry count is128/157. The cache layout/key slots and alias kinds
+are defined once in request_shapes.rs; numeric/text news slots extend the
+same ordered template used by checked Rust query types.
+
+Legacy news resolves self.call before argument conversions and constructs
+an explicit Params body. The live str callable is captured before int(tab)
+or int(channel), and raw keyword/detail_type/section/filter objects remain
+intact. Northbound converts page twice, in source order. Finance review
+converts only code and page. Cache keeps real set membership, iterable
+unpacking, late self.call lookup, live DEFAULT_QSID and sorted/channel map.
+Literal str.format supplies f-string special-method lookup and rejects
+non-string __format__ results without unsafe FFI or module format hooks.
+
+An authoring replacement initially crossed the market_news/channel_news
+method boundaries into theme_market; source comparison detected this and
+restored theme_market before this checkpoint. The retained client diff
+contains only the eleven named methods above.
+
+Eleven Python contract functions and one Rust function were authored;
+none executed. No compile/build/check/collection/dependency/network/AST/
+format/diff-whitespace checks, no agents or publication. Counts21/4/5,
+active unlimited goal. Remaining29 named methods plus F10 fields/models,
+cross-source helpers and manifest; then T24–T30 and unified validation.

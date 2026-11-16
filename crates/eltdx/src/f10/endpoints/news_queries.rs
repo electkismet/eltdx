@@ -41,7 +41,8 @@ impl TopicCompareQuery {
         let value = value.into(); text(&value, true)?; self.sort_by = value; Ok(self)
     }
     pub fn to_call(&self) -> Result<CallQuery> {
-        super::params("CWServ.tdxf10_gg_rdtc_gndb", vec![j(self.section.as_str()), j(self.code.as_str()), j(self.topic_id.as_str()), j(self.sort_by.as_str())])
+        super::template::native_named("topic_compare", &self.code, self.section.as_str(), |name|
+            Ok(j(match name { "topic_id" => self.topic_id.as_str(), "sort_by" => self.sort_by.as_str(), _ => unreachable!() })))
     }
 }
 fn valid_topic(value: &str) -> Result<()> {
@@ -67,8 +68,11 @@ impl CompanyNewsQuery {
     pub fn with_page(mut self, value: u32) -> Result<Self> { self.page = page(value)?; Ok(self) }
     pub fn with_page_size(mut self, value: NonZeroU32) -> Result<Self> { self.page_size = count(value)?; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        if self.section.as_str() == "finance_review" { return super::params("CWServ.tdxf10_gg_cwfx_cbdp", vec![j(self.code.as_str()), j(self.page.to_string())]); }
-        super::params("CWServ.tdxf10_gg_gszx", vec![j(self.code.as_str()), j(self.section.as_str()), j(self.keyword.as_str()), j(self.rating.as_str()), j(self.page.to_string()), j(self.page_size.get().to_string())])
+        let definition = super::page_template("company_news", |value| Ok::<_, crate::Error>(self.section.as_str() == value))?.expect("built-in company news");
+        super::template::native_inputs(definition, &self.code, self.section.as_str(), |name| Ok(match name {
+            "keyword" => j(self.keyword.as_str()), "rating" => j(self.rating.as_str()),
+            "page" => j(format!("{}", self.page)), "page_size" => j(format!("{}", self.page_size.get())), _ => unreachable!(),
+        }))
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -102,8 +106,10 @@ impl NorthboundHoldingQuery {
     pub fn with_page(mut self, value: u32) -> Result<Self> { self.page = page(value)?; Ok(self) }
     pub fn with_page_size(mut self, value: NonZeroU32) -> Result<Self> { self.page_size = count(value)?; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        let p = self.page.to_string();
-        super::params("CWServ.tdxf10_gg_zlcc", vec![j(self.code.as_str()), j(self.section.as_str()), j(self.filter_value.as_str()), j(p.clone()), j(p), j(self.page_size.get().to_string())])
+        super::template::native_named("northbound_holding", &self.code, self.section.as_str(), |name| Ok(match name {
+            "filter_value" => j(self.filter_value.as_str()), "page" => j(format!("{}", self.page)),
+            "page_size" => j(format!("{}", self.page_size.get())), _ => unreachable!(),
+        }))
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -114,7 +120,9 @@ impl DetailQuery {
     }
     pub fn detail_type(&self) -> &str { &self.detail_type }
     pub fn record_id(&self) -> &str { &self.record_id }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.tdxf10_gg_idreq", vec![j(self.detail_type.as_str()), j(self.record_id.as_str())]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("detail", &(), "", |name| Ok(j(match name {
+        "detail_type" => self.detail_type.as_str(), "record_id" => self.record_id.as_str(), _ => unreachable!(),
+    }))) }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CacheListQuery { code: AshareCode, kind: String }
@@ -123,27 +131,28 @@ impl CacheListQuery {
     pub fn code(&self) -> &AshareCode { &self.code }
     pub fn kind(&self) -> &str { &self.kind }
     pub fn with_kind(mut self, value: impl Into<String>) -> Result<Self> {
-        let value = value.into(); if !matches!(value.as_str(), "gg" | "xw" | "ly") { return Err(crate::f10::values::invalid("cache kind must be gg, xw or ly")); }
+        let value = value.into(); if !super::CACHE_KINDS.contains(&value.as_str()) { return Err(crate::f10::values::invalid("cache kind must be gg, xw or ly")); }
         self.kind = value; Ok(self)
     }
     pub fn to_call(&self) -> Result<CallQuery> { cache_call(&self.code, &self.kind) }
 }
 fn cache_call(code: &AshareCode, kind: &str) -> Result<CallQuery> {
-    Ok(CallQuery::new(crate::f10::EntryName::new("CWSearch.tzx_rcache")?, RequestPayload::Body(JsonValue::Object(vec![
-        ("action".to_owned(), j("get")), ("key".to_owned(), j(format!("{kind}:{}_{}", code.market().get(), code.as_str()))),
-        ("bin".to_owned(), j("1")), ("qsid".to_owned(), j("tdx")),
-    ]))))
+    let payload = super::cache_payload(|value| Ok::<_, crate::Error>(match value {
+        super::CacheValue::Literal(value) => j(value), super::CacheValue::Qsid => j("tdx"),
+        super::CacheValue::Key => j(format!("{kind}:{}_{}", code.market().get(), code.as_str())),
+    }))?.into_iter().map(|(name, value)| (name.to_owned(), value)).collect();
+    Ok(CallQuery::new(crate::f10::EntryName::new(super::CACHE_ENTRY)?, RequestPayload::Body(JsonValue::Object(payload))))
 }
-macro_rules! cache_query { ($name:ident, $kind:literal) => {
+macro_rules! cache_query { ($name:ident, $method:literal) => {
     #[derive(Clone, Debug, Eq, PartialEq)]
     pub struct $name { code: AshareCode }
     impl $name {
         pub fn new(code: AshareCode) -> Self { Self { code } }
         pub fn code(&self) -> &AshareCode { &self.code }
-        pub fn to_call(&self) -> Result<CallQuery> { cache_call(&self.code, $kind) }
+        pub fn to_call(&self) -> Result<CallQuery> { cache_call(&self.code, super::cache_alias($method).expect("built-in cache alias")) }
     }
 }; }
-cache_query!(AnnouncementsQuery, "gg"); cache_query!(NewsQuery, "xw"); cache_query!(RoadshowsQuery, "ly");
+cache_query!(AnnouncementsQuery, "announcements"); cache_query!(NewsQuery, "news"); cache_query!(RoadshowsQuery, "roadshows");
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MarketNewsQuery { tab: NewsHomeTab, page: u32, page_size: NonZeroU32 }
@@ -156,7 +165,10 @@ impl MarketNewsQuery {
     pub fn with_tab(mut self, value: NewsHomeTab) -> Self { self.tab = value; self }
     pub fn with_page(mut self, value: u32) -> Result<Self> { self.page = page(value)?; Ok(self) }
     pub fn with_page_size(mut self, value: NonZeroU32) -> Result<Self> { self.page_size = count(value)?; Ok(self) }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.tdxi_zxxwsy", vec![j(self.tab.wire().to_string()), j(self.page.to_string()), j(self.page_size.get().to_string())]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("market_news", &(), "", |name| Ok(j(match name {
+        "tab" => format!("{}", self.tab.wire()), "page" => format!("{}", self.page),
+        "page_size" => format!("{}", self.page_size.get()), _ => unreachable!(),
+    }))) }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChannelNewsQuery { channel: NewsChannel, page: u32, page_size: NonZeroU32, query1: String, keyword: String }
@@ -172,7 +184,11 @@ impl ChannelNewsQuery {
     pub fn with_page_size(mut self, value: NonZeroU32) -> Result<Self> { self.page_size = count(value)?; Ok(self) }
     pub fn with_query1(mut self, value: impl Into<String>) -> Result<Self> { let value = value.into(); text(&value, true)?; self.query1 = value; Ok(self) }
     pub fn with_keyword(mut self, value: impl Into<String>) -> Result<Self> { let value = value.into(); text(&value, true)?; self.keyword = value; Ok(self) }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.tdxi_zxxwnews", vec![j(self.query1.as_str()), j(self.channel.wire().to_string()), j(self.page.to_string()), j(self.page_size.get().to_string()), j(self.keyword.as_str())]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("channel_news", &(), "", |name| Ok(match name {
+        "query1" => j(self.query1.as_str()), "channel" => j(format!("{}", self.channel.wire())),
+        "page" => j(format!("{}", self.page)), "page_size" => j(format!("{}", self.page_size.get())),
+        "keyword" => j(self.keyword.as_str()), _ => unreachable!(),
+    })) }
 }
 
 impl F10Client {

@@ -10,6 +10,13 @@ fn builtin<'py>(module: &Bound<'py, PyAny>, name: &str) -> PyResult<Bound<'py, P
     builtins.getattr("getattr")?.call1((module, name, builtins.getattr(name)?))
 }
 
+fn format_field(value: &Bound<'_, PyAny>) -> PyResult<String> {
+    // A literal str.format uses the same special-method lookup and return-type
+    // validation as a Python f-string; an instance __format__ attribute or a
+    // replaced module-level format function must not intercept it.
+    "{:}".into_pyobject(value.py())?.call_method1("format", (value,))?.extract()
+}
+
 #[pyfunction]
 pub fn f10_call<'py>(py: Python<'py>, client: Bound<'py, PyAny>, entry: Bound<'py, PyAny>,
     body: Bound<'py, PyAny>, params: Bound<'py, PyAny>, module: Bound<'py, PyAny>) -> PyResult<Py<PyAny>>
@@ -167,7 +174,7 @@ fn call_template<'py>(py: Python<'py>, client: &Bound<'py, PyAny>, definition: S
 {
     // Python resolves self.params before evaluating any call arguments. A
     // custom code converter may change that attribute for a subsequent call.
-    let params = client.getattr("params")?;
+    let params = client.getattr(if matches!(definition.method, "market_news" | "channel_news") { "call" } else { "params" })?;
     let entry = if definition.append_section {
         py.import("operator")?.getattr("add")?.call1((definition.entry, section))?
     } else { definition.entry.into_pyobject(py)?.into_any() };
@@ -189,14 +196,28 @@ fn call_template_values<'py>(py: Python<'py>, params: Bound<'py, PyAny>, entry: 
             SimpleArgument::Section => section.clone().unbind(),
             SimpleArgument::Market => module.getattr("_bond_sc")?.call1((code,))?.unbind(),
             SimpleArgument::MappedSection(map) => module.getattr(map.python_attribute())?.get_item(section)?.unbind(),
-            SimpleArgument::Input(name) | SimpleArgument::DateInput(name) => {
+            SimpleArgument::Input(name) | SimpleArgument::DateInput(name)
+                | SimpleArgument::TextInput(name) | SimpleArgument::IntTextInput(name) => {
                 let value = match inputs { Some(inputs) => inputs.get_item(name)?, None => None };
                 let value = value.ok_or_else(|| pyo3::exceptions::PyValueError::new_err(format!("missing F10 input: {name}")))?;
-                if matches!(argument, SimpleArgument::DateInput(_)) { date_text(&value)?.unbind() } else { value.unbind() }
+                match argument {
+                    SimpleArgument::DateInput(_) => date_text(&value)?.unbind(),
+                    SimpleArgument::TextInput(_) => builtin(module, "str")?.call1((value,))?.unbind(),
+                    SimpleArgument::IntTextInput(_) => {
+                        let text = builtin(module, "str")?;
+                        text.call1((builtin(module, "int")?.call1((value,))?,))?.unbind()
+                    }
+                    _ => value.unbind(),
+                }
             }
             SimpleArgument::SectionChoice(value, yes, no) => (if section.eq(value)? { yes } else { no }).into_pyobject(py)?.into_any().unbind(),
         })
     })?;
+    if matches!(definition.method, "market_news" | "channel_news") {
+        let body = PyDict::new(py);
+        body.set_item("Params", pyo3::types::PyList::new(py, values)?)?;
+        return Ok(params.call1((entry, body))?.unbind());
+    }
     let mut arguments = Vec::with_capacity(values.len() + 1);
     arguments.push(entry.unbind());
     arguments.extend(values);
@@ -307,4 +328,40 @@ pub fn f10_page_endpoint<'py>(py: Python<'py>, client: Bound<'py, PyAny>, method
     let definition = page_template(method, |value| section.eq(value))?.ok_or_else(||
         pyo3::exceptions::PyValueError::new_err("missing F10 page definition"))?;
     call_template(py, &client, definition, &code, &section, &module, Some(&inputs))
+}
+
+#[pyfunction]
+pub fn f10_cache_list<'py>(py: Python<'py>, client: Bound<'py, PyAny>, code: Bound<'py, PyAny>,
+    kind: Bound<'py, PyAny>, module: Bound<'py, PyAny>) -> PyResult<Py<PyAny>>
+{
+    // The old membership operation is a set lookup, including hash errors.
+    let kinds = pyo3::types::PySet::new(py, eltdx::f10::CACHE_KINDS.iter().copied())?;
+    if !kinds.contains(&kind)? {
+        return Err(pyo3::exceptions::PyValueError::new_err("kind must be one of: xw, gg, ly"));
+    }
+    let identity = crate::offline_financial::unpack(module.getattr("split_code")?.call1((code,))?, 3)?;
+    let body = PyDict::new(py);
+    for (name, value) in eltdx::f10::cache_payload(|slot| -> PyResult<Py<PyAny>> { Ok(match slot {
+        eltdx::f10::CacheValue::Literal(value) => value.into_pyobject(py)?.into_any().unbind(),
+        eltdx::f10::CacheValue::Qsid => module.getattr("DEFAULT_QSID")?.unbind(),
+        eltdx::f10::CacheValue::Key => {
+            let kind = format_field(&kind)?;
+            let market = format_field(&identity[0])?;
+            let number = format_field(&identity[2])?;
+            format!("{kind}:{market}_{number}").into_pyobject(py)?.into_any().unbind()
+        }
+    }) })? { body.set_item(name, value)?; }
+    Ok(client.call_method1("call", (eltdx::f10::CACHE_ENTRY, body))?.unbind())
+}
+
+#[pyfunction]
+pub fn f10_cache_alias<'py>(client: Bound<'py, PyAny>, method: &str, code: Bound<'py, PyAny>) -> PyResult<Py<PyAny>> {
+    let kind = eltdx::f10::cache_alias(method).ok_or_else(|| pyo3::exceptions::PyValueError::new_err("unknown F10 cache alias"))?;
+    Ok(client.call_method1("cache_list", (code, kind))?.unbind())
+}
+
+#[pyfunction]
+pub fn f10_news_channels(module: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let sorted = builtin(&module, "sorted")?;
+    Ok(sorted.call1((module.getattr("NEWS_CHANNEL_LABELS")?.call_method0("items")?,))?.unbind())
 }

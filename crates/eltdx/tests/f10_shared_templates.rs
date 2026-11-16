@@ -107,3 +107,24 @@ fn named_input_and_dynamic_sector_wire_payloads_remain_typed() -> eltdx::Result<
     assert_eq!(bands.payload(), &RequestPayload::Params(vec!["001".into(), "00700".into(), "2Y".into(), "".into(), "".into()]));
     Ok(())
 }
+
+#[test]
+fn news_and_cache_definitions_keep_payload_shapes() -> eltdx::Result<()> {
+    use eltdx::f10::*;
+    let news = MarketNewsQuery::new().to_call()?;
+    assert_eq!(news.entry().as_str(), "CWServ.tdxi_zxxwsy");
+    assert_eq!(news.payload(), &RequestPayload::Params(vec!["3".into(), "1".into(), "50".into()]));
+    let detail = DetailQuery::new("type", "123")?.to_call()?;
+    assert_eq!(detail.payload(), &RequestPayload::Params(vec!["type".into(), "123".into()]));
+    let company = CompanyNewsQuery::new(AshareCode::new(F10MarketCode::new(1), "600000")?)
+        .with_section(SectionCode::new("company_news", "finance_review")?)?.with_page(3)?.to_call()?;
+    assert_eq!(company.entry().as_str(), "CWServ.tdxf10_gg_cwfx_cbdp");
+    assert_eq!(company.payload(), &RequestPayload::Params(vec!["600000".into(), "3".into()]));
+    let cache = NewsQuery::new(AshareCode::new(F10MarketCode::new(1), "600000")?).to_call()?;
+    assert_eq!(cache.entry().as_str(), CACHE_ENTRY);
+    assert_eq!(cache.payload(), &RequestPayload::Body(JsonValue::Object(vec![
+        ("action".into(), "get".into()), ("key".into(), "xw:1_600000".into()),
+        ("bin".into(), "1".into()), ("qsid".into(), "tdx".into()),
+    ])));
+    Ok(())
+}

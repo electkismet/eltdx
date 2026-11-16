@@ -185,6 +185,8 @@ mod template;
 pub use template::{input_template, page_template, SectionMap, SimpleArgument, SimpleEndpoint};
 mod sector_templates;
 pub use sector_templates::{position_arguments, position_prefix, sector_choices, sector_dynamic, sector_selection, sector_weights_without_date};
+mod request_shapes;
+pub use request_shapes::{cache_alias, cache_payload, CacheValue, CACHE_ENTRY, CACHE_KINDS};
 mod simple_registry;
 pub use simple_registry::simple_endpoint;
 mod international;

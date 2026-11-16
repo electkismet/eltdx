@@ -109,6 +109,9 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(f10_request::f10_page_endpoint, module)?)?;
     module.add_function(wrap_pyfunction!(f10_request::f10_input_endpoint, module)?)?;
     module.add_function(wrap_pyfunction!(f10_request::f10_sector_endpoint, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_cache_list, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_cache_alias, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_news_channels, module)?)?;
     module.add_function(wrap_pyfunction!(limits::scan_special, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_fund_flow, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_full_quotes, module)?)?;

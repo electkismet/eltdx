@@ -735,3 +735,144 @@ def test_f10_named_input_preserves_arbitrary_date_and_scope_objects():
     client.params = lambda *args: args
     assert client.allotment_details("sh600000", date)[-1] is date
     assert client.finance_diagnosis("sh600000", scope=scope)[-1] is scope
+
+
+def test_f10_news_inputs_keep_call_override_and_explicit_body():
+    client = f10.F10Client()
+    client.call = lambda *args: args
+    marker = object()
+    assert client.market_news(98765, page=-3, page_size=0) == (
+        "CWServ.tdxi_zxxwsy", {"Params": ["98765", "-3", "0"]})
+    assert client.channel_news(999, page=-4, query1=123, keyword=marker) == (
+        "CWServ.tdxi_zxxwnews", {"Params": ["123", "999", "-4", "50", marker]})
+
+
+def test_f10_news_conversion_order_keeps_live_int_and_str(monkeypatch):
+    events = []
+    client = f10.F10Client()
+    client.call = lambda *args: args
+
+    def convert_int(value):
+        events.append(("int", value))
+        return 7
+
+    def convert_str(value):
+        events.append(("str", value))
+        return str(value)
+
+    monkeypatch.setattr(f10, "int", convert_int, raising=False)
+    monkeypatch.setattr(f10, "str", convert_str, raising=False)
+    client.channel_news("channel", query1="query", page="page", page_size="size")
+    assert events == [("str", "query"), ("int", "channel"), ("str", 7), ("str", "page"), ("str", "size")]
+
+
+def test_f10_northbound_converts_page_twice_after_code(monkeypatch):
+    events = []
+
+    class Page:
+        def __str__(self):
+            events.append("page")
+            return str(len(events))
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            return lambda *args: args
+
+    monkeypatch.setattr(f10, "_code6", lambda value: events.append("code") or value)
+    result = Client().northbound_holding("code", page=Page(), page_size=Page())
+    assert result == ("CWServ.tdxf10_gg_zlcc", "code", "bszj", "", "3", "4", "5")
+    assert events == ["params", "code", "page", "page", "page"]
+
+
+def test_f10_company_finance_review_ignores_unused_conversions():
+    class Unused:
+        def __str__(self):
+            raise AssertionError("unused parameter converted")
+
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert client.company_news("sh600000", "finance_review", page=-4,
+                               keyword=Unused(), rating=Unused(), page_size=Unused()) == (
+        "CWServ.tdxf10_gg_cwfx_cbdp", "600000", "-4")
+
+
+def test_f10_topic_and_detail_preserve_raw_fields_and_only_stringify_selected_input():
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    marker = object()
+    assert client.topic_compare("sh600000", 123, section=marker, sort_by=marker) == (
+        "CWServ.tdxf10_gg_rdtc_gndb", marker, "600000", "123", marker)
+    assert client.detail(marker, 987) == ("CWServ.tdxf10_gg_idreq", marker, "987")
+
+
+@pytest.mark.parametrize("method,kind", [("announcements", "gg"), ("news", "xw"), ("roadshows", "ly")])
+def test_f10_cache_aliases_keep_user_override(method, kind):
+    client = f10.F10Client()
+    marker = object()
+    client.cache_list = lambda *args: args
+    assert getattr(client, method)(marker) == (marker, kind)
+
+
+def test_f10_cache_payload_keeps_live_qsid_and_identity_formatting(monkeypatch):
+    events = []
+
+    class Formatted:
+        def __init__(self, name):
+            self.name = name
+
+        def __format__(self, spec):
+            events.append((self.name, spec))
+            return self.name
+
+    monkeypatch.setattr(f10, "split_code", lambda code: (Formatted("market"), None, Formatted("number")))
+    marker = object()
+    monkeypatch.setattr(f10, "DEFAULT_QSID", marker)
+    client = f10.F10Client()
+    client.call = lambda *args: args
+    assert client.cache_list("raw", "xw") == ("CWSearch.tzx_rcache", {
+        "action": "get", "key": "xw:market_number", "bin": "1", "qsid": marker})
+    assert events == [("market", ""), ("number", "")]
+
+
+def test_f10_cache_invalid_kind_precedes_split_code(monkeypatch):
+    monkeypatch.setattr(f10, "split_code", lambda code: pytest.fail("split must not run"))
+    with pytest.raises(ValueError, match="kind must be one of: xw, gg, ly"):
+        f10.F10Client().cache_list("code", "invalid")
+    with pytest.raises(TypeError, match="unhashable"):
+        f10.F10Client().cache_list("code", [])
+
+
+def test_f10_cache_formatting_uses_special_method_lookup(monkeypatch):
+    class Formatted:
+        def __format__(self, spec):
+            return "class-format"
+
+    identity = Formatted()
+    identity.__format__ = lambda spec: "instance-format"
+    monkeypatch.setattr(f10, "split_code", lambda code: (identity, None, identity))
+    monkeypatch.setattr(f10, "format", lambda *args: "module-format", raising=False)
+    client = f10.F10Client()
+    client.call = lambda *args: args
+    assert client.cache_list("code")[1]["key"] == "gg:class-format_class-format"
+
+
+def test_f10_cache_formatting_rejects_non_string_before_call(monkeypatch):
+    class Invalid:
+        def __format__(self, spec):
+            return 123
+
+    monkeypatch.setattr(f10, "split_code", lambda code: (Invalid(), None, "number"))
+    client = f10.F10Client()
+    client.call = lambda *args: pytest.fail("invalid format must prevent request")
+    with pytest.raises(TypeError, match="__format__ must return a str"):
+        client.cache_list("code")
+
+
+def test_f10_news_channels_keeps_live_registry_and_sorted_hook(monkeypatch):
+    registry = {9: "nine", 1: "one"}
+    monkeypatch.setattr(f10, "NEWS_CHANNEL_LABELS", registry)
+    assert f10.F10Client().news_channels() == [(1, "one"), (9, "nine")]
+    monkeypatch.setattr(f10, "sorted", lambda values: list(values), raising=False)
+    assert f10.F10Client().news_channels() == [(9, "nine"), (1, "one")]

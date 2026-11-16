@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第六十一段恢复点：第六十段已提交`f8fd116`。本段新闻/缓存11个方法共享源码已写并完成限定源码自审，合计128/157；保留call显式body、实时int/str与两次page转换、finance_review惰性参数、缓存set/unpack/f-string特殊方法及动态qsid/频道表。新增11个Python合同函数及1个Rust函数源码均未执行。T23仍需29个方法、fields/model/helpers/manifest，随后T24–T30；21源码完整/4部分/5未开始，目标active无额度上限，所有执行验证延期。
+
 2026-11-17第五十七段恢复点：F10响应基础已提交`c3fbe18`。本段接入共享惰性网关选择、Python请求准备/call/params、代码规范化和section检查；保留BRK.B→B、HK六位及Unicode、动态split_code/Request/JSON/_post钩子，HTTP上下文/逐请求计时/异常链未替换。新增8个Python函数（含参数化）及1个Rust路由用例源码未执行。157具名方法共享参数/路由编排仍待写，fields/model/helpers/manifest与T24–T30待完成；21/4/5，active无额度上限，全部执行验证延期。
 
 2026-11-17第五十六段恢复点：GBBQ/block/model已提交`eb9487a`。F10响应基础接入共享表/单元格遍历、列名选择和重复列冲突投影；Python保留原模型/解析钩子、falsey空值策略、原对象和任意精度ErrorCode，strict Rust保留限额与验证。新增10个Python及1个Rust源码用例均未执行。157入口参数/业务迁移、fields、F10模型业务和跨来源helpers仍待做，不提升manifest。整体21源码完整/4部分/5未开始；active无额度上限，全部执行验证延期。
@@ -117,7 +119,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | T23 F10共享请求编排；第六十段117/157方法源码接入，全部执行验证延期 |
+| 最新检查点 | T23 F10共享请求编排；第六十一段128/157方法源码接入，全部执行验证延期 |
 | 当前阶段 | T01–T18及T20–T22源码完成；T19/T23/T24/T25部分；21完整源码/4部分/5未开始。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

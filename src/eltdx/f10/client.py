@@ -2130,7 +2130,11 @@ class F10Client:
     def topic_compare(self, code: str, topic_id: str, section: str = "gndbzfsj", sort_by: str = "zdf") -> F10Response:
         """题材内对比排名。"""
 
-        return self.params("CWServ.tdxf10_gg_rdtc_gndb", section, _code6(code), str(topic_id), sort_by)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "topic_compare", code, section, {"topic_id": topic_id, "sort_by": sort_by}, _MODULES[__name__]
+        )
 
     def topic_compare_first(self, code: str, section: str = "gndbzfsj", sort_by: str = "zdf") -> F10Response:
         """用股票第一个题材 ID 查询题材内对比排名。"""
@@ -2157,9 +2161,11 @@ class F10Client:
         ``page_size``。
         """
 
-        if section == "finance_review":
-            return self.params("CWServ.tdxf10_gg_cwfx_cbdp", _code6(code), str(page))
-        return self.params("CWServ.tdxf10_gg_gszx", _code6(code), section, keyword, str(rating), str(page), str(page_size))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_page_endpoint(
+            self, "company_news", code, section, {"keyword": keyword, "rating": rating, "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def digest(
         self,
@@ -2209,44 +2215,48 @@ class F10Client:
     ) -> F10Response:
         """沪深股通持股变化。"""
 
-        return self.params(
-            "CWServ.tdxf10_gg_zlcc",
-            _code6(code),
-            section,
-            filter_value,
-            str(page),
-            str(page),
-            str(page_size),
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "northbound_holding", code, section, {"filter_value": filter_value, "page": page, "page_size": page_size}, _MODULES[__name__]
         )
 
     def detail(self, detail_type: str, record_id: str | int) -> F10Response:
         """按记录 ID 查询详情正文。"""
 
-        return self.params("CWServ.tdxf10_gg_idreq", detail_type, str(record_id))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "detail", None, None, {"detail_type": detail_type, "record_id": record_id}, _MODULES[__name__]
+        )
 
     def cache_list(self, code: str, kind: str = "gg") -> F10Response:
         """新闻 / 公告 / 路演缓存列表。kind=xw、gg、ly。"""
 
-        if kind not in {"xw", "gg", "ly"}:
-            raise ValueError("kind must be one of: xw, gg, ly")
-        market_id, _, code6 = split_code(code)
-        body = {"action": "get", "key": f"{kind}:{market_id}_{code6}", "bin": "1", "qsid": DEFAULT_QSID}
-        return self.call("CWSearch.tzx_rcache", body)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_cache_list(self, code, kind, _MODULES[__name__])
 
     def announcements(self, code: str) -> F10Response:
         """公告列表。"""
 
-        return self.cache_list(code, "gg")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_cache_alias(self, "announcements", code)
 
     def news(self, code: str) -> F10Response:
         """新闻列表。"""
 
-        return self.cache_list(code, "xw")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_cache_alias(self, "news", code)
 
     def roadshows(self, code: str) -> F10Response:
         """路演列表。"""
 
-        return self.cache_list(code, "ly")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_cache_alias(self, "roadshows", code)
 
     # ------------------------------------------------------------------
     # 市场资讯（通达信 7615「资讯」页；枚举与字段说明见 eltdx.f10.news）
@@ -2256,7 +2266,10 @@ class F10Client:
 
         频道号用于 :meth:`channel_news`；分组见 :data:`eltdx.f10.news.NEWS_CHANNEL_GROUPS`。
         """
-        return sorted(NEWS_CHANNEL_LABELS.items())
+
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_news_channels(_MODULES[__name__])
 
     def market_news(
         self,
@@ -2271,9 +2284,11 @@ class F10Client:
         （默认 ``HEADLINES`` 要闻速递）。新闻行在响应 ``result_sets[1].rows``，
         可用 :func:`eltdx.f10.news.extract_news_rows` 提取。
         """
-        return self.call(
-            "CWServ.tdxi_zxxwsy",
-            {"Params": [str(int(tab)), str(page), str(page_size)]},
+
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "market_news", None, None, {"tab": tab, "page": page, "page_size": page_size}, _MODULES[__name__]
         )
 
     def channel_news(
@@ -2290,10 +2305,13 @@ class F10Client:
         Params = ``[query1(常为 "1"), 频道号, page, page_size, keyword]``；
         频道号见 :class:`eltdx.f10.news.NewsChannel`。新闻行在 ``result_sets[1].rows``。
         """
-        return self.call(
-            "CWServ.tdxi_zxxwnews",
-            {"Params": [str(query1), str(int(channel)), str(page), str(page_size), keyword]},
+
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "channel_news", None, None, {"channel": channel, "page": page, "page_size": page_size, "query1": query1, "keyword": keyword}, _MODULES[__name__]
         )
+
     def theme_market(
         self,
         code: str,
