@@ -1032,3 +1032,26 @@ Twenty-fifth source stage committed as **1989d3c**; all execution deferred.
 
 T18 partial18/4/8. Continue full shortline and remaining HQ helpers/batches/
 subscription/consumer, then T19–T30; goal active without cap.
+
+Twenty-sixth source stage committed as **6580450**; all execution deferred.
+
+## Twenty-seventh source checkpoint — shortline sources and metric composition
+
+- Moved high-level get orchestration and security/finance/recent-bars/rush loops
+  into Rust bindings with original Python callbacks. Required source order,
+  optional request-only exception handling, failed-source continuation, last
+  duplicate records and original row objects remain. Finance uses shared80
+  batching; small rush inputs do not query, short pages retain legacy EOF.
+- Moved the indicator builder and rounded scalar/ratio/locked-amount/volume
+  calculations into bindings. Product and division core are shared with strict
+  SDK; legacy still performs Python float/round6 and original property access
+  and scalar-hook evaluation. Five-bar volume sample uses original order and
+  double volume access; no sorting/dedup is imposed on legacy.
+- Authored10 contract source functions for source order/readiness, optional
+  finance errors, previous bars, rush, round6, conversion order, negative locked
+  amount and a complete indicator composition. All unexecuted. Manifest truthfully
+  expands partial shortline evidence; legacy limit/board/date policies remain.
+
+No tests/build/checks/collection/AST/format/dependency/network verification ran.
+T18 partial18/4/8; next remaining shortline limit/board/handshake date and ladder,
+daily limits, auction/market/boards, batch/subscription/consumer then T19–T30.

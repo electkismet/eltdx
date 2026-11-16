@@ -9,6 +9,8 @@ mod limits;
 mod helpers;
 mod helper_profile;
 mod helper_shortline;
+mod helper_numeric;
+mod helper_indicator;
 mod protocol;
 mod request;
 mod response;
@@ -60,6 +62,15 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helper_shortline::helper_aligned_stat2, module)?)?;
     module.add_function(wrap_pyfunction!(helper_shortline::helper_validate_stats, module)?)?;
     module.add_function(wrap_pyfunction!(helper_shortline::helper_stats_resource, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_get, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_security, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_finance, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_bars, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_rush, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_numeric::shortline_scalar, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_numeric::shortline_locked, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_numeric::shortline_volume_ratio, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_indicator::shortline_indicator, module)?)?;
     transport::register(module)?;
     Ok(())
 }

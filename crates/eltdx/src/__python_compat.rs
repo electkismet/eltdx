@@ -30,7 +30,7 @@ pub use crate::services::resource_legacy::legacy_resource_download;
 pub use crate::stats::{legacy_stats_members, LegacyStatRow, LegacyStat2Row};
 pub use crate::services::limits::legacy_special_scan;
 pub use crate::helpers::market::accumulate_flow_amount;
-pub use crate::helpers::calculation::{turnover_with, product_with, share_source_names};
+pub use crate::helpers::calculation::{turnover_with, product_with, ratio_with, share_source_names};
 pub use crate::helpers::stats_alignment::{dominant_date, stat_date_alignment, stat2_columns, Stat2Column};
 pub use crate::helpers::service::{full_quote_chunks, complete_quote_depth, collect_rank_pages, RankCollectionEnd};
 pub use crate::services::corporate_legacy::{legacy_capital_collect, legacy_finance_recover,

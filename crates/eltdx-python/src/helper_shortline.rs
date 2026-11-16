@@ -1,6 +1,188 @@
 //! Legacy shortline date strings and values stay at the Python boundary.
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PySet, PyTuple};
+use pyo3::exceptions::PyException;
+use pyo3::types::{PyDict, PyList, PySet, PySlice, PyTuple};
+
+fn get<'py>(value: &Bound<'py, PyAny>, name: &str) -> PyResult<Bound<'py, PyAny>> {
+    value.py().import("builtins")?.getattr("getattr")?.call1((value, name, value.py().None()))
+}
+
+fn hook<'py>(scope: &Bound<'py, PyDict>, name: &str) -> PyResult<Bound<'py, PyAny>> {
+    scope.get_item(name)?.ok_or_else(|| pyo3::exceptions::PyNameError::new_err(name.to_owned()))
+}
+
+fn records<'py>(page: &Bound<'py, PyAny>, name: &str) -> PyResult<Bound<'py, PyAny>> {
+    let raw = get(page, name)?;
+    let py = page.py();
+    if raw.is_truthy()? { py.import("builtins")?.getattr("tuple")?.call1((raw,)) }
+    else { Ok(PyTuple::empty(py).into_any()) }
+}
+
+#[pyfunction]
+pub fn helper_shortline_get(py: Python<'_>, service: Bound<'_, PyAny>, codes: Bound<'_, PyAny>,
+    path: Bound<'_, PyAny>, refresh: Bound<'_, PyAny>, scope: Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
+    let context = hook(&scope, "_resolve_market_date_context")?.call1((service.getattr("_client")?,))?;
+    if !context.getattr("ready")?.is_truthy()? {
+        return Err(raised(&hook(&scope, "ShortlineIndicatorsNotReadyError")?,
+            "shortline indicators are not ready before the 09:25 auction completes"));
+    }
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("refresh", refresh)?;
+    kwargs.set_item("target", context.getattr("target_trade_date")?)?;
+    kwargs.set_item("previous", context.getattr("previous_trade_date")?)?;
+    let (stats, refreshed) = pair(service.call_method("_stats_resource", (path,), Some(&kwargs))?)?;
+    kwargs.del_item("refresh")?;
+    kwargs.set_item("target", context.getattr("target_trade_date")?)?;
+    kwargs.set_item("previous", context.getattr("previous_trade_date")?)?;
+    let resource_date = hook(&scope, "_validate_stats_resource_dates")?.call((&stats,), Some(&kwargs))?;
+    let quote_map = hook(&scope, "_by_full_code")?.call1((service.getattr("_client")?.getattr("helpers")?
+        .call_method1("full_quotes", (&codes,))?,))?;
+    let security_map = hook(&scope, "_security_map")?.call1((service.getattr("_client")?, &codes))?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("before", context.getattr("target_trade_date")?)?;
+    let bars_map = hook(&scope, "_recent_daily_bars_map")?.call((service.getattr("_client")?, &codes), Some(&kwargs))?;
+    let finance_map = hook(&scope, "_finance_map")?.call1((service.getattr("_client")?, &codes))?;
+    let rush_map = hook(&scope, "_opening_rush_map")?.call1((service.getattr("_client")?, &codes))?;
+    let rows = PyList::empty(py);
+    for code in codes.try_iter()? {
+        py.check_signals()?;
+        let code = code?;
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("quote", quote_map.call_method1("get", (&code,))?)?;
+        kwargs.set_item("security", security_map.call_method1("get", (&code,))?)?;
+        kwargs.set_item("recent_daily_bars", bars_map.call_method1("get", (&code, PyTuple::empty(py)))?)?;
+        kwargs.set_item("finance", finance_map.call_method1("get", (&code,))?)?;
+        kwargs.set_item("opening_rush", rush_map.call_method1("get", (&code,))?)?;
+        kwargs.set_item("stats", &stats)?; kwargs.set_item("context", &context)?;
+        rows.append(hook(&scope, "_build_indicator")?.call((&code,), Some(&kwargs))?)?;
+    }
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("codes", py.import("builtins")?.getattr("tuple")?.call1((codes,))?)?;
+    kwargs.set_item("target_trade_date", context.getattr("target_trade_date")?)?;
+    kwargs.set_item("previous_trade_date", context.getattr("previous_trade_date")?)?;
+    kwargs.set_item("stats_date", resource_date)?; kwargs.set_item("stats_source_path", stats.getattr("source_path")?)?;
+    kwargs.set_item("stats_refreshed", refreshed)?; kwargs.set_item("rows", PyTuple::new(py, rows.iter())?)?;
+    Ok(hook(&scope, "ShortlineIndicatorTable")?.call((), Some(&kwargs))?.unbind())
+}
+
+#[pyfunction]
+pub fn helper_shortline_security(py: Python<'_>, client: Bound<'_, PyAny>, codes: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let markets = PySet::empty(py)?;
+    for code in codes.try_iter()? { markets.add(code?.get_item(PySlice::new(py, 0, 2, 1))?)?; }
+    let markets = py.import("builtins")?.getattr("sorted")?.call1((markets,))?;
+    let result = PyDict::new(py);
+    for market in markets.try_iter()? {
+        py.check_signals()?;
+        let page = client.getattr("codes")?.call_method1("all", (market?,))?;
+        for item in page.try_iter()? {
+            let item = item?;
+            let code = get(&item, "full_code")?;
+            if codes.contains(&code)? { result.set_item(code.str()?, item)?; }
+        }
+    }
+    Ok(result.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn helper_shortline_finance(py: Python<'_>, client: Bound<'_, PyAny>, codes: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let result = PyDict::new(py);
+    let getter = get(&get(&client, "corporate")?, "finance_batch")?;
+    if getter.is_none() { return Ok(result.into_any().unbind()); }
+    let indices = (0..codes.len()?).collect::<Vec<_>>();
+    for chunk in eltdx::__python_compat::full_quote_chunks(&indices) {
+        py.check_signals()?;
+        let start = chunk[0] as isize;
+        let page = match codes.get_item(PySlice::new(py, start, start + chunk.len() as isize, 1))
+            .and_then(|part| getter.call1((part,))) {
+            Ok(page) => page,
+            Err(error) if error.is_instance_of::<PyException>(py) => continue,
+            Err(error) => return Err(error),
+        };
+        let raw = get(&page, "records")?;
+        if !raw.is_truthy()? { continue; }
+        for item in raw.try_iter()? {
+            let item = item?;
+            let code = get(&item, "full_code")?;
+            if !code.is_none() { result.set_item(code.str()?, item)?; }
+        }
+    }
+    Ok(result.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn helper_shortline_bars(py: Python<'_>, client: Bound<'_, PyAny>, codes: Bound<'_, PyAny>, before: Bound<'_, PyAny>)
+    -> PyResult<Py<PyAny>> {
+    let result = PyDict::new(py);
+    let getter = get(&get(&client, "bars")?, "get")?;
+    if getter.is_none() { return Ok(result.into_any().unbind()); }
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("period", "day")?; kwargs.set_item("start", 0)?;
+    kwargs.set_item("count", 6)?; kwargs.set_item("adjust", "none")?;
+    for code in codes.try_iter()? {
+        py.check_signals()?;
+        let code = code?;
+        let page = match getter.call((&code,), Some(&kwargs)) {
+            Ok(page) => page,
+            Err(error) if error.is_instance_of::<PyException>(py) => continue,
+            Err(error) => return Err(error),
+        };
+        let values = records(&page, "bars")?;
+        let values = if before.is_none() { values } else {
+            let selected = PyList::empty(py);
+            for bar in values.try_iter()? {
+                let bar = bar?;
+                let time = get(&bar, "time")?;
+                let day = match time.getattr("date") {
+                    Ok(method) => method.call0()?,
+                    Err(error) if error.is_instance_of::<pyo3::exceptions::PyAttributeError>(py) => py.None().into_bound(py),
+                    Err(error) => return Err(error),
+                };
+                if day.is_none() || bar.getattr("time")?.call_method0("date")?.lt(&before)? { selected.append(bar)?; }
+            }
+            PyTuple::new(py, selected.iter())?.into_any()
+        };
+        if values.is_truthy()? { result.set_item(code, values.get_item(PySlice::new(py, 0, 5, 1))?)?; }
+    }
+    Ok(result.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn helper_shortline_rush(py: Python<'_>, client: Bound<'_, PyAny>, codes: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let result = PyDict::new(py);
+    if codes.len()? < 80 { return Ok(result.into_any().unbind()); }
+    let getter = get(&get(&client, "quotes")?, "list_by_category")?;
+    if getter.is_none() { return Ok(result.into_any().unbind()); }
+    let wanted = py.import("builtins")?.getattr("set")?.call1((codes,))?;
+    let float = py.import("builtins")?.getattr("float")?;
+    let round = py.import("builtins")?.getattr("round")?;
+    let mut offset = 0_usize;
+    while wanted.is_truthy()? && offset < 200 * 80 {
+        py.check_signals()?;
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("sort_by", "代码")?; kwargs.set_item("start", offset)?;
+        kwargs.set_item("count", 80)?; kwargs.set_item("ascending", true)?;
+        let page = match getter.call(("沪深A股",), Some(&kwargs)) {
+            Ok(page) => page,
+            Err(error) if error.is_instance_of::<PyException>(py) => break,
+            Err(error) => return Err(error),
+        };
+        let values = records(&page, "records")?;
+        let count = values.len()?;
+        if count == 0 { break; }
+        for row in values.try_iter()? {
+            let row = row?;
+            let code = get(&row, "full_code")?;
+            let value = get(&row, "opening_rush")?;
+            if wanted.contains(&code)? && !value.is_none() {
+                result.set_item(code.str()?, round.call1((float.call1((value,))?, 6))?)?;
+                wanted.call_method1("discard", (code,))?;
+            }
+        }
+        offset += count;
+        if count < 80 { break; }
+    }
+    Ok(result.into_any().unbind())
+}
 
 fn raised(kind: &Bound<'_, PyAny>, message: &str) -> PyErr {
     match kind.call1((message,)) { Ok(value) => PyErr::from_value(value), Err(error) => error }

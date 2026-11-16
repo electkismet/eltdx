@@ -385,11 +385,17 @@ fn valid_amount(value: Option<Amount>) -> Option<Amount> {
     value.filter(|value| value.unit() == AmountUnit::Cny && finite_nonnegative(value.value().as_f64()).is_some())
 }
 fn amount_value(value: Option<Amount>) -> Option<f64> { valid_amount(value).map(|value| value.value().as_f64()) }
-fn product(left: Option<f64>, right: Option<f64>) -> Option<f64> { let value = left? * right?; finite_nonnegative(value) }
+fn product(left: Option<f64>, right: Option<f64>) -> Option<f64> {
+    let value = super::calculation::product_with::<_, std::convert::Infallible>(left?, right?, |a, b| Ok(a * b))
+        .unwrap_or_else(|never| match never {});
+    finite_nonnegative(value)
+}
 fn divide(numerator: Option<f64>, denominator: Option<f64>) -> Option<f64> {
     let denominator = denominator?; let numerator = numerator?;
     if denominator == 0.0 || !denominator.is_finite() || !numerator.is_finite() { return None; }
-    let value = numerator / denominator; value.is_finite().then_some(value)
+    let value = super::calculation::ratio_with::<_, std::convert::Infallible>(numerator, denominator, |a, b| Ok(a / b))
+        .unwrap_or_else(|never| match never {});
+    value.is_finite().then_some(value)
 }
 fn cny(value: f64) -> Amount { Amount::with_provenance(NumericValue::F64(value), AmountUnit::Cny, ValueProvenance::WireRule) }
 fn lots(value: f64) -> Quantity { Quantity::with_provenance(NumericValue::F64(value), QuantityUnit::Lots, ValueProvenance::WireRule) }

@@ -2210,7 +2210,9 @@
         "crates/eltdx/src/lib.rs",
         "crates/eltdx/src/helpers/shortline.rs",
         "crates/eltdx/src/helpers/stats_alignment.rs",
-        "crates/eltdx-python/src/helper_shortline.rs"
+        "crates/eltdx-python/src/helper_shortline.rs",
+        "crates/eltdx-python/src/helper_numeric.rs",
+        "crates/eltdx-python/src/helper_indicator.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2222,8 +2224,8 @@
       "authored_evidence": {
         "state": "source_only_unverified",
         "rust_entry": "eltdx::HelperService::shortline_indicators",
-        "python_entry": "ShortlineIndicatorService._stats_resource, _validate_stats_resource_dates, _dominant_date_and_coverage and _aligned_stat2 -> native helper_shortline",
-        "shared_algorithm": "dominant_date count/tie/denominator and stat2_columns remapping; full high-level numeric/source migration still in progress",
+        "python_entry": "ShortlineIndicatorService.get and source/date helpers -> native helper_shortline; _build_indicator -> helper_indicator; rounded arithmetic -> helper_numeric",
+        "shared_algorithm": "dominant_date count/tie/denominator, stat2_columns, 80-item finance chunks, product and ratio; full legacy limit/date policy migration still in progress",
         "contract_nodes": [
           "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_dominant_date_counts_missing_rows_in_coverage_and_uses_later_tie",
           "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_dominant_date_materializes_before_reading_and_keeps_double_property_access",
@@ -2232,14 +2234,24 @@
           "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stat2_unaligned_does_not_read_unused_columns_and_keeps_empty_hook",
           "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stats_cache_reuses_valid_value_and_failed_refresh_keeps_old_value",
           "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stats_validation_keeps_parser_cause_and_custom_dominant_hook",
-          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stats_usable_only_downgrades_resource_format_subclasses"
+          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stats_usable_only_downgrades_resource_format_subclasses",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_composition_keeps_source_order_builder_and_table_metadata",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_not_ready_stops_before_sources",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_finance_batches_keep_last_record_optional_request_and_parse_errors",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_recent_bars_retains_filter_order_and_first_five",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_opening_rush_does_not_scan_for_small_request_and_keeps_short_page",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_scalar_rounding_missing_zero_and_ratios",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_scalar_preserves_denominator_conversion_order",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_volume_ratio_requires_five_and_keeps_twice_read",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_locked_amount_keeps_first_level_and_negative_values",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_indicator_uses_native_composition_with_original_numeric_hooks"
         ],
         "temporary_adapter": {
-          "scope": "Source orchestration, numeric fields, legacy limit classification and date parsing remain under active migration; Python lock and errors retained",
-          "reason": "Partial checkpoint records only actual shared dates/cache/alignment work and does not claim the whole Python helper is migrated.",
+          "scope": "Legacy limit classification, board progression and handshake-date selection remain under active migration; Python numeric conversions/round6/hooks and lock/errors retained",
+          "reason": "Partial checkpoint records actual shared dates/cache/source/numeric work and does not claim the whole Python helper is migrated.",
           "exit_condition": "Finish all remaining shortline source and field algorithms with unchanged custom hooks and legacy policy."
         },
-        "validation": "Eight Python and two Rust functions authored, not collected/compiled/executed."
+        "validation": "Eighteen Python and two Rust functions authored across alignment/source files, not collected/compiled/executed."
       },
       "kind": "组合能力",
       "catalog_source": "Helper",

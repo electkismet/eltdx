@@ -129,56 +129,10 @@ class ShortlineIndicatorService:
         if not full_codes:
             raise ValueError("at least one code is required")
 
-        context = _resolve_market_date_context(self._client)
-        if not context.ready:
-            raise ShortlineIndicatorsNotReadyError(
-                "shortline indicators are not ready before the 09:25 auction completes"
-            )
-        stats, stats_refreshed = self._stats_resource(
-            stats_path,
-            refresh=refresh_stats,
-            target=context.target_trade_date,
-            previous=context.previous_trade_date,
-        )
-        resource_date = _validate_stats_resource_dates(
-            stats,
-            target=context.target_trade_date,
-            previous=context.previous_trade_date,
-        )
+        from eltdx.transport.native import native_module
 
-        # Shortline metrics use the same complete quote shape as the former
-        # flat helper: the snapshot is followed by a best-effort five-level
-        # refresh.
-        quote_map = _by_full_code(self._client.helpers.full_quotes(full_codes))
-        security_map = _security_map(self._client, full_codes)
-        recent_bars_map = _recent_daily_bars_map(
-            self._client,
-            full_codes,
-            before=context.target_trade_date,
-        )
-        finance_map = _finance_map(self._client, full_codes)
-        opening_rush_map = _opening_rush_map(self._client, full_codes)
-        rows = tuple(
-            _build_indicator(
-                full_code,
-                quote=quote_map.get(full_code),
-                security=security_map.get(full_code),
-                recent_daily_bars=recent_bars_map.get(full_code, ()),
-                finance=finance_map.get(full_code),
-                opening_rush=opening_rush_map.get(full_code),
-                stats=stats,
-                context=context,
-            )
-            for full_code in full_codes
-        )
-        return ShortlineIndicatorTable(
-            codes=tuple(full_codes),
-            target_trade_date=context.target_trade_date,
-            previous_trade_date=context.previous_trade_date,
-            stats_date=resource_date,
-            stats_source_path=stats.source_path,
-            stats_refreshed=stats_refreshed,
-            rows=rows,
+        return native_module().helper_shortline_get(
+            self, full_codes, stats_path, refresh_stats, globals(),
         )
 
     def _stats_resource(
@@ -308,110 +262,11 @@ def _build_indicator(
     stats: TdxStatsResource,
     context: _MarketDateContext,
 ) -> ShortlineIndicator:
-    exchange = full_code[:2]
-    code = full_code[2:]
-    market_id = MARKET_TO_ID[exchange]
-    stat_row, stat2_row = stats.row(market_id, code)
-    acceptable_dates = {
-        context.target_trade_date.strftime("%Y%m%d"),
-        context.previous_trade_date.strftime("%Y%m%d"),
-    }
-    if stat_row is not None and stat_row.stats_date not in acceptable_dates:
-        stat_row = None
-    aligned = _aligned_stat2(
-        stat2_row,
-        target=context.target_trade_date,
-        previous=context.previous_trade_date,
-    )
+    from eltdx.transport.native import native_module
 
-    last_price = _number(quote, "last_price")
-    open_price = _number(quote, "open_price")
-    open_amount = _number(quote, "open_amount_yuan")
-    open_volume_hand = _safe_ratio(open_amount, open_price * 100.0 if open_price else None)
-    pre_close = _number(quote, "pre_close_price")
-    float_shares = _round(getattr(finance, "circulating_shares", None))
-    free_float_shares = _tenk(getattr(stat_row, "free_float_shares_10k", None))
-    free_float_market_value = _multiply(free_float_shares, last_price)
-    float_market_value = _multiply(float_shares, last_price)
-    locked_amount = _locked_amount(quote)
-    prev_amount = _tenk(aligned["prev_amount_10k"])
-    prev_seal_amount = _tenk(aligned["prev_seal_amount_10k"])
-    prev2_seal_amount = _tenk(aligned["prev2_seal_amount_10k"])
-    prev_open_amount = _tenk(aligned["prev_open_amount_10k"])
-    prev_open_volume_hand = _round(aligned["prev_open_volume_hand"])
-    limit_status = _limit_status(full_code, quote, getattr(security, "name", None))
-
-    days = getattr(stat_row, "limit_stat_days", None)
-    count = getattr(stat_row, "limit_up_count_in_stat_days", None)
-    stat_date = _row_stats_date(stat_row, stat2_row)
-    if (
-        limit_status == "sealed"
-        and stat_date == context.previous_trade_date
-    ):
-        days = (days or 0) + 1
-        count = (count or 0) + 1
-
-    return ShortlineIndicator(
-        full_code=full_code,
-        exchange=exchange,
-        market_id=market_id,
-        code=code,
-        target_trade_date=context.target_trade_date,
-        previous_trade_date=context.previous_trade_date,
-        stats_date=stat_date,
-        alignment_status=str(aligned["status"]),
-        limit_status=limit_status,
-        beta_60d=_round(getattr(stat_row, "beta_60d", None)),
-        pe_ttm=_round(getattr(stat_row, "pe_ttm", None)),
-        free_float_shares=free_float_shares,
-        prev_amount=prev_amount,
-        prev_seal_amount=prev_seal_amount,
-        prev2_seal_amount=prev2_seal_amount,
-        prev_open_volume_hand=prev_open_volume_hand,
-        prev_open_amount=prev_open_amount,
-        limit_stat_days=getattr(stat_row, "limit_stat_days", None),
-        limit_up_count_in_stat_days=getattr(
-            stat_row, "limit_up_count_in_stat_days", None
-        ),
-        limit_up_streak_days=getattr(stat_row, "limit_up_streak_days", None),
-        year_limit_up_days=getattr(stat_row, "year_limit_up_days", None),
-        free_float_market_value=free_float_market_value,
-        open_turnover_z=_safe_ratio_pct(
-            open_volume_hand,
-            free_float_shares / 100.0 if free_float_shares else None,
-        ),
-        open_prev_amount_ratio=_safe_ratio_pct(open_amount, prev_amount),
-        auction_prev_volume_ratio=_safe_ratio(
-            open_volume_hand, prev_open_volume_hand
-        ),
-        open_prev_seal_ratio=_safe_ratio_pct(open_amount, prev_seal_amount),
-        seal_to_float_ratio=_safe_ratio_pct(
-            locked_amount, free_float_market_value
-        ),
-        seal_prev_ratio=_safe_ratio(locked_amount, prev_seal_amount),
-        limit_board_text=_limit_board_text(days, count),
-        ladder_level=_ladder_level(
-            stat_row,
-            stats_date=stat_date,
-            target=context.target_trade_date,
-            previous=context.previous_trade_date,
-            limit_status=limit_status,
-        ),
-        open_price=open_price,
-        pre_close=pre_close,
-        open_change_pct=_change_pct(open_price, pre_close),
-        open_amount=open_amount,
-        open_volume_hand=open_volume_hand,
-        open_volume_ratio=_open_volume_ratio(open_volume_hand, recent_daily_bars),
-        opening_rush=(
-            opening_rush
-            if opening_rush is not None
-            else _number(quote, "opening_rush")
-        ),
-        float_shares=float_shares,
-        float_market_value=float_market_value,
-        seal_amount=locked_amount,
-        seal_to_amount_ratio=_safe_ratio(locked_amount, _number(quote, "amount")),
+    return native_module().shortline_indicator(
+        full_code, quote, security, recent_daily_bars, finance,
+        opening_rush, stats, context, globals(),
     )
 
 
@@ -438,13 +293,9 @@ def _empty_alignment(status: str) -> dict[str, Any]:
 
 
 def _security_map(client: TdxClient, full_codes: Sequence[str]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for market in sorted({code[:2] for code in full_codes}):
-        for item in client.codes.all(market):
-            item_code = getattr(item, "full_code", None)
-            if item_code in full_codes:
-                result[str(item_code)] = item
-    return result
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_shortline_security(client, full_codes)
 
 
 def _recent_daily_bars_map(
@@ -453,78 +304,21 @@ def _recent_daily_bars_map(
     *,
     before: date | None = None,
 ) -> dict[str, tuple[Any, ...]]:
-    bars_api = getattr(client, "bars", None)
-    getter = getattr(bars_api, "get", None)
-    if getter is None:
-        return {}
-    result: dict[str, tuple[Any, ...]] = {}
-    for full_code in full_codes:
-        try:
-            # Request one extra bar because the first bar can be today's partial session.
-            page = getter(full_code, period="day", start=0, count=6, adjust="none")
-        except Exception:
-            continue
-        values = tuple(getattr(page, "bars", ()) or ())
-        if before is not None:
-            values = tuple(
-                bar
-                for bar in values
-                if getattr(getattr(bar, "time", None), "date", lambda: None)() is None
-                or getattr(bar.time, "date")() < before
-            )
-        if values:
-            result[full_code] = values[:5]
-    return result
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_shortline_bars(client, full_codes, before)
 
 
 def _finance_map(client: TdxClient, full_codes: Sequence[str]) -> dict[str, Any]:
-    corporate = getattr(client, "corporate", None)
-    getter = getattr(corporate, "finance_batch", None)
-    if getter is None:
-        return {}
-    result: dict[str, Any] = {}
-    for start in range(0, len(full_codes), 80):
-        try:
-            page = getter(full_codes[start : start + 80])
-        except Exception:
-            continue
-        for record in getattr(page, "records", ()) or ():
-            full_code = getattr(record, "full_code", None)
-            if full_code is not None:
-                result[str(full_code)] = record
-    return result
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_shortline_finance(client, full_codes)
 
 
 def _opening_rush_map(client: TdxClient, full_codes: Sequence[str]) -> dict[str, float]:
-    # 0x054b is a category scan, not a single-code lookup. Avoid turning a
-    # one-stock shortline request into a full-market pagination sweep.
-    if len(full_codes) < 80:
-        return {}
-    quotes = getattr(client, "quotes", None)
-    getter = getattr(quotes, "list_by_category", None)
-    if getter is None:
-        return {}
-    wanted = set(full_codes)
-    result: dict[str, float] = {}
-    start = 0
-    while wanted and start < 200 * 80:
-        try:
-            page = getter("沪深A股", sort_by="代码", start=start, count=80, ascending=True)
-        except Exception:
-            break
-        records = tuple(getattr(page, "records", ()) or ())
-        if not records:
-            break
-        for record in records:
-            full_code = getattr(record, "full_code", None)
-            value = getattr(record, "opening_rush", None)
-            if full_code in wanted and value is not None:
-                result[str(full_code)] = round(float(value), 6)
-                wanted.discard(full_code)
-        start += len(records)
-        if len(records) < 80:
-            break
-    return result
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_shortline_rush(client, full_codes)
 
 
 def _by_full_code(items: Any) -> dict[str, Any]:
@@ -557,59 +351,51 @@ def _number(item: Any | None, name: str) -> float | None:
 
 
 def _round(value: Any) -> float | None:
-    if value is None:
-        return None
-    return round(float(value), 6)
+    from eltdx.transport.native import native_module
+
+    return native_module().shortline_scalar("round", value, None)
 
 
 def _change_pct(value: Any, base: Any) -> float | None:
-    if value is None or base in (None, 0):
-        return None
-    return round((float(value) - float(base)) / float(base) * 100.0, 6)
+    from eltdx.transport.native import native_module
+
+    return native_module().shortline_scalar("change", value, base)
 
 
 def _open_volume_ratio(open_volume_hand: Any, bars: Sequence[Any]) -> float | None:
-    if open_volume_hand is None:
-        return None
-    volumes = [
-        float(getattr(bar, "volume_lots"))
-        for bar in tuple(bars)[:5]
-        if getattr(bar, "volume_lots", None) is not None
-    ]
-    if len(volumes) < 5:
-        return None
-    average_minute_volume = sum(volumes) / (240.0 * 5.0)
-    return _safe_ratio(open_volume_hand, average_minute_volume)
+    from eltdx.transport.native import native_module
+
+    return native_module().shortline_volume_ratio(open_volume_hand, bars, _safe_ratio)
 
 
 def _tenk(value: Any) -> float | None:
-    return None if value is None else round(float(value) * 10000.0, 6)
+    from eltdx.transport.native import native_module
+
+    return native_module().shortline_scalar("tenk", value, None)
 
 
 def _multiply(left: Any, right: Any) -> float | None:
-    if left is None or right is None:
-        return None
-    return round(float(left) * float(right), 6)
+    from eltdx.transport.native import native_module
+
+    return native_module().shortline_scalar("multiply", left, right)
 
 
 def _safe_ratio(numerator: Any, denominator: Any) -> float | None:
-    if numerator is None or denominator is None or float(denominator) == 0:
-        return None
-    return round(float(numerator) / float(denominator), 6)
+    from eltdx.transport.native import native_module
+
+    return native_module().shortline_scalar("ratio", numerator, denominator)
 
 
 def _safe_ratio_pct(numerator: Any, denominator: Any) -> float | None:
-    if numerator is None or denominator is None or float(denominator) == 0:
-        return None
-    return round(float(numerator) / float(denominator) * 100.0, 6)
+    from eltdx.transport.native import native_module
+
+    return native_module().shortline_scalar("percent", numerator, denominator)
 
 
 def _locked_amount(quote: Any | None) -> float | None:
-    levels = tuple(getattr(quote, "buy_levels", ()) or ())
-    if not levels:
-        return None
-    first = levels[0]
-    return round(float(first.price) * float(first.volume) * 100.0, 6)
+    from eltdx.transport.native import native_module
+
+    return native_module().shortline_locked(quote)
 
 
 def _limit_board_text(days: Any, count: Any) -> str | None:

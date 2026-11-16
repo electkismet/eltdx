@@ -73,6 +73,13 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Twenty-seventh recovery: dates/cache committed6580450. Shortline get composition,
+security/finance/recent-bars/rush sources, numeric rounding and indicator builder
+now in bindings. Shared product/ratio/80 chunks; Python original source order,
+exception ranges, short-page rush EOF, no sweep under80, hooks/objects/round6
+retained. Added10 contract functions, unrun. Still pending limit/board/ladder/date
+selection and other helpers/batch/subscription/consumer.18/4/8 active/no cap.
+
 Twenty-sixth recovery: profile/daily shares committed1989d3c. Shortline dominant
 dates and stat2 columns shared; legacy dual-date validation and cache publication
 now in binding, preserving error order/text/cause, lock, custom hooks, raw field

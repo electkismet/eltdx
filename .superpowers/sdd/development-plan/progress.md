@@ -2,6 +2,10 @@
 
 ## Setup
 
+- Latest: shortline-date6580450 committed; shortline source/numeric/builder
+  migration now authored with10 further unexecuted contract functions. Pending
+  legacy limit/board/date and other T18 scope;18/4/8 active/no cap, no verification.
+
 - Latest: profile1989d3c committed; shortline date/cache/stat2 alignment source
   authored.8 contract/2 Rust cases unexecuted; high-level shortline still pending.
   T18 partial18/4/8, active/no cap, all verification deferred.

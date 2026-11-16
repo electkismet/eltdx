@@ -13,6 +13,11 @@ pub fn product_with<T, E>(left: T, right: T,
     multiply(left, right)
 }
 
+pub fn ratio_with<T, E>(numerator: T, denominator: T,
+    divide: impl FnOnce(T, T) -> Result<T, E>) -> Result<T, E> {
+    divide(numerator, denominator)
+}
+
 pub fn share_source_names(total: bool, circulating: bool, free_float: bool) -> Vec<&'static str> {
     let mut sources = Vec::new();
     if total || circulating { sources.push("finance_snapshot"); }
