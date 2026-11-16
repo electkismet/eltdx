@@ -9,7 +9,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1 / T07：第二轮修复进行中，收紧 pin 关闭期限并保留 Drop 后资源跟踪 |
+| 当前阶段 | P1 / T07：第二轮旧问题已闭合，第三轮修复 Engine 退出后的 pin 清理确认；T08/T09 只读准备完成 |
 | 已提交进度 | T01 契约实现及反例源码完成；T02 来源库存、哈希、7个补充案例和测试源码完成；T03 policy fixture、差异裁决、文档和契约测试源码完成；T04 crate、配置、基础类型完成并经两轮静态复审；T05 pin grant RAII、共享结果终态标记、取消/交付竞态仲裁和回环/源用例已提交 `3ba3902`；T06 raw reply、共享 typed/raw 调度、绝对期限传递和 pin/connect deadline 入口已提交 `4bf47d7`，修复 `561dcf5` 通过限定复审；T07 owner gate、共享绝对关闭期限和 cleanup failure lineage 已实现，等待限定复审；统一验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
 | 下一步 | 完成 T07 pin 期限/Drop 跟踪修复并限定复审；随后执行已准备的 T08 操作上下文与错误边界说明；继续只写实现与测试源码，不运行任何验证 |
@@ -46,6 +46,10 @@
 **实施裁定：** 用户要求在全部实现代码完成前不运行测试；测试代码仍按计划逐任务写好，延迟到末尾统一运行。现有规格中的P0样例和默认值为新API设计输入，不表示已有生产协议已验证。联网事实不确定的域实现显式Unknown/Unsupported，不以猜测解锁。用户未授权发布、推tag或合并。
 
 2026-11-16 恢复记录：目标模式保持 active，没有 token 额度限制。T07 已提交 `26488cf`（owner 生命周期）、`abb4285`（操作取消、pin owner 和真实 runtime 并发关闭源码）、`ca372d2`（取消 Condvar 丢失唤醒修复）。限定复审确认操作唤醒与真实 runtime 用例已处理，仍需解决 pin 无界关闭等待与 Drop 提前解除 owner 注册；第二轮修复只沿用现有 owner 列表和 runtime pending close，不增加并行资源状态机。测试/构建/检查均未执行。
+
+第二轮 pin 修复已提交 `0656e63`：新增有界 runtime close 等待，SDK helper 同时遵守固定本地 cap 和 owner 当前期限；owner 进入关闭时唤醒等待者，Drop 不再注销，显式释放成功才注销，保留 runtime source 与结构化上下文。限定复审尚未返回，不能声称 T07 完成。T08/T09 实施者目前仅做源码阅读；T08 尝试授权会放在 worker 真正连接/发送前，T09 解析上下文会贯穿全部嵌套报价/分钟分支，并保存除法前整数。全部实现完成前仍不运行验证。
+
+第二轮复审已返回：以上两个原问题均已处理，但 pin 超时后 Engine 退出会使下一次 pin receipt 不可创建，导致清理状态无法确认。第三轮通过精确 Engine 归属与已确认的 Engine 退出结果核销其 pin，继续返回原失败；资源已回收的事实与错误根因分开记录。未增加第二套 pin 状态机，全部验证仍延期。
 
 ## 恢复规则
 
