@@ -981,3 +981,31 @@ No test/collection/build/check/dependency/AST/format/network verification ran.
 T18 remains partial;18 complete-source/4 partial/8 unstarted. Next remaining
 profile/daily/shortline/market/board helpers, capital/moneyflow batching,
 subscription composition and installed-wheel consumer, then T19–T30/Stage B.
+
+Twenty-fourth source stage committed as **73436f2**; all execution deferred.
+
+## Twenty-fifth source checkpoint — profiles, cached maps and daily shares
+
+- Python profile composition, by-code mapping, security map and finance cache
+  loops now run in Rust binding. Public Python classes/functions/signatures stay;
+  builder/scalar hooks, dict hashing, last duplicate winner, original objects and
+  eager fallback field formatting stay. Finance exception downgrade encloses only
+  the original sliced call; malformed records fail before cache publication.
+  Ordered tuple keys and cached empty/partial/failure results remain observable.
+- Shared scalar turnover/product functions preserve multiplication/division order
+  in strict and legacy paths. Legacy still invokes Python arithmetic for custom
+  numeric objects, missing/zero/nonfinite values. Strict unit/finite checks remain.
+  Profile finance now uses shared80 chunk traversal.
+- Daily share composition runs in Rust binding and shares source-label policy
+  with strict output. Python resource main date, both stats rows, ten-thousand
+  conversion with round6, repeated properties, custom conversion hooks and
+  explicit-empty still resolving stats are retained. The stricter SDK per-row
+  date/quantity validation is not silently imposed on existing Python users.
+- Authored11 Python contract functions and1 private Rust function, and updated
+  two existing catalog records with source-only evidence. No compatibility or
+  public-SDK status is promoted before unified execution verification.
+
+No tests/collection/build/check/dependency/network/AST/format/diff-check ran.
+T18 remains partial18/4/8. Continue shortline/date alignment, daily limits,
+auction/market/boards and remaining subscription/batch/consumer work before
+later T19–T30/Stage B. Goal active without budget cap.

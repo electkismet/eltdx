@@ -7,6 +7,7 @@ mod resource;
 mod stats;
 mod limits;
 mod helpers;
+mod helper_profile;
 mod protocol;
 mod request;
 mod response;
@@ -46,6 +47,14 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helpers::helper_full_quotes, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_merge_depths, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_rank, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_by_code, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_security_map, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_finance_map, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_profile, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::build_profile, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_turnover, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_market_value, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_daily_shares, module)?)?;
     transport::register(module)?;
     Ok(())
 }

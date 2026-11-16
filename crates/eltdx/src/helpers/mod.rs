@@ -3,6 +3,7 @@
 pub(crate) mod market;
 pub(crate) mod service;
 mod cache;
+pub(crate) mod calculation;
 mod profile;
 mod market_service;
 mod auction;

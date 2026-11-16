@@ -481,48 +481,13 @@ class HelperApi:
             if codes is None
             else _code_list(codes)
         )
-        context = _resolve_market_date_context(self._client)
-        stats, _refreshed = self._shortline._stats_resource(
-            stats_path,
-            refresh=refresh_stats,
-            target=context.target_trade_date,
-            previous=context.previous_trade_date,
+        from eltdx.transport.native import native_module
+
+        rows = native_module().helper_daily_shares(
+            self, full_codes, stats_path, refresh_stats,
+            _resolve_market_date_context, _validate_stats_resource_dates, _float, DailyShareCapital,
         )
-        stats_date = _validate_stats_resource_dates(
-            stats,
-            target=context.target_trade_date,
-            previous=context.previous_trade_date,
-        )
-        finance_map = self._finance_map(full_codes)
-        rows = []
-        for full_code in full_codes:
-            market_id = {"sz": 0, "sh": 1, "bj": 2}[full_code[:2]]
-            stat_row, _ = stats.row(market_id, full_code[2:])
-            finance = finance_map.get(full_code)
-            total = _float(getattr(finance, "total_shares", None))
-            circulating = _float(getattr(finance, "circulating_shares", None))
-            free_float = (
-                None
-                if stat_row is None or stat_row.free_float_shares_10k is None
-                else round(float(stat_row.free_float_shares_10k) * 10000.0, 6)
-            )
-            sources = []
-            if total is not None or circulating is not None:
-                sources.append("finance_snapshot")
-            if free_float is not None:
-                sources.append("tdx_stats")
-            rows.append(
-                DailyShareCapital(
-                    full_code=full_code,
-                    trade_date=stats_date,
-                    total_shares=total,
-                    circulating_shares=circulating,
-                    free_float_shares=free_float,
-                    finance_updated_date=getattr(finance, "updated_date", None),
-                    share_source="+".join(sources) or "missing",
-                )
-            )
-        return DailyShareCapitalTable(codes=tuple(full_codes), rows=tuple(rows))
+        return DailyShareCapitalTable(codes=tuple(full_codes), rows=rows)
 
     def daily_shares(self, codes: str | Sequence[str] | None = None, **kwargs: Any) -> DailyShareCapitalTable:
         """Alias for :meth:`daily_share_capital`."""
@@ -723,17 +688,10 @@ class HelperApi:
         """Return quote, code-table and finance fields as one table."""
 
         full_codes = _code_list(codes)
-        quote_map = _by_full_code(self.full_quotes(full_codes))
-        security_map = self._security_map(full_codes) if include_security else {}
-        finance_map = self._finance_map(full_codes) if include_finance else {}
-        rows = tuple(
-            _build_stock_profile(
-                full_code,
-                quote_map.get(full_code),
-                security_map.get(full_code),
-                finance_map.get(full_code),
-            )
-            for full_code in full_codes
+        from eltdx.transport.native import native_module
+
+        rows = native_module().helper_profile(
+            self, full_codes, include_security, include_finance, _by_full_code, _build_stock_profile,
         )
         return StockProfileTable(codes=tuple(full_codes), rows=rows)
 
@@ -891,36 +849,14 @@ class HelperApi:
         return fetch_today_fund_flow(self._client, code)
 
     def _security_map(self, full_codes: Sequence[str]) -> dict[str, Any]:
-        markets = sorted({code[:2] for code in full_codes})
-        result: dict[str, Any] = {}
-        for market in markets:
-            rows = self._security_cache.get(market)
-            if rows is None:
-                rows = tuple(self._client.codes.all(market))
-                self._security_cache[market] = rows
-            for item in rows:
-                result[getattr(item, "full_code", f"{item.exchange}{item.code}")] = item
-        return result
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_security_map(self, full_codes)
 
     def _finance_map(self, full_codes: Sequence[str]) -> dict[str, Any]:
-        getter = getattr(getattr(self._client, "corporate", None), "finance_batch", None)
-        if getter is None:
-            return {}
-        key = tuple(full_codes)
-        batch = self._finance_cache.get(key)
-        if batch is None:
-            records = []
-            for start in range(0, len(full_codes), 80):
-                try:
-                    page = getter(full_codes[start : start + 80])
-                except Exception:
-                    continue
-                records.extend(getattr(page, "records", ()) or ())
-            batch = tuple(records)
-            self._finance_cache[key] = batch
-        return _by_full_code(
-            getattr(batch, "records", batch if isinstance(batch, tuple) else ())
-        )
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_finance_map(self, full_codes, _by_full_code)
 
     def _snapshot_batches(self, full_codes: Sequence[str]) -> list[Any]:
         rows: list[Any] = []
@@ -1028,75 +964,29 @@ def _code_list(codes: str | Sequence[str]) -> list[str]:
 
 
 def _by_full_code(items: Any) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    iterable: Iterable[Any]
-    if isinstance(items, Mapping):
-        iterable = items.values()
-    else:
-        iterable = items or ()
-    for item in iterable:
-        full_code = getattr(item, "full_code", None)
-        if full_code is not None:
-            result[str(full_code)] = item
-    return result
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_by_code(items, Mapping)
 
 
 def _build_stock_profile(full_code: str, quote: Any | None, security: Any | None, finance: Any | None) -> StockProfile:
-    exchange = full_code[:2]
-    code = full_code[2:]
-    market_id = getattr(quote, "market_id", None)
-    if market_id is None:
-        market_id = getattr(security, "market_id", None)
-    if market_id is None:
-        market_id = getattr(finance, "market_id", None)
+    from eltdx.transport.native import native_module
 
-    last_price = getattr(quote, "last_price", None)
-    circulating_shares = getattr(finance, "circulating_shares", None)
-    total_shares = getattr(finance, "total_shares", None)
-    volume_hand = getattr(quote, "total_hand", None)
-
-    return StockProfile(
-        full_code=full_code,
-        exchange=exchange,
-        market_id=market_id,
-        code=code,
-        name=getattr(security, "name", None),
-        category=getattr(security, "category", None),
-        board=getattr(security, "board", None),
-        last_price=last_price,
-        pre_close_price=getattr(quote, "pre_close_price", None),
-        open_price=getattr(quote, "open_price", None),
-        high_price=getattr(quote, "high_price", None),
-        low_price=getattr(quote, "low_price", None),
-        change=getattr(quote, "change", None),
-        change_pct=getattr(quote, "change_pct", None),
-        volume_hand=volume_hand,
-        amount=getattr(quote, "amount", None),
-        open_amount_yuan=getattr(quote, "open_amount_yuan", None),
-        circulating_shares=circulating_shares,
-        total_shares=total_shares,
-        turnover_rate=_turnover_rate(volume_hand, circulating_shares),
-        circulating_market_value=_market_value(last_price, circulating_shares),
-        total_market_value=_market_value(last_price, total_shares),
-        eps=getattr(finance, "eps_raw", None),
-        ipo_date=getattr(finance, "ipo_date", None),
-        updated_date=getattr(finance, "updated_date", None),
-        security=security,
-        quote=quote,
-        finance=finance,
+    return native_module().build_profile(
+        full_code, quote, security, finance, StockProfile, _turnover_rate, _market_value,
     )
 
 
 def _turnover_rate(volume_hand: int | None, circulating_shares: float | None) -> float | None:
-    if volume_hand is None or not circulating_shares:
-        return None
-    return volume_hand * 100.0 / circulating_shares * 100.0
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_turnover(volume_hand, circulating_shares)
 
 
 def _market_value(price: float | None, shares: float | None) -> float | None:
-    if price is None or shares is None:
-        return None
-    return price * shares
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_market_value(price, shares)
 
 
 def _build_stock_topic(data: dict[str, Any]) -> StockTopic:

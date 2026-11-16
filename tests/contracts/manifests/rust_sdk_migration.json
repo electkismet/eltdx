@@ -1932,7 +1932,12 @@
     {
       "id": "helper-daily-share-capital",
       "source_files": [
-        "docs/helpers/每日股本.md"
+        "docs/helpers/每日股本.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/helpers/daily.rs",
+        "crates/eltdx/src/helpers/calculation.rs",
+        "crates/eltdx-python/src/helper_profile.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -1941,6 +1946,23 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0010 + 0x06b9",
       "api": "client.helpers.daily_share_capital(codes=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::daily_share_capital",
+        "python_entry": "HelperApi.daily_share_capital -> helper_daily_shares",
+        "shared_algorithm": "share_source_names and scalar product; legacy orchestration in Rust binding preserves original stats/finance objects",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_daily_shares_keeps_stats_date_units_sources_and_duplicates",
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_daily_shares_explicit_empty_still_resolves_stats_and_all_selection",
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_daily_shares_preserves_numeric_hook_and_second_property_read"
+        ],
+        "temporary_adapter": {
+          "scope": "Python stats date policy, arbitrary objects, round(float * 10000, 6), finance cache and model projection",
+          "reason": "Python uses resource main date and legacy numeric/date validation instead of strict SDK source diagnostics.",
+          "exit_condition": "Retain existing Python behavior while moving remaining shared policies by domain."
+        },
+        "validation": "Authored source only; no collection/build/test execution."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/每日股本.md",
@@ -2136,7 +2158,12 @@
     {
       "id": "helper-stock-profile",
       "source_files": [
-        "docs/helpers/股票信息汇总.md"
+        "docs/helpers/股票信息汇总.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/helpers/profile.rs",
+        "crates/eltdx/src/helpers/calculation.rs",
+        "crates/eltdx-python/src/helper_profile.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2145,6 +2172,28 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x054c + 0x044d + 0x0010",
       "api": "client.helpers.stock_profile_table(codes)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::stock_profile_table",
+        "python_entry": "HelperApi.stock_profile_table -> helper_profile/build_profile; helper_finance_map/helper_security_map",
+        "shared_algorithm": "turnover_with, product_with and full_quote_chunks; legacy object association/cache orchestration in Rust binding",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_profile_retains_input_occurrences_last_source_and_original_objects",
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_profile_flags_skip_sources_and_builder_hook_remains_callable",
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_profile_math_keeps_zero_missing_and_nonfinite_values",
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_finance_helper_cache_keeps_failed_chunk_and_ordered_keys",
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_finance_helper_caches_empty_but_keeps_iteration_error_visible",
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_security_helper_preserves_eager_fallback_and_market_cache",
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_profile_scalar_objects_use_original_python_arithmetic_order",
+          "tests/contracts/test_sdk_helper_profile_bridge.py::test_by_code_supports_mapping_and_ignores_none_identity"
+        ],
+        "temporary_adapter": {
+          "scope": "Python dict/hash/property behavior, last duplicate record, original DTOs, cached failures/ordered code tuples and per-request budget",
+          "reason": "These are frozen Python compatibility contracts; strict SDK uses bounded owner/source caches and typed values.",
+          "exit_condition": "Language-specific projection remains; no silent cache or numeric policy change."
+        },
+        "validation": "Source only; authored cases have not been collected, built or executed."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/股票信息汇总.md",

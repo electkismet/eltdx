@@ -143,7 +143,7 @@ impl HelperService {
         let mut rows = Vec::new(); rows.try_reserve(ids.len()).map_err(allocation_error)?;
         let mut metas = Vec::new(); metas.try_reserve(ids.len().div_ceil(80)).map_err(allocation_error)?;
         let mut any_failed = false;
-        for chunk in ids.chunks(80) {
+        for chunk in super::service::full_quote_chunks(ids) {
             context.check_boundary(TimeoutPhase::Admission)?;
             match corporate.finance_collect_in_context(context, chunk, &query, 80, ChildPurpose::Fallback) {
                 Ok(batch) => {
@@ -198,7 +198,9 @@ fn build_profile(quote: FullQuote, security: Supplement<Security>, finance: Supp
     let turnover = circulating_shares.and_then(|shares| {
         let volume = quote.snapshot().total();
         let denominator = shares.value().as_f64();
-        let value = volume.value().as_f64() * 100.0 / denominator * 100.0;
+        let value = super::calculation::turnover_with::<_, std::convert::Infallible>(
+            volume.value().as_f64(), &denominator, |value| Ok(value * 100.0),
+            |value, denominator| Ok(value / denominator)).unwrap_or_else(|never| match never {});
         if volume.unit() == QuantityUnit::Lots && volume.value().as_f64() >= 0.0 && denominator > 0.0 && value.is_finite() {
             Some(Ratio::with_provenance(NumericValue::F64(value), RatioUnit::PercentagePoints, ValueProvenance::WireRule))
         } else {
@@ -226,7 +228,9 @@ pub(super) fn shares(finance: Option<&FinanceRecord>, field: FinanceField, stage
     }
 }
 fn market_value(price: Price, shares: Option<Quantity>, stage: &str, meta: &mut ResultMeta) -> Option<Amount> {
-    let value = price.as_f64() * shares?.value().as_f64();
+    let value = super::calculation::product_with::<_, std::convert::Infallible>(
+        price.as_f64(), shares?.value().as_f64(), |left, right| Ok(left * right))
+        .unwrap_or_else(|never| match never {});
     if price.as_f64() >= 0.0 && value.is_finite() {
         Some(Amount::with_provenance(NumericValue::F64(value), AmountUnit::Cny, ValueProvenance::WireRule))
     } else { derived_unavailable(meta, stage, "market value exceeds its finite nonnegative CNY range"); None }

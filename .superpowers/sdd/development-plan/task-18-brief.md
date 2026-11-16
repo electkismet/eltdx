@@ -73,6 +73,14 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Twenty-fifth recovery: rank committed73436f2. Profile/security-map/finance-cache
+and daily shares legacy loops now in Rust binding; turnover/product/source labels
+and80 chunks shared with strict SDK. Keep Python ordered-tuple failure/partial
+cache, last-record identity, eager fallback, numeric hooks, stats date and raw
+objects. Added11 contract/1 Rust source functions,2 source-only records; unrun.
+Remaining shortline/daily-limits/auction/market/boards/subscription/batch/consumer
+still outstanding. T18 partial18/4/8; active/no cap.
+
 Twenty-fourth recovery: full_quotes/fund-flow committed2c6d9f4. Rank helper now
 uses common count/offset traversal and binding projection; retain Python short
 page EOF, over-target final page, per-page name lookup, continuous rank and

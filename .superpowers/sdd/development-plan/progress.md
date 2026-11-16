@@ -2,6 +2,11 @@
 
 ## Setup
 
+- Latest source continuation: rank73436f2 committed; profile/maps/daily shares
+  legacy binding and shared scalar/source functions authored;11 contract/1 Rust
+  cases and2 manifest records source-only. All execution still forbidden until
+  T01–T30 source complete; T18 partial18/4/8, active/no cap.
+
 - Latest source continuation: full_quotes/fund-flow checkpoint2c6d9f4 committed;
   shared rank traversal/legacy projection authored with5 contract/2 Rust source
   functions and manifest evidence. No execution; T18 partial18/4/8 active/no cap.

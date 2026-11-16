@@ -319,6 +319,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T18：P2 Python 回迁及可用版本验收
 
+2026-11-17第二十五段：排行已提交`73436f2`。profile、证券/财务缓存map和每日股本的legacy循环迁入绑定，共用80分批、换手率/乘积和来源标签。保留Python空/失败缓存、ordered key、原对象/属性/hook、统计日期和缺失/nonfinite语义；新增11合同/1Rust函数源码及两项source-only manifest，全未执行。剩余helper/订阅/批量/consumer继续，T18部分、18/4/8不变。
+
 2026-11-17第二十四段：full_quotes/资金流helper已提交`2c6d9f4`。realtime_rank共用count/offset分页循环，Python保持短页EOF、超目标整页、每页名称补充、连续rank和custom count/数值hook；strict继续空页EOF与原限额。新增5合同/2Rust函数源码和排行source-only manifest，均未执行。其余helper/批量/订阅及consumer仍待完成，18/4/8不变。
 
 2026-11-17第二十三段：special limits已提交`9d75306`；full_quotes的80分批与五档深度资格共用、Python原对象/回调合并及M95逐笔资金流档位累计已接入Rust。Python保留重复depth最后项、四字段替换、Exception降级与BaseException传播、自定义对象/原算术及逐请求时序。新增10合同函数源码和full_quotes source-only manifest，均未运行；其余helper/批量/订阅与consumer仍待做，T18部分、18/4/8不变。

@@ -167,9 +167,8 @@ fn build_shares(id: SecurityId, target: TradingDate, previous: TradingDate, stat
         row.free_float_shares().filter(|value| value.unit() == QuantityUnit::Shares
             && value.value().is_finite() && value.value().as_f64() >= 0.0)
     });
-    let mut sources = Vec::new();
-    if total.is_some() || circulating.is_some() { sources.push("finance_snapshot".to_owned()); }
-    if free_float.is_some() { sources.push("tdx_stats".to_owned()); }
+    let sources = super::calculation::share_source_names(total.is_some(), circulating.is_some(), free_float.is_some())
+        .into_iter().map(str::to_owned).collect();
     meta = meta.with_diagnostic(Diagnostic::new("tdxstat.cfg", "daily_shares.stats_row",
         if free_float.is_some() { EnrichmentStatus::Succeeded } else { EnrichmentStatus::Unavailable }, None,
         Some(format!("stats_date={:?}; source_line={:?}; source_10k={:?}", stat.and_then(StatRow::stats_date),
