@@ -294,11 +294,13 @@ T15实现及限定源码自审检查点为`e35b5f2`，M24此前检查点为`e995
 
 **文件：** 新增 `src/services/{corporate,limits}.rs`、`adjustment/{mod,factors,apply}.rs`、`calendar/{mod,service}.rs`、`policy/limits.rs`；新增 `tests/{adjustment,calendar,price_limits}.rs`。
 
-- [ ] 股本前缀返回验证strict prefix并继续余下代码，错误前缀不能错位拼接。
-- [ ] 复权使用scale+offset，测试同日多个事件、anchor、窗口边界、qfq/hfq方向与无额外舍入。
-- [ ] 交易日使用指定指数数据源并保留覆盖区间；绑定client失效不能悄悄回退工作日。
-- [ ] 涨跌停使用T03批准的有效日期profile，缺数据返回未知；旧Python冲突路径有兼容profile。
+- [x] 已写strict prefix续取、原声明/事件位保留、财务31字段/稀疏投影和共享32次恢复源码及用例；执行延期。
+- [x] 已写scale+offset、同日原序、anchor/窗口/qfq/hfq及K线单位/来源保持源码与独立仿射预期；执行延期。
+- [x] 已写指定指数完整日线、owner不可变缓存、覆盖区间、午夜/清除/失败发布和父close源码与用例；无weekday回退，执行延期。
+- [x] 已写0452实际条数分页与空EOF、未知identity/f32位保留、有效日期profile应用及UnknownRule默认；六个T03冲突case源码保持未知，旧Python兼容映射由T18继续。
 - [ ] `cargo test -p eltdx --test adjustment --test calendar --test price_limits --locked`。
+
+T16源码检查点`6fa4bc7`/`84061e7`，另有`tests/corporate.rs`与私有用例源码。M60返回Result传播Clock错误的规格补正见decision-register；没有运行任何编译或测试。下一任务T17 Stage B。
 
 ### T17：服务器文件、统计文件和公司资料
 

@@ -166,7 +166,7 @@
 | T13 | Implementation/self-review checkpoint `338d99b`: all 18 methods M25-M40/M98-M99, queries/DTOs, date/cursor/raw mapping and synthetic source cases; execution verification deferred |
 | T14 | All13 M41–M52/M100 implementation/self-review sources committed at992ba98/ce46437; no execution verification |
 | T15 | Source implementation/self-review complete:9bbafde/61672fe/a964437/e995825/e35b5f2; controlled Python raw reader and deterministic subscription source cases authored; all execution verification deferred |
-| T16 | In progress: corporate/finance/affine adjustment/calendar/special-limit service and DTO source authored; deterministic source cases and review pending, no execution |
+| T16 | Source implementation/self-review complete at6fa4bc7/84061e7: M53-M66 corporate/finance/affine/calendar/special/policy and deterministic source cases; no execution |
 | T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
 | T18 | Not started |
 | T19 | Not started |
@@ -215,3 +215,5 @@
 - Recovery 2026-11-16 M24: active subscribe/lease/read/renewal/retirement/resync/max-event source is now authored after a964437. Added exact-connection receive sequence and per-ID snapshot fences, dispatcher active-delivery pause barrier, runtime control-only pin inspection, startup cleanup ownership and owner reaper lock-order correction. Added source cases and fixed the existing subscription fixture import/decoder retention assertions. Controlled Python raw adapter and full active integration case matrix remain pending. Count stays15 complete source/5 partial/10 unstarted. No validation ran; goal active without a token budget. Read task-15-report latest section before continuing.
 
 - Recovery 2026-11-16: T15 source implementation/self-review complete at e35b5f2 after M24 e995825. Controlled Python exclusive raw reader, renewal whole-operation staging and deterministic integration/memory/lifecycle source cases are authored. Count16 source complete/4 partial/10 unstarted. Next T16. Goal active, remainingTokens=null. No execution verification of any kind ran.
+
+- Recovery 2026-11-16: T16 source implementation/self-review complete at 6fa4bc7/84061e7. Corporate/finance/affine/calendar/special/unknown-rule services and source cases are authored, with M60 fallible Clock correction synchronized in specifications. Count17 source complete/4 partial/9 unstarted. User requested progress; actual Git state and active unlimited goal were read. Next T17 Stage B; reuse the single archive/stats/GBK implementation. No execution verification occurred. Historical T16 pending notes are superseded by the final task-16-report section.
