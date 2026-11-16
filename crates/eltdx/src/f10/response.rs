@@ -70,7 +70,10 @@ impl Response {
     pub fn first_table(&self) -> Option<&ResultSet> { self.result_sets.first() }
     pub(crate) fn take_first_rows(&mut self) -> Vec<Row> { self.result_sets.first_mut().map(|table| std::mem::take(&mut table.rows)).unwrap_or_default() }
     pub(crate) fn with_diagnostic(mut self, diagnostic: crate::types::Diagnostic) -> Self {
-        self.meta = self.meta.with_diagnostic(diagnostic); self
+        self.push_diagnostic(diagnostic); self
+    }
+    pub(crate) fn push_diagnostic(&mut self, diagnostic: crate::types::Diagnostic) {
+        self.meta = std::mem::take(&mut self.meta).with_diagnostic(diagnostic);
     }
     pub(crate) fn with_prerequisite(mut self, prerequisite: &Response, context: &crate::operation::OperationContext) -> Result<Self> {
         let mut metadata = MetaCollector::default();

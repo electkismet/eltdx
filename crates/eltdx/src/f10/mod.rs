@@ -29,6 +29,7 @@ pub use values::{AshareCode, BondCode, CodeUse, DateOrWindow, F10MarketCode, Fun
 pub use endpoints::*;
 pub use news::{NewsChannel, NewsChannelInfo, NewsHomeTab};
 pub use clock::{LocalDateClock, SystemLocalDateClock};
+pub use crate::services::{FundFlowHistoryRow, FundFlowRangeSeries, HistoryDays, MoneyFlowHistoryQuery, MoneyFlowHistoryService};
 
 /// Parse an already obtained TQLEX object without network work. Original HTTP
 /// bytes are only available on client responses; this parser retains table

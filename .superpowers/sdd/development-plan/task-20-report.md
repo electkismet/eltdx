@@ -31,8 +31,9 @@ Remaining source work, in priority order:
    local-date source, unknown units and invalid-number/date diagnostics.
 3. Full scoped fields registry from both Python dictionaries, preserving
    unknown fields and the Entry/section/report-type context.
-4. Historical money_flow history/range through F10, requested days, ascending
-   date order and start/count slicing; never category22 substitution.
+4. Historical money_flow history/range through F10, requested days, reversal
+   of source rows followed by start/count slicing (COMP-050, no sort); never
+   category22 substitution. The earlier ascending-order wording was erroneous.
 5. Complete per-entry/branch route and result test sources; scrutinize report
    date validation, defaults, closed sections and all 157 public entries.
 6. T22/T23 and remaining extension/consumer/package/docs implementation.
@@ -138,3 +139,32 @@ method/branch request fixture inventory and remaining typed model projection
 details; then T22/T23/T24–T30. Counts19/5/6 unchanged, active unlimited goal.
 No tests/build/check/collection/AST/format/diff checks, dependency resolution,
 network validation, agents or publication ran.
+
+## Fifth checkpoint — F10 historical money-flow service source
+
+The preceding fields checkpoint is committed as `e8392a5`. Added feature-gated
+`services/money_flow_history.rs`, reexported its query/window/row/result/service
+from both services and f10. F10Client owns a lazy getter; service clones share
+its original irreversible close state. No default HQ HTTP dependency is added.
+
+`history` and same-semantics `range` issue exactly one string-param request to
+CWServ.tdxf10_gg_sj. Days3/5/10/20/60, usize start, optional nonzero count<=800;
+validation precedes requests. Source rows are reversed then sliced without
+sorting or start+count overflow. This resolves the incorrect task-list phrase
+in favor of original Python, capability matrix and explicit COMP-050 contract.
+
+Rows move from the first table instead of duplicating its result tree; raw
+cells, duplicate/unknown fields and numeric lexemes are retained. Gregorian
+dates and finite-f64 amount views diagnose invalid raw values; units remain
+Unknown. Business error code, additional tables/attributes and actual HTTP raw
+stay inspectable. Work limits, cancellation and projection stay inside the
+original operation. Python F10 history migration/raw-serialization behavior
+is still T23 scope, not silently changed here.
+
+Five public source cases cover route/windows/limits, COMP-050 normal+unsorted
+order, raw/business/additional-table/invalid values, empty/outside windows and
+zero-request invalid days/shared close. None has been compiled or executed.
+
+Next: full157 endpoint/branch inventory, closed selectors/topic prerequisite
+and remaining typed result details, then T22–T30. Counts19/5/6 unchanged;
+active unlimited goal, no execution verification/agents/publication.

@@ -5,6 +5,10 @@ mod klines;
 mod bar_collection;
 mod minutes;
 mod money_flow;
+#[cfg(feature = "f10")]
+mod money_flow_history;
+#[cfg(feature = "f10")]
+pub use money_flow_history::{FundFlowHistoryRow, FundFlowRangeSeries, HistoryDays, MoneyFlowHistoryQuery, MoneyFlowHistoryService};
 pub(crate) mod money_flow_probe;
 mod quotes;
 mod recovery;

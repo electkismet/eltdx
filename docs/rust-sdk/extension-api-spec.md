@@ -530,6 +530,16 @@ Rust本地日期使用 `LocalDateClock::today() -> Result<TradingDate>`；默认
 
 F10 模块辅助映射：`parse_tqlex_response` → `f10::parse_response(entry: &EntryName, request: &RequestPayload, json: JsonValue, raw: RawPolicy) -> Result<Response>`；`extract_news_rows` → `f10::news::extract_rows(&Response) -> Vec<&Row>`；`channel_name(NewsChannel)->Option<&'static str>`；`home_tab_name(NewsHomeTab)->Option<&'static str>`。保留8个首页tab与84个频道 registry、频道分组和标签，不在本次规格声称服务端仍覆盖每个频道。news第二结果集优先的事实由 fixture固定。
 
+### 2.5 历史资金流独立服务
+
+`F10Client::money_flow_history() -> MoneyFlowHistoryService` 为不联网的owned getter，service持有同一F10 owner。`history(&MoneyFlowHistoryQuery, &OperationOptions)` 和同语义别名 `range(...)` 返回 `FundFlowRangeSeries`。这些类型从 `eltdx::f10` 和 `eltdx::services` 导出，均只在 `f10` feature 下可用；默认HQ `TdxClient::money_flow()`只提供既有0FFC日资金流，不添加HTTP依赖。
+
+Query由明确的`AshareCode`构造；`with_days(u32)`只接受3/5/10/20/60（默认60，getter返回`HistoryDays`），`with_start(usize)`默认0，`with_count(Option<NonZeroU32>)`默认None且最大800。一次合法调用仅POST `CWServ.tdxf10_gg_sj`，Params全部字符串：`["zjlx_sj",裸代码,str(days),裸代码]`。不发HQ请求、不因空结果切换来源。输入错误在构造query时返回InvalidArgument，零请求。
+
+结果先反转第一表原始记录序列，再截取start/count，严禁额外排序；源乱序时同样仅reverse（COMP-050）。`source_row_count`保存截取前行数，源响应第一表的行移动到`rows()`，列定义和附加表仍在`response()`。保留顶层业务码及属性；HTTP成功而业务码非零仍是可检查的结果。`meta()`保留真实HTTP来源/raw，不用重新序列化JSON冒充原字节。
+
+行保留全部`Row` cells；N001/N009分别给`trade_date/listing_date`，接受8位ASCII日期或`YYYY-MM-DD`/`YYYY/MM/DD`并验证Gregorian日期；非法原值保留并诊断，投影为None。N002/N003给原字符串code/name，N004–N007分别为主力、超大单、大单、主买净额的显式有限f64视图，未知/溢出值投影None并保留原JSON数字lexeme。金额单位为Unknown，不从字段中文标签推断元。Python的弱工厂/批量executor、宽松参数及重序列化`raw_payload`语义由T23兼容桥保留，不把新Rust校验加到旧入口。
+
 ## 3. EX：7727 扩展行情
 
 来源：[高层入口](https://github.com/electkismet/eltdx/blob/af471f1adf38757f6aa0188968db8110eb23f6ad/src/eltdx/ex/client.py#L362)、[连接与握手](https://github.com/electkismet/eltdx/blob/af471f1adf38757f6aa0188968db8110eb23f6ad/src/eltdx/ex/transport/sync.py#L25)、[帧](https://github.com/electkismet/eltdx/blob/af471f1adf38757f6aa0188968db8110eb23f6ad/src/eltdx/ex/frame.py#L16)、[时间](https://github.com/electkismet/eltdx/blob/af471f1adf38757f6aa0188968db8110eb23f6ad/src/eltdx/ex/datetime_.py#L8)、[配置](https://github.com/electkismet/eltdx/blob/af471f1adf38757f6aa0188968db8110eb23f6ad/src/eltdx/ex/hosts.py#L77)。

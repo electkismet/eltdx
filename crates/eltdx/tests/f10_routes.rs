@@ -64,3 +64,20 @@ fn collection_query_limits_remain_checked_before_network() -> eltdx::Result<()> 
     assert!(BoardMembersQuery::new(ashare()?).with_page_size(size).is_err());
     Ok(())
 }
+
+#[test]
+fn historical_money_flow_windows_are_strings_and_slicing_is_local() -> eltdx::Result<()> {
+    assert_call(MoneyFlowHistoryQuery::new(ashare()?).to_call()?,
+        "CWServ.tdxf10_gg_sj", br#"{"Params":["zjlx_sj","600000","60","600000"]}"#)?;
+    for days in [3, 5, 10, 20, 60] {
+        let query = MoneyFlowHistoryQuery::new(ashare()?).with_days(days)?.with_start(usize::MAX)
+            .with_count(std::num::NonZeroU32::new(800))?;
+        assert_eq!(query.days().get(), days);
+        assert_eq!(query.start(), usize::MAX);
+        assert_call(query.to_call()?, "CWServ.tdxf10_gg_sj",
+            format!(r#"{{"Params":["zjlx_sj","600000","{days}","600000"]}}"#).as_bytes())?;
+    }
+    assert_eq!(MoneyFlowHistoryQuery::new(ashare()?).with_days(7).unwrap_err().kind(), ErrorKind::InvalidArgument);
+    assert!(MoneyFlowHistoryQuery::new(ashare()?).with_count(std::num::NonZeroU32::new(801)).is_err());
+    Ok(())
+}

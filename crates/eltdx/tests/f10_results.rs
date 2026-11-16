@@ -201,3 +201,98 @@ fn international_field_scope_indices_wildcards_and_statement_overlays_are_preser
     assert!(field_labels_for(&unknown)?.is_empty());
     Ok(())
 }
+
+#[test]
+fn money_flow_history_comp050_reverses_then_slices_without_sorting() -> TestResult {
+    for (dates, expected) in [
+        (["2026-11-12", "2026-11-13", "2026-11-16"], TradingDate::new(2026, 11, 13)?),
+        (["2026-11-16", "2026-11-12", "2026-11-13"], TradingDate::new(2026, 11, 12)?),
+    ] {
+        let reply = format!(r#"{{"ErrorCode":0,"ResultSets":[{{"ColName":["N001","N002","N099"],"Content":[["{}","600000",{{"unknown":1}}],["{}","600000",{{"unknown":2}}],["{}","600000",{{"unknown":3}}]]}}]}}"#,
+            dates[0], dates[1], dates[2]).into_bytes();
+        let (url, worker) = fixture(vec![("CWServ.tdxf10_gg_sj".to_owned(),
+            br#"{"Params":["zjlx_sj","600000","5","600000"]}"#.to_vec(), reply.clone())])?;
+        let client = F10Client::builder().with_base_url(url).build()?;
+        let query = MoneyFlowHistoryQuery::new(AshareCode::new(F10MarketCode::new(1), "600000")?)
+            .with_days(5)?.with_start(1).with_count(std::num::NonZeroU32::new(1))?;
+        let result = client.money_flow_history().history(&query, &OperationOptions::default().with_raw(RawPolicy::RetainPayload))?;
+        assert_eq!(result.source_row_count(), 3);
+        assert_eq!(result.rows().len(), 1);
+        assert_eq!(result.rows()[0].trade_date(), Some(expected));
+        assert_eq!(result.rows()[0].raw().get_all("N099").next().ok_or("missing unknown")?.value()
+            .get("unknown").and_then(JsonValue::as_number).and_then(JsonNumber::as_i64), Some(2));
+        assert_eq!(result.meta().raw().ok_or("missing payload")?.payloads()[0].as_ref(), reply);
+        assert_eq!(client.diagnostics()?.completed_requests(), 1);
+        client.close()?;
+        worker.join().map_err(|_| "fixture panicked")??;
+    }
+    Ok(())
+}
+
+#[test]
+fn money_flow_history_keeps_business_status_unknown_units_and_additional_tables() -> TestResult {
+    let reply = br#"{"ErrorCode":17,"HitCache":false,"ResultSets":[{"ColName":["N001","N002","N003","N004","N005","N006","N007","N009","N099","N099"],"Content":[["20260230","600000","source name","bad",20.50,-12,"NaN","2024/02/29",9007199254740993,{"future":true}]]},{"ResultSetKey":"extra","ColName":["data"],"Content":[[42]]}]}"#;
+    let (url, worker) = fixture(vec![("CWServ.tdxf10_gg_sj".to_owned(),
+        br#"{"Params":["zjlx_sj","600000","60","600000"]}"#.to_vec(), reply.to_vec())])?;
+    let client = F10Client::builder().with_base_url(url).build()?;
+    let result = client.money_flow_history().range(&MoneyFlowHistoryQuery::new(
+        AshareCode::new(F10MarketCode::new(1), "600000")?), &OperationOptions::default().with_raw(RawPolicy::RetainPayload))?;
+    assert!(!result.ok());
+    assert_eq!(result.error_code(), Some(17));
+    let row = &result.rows()[0];
+    assert_eq!(row.trade_date(), None);
+    assert_eq!(row.listing_date(), Some(TradingDate::new(2024, 2, 29)?));
+    assert_eq!(row.name(), Some("source name"));
+    assert_eq!(row.main_net_amount(), None);
+    assert_eq!(row.extra_large_net_amount(), Some(20.5));
+    assert_eq!(row.large_net_amount(), Some(-12.0));
+    assert_eq!(row.active_buy_net_amount(), None);
+    assert_eq!(row.amount_unit(), eltdx::AmountUnit::Unknown);
+    assert_eq!(row.raw().get_all("N099").count(), 2);
+    assert_eq!(row.raw().get_all("N099").next().ok_or("missing number")?.value()
+        .as_number().map(JsonNumber::lexeme), Some("9007199254740993"));
+    assert_eq!(result.response().result_sets().len(), 2);
+    assert!(result.response().first_table().ok_or("missing table")?.rows().is_empty());
+    assert_eq!(result.response().result_sets()[1].rows().len(), 1);
+    assert_eq!(result.meta().raw().ok_or("missing payload")?.payloads()[0].as_ref(), reply);
+    for field in ["N001", "N004", "N007"] {
+        assert!(result.meta().diagnostics().iter().any(|diagnostic| diagnostic.message().is_some_and(|message| message.contains(field))));
+    }
+    client.close()?;
+    worker.join().map_err(|_| "fixture panicked")??;
+    Ok(())
+}
+
+#[test]
+fn money_flow_history_empty_response_and_outside_window_make_one_request_each() -> TestResult {
+    for (start, reply) in [(0, &br#"{"ResultSets":[]}"#[..]),
+        (usize::MAX, &br#"{"ResultSets":[{"ColName":["N001"],"Content":[["20261116"]]}]}"#[..])] {
+        let (url, worker) = fixture(vec![("CWServ.tdxf10_gg_sj".to_owned(),
+            br#"{"Params":["zjlx_sj","600000","60","600000"]}"#.to_vec(), reply.to_vec())])?;
+        let client = F10Client::builder().with_base_url(url).build()?;
+        let result = client.money_flow_history().history(&MoneyFlowHistoryQuery::new(
+            AshareCode::new(F10MarketCode::new(1), "600000")?).with_start(start), &OperationOptions::default())?;
+        assert!(result.rows().is_empty());
+        assert!(result.meta().raw().is_none());
+        assert_eq!(client.diagnostics()?.completed_requests(), 1);
+        client.close()?;
+        worker.join().map_err(|_| "fixture panicked")??;
+    }
+    Ok(())
+}
+
+#[test]
+fn invalid_history_days_do_not_connect_and_owned_service_observes_shared_close() -> TestResult {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
+    let client = F10Client::builder().with_base_url(format!("http://{}/TQLEX", listener.local_addr()?)).build()?;
+    let service = client.money_flow_history();
+    let code = AshareCode::new(F10MarketCode::new(1), "600000")?;
+    assert_eq!(MoneyFlowHistoryQuery::new(code.clone()).with_days(7).unwrap_err().kind(), eltdx::ErrorKind::InvalidArgument);
+    assert_eq!(client.diagnostics()?.completed_requests(), 0);
+    assert_eq!(listener.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+    client.close()?;
+    assert_eq!(service.history(&MoneyFlowHistoryQuery::new(code), &OperationOptions::default()).unwrap_err().kind(), eltdx::ErrorKind::Closed);
+    assert_eq!(listener.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+    Ok(())
+}
