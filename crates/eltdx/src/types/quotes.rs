@@ -150,6 +150,10 @@ pub struct Snapshot {
     inside: Quantity,
     outside: Quantity,
     amount: Amount,
+    amount_wire_word: Option<u32>,
+    unknown_after_time_raw: Option<i64>,
+    unknown_after_outer_raw: Option<i64>,
+    open_amount_raw: Option<i64>,
     open_amount: Amount,
     bids: Vec<QuoteLevel>,
     asks: Vec<QuoteLevel>,
@@ -165,7 +169,8 @@ impl Snapshot {
         bids: Vec<QuoteLevel>, asks: Vec<QuoteLevel>, meta: ResultMeta,
     ) -> Self {
         Self { id, active, last, pre_close, open, high, low, event_time, server_time_raw, total, current,
-            inside, outside, amount, open_amount, bids, asks, meta }
+            inside, outside, amount, amount_wire_word: None, unknown_after_time_raw: None,
+            unknown_after_outer_raw: None, open_amount_raw: None, open_amount, bids, asks, meta }
     }
 
     pub fn id(&self) -> &SecurityId { &self.id }
@@ -182,6 +187,20 @@ impl Snapshot {
     pub const fn inside(&self) -> Quantity { self.inside }
     pub const fn outside(&self) -> Quantity { self.outside }
     pub const fn amount(&self) -> Amount { self.amount }
+    /// Original custom wire scalar, whose encoding is not IEEE f32.
+    pub const fn amount_wire_word(&self) -> Option<u32> { self.amount_wire_word }
+    pub(crate) fn with_amount_wire_word(mut self, value: u32) -> Self { self.amount_wire_word = Some(value); self }
+    pub(crate) fn with_quote_wire_fields(
+        mut self, after_time: Option<i64>, after_outer: Option<i64>, open_amount: Option<i64>,
+    ) -> Self {
+        self.unknown_after_time_raw = after_time;
+        self.unknown_after_outer_raw = after_outer;
+        self.open_amount_raw = open_amount;
+        self
+    }
+    pub const fn unknown_after_time_raw(&self) -> Option<i64> { self.unknown_after_time_raw }
+    pub const fn unknown_after_outer_raw(&self) -> Option<i64> { self.unknown_after_outer_raw }
+    pub const fn open_amount_raw(&self) -> Option<i64> { self.open_amount_raw }
     pub const fn open_amount(&self) -> Amount { self.open_amount }
     pub fn bids(&self) -> &[QuoteLevel] { &self.bids }
     pub fn asks(&self) -> &[QuoteLevel] { &self.asks }

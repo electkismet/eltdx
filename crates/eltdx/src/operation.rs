@@ -211,7 +211,7 @@ impl OperationContext {
         budget.check(Instant::now())?;
         let admission = owner.admit()?;
         let context = Self {
-            id, session_id: Arc::as_ptr(&owner) as usize, entry, name, owner,
+            id, session_id: owner.generation(), entry, name, owner,
             _admission: admission, options, profile, budget, limits: WorkLimits::default(), cleanup_timeout,
             metadata: Mutex::new(DecodeMetadata::default()),
         };
@@ -352,6 +352,18 @@ impl OperationContext {
             .ok_or_else(|| Error::new(ErrorKind::InvalidArgument, "cleanup timeout overflows monotonic clock"))?;
         state.cleanup_claimed = true;
         state.cleanup_deadline = Some(deadline);
+        Ok(())
+    }
+
+    /// Several resources of one business call share one retirement deadline.
+    /// This does not grant a second deadline after a request already stopped.
+    pub(crate) fn ensure_cleanup_budget(&self) -> Result<()> {
+        let mut state = self.budget.state.lock().map_err(|_| Error::new(ErrorKind::Internal, "operation budget poisoned"))?;
+        if !state.cleanup_claimed {
+            state.cleanup_deadline = Some(Instant::now().checked_add(self.cleanup_timeout)
+                .ok_or_else(|| Error::new(ErrorKind::InvalidArgument, "cleanup timeout overflows monotonic clock"))?);
+            state.cleanup_claimed = true;
+        }
         Ok(())
     }
 

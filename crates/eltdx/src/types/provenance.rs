@@ -125,13 +125,13 @@ pub struct ResultMeta {
 }
 
 #[cfg(feature = "serde")]
-fn serialize_payloads<S: serde::Serializer>(values: &[Bytes], serializer: S) -> Result<S::Ok, S::Error> {
+fn serialize_payloads<S: serde::Serializer>(values: &[Bytes], serializer: S) -> std::result::Result<S::Ok, S::Error> {
     use serde::Serialize;
     values.iter().map(Bytes::as_ref).collect::<Vec<_>>().serialize(serializer)
 }
 
 #[cfg(feature = "serde")]
-fn serialize_wire_frames<S: serde::Serializer>(values: &Option<Vec<Bytes>>, serializer: S) -> Result<S::Ok, S::Error> {
+fn serialize_wire_frames<S: serde::Serializer>(values: &Option<Vec<Bytes>>, serializer: S) -> std::result::Result<S::Ok, S::Error> {
     use serde::Serialize;
     values.as_ref().map(|frames| frames.iter().map(Bytes::as_ref).collect::<Vec<_>>()).serialize(serializer)
 }

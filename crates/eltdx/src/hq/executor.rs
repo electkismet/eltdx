@@ -45,11 +45,61 @@ impl HqExecutor {
         self.register_engine(engine.clone())?;
         let request = CommandRequest::Heartbeat(eltdx_protocol::commands::session::HeartbeatRequest);
         let permit = context.begin_child(ChildPurpose::Required, None)?;
-        let pin = engine.begin_pin_with_options(permit.into_submission(&request))
-            .map_err(|runtime| context.runtime_error(runtime, request.command_code()))?
-            .wait()
-            .map_err(|runtime| context.runtime_error(runtime, request.command_code()))?;
-        PinnedSession::new(Arc::clone(&self.owner), pin)
+        let command = request.command_code();
+        let mut pending = engine.begin_pin_with_options(permit.into_submission(&request))
+            .map_err(|runtime| context.runtime_error(runtime, command))?;
+        loop {
+            if let Err(root) = context.check_boundary(TimeoutPhase::Admission) {
+                context.ensure_cleanup_budget()?;
+                let cleanup = pending.cancel_and_confirm(context.cleanup_remaining()?).map_err(Error::from_runtime);
+                return Err(Self::complete_retirement(context, root, command, cleanup));
+            }
+            match pending.wait_timeout(SIGNAL_POLL_INTERVAL) {
+                Ok(PendingPoll::Pending) => {}
+                Ok(PendingPoll::Ready(pin)) => {
+                    let mut pin = PinnedSession::new(Arc::clone(&self.owner), pin)?;
+                    if let Err(root) = context.check_boundary(TimeoutPhase::Admission) {
+                        return match self.release_pin(context, &mut pin, Some(root)) {
+                            Err(error) => Err(error),
+                            Ok(()) => Err(Error::new(ErrorKind::Internal, "cancelled pin delivery lost its root cause")),
+                        };
+                    }
+                    return Ok(pin);
+                }
+                Err(runtime) => return Err(context.runtime_error(runtime, command)),
+            }
+        }
+    }
+
+    /// Normal release consumes the operation's remaining time. After a stop,
+    /// retirement uses the same separate cleanup budget as cancelled requests.
+    pub(crate) fn release_pin(&self, context: &OperationContext, pin: &mut PinnedSession, mut root: Option<Error>) -> Result<()> {
+        let mut pending = pin.handle()?.begin_close().map_err(Error::from_runtime)?;
+        loop {
+            if root.is_none() { root = context.check_boundary(TimeoutPhase::Close).err(); }
+            if root.is_some() { context.ensure_cleanup_budget()?; }
+            let wait = if root.is_some() { context.cleanup_remaining()?.min(SIGNAL_POLL_INTERVAL) } else { SIGNAL_POLL_INTERVAL };
+            match pending.wait_timeout(wait) {
+                Ok(PendingPoll::Ready(())) => {
+                    pin.mark_released();
+                    return root.map_or(Ok(()), Err);
+                }
+                Err(runtime) => {
+                    let cleanup = Error::from_runtime(runtime);
+                    return Err(match root {
+                        Some(root) => Error::new(ErrorKind::CancelUnconfirmed, "temporary pin retirement failed")
+                            .with_source(root).with_cleanup_failure(cleanup),
+                        None => cleanup,
+                    });
+                }
+                Ok(PendingPoll::Pending) if root.is_some() && context.cleanup_remaining()?.is_zero() => {
+                    return Err(Error::new(ErrorKind::CancelUnconfirmed, "temporary pin retirement was not confirmed")
+                        .with_source(root.take().expect("stop cause exists"))
+                        .with_cleanup_failure(Error::new(ErrorKind::Timeout, "pin release cleanup budget elapsed")));
+                }
+                Ok(PendingPoll::Pending) => {}
+            }
+        }
     }
 
     pub(crate) fn owner(&self) -> &Arc<SessionOwner> { &self.owner }
@@ -157,8 +207,8 @@ impl HqExecutor {
         self.check_context(context)?;
         let command = raw.request.command_code();
         let snapshot = context.begin_decode()?;
-        validate_request_precision(&snapshot, std::slice::from_ref(&raw.request))?;
-        let decoded = super::decode::decode_reply(raw, context.raw(), snapshot.as_ref()).map_err(|error| {
+        if !context.is_legacy() { validate_request_precision(&snapshot, std::slice::from_ref(&raw.request))?; }
+        let decoded = super::decode::decode_reply_profile(raw, context.raw(), snapshot.as_ref(), context.is_legacy()).map_err(|error| {
             let kind = match &error {
                 eltdx_protocol::ProtocolError::InvalidData { context: "price precision", .. } => ErrorKind::MetadataUnavailable,
                 _ => ErrorKind::Protocol,

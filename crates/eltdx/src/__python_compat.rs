@@ -5,14 +5,18 @@ use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use eltdx_protocol::CommandRequest;
+use eltdx_protocol::commands::security::SecurityListRequest;
+use eltdx_protocol::unit::NormalizedCode;
+use eltdx_protocol::{CommandRequest, CommandResponse};
 use eltdx_runtime::engine::{Engine, PinHandle};
 use eltdx_runtime::execution::RawReply;
 
 use crate::error::{Error, ErrorKind, Result};
 use crate::hq::executor::HqExecutor;
 use crate::operation::{ChildPurpose, OperationContext, RecoveryLimit, WorkLimits};
+use crate::services::{legacy_directory_pages, legacy_snapshot_rows};
 use crate::session::SessionOwner;
+use crate::types::HqMarket;
 use crate::{CancellationToken, RawPolicy};
 
 #[derive(Clone, Copy, Debug)]
@@ -76,6 +80,40 @@ impl LegacyExecutor {
 #[derive(Debug)]
 pub struct LegacyOperation { executor: LegacyExecutor, context: OperationContext }
 
+#[derive(Clone, Debug)]
+pub struct LegacySecurityPage {
+    pub rows: Vec<eltdx_protocol::commands::security::SecurityCode>,
+    pub payload: bytes::Bytes,
+    pub wire: Option<bytes::Bytes>,
+    pub endpoint: String,
+    pub command: u16,
+}
+
+#[derive(Clone, Debug)]
+pub enum LegacySnapshotState {
+    Present {
+        row: eltdx_protocol::commands::quotes::QuoteSnapshot,
+        payload: bytes::Bytes,
+        wire: Option<bytes::Bytes>,
+        endpoint: String,
+        command: u16,
+    },
+    Missing,
+}
+
+#[derive(Clone, Debug)]
+pub struct LegacySnapshotItem {
+    pub input_index: usize,
+    pub requested: NormalizedCode,
+    pub state: LegacySnapshotState,
+}
+
+#[derive(Clone, Debug)]
+pub struct LegacySnapshotBatch {
+    pub items: Vec<LegacySnapshotItem>,
+    pub recovered: bool,
+}
+
 impl LegacyOperation {
     /// `None` retains the legacy unlimited-page option; there is no fabricated cap.
     pub fn with_page_limit(mut self, maximum: Option<NonZeroUsize>) -> Result<Self> {
@@ -98,6 +136,69 @@ impl LegacyOperation {
             purpose.into(), recovery.map(|limit| RecoveryLimit { name: limit.name, maximum: limit.maximum }))
     }
 
+    /// Runs the same SDK directory paginator with Python's unlimited legacy
+    /// page policy and the caller's one continuous operation context.
+    pub fn security_pages(&self, market: HqMarket, page_size: usize) -> Result<Vec<LegacySecurityPage>> {
+        let replies = legacy_directory_pages(&self.context, market, page_size, |offset| {
+            let limit = u16::try_from(page_size).map_err(|error| Error::new(ErrorKind::InvalidArgument,
+                "legacy security page size is outside the protocol range").with_source(error))?;
+            let request = CommandRequest::SecurityList(SecurityListRequest::new(protocol_market(market), offset, limit)
+                .map_err(Error::from_protocol)?);
+            let purpose = if offset == 0 { ChildPurpose::Required } else { ChildPurpose::Page };
+            let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context, request, purpose, None)?;
+            self.executor.executor.decode_unpriced(&self.context, raw)
+        })?;
+        let mut pages = Vec::new();
+        pages.try_reserve(replies.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded,
+            "unable to reserve legacy security pages").with_source(error))?;
+        for reply in replies {
+            let CommandResponse::SecurityList(rows) = reply.response else {
+                return Err(Error::new(ErrorKind::Protocol, "legacy directory response has the wrong type"));
+            };
+            pages.push(LegacySecurityPage { rows, payload: reply.payload, wire: reply.wire.map(|frame| frame.raw),
+                endpoint: reply.source.host, command: reply.request.command_code() });
+        }
+        Ok(pages)
+    }
+
+    /// Uses the SDK's shared order/recovery path and retains original protocol
+    /// scalars, response page payload and record provenance for the tuple ABI.
+    pub fn recover_snapshots(&self, codes: &[NormalizedCode]) -> Result<LegacySnapshotBatch> {
+        let batch = legacy_snapshot_rows(&self.context, codes, |part, purpose, recovery| {
+            let request = CommandRequest::Snapshots(eltdx_protocol::commands::quotes::SnapshotsRequest::new(part.to_vec())
+                .map_err(Error::from_protocol)?);
+            let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context, request, purpose, recovery)?;
+            self.executor.executor.decode_received(&self.context, raw)
+        })?;
+        let mut slots: Vec<Option<LegacySnapshotState>> = Vec::new();
+        slots.try_reserve(codes.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded,
+            "unable to reserve legacy snapshot occurrence slots").with_source(error))?;
+        slots.resize_with(codes.len(), || None);
+        for record in batch.records {
+            slots[record.input_index] = Some(LegacySnapshotState::Present {
+                row: record.row, payload: record.payload, wire: record.wire,
+                endpoint: record.endpoint, command: record.command,
+            });
+        }
+        for (index, _) in batch.missing { slots[index] = Some(LegacySnapshotState::Missing); }
+        let mut items = Vec::new();
+        items.try_reserve(codes.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded,
+            "unable to reserve legacy snapshot results").with_source(error))?;
+        for (input_index, (requested, state)) in codes.iter().zip(slots).enumerate() {
+            items.push(LegacySnapshotItem { input_index, requested: requested.clone(),
+                state: state.ok_or_else(|| Error::new(ErrorKind::Protocol, "legacy snapshot occurrence was not classified"))? });
+        }
+        Ok(LegacySnapshotBatch { items, recovered: batch.recovered })
+    }
+
     pub fn remember_recoverable(&self, error: Error) { self.context.remember_recoverable(error); }
     pub fn finish(self) -> Result<()> { self.context.finish() }
+}
+
+fn protocol_market(market: HqMarket) -> eltdx_protocol::unit::Market {
+    match market {
+        HqMarket::Shenzhen => eltdx_protocol::unit::Market::Shenzhen,
+        HqMarket::Shanghai => eltdx_protocol::unit::Market::Shanghai,
+        HqMarket::Beijing => eltdx_protocol::unit::Market::Beijing,
+    }
 }

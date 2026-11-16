@@ -400,12 +400,16 @@ fn parse_snapshots_payload_body(
         ));
     }
     let count = usize::from(little_u16(&payload[2..4])?);
+    if !context.legacy_quote_layout() {
+        return parse_strict_snapshot_records(&payload[4..], count, requested_codes, context);
+    }
     if count == 0 && payload.len() != 4 {
         return Err(ProtocolError::invalid_data(
             "snapshots",
             "unexpected trailing empty snapshot bytes",
         ));
     }
+    if count == 0 { return Ok(Vec::new()); }
     if count > 0 && requested_codes.len() < count {
         return Err(ProtocolError::invalid_data(
             "snapshots",
@@ -445,11 +449,10 @@ fn parse_snapshots_payload_body(
             ));
         }
     }
-    let response_codes = scan_snapshot_response_codes(&payload[4..], count, requested_codes)?;
-    let records = split_snapshot_records(&payload[4..], &response_codes)?;
+    let records = split_snapshot_records(&payload[4..], requested_codes)?;
     records
         .iter()
-        .zip(&response_codes)
+        .zip(requested_codes)
         .map(|(record, code)| parse_snapshot_record(record, code, context))
         .collect()
 }
@@ -647,6 +650,14 @@ fn parse_snapshot_record(
     expected_code: &NormalizedCode,
     context: &ParseContext<'_>,
 ) -> Result<QuoteSnapshot, ProtocolError> {
+    let (mut row, consumed) = parse_snapshot_record_prefix(record, expected_code, context)?;
+    row.tail_raw = context.business_bytes(&record[consumed..]);
+    Ok(row)
+}
+
+fn parse_snapshot_record_prefix(
+    record: &[u8], expected_code: &NormalizedCode, context: &ParseContext<'_>,
+) -> Result<(QuoteSnapshot, usize), ProtocolError> {
     if record.len() < 9 {
         return Err(ProtocolError::invalid_data(
             "snapshot",
@@ -687,7 +698,7 @@ fn parse_snapshot_record(
     offset = next;
     let bid_milli = scaled_price(prices.current_milli, bid_delta, divisor)?;
     let ask_milli = scaled_price(prices.current_milli, ask_delta, divisor)?;
-    Ok(QuoteSnapshot {
+    Ok((QuoteSnapshot {
         price_raw: QuotePriceRaw {
             current: prices.current_milli,
             last_close: prices.last_close_milli,
@@ -727,9 +738,9 @@ fn parse_snapshot_record(
             volume: ask_volume,
             price_delta_raw: ask_delta,
         }],
-        tail_raw: context.business_bytes(&record[offset..]),
+        tail_raw: Bytes::new(),
         record_range: context.record_range(record),
-    })
+    }, offset))
 }
 
 fn parse_legacy_quote_record(
@@ -1160,78 +1171,102 @@ fn split_snapshot_records<'a>(
     Ok(slice_at_starts(data, &starts))
 }
 
-fn scan_snapshot_response_codes(
-    data: &[u8],
-    count: usize,
-    requested_codes: &[NormalizedCode],
-) -> Result<Vec<NormalizedCode>, ProtocolError> {
-    if data.is_empty() {
-        let expected = requested_codes.first().map(ToString::to_string).unwrap_or_default();
-        return Err(ProtocolError::invalid_data("snapshot", format!("snapshot record marker not found: {expected}")));
+fn parse_strict_snapshot_records(
+    data: &[u8], count: usize, requested_codes: &[NormalizedCode], context: &ParseContext<'_>,
+) -> Result<Vec<QuoteSnapshot>, ProtocolError> {
+    if count == 0 {
+        if !data.is_empty() { return Err(ProtocolError::invalid_data("snapshots", "unexpected trailing empty snapshot bytes")); }
+        return Ok(Vec::new());
     }
-    if data.len() < 7 {
-        return Err(ProtocolError::invalid_data("snapshot", "truncated snapshot identity header"));
+    if count > requested_codes.len() {
+        return Err(ProtocolError::invalid_data("snapshots", "snapshot response count exceeds request code count"));
     }
-    if find_snapshot_identity(data, 0).map_or(true, |(start, _)| start != 0) {
-        return Err(ProtocolError::invalid_data("snapshot", "invalid snapshot identity header"));
-    }
-
     let mut remaining = std::collections::HashMap::<NormalizedCode, usize>::new();
     for code in requested_codes {
-        let count = remaining.entry(code.clone()).or_default();
-        *count = count.checked_add(1).ok_or_else(|| {
-            ProtocolError::invalid_data("snapshot", "requested identity count overflow")
-        })?;
+        *remaining.entry(code.clone()).or_default() += 1;
     }
-
-    let mut codes = Vec::with_capacity(count);
-    let mut search_from = 0_usize;
+    let mut rows = Vec::with_capacity(count);
+    let mut start = 0_usize;
     for index in 0..count {
-        let lower_bound = if index == 0 { search_from } else {
-            search_from.checked_add(23).ok_or_else(|| {
-                ProtocolError::invalid_data("snapshot", "record offset overflow")
-            })?
-        };
-        let (start, code) = find_snapshot_identity(data, lower_bound).ok_or_else(|| {
-            let expected = requested_codes.get(index).map(ToString::to_string).unwrap_or_default();
-            ProtocolError::invalid_data("snapshot", format!("snapshot record marker not found: {expected}"))
-        })?;
+        let marker_error = || ProtocolError::invalid_data("snapshot", format!("snapshot record marker not found: {}", requested_codes[index]));
+        let Some((relative, code)) = find_snapshot_identity(&data[start..], 0) else { return Err(marker_error()); };
+        if relative != 0 { return Err(marker_error()); }
         let Some(available) = remaining.get_mut(&code) else {
-            return Err(ProtocolError::invalid_data(
-                "snapshot",
-                format!("unexpected snapshot identity: {code}"),
-            ));
+            return Err(ProtocolError::invalid_data("snapshot", format!("unexpected snapshot identity: {code}")));
         };
         if *available == 0 {
-            return Err(ProtocolError::invalid_data(
-                "snapshot",
-                format!("excess duplicate snapshot identity: {code}"),
-            ));
+            return Err(ProtocolError::invalid_data("snapshot", format!("excess duplicate snapshot identity: {code}")));
         }
         *available -= 1;
-        search_from = start.checked_add(7).ok_or_else(|| {
-            ProtocolError::invalid_data("snapshot", "record offset overflow")
-        })?;
-        codes.push(code);
+        // Consume every required scalar before searching the unknown tail for
+        // another identity. A malformed scalar can never become missing data.
+        let (mut row, consumed) = parse_snapshot_record_prefix(&data[start..], &code, context)?;
+        let tail_start = start.checked_add(consumed).ok_or_else(|| ProtocolError::invalid_data("snapshot", "record offset overflow"))?;
+        let next = find_next_snapshot_record(data, tail_start, &remaining, context)?;
+        let end = if index + 1 < count { next.ok_or_else(marker_error)? } else {
+            if next.is_some() { return Err(ProtocolError::invalid_data("snapshot", "unexpected extra requested snapshot identity in response tail")); }
+            data.len()
+        };
+        row.tail_raw = context.business_bytes(&data[tail_start..end]);
+        row.record_range = context.record_range(&data[start..end]);
+        rows.push(row);
+        start = end;
     }
-    Ok(codes)
+    if count != requested_codes.len() {
+        return Err(ProtocolError::invalid_data("snapshots", format!("snapshot response count mismatch: expected {}, got {count}", requested_codes.len())));
+    }
+    Ok(rows)
+}
+
+fn find_next_snapshot_record(
+    data: &[u8], from: usize, remaining: &std::collections::HashMap<NormalizedCode, usize>, context: &ParseContext<'_>,
+) -> Result<Option<usize>, ProtocolError> {
+    let Some(last_start) = data.len().checked_sub(7) else { return Ok(None); };
+    let mut malformed_candidate = None;
+    for start in from..=last_start {
+        let Some(code) = snapshot_identity_at(data, start) else { continue; };
+        match remaining.get(&code).copied() {
+            Some(count) if count != 0 => match parse_snapshot_record_prefix(&data[start..], &code, context) {
+                Ok(_) => return Ok(Some(start)),
+                Err(error) => if malformed_candidate.is_none() { malformed_candidate = Some(error); },
+            },
+            expected_count => match parse_snapshot_record_prefix(&data[start..], &code, context) {
+                Ok(_) => {
+                    let message = if expected_count.is_some() {
+                        format!("excess duplicate snapshot identity: {code}")
+                    } else {
+                        format!("unexpected snapshot identity: {code}")
+                    };
+                    return Err(ProtocolError::invalid_data("snapshot", message));
+                }
+                Err(error) => if malformed_candidate.is_none() { malformed_candidate = Some(error); },
+            },
+        }
+    }
+    if let Some(error) = malformed_candidate { return Err(error); }
+    Ok(None)
 }
 
 fn find_snapshot_identity(data: &[u8], from: usize) -> Option<(usize, NormalizedCode)> {
     let last_start = data.len().checked_sub(7)?;
     for start in from..=last_start {
-        let market = match data[start] {
-            0 => crate::unit::Market::Shenzhen,
-            1 => crate::unit::Market::Shanghai,
-            2 => crate::unit::Market::Beijing,
-            _ => continue,
-        };
-        let digits = &data[start + 1..start + 7];
-        if !digits.iter().all(u8::is_ascii_digit) { continue; }
-        let number = std::str::from_utf8(digits).ok()?.to_owned();
-        return Some((start, NormalizedCode { market, number }));
+        if let Some(code) = snapshot_identity_at(data, start) { return Some((start, code)); }
     }
     None
+}
+
+fn snapshot_identity_at(data: &[u8], start: usize) -> Option<NormalizedCode> {
+    let record = data.get(start..start.checked_add(7)?)?;
+    let market = match record[0] {
+        0 => crate::unit::Market::Shenzhen,
+        1 => crate::unit::Market::Shanghai,
+        2 => crate::unit::Market::Beijing,
+        _ => return None,
+    };
+    let digits = &record[1..];
+    if !digits.iter().all(u8::is_ascii_digit) { return None; }
+    let number = std::str::from_utf8(digits).ok()?.to_owned();
+    Some(NormalizedCode { market, number })
 }
 
 fn split_refresh_records<'a>(

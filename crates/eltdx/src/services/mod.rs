@@ -1,8 +1,11 @@
 mod codes;
 mod quotes;
+pub(crate) mod pagination;
 
 pub use codes::CodeService;
+pub(crate) use codes::legacy_directory_pages;
 pub use quotes::QuoteService;
+pub(crate) use quotes::{legacy_snapshot_rows, RawSnapshotBatch, RawSnapshotSlot};
 
 use std::hash::{Hash, Hasher};
 use std::net::SocketAddr;
@@ -120,11 +123,12 @@ fn normalize_ids(ids: &[SecurityId]) -> Result<Vec<eltdx_protocol::unit::Normali
     Ok(values)
 }
 
-fn code_fingerprint(market: HqMarket, page_size: usize) -> u64 {
+fn code_fingerprint(market: HqMarket, page_size: usize, category: Option<&crate::types::SecurityCategory>) -> u64 {
     let mut state = std::collections::hash_map::DefaultHasher::new();
     "hq:044d".hash(&mut state);
     market.hash(&mut state);
     page_size.hash(&mut state);
+    category.hash(&mut state);
     state.finish()
 }
 
@@ -140,13 +144,16 @@ fn verify_cursor(cursor: Option<&PageCursor>, fingerprint: u64, page_size: usize
     Ok(())
 }
 
-fn endpoint_engine(config: &ClientConfig, base: &Engine, endpoint: Option<&str>) -> Result<Engine> {
+fn endpoint_engine(executor: &crate::hq::executor::HqExecutor, config: &ClientConfig, base: &Engine, endpoint: Option<&str>) -> Result<Engine> {
     let Some(endpoint) = endpoint else { return Ok(base.clone()); };
     if !crate::client::configured_hosts(config).iter().any(|host| host == endpoint) {
         return Err(Error::new(ErrorKind::InvalidArgument, "continuation endpoint is outside this client's source catalog"));
     }
     // An endpoint-bound Engine cannot silently fail over to a different source.
-    crate::client::engine_with_hosts(config, vec![endpoint.to_owned()])
+    let engine = executor.owner().endpoint_engine(base, endpoint,
+        || crate::client::engine_with_hosts(config, vec![endpoint.to_owned()]))?;
+    executor.register_engine(engine.clone())?;
+    Ok(engine)
 }
 
 fn identity_from_market(market: eltdx_protocol::unit::Market, number: &str) -> Result<SecurityId> {

@@ -1,7 +1,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
+
+static NEXT_OWNER_GENERATION: AtomicUsize = AtomicUsize::new(1);
 
 use eltdx_runtime::engine::Engine;
 use eltdx_runtime::engine::{PendingPoll, PinHandle, SIGNAL_POLL_INTERVAL};
@@ -71,6 +74,7 @@ struct SessionState {
     active_operations: usize,
     operations: Vec<Weak<OperationCancellation>>,
     engines: Vec<Engine>,
+    endpoint_engines: Vec<(Engine, String, Engine)>,
     pins: Vec<PinHandle>,
     tasks: Vec<Arc<dyn OwnerTaskGroup>>,
 }
@@ -154,6 +158,7 @@ impl CleanupControl {
 #[derive(Debug)]
 pub(crate) struct SessionOwner {
     metadata: Arc<MetadataStore>,
+    generation: usize,
     clock: ClockHandle,
     close_timeout: Duration,
     cleanup_timeout: Duration,
@@ -171,6 +176,7 @@ impl SessionOwner {
         let metadata = Arc::new(MetadataStore::new(Arc::clone(&clock.0)));
         Self {
             metadata: Arc::clone(&metadata),
+            generation: NEXT_OWNER_GENERATION.fetch_add(1, Ordering::Relaxed),
             clock,
             close_timeout,
             cleanup_timeout,
@@ -185,6 +191,7 @@ impl SessionOwner {
                 active_operations: 0,
                 operations: Vec::new(),
                 engines: Vec::new(),
+                endpoint_engines: Vec::new(),
                 pins: Vec::new(),
                 tasks: vec![metadata as Arc<dyn OwnerTaskGroup>],
             }),
@@ -194,6 +201,8 @@ impl SessionOwner {
     }
 
     pub(crate) fn metadata(&self) -> &Arc<MetadataStore> { &self.metadata }
+
+    pub(crate) const fn generation(&self) -> usize { self.generation }
 
     pub(crate) fn current_shanghai_date(&self) -> Result<crate::types::TradingDate> {
         crate::types::TradingDate::shanghai_today(self.clock.0.as_ref())
@@ -214,6 +223,23 @@ impl SessionOwner {
         } else {
             Err(closed_error())
         }
+    }
+
+    pub(crate) fn endpoint_engine(&self, base: &Engine, endpoint: &str,
+        create: impl FnOnce() -> Result<Engine>) -> Result<Engine> {
+        let mut state = self.lock_state()?;
+        if state.phase != SessionPhase::Open { return Err(closed_error()); }
+        if let Some((_, _, engine)) = state.endpoint_engines.iter()
+            .find(|(source, host, _)| source.same_owner(base) && host == endpoint) {
+            return Ok(engine.clone());
+        }
+        // Factory only constructs lazy in-memory Engine state; no networking,
+        // worker startup, metadata lookup or callback occurs under this lock.
+        let engine = create()?;
+        state.endpoint_engines.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded,
+            "unable to reserve endpoint-bound engine cache").with_source(error))?;
+        state.endpoint_engines.push((base.clone(), endpoint.to_owned(), engine.clone()));
+        Ok(engine)
     }
 
     // The closure is a bounded counter/terminal-state transaction, never I/O or a wait.
@@ -565,7 +591,10 @@ pub struct PinnedSession {
 
 impl PinnedSession {
     pub(crate) fn new(owner: Arc<SessionOwner>, pin: PinHandle) -> Result<Self> {
-        owner.register_pin(pin.clone())?;
+        if let Err(error) = owner.register_pin(pin.clone()) {
+            let _ = pin.begin_close();
+            return Err(error);
+        }
         Ok(Self {
             owner,
             pin: Some(pin),
@@ -578,6 +607,10 @@ impl PinnedSession {
 
     pub(crate) fn handle(&self) -> Result<&PinHandle> {
         self.pin.as_ref().ok_or_else(|| Error::new(ErrorKind::PinLost, "pinned session is closed"))
+    }
+
+    pub(crate) fn mark_released(&mut self) {
+        if let Some(pin) = self.pin.take() { self.owner.unregister_pin(&pin); }
     }
 
     pub fn close(&mut self) -> Result<()> {

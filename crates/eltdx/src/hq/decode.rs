@@ -49,6 +49,20 @@ pub(crate) fn decode_reply(
     raw: RawPolicy,
     precision: &dyn PricePrecisionSource,
 ) -> Result<DecodedReply, ProtocolError> {
+    decode_reply_profile(reply, raw, precision, false)
+}
+
+pub(crate) fn decode_reply_profile(
+    reply: RawReply, raw: RawPolicy, precision: &dyn PricePrecisionSource, legacy: bool,
+) -> Result<DecodedReply, ProtocolError> {
+    struct QuoteLayout<'a> { precision: &'a dyn PricePrecisionSource, legacy: bool }
+    impl PricePrecisionSource for QuoteLayout<'_> {
+        fn security_decimal(&self, code: &eltdx_protocol::unit::NormalizedCode) -> Option<u8> {
+            self.precision.security_decimal(code)
+        }
+        fn legacy_quote_layout(&self) -> bool { self.legacy }
+    }
+    let layout = QuoteLayout { precision, legacy };
     let RawReply {
         request,
         response,
@@ -63,7 +77,7 @@ pub(crate) fn decode_reply(
         RawPolicy::RetainPayload | RawPolicy::RetainWire => ParseRawPolicy::RetainPayload,
     };
     let options = ParseOptions {
-        price_precision: precision,
+        price_precision: &layout,
         raw: parse_raw,
     };
     let parsed = CommandResponse::parse_with_context(request.clone(), response.data.clone(), &options)?;

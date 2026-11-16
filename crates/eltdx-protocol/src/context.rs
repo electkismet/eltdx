@@ -11,6 +11,10 @@ use crate::ProtocolError;
 /// not a verified decimal; audited fallback belongs in the source itself.
 pub trait PricePrecisionSource: Send + Sync {
     fn security_decimal(&self, code: &NormalizedCode) -> Option<u8>;
+
+    /// Compatibility selection for variable quote ordering only. It does not
+    /// enable global precision writes or implicit legacy raw allocations.
+    fn legacy_quote_layout(&self) -> bool { false }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -114,6 +118,10 @@ impl<'a> ParseContext<'a> {
         self.options.is_none()
     }
 
+    pub(crate) fn legacy_quote_layout(&self) -> bool {
+        self.options.map_or(true, |options| options.price_precision.legacy_quote_layout())
+    }
+
     pub(crate) fn retains_payload(&self) -> bool {
         self.options
             .map_or(true, |options| options.raw == ParseRawPolicy::RetainPayload)
@@ -165,7 +173,12 @@ impl<'a> ParseContext<'a> {
                 decimal,
             });
         };
-        let decimal = options.price_precision.security_decimal(code).ok_or_else(|| {
+        let decimal = options.price_precision.security_decimal(code);
+        if decimal.is_none() && options.price_precision.legacy_quote_layout() {
+            let (divisor, decimal) = crate::unit::legacy_price_precision(code);
+            return Ok(PricePrecision { divisor, decimal });
+        }
+        let decimal = decimal.ok_or_else(|| {
             ProtocolError::invalid_data(
                 "price precision",
                 format!("metadata unavailable for {code}"),
