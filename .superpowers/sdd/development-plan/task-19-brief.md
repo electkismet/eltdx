@@ -19,6 +19,8 @@ Author meaningful public-client fixtures for HTTP and HTTPS, hostname SNI and cu
 
 T20 consumes transport through one context-sharing internal request method; expose narrow internal hook rather than calling a public method that resets timeout. Legacy profile must later preserve Python's no new byte/header caps, per-wire timing, custom `_post`, URL override quirks and exceptions. Any infeasible dependency contract gets a concrete controller ruling, not an undocumented runtime Unsupported placeholder.
 
+Integration point discovered while preparing: T08's RequestPermit currently emits an HQ CommandRequest-based SubmissionOptions, while its underlying AttemptAuthorization is language/domain neutral. Coordinate a narrow internal way for non-HQ transports to consume that same unique authorization/reservation at physical connect/send time; do not fake an unrelated HQ CommandRequest to obtain admission, copy budget counters, or give HTTP its own unrelated retry accounting. A command descriptor or authorization extraction method may be extended with controller approval when this task starts. T24 uses the same integration point. This is future-domain integration, not a reason to re-open T08's current HQ-scoped task gate.
+
 ## Workflow/report
 
 Workspace `C:/Users/ax/.codex/worktrees/rust-sdk-implementation/tdx抓包`, branch `codex/rust-sdk-implementation`. Until ALL T01–T30 implementation code complete: NO tests/collection/build/check/clippy/doctest/network/compile/AST/format/diff checks or equivalent verification. Ordinary source reads, review diff generation and Git checkpoints allowed. No subagents/push/tag/publish/merge or controller ledger/status edits. Commit exact owned files with hooks disabled.

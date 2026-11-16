@@ -13,6 +13,8 @@ New SDK `src/ex/{mod,session,frame,commands,models,hosts}.rs`, focused command/q
 - Preserve all64B instrument bytes and300B quote slot(10identity+290payload), unknown150B tail, all native float bits/position-u32 versus amount-f32 dual slot/settlement-range provenance. Unknown market/nature kept, no universalA-share/1000 scaling. GBK/UTF8 by actual command and replacement diagnostic. Minute source date absent stays absent; seconds retained, day15:00 SyntheticClose, End only known intraday duration. Required raw scalars/tails survive Omit, retained payload/ranges share bytes.
 - EX config/session distinct from HQ pool/MAC authentication; MAC-EX hook supplies explicit profile, not magic based on port. Stable advanced codec surface stays bounded/owner controlled.
 
+Consume the same non-HQ attempt-admission integration introduced by T19 if available. T08's RequestPermit-to-SubmissionOptions currently accepts HQ CommandRequest; coordinate a narrow domain-neutral descriptor or extraction hook rather than synthesizing an unrelated HQ request or copying the operation budget implementation. Shared authorization must still reserve/start/refund once per physical connect/send and preserve domain-aware retry rules.
+
 ## Evidence/workflow/report
 
 Author independently specified setup/request goldens, fragmented header/body/declared short/invalid zlib and length bombs, sequence wrap/two owners/serial requests/stale response, full command boundary/layout/raw/GBK/time cases, transport-only failover and cancel/close during handshake/request. Public-client loopback integration arrives T26, but low-level tests exercise real transport source code. Deferred `cargo test -p eltdx --features ex --test ex_wire --test ex_session --locked`.
