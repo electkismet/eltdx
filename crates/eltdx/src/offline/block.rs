@@ -116,8 +116,8 @@ pub fn read_custom(dir: &Path, options: &ReadOptions) -> Result<ReadResult<Custo
         let name = decode_gbk(&record[..50]).split('\0').next().unwrap_or("").to_owned();
         let leaf = decode_gbk(&record[50..]).split('\0').next().unwrap_or("").to_owned();
         if leaf.is_empty() {
-            diagnostics.push(diagnostic("customer_block", format!("row {index}: skipped empty block filename")));
-            continue;
+            return Err(malformed("customer block filename must not be empty")
+                .with_context("record_index", context_value(index)));
         }
         if !safe_leaf(&leaf) {
             return Err(malformed("customer block filename must be a safe leaf name")

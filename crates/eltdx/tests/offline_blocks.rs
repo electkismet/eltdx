@@ -76,7 +76,6 @@ fn customer_gbk_utf8_lines_skips_and_total_byte_cap() -> TestResult {
     let mut config = cfg(&[0xd6, 0xd0, 0xce, 0xc4], b"first").to_vec();
     config.extend_from_slice(&cfg(b"", b"second"));
     config.extend_from_slice(&cfg(b"Missing", b"missing"));
-    config.extend_from_slice(&cfg(b"Empty filename", b""));
     config.extend_from_slice(&[1, 2]);
     std::fs::write(scratch.0.join("blocknew.cfg"), &config)?;
     let content = b" 0000001 \r\n1600000\n0\n\n0\xff\x1c 1abcdef \n";
@@ -88,10 +87,18 @@ fn customer_gbk_utf8_lines_skips_and_total_byte_cap() -> TestResult {
     assert_eq!(result.rows()[0].block_type(), "first");
     assert_eq!(result.rows()[0].codes(), ["000001", "600000", "\u{fffd}", "abcdef"]);
     assert_eq!(result.ignored_tail_bytes(), 2);
-    assert_eq!(result.diagnostics().len(), 4);
+    assert_eq!(result.diagnostics().len(), 3);
     let limit = config.len() as u64 + content.len() as u64;
     assert!(block::read_custom(&scratch.0, &ReadOptions::default().with_max_bytes(limit)?).is_ok());
     assert_eq!(block::read_custom(&scratch.0, &ReadOptions::default().with_max_bytes(limit - 1)?).err().map(|e| e.kind()), Some(ErrorKind::LimitExceeded));
+    let empty_leaf = scratch.0.join("blocknew.cfg");
+    std::fs::write(&empty_leaf, cfg(b"Empty filename", b""))?;
+    let error = match block::read_custom(&scratch.0, &ReadOptions::default()) {
+        Err(error) => error,
+        Ok(_) => return Err("expected empty customer-block filename rejection".into()),
+    };
+    assert_eq!(error.kind(), ErrorKind::ResourceFormat);
+    assert!(error.context().iter().any(|(key, value)| key == "record_index" && value == "0"));
     Ok(())
 }
 

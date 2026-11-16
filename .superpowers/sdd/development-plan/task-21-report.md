@@ -168,3 +168,15 @@ T22 should add `offline::financial` registration/reexports and the three reserve
 T23 should bridge old Python write names to the same append/filter/encoding algorithms and preserve old Python defaults/return shapes/exceptions. Rust-specific byte caps and Gregorian/type validation must not silently become new Python compatibility restrictions; T23 must choose legacy boundary projections explicitly, reusing raw slots and shared local algorithms where applicable. No Python bridge migration is claimed by T21.
 
 Source-only self-review covered original integer/f32 authority under Omit, original-disk threshold versus batch order, empty unaligned input, short/missing last keys, checked packing and wrap operations, post-write cancellation/error byte context, durability success/failure reporting, GBK one-byte resume, stable industry order, and symlink containment. It corrected minute source-volume retention, write error context before opening, and reverse subkey iteration without relying on a stepped inclusive iterator's ExactSize contract. Runtime/platform correctness and crate integration remain unverified by instruction. Filesystem symlink privileges/Windows path behavior, exceptional I/O behavior, and the pending T10 shared-type integration need the deferred validation phase. No broad investigation or unrelated source cleanup was performed.
+
+## Fix round 1: reject empty customer-block leaf names
+
+Controller review at `9734db3` identified that `read_custom` treated an empty `blocknew.cfg` leaf filename as a diagnostic skip, although the T21 brief requires leaf names to be nonempty. The reader now returns `ResourceFormat` with the offending `record_index` for an empty leaf. Missing `.blk` files and empty block names remain separate legacy-compatible skip cases with diagnostics.
+
+Exact changed paths:
+
+- `crates/eltdx/src/offline/block.rs`: reject empty leaf before path resolution or file lookup.
+- `crates/eltdx/tests/offline_blocks.rs`: remove the empty-leaf row from the successful skip fixture, keep empty-name/missing-file skips, and add an authored `ResourceFormat` plus row-index assertion for an empty leaf.
+- `.superpowers/sdd/development-plan/task-21-report.md`: record this fix round.
+
+Source-only self-review confirmed the empty-leaf branch terminates before constructing a path, while the `!present || name.is_empty()` branch still reports and skips only the missing-file/empty-name cases. No tests, collection, build/check/clippy/doctest, network, compile/AST, formatting, diff checking, or equivalent validation was run for this round.
