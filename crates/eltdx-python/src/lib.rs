@@ -54,6 +54,15 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(stats::stats_members, module)?)?;
     module.add_function(wrap_pyfunction!(offline_financial::financial_file_list, module)?)?;
     module.add_function(wrap_pyfunction!(offline_financial::financial_dat, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_zip_member, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_project_records, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_list_archives, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_download_archive, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_filename_date, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_archive_payload, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_finish_records, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_read_local, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_zip_path_guard, module)?)?;
     module.add_function(wrap_pyfunction!(limits::scan_special, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_fund_flow, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_full_quotes, module)?)?;

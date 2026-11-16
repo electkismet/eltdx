@@ -308,19 +308,9 @@ pub(crate) fn parse_zip_with_boundary(data: &[u8], filename: Option<&str>,
     let limits = crate::archive::ArchiveLimits::financial_with_limits(
         options.max_archive_bytes, options.max_entries, options.parse.max_dat_bytes)?;
     let mut selected = crate::archive::decode_with_selector(data, limits, |entries| {
-        let candidates: Vec<_> = entries.iter().filter(|entry| !entry.is_directory && entry.name.ends_with(b".dat")).collect();
-        let chosen = match &options.selector {
-            DatSelector::RequireSingle => match candidates.as_slice() {
-                [only] => *only,
-                [] => return Err(Error::new(ErrorKind::MissingData, "financial archive contains no .dat member")),
-                _ => return Err(malformed("financial archive contains multiple .dat members; select an exact name")
-                    .with_context("candidates", candidates.iter().map(|entry| String::from_utf8_lossy(entry.name).into_owned()).collect::<Vec<_>>().join(", "))),
-            },
-            DatSelector::Named(name) => candidates.iter().copied().find(|entry| entry.name == name.as_bytes())
-                .ok_or_else(|| Error::new(ErrorKind::MissingData, "selected financial DAT member is absent")
-                    .with_context("member", name.clone()))?,
-        };
-        Ok(vec![chosen.index])
+        let mut policy = StrictDatSelection { selector: &options.selector };
+        let entry = python_legacy::select_dat_entry(entries.iter().copied().map(Ok), entries.len(), &mut policy)?;
+        Ok(vec![entry.index])
     }, &mut || checkpoint(&options.parse, boundary))?;
     let selected = selected.pop().ok_or_else(|| Error::new(ErrorKind::Internal, "financial ZIP selection produced no member"))?;
     let provenance = ArchiveProvenance::new(selected.member.name, selected.index,
@@ -331,6 +321,31 @@ pub(crate) fn parse_zip_with_boundary(data: &[u8], filename: Option<&str>,
     result.archive_raw = retain_payload(data, &options.parse, boundary)?;
     checkpoint(&options.parse, boundary)?;
     Ok(result)
+}
+
+struct StrictDatSelection<'a> { selector: &'a DatSelector }
+impl<'a> python_legacy::DatArchiveSelection<crate::archive::ArchiveEntryMetadata<'a>> for StrictDatSelection<'_> {
+    type Error = Error;
+    fn check_count(&mut self, _: usize) -> Result<()> { Ok(()) }
+    fn is_candidate(&mut self, entry: &crate::archive::ArchiveEntryMetadata<'a>) -> Result<bool> {
+        Ok(!entry.is_directory && entry.name.ends_with(b".dat"))
+    }
+    fn check_candidates(&mut self, _: &[crate::archive::ArchiveEntryMetadata<'a>]) -> Result<()> { Ok(()) }
+    fn choose(&mut self, entries: &[crate::archive::ArchiveEntryMetadata<'a>]) -> Result<usize> {
+        match self.selector {
+            DatSelector::RequireSingle => match entries.len() {
+                0 => Err(Error::new(ErrorKind::MissingData, "financial archive contains no .dat member")),
+                1 => Ok(0),
+                _ => Err(malformed("financial archive contains multiple .dat members; select an exact name")
+                    .with_context("candidates", entries.iter().map(|entry| String::from_utf8_lossy(entry.name).into_owned()).collect::<Vec<_>>().join(", "))),
+            },
+            DatSelector::Named(name) => entries.iter().position(|entry| entry.name == name.as_bytes())
+                .ok_or_else(|| Error::new(ErrorKind::MissingData, "selected financial DAT member is absent")
+                    .with_context("member", name.clone())),
+        }
+    }
+    fn check_selected(&mut self, _: &crate::archive::ArchiveEntryMetadata<'a>) -> Result<()> { Ok(()) }
+    fn invalid_selection(&mut self) -> Error { Error::new(ErrorKind::Internal, "invalid financial archive selection") }
 }
 
 #[derive(Clone, Copy)]
@@ -674,6 +689,35 @@ fn decimal_integer(text: &str) -> Option<String> {
 #[doc(hidden)]
 pub mod python_legacy {
     use super::*;
+    /// Scalar/object behavior and strictness are supplied by the caller; the
+    /// inventory traversal and ordered candidate selection are shared.
+    pub trait DatArchiveSelection<T> {
+        type Error;
+        fn check_count(&mut self, count: usize) -> std::result::Result<(), Self::Error>;
+        fn is_candidate(&mut self, entry: &T) -> std::result::Result<bool, Self::Error>;
+        fn check_candidates(&mut self, entries: &[T]) -> std::result::Result<(), Self::Error>;
+        fn choose(&mut self, entries: &[T]) -> std::result::Result<usize, Self::Error>;
+        fn check_selected(&mut self, entry: &T) -> std::result::Result<(), Self::Error>;
+        fn invalid_selection(&mut self) -> Self::Error;
+    }
+
+    pub fn select_dat_entry<T, A: DatArchiveSelection<T>>(
+        entries: impl IntoIterator<Item = std::result::Result<T, A::Error>>,
+        count: usize, adapter: &mut A) -> std::result::Result<T, A::Error>
+    {
+        adapter.check_count(count)?;
+        let mut candidates = Vec::new();
+        for entry in entries {
+            let entry = entry?;
+            if adapter.is_candidate(&entry)? { candidates.push(entry); }
+        }
+        adapter.check_candidates(&candidates)?;
+        let choice = adapter.choose(&candidates)?;
+        if choice >= candidates.len() { return Err(adapter.invalid_selection()); }
+        let selected = candidates.remove(choice);
+        adapter.check_selected(&selected)?;
+        Ok(selected)
+    }
     /// Object-language policy/projection only. Header/index traversal, accepted
     /// offset tracking and float decoding always stay in the shared DAT core.
     pub trait DatCallbacks {

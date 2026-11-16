@@ -556,3 +556,34 @@ fn streaming_legacy_visit_does_not_impose_strict_default_fields_or_overlap() -> 
     assert_eq!(visitor.rows.len(), 2);
     Ok(())
 }
+
+#[test]
+fn archive_selection_shared_traversal_preserves_candidate_order_and_failure_stage() -> TestResult {
+    struct Selection { calls: Vec<String> }
+    impl python_legacy::DatArchiveSelection<&str> for Selection {
+        type Error = eltdx::Error;
+        fn check_count(&mut self, count: usize) -> eltdx::Result<()> {
+            self.calls.push(format!("count:{count}")); Ok(())
+        }
+        fn is_candidate(&mut self, value: &&str) -> eltdx::Result<bool> {
+            self.calls.push(format!("candidate:{value}")); Ok(value.ends_with(".dat"))
+        }
+        fn check_candidates(&mut self, values: &[&str]) -> eltdx::Result<()> {
+            self.calls.push(format!("candidates:{}", values.join(","))); Ok(())
+        }
+        fn choose(&mut self, _: &[&str]) -> eltdx::Result<usize> { Ok(0) }
+        fn check_selected(&mut self, value: &&str) -> eltdx::Result<()> {
+            self.calls.push(format!("selected:{value}")); Ok(())
+        }
+        fn invalid_selection(&mut self) -> eltdx::Error { eltdx::Error::new(ErrorKind::Internal, "empty selection") }
+    }
+    let mut selector = Selection { calls: Vec::new() };
+    let selected = python_legacy::select_dat_entry([Ok("note"), Ok("b.dat"), Ok("a.dat")], 3, &mut selector)?;
+    assert_eq!(selected, "b.dat");
+    assert_eq!(selector.calls, ["count:3", "candidate:note", "candidate:b.dat", "candidate:a.dat", "candidates:b.dat,a.dat", "selected:b.dat"]);
+    let mut selector = Selection { calls: Vec::new() };
+    let error = python_legacy::select_dat_entry([Ok("b.dat"), Err(eltdx::Error::new(ErrorKind::Io, "iterator failed"))], 2, &mut selector).unwrap_err();
+    assert_eq!(error.message(), "iterator failed");
+    assert_eq!(selector.calls, ["count:2", "candidate:b.dat"]);
+    Ok(())
+}

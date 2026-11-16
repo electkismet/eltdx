@@ -73,3 +73,41 @@ status is promoted. Source completion remains21/partial4/unstarted5.
 Resume: Python ZIP first-DAT/duplicate/selected-only policy; remaining offline
 functions/models and all financial compositions; all157 F10 methods and cross-
 source helpers; actual manifest evidence; T24–T30 before any execution gates.
+
+## Third checkpoint — shared ZIP selection and financial compositions
+
+Base `690a825`. Added a generic ordered archive-inventory selection traversal
+used by strict Rust financial ZIP and the Python adapter. Strict Rust continues
+whole-archive preflight/decode and requires a unique or explicitly named DAT.
+Python preserves suffix-only first distinct DAT selection, Python duplicate
+name count/hash/sort, selected-only encryption/declared/actual size checks and
+reads the exact validated ZipInfo. Inventory iteration is interleaved with
+filename access, so a custom iterator is not eagerly consumed before errors.
+The original zipfile codec/context manager remains an explicit Python I/O
+adapter; no new strict all-member, directory, ZIP64 or aggregate rule leaks in.
+
+Financial list/download adapters now execute resource method lookup and
+record/model loops in the native binding. Native post-download cap/date parsing
+and local dispatcher use live module attributes. Python keeps only ZIP open/
+close and BadZipFile exception-chain handling plus the lazy calc constructor.
+All four network entrypoints preserve their documented callable adapters;
+there is no extra listing request or total operation deadline for Python.
+Downloaded cap-limited bytes still reach zipfile and raise its original error.
+Local DAT filenames do not supply dates. Date matching uses live Python regex,
+Path and int, including invalid first eight-digit dates and Unicode digits.
+Model constructors are fetched at the original loop point, before fields
+conversion. Exception formatting calls Python format rather than str for
+custom object compatibility. Generic iterable unpacking consumes at most the
+one extra element needed to detect an overlong row.
+
+Sources: crates/eltdx/src/offline/financial.rs; crates/eltdx-python/src/
+offline_financial.rs and lib.rs; src/eltdx/financial.py and
+src/eltdx/offline/history_financial.py. Authored 20 further Python contract
+functions (including parameterized ZIP guards) and one Rust selection traversal
+function; no collection/compile/run has happened. Existing financial source
+tests remain required for final regression. No manifest migration promotion.
+
+Next: remaining offline codecs, append/durability/path/model functions and
+full F10/native compatibility; cross-source helpers and capability evidence.
+Counts remain21 source complete/4 partial/5 unstarted. Goal active without a
+token cap. No execution verification, agents, push, tags or publication.
