@@ -70,3 +70,40 @@ fn international_mapped_and_page_templates_keep_wire_types() -> eltdx::Result<()
     assert_eq!(market.payload(), &RequestPayload::Params(vec!["003".into(), "AAPL".into(), 0_i64.into(), 0_i64.into()]));
     Ok(())
 }
+
+#[test]
+fn sector_query_selections_share_all_literal_entries() -> eltdx::Result<()> {
+    use eltdx::f10::*;
+    for &method in &["hy_summary", "hy_members_rank", "qh_variety_info", "qh_position_report"] {
+        for &section in sector_choices(method) {
+            let selected = sector_selection(method, section).unwrap();
+            let call = match method {
+                "hy_summary" => HySummaryQuery::new(IndustryCode::new("881319")?).with_section(SectionCode::new(method, section)?)?.to_call()?,
+                "hy_members_rank" => HyMembersRankQuery::new(IndustryCode::new("881319")?).with_section(SectionCode::new(method, section)?)?.to_call()?,
+                "qh_variety_info" => QhVarietyInfoQuery::new(FuturesCode::new("rb")?).with_section(SectionCode::new(method, section)?)?.to_call()?,
+                _ => QhPositionReportQuery::new(FuturesCode::new("rb")?).with_section(SectionCode::new(method, section)?)?.to_call()?,
+            };
+            if method == "qh_position_report" {
+                assert_eq!(call.entry().as_str(), format!("{}{}", position_prefix(false), selected.entry));
+            } else {
+                assert_eq!(call.entry().as_str(), selected.entry);
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn named_input_and_dynamic_sector_wire_payloads_remain_typed() -> eltdx::Result<()> {
+    use eltdx::f10::*;
+    let query = QhIndexInfoQuery::new(FuturesCode::new("IF")?)
+        .with_section(SectionCode::new("qh_index_info", "lsjg")?)?.to_call()?;
+    assert_eq!(query.entry().as_str(), "CWServ.qhf9_gz_zszl_lsjg");
+    assert_eq!(query.payload(), &RequestPayload::Params(vec!["2".into(), "IF".into()]));
+    let weights = QhWeightsQuery::new(FuturesCode::new("399300")?)
+        .with_section(SectionCode::new("qh_weights", "cfghyfb")?)?.to_call()?;
+    assert_eq!(weights.payload(), &RequestPayload::Params(vec!["1".into(), "399300".into()]));
+    let bands = HkPepbBandQuery::new(HongKongCode::new("700")?).with_sjfw("2Y")?.to_call()?;
+    assert_eq!(bands.payload(), &RequestPayload::Params(vec!["001".into(), "00700".into(), "2Y".into(), "".into(), "".into()]));
+    Ok(())
+}

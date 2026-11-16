@@ -6,11 +6,11 @@ use crate::types::TradingDate;
 use crate::f10::{CallQuery, F10Client, FuturesCode, IndustryCode, Response, SectionCode};
 use crate::f10::values::{date_pair, date_text, j, text};
 
-section_endpoint!(HySummaryQuery, hy_summary, IndustryCode, "hqtj", code, section, &format!("CWServ.skef10_hy_{section}"), [j(code.as_str())]);
+section_endpoint!(HySummaryQuery, hy_summary, IndustryCode, "hqtj", sector);
 code_endpoint!(HyProfileQuery, hy_profile, IndustryCode, code, "CWServ.skef10_hy_hyzl_hyjs", wire [Code]);
 section_endpoint!(HyCommentaryQuery, hy_commentary, IndustryCode, "001", code, section, "CWServ.skef10_hy_hyzl_hyplk", wire [Section, Code]);
 section_endpoint!(HyNewsQuery, hy_news, IndustryCode, "hydt", code, section, "CWServ.skef10_hy_zxdt", wire [Section, Code]);
-section_endpoint!(HyCapitalStatsQuery, hy_capital_stats, IndustryCode, "001", code, section, "CWServ.skef10_hy_hysj_bxzjtj", [j(section), j(code.as_str()), j(if section == "001" { "n" } else { "" })]);
+section_endpoint!(HyCapitalStatsQuery, hy_capital_stats, IndustryCode, "001", shared);
 section_endpoint!(HyFundHoldingsQuery, hy_fund_holdings, IndustryCode, "1", code, section, "CWServ.skef10_hy_hysj_jjzb", wire [Section, Code, Literal("")]);
 section_endpoint!(HyCapitalFlowQuery, hy_capital_flow, IndustryCode, "001", code, section, "CWServ.skef10_hy_hysj_zjlx", wire [Section, Code]);
 section_endpoint!(HyAnalystIndexQuery, hy_analyst_index, IndustryCode, "001", code, section, "CWServ.skef10_hy_hyyj_fxszs", wire [Section, Code, Literal(""), Literal("")]);
@@ -25,7 +25,7 @@ impl HyStageRiseQuery {
     pub fn code(&self) -> &IndustryCode { &self.code }
     pub fn flag(&self) -> &str { &self.flag }
     pub fn with_flag(mut self, value: impl Into<String>) -> Result<Self> { let value = value.into(); text(&value, false)?; self.flag = value; Ok(self) }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.skef10_hy_jdzf", vec![j(self.code.as_str()), j(self.flag.as_str())]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("hy_stage_rise", &self.code, "", |_| Ok(j(self.flag.as_str()))) }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HyMembersRankQuery { code: IndustryCode, section: SectionCode }
@@ -35,21 +35,13 @@ impl HyMembersRankQuery {
     pub fn section(&self) -> &SectionCode { &self.section }
     pub fn with_section(mut self, section: SectionCode) -> Result<Self> { section.checked_for("hy_members_rank")?; self.section = section; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        let code = self.code.as_str();
-        let (suffix, params) = match self.section.as_str() {
-            "cwzkpm" => ("cwzkpm", vec![j("002"), j(code), j(""), j("e"), j("")]),
-            "gsgmpm" => ("gsgmpm", vec![j(code)]),
-            "gzsppm" => ("gzsppm", vec![j("01"), j(code), j("o")]),
-            "scbxpm" => ("scbxpm", vec![j("scpm"), j(""), j(code)]),
-            "zysrpm" => ("zysrpm", vec![j("001"), j(code), j("")]),
-            _ => unreachable!("closed industry rank registry"),
-        };
-        super::params(&format!("CWServ.skef10_hy_hydw_{suffix}"), params)
+        let definition = super::sector_templates::selected("hy_members_rank", self.section.as_str())?;
+        super::template::native(definition, &self.code, self.section.as_str())
     }
 }
 
 code_endpoint!(QhInventoryQuery, qh_inventory, FuturesCode, code, "CWServ.qhf9_sp_kcbg_kcbg", wire [Literal("1"), Code]);
-section_endpoint!(QhIndexInfoQuery, qh_index_info, FuturesCode, "zsgk", code, section, &format!("CWServ.qhf9_gz_zszl_{section}"), [j(if section == "zsgk" { "1" } else { "2" }), j(code.as_str())]);
+section_endpoint!(QhIndexInfoQuery, qh_index_info, FuturesCode, "zsgk", dynamic_sector);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QhPositionReportQuery { code: FuturesCode, section: SectionCode, date: Option<TradingDate>, end_date: Option<TradingDate>, index: bool }
@@ -65,11 +57,10 @@ impl QhPositionReportQuery {
     pub fn with_end_date(mut self, value: Option<TradingDate>) -> Result<Self> { date_pair(self.date, value)?; self.end_date = value; Ok(self) }
     pub fn with_index(mut self, value: bool) -> Self { self.index = value; self }
     pub fn to_call(&self) -> Result<CallQuery> {
-        let section = self.section.as_str();
-        let mut params = vec![j("1"), j(self.code.as_str()), j(date_text(self.date))];
-        if section == "cjjg" { params.push(j("")); }
-        else if section != "cjcc" { params.push(j(date_text(self.end_date))); params.push(j("")); }
-        super::params(&format!("CWServ.qhf9_{}_ccbg_{section}", if self.index { "gz" } else { "sp" }), params)
+        let definition = super::sector_templates::selected("qh_position_report", self.section.as_str())?;
+        let call = super::template::native_inputs(definition, &self.code, self.section.as_str(), |name|
+            Ok(j(date_text(match name { "date" => self.date, "end_date" => self.end_date, _ => unreachable!() }))))?;
+        Ok(CallQuery::new(crate::f10::EntryName::new(format!("{}{}", super::sector_templates::position_prefix(self.index), call.entry().as_str()))?, call.payload().clone()))
     }
 }
 
@@ -82,7 +73,7 @@ impl QhBasisSpreadQuery {
     pub fn period(&self) -> &str { &self.period }
     pub fn with_section(mut self, value: SectionCode) -> Result<Self> { value.checked_for("qh_basis_spread")?; self.section = value; Ok(self) }
     pub fn with_period(mut self, value: impl Into<String>) -> Result<Self> { let value = value.into(); text(&value, false)?; self.period = value; Ok(self) }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.qhf9_sp_jcjcfx", vec![j(self.section.as_str()), j(self.code.as_str()), j(self.period.as_str()), j(""), j("")]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("qh_basis_spread", &self.code, self.section.as_str(), |_| Ok(j(self.period.as_str()))) }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -92,7 +83,7 @@ impl QhWarehouseReceiptQuery {
     pub fn code(&self) -> &FuturesCode { &self.code }
     pub fn date(&self) -> Option<TradingDate> { self.date }
     pub fn with_date(mut self, value: Option<TradingDate>) -> Self { self.date = value; self }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.qhf9_sp_ckrb_ckrb", vec![j("1"), j(self.code.as_str()), j(date_text(self.date))]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("qh_warehouse_receipt", &self.code, "", |_| Ok(j(date_text(self.date)))) }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -103,9 +94,8 @@ impl QhVarietyInfoQuery {
     pub fn section(&self) -> &SectionCode { &self.section }
     pub fn with_section(mut self, value: SectionCode) -> Result<Self> { value.checked_for("qh_variety_info")?; self.section = value; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        let mut params = vec![j(self.code.as_str())];
-        if self.section.as_str() == "pzjj" { params.push(j("1")); }
-        super::params(&format!("CWServ.qhf9_sp_pzzl_{}", self.section.as_str()), params)
+        let definition = super::sector_templates::selected("qh_variety_info", self.section.as_str())?;
+        super::template::native(definition, &self.code, self.section.as_str())
     }
 }
 
@@ -121,7 +111,11 @@ impl QhIndexValuationQuery {
     pub fn with_section(mut self, value: SectionCode) -> Result<Self> { value.checked_for("qh_index_valuation")?; self.section = value; Ok(self) }
     pub fn with_start(mut self, value: Option<TradingDate>) -> Result<Self> { date_pair(value, self.end)?; self.start = value; Ok(self) }
     pub fn with_end(mut self, value: Option<TradingDate>) -> Result<Self> { date_pair(self.start, value)?; self.end = value; Ok(self) }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params(&format!("CWServ.qhf9_gz_zsgz_{}", self.section.as_str()), vec![j("1"), j(self.code.as_str()), j(date_text(self.start)), j(date_text(self.end))]) }
+    pub fn to_call(&self) -> Result<CallQuery> {
+        let definition = super::sector_templates::sector_dynamic("qh_index_valuation").expect("built-in F10 sector");
+        super::template::native_inputs(definition, &self.code, self.section.as_str(), |name|
+            Ok(j(date_text(match name { "start" => self.start, "end" => self.end, _ => unreachable!() }))))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -135,9 +129,9 @@ impl QhWeightsQuery {
     pub fn with_section(mut self, value: SectionCode) -> Result<Self> { value.checked_for("qh_weights")?; self.section = value; Ok(self) }
     pub fn with_date(mut self, value: Option<TradingDate>) -> Self { self.date = value; self }
     pub fn to_call(&self) -> Result<CallQuery> {
-        let mut params = vec![j("1"), j(self.code.as_str())];
-        if self.section.as_str() != "cfghyfb" { params.push(j(date_text(self.date))); }
-        super::params(&format!("CWServ.qhf9_gz_cfg_{}", self.section.as_str()), params)
+        let definition = if self.section.as_str() == "cfghyfb" { super::sector_templates::sector_weights_without_date() }
+            else { super::sector_templates::sector_dynamic("qh_weights").expect("built-in F10 sector") };
+        super::template::native_inputs(definition, &self.code, self.section.as_str(), |_| Ok(j(date_text(self.date))))
     }
 }
 

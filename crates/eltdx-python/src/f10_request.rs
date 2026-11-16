@@ -1,5 +1,7 @@
 //! Python request/identity compatibility without strict SDK input narrowing.
-use eltdx::f10::{page_template, python_legacy as shared, simple_endpoint, Route, SimpleArgument, SimpleEndpoint};
+use eltdx::f10::{input_template, page_template, position_arguments, position_prefix,
+    python_legacy as shared, sector_choices, sector_dynamic, sector_selection,
+    sector_weights_without_date, simple_endpoint, Route, SimpleArgument, SimpleEndpoint};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 
@@ -166,6 +168,16 @@ fn call_template<'py>(py: Python<'py>, client: &Bound<'py, PyAny>, definition: S
     // Python resolves self.params before evaluating any call arguments. A
     // custom code converter may change that attribute for a subsequent call.
     let params = client.getattr("params")?;
+    let entry = if definition.append_section {
+        py.import("operator")?.getattr("add")?.call1((definition.entry, section))?
+    } else { definition.entry.into_pyobject(py)?.into_any() };
+    call_template_values(py, params, entry, definition, code, section, module, inputs)
+}
+
+fn call_template_values<'py>(py: Python<'py>, params: Bound<'py, PyAny>, entry: Bound<'py, PyAny>,
+    definition: SimpleEndpoint, code: &Bound<'py, PyAny>, section: &Bound<'py, PyAny>,
+    module: &Bound<'py, PyAny>, inputs: Option<&Bound<'py, PyDict>>) -> PyResult<Py<PyAny>>
+{
     let values = definition.compose(|argument| -> PyResult<Py<PyAny>> {
         Ok(match argument {
             SimpleArgument::Literal(value) => value.into_pyobject(py)?.into_any().unbind(),
@@ -177,16 +189,112 @@ fn call_template<'py>(py: Python<'py>, client: &Bound<'py, PyAny>, definition: S
             SimpleArgument::Section => section.clone().unbind(),
             SimpleArgument::Market => module.getattr("_bond_sc")?.call1((code,))?.unbind(),
             SimpleArgument::MappedSection(map) => module.getattr(map.python_attribute())?.get_item(section)?.unbind(),
-            SimpleArgument::Input(name) => {
+            SimpleArgument::Input(name) | SimpleArgument::DateInput(name) => {
                 let value = match inputs { Some(inputs) => inputs.get_item(name)?, None => None };
-                value.ok_or_else(|| pyo3::exceptions::PyValueError::new_err(format!("missing F10 input: {name}")))?.unbind()
+                let value = value.ok_or_else(|| pyo3::exceptions::PyValueError::new_err(format!("missing F10 input: {name}")))?;
+                if matches!(argument, SimpleArgument::DateInput(_)) { date_text(&value)?.unbind() } else { value.unbind() }
             }
+            SimpleArgument::SectionChoice(value, yes, no) => (if section.eq(value)? { yes } else { no }).into_pyobject(py)?.into_any().unbind(),
         })
     })?;
     let mut arguments = Vec::with_capacity(values.len() + 1);
-    arguments.push(definition.entry.into_pyobject(py)?.into_any().unbind());
+    arguments.push(entry.unbind());
     arguments.extend(values);
     Ok(params.call1(PyTuple::new(py, arguments)?)?.unbind())
+}
+
+fn date_text<'py>(value: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+    value.call_method0("strip")?.call_method1("replace", ("-", ""))
+}
+
+fn input<'py>(inputs: &Bound<'py, PyDict>, name: &str) -> PyResult<Bound<'py, PyAny>> {
+    inputs.get_item(name)?.ok_or_else(|| pyo3::exceptions::PyKeyError::new_err(name.to_owned()))
+}
+
+#[pyfunction]
+pub fn f10_input_endpoint<'py>(py: Python<'py>, client: Bound<'py, PyAny>, method: &str,
+    code: Bound<'py, PyAny>, section: Bound<'py, PyAny>, inputs: Bound<'py, PyDict>, module: Bound<'py, PyAny>) -> PyResult<Py<PyAny>>
+{
+    let definition = input_template(method).ok_or_else(||
+        pyo3::exceptions::PyValueError::new_err(format!("unknown F10 input endpoint: {method}")))?;
+    if method == "hk_analyst_forecast" {
+        let mut start = input(&inputs, "start")?;
+        let mut end = input(&inputs, "end")?;
+        if !start.is_truthy()? || !end.is_truthy()? {
+            let today = module.getattr("date")?.call_method0("today")?;
+            if !start.is_truthy()? {
+                let replace = today.getattr("replace")?;
+                let year = py.import("operator")?.getattr("sub")?.call1((today.getattr("year")?, 1))?;
+                let kwargs = PyDict::new(py);
+                kwargs.set_item("year", year)?;
+                start = replace.call((), Some(&kwargs))?.call_method0("isoformat")?;
+            }
+            if !end.is_truthy()? { end = today.call_method0("isoformat")?; }
+            inputs.set_item("start", start)?;
+            inputs.set_item("end", end)?;
+        }
+    }
+    call_template(py, &client, definition, &code, &section, &module, Some(&inputs))
+}
+
+fn sector_lookup(method: &str, section: &Bound<'_, PyAny>, omit_first: bool) -> PyResult<SimpleEndpoint> {
+    let py = section.py();
+    let keys = PyDict::new(py);
+    for (index, &key) in sector_choices(method).iter().enumerate().skip(usize::from(omit_first)) {
+        keys.set_item(key, index)?;
+    }
+    let index: usize = keys.as_any().get_item(section)?.extract()?;
+    sector_selection(method, sector_choices(method)[index]).ok_or_else(||
+        pyo3::exceptions::PyValueError::new_err("missing F10 sector template"))
+}
+
+#[pyfunction]
+pub fn f10_sector_endpoint<'py>(py: Python<'py>, client: Bound<'py, PyAny>, method: &str,
+    code: Bound<'py, PyAny>, section: Bound<'py, PyAny>, inputs: Bound<'py, PyDict>, module: Bound<'py, PyAny>) -> PyResult<Py<PyAny>>
+{
+    let definition = match method {
+        "hy_summary" => sector_lookup(method, &section, false)?,
+        "hy_members_rank" => {
+            let mut result = None;
+            for &choice in sector_choices(method) {
+                if section.eq(choice)? { result = sector_selection(method, choice); break; }
+            }
+            match result {
+                Some(value) => value,
+                None => return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                    "unknown hy_members_rank section: {}", section.repr()?.to_str()?))),
+            }
+        }
+        "qh_variety_info" => {
+            if section.eq("pzjj")? { sector_selection(method, "pzjj").expect("built-in section") }
+            else { sector_lookup(method, &section, true)? }
+        }
+        "qh_position_report" => {
+            let prefix = position_prefix(input(&inputs, "index")?.is_truthy()?);
+            let mut definition = sector_lookup(method, &section, false)?;
+            let suffix = definition.entry;
+            let first = date_text(&input(&inputs, "date")?)?;
+            let end = date_text(&input(&inputs, "end_date")?)?;
+            inputs.set_item("date", first)?;
+            inputs.set_item("end_date", end)?;
+            let branch = if PyTuple::new(py, ["cjcc"])?.contains(&section)? { "cjcc" }
+                else if section.eq("cjjg")? { "cjjg" } else { "range" };
+            definition.arguments = position_arguments(branch);
+            let params = client.getattr("params")?;
+            let entry = format!("{prefix}{suffix}").into_pyobject(py)?.into_any();
+            return call_template_values(py, params, entry, definition, &code, &section, &module, Some(&inputs));
+        }
+        "qh_weights" => {
+            // This conversion precedes the branch even when the date is omitted.
+            let date = date_text(&input(&inputs, "date")?)?;
+            inputs.set_item("date", date)?;
+            if section.eq("cfghyfb")? { sector_weights_without_date() }
+            else { sector_dynamic(method).expect("built-in sector") }
+        }
+        "qh_index_info" | "qh_index_valuation" => sector_dynamic(method).expect("built-in sector"),
+        _ => return Err(pyo3::exceptions::PyValueError::new_err(format!("unknown F10 sector endpoint: {method}"))),
+    };
+    call_template(py, &client, definition, &code, &section, &module, Some(&inputs))
 }
 
 #[pyfunction]

@@ -344,3 +344,39 @@ Next: remaining59 F10 named method compositions (including dynamic industry/
 futures, report tables/prerequisites, news/cache/valuation and typed result
 collectors), F10 fields/models and cross-source helpers; migration manifest
 accounting; all remaining T24–T30 sources before final unified validation.
+## Twelfth checkpoint — named inputs and industry/futures selections
+
+Base `789ffd1`. Added19 shared request compositions (117/157 total):
+hk_pepb_band, hk_valuation, hk_analyst_forecast, allotment_details,
+finance_report, finance_diagnosis, stock_score, governance, hy_stage_rise,
+hy_capital_stats, qh_basis_spread, qh_warehouse_receipt, hy_summary,
+hy_members_rank, qh_position_report, qh_variety_info, qh_index_info,
+qh_index_valuation and qh_weights.
+
+SimpleArgument now includes date inputs and deferred section comparisons.
+Named-input definitions and sector_templates.rs supply one request layout to
+both checked SDK queries and Python adapters. Dynamic string concatenation
+stays a Python operator operation for legacy custom objects. Industry/futures
+symbols and unconstrained arguments retain object identity; checked Rust
+query setters keep the original validation and normalized date policy.
+
+Sector adapters preserve dictionary lookup (including KeyError/unhashable
+TypeError) for summary, variety and positions; industry rank preserves ordered
+if-comparisons and exact custom ValueError. Position handling retains index
+truthiness first, section dictionary selection, BOTH date conversions, then
+its separate tuple-membership/section comparisons, params lookup and request.
+The weights date is converted before branching even when omitted from Params.
+Dynamic index Entry concatenation happens after params lookup and before
+argument conversion. HK analyst defaults retain date.today, lazy start/end
+truthiness, previous-year replace and the original leap-day ValueError.
+
+Added13 Python contract functions including13 named-input cases,14 sector
+selection cases and10 position cases; added2 Rust source functions. These are
+unexecuted source assertions, not acceptance evidence. No tests/collection/
+build/check/dependency/network/AST/format/diff-whitespace verification ran.
+No manifest status promotion. Counts21/4/5 remain; active goal has no quota.
+
+Next40 named methods: report-table/prerequisite/market, news/cache/valuation,
+result collectors and aliases; then fields/models/cross-source helpers and
+manifest evidence. Complete all remaining T24–T30 implementation sources
+before entering the unified execution gate. Stage60 source checkpoint only.

@@ -69,6 +69,68 @@ macro_rules! code_endpoint {
     };
 }
 macro_rules! section_endpoint {
+    ($query:ident, $method:ident, $code:ty, $default:literal, sector) => {
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        pub struct $query { code: $code, section: crate::f10::SectionCode }
+        impl $query {
+            pub fn new(code: $code) -> Self { Self { code, section: crate::f10::SectionCode::default_for(stringify!($method), $default) } }
+            pub fn code(&self) -> &$code { &self.code }
+            pub fn section(&self) -> &crate::f10::SectionCode { &self.section }
+            pub fn with_section(mut self, section: crate::f10::SectionCode) -> crate::Result<Self> {
+                section.checked_for(stringify!($method))?; self.section = section; Ok(self)
+            }
+            pub fn to_call(&self) -> crate::Result<super::CallQuery> {
+                let definition = super::sector_templates::selected(stringify!($method), self.section.as_str())?;
+                super::template::native(definition, &self.code, self.section.as_str())
+            }
+        }
+        impl super::F10Client {
+            pub fn $method(&self, query: &$query, options: &crate::OperationOptions) -> crate::Result<super::Response> {
+                self.endpoint(concat!("f10.", stringify!($method)), std::time::Instant::now(), || query.to_call(), options)
+            }
+        }
+    };
+    ($query:ident, $method:ident, $code:ty, $default:literal, dynamic_sector) => {
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        pub struct $query { code: $code, section: crate::f10::SectionCode }
+        impl $query {
+            pub fn new(code: $code) -> Self { Self { code, section: crate::f10::SectionCode::default_for(stringify!($method), $default) } }
+            pub fn code(&self) -> &$code { &self.code }
+            pub fn section(&self) -> &crate::f10::SectionCode { &self.section }
+            pub fn with_section(mut self, section: crate::f10::SectionCode) -> crate::Result<Self> {
+                section.checked_for(stringify!($method))?; self.section = section; Ok(self)
+            }
+            pub fn to_call(&self) -> crate::Result<super::CallQuery> {
+                let definition = super::sector_templates::sector_dynamic(stringify!($method)).expect("built-in F10 sector");
+                super::template::native(definition, &self.code, self.section.as_str())
+            }
+        }
+        impl super::F10Client {
+            pub fn $method(&self, query: &$query, options: &crate::OperationOptions) -> crate::Result<super::Response> {
+                self.endpoint(concat!("f10.", stringify!($method)), std::time::Instant::now(), || query.to_call(), options)
+            }
+        }
+    };
+    ($query:ident, $method:ident, $code:ty, $default:literal, shared) => {
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        pub struct $query { code: $code, section: crate::f10::SectionCode }
+        impl $query {
+            pub fn new(code: $code) -> Self { Self { code, section: crate::f10::SectionCode::default_for(stringify!($method), $default) } }
+            pub fn code(&self) -> &$code { &self.code }
+            pub fn section(&self) -> &crate::f10::SectionCode { &self.section }
+            pub fn with_section(mut self, section: crate::f10::SectionCode) -> crate::Result<Self> {
+                section.checked_for(stringify!($method))?; self.section = section; Ok(self)
+            }
+            pub fn to_call(&self) -> crate::Result<super::CallQuery> {
+                super::template::native_named(stringify!($method), &self.code, self.section.as_str(), |_| unreachable!("no named input"))
+            }
+        }
+        impl super::F10Client {
+            pub fn $method(&self, query: &$query, options: &crate::OperationOptions) -> crate::Result<super::Response> {
+                self.endpoint(concat!("f10.", stringify!($method)), std::time::Instant::now(), || query.to_call(), options)
+            }
+        }
+    };
     ($query:ident, $method:ident, $code:ty, $default:literal, $input:ident, $section:ident, $entry:literal, wire [$($value:expr),* $(,)?]) => {
         #[derive(Clone, Debug, Eq, PartialEq)]
         pub struct $query { code: $code, section: crate::f10::SectionCode }
@@ -120,7 +182,9 @@ macro_rules! section_endpoint {
 }
 
 mod template;
-pub use template::{page_template, SectionMap, SimpleArgument, SimpleEndpoint};
+pub use template::{input_template, page_template, SectionMap, SimpleArgument, SimpleEndpoint};
+mod sector_templates;
+pub use sector_templates::{position_arguments, position_prefix, sector_choices, sector_dynamic, sector_selection, sector_weights_without_date};
 mod simple_registry;
 pub use simple_registry::simple_endpoint;
 mod international;

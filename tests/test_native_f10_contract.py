@@ -536,3 +536,202 @@ def test_f10_page_branch_keeps_equality_failure_and_skips_params():
     with pytest.raises(ArithmeticError) as caught:
         Client().mg_shareholders("AAPL", Section())
     assert caught.value is failure
+
+
+@pytest.mark.parametrize("method,code,options,entry,values", [
+    ("hk_pepb_band", "700", {"sjfw": "2Y", "tab_value": "pe", "hqzq": "week"}, "CWServ.skef10_hk_sdfx_pepb_band", ("001", "00700", "2Y", "pe", "week")),
+    ("hk_valuation", "700", {"item_id": "raw"}, "CWServ.skef10_hk_sdfx_gzfx", ("00700", "raw")),
+    ("hk_analyst_forecast", "700", {"start": " 2025-01-02 ", "end": "2026-01-03"}, "CWServ.skef10_hk_sdfx_fxysyfx", ("00700", "20250102", "20260103")),
+    ("allotment_details", "sh600000", {"date": "unconverted"}, "CWServ.tdxf10_gg_fhrz_zfhpmx", ("zfpg", "600000", "unconverted")),
+    ("finance_report", "sh600000", {"report_type": "custom"}, "CWServ.tdxf10_gg_cwfx", ("600000", "custom", "")),
+    ("finance_diagnosis", "sh600000", {"section": "custom", "scope": "raw"}, "CWServ.tdxf10_gg_cwzd", ("custom", "600000", "raw")),
+    ("stock_score", "sh600000", {"arg": "raw"}, "CWServ.tdxf10_gg_ggzp", ("pf", "600000", "raw", "")),
+    ("governance", "sh600000", {"arg": "raw"}, "CWServ.tdxf10_gg_zbyz", ("gljy", "600000", "raw")),
+    ("hy_stage_rise", "881319", {"flag": "n"}, "CWServ.skef10_hy_jdzf", ("881319", "n")),
+    ("hy_capital_stats", "881319", {"section": "001"}, "CWServ.skef10_hy_hysj_bxzjtj", ("001", "881319", "n")),
+    ("hy_capital_stats", "881319", {"section": "unknown"}, "CWServ.skef10_hy_hysj_bxzjtj", ("unknown", "881319", "")),
+    ("qh_basis_spread", "rb", {"period": "custom"}, "CWServ.qhf9_sp_jcjcfx", ("001", "rb", "custom", "", "")),
+    ("qh_warehouse_receipt", "rb", {"date": " 2026-02-03 "}, "CWServ.qhf9_sp_ckrb_ckrb", ("1", "rb", "20260203")),
+])
+def test_f10_named_input_templates_keep_original_payloads(method, code, options, entry, values):
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert getattr(client, method)(code, **options) == (entry, *values)
+
+
+@pytest.mark.parametrize("method,section,entry,values", [
+    ("hy_summary", "hqtj", "CWServ.skef10_hy_hqtj", ("symbol",)),
+    ("hy_summary", "hyzq", "CWServ.skef10_hy_hyzq", ("symbol",)),
+    ("hy_summary", "hygy", "CWServ.skef10_hy_hygy", ("symbol",)),
+    ("hy_summary", "zszfb", "CWServ.skef10_hy_zszfb", ("symbol",)),
+    ("hy_members_rank", "cwzkpm", "CWServ.skef10_hy_hydw_cwzkpm", ("002", "symbol", "", "e", "")),
+    ("hy_members_rank", "gsgmpm", "CWServ.skef10_hy_hydw_gsgmpm", ("symbol",)),
+    ("hy_members_rank", "gzsppm", "CWServ.skef10_hy_hydw_gzsppm", ("01", "symbol", "o")),
+    ("hy_members_rank", "scbxpm", "CWServ.skef10_hy_hydw_scbxpm", ("scpm", "", "symbol")),
+    ("hy_members_rank", "zysrpm", "CWServ.skef10_hy_hydw_zysrpm", ("001", "symbol", "")),
+    ("qh_variety_info", "pzjj", "CWServ.qhf9_sp_pzzl_pzjj", ("symbol", "1")),
+    ("qh_variety_info", "hyjj", "CWServ.qhf9_sp_pzzl_hyjj", ("symbol",)),
+    ("qh_variety_info", "xgzq", "CWServ.qhf9_sp_pzzl_xgzq", ("symbol",)),
+    ("qh_index_info", "zsgk", "CWServ.qhf9_gz_zszl_zsgk", ("1", "symbol")),
+    ("qh_index_info", "custom", "CWServ.qhf9_gz_zszl_custom", ("2", "symbol")),
+])
+def test_f10_sector_templates_keep_all_entry_selections(method, section, entry, values):
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert getattr(client, method)("symbol", section) == (entry, *values)
+
+
+@pytest.mark.parametrize("section,tail", [
+    ("cjcc", ("20260102",)), ("cjjg", ("20260102", "")),
+    ("jcgc", ("20260102", "20260203", "")),
+    ("ccjj", ("20260102", "20260203", "")),
+    ("ykfx", ("20260102", "20260203", "")),
+])
+@pytest.mark.parametrize("index,prefix", [(False, "sp"), (True, "gz")])
+def test_f10_position_report_preserves_dates_and_index_route(section, tail, index, prefix):
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert client.qh_position_report("IF", section, date="2026-01-02", end_date=" 2026-02-03 ", index=index) == (
+        f"CWServ.qhf9_{prefix}_ccbg_{section}", "1", "IF", *tail)
+
+
+@pytest.mark.parametrize("method", ["hy_summary", "qh_variety_info", "qh_position_report"])
+def test_f10_sector_invalid_lookup_keeps_key_error(method):
+    client = f10.F10Client()
+    with pytest.raises(KeyError) as caught:
+        getattr(client, method)("code", "bad")
+    assert caught.value.args == ("bad",)
+    with pytest.raises(TypeError, match="unhashable"):
+        getattr(client, method)("code", [])
+
+
+def test_f10_industry_rank_invalid_selector_keeps_original_value_error():
+    with pytest.raises(ValueError) as caught:
+        f10.F10Client().hy_members_rank("code", "bad")
+    assert str(caught.value) == "unknown hy_members_rank section: 'bad'"
+
+
+def test_f10_position_report_evaluation_order_keeps_unused_end_date():
+    events = []
+
+    class Date:
+        def __init__(self, label):
+            self.label = label
+
+        def strip(self):
+            events.append((self.label, "strip"))
+            return self
+
+        def replace(self, old, new):
+            events.append((self.label, "replace", old, new))
+            return self.label
+
+    class Index:
+        def __bool__(self):
+            events.append("index")
+            return True
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            return lambda *args: args
+
+    result = Client().qh_position_report("IF", "cjcc", date=Date("first"), end_date=Date("unused"), index=Index())
+    assert result == ("CWServ.qhf9_gz_ccbg_cjcc", "1", "IF", "first")
+    assert events == ["index", ("first", "strip"), ("first", "replace", "-", ""),
+                      ("unused", "strip"), ("unused", "replace", "-", ""), "params"]
+
+
+def test_f10_position_invalid_selector_precedes_date_conversion():
+    class Date:
+        def strip(self):
+            raise AssertionError("must not convert dates")
+
+    with pytest.raises(KeyError):
+        f10.F10Client().qh_position_report("IF", "bad", date=Date(), end_date=Date())
+
+
+def test_f10_weights_converts_unused_date_before_params():
+    events = []
+
+    class Date:
+        def strip(self):
+            events.append("date")
+            return "2026-01-02"
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            return lambda *args: args
+
+    assert Client().qh_weights("IF", "cfghyfb", date=Date()) == ("CWServ.qhf9_gz_cfg_cfghyfb", "1", "IF")
+    assert events == ["date", "params"]
+
+
+def test_f10_dynamic_entry_concatenation_precedes_argument_conversion():
+    events = []
+    marker = object()
+
+    class Section:
+        def __radd__(self, prefix):
+            events.append(("entry", prefix))
+            return marker
+
+        def __eq__(self, value):
+            events.append(("equals", value))
+            return False
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            return lambda *args: args
+
+    assert Client().qh_index_info("IF", Section()) == (marker, "2", "IF")
+    assert events == ["params", ("entry", "CWServ.qhf9_gz_zszl_"), ("equals", "zsgk")]
+
+
+def test_f10_index_valuation_keeps_dynamic_selector_and_trimmed_dates():
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert client.qh_index_valuation(section="custom", start=" 2025-01-02 ", end="2026-03-04") == (
+        "CWServ.qhf9_gz_zsgz_custom", "1", "000300", "20250102", "20260304")
+
+
+def test_f10_forecast_preserves_leap_day_default_error(monkeypatch):
+    from datetime import date
+
+    class Date:
+        @staticmethod
+        def today():
+            return date(2024, 2, 29)
+
+    monkeypatch.setattr(f10, "date", Date)
+    with pytest.raises(ValueError, match="day is out of range"):
+        f10.F10Client().hk_analyst_forecast("700")
+
+
+def test_f10_forecast_explicit_start_only_defaults_end(monkeypatch):
+    from datetime import date
+
+    class Date:
+        @staticmethod
+        def today():
+            return date(2024, 2, 29)
+
+    monkeypatch.setattr(f10, "date", Date)
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert client.hk_analyst_forecast("700", "2024-01-02") == (
+        "CWServ.skef10_hk_sdfx_fxysyfx", "00700", "20240102", "20240229")
+
+
+def test_f10_named_input_preserves_arbitrary_date_and_scope_objects():
+    date = object()
+    scope = object()
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert client.allotment_details("sh600000", date)[-1] is date
+    assert client.finance_diagnosis("sh600000", scope=scope)[-1] is scope

@@ -102,7 +102,7 @@ impl HkPepbBandQuery {
     pub fn with_sjfw(mut self, value: impl Into<String>) -> Result<Self> { let value = value.into(); text(&value, true)?; self.sjfw = value; Ok(self) }
     pub fn with_tab_value(mut self, value: impl Into<String>) -> Result<Self> { let value = value.into(); text(&value, true)?; self.tab_value = value; Ok(self) }
     pub fn with_hqzq(mut self, value: impl Into<String>) -> Result<Self> { let value = value.into(); text(&value, true)?; self.hqzq = value; Ok(self) }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.skef10_hk_sdfx_pepb_band", vec![j("001"), j(self.code.as_str()), j(self.sjfw.as_str()), j(self.tab_value.as_str()), j(self.hqzq.as_str())]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("hk_pepb_band", &self.code, "", |name| Ok(j(match name { "sjfw" => self.sjfw.as_str(), "tab_value" => self.tab_value.as_str(), "hqzq" => self.hqzq.as_str(), _ => unreachable!() }))) }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HkValuationQuery { code: HongKongCode, item_id: String }
@@ -111,7 +111,7 @@ impl HkValuationQuery {
     pub fn code(&self) -> &HongKongCode { &self.code }
     pub fn item_id(&self) -> &str { &self.item_id }
     pub fn with_item_id(mut self, value: impl Into<String>) -> Result<Self> { let value = value.into(); text(&value, true)?; self.item_id = value; Ok(self) }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.skef10_hk_sdfx_gzfx", vec![j(self.code.as_str()), j(self.item_id.as_str())]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("hk_valuation", &self.code, "", |_| Ok(j(self.item_id.as_str()))) }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HkAnalystForecastQuery { code: HongKongCode, start: Option<TradingDate>, end: Option<TradingDate> }
@@ -123,7 +123,7 @@ impl HkAnalystForecastQuery {
     pub fn with_start(mut self, value: Option<TradingDate>) -> Result<Self> { date_pair(value, self.end)?; self.start = value; Ok(self) }
     pub fn with_end(mut self, value: Option<TradingDate>) -> Result<Self> { date_pair(self.start, value)?; self.end = value; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        super::params("CWServ.skef10_hk_sdfx_fxysyfx", vec![j(self.code.as_str()), j(date_text(self.start)), j(date_text(self.end))])
+        super::template::native_named("hk_analyst_forecast", &self.code, "", |name| Ok(j(date_text(match name { "start" => self.start, "end" => self.end, _ => unreachable!() }))))
     }
 }
 impl F10Client {

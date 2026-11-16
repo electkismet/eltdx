@@ -2,6 +2,14 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage60: base789ffd1. Added19 named input/
+  industry/futures request compositions, total117/157. Date conversion and
+  branch/params evaluation order, KeyError vs ValueError, dynamic concat,
+  custom objects and HK leap-day defaults preserved. Shared source definitions
+  serve both native SDK and Python. Added13 Python/2 Rust source functions,
+  all unexecuted. Read task-23-report twelfth checkpoint. Next40 remaining
+  methods, fields/models/helpers/evidence thenT24–T30.21/4/5, active unlimited;
+  no execution verification, agents or publication.
 - Latest recovery2026-11-17 stage59: base437dfed. Mapped US/HK finance and
   US capital/shareholder/market page branches share request templates.98/157
   named compositions now have source (95 fixed/mapped +3 page);59 remain.

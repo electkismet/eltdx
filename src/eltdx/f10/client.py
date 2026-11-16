@@ -931,14 +931,20 @@ class F10Client:
     ) -> F10Response:
         """港股深度分析·PE/PB band（``skef10_hk_sdfx_pepb_band``）。"""
 
-        return self.params(
-            "CWServ.skef10_hk_sdfx_pepb_band", "001", _hk_code(code), sjfw, tab_value, hqzq
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hk_pepb_band", code, None, {"sjfw": sjfw, "tab_value": tab_value, "hqzq": hqzq}, _MODULES[__name__]
         )
 
     def hk_valuation(self, code: str, item_id: str = "") -> F10Response:
         """港股深度分析·估值分析（``skef10_hk_sdfx_gzfx``）。"""
 
-        return self.params("CWServ.skef10_hk_sdfx_gzfx", _hk_code(code), item_id)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hk_valuation", code, None, {"item_id": item_id}, _MODULES[__name__]
+        )
 
     def hk_price_chart(self, code: str) -> F10Response:
         """港股深度分析·行情涨跌图（``skef10_hk_sdfx_hqzft``）。"""
@@ -957,15 +963,10 @@ class F10Client:
         （今天往前 365 天 ~ 今天），近一年区间实测 53 行。
         """
 
-        if not start or not end:
-            today = date.today()
-            start = start or today.replace(year=today.year - 1).isoformat()
-            end = end or today.isoformat()
-        return self.params(
-            "CWServ.skef10_hk_sdfx_fxysyfx",
-            _hk_code(code),
-            start.strip().replace("-", ""),
-            end.strip().replace("-", ""),
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hk_analyst_forecast", code, None, {"start": start, "end": end}, _MODULES[__name__]
         )
 
     # ------------------------------------------------------------------
@@ -1470,18 +1471,20 @@ class F10Client:
         ``zszfb`` 指数分布。
         """
 
-        entry = {
-            "hqtj": "CWServ.skef10_hy_hqtj",
-            "hyzq": "CWServ.skef10_hy_hyzq",
-            "hygy": "CWServ.skef10_hy_hygy",
-            "zszfb": "CWServ.skef10_hy_zszfb",
-        }[section]
-        return self.params(entry, hy)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "hy_summary", hy, section, {}, _MODULES[__name__]
+        )
 
     def hy_stage_rise(self, hy: str, flag: str = "e") -> F10Response:
         """行业阶段涨幅（``skef10_hy_jdzf``）。"""
 
-        return self.params("CWServ.skef10_hy_jdzf", hy, flag)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hy_stage_rise", hy, None, {"flag": flag}, _MODULES[__name__]
+        )
 
     def hy_profile(self, hy: str) -> F10Response:
         """行业介绍（``skef10_hy_hyzl_hyjs``）。"""
@@ -1522,17 +1525,11 @@ class F10Client:
         ``zysrpm`` 主营收入排名。
         """
 
-        if section == "cwzkpm":
-            return self.params("CWServ.skef10_hy_hydw_cwzkpm", "002", hy, "", "e", "")
-        if section == "gsgmpm":
-            return self.params("CWServ.skef10_hy_hydw_gsgmpm", hy)
-        if section == "gzsppm":
-            return self.params("CWServ.skef10_hy_hydw_gzsppm", "01", hy, "o")
-        if section == "scbxpm":
-            return self.params("CWServ.skef10_hy_hydw_scbxpm", "scpm", "", hy)
-        if section == "zysrpm":
-            return self.params("CWServ.skef10_hy_hydw_zysrpm", "001", hy, "")
-        raise ValueError(f"unknown hy_members_rank section: {section!r}")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "hy_members_rank", hy, section, {}, _MODULES[__name__]
+        )
 
     def hy_capital_stats(self, hy: str, section: str = "001") -> F10Response:
         """行业板块资金统计（``skef10_hy_hysj_bxzjtj``）。
@@ -1540,7 +1537,11 @@ class F10Client:
         section: ``001`` 板块资金 / ``002`` 板块资金（另一种口径）。
         """
 
-        return self.params("CWServ.skef10_hy_hysj_bxzjtj", section, hy, "n" if section == "001" else "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hy_capital_stats", hy, section, {}, _MODULES[__name__]
+        )
 
     def hy_fund_holdings(self, hy: str, section: str = "1") -> F10Response:
         """行业基金持仓（``skef10_hy_hysj_jjzb``）。section 为子标签。"""
@@ -1625,15 +1626,11 @@ class F10Client:
         ``index=True`` 走股指（``qhf9_gz_*``）Entry，否则商品（``qhf9_sp_*``）。
         """
 
-        prefix = "CWServ.qhf9_gz_ccbg_" if index else "CWServ.qhf9_sp_ccbg_"
-        suffix = {"cjcc": "cjcc", "cjjg": "cjjg", "jcgc": "jcgc", "ccjj": "ccjj", "ykfx": "ykfx"}[section]
-        d1 = date.strip().replace("-", "")
-        d2 = end_date.strip().replace("-", "")
-        if section in ("cjcc",):
-            return self.params(prefix + suffix, "1", code, d1)
-        if section == "cjjg":
-            return self.params(prefix + suffix, "1", code, d1, "")
-        return self.params(prefix + suffix, "1", code, d1, d2, "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_position_report", code, section, {"date": date, "end_date": end_date, "index": index}, _MODULES[__name__]
+        )
 
     def qh_basis_spread(self, code: str, section: str = "001", period: str = "1Y") -> F10Response:
         """期货基差价差分析（``qhf9_sp_jcjcfx``）。
@@ -1643,7 +1640,11 @@ class F10Client:
         ``006`` 跨品种价差。
         """
 
-        return self.params("CWServ.qhf9_sp_jcjcfx", section, code, period, "", "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "qh_basis_spread", code, section, {"period": period}, _MODULES[__name__]
+        )
 
     def qh_warehouse_receipt(self, code: str, *, date: str = "") -> F10Response:
         """期货仓单日报（``CWServ.qhf9_sp_ckrb_ckrb``）。
@@ -1651,7 +1652,11 @@ class F10Client:
         实测需传日期（``YYYYMMDD``），空日期返回 0 行。
         """
 
-        return self.params("CWServ.qhf9_sp_ckrb_ckrb", "1", code, date.strip().replace("-", ""))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "qh_warehouse_receipt", code, None, {"date": date}, _MODULES[__name__]
+        )
 
     def qh_inventory(self, code: str) -> F10Response:
         """期货库存报告（``CWServ.qhf9_sp_kcbg_kcbg``）。
@@ -1673,13 +1678,11 @@ class F10Client:
         ``xgzq`` 相关证券（后两者为 ``[code]`` 单参）。
         """
 
-        if section == "pzjj":
-            return self.params("CWServ.qhf9_sp_pzzl_pzjj", code, "1")
-        entry = {
-            "hyjj": "CWServ.qhf9_sp_pzzl_hyjj",
-            "xgzq": "CWServ.qhf9_sp_pzzl_xgzq",
-        }[section]
-        return self.params(entry, code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_variety_info", code, section, {}, _MODULES[__name__]
+        )
 
     def qh_index_info(self, code: str, section: str = "zsgk") -> F10Response:
         """股指期货指数资料（``CWServ.qhf9_gz_zszl_*``）。
@@ -1688,7 +1691,11 @@ class F10Client:
         ``code`` 为指数代码（实测 ``399300`` 沪深300 可用，``000300`` 返回空）。
         """
 
-        return self.params("CWServ.qhf9_gz_zszl_" + section, "1" if section == "zsgk" else "2", code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_index_info", code, section, {}, _MODULES[__name__]
+        )
 
     def qh_index_valuation(
         self, code: str = "000300", section: str = "dtpe", *, start: str = "", end: str = ""
@@ -1700,12 +1707,10 @@ class F10Client:
         为日期区间（``YYYYMMDD``）。
         """
 
-        return self.params(
-            "CWServ.qhf9_gz_zsgz_" + section,
-            "1",
-            code,
-            start.strip().replace("-", ""),
-            end.strip().replace("-", ""),
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_index_valuation", code, section, {"start": start, "end": end}, _MODULES[__name__]
         )
 
     def qh_weights(self, code: str = "399300", section: str = "zxcfg", *, date: str = "") -> F10Response:
@@ -1717,10 +1722,11 @@ class F10Client:
         ``date`` 为截止日期（``YYYYMMDD``，空为最新）。
         """
 
-        d = date.strip().replace("-", "")
-        if section == "cfghyfb":
-            return self.params("CWServ.qhf9_gz_cfg_cfghyfb", "1", code)
-        return self.params("CWServ.qhf9_gz_cfg_" + section, "1", code, d)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_weights", code, section, {"date": date}, _MODULES[__name__]
+        )
 
     def market_report(
         self,
@@ -2040,12 +2046,20 @@ class F10Client:
     def allotment_details(self, code: str, date: str) -> F10Response:
         """指定增发日期的获配机构明细。"""
 
-        return self.params("CWServ.tdxf10_gg_fhrz_zfhpmx", "zfpg", _code6(code), date)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "allotment_details", code, None, {"date": date}, _MODULES[__name__]
+        )
 
     def finance_report(self, code: str, report_type: str = "zcfzb") -> F10Response:
         """财务报表。report_type=zcfzb 为资产负债表。"""
 
-        return self.params("CWServ.tdxf10_gg_cwfx", _code6(code), report_type, "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "finance_report", code, None, {"report_type": report_type}, _MODULES[__name__]
+        )
 
     def finance_diagnosis(self, code: str, section: str = "zzyj", scope: str = "") -> F10Response:
         """财务诊断（增减异常）。
@@ -2055,12 +2069,20 @@ class F10Client:
         ``t0`` 为标志行（``isjr``），``t1`` 才是异常科目列表。
         """
 
-        return self.params("CWServ.tdxf10_gg_cwzd", section, _code6(code), scope)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "finance_diagnosis", code, section, {"scope": scope}, _MODULES[__name__]
+        )
 
     def stock_score(self, code: str, section: str = "pf", arg: str = "") -> F10Response:
         """个股总评。section=pf 为综合评分。"""
 
-        return self.params("CWServ.tdxf10_gg_ggzp", section, _code6(code), arg, "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "stock_score", code, section, {"arg": arg}, _MODULES[__name__]
+        )
 
     def profit_forecast(self, code: str, section: str = "ylyctj") -> F10Response:
         """盈利预测评级统计。section=ylyctj 为盈利预测统计，ylycmx 为盈利预测明细，
@@ -2090,7 +2112,11 @@ class F10Client:
         （多数公司 0 行，属数据缺失而非接口问题）。
         """
 
-        return self.params("CWServ.tdxf10_gg_zbyz", section, _code6(code), arg)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "governance", code, section, {"arg": arg}, _MODULES[__name__]
+        )
 
     def hot_topics(self, code: str, section: str = "zttzbkz") -> F10Response:
         """热点题材。section=zttzbkz 为板块题材。"""

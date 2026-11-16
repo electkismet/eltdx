@@ -253,7 +253,7 @@ impl AllotmentDetailsQuery {
     pub fn new(code: AshareCode, date: TradingDate) -> Self { Self { code, date } }
     pub fn code(&self) -> &AshareCode { &self.code }
     pub fn date(&self) -> TradingDate { self.date }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.tdxf10_gg_fhrz_zfhpmx", vec![j("zfpg"), j(self.code.as_str()), j(date_text(Some(self.date)))]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("allotment_details", &self.code, "", |_| Ok(j(date_text(Some(self.date))))) }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -263,17 +263,17 @@ impl FinanceReportQuery {
     pub fn code(&self) -> &AshareCode { &self.code }
     pub fn report_type(&self) -> &str { &self.report_type }
     pub fn with_report_type(mut self, value: impl Into<String>) -> Result<Self> { let value = value.into(); text(&value, false)?; self.report_type = value; Ok(self) }
-    pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.tdxf10_gg_cwfx", vec![j(self.code.as_str()), j(self.report_type.as_str()), j("")]) }
+    pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("finance_report", &self.code, "", |_| Ok(j(self.report_type.as_str()))) }
 }
 section_base!(FinanceDiagnosisQuery, "finance_diagnosis", "zzyj", { scope: String = String::new() });
 string_field!(FinanceDiagnosisQuery, scope, with_scope);
-impl FinanceDiagnosisQuery { pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.tdxf10_gg_cwzd", vec![j(self.section.as_str()), j(self.code.as_str()), j(self.scope.as_str())]) } }
+impl FinanceDiagnosisQuery { pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("finance_diagnosis", &self.code, self.section.as_str(), |_| Ok(j(self.scope.as_str()))) } }
 section_base!(StockScoreQuery, "stock_score", "pf", { arg: String = String::new() });
 string_field!(StockScoreQuery, arg, with_arg);
-impl StockScoreQuery { pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.tdxf10_gg_ggzp", vec![j(self.section.as_str()), j(self.code.as_str()), j(self.arg.as_str()), j("")]) } }
+impl StockScoreQuery { pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("stock_score", &self.code, self.section.as_str(), |_| Ok(j(self.arg.as_str()))) } }
 section_base!(GovernanceQuery, "governance", "gljy", { arg: String = String::new() });
 string_field!(GovernanceQuery, arg, with_arg);
-impl GovernanceQuery { pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.tdxf10_gg_zbyz", vec![j(self.section.as_str()), j(self.code.as_str()), j(self.arg.as_str())]) } }
+impl GovernanceQuery { pub fn to_call(&self) -> Result<CallQuery> { super::template::native_named("governance", &self.code, self.section.as_str(), |_| Ok(j(self.arg.as_str()))) } }
 
 fn first_scalar(response: &Response, field: &str, context: &OperationContext) -> Result<Option<String>> {
     if !response.ok() { return Ok(None); }

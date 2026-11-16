@@ -7,6 +7,7 @@ use crate::f10::{AshareCode, BondCode, CallQuery, FuturesCode, HongKongCode,
 pub enum SimpleArgument {
     Literal(&'static str), Integer(i64), Code, Section, Market,
     Input(&'static str), MappedSection(SectionMap),
+    DateInput(&'static str), SectionChoice(&'static str, &'static str, &'static str),
 }
 
 #[doc(hidden)]
@@ -33,6 +34,8 @@ impl SectionMap {
 pub struct SimpleEndpoint {
     pub method: &'static str,
     pub entry: &'static str,
+    /// Concatenate the caller's section after `entry`, without normalization.
+    pub append_section: bool,
     pub arguments: &'static [SimpleArgument],
     /// Python code helper, or None for unconverted industry/futures symbols.
     pub code_helper: Option<&'static str>,
@@ -71,7 +74,7 @@ impl TemplateIdentity for BondCode {
 pub(super) fn definition<I: TemplateIdentity>(method: &'static str, entry: &'static str,
     arguments: &'static [SimpleArgument]) -> SimpleEndpoint
 {
-    SimpleEndpoint { method, entry, arguments, code_helper: I::python_helper(method),
+    SimpleEndpoint { method, entry, append_section: false, arguments, code_helper: I::python_helper(method),
         valid_sections: crate::f10::values::closed_sections(method) }
 }
 
@@ -84,6 +87,13 @@ impl SimpleEndpoint {
 pub(super) fn native<I: TemplateIdentity>(definition: SimpleEndpoint, code: &I,
     section: &str) -> crate::Result<CallQuery>
 {
+    native_inputs(definition, code, section, |_| Err(crate::Error::new(crate::ErrorKind::Internal,
+        "fixed F10 query requires a named input")))
+}
+
+pub(super) fn native_inputs<I: TemplateIdentity>(definition: SimpleEndpoint, code: &I,
+    section: &str, mut input: impl FnMut(&str) -> crate::Result<JsonValue>) -> crate::Result<CallQuery>
+{
     let values = definition.compose(|argument| Ok::<JsonValue, crate::Error>(match argument {
         SimpleArgument::Literal(value) => JsonValue::from(value),
         SimpleArgument::Integer(value) => JsonValue::from(value),
@@ -93,10 +103,11 @@ pub(super) fn native<I: TemplateIdentity>(definition: SimpleEndpoint, code: &I,
             crate::Error::new(crate::ErrorKind::Internal, "F10 template requires market"))?)),
         SimpleArgument::MappedSection(map) => JsonValue::from(map.value(section).ok_or_else(||
             crate::Error::new(crate::ErrorKind::InvalidArgument, "unknown F10 mapped section"))?),
-        SimpleArgument::Input(_) => return Err(crate::Error::new(crate::ErrorKind::Internal,
-            "fixed F10 query requires a named input")),
+        SimpleArgument::Input(name) | SimpleArgument::DateInput(name) => input(name)?,
+        SimpleArgument::SectionChoice(value, yes, no) => JsonValue::from(if section == value { yes } else { no }),
     }))?;
-    super::params(definition.entry, values)
+    let entry = if definition.append_section { format!("{}{section}", definition.entry) } else { definition.entry.to_owned() };
+    super::params(&entry, values)
 }
 
 /// The predicate preserves language-specific equality (including its errors).
@@ -122,14 +133,38 @@ pub fn page_template<E>(method: &str, mut equals: impl FnMut(&str) -> Result<boo
 pub(super) fn native_page(method: &str, code: &UsTicker, section: &str, page: u32, page_size: u32) -> crate::Result<CallQuery> {
     let definition = page_template(method, |value| Ok::<_, crate::Error>(section == value))?
         .ok_or_else(|| crate::Error::new(crate::ErrorKind::Internal, "unknown F10 page template"))?;
-    let values = definition.compose(|argument| Ok::<_, crate::Error>(match argument {
-        SimpleArgument::Literal(value) => JsonValue::from(value),
-        SimpleArgument::Integer(value) => JsonValue::from(value),
-        SimpleArgument::Code => JsonValue::from(code.as_str()),
-        SimpleArgument::Section => JsonValue::from(section),
-        SimpleArgument::Input("page") => JsonValue::from(u64::from(page)),
-        SimpleArgument::Input("page_size") => JsonValue::from(u64::from(page_size)),
+    native_inputs(definition, code, section, |name| Ok(match name {
+        "page" => JsonValue::from(u64::from(page)),
+        "page_size" => JsonValue::from(u64::from(page_size)),
         _ => return Err(crate::Error::new(crate::ErrorKind::Internal, "unsupported F10 page argument")),
-    }))?;
-    super::params(definition.entry, values)
+    }))
+}
+
+#[doc(hidden)]
+pub fn input_template(method: &str) -> Option<SimpleEndpoint> {
+    use SimpleArgument::{Code, DateInput, Input, Literal, Section, SectionChoice};
+    Some(match method {
+        "hk_pepb_band" => definition::<HongKongCode>("hk_pepb_band", "CWServ.skef10_hk_sdfx_pepb_band",
+            &[Literal("001"), Code, Input("sjfw"), Input("tab_value"), Input("hqzq")]),
+        "hk_valuation" => definition::<HongKongCode>("hk_valuation", "CWServ.skef10_hk_sdfx_gzfx", &[Code, Input("item_id")]),
+        "hk_analyst_forecast" => definition::<HongKongCode>("hk_analyst_forecast", "CWServ.skef10_hk_sdfx_fxysyfx", &[Code, DateInput("start"), DateInput("end")]),
+        "allotment_details" => definition::<AshareCode>("allotment_details", "CWServ.tdxf10_gg_fhrz_zfhpmx", &[Literal("zfpg"), Code, Input("date")]),
+        "finance_report" => definition::<AshareCode>("finance_report", "CWServ.tdxf10_gg_cwfx", &[Code, Input("report_type"), Literal("")]),
+        "finance_diagnosis" => definition::<AshareCode>("finance_diagnosis", "CWServ.tdxf10_gg_cwzd", &[Section, Code, Input("scope")]),
+        "stock_score" => definition::<AshareCode>("stock_score", "CWServ.tdxf10_gg_ggzp", &[Section, Code, Input("arg"), Literal("")]),
+        "governance" => definition::<AshareCode>("governance", "CWServ.tdxf10_gg_zbyz", &[Section, Code, Input("arg")]),
+        "hy_stage_rise" => definition::<IndustryCode>("hy_stage_rise", "CWServ.skef10_hy_jdzf", &[Code, Input("flag")]),
+        "hy_capital_stats" => definition::<IndustryCode>("hy_capital_stats", "CWServ.skef10_hy_hysj_bxzjtj", &[Section, Code, SectionChoice("001", "n", "")]),
+        "qh_basis_spread" => definition::<FuturesCode>("qh_basis_spread", "CWServ.qhf9_sp_jcjcfx", &[Section, Code, Input("period"), Literal(""), Literal("")]),
+        "qh_warehouse_receipt" => definition::<FuturesCode>("qh_warehouse_receipt", "CWServ.qhf9_sp_ckrb_ckrb", &[Literal("1"), Code, DateInput("date")]),
+        _ => return None,
+    })
+}
+
+pub(super) fn native_named<I: TemplateIdentity>(method: &str, code: &I, section: &str,
+    input: impl FnMut(&str) -> crate::Result<JsonValue>) -> crate::Result<CallQuery>
+{
+    let definition = input_template(method).ok_or_else(||
+        crate::Error::new(crate::ErrorKind::Internal, "unknown F10 input template"))?;
+    native_inputs(definition, code, section, input)
 }
