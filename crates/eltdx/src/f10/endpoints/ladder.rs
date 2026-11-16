@@ -119,7 +119,7 @@ impl LimitMarketOverview {
     /// Native amount with unknown unit.
     pub fn previous_amount(&self) -> Option<f64> { number(&self.raw, "N008") }
     pub fn hot_topics(&self) -> Vec<(Option<&JsonValue>, Option<&JsonValue>)> {
-        [("N009", "N010"), ("N011", "N012"), ("N013", "N014")].into_iter()
+        crate::f10::collection::OVERVIEW_TOPICS.iter().copied()
             .filter_map(|(name, count)| value(&self.raw, name).filter(|value| present(value))
                 .map(|name| (Some(name), value(&self.raw, count)))).collect()
     }
@@ -134,11 +134,13 @@ impl LadderDayStats {
     /// A ratio is present only for an adjacent nonzero denominator and a
     /// numerator no greater than it. Contradictory counts remain observable.
     pub fn promotion_rates(&self) -> Vec<(u32, f64)> {
-        self.counts.iter().filter_map(|&(level, count)| {
-            let lower = level.checked_sub(1)?;
-            let denominator = self.counts.iter().find(|&&(value, _)| value == lower)?.1;
-            (denominator > 0 && count <= denominator).then_some((level, count as f64 / denominator as f64))
-        }).collect()
+        let mut rates = Vec::new();
+        let result = crate::f10::collection::visit_promotion(self.counts.iter().copied().map(Ok::<_, std::convert::Infallible>),
+            |&(level, count)| {
+                let denominator = level.checked_sub(1).and_then(|lower| self.counts.iter().find(|&&(value, _)| value == lower)).map(|&(_, value)| value);
+                Ok(denominator.filter(|&value| value > 0 && count <= value))
+            }, |(level, count), denominator| { rates.push((level, count as f64 / denominator as f64)); Ok(()) });
+        match result { Ok(()) => rates, Err(impossible) => match impossible {} }
     }
 }
 
@@ -228,12 +230,14 @@ fn selected_date(raw: &Row, primary: &str, fallback: &str, row: usize, context: 
 }
 fn statistics(rows: &[LimitBoardLadderRow], context: &OperationContext, meta: &mut ResultMeta) -> Result<Vec<LadderDayStats>> {
     let mut days: Vec<LadderDayStats> = Vec::new();
-    for (index, row) in rows.iter().enumerate() {
+    crate::f10::collection::visit_classified(rows.iter().enumerate().map(Ok::<_, Error>), |(index, row)| {
         context.check_boundary(TimeoutPhase::Aggregate)?;
         let (Some(date), Some(level)) = (row.trade_date, row.board_level) else {
             if row.status == LimitBoardType::Up && row.trade_date.is_none() { diagnostic(context, meta, index, "rqex/rq", "row omitted from date statistics")?; }
-            continue;
+            return Ok(None);
         };
+        Ok(Some((date, level)))
+    }, |(date, level)| {
         let day_index = match days.binary_search_by_key(&date, |day| day.date) {
             Ok(index) => index,
             Err(index) => {
@@ -247,7 +251,8 @@ fn statistics(rows: &[LimitBoardLadderRow], context: &OperationContext, meta: &m
             Ok(index) => counts[index].1 = counts[index].1.checked_add(1).ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "ladder count overflow"))?,
             Err(index) => { counts.try_reserve(1).map_err(allocation)?; counts.insert(index, (level, 1)); }
         }
-    }
+        Ok(())
+    })?;
     for day in &days {
         for &(level, count) in &day.counts {
             context.check_boundary(TimeoutPhase::Aggregate)?;

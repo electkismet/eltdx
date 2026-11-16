@@ -1630,3 +1630,116 @@ def test_f10_ladder_row_keeps_raw_identity_and_preparation_order(monkeypatch):
     assert result["trading_date"] is row["rq"]
     result = f10._parse_limit_board_ladder_row({"ztlb": 3, "lbts": 5})
     assert result["board_level"] is None and result["limit_type"] == 3
+
+
+def test_f10_model_identity_keeps_market_id_and_inference_policies(monkeypatch):
+    from eltdx.f10 import models
+
+    member = models.IndexMember("600000", "name", None, None, {})
+    assert (member.market, member.full_code) == ("sh", "sh600000")
+    member = models.IndexMember("600000", "name", 0, None, {})
+    assert (member.market, member.full_code) == ("sz", "sz600000")
+    row = f10._parse_limit_board_ladder_row({"ZQDM": "600000"})
+    assert row.market is None and row.full_code == "600000"
+    monkeypatch.setattr(models, "_infer_market", lambda code: "custom")
+    member = models.IndexMember("code", None, 999, None, {})
+    assert (member.market, member.full_code) == ("custom", "customcode")
+
+
+def test_f10_model_market_inference_preserves_exception_boundary(monkeypatch):
+    from eltdx.f10 import models
+
+    monkeypatch.setattr(models, "normalize_code", lambda code: (_ for _ in ()).throw(ValueError("invalid")))
+    assert models._infer_market("bad") is None
+
+    class Code:
+        def __str__(self):
+            raise ValueError("conversion")
+
+    with pytest.raises(ValueError, match="conversion"):
+        models._infer_market(Code())
+
+    def interrupted(code):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(models, "normalize_code", interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        models._infer_market("600000")
+
+
+def test_f10_model_sequences_keep_duplicates_and_first_seen_unique_order():
+    from eltdx.f10 import models
+
+    rows = tuple(SimpleNamespace(code=code, full_code=full) for code, full in [
+        ("a", "sha"), ("b", "shb"), ("a", "sza"), (None, None)])
+    members = models.IndexMemberTable("index", 4, rows)
+    assert members.codes == ("a", "b", "a")
+    board = models.BoardMemberTable("board", 4, rows)
+    assert board.stocks == ("a", "b")
+    assert board.full_codes == ("sha", "shb", "sza")
+
+
+def test_f10_model_sequence_remains_lazy_with_tuple_override(monkeypatch):
+    from eltdx.f10 import models
+
+    iterator = []
+    reads = []
+
+    class Row:
+        @property
+        def code(self):
+            reads.append("code")
+            return "600000"
+
+    monkeypatch.setattr(models, "tuple", lambda values: iterator.append(values) or "deferred", raising=False)
+    assert models.IndexMemberTable("index", 1, (Row(),)).codes == "deferred"
+    assert reads == []
+    assert next(iterator[0]) == "600000"
+    assert reads == ["code", "code"]
+
+
+def test_f10_model_etf_prefixes_keep_original_rows():
+    from eltdx.f10 import models
+
+    rows = tuple(SimpleNamespace(code=code) for code in ("510300", "159001", "600000", None, "160000"))
+    table = models.IndexTrackingTable("index", 5, rows)
+    assert table.etfs == (rows[0], rows[1], rows[4])
+    assert table.etfs[0] is rows[0]
+
+
+def test_f10_ladder_model_retains_merged_ranges_day_order_and_rates_above_one():
+    from eltdx.f10 import models
+
+    def row(day, level, status="limit_up"):
+        return SimpleNamespace(status=status, board_level=level, trading_date_value=day, trading_date=None)
+
+    rows = (row("20240103", 2), row("20240102", 1), row("20240103", 2), row("20240102", 5, "broken"))
+    ladder = models.LimitBoardLadder("e", {}, 0, "20240102", "20240103", rows, (), {})
+    assert ladder.ladder_counts == {2: 2, 1: 1}
+    assert list(ladder.ladder_counts_by_date) == ["20240103", "20240102"]
+    assert ladder.ladder_counts_by_date == {"20240103": {2: 2}, "20240102": {1: 1}}
+    assert ladder.promotion_rates == {2: 2.0}
+    assert ladder.promotion_rates_by_date == {"20240103": {}, "20240102": {}}
+
+
+def test_f10_market_overview_keeps_topic_filters_and_raw_values():
+    from eltdx.f10 import models
+
+    marker = object()
+    row = {"N001": "", "t001": "day", "N002": marker, "N009": "topic", "N010": 5,
+           "N011": "", "N013": 0, "N014": None}
+    ladder = models.LimitBoardLadder("e", {}, 0, "d", "d", (), (row,), {})
+    overview = ladder.market_overview[0]
+    assert overview["trade_date"] == "day" and overview["advancing_count"] is marker
+    assert overview["hot_topics"] == ({"name": "topic", "count": 5}, {"name": 0, "count": None})
+    assert overview["raw"] == row and overview["raw"] is not row
+
+
+def test_f10_board_record_key_and_raise_amount_keep_objects():
+    from eltdx.f10 import models
+
+    marker = object()
+    board = models.BoardMember("600000", None, 1, "plan", None, marker, "record", "ex", "period", {})
+    assert board.record_key == ("600000", "plan", marker, "record", "ex", "period")
+    ipo = models.IpoEntry(None, "600000", None, 1, None, None, None, None, 250_000_000, {})
+    assert ipo.raise_amount_yi == 2.5

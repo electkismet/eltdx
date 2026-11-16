@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from sys import modules as _MODULES
 from typing import Any
 
 from eltdx.protocol.unit import ID_TO_MARKET, normalize_code
@@ -113,13 +114,9 @@ class LimitBoardLadderRow:
     def __post_init__(self) -> None:
         """Derive normalized code fields while keeping raw values intact."""
 
-        market = ID_TO_MARKET.get(self.market_id) if self.market_id is not None else None
-        object.__setattr__(self, "market", market)
-        object.__setattr__(
-            self,
-            "full_code",
-            f"{market}{self.code}" if market and self.code else self.code,
-        )
+        from eltdx._native_abi import load_native
+
+        load_native().f10_model_identity(self, "ladder", _MODULES[__name__])
 
     @property
     def trade_date(self) -> Any | None:
@@ -143,9 +140,9 @@ class LimitBoardLadderRow:
     def status(self) -> str:
         """Return the normalized row category: ``limit_up``, ``broken`` or ``limit_down``."""
 
-        return {1: "limit_up", 3: "broken", 0: "limit_down"}.get(
-            self.limit_type, "unknown"
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_ladder_status(self)
 
     @property
     def reason(self) -> Any | None:
@@ -260,27 +257,9 @@ class LimitBoardLadder:
         ``raw`` in each mapped item.
         """
 
-        result: list[dict[str, Any]] = []
-        for row in self.summary:
-            result.append(
-                {
-                    "trade_date": row.get("N001") or row.get("t001"),
-                    "advancing_count": row.get("N002"),
-                    "declining_count": row.get("N003"),
-                    "flat_count": row.get("N004"),
-                    "limit_up_count": row.get("N005"),
-                    "limit_down_count": row.get("N006"),
-                    "today_amount": row.get("N007"),
-                    "previous_amount": row.get("N008"),
-                    "hot_topics": tuple(
-                        {"name": row.get(name), "count": row.get(count)}
-                        for name, count in (("N009", "N010"), ("N011", "N012"), ("N013", "N014"))
-                        if row.get(name) not in (None, "")
-                    ),
-                    "raw": dict(row),
-                }
-            )
-        return tuple(result)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_market_overview(self, _MODULES[__name__])
 
     @property
     def overview(self) -> tuple[dict[str, Any], ...]:
@@ -296,60 +275,41 @@ class LimitBoardLadder:
         separate trading days.
         """
 
-        counts: dict[int, int] = {}
-        for row in self.rows:
-            if row.status == "limit_up" and row.board_level is not None:
-                counts[row.board_level] = counts.get(row.board_level, 0) + 1
-        return dict(sorted(counts.items(), reverse=True))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_ladder_counts(self, False, _MODULES[__name__])
 
     @property
     def ladder_counts_by_date(self) -> dict[str, dict[int, int]]:
         """Return actual board counts separately for every trading date."""
 
-        result: dict[str, dict[int, int]] = {}
-        for row in self.rows:
-            if row.status != "limit_up" or row.board_level is None:
-                continue
-            day = str(row.trading_date_value or row.trading_date or "")
-            counts = result.setdefault(day, {})
-            counts[row.board_level] = counts.get(row.board_level, 0) + 1
-        return {day: dict(sorted(counts.items(), reverse=True)) for day, counts in result.items()}
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_ladder_counts(self, True, _MODULES[__name__])
 
     @property
     def promotion_rates(self) -> dict[int, float]:
         """Return each board's promotion rate against the immediately lower board."""
 
-        counts = self.ladder_counts
-        return {
-            level: counts[level] / counts[level - 1]
-            for level in counts
-            if counts.get(level - 1)
-        }
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_ladder_rates(self, False)
 
     @property
     def promotion_rates_by_date(self) -> dict[str, dict[int, float]]:
         """Return board promotion rates separately for every trading date."""
 
-        result: dict[str, dict[int, float]] = {}
-        for day, counts in self.ladder_counts_by_date.items():
-            result[day] = {
-                level: counts[level] / counts[level - 1]
-                for level in counts
-                if counts.get(level - 1)
-            }
-        return result
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_ladder_rates(self, True)
 
 
 def _infer_market(code: Any) -> str | None:
     """按代码号段推断市场，失败时返回 ``None``（不抛异常）。"""
 
-    text = str(code or "").strip()
-    if not text:
-        return None
-    try:
-        return normalize_code(text)[:2]
-    except Exception:
-        return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_infer_market(code, _MODULES[__name__])
 
 
 @dataclass(frozen=True, slots=True)
@@ -370,15 +330,9 @@ class IndexMember:
     full_code: str | None = field(init=False)
 
     def __post_init__(self) -> None:
-        market = ID_TO_MARKET.get(self.market_id) if self.market_id is not None else None
-        if market is None:
-            market = _infer_market(self.code)
-        object.__setattr__(self, "market", market)
-        object.__setattr__(
-            self,
-            "full_code",
-            f"{market}{self.code}" if market and self.code else self.code,
-        )
+        from eltdx._native_abi import load_native
+
+        load_native().f10_model_identity(self, "standard", _MODULES[__name__])
 
 
 @dataclass(frozen=True, slots=True)
@@ -395,11 +349,15 @@ class IndexMemberTable:
 
     @property
     def codes(self) -> tuple[str, ...]:
-        return tuple(row.code for row in self.rows if row.code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_model_sequence(self, "code", False, _MODULES[__name__])
 
     @property
     def full_codes(self) -> tuple[str, ...]:
-        return tuple(row.full_code for row in self.rows if row.full_code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_model_sequence(self, "full_code", False, _MODULES[__name__])
 
 
 @dataclass(frozen=True, slots=True)
@@ -429,18 +387,9 @@ class IndexTrackingProduct:
     full_code: str | None = field(init=False)
 
     def __post_init__(self) -> None:
-        market = None
-        if isinstance(self.market_id, int) and self.market_id in ID_TO_MARKET:
-            market = ID_TO_MARKET[self.market_id]
-        if market is None:
-            # 33 是扩展市场「开放式基金」ID，不在 A 股市场表里，按代码号段推断。
-            market = _infer_market(self.code)
-        object.__setattr__(self, "market", market)
-        object.__setattr__(
-            self,
-            "full_code",
-            f"{market}{self.code}" if market and self.code else self.code,
-        )
+        from eltdx._native_abi import load_native
+
+        load_native().f10_model_identity(self, "tracking", _MODULES[__name__])
 
 
 @dataclass(frozen=True, slots=True)
@@ -459,12 +408,9 @@ class IndexTrackingTable:
     def etfs(self) -> tuple[IndexTrackingProduct, ...]:
         """按代码号段粗筛交易所内 ETF（51/56/58/15/16/159 开头）。"""
 
-        def is_etf(code: str | None) -> bool:
-            if not code:
-                return False
-            return code.startswith(("51", "56", "58", "15", "159", "16"))
+        from eltdx._native_abi import load_native
 
-        return tuple(row for row in self.rows if is_etf(row.code))
+        return load_native().f10_model_sequence(self, "etfs", False, _MODULES[__name__])
 
 
 @dataclass(frozen=True, slots=True)
@@ -499,28 +445,17 @@ class BoardMember:
     full_code: str | None = field(init=False)
 
     def __post_init__(self) -> None:
-        market = ID_TO_MARKET.get(self.market_id) if self.market_id is not None else None
-        if market is None:
-            market = _infer_market(self.code)
-        object.__setattr__(self, "market", market)
-        object.__setattr__(
-            self,
-            "full_code",
-            f"{market}{self.code}" if market and self.code else self.code,
-        )
+        from eltdx._native_abi import load_native
+
+        load_native().f10_model_identity(self, "standard", _MODULES[__name__])
 
     @property
     def record_key(self) -> tuple:
         """记录身份：同一证券的同一条分红记录在跨页抖动里会重复出现，按此去重。"""
 
-        return (
-            self.code,
-            self.dividend_plan,
-            self.announce_date,
-            self.record_date,
-            self.ex_date,
-            self.report_period,
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_board_record_key(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -546,21 +481,17 @@ class BoardMemberTable:
     def stocks(self) -> tuple[str, ...]:
         """去重后的证券代码（首次出现顺序）。"""
 
-        seen: dict[str, None] = {}
-        for row in self.rows:
-            if row.code and row.code not in seen:
-                seen[row.code] = None
-        return tuple(seen)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_model_sequence(self, "code", True, _MODULES[__name__])
 
     @property
     def full_codes(self) -> tuple[str, ...]:
         """去重后的完整代码（首次出现顺序）。"""
 
-        seen: dict[str, None] = {}
-        for row in self.rows:
-            if row.full_code and row.full_code not in seen:
-                seen[row.full_code] = None
-        return tuple(seen)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_model_sequence(self, "full_code", True, _MODULES[__name__])
 
 
 @dataclass(frozen=True, slots=True)
@@ -589,21 +520,17 @@ class IpoEntry:
     full_code: str | None = field(init=False)
 
     def __post_init__(self) -> None:
-        market = ID_TO_MARKET.get(self.market_id) if self.market_id is not None else None
-        if market is None:
-            market = _infer_market(self.code)
-        object.__setattr__(self, "market", market)
-        object.__setattr__(
-            self,
-            "full_code",
-            f"{market}{self.code}" if market and self.code else self.code,
-        )
+        from eltdx._native_abi import load_native
+
+        load_native().f10_model_identity(self, "standard", _MODULES[__name__])
 
     @property
     def raise_amount_yi(self) -> float | None:
         """募资总额，单位亿元。"""
 
-        return None if self.raise_amount is None else self.raise_amount / 1e8
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_raise_amount(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -618,4 +545,6 @@ class IpoCalendar:
 
     @property
     def full_codes(self) -> tuple[str, ...]:
-        return tuple(row.full_code for row in self.rows if row.full_code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_model_sequence(self, "full_code", False, _MODULES[__name__])

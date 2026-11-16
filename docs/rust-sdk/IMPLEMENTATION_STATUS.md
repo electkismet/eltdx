@@ -248,3 +248,5 @@ T21 第一轮静态审阅指出 `read_custom` 将空 leaf 当作可跳过数据�
 2026-11-17 第六十五段源码恢复点：基于45bc64a，F10两套字段说明和news静态helper已接入native。共享有序字段投影/第二结果集选择/新闻行遍历；保留Python实时字典、None与falsey回退差别、Unicode重复后缀及两次int、负索引、metadata模板、原对象/format和异常范围。新增14个Python合同函数与1个Rust函数源码，均未执行。T23仍未完成：模型、私有scalar/date/row及跨源helper/manifest待补；随后T24–T30。21完整源码/4部分/5未开始不变。目标active无额度限制；没有测试/collection/构建/check/依赖/网络/AST/格式验证或子代理。
 
 2026-11-17 第六十六段源码恢复点：基于05479e1，F10私有scalar/date/row、first-value/报告期/legacy-total helper已接入native。共用首匹配遍历、日期缺省配对、梯队字段与短路资格；保留原int/as_int差异、任意精度与非finite、原异常边界/cause、实时converter/model/date hook、首匹配None与旧分页总数扫描。新增8个Python合同函数/1个Rust函数源码，全未执行。更正上一段用例函数计数为13（含参数化），不是14。剩余T23模型/跨源helper/manifest，再T24–T30；21/4/5不变，active无额度限制。
+
+2026-11-17 第六十七段源码恢复点：基于3fdebe4，F10模型的市场推断/identity派生、ETF筛选、代码便利视图/首次去重、板块record-key、募资单位转换、梯队分类/按日计数/晋级率及overview已接入native。共享分类/晋级遍历、ETF前缀、record属性和overview字段；保留Python跨日期合并/大于1比例、live hooks、lazy tuple迭代、原对象和标准dataclass。新增8个Python合同函数/1个Rust函数源码，全未执行。T23剩余跨源helper和manifest/consumer证据，随后T24–T30；21/4/5不变，目标active无限额。

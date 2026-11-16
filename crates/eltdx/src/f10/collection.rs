@@ -101,6 +101,34 @@ pub fn keep_ladder_level<E>(up: impl FnOnce() -> Result<bool, E>,
     Ok(up()? && present()? && positive()?)
 }
 
+pub const ETF_PREFIXES: &[&str] = &["51", "56", "58", "15", "159", "16"];
+pub const BOARD_RECORD_ATTRIBUTES: &[&str] = &["code", "dividend_plan", "announce_date", "record_date", "ex_date", "report_period"];
+pub const OVERVIEW_FIELDS: &[(&str, &str)] = &[
+    ("advancing_count", "N002"), ("declining_count", "N003"), ("flat_count", "N004"),
+    ("limit_up_count", "N005"), ("limit_down_count", "N006"),
+    ("today_amount", "N007"), ("previous_amount", "N008"),
+];
+pub const OVERVIEW_TOPICS: &[(&str, &str)] = &[("N009", "N010"), ("N011", "N012"), ("N013", "N014")];
+
+pub fn visit_classified<T, K, E>(rows: impl IntoIterator<Item = Result<T, E>>,
+    mut classify: impl FnMut(T) -> Result<Option<K>, E>,
+    mut add: impl FnMut(K) -> Result<(), E>) -> Result<(), E>
+{
+    for row in rows { if let Some(key) = classify(row?)? { add(key)?; } }
+    Ok(())
+}
+
+pub fn visit_promotion<L, V, E>(levels: impl IntoIterator<Item = Result<L, E>>,
+    mut denominator: impl FnMut(&L) -> Result<Option<V>, E>,
+    mut add: impl FnMut(L, V) -> Result<(), E>) -> Result<(), E>
+{
+    for level in levels {
+        let level = level?;
+        if let Some(value) = denominator(&level)? { add(level, value)?; }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod value_tests {
     use super::*;
@@ -112,5 +140,19 @@ mod value_tests {
         assert_eq!(resolve_dates(Some(2), None, || Err::<i32, _>(())).unwrap(), (2, 2));
         assert_eq!(resolve_dates(None, None, || Ok::<_, ()>(3)).unwrap(), (3, 3));
         assert!(!keep_ladder_level(|| Ok::<_, ()>(false), || panic!("short circuit"), || panic!("short circuit")).unwrap());
+    }
+
+    #[test]
+    fn classification_and_promotion_preserve_source_order() {
+        let mut selected = Vec::new();
+        visit_classified([2, 1, 3].into_iter().map(Ok::<_, ()>),
+            |value| Ok((value != 1).then_some(value)),
+            |value| { selected.push(value); Ok(()) }).unwrap();
+        assert_eq!(selected, [2, 3]);
+        let mut rates = Vec::new();
+        visit_promotion([3, 2, 1].into_iter().map(Ok::<_, ()>),
+            |&level| Ok((level > 1).then_some(level - 1)),
+            |level, lower| { rates.push((level, lower)); Ok(()) }).unwrap();
+        assert_eq!(rates, [(3, 2), (2, 1)]);
     }
 }

@@ -158,7 +158,7 @@ impl IndexTrackingProduct {
         }
     }
     /// Prefix heuristic only; does not establish the security's classification.
-    pub fn matches_etf_prefix(&self) -> bool { self.code().is_some_and(|code| ["51", "56", "58", "15", "16"].iter().any(|prefix| code.starts_with(prefix))) }
+    pub fn matches_etf_prefix(&self) -> bool { self.code().is_some_and(|code| super::super::collection::ETF_PREFIXES.iter().any(|prefix| code.starts_with(prefix))) }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BoardMember {
@@ -369,9 +369,9 @@ fn board_member(raw: Row, response: &mut Response, context: &OperationContext) -
     Ok(BoardMember { raw, announce_date, record_date, ex_date, report_period })
 }
 fn record_key(row: &Row, context: &OperationContext) -> Result<Vec<u8>> {
-    let fields = ["N001", "N003", "N005", "N006", "N007", "N008"];
     let mut values = Vec::new();
-    for name in fields {
+    for &attribute in super::super::collection::BOARD_RECORD_ATTRIBUTES {
+        let name = super::super::collection::column("board_members", attribute);
         context.check_boundary(TimeoutPhase::Aggregate)?;
         let cell = if matches!(name, "N001" | "N003") {
             // Match the public text projection used in the record identity.

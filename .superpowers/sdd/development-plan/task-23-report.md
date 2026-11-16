@@ -536,3 +536,23 @@ Stage65 authored-function count correction:13 Python functions, not14 (one
 has two parameter cases). No execution checks/collection/build/dependency/
 network/format/AST, agents or publication.21/4/5 unchanged; next model business
 loops, cross-source helper services and manifest beforeT24–T30.
+
+## Nineteenth checkpoint — F10 model business views
+
+Base3fdebe4. f10_models.rs now provides existing Python model identity setup,
+market inference, code/ETF convenience views, ordered unique board codes,
+record-key, IPO raise amount, ladder status, counts, rates and overview.
+Original Python dataclasses/slots/frozen construction and simple field aliases
+remain DTO adapters. ModelValues/OverviewTopics retain lazy tuple overrides,
+including generator StopIteration conversion. Live normalizer/market registry/
+getters/sorted/dict/tuple/format hooks and source object identity are retained.
+Python ladder statistics still merge ranges and allow promotion ratios>1;
+strict Rust keeps per-day evidence and omits contradictory rates. Both use
+shared classification/promotion traversals and common prefix/identity/topic
+field constants. Board records retain all six identity fields.
+
+Eight Python contract functions and one Rust source function authored; none
+compiled/collected/run. No build/check/network/dependency/AST/format/diff-check,
+agents or publication. T23 remains open for cross-source helper services,
+native migration and manifest/consumer evidence; thenT24–T30 source work.
+Counts21/4/5 and active unlimited goal remain.
