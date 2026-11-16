@@ -463,6 +463,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T23：F10/文件组合 helpers 与 Python 回迁
 
+2026-11-17首段源码：T22最终源码检查点`df29d6b`。binding启用offline，财报文件列表的标准bytes入口改用共享Rust行拆分，Python int调用保留Unicode、任意精度负数和原异常范围；自定义decode对象仍走adapter。四组兼容用例源码已写未执行。T23仅开始，尚需其余offline/DAT/ZIP、全部F10及跨来源helpers/manifest；21源码完成/4部分/5未开始，全部执行验证延期。
+
 **文件：** 在 T18 已有 helpers 中加入 F10/文件相关部分；逐项修改 Python 对应 helper/F10/offline/financial 桥接；新增 `tests/helpers.rs`。
 
 - [ ] 完成 index_members/index_etfs/ipo_calendar、board_members、stock_topics/topic_stocks、theme_strength_rank 及财报等实际依赖 F10/文件的能力；完整 stock_profile_table 与其他 HQ-only helper 保持 T18 的默认 feature 可用性。

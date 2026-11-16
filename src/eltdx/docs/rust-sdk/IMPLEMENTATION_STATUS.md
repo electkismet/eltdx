@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第四十九段恢复点：T22源码/consumer检查点`df29d6b`。开始T23，Python binding启用offline feature；财报文件列表标准bytes入口复用Rust共有行拆分，PyO3调用传入Python int保留Unicode/任意精度/负值及ValueError跳过，定制decode对象留原adapter。新增四组未执行兼容用例。T23仍有DAT/ZIP/其余offline、157F10、跨来源helpers及manifest大量实现待做；当前21源码完整/4部分（T19/T23/T24/T25）/5未开始。继续T23完整迁移，所有执行验证延期，目标active无额度上限。
+
 2026-11-17第四十八段恢复点：T22首批集成已提交`6885e00`；本段补财报两个Rust示例、只依赖eltdx的std手写ZIP/DAT消费者、可取消UTF-8替换解码和实现/验收索引。T22约定的Rust源码范围完成；Python旧ZIP策略适配明确属于T23，依赖/编译/运行及独立包消费者实际执行仍全延期。现为21源码完整/3部分（T19/T24/T25）/6未开始；下一步T23全量F10/offline/financial/helper桥接，再T24–T30及最终统一验证。目标active无额度上限，没有运行任何测试/构建/依赖解析/网络/AST/格式/diff检查，无代理或发布。
 
 2026-11-17第四十七段恢复点：T20源码完成检查点`1722815`。T22 Stage B首段接入共享ZIP元数据选择/索引身份/选中DAT独立上限，注册offline财报模块与本地ZIP/DAT dispatcher；新增FinancialService/list/download/records及惰性CalcClientConfig/open_calc_client。HQ下载循环复用原pin/预算/清理，并支持共享DownloadOptions分块数/offset/expected_size提示；期望大小不证明EOF，截断下载和不完整DAT不进入成功记录结果。新增本地ZIP和HQ组合用例源码，全部未执行。T22仍部分，需最终源码复核、额外畸形/预算/选择用例与完整文档/consumer；T23保留Python旧ZIP/日期/无直接DAT总量限制等兼容。20源码完整/4部分/6未开始；目标active无额度上限，无执行验证/代理/发布。
@@ -99,8 +101,8 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | T22财报集成 `6885e00`；第四十八段完成T22源码/示例/索引，全部执行验证延期 |
-| 当前阶段 | T01–T18及T20–T22源码完成；T19/T24/T25部分；21完整源码/3部分/6未开始。 |
+| 最新检查点 | T22源码/consumer `df29d6b`；第四十九段开始T23文件列表兼容，全部执行验证延期 |
+| 当前阶段 | T01–T18及T20–T22源码完成；T19/T23/T24/T25部分；21完整源码/4部分/5未开始。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
 | 下一步 | T23 F10/offline/financial/helper兼容迁移，再T24–T30；T19依赖/平台验证留到统一执行阶段 |

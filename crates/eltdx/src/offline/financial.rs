@@ -554,10 +554,8 @@ pub(crate) fn parse_file_list_with_boundary(data: &[u8], strict: bool,
     boundary()?;
     let mut result = Vec::new();
     let text = bounded_lossy_utf8(data, boundary)?;
-    for line in source_trim(&text).split('\n').map(source_trim).filter(|line| !line.is_empty()) {
+    for (filename, hash, size) in file_list_rows(&text) {
         boundary()?;
-        let mut columns = line.split(',');
-        let (Some(filename), Some(hash), Some(size)) = (columns.next(), columns.next(), columns.next()) else { continue };
         let Some(integer) = decimal_integer(size) else { continue };
         let digits = integer.trim_start_matches(['+', '-']);
         let filesize = if integer.starts_with('-') && digits.bytes().any(|b| b != b'0') {
@@ -572,6 +570,13 @@ pub(crate) fn parse_file_list_with_boundary(data: &[u8], strict: bool,
     }
     boundary()?;
     Ok(result)
+}
+
+fn file_list_rows(text: &str) -> impl Iterator<Item = (&str, &str, &str)> {
+    source_trim(text).split('\n').filter_map(|line| {
+        let mut columns = source_trim(line).split(',');
+        Some((columns.next()?, columns.next()?, columns.next()?))
+    })
 }
 
 /// UTF-8 replacement with bounded cancellation points, including incomplete
@@ -626,6 +631,11 @@ fn decimal_integer(text: &str) -> Option<String> {
 #[doc(hidden)]
 pub mod python_legacy {
     use super::*;
+    /// Shared row splitting with the strict Rust parser. Numeric conversion
+    /// remains Python `int` so arbitrary precision and runtime Unicode survive.
+    pub fn file_list_rows(text: &str) -> impl Iterator<Item = (&str, &str, &str)> {
+        super::file_list_rows(text)
+    }
     pub fn parse_dat(data: &[u8], nonzero_override: u32) -> Result<FinancialDatResult> {
         parse_core(data, DatePolicy::Legacy(nonzero_override), &FinancialParseOptions::default(), true)
     }
@@ -635,17 +645,12 @@ pub mod python_legacy {
     /// precision that the Rust public u64 projection cannot represent.
     pub fn file_list_candidates(data: &[u8]) -> Vec<(String, String, String)> {
         let text = String::from_utf8_lossy(data);
-        source_trim(&text).split('\n').filter_map(|line| {
-            let mut columns = source_trim(line).split(',');
-            Some((columns.next()?.to_owned(), columns.next()?.to_owned(), columns.next()?.to_owned()))
-        }).collect()
+        file_list_rows(&text).map(|(filename, hash, size)| (filename.to_owned(), hash.to_owned(), size.to_owned())).collect()
     }
     /// Return signed size text for conversion to Python's arbitrary precision int.
     pub fn parse_file_list(data: &[u8]) -> Vec<(String, String, String)> {
         let text = String::from_utf8_lossy(data);
-        source_trim(&text).split('\n').filter_map(|line| {
-            let mut columns = source_trim(line).split(',');
-            let (filename, hash, size) = (columns.next()?, columns.next()?, columns.next()?);
+        file_list_rows(&text).filter_map(|(filename, hash, size)| {
             Some((filename.to_owned(), hash.to_owned(), decimal_integer(size)?))
         }).collect()
     }

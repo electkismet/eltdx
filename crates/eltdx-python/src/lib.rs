@@ -5,6 +5,7 @@ mod corporate;
 mod calendar;
 mod resource;
 mod stats;
+mod offline_financial;
 mod limits;
 mod helpers;
 mod helper_profile;
@@ -51,6 +52,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(calendar::weekday, module)?)?;
     module.add_function(wrap_pyfunction!(resource::download_resource, module)?)?;
     module.add_function(wrap_pyfunction!(stats::stats_members, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_file_list, module)?)?;
     module.add_function(wrap_pyfunction!(limits::scan_special, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_fund_flow, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_full_quotes, module)?)?;

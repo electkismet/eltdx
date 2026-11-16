@@ -89,6 +89,11 @@ def parse_financial_file_list(data: bytes) -> list[tuple[str, str, int]]:
 
     if not data:
         return []
+    if type(data) is bytes:
+        from eltdx._native_abi import load_native
+
+        return load_native().financial_file_list(data, int)
+    # Preserve explicitly customized bytes/decode objects at the Python edge.
     text = data.decode("utf-8", errors="replace").strip()
     results: list[tuple[str, str, int]] = []
     for line in text.split("\n"):
