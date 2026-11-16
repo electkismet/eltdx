@@ -2,6 +2,15 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage56: offline stage committed eb9487a. F10
+  response foundation shares table/cell/column/projection helpers; Python keeps
+  parser/model hooks, Mapping/Sequence and falsey container policy, original
+  objects, arbitrary ErrorCode and duplicate collision order. Ten Python/one
+  Rust source functions authored, no execution. Read task-23-report eighth
+  checkpoint; next157 named routes/fields/model business and cross-source
+  helpers, then all remaining tasks.21/4/5, active without cap; all validation
+  deferred, no agents/publication.
+
 - Latest recovery2026-11-17 stage55: base dcf2f3f. Authored shared GBBQ
   cipher adapter, block/config/code-line layouts and model date/key properties;
   offline_gbbq/offline_blocks bindings preserve Python scalar/Struct/Path/codec

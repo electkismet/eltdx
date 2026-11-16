@@ -20,24 +20,32 @@ impl Row {
     /// Python's suffix convention, including overwrite-on-name-collision.
     /// Lossless callers should inspect `cells()` or `get_all()` instead.
     pub fn python_projection(&self) -> Vec<(String, &JsonValue)> {
-        let mut counts: Vec<(&str, usize)> = Vec::new();
-        let mut output: Vec<(String, &JsonValue)> = Vec::new();
-        for cell in &self.cells {
-            let count = if let Some((_, count)) = counts.iter_mut().find(|(name, _)| *name == cell.name) {
-                *count += 1;
-                *count
-            } else {
-                counts.push((&cell.name, 1));
-                1
-            };
-            let key = if count == 1 { cell.name.clone() } else { format!("{}__{count}", cell.name) };
-            if let Some((_, value)) = output.iter_mut().find(|(name, _)| *name == key) {
-                *value = &cell.value;
-            } else {
-                output.push((key, &cell.value));
-            }
-        }
-        output
+        let mut projection = RowProjection { counts: Vec::new(), output: Vec::new() };
+        let result = super::python_legacy::project_cells(self.cells.iter().map(Ok), &mut projection, &mut || Ok(()));
+        match result { Ok(()) => projection.output, Err(impossible) => match impossible {} }
+    }
+}
+
+struct RowProjection<'a> { counts: Vec<(String, usize)>, output: Vec<(String, &'a JsonValue)> }
+impl<'a> super::python_legacy::Projection<&'a Cell> for RowProjection<'a> {
+    type Name = String;
+    type Value = &'a JsonValue;
+    type Error = std::convert::Infallible;
+    fn name(&mut self, cell: &&'a Cell) -> std::result::Result<String, Self::Error> { Ok(cell.name.clone()) }
+    fn count(&mut self, name: String) -> std::result::Result<usize, Self::Error> {
+        Ok(self.counts.iter().find(|(key, _)| *key == name).map_or(0, |(_, count)| *count))
+    }
+    fn store_count(&mut self, name: String, count: usize) -> std::result::Result<(), Self::Error> {
+        if let Some((_, value)) = self.counts.iter_mut().find(|(key, _)| *key == name) { *value = count; }
+        else { self.counts.push((name, count)); }
+        Ok(())
+    }
+    fn suffix(&mut self, name: String, count: usize) -> std::result::Result<String, Self::Error> { Ok(format!("{name}__{count}")) }
+    fn value(&mut self, cell: &'a Cell) -> std::result::Result<Self::Value, Self::Error> { Ok(&cell.value) }
+    fn insert(&mut self, name: String, value: &'a JsonValue) -> std::result::Result<(), Self::Error> {
+        if let Some((_, target)) = self.output.iter_mut().find(|(key, _)| *key == name) { *target = value; }
+        else { self.output.push((name, value)); }
+        Ok(())
     }
 }
 
@@ -105,10 +113,9 @@ impl Response {
         };
         let mut result_sets = Vec::new();
         result_sets.try_reserve(values.len()).map_err(allocation)?;
-        for value in values {
-            boundary()?;
-            result_sets.push(parse_table(value, retain, boundary)?);
-        }
+        let mut make_boundary = || Ok(());
+        super::python_legacy::visit_tables_into(values.into_iter().map(Ok), &mut result_sets,
+            |value, _| { boundary()?; parse_table(value, retain, boundary) }, &mut make_boundary)?;
         // Earlier duplicate ResultSets are available in explicitly retained
         // payload bytes. Do not keep a second whole table tree under Omit.
         object.retain(|(key, _)| key != "ResultSets");
@@ -222,11 +229,8 @@ fn parse_table(value: JsonValue, retain: bool, boundary: &mut dyn FnMut() -> Res
         let values = if let JsonValue::Array(values) = value { values } else { vec![value] };
         let mut cells = Vec::new();
         cells.try_reserve(values.len()).map_err(allocation)?;
-        for (index, value) in values.into_iter().enumerate() {
-            boundary()?;
-            let name = columns.get(index).filter(|name| !name.is_empty()).cloned().unwrap_or_else(|| format!("col_{index}"));
-            cells.push(Cell { name, index, value });
-        }
+        super::python_legacy::visit_cells_into(values.into_iter().map(Ok), &mut cells,
+            |index, value| Ok(Cell { name: super::python_legacy::column_name(&columns, index), index, value }), boundary)?;
         rows.push(Row { cells });
     }
     Ok(ResultSet { key, columns, rows, raw })
@@ -271,6 +275,23 @@ mod tests {
         assert_eq!(response.attributes()[0], ("HitCache".to_owned(), JsonValue::Bool(true)));
         assert_eq!(response.attributes()[2], ("HitCache".to_owned(), JsonValue::Bool(false)));
         assert_eq!(response.attributes()[1].1.get("flag").and_then(JsonValue::as_number).and_then(|value| value.as_i64()), Some(1));
+        Ok(())
+    }
+
+    #[test]
+    fn shared_table_and_cell_traversal_stop_on_callback_failure() -> Result<()> {
+        let mut seen = Vec::new();
+        let cells = super::super::python_legacy::visit_cells([Ok(10), Ok(20)], |index, value| {
+            seen.push((index, value)); Ok::<_, &'static str>((index, value))
+        }, &mut || Ok(()));
+        assert_eq!(cells, Ok(vec![(0, 10), (1, 20)]));
+        assert_eq!(seen, [(0, 10), (1, 20)]);
+        let mut seen = Vec::new();
+        let tables = super::super::python_legacy::visit_tables([Ok(1), Err("table"), Ok(3)], |value, index| {
+            seen.push((value, index)); Ok(value)
+        }, &mut || Ok(()));
+        assert_eq!(tables, Err("table"));
+        assert_eq!(seen, [(1, 0)]);
         Ok(())
     }
 }

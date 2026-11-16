@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
+from sys import modules as _MODULES
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -2197,90 +2198,39 @@ class F10Client:
 def parse_tqlex_response(entry: str, request_body: Any, raw: Mapping[str, Any]) -> F10Response:
     """Parse a TQLEX JSON object into stable table models."""
 
-    result_sets_raw = raw.get("ResultSets") or ()
-    if not isinstance(result_sets_raw, Sequence) or isinstance(result_sets_raw, (str, bytes, bytearray)):
-        raise ProtocolError("TQLEX ResultSets must be an array")
+    from eltdx._native_abi import load_native
 
-    result_sets = tuple(_parse_result_set(item, index) for index, item in enumerate(result_sets_raw))
-    error_code_raw = raw.get("ErrorCode")
-    error_code = int(error_code_raw) if error_code_raw is not None else None
-    return F10Response(
-        entry=entry,
-        request_body=request_body,
-        error_code=error_code,
-        result_sets=result_sets,
-        raw=dict(raw),
-    )
+    return load_native().f10_parse_response(entry, request_body, raw, _MODULES[__name__])
 
 
 def _parse_result_set(raw: Any, table_index: int) -> F10ResultSet:
-    if not isinstance(raw, Mapping):
-        raise ProtocolError("TQLEX ResultSet must be an object")
-    columns = _columns(raw)
-    content = raw.get("Content") or ()
-    if not isinstance(content, Sequence) or isinstance(content, (str, bytes, bytearray)):
-        raise ProtocolError("TQLEX ResultSet Content must be an array")
+    from eltdx._native_abi import load_native
 
-    rows: list[dict[str, Any]] = []
-    row_cells: list[tuple[F10Cell, ...]] = []
-    for row in content:
-        values = _row_values(row)
-        cells = tuple(F10Cell(name=_column_name(columns, index), value=value, index=index) for index, value in enumerate(values))
-        row_cells.append(cells)
-        rows.append(_row_dict(cells))
-
-    return F10ResultSet(
-        key=raw.get("ResultSetKey") or f"table{table_index}",
-        columns=tuple(columns),
-        rows=tuple(rows),
-        row_cells=tuple(row_cells),
-        raw=dict(raw),
-    )
+    return load_native().f10_parse_table(raw, table_index, _MODULES[__name__])
 
 
 def _columns(raw: Mapping[str, Any]) -> list[str]:
-    if "ColName" in raw:
-        col_name = raw.get("ColName") or ()
-        if not isinstance(col_name, Sequence) or isinstance(col_name, (str, bytes, bytearray)):
-            raise ProtocolError("TQLEX ColName must be an array")
-        return [str(item) for item in col_name]
+    from eltdx._native_abi import load_native
 
-    if "ColDes" in raw:
-        col_des = raw.get("ColDes") or ()
-        if not isinstance(col_des, Sequence) or isinstance(col_des, (str, bytes, bytearray)):
-            raise ProtocolError("TQLEX ColDes must be an array")
-        names = []
-        for item in col_des:
-            if isinstance(item, Mapping):
-                names.append(str(item.get("Name", "")))
-            else:
-                names.append(str(item))
-        return names
-
-    return []
+    return load_native().f10_columns(raw, _MODULES[__name__])
 
 
 def _row_values(row: Any) -> list[Any]:
-    if isinstance(row, Sequence) and not isinstance(row, (str, bytes, bytearray)):
-        return list(row)
-    return [row]
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_row_values(row, _MODULES[__name__])
 
 
 def _column_name(columns: Sequence[str], index: int) -> str:
-    if index < len(columns) and columns[index]:
-        return columns[index]
-    return f"col_{index}"
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_column_name(columns, index)
 
 
 def _row_dict(cells: Sequence[F10Cell]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    counts: dict[str, int] = {}
-    for cell in cells:
-        count = counts.get(cell.name, 0)
-        counts[cell.name] = count + 1
-        key = cell.name if count == 0 else f"{cell.name}__{count + 1}"
-        result[key] = cell.value
-    return result
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_row_dict(cells, _MODULES[__name__])
 
 
 def _code6(code: str) -> str:

@@ -201,6 +201,34 @@ remaining T23 evidence and adapter accounting, thenT24–T30. Counts remain21
 source-complete/4partial/5unstarted; goal active without cap. No test, collection,
 build, check, dependency/network, format/AST validation, agents or publication.
 
+## Eighth checkpoint — F10 legacy response table foundation
+
+Base `eb9487a`. Enabled the existing f10 feature for the Python binding without
+dependency resolution. Added shared result-table/cell traversals, column name
+selection and duplicate collision projection. Both strict Rust Response and
+the Python binding use these algorithms. Strict allocation pre-reservation,
+boundary checks and original typed validation remain in place.
+
+Python parse_tqlex_response/_parse_result_set/_columns/_row_values/_column_name/
+_row_dict now call f10_response.rs, preserving live parser/model/cell hooks,
+Mapping/Sequence acceptance, falsey legacy empty containers, original objects,
+first-table defaults, arbitrary-size ErrorCode conversion and exact errors.
+Duplicate names preserve individual cells; projected suffix collisions overwrite
+the old value without moving its first key position. Cell name descriptors are
+read at each original expression. The HTTP context managers and per-wire timing
+are still the original Python adapter; no native HTTP replacement yet.
+
+Authored10 Python compatibility functions and one Rust shared callback case,
+all unexecuted. Named endpoint parameter normalization/dispatch, fields,
+remaining F10 model business properties and cross-source helpers are still
+pending. Do not count this foundation as157-method migration or promote the
+manifest. Review custom global enumerate/tuple replacement behavior when
+finishing adapter accounting; current foundation covers actual parser/model
+extension hooks, not every monkeypatched Python builtin.
+
+Counts21/4/5; unlimited active goal. No tests, collection, builds, checks,
+dependency/network execution, format/AST validation, agents or publication.
+
 ## Sixth checkpoint — append selection, alignment and last-record adapters
 
 Base `b28222c`. Shared constant-original-threshold filtering now serves strict

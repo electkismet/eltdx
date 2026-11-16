@@ -18,6 +18,8 @@ mod clock;
 mod endpoints;
 pub mod news;
 pub mod fields;
+#[doc(hidden)]
+pub mod python_legacy;
 
 pub use config::{F10Config, Header, ProxyUrl, ResolverPolicy, Route, TlsPolicy};
 pub use client::{F10Client, F10ClientBuilder, F10Diagnostics};
