@@ -9,6 +9,7 @@ pub mod bars;
 pub mod block;
 pub mod daily;
 pub mod ex_daily;
+pub mod financial;
 pub mod gbbq;
 pub mod industry;
 pub mod minute;
@@ -20,6 +21,9 @@ pub use models::{BlockInfo, CoefficientDecision, Coefficients, CustomerBlock, Da
     Evidence, ExDailyBar, Exchange, IndustryCodes, IndustryMap, LocalCode, MinBar,
     MinuteKey, RecordKey, SecurityType, TimeOfDay, WireFloat};
 pub use gbbq::GbbqRecord;
+pub use financial::{ArchiveProvenance, DatSelector, FinancialArchiveName, FinancialCompletion,
+    FinancialDatResult, FinancialFileInfo, FinancialHeader, FinancialParseOptions,
+    FinancialReadOptions, FinancialRecord, FinancialRecordsQuery, ReportDateSource};
 pub use options::{AppendOptions, Durability, ReadOptions, ReadResult, TailPolicy, WriteReport};
 
 use crate::error::{Error, ErrorKind, Result};

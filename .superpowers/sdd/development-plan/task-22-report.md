@@ -1,5 +1,55 @@
 # T22 isolated Stage A implementation report
 
+## Current Stage B checkpoint — shared ZIP and owned HQ composition
+
+Stage A below is retained as history. After T20 source checkpoint `1722815`,
+the root integrated the offline module and root financial service, without
+executing any verification. T22 remains partial pending final source review,
+remaining malformed/selection/consumer evidence and documentation closure.
+
+Files: shared archive.rs, offline/financial.rs and offline/mod.rs;
+new financial.rs; client.rs/lib.rs; types/resources.rs and types/mod.rs;
+services/resources.rs; financial.rs and new financial_service.rs test sources.
+
+Shared archive decoding now offers metadata-aware selection before inflation,
+retaining index, exact name, declared and actual size from the same checked
+entry. HQ stats use their existing wrapper over the same loop. Strict financial
+limits retain64MiB compressed/64entries/256MiB all-member expanded and permit
+lower compressed/entry/selected-DAT caps. Directory attributes do not create
+DAT candidates. RequireSingle/Named select case-sensitive .dat names; the
+existing strict preflight rejects duplicate/encrypted/invalid members and all
+members are CRC/length checked. This is not Python's permissive ZIP policy.
+
+Local read/read_detailed dispatch case-insensitive ZIP extensions to the shared
+decoder; otherwise use the existing bounded DAT loader. Local ZIP/member names
+never override header dates. Detailed results retain archive provenance,
+optional compressed archive bytes and selected DAT bytes separately; network
+results additionally retain actual HQ source/wire metadata.
+
+FinancialService owns the existing ResourceService. list_archive_files and
+download_archive use fixed HQ resource paths; download_records shares one
+context through list/download/ZIP/DAT and rejects LimitReached or Incomplete.
+CalcClientConfig/open_calc_client are lazy and use explicit default endpoint
+120.76.152.87:7709, the ordinary8s default and no host probes. DownloadOptions
+is a shared checked type:64MiB/30000/default4096chunks, zero cap supported for
+download_archive, u32 wire ranges, optional expected_size treated only as
+metadata. A caller's smaller read archive limit also narrows the source cap.
+The existing pinned resource loop gained optional chunk limits/start offset;
+old callers retain their original unlimited-chunk/zero-offset behavior.
+
+Authored cases cover ZIP index/raw/dates, exact selectors, multiple DATs,
+case-sensitive suffixes, directory attributes, compressed/entries/selected/
+aggregate caps, duplicate/encryption/corrupt/truncated archives, local cancel,
+lazy/closed/zero-cap clients, list metadata, complete composed records with
+stale size/hash, capped chunks/bytes, incomplete DAT, preflight cancellation,
+and shared deadline/cancellation across list and archive. None has been run.
+
+Next: finish T22 static review and remaining source evidence; T23 must preserve
+the documented legacy direct-DAT, Python int/re/date and ZIP behavior without
+retroactively applying strict Rust archive policies. No Python code modified
+at this checkpoint. Goal active without cap; no tests/build/check/dependency/
+network/AST/format/diff-check, agents or publication.
+
 Status: Stage A source implementation complete; public registration, shared ZIP integration and all network composition remain Stage B. No compilation or executable verification has occurred. No whole-T22 completion claim is made.
 
 Authority: `task-22-brief.md` staged authorization; development-plan T22; extension-api-spec sections 6–7; public-api raw/resource/error contracts; current T21 offline implementation; Python `src/eltdx/offline/history_financial.py` and `src/eltdx/financial.py`. The controller supplied review base `7a85f5c` for T10 context, not ownership of T10 edits. T17 `cd6735b` has a scoped static Stage A approval, not dependency/build/runtime validation. The later controller ruling in decision-register fixes new Rust financial ZIP total expanded bytes at 256 MiB across all members, separate from the selected-DAT cap.

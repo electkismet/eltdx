@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第四十七段恢复点：T20源码完成检查点`1722815`。T22 Stage B首段接入共享ZIP元数据选择/索引身份/选中DAT独立上限，注册offline财报模块与本地ZIP/DAT dispatcher；新增FinancialService/list/download/records及惰性CalcClientConfig/open_calc_client。HQ下载循环复用原pin/预算/清理，并支持共享DownloadOptions分块数/offset/expected_size提示；期望大小不证明EOF，截断下载和不完整DAT不进入成功记录结果。新增本地ZIP和HQ组合用例源码，全部未执行。T22仍部分，需最终源码复核、额外畸形/预算/选择用例与完整文档/consumer；T23保留Python旧ZIP/日期/无直接DAT总量限制等兼容。20源码完整/4部分/6未开始；目标active无额度上限，无执行验证/代理/发布。
+
 2026-11-17第四十六段恢复点：入口清单检查点`7b21857`。T20的157公开入口、历史资金流、字段字典、typed结果及分支/调用源码已齐；末轮补取消/过期deadline零请求用例，并按Python实际源码修正文档中两条配股Entry及必填日期，修正brief中历史资金流“排序”误写。T20标为源码完成，所有测试/依赖/编译/运行验收仍未做。现为20源码完整/4部分（T19/T22/T24/T25）/6未开始；进入T22共用ZIP decoder、财报本地读取与HQ服务接线。目标active且无额度上限；T23仍须完整保留Python既有行为。
 
 2026-11-17第四十五段恢复点：最新已提交`fc2e7cb`。新增148个单请求公开F10入口的调用/HTTP/响应/关闭用例源码，与独立字面量wire清单配对；补齐开放selector、closed拒绝、非默认参数和基金三类报告期前置的源码用例。新增`f10-implementation-index.md`逐项记录157入口、测试证据分工及T23兼容差异；补正closed registry文档漏项。以上均未编译或执行，不能称验收通过。总计19源码完整/5部分/6未开始；继续T20静态收尾，再T22财报/T23兼容和T24–T30。目标active、无额度上限，所有执行验证仍延期，无代理或发布。

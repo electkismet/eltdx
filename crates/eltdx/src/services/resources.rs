@@ -7,6 +7,7 @@ use crate::config::ClientConfig;
 use crate::hq::executor::HqExecutor;
 use crate::operation::{ChildPurpose, OperationContext, OperationOptions};
 use crate::types::{BlockMeta, DownloadCompletion, DownloadResult, ResultMeta, StatsQuery, StatsResource};
+use crate::types::resources::DownloadOptions;
 use crate::{Error, ErrorKind, Result, TimeoutPhase};
 use super::{aggregate_meta, allocation_error, reply_meta};
 use crate::hq::decode::DecodedReply;
@@ -40,6 +41,10 @@ pub(crate) struct ResourceDownload { pub result: DownloadResult, pub meta: Resul
 impl ResourceService {
     pub(crate) fn new(executor: HqExecutor, engine: Engine, config: ClientConfig) -> Self { Self { executor, engine, config } }
 
+    pub(crate) fn begin_context(&self, entry: Instant, name: &'static str, options: &OperationOptions) -> Result<OperationContext> {
+        self.executor.begin_context_at(entry, name, &self.config, options)
+    }
+
     pub fn read(&self, path: &str, offset: u64, size: usize, options: &OperationOptions) -> Result<DownloadResult> {
         let entry = Instant::now();
         let context = self.executor.begin_context_at(entry, "resource_read", &self.config, options)?;
@@ -72,13 +77,29 @@ impl ResourceService {
     /// optional unlimited caps must be selected explicitly by its later bridge.
     pub(crate) fn download_in_context(&self, context: &OperationContext, path: &str,
         max_bytes: usize, chunk_size: usize, retain_meta: bool) -> Result<ResourceDownload> {
+        self.download_bounded_in_context(context, path, max_bytes, chunk_size, 0, None, retain_meta)
+    }
+
+    pub(crate) fn download_configured_in_context(&self, context: &OperationContext, path: &str,
+        download: &DownloadOptions, retain_meta: bool) -> Result<ResourceDownload> {
+        download.validate_hq()?;
+        self.download_bounded_in_context(context, path,
+            usize::try_from(download.max_bytes()).map_err(|_| incomplete(usize::MAX))?,
+            download.chunk_size().get() as usize, download.start_offset(),
+            Some(download.max_chunks().get() as usize), retain_meta)
+    }
+
+    fn download_bounded_in_context(&self, context: &OperationContext, path: &str,
+        max_bytes: usize, chunk_size: usize, start_offset: u64, max_chunks: Option<usize>,
+        retain_meta: bool) -> Result<ResourceDownload> {
         context.check_boundary(TimeoutPhase::Admission)?;
         let path = crate::types::resources::normalize_path(path)?;
-        if u32::try_from(max_bytes).is_err() || !(1..=60_000).contains(&chunk_size) {
+        if u32::try_from(max_bytes).is_err() || !(1..=60_000).contains(&chunk_size)
+            || start_offset.checked_add(max_bytes as u64).is_none_or(|end| end > u64::from(u32::MAX)) {
             return Err(Error::new(ErrorKind::InvalidArgument, "download cap must fit u32 and chunk_size must be 1..60000"));
         }
         if max_bytes == 0 {
-            return Ok(ResourceDownload { result: limited(Bytes::new(), 0), meta: aggregate_meta(context, &[], None)? });
+            return Ok(ResourceDownload { result: limited(Bytes::new(), start_offset), meta: aggregate_meta(context, &[], None)? });
         }
         let mut pin = self.executor.acquire_pin(&self.engine, context)?;
         let result = (|| {
@@ -87,11 +108,13 @@ impl ResourceService {
             let mut page_index = 0_usize;
             while let Some((offset, size)) = cursor.request() {
                 context.check_boundary(TimeoutPhase::Admission)?;
+                if max_chunks.is_some_and(|maximum| page_index >= maximum) { break; }
                 if retain_meta && page_index == 65_536 {
                     return Err(Error::new(ErrorKind::LimitExceeded, "resource provenance exceeds 65536 response pages"));
                 }
                 output.try_reserve_exact(size).map_err(allocation_error)?;
-                let (chunk, meta, identity) = self.chunk(context, Some(pin.handle()?), &path, offset as u64, size,
+                let wire_offset = start_offset.checked_add(offset as u64).ok_or_else(|| incomplete(max_bytes))?;
+                let (chunk, meta, identity) = self.chunk(context, Some(pin.handle()?), &path, wire_offset, size,
                     if page_index == 0 { ChildPurpose::Required } else { ChildPurpose::Page })?;
                 if source.as_ref().is_some_and(|expected| expected != &identity) {
                     return Err(Error::new(ErrorKind::Protocol, "resource source changed during a pinned download"));
@@ -117,7 +140,7 @@ impl ResourceService {
                         completion: DownloadCompletion::Complete, next_offset: None }, meta: aggregate_meta(context, &pages, None)? });
                 }
             }
-            Ok(ResourceDownload { result: limited(Bytes::from(output), cursor.offset() as u64), meta: aggregate_meta(context, &pages, None)? })
+            Ok(ResourceDownload { result: limited(Bytes::from(output), start_offset + cursor.offset() as u64), meta: aggregate_meta(context, &pages, None)? })
         })();
         match result {
             Ok(value) => { self.executor.release_pin(context, &mut pin, None)?; Ok(value) }

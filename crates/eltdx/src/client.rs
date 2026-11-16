@@ -138,6 +138,10 @@ pub struct TdxClient {
 }
 
 impl TdxClient {
+    #[cfg(feature = "offline")]
+    pub fn financial(&self) -> crate::financial::FinancialService {
+        crate::financial::FinancialService::new(self.resources())
+    }
     pub fn helpers(&self) -> crate::helpers::HelperService {
         crate::helpers::HelperService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone(), self.domains.clone())
     }

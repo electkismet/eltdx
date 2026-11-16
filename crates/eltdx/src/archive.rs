@@ -14,22 +14,42 @@ use crate::error::{Error, ErrorKind, Result};
 const MIB: usize = 1024 * 1024;
 const BUFFER_BYTES: usize = 16 * 1024;
 
-/// Presets only; callers cannot accidentally disable a cap.
+/// Fixed upper bounds with checked narrowing; callers cannot disable a cap.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ArchiveLimits {
     compressed: usize,
     entries: usize,
     entry_expanded: usize,
     total_expanded: usize,
+    selected_expanded: usize,
 }
 
 impl ArchiveLimits {
     pub(crate) const fn stats() -> Self {
-        Self { compressed: 32 * MIB, entries: 128, entry_expanded: 32 * MIB, total_expanded: 64 * MIB }
+        Self { compressed: 32 * MIB, entries: 128, entry_expanded: 32 * MIB, total_expanded: 64 * MIB,
+            selected_expanded: 32 * MIB }
     }
 
     pub(crate) const fn financial() -> Self {
-        Self { compressed: 64 * MIB, entries: 64, entry_expanded: 256 * MIB, total_expanded: 256 * MIB }
+        Self { compressed: 64 * MIB, entries: 64, entry_expanded: 256 * MIB, total_expanded: 256 * MIB,
+            selected_expanded: 256 * MIB }
+    }
+
+    /// Caller limits may only narrow the fixed financial bounds. The selected
+    /// DAT bound is independent of the aggregate/all-member expansion bound.
+    pub(crate) fn financial_with_limits(compressed: u64, entries: u32, selected: u64) -> Result<Self> {
+        let preset = Self::financial();
+        if compressed == 0 || compressed > preset.compressed as u64 || entries == 0
+            || u64::from(entries) > preset.entries as u64 || selected == 0
+            || selected > preset.selected_expanded as u64 {
+            return Err(Error::new(ErrorKind::InvalidArgument, "financial archive limits exceed fixed bounds"));
+        }
+        Ok(Self {
+            compressed: usize::try_from(compressed).map_err(|_| limit("compressed address space"))?,
+            entries: usize::try_from(entries).map_err(|_| limit("entry address space"))?,
+            selected_expanded: usize::try_from(selected).map_err(|_| limit("selected address space"))?,
+            ..preset
+        })
     }
 }
 
@@ -38,6 +58,24 @@ pub(crate) struct ArchiveMember {
     /// Exact bytes from the ZIP; selection does not depend on lossy filename decoding.
     pub name: Vec<u8>,
     pub contents: Vec<u8>,
+}
+
+/// Borrowed metadata from the exact central/local entry already checked below.
+/// Selection happens before any member is inflated or retained.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ArchiveEntryMetadata<'a> {
+    pub name: &'a [u8],
+    pub index: usize,
+    pub declared_size: u64,
+    pub is_directory: bool,
+}
+
+#[derive(Debug)]
+pub(crate) struct SelectedArchiveMember {
+    pub member: ArchiveMember,
+    pub index: usize,
+    pub declared_size: u64,
+    pub actual_size: u64,
 }
 
 #[derive(Debug)]
@@ -50,6 +88,7 @@ struct Entry<'a> {
     expanded: usize,
     local: usize,
     end: usize,
+    is_directory: bool,
 }
 
 /// Validate every member, retaining only selected data. Cancellation/deadline is
@@ -61,10 +100,34 @@ pub(crate) fn decode_selected(
     mut select: impl FnMut(&[u8]) -> bool,
     boundary: &mut impl FnMut() -> Result<()>,
 ) -> Result<Vec<ArchiveMember>> {
+    Ok(decode_with_selector(payload, limits, |entries| {
+        Ok(entries.iter().filter(|entry| select(entry.name)).map(|entry| entry.index).collect())
+    }, boundary)?.into_iter().map(|selected| selected.member).collect())
+}
+
+/// Metadata-aware selection reuses the same preflight and inflate loop as HQ
+/// statistics. Returned indexes always address the entries validated here;
+/// member names are never looked up again through the ZIP library.
+pub(crate) fn decode_with_selector(
+    payload: &[u8], limits: ArchiveLimits,
+    select: impl FnOnce(&[ArchiveEntryMetadata<'_>]) -> Result<Vec<usize>>,
+    boundary: &mut impl FnMut() -> Result<()>,
+) -> Result<Vec<SelectedArchiveMember>> {
     boundary()?;
     if payload.len() > limits.compressed { return Err(limit("compressed bytes")); }
     if payload.is_empty() { return Err(malformed("empty ZIP")); }
     let entries = preflight(payload, limits, boundary)?;
+    let metadata: Vec<_> = entries.iter().enumerate().map(|(index, entry)| ArchiveEntryMetadata {
+        name: entry.name, index, declared_size: entry.expanded as u64, is_directory: entry.is_directory,
+    }).collect();
+    let selected = select(&metadata)?;
+    let mut selection = vec![false; entries.len()];
+    for index in selected {
+        let Some(retain) = selection.get_mut(index) else { return Err(malformed("selector returned invalid ZIP index")); };
+        if *retain { return Err(malformed("selector returned duplicate ZIP index")); }
+        *retain = true;
+        if entries[index].expanded > limits.selected_expanded { return Err(limit("selected member expanded bytes")); }
+    }
     boundary()?;
     let mut archive = zip::ZipArchive::new(Cursor::new(payload))
         .map_err(|error| malformed(format!("ZIP decoder rejected headers: {error}")))?;
@@ -75,7 +138,7 @@ pub(crate) fn decode_selected(
     let mut buffer = [0_u8; BUFFER_BYTES];
     for (index, entry) in entries.iter().enumerate() {
         boundary()?;
-        let retain = select(entry.name);
+        let retain = selection[index];
         let mut reader = archive.by_index(index)
             .map_err(|error| malformed(format!("ZIP member cannot be opened: {error}")))?;
         if reader.name_raw() != entry.name || reader.size() != entry.expanded as u64
@@ -93,6 +156,7 @@ pub(crate) fn decode_selected(
             // boundary. It is a fixed stack byte, never appended beyond a limit.
             let room = entry.expanded.saturating_sub(expanded)
                 .min(limits.entry_expanded.saturating_sub(expanded))
+                .min(if retain { limits.selected_expanded.saturating_sub(expanded) } else { usize::MAX })
                 .min(limits.total_expanded.saturating_sub(total));
             let request = BUFFER_BYTES.min(room.saturating_add(1));
             let count = reader.read(&mut buffer[..request])
@@ -101,7 +165,8 @@ pub(crate) fn decode_selected(
             if count == 0 { break; }
             let next = expanded.checked_add(count).ok_or_else(|| limit("expanded bytes"))?;
             let next_total = total.checked_add(count).ok_or_else(|| limit("total expanded bytes"))?;
-            if next > limits.entry_expanded || next_total > limits.total_expanded {
+            if next > limits.entry_expanded || next_total > limits.total_expanded
+                || (retain && next > limits.selected_expanded) {
                 return Err(limit("actual expanded bytes"));
             }
             if next > entry.expanded { return Err(malformed("member exceeds declared expanded length")); }
@@ -115,7 +180,10 @@ pub(crate) fn decode_selected(
         if expanded != entry.expanded || crc.finalize() != entry.crc {
             return Err(malformed("member length or CRC differs from directory"));
         }
-        if retain { output.push(ArchiveMember { name: entry.name.to_vec(), contents }); }
+        if retain { output.push(SelectedArchiveMember {
+            member: ArchiveMember { name: entry.name.to_vec(), contents }, index,
+            declared_size: entry.expanded as u64, actual_size: expanded as u64,
+        }); }
         boundary()?;
     }
     boundary()?;
@@ -179,7 +247,11 @@ fn preflight<'a>(
         offset = add(add(add(add(offset, 46)?, name_len)?, extra_len)?, comment_len)?;
         if offset > eocd { return Err(malformed("central member exceeds directory")); }
         let local = usize32(header, 42)?;
-        entries.push(Entry { name, flags, method, crc: u32_at(header, 16)?, compressed, expanded, local, end: 0 });
+        let external_attributes = u32_at(header, 38)?;
+        let is_directory = name.ends_with(b"/") || external_attributes & 0x10 != 0
+            || (external_attributes >> 16) & 0xf000 == 0x4000;
+        entries.push(Entry { name, flags, method, crc: u32_at(header, 16)?, compressed, expanded, local,
+            end: 0, is_directory });
     }
     if offset != eocd { return Err(malformed("central directory count/size mismatch")); }
     for entry in &mut entries {

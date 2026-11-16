@@ -1,6 +1,6 @@
 #![cfg(feature = "offline")]
 //! Authored source cases; execution is deferred by the T01-T30 implementation gate.
-//! The public offline module registration belongs to T22 Stage B.
+//! Includes T22 Stage B shared archive/local dispatch source cases.
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use eltdx::{CancellationToken, ErrorKind, RawPolicy, TradingDate};
@@ -352,5 +352,131 @@ fn cancelled_parser_and_local_loader_return_cancelled() -> TestResult {
     kind(financial::parse_dat(&sample(), None, &options), ErrorKind::Cancelled);
     kind(financial::parse_dat(&[], None, &options), ErrorKind::Cancelled);
     kind(financial::read_dat_file(&PathBuf::from("not-opened.dat"), &FinancialReadOptions::default().with_parse(options)), ErrorKind::Cancelled);
+    Ok(())
+}
+
+fn zip_fixture(entries: &[(&str, &[u8])]) -> Vec<u8> {
+    use std::io::{Cursor, Write};
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for (name, contents) in entries {
+        writer.start_file(*name, zip::write::FileOptions::default()
+            .compression_method(zip::CompressionMethod::Stored)).unwrap();
+        writer.write_all(contents).unwrap();
+    }
+    writer.finish().unwrap().into_inner()
+}
+
+#[test]
+fn zip_selects_exact_checked_entry_and_retains_both_raw_sources() -> TestResult {
+    let dat = sample();
+    let bytes = zip_fixture(&[("note", b"retained separately"), ("folder/data.dat", &dat)]);
+    let options = FinancialReadOptions::new().with_parse(options().with_raw(RawPolicy::RetainPayload));
+    let result = financial::parse_zip_detailed(&bytes, &options)?;
+    assert_eq!(result.rows()[0].report_date_raw(), 20240331);
+    assert_eq!(result.archive_raw(), Some(bytes.as_slice()));
+    assert_eq!(result.raw(), Some(dat.as_slice()));
+    assert!(result.source_meta().is_none());
+    let source = result.archive().ok_or("missing archive provenance")?;
+    assert_eq!(source.entry_name(), b"folder/data.dat");
+    assert_eq!(source.entry_index(), 1);
+    assert_eq!(source.actual_size(), dat.len() as u64);
+    assert_eq!(source.declared_size(), dat.len() as u64);
+    Ok(())
+}
+
+#[test]
+fn zip_ambiguity_case_sensitive_suffix_and_exact_named_selection() -> TestResult {
+    let first = sample();
+    let second = fixture(&[(*b"000001", 0, vec![0x40000000])], 20240630);
+    let bytes = zip_fixture(&[("A.DAT", &first), ("first.dat", &first), ("second.dat", &second)]);
+    kind(financial::parse_zip(&bytes, &FinancialReadOptions::new()), ErrorKind::ResourceFormat);
+    let named = FinancialReadOptions::new().with_selector(DatSelector::named("second.dat")?)?;
+    let result = financial::parse_zip_detailed(&bytes, &named)?;
+    assert_eq!(result.rows()[0].code(), "000001");
+    assert_eq!(result.archive().unwrap().entry_index(), 2);
+    let absent = FinancialReadOptions::new().with_selector(DatSelector::named("SECOND.dat")?)?;
+    kind(financial::parse_zip(&bytes, &absent), ErrorKind::MissingData);
+    kind(financial::parse_zip(&zip_fixture(&[("A.DAT", &first)]), &FinancialReadOptions::new()), ErrorKind::MissingData);
+    Ok(())
+}
+
+#[test]
+fn zip_rejects_duplicate_encrypted_corrupt_and_truncated_members() -> TestResult {
+    let dat = sample();
+    let duplicate = zip_fixture(&[("same.dat", &dat), ("same.dat", &dat)]);
+    kind(financial::parse_zip(&duplicate, &FinancialReadOptions::new()), ErrorKind::ResourceFormat);
+    let original = zip_fixture(&[("a.dat", &dat), ("note", b"abcdef")]);
+    let central = original.windows(4).position(|w| w == b"PK\x01\x02").unwrap();
+    let mut encrypted = original.clone();
+    encrypted[6] |= 1; encrypted[central + 8] |= 1;
+    kind(financial::parse_zip(&encrypted, &FinancialReadOptions::new()), ErrorKind::ResourceFormat);
+    let mut corrupt = original.clone();
+    let note = corrupt.windows(6).position(|w| w == b"abcdef").unwrap();
+    corrupt[note] ^= 1;
+    kind(financial::parse_zip(&corrupt, &FinancialReadOptions::new()), ErrorKind::ResourceFormat);
+    let mut truncated = original; truncated.pop();
+    kind(financial::parse_zip(&truncated, &FinancialReadOptions::new()), ErrorKind::ResourceFormat);
+    Ok(())
+}
+
+#[test]
+fn zip_narrows_selected_dat_without_limiting_unselected_member_to_same_size() -> TestResult {
+    let dat = sample(); let note = vec![b'x'; dat.len() + 100];
+    let bytes = zip_fixture(&[("data.dat", &dat), ("large-note", &note)]);
+    let exact = FinancialReadOptions::new().with_parse(options().with_max_dat_bytes(dat.len() as u64)?);
+    assert_eq!(financial::parse_zip(&bytes, &exact)?.rows().len(), 1);
+    let small = FinancialReadOptions::new().with_parse(options().with_max_dat_bytes(dat.len() as u64 - 1)?);
+    kind(financial::parse_zip(&bytes, &small), ErrorKind::LimitExceeded);
+    let cap = FinancialReadOptions::new().with_max_archive_bytes(bytes.len() as u64 - 1)?;
+    kind(financial::parse_zip(&bytes, &cap), ErrorKind::LimitExceeded);
+    let count = FinancialReadOptions::new().with_max_entries(1)?;
+    kind(financial::parse_zip(&bytes, &count), ErrorKind::LimitExceeded);
+    Ok(())
+}
+
+#[test]
+fn zip_directory_metadata_is_not_a_dat_candidate() -> TestResult {
+    let mut bytes = zip_fixture(&[("folder.dat", b""), ("data.dat", &sample())]);
+    let central = bytes.windows(4).position(|w| w == b"PK\x01\x02").unwrap();
+    // DOS directory bit on a member whose name has no slash.
+    let attributes = u32::from_le_bytes(bytes[central + 38..central + 42].try_into().unwrap()) | 0x10;
+    bytes[central + 38..central + 42].copy_from_slice(&attributes.to_le_bytes());
+    let result = financial::parse_zip_detailed(&bytes, &FinancialReadOptions::new())?;
+    assert_eq!(result.archive().unwrap().entry_name(), b"data.dat");
+    assert_eq!(result.archive().unwrap().entry_index(), 1);
+    Ok(())
+}
+
+#[test]
+fn zip_declared_aggregate_expansion_rejects_before_allocation_or_inflation() -> TestResult {
+    let mut bytes = zip_fixture(&[("data.dat", &sample()), ("note", b"a")]);
+    let positions: Vec<_> = bytes.windows(4).enumerate().filter_map(|(index, w)|
+        (w == b"PK\x01\x02").then_some(index)).collect();
+    let central = positions[1];
+    let local = u32::from_le_bytes(bytes[central + 42..central + 46].try_into().unwrap()) as usize;
+    // A deflate declaration avoids stored-size equality being the rejection;
+    // total declared output exceeds the financial 256 MiB aggregate bound.
+    bytes[central + 10..central + 12].copy_from_slice(&8_u16.to_le_bytes());
+    bytes[local + 8..local + 10].copy_from_slice(&8_u16.to_le_bytes());
+    bytes[central + 24..central + 28].copy_from_slice(&(256_u32 * 1024 * 1024).to_le_bytes());
+    bytes[local + 22..local + 26].copy_from_slice(&(256_u32 * 1024 * 1024).to_le_bytes());
+    kind(financial::parse_zip(&bytes, &FinancialReadOptions::new()), ErrorKind::LimitExceeded);
+    Ok(())
+}
+
+#[test]
+fn local_zip_uses_header_date_explicit_override_and_cancellation() -> TestResult {
+    let scratch = Scratch::new()?;
+    let path = scratch.0.join("gpcw20241231.ZIP");
+    let bytes = zip_fixture(&[("gpcw20250930.dat", &sample())]);
+    std::fs::write(&path, bytes)?;
+    let parsed = financial::read_detailed(&path, &FinancialReadOptions::new())?;
+    assert_eq!(parsed.rows()[0].report_date_raw(), 20240331);
+    assert_eq!(parsed.date_source(), ReportDateSource::Header);
+    let explicit = FinancialReadOptions::new().with_report_date(Some(TradingDate::new(2026, 6, 30)?));
+    assert_eq!(financial::read(&path, &explicit)?.rows()[0].report_date_raw(), 20260630);
+    let token = CancellationToken::default(); token.cancel();
+    let cancelled = FinancialReadOptions::new().with_parse(options().with_cancel(Some(token)));
+    kind(financial::read(&path, &cancelled), ErrorKind::Cancelled);
     Ok(())
 }

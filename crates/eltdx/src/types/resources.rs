@@ -1,10 +1,46 @@
 //! Bounded server resources. An exhausted byte allowance is not EOF evidence.
 use bytes::Bytes;
+use std::num::NonZeroU32;
 use crate::{Error, ErrorKind, Result};
 use super::{Amount, Quantity, ResultMeta, SecurityId, TradingDate};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DownloadCompletion { Complete, LimitReached }
+
+/// Shared bounded download policy. A server size is a hint, never EOF proof.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DownloadOptions {
+    max_bytes: u64, chunk_size: NonZeroU32, expected_size: Option<u64>,
+    start_offset: u64, max_chunks: NonZeroU32,
+}
+impl Default for DownloadOptions {
+    fn default() -> Self {
+        Self { max_bytes: 64 * 1024 * 1024, chunk_size: NonZeroU32::new(30_000).expect("positive chunk"),
+            expected_size: None, start_offset: 0, max_chunks: NonZeroU32::new(4096).expect("positive chunk cap") }
+    }
+}
+impl DownloadOptions {
+    pub fn new() -> Self { Self::default() }
+    pub fn max_bytes(&self) -> u64 { self.max_bytes }
+    pub fn chunk_size(&self) -> NonZeroU32 { self.chunk_size }
+    pub fn expected_size(&self) -> Option<u64> { self.expected_size }
+    pub fn start_offset(&self) -> u64 { self.start_offset }
+    pub fn max_chunks(&self) -> NonZeroU32 { self.max_chunks }
+    pub fn with_max_bytes(mut self, value: u64) -> Result<Self> { self.max_bytes = value; self.validate_hq()?; Ok(self) }
+    pub fn with_chunk_size(mut self, value: NonZeroU32) -> Result<Self> { self.chunk_size = value; self.validate_hq()?; Ok(self) }
+    pub fn with_expected_size(mut self, value: Option<u64>) -> Result<Self> { self.expected_size = value; self.validate_hq()?; Ok(self) }
+    pub fn with_start_offset(mut self, value: u64) -> Result<Self> { self.start_offset = value; self.validate_hq()?; Ok(self) }
+    pub fn with_max_chunks(mut self, value: NonZeroU32) -> Result<Self> { self.max_chunks = value; self.validate_hq()?; Ok(self) }
+    pub(crate) fn validate_hq(&self) -> Result<()> {
+        if self.chunk_size.get() > 60_000 || self.max_chunks.get() > 4096
+            || self.start_offset > u64::from(u32::MAX)
+            || self.expected_size.is_some_and(|value| value > u64::from(u32::MAX))
+            || self.start_offset.checked_add(self.max_bytes).is_none_or(|end| end > u64::from(u32::MAX)) {
+            return Err(invalid("download offsets/byte count must fit u32, chunk size <=60000 and max_chunks <=4096"));
+        }
+        Ok(())
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DownloadResult {

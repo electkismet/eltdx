@@ -1,14 +1,12 @@
-//! Pure historical financial DAT/list parsing and bounded local DAT reads.
-//!
-//! ZIP decoding/selection is deliberately integrated in Stage B through the shared
-//! archive decoder. No ZIP decoder or network service is implemented here.
+//! Historical financial DAT/list parsing and bounded local DAT/ZIP reads.
+//! ZIP metadata selection and inflation reuse the shared HQ archive decoder.
 use std::collections::BTreeMap;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
 use crate::error::{Error, ErrorKind, Result};
-use crate::types::{Diagnostic, EnrichmentStatus};
+use crate::types::{Diagnostic, EnrichmentStatus, ResultMeta};
 use crate::{CancellationToken, RawPolicy, TradingDate};
 use super::{ascii_replace, bars, cancelled, invalid, malformed, source_trim,
     ReadOptions, ReadResult, WireFloat};
@@ -221,6 +219,7 @@ pub struct FinancialDatResult {
     records: ReadResult<FinancialRecord>, header: Option<FinancialHeader>,
     completion: FinancialCompletion, consumed_indexes: usize, omitted_indexes: usize,
     date_source: ReportDateSource, raw: Option<Arc<[u8]>>, archive: Option<ArchiveProvenance>,
+    archive_raw: Option<Arc<[u8]>>, source_meta: Option<ResultMeta>,
 }
 impl FinancialDatResult {
     pub fn records(&self) -> &ReadResult<FinancialRecord> { &self.records }
@@ -233,8 +232,13 @@ impl FinancialDatResult {
     pub const fn date_source(&self) -> ReportDateSource { self.date_source }
     pub fn raw(&self) -> Option<&[u8]> { self.raw.as_deref() }
     pub fn archive(&self) -> Option<&ArchiveProvenance> { self.archive.as_ref() }
+    /// Original compressed ZIP bytes, when retained; `raw()` is the selected DAT.
+    pub fn archive_raw(&self) -> Option<&[u8]> { self.archive_raw.as_deref() }
+    /// Actual HQ source/raw metadata for a network composition, absent locally.
+    pub fn source_meta(&self) -> Option<&ResultMeta> { self.source_meta.as_ref() }
     pub fn into_records(self) -> ReadResult<FinancialRecord> { self.records }
     pub(crate) fn with_archive(mut self, value: ArchiveProvenance) -> Self { self.archive = Some(value); self }
+    pub(crate) fn with_source_meta(mut self, value: ResultMeta) -> Self { self.source_meta = Some(value); self }
 }
 
 pub fn parse_dat(data: &[u8], report_date: Option<TradingDate>, options: &FinancialParseOptions)
@@ -267,6 +271,66 @@ pub fn read_dat_file(path: &Path, options: &FinancialReadOptions) -> Result<Fina
         .with_cancel(options.parse.cancel.clone());
     let bytes = bars::load(path, &local)?;
     parse_dat_detailed(&bytes, options.report_date, &options.parse)
+}
+
+/// Read a local DAT or ZIP. Extension matching is case-insensitive; member
+/// selection remains case-sensitive. Local filenames never override DAT dates.
+pub fn read(path: &Path, options: &FinancialReadOptions) -> Result<ReadResult<FinancialRecord>> {
+    Ok(read_detailed(path, options)?.into_records())
+}
+
+pub fn read_detailed(path: &Path, options: &FinancialReadOptions) -> Result<FinancialDatResult> {
+    if path.extension().and_then(|value| value.to_str()).is_some_and(|value| value.eq_ignore_ascii_case("zip")) {
+        let local = ReadOptions::new().with_max_bytes(options.max_archive_bytes)?
+            .with_cancel(options.parse.cancel.clone());
+        let bytes = bars::load(path, &local)?;
+        parse_zip_detailed(&bytes, options)
+    } else {
+        read_dat_file(path, options)
+    }
+}
+
+/// Parse a local archive using header/explicit dates, without inferring a date
+/// from the selected member name. Download compositions supply the remote name.
+pub fn parse_zip(data: &[u8], options: &FinancialReadOptions) -> Result<ReadResult<FinancialRecord>> {
+    Ok(parse_zip_detailed(data, options)?.into_records())
+}
+
+pub fn parse_zip_detailed(data: &[u8], options: &FinancialReadOptions) -> Result<FinancialDatResult> {
+    parse_zip_with_boundary(data, None, options, &mut || Ok(()))
+}
+
+pub(crate) fn parse_zip_with_boundary(data: &[u8], filename: Option<&str>,
+    options: &FinancialReadOptions, boundary: &mut impl FnMut() -> Result<()>) -> Result<FinancialDatResult>
+{
+    checkpoint(&options.parse, boundary)?;
+    options.selector.validate()?;
+    let limits = crate::archive::ArchiveLimits::financial_with_limits(
+        options.max_archive_bytes, options.max_entries, options.parse.max_dat_bytes)?;
+    let mut selected = crate::archive::decode_with_selector(data, limits, |entries| {
+        let candidates: Vec<_> = entries.iter().filter(|entry| !entry.is_directory && entry.name.ends_with(b".dat")).collect();
+        let chosen = match &options.selector {
+            DatSelector::RequireSingle => match candidates.as_slice() {
+                [only] => *only,
+                [] => return Err(Error::new(ErrorKind::MissingData, "financial archive contains no .dat member")),
+                _ => return Err(malformed("financial archive contains multiple .dat members; select an exact name")
+                    .with_context("candidates", candidates.iter().map(|entry| String::from_utf8_lossy(entry.name).into_owned()).collect::<Vec<_>>().join(", "))),
+            },
+            DatSelector::Named(name) => candidates.iter().copied().find(|entry| entry.name == name.as_bytes())
+                .ok_or_else(|| Error::new(ErrorKind::MissingData, "selected financial DAT member is absent")
+                    .with_context("member", name.clone()))?,
+        };
+        Ok(vec![chosen.index])
+    }, &mut || checkpoint(&options.parse, boundary))?;
+    let selected = selected.pop().ok_or_else(|| Error::new(ErrorKind::Internal, "financial ZIP selection produced no member"))?;
+    let provenance = ArchiveProvenance::new(selected.member.name, selected.index,
+        selected.declared_size, selected.actual_size, options.selector.clone())?;
+    let mut result = parse_core_with_boundary(&selected.member.contents,
+        DatePolicy::Rust { explicit: options.report_date, filename }, &options.parse, false, boundary)?
+        .with_archive(provenance);
+    result.archive_raw = retain_payload(data, &options.parse, boundary)?;
+    checkpoint(&options.parse, boundary)?;
+    Ok(result)
 }
 
 #[derive(Clone, Copy)]
@@ -373,7 +437,7 @@ fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &Finan
         }
         return Ok(FinancialDatResult { records: ReadResult::new(rows, data.len(), diagnostics), header: None,
             completion, consumed_indexes: 0, omitted_indexes: 0, date_source: ReportDateSource::Unavailable,
-            raw: retain_payload(data, options, boundary)?, archive: None });
+            raw: retain_payload(data, options, boundary)?, archive: None, archive_raw: None, source_meta: None });
     }
     let header = FinancialHeader {
         unknown: i16::from_le_bytes([data[0], data[1]]), report_date_raw: bars::u32_at(data, 2),
@@ -450,7 +514,8 @@ fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &Finan
     for row in &mut rows { checkpoint(options, boundary)?; row.raw = raw.clone(); }
     checkpoint(options, boundary)?;
     Ok(FinancialDatResult { records: ReadResult::new(rows, 0, diagnostics), header: Some(header),
-        completion, consumed_indexes: consumed, omitted_indexes: omitted, date_source, raw, archive: None })
+        completion, consumed_indexes: consumed, omitted_indexes: omitted, date_source, raw, archive: None,
+        archive_raw: None, source_meta: None })
 }
 
 fn retain_payload(data: &[u8], options: &FinancialParseOptions,

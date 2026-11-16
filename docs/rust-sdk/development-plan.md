@@ -449,6 +449,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T22：专业财报、ZIP 与 DAT
 
+2026-11-17 Stage B首段：在T20检查点`1722815`之后接入同一ZIP预检/解码循环的元数据索引选择和独立选中DAT限额，新增本地read/parse_zip与来源保留、offline根导出、FinancialService和惰性计算服务器构造。共享HQ下载支持分块数限制及u32 offset/总量校验，截断不算完整；list/download/ZIP/DAT复用同一operation。首批ZIP/本地/HQ故障用例源码已写，未执行；T22仍部分，待完整源码复核/consumer/文档收尾，T23继续Python旧策略适配。20/4/6不变，全部执行验证延期。
+
 **文件：** 新增 `src/offline/financial.rs`、`src/financial.rs`；新增 `tests/financial.rs`。
 
 - [ ] ZIP条目/压缩体/展开体限额在分配前生效，拒绝加密/同名重复；多不同名DAT按T03选择规则。

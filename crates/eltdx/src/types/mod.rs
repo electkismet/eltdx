@@ -32,7 +32,7 @@ pub use helpers::{AuctionData, AuctionDataQuery, DailyLimitsQuery, DailyPriceLim
     DailySharesQuery, FullQuote, FundFlow, MarketStat, ProfileQuery, RankQuery, RealtimeRankRow, SecuritySelection, StockProfile};
 pub use shortline::{LadderQuery, ShortlineIndicator, ShortlineQuery, ShortlineTable, StatsAlignment};
 pub use boards::{BoardCategory, BoardDefinition, BoardFile, BoardId, BoardMember, BoardMemberQuotes, BoardQuery, BoardQuote};
-pub use resources::{BlockMeta, DownloadCompletion, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
+pub use resources::{BlockMeta, DownloadCompletion, DownloadOptions, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
 pub use company_info::{CompanySection, CompanySectionQuery, CompanyText, Table};
 pub use session::{HandshakeInfo, HeartbeatAck, HealthReport, PingReply};
 pub use klines::{AdjustMode, BarTime, DelistedQuery, KlineBar, KlineKind, KlinePeriod, KlineQuery, KlineSeries};

@@ -28,6 +28,8 @@ pub mod types;
 pub mod f10;
 #[cfg(feature = "offline")]
 pub mod offline;
+#[cfg(feature = "offline")]
+pub mod financial;
 
 pub use client::{ClientBuilder, TdxClient};
 pub use config::ClientConfig;
@@ -50,7 +52,7 @@ pub use types::helpers::{AuctionData, AuctionDataQuery, DailyLimitsQuery, DailyP
     DailySharesQuery, FullQuote, FundFlow, MarketStat, ProfileQuery, RankQuery, RealtimeRankRow, SecuritySelection, StockProfile};
 pub use types::shortline::{LadderQuery, ShortlineIndicator, ShortlineQuery, ShortlineTable, StatsAlignment};
 pub use types::boards::{BoardCategory, BoardDefinition, BoardFile, BoardId, BoardMember, BoardMemberQuotes, BoardQuery, BoardQuote};
-pub use types::resources::{BlockMeta, DownloadCompletion, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
+pub use types::resources::{BlockMeta, DownloadCompletion, DownloadOptions, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
 pub use types::company_info::{CompanySection, CompanySectionQuery, CompanyText, Table};
 pub use types::session::{HandshakeInfo, HeartbeatAck, HealthReport, PingReply};
 pub use types::quotes::{
