@@ -2,6 +2,7 @@
 use std::num::NonZeroU32;
 use std::time::Instant;
 use crate::types::{PageOptions, ResultMeta, TradingDate};
+use crate::operation::OperationContext;
 use crate::{Error, ErrorKind, OperationOptions, Result, TimeoutPhase};
 use crate::f10::{AshareCode, CallQuery, F10Client, F10MarketCode, JsonValue, Response, Row, SectionCode};
 use crate::f10::values::{count, j, page, text};
@@ -90,7 +91,7 @@ collection_query!(BoardMembersQuery, 50, 5_000);
 pub(crate) fn value<'a>(row: &'a Row, name: &str) -> Option<&'a JsonValue> {
     row.cells().iter().find(|cell| cell.name() == name).map(|cell| cell.value())
 }
-pub(crate) fn string(row: &Row, name: &str) -> Option<&str> {
+pub(crate) fn string<'a>(row: &'a Row, name: &str) -> Option<&'a str> {
     value(row, name).and_then(JsonValue::as_str).map(str::trim).filter(|value| !value.is_empty())
 }
 pub(crate) fn number(row: &Row, name: &str) -> Option<f64> {
@@ -191,22 +192,52 @@ impl IpoEntry {
 pub struct IpoCalendar { rows: Vec<IpoEntry>, meta: ResultMeta }
 impl IpoCalendar { pub fn rows(&self) -> &[IpoEntry] { &self.rows } pub fn meta(&self) -> &ResultMeta { &self.meta } }
 
-fn total(response: &Response) -> Option<u64> {
-    response.result_sets().iter().skip(1).flat_map(|table| table.rows()).flat_map(|row| row.cells()).find_map(|cell| {
-        match cell.value() { JsonValue::Number(value) => value.as_u64(), JsonValue::String(value) => value.trim().parse().ok(), _ => None }
-    })
+fn total(response: &Response, context: &OperationContext) -> Result<Option<u64>> {
+    for cell in response.result_sets().iter().skip(1).flat_map(|table| table.rows()).flat_map(|row| row.cells()) {
+        context.check_boundary(TimeoutPhase::Aggregate)?;
+        let value = match cell.value() { JsonValue::Number(value) => value.as_u64(), JsonValue::String(value) => value.trim().parse().ok(), _ => None };
+        if value.is_some() { return Ok(value); }
+    }
+    Ok(None)
 }
-fn record_key(row: &Row) -> Result<Vec<u8>> {
+fn record_key(row: &Row, context: &OperationContext) -> Result<Vec<u8>> {
     let fields = ["N001", "N003", "N005", "N006", "N007", "N008"];
-    let values = fields.iter().map(|name| value(row, name).cloned().unwrap_or(JsonValue::Null)).collect();
-    JsonValue::Array(values).to_json_bytes()
+    let mut values = Vec::new();
+    for name in fields {
+        context.check_boundary(TimeoutPhase::Aggregate)?;
+        let cell = if matches!(name, "N001" | "N003") {
+            // Match the public text projection used in the record identity.
+            match value(row, name) {
+                Some(JsonValue::String(value)) if !value.trim().is_empty() => {
+                    let mut output = Vec::new();
+                    for chunk in value.trim().as_bytes().chunks(4096) {
+                        context.check_boundary(TimeoutPhase::Aggregate)?;
+                        output.try_reserve(chunk.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 dividend key").with_source(error))?;
+                        output.extend_from_slice(chunk);
+                    }
+                    JsonValue::String(String::from_utf8(output).map_err(|error| Error::new(ErrorKind::Internal, "invalid copied F10 dividend key").with_source(error))?)
+                }
+                _ => JsonValue::Null,
+            }
+        } else {
+            match value(row, name) {
+                Some(value) => crate::f10::json::clone_value(value, &mut || context.check_boundary(TimeoutPhase::Aggregate))?,
+                None => JsonValue::Null,
+            }
+        };
+        values.push(cell);
+    }
+    let key = crate::f10::json::encode(&JsonValue::Array(values), 16 * 1024 * 1024,
+        &mut || context.check_boundary(TimeoutPhase::Aggregate))?;
+    context.record_work(0, key.len())?;
+    Ok(key)
 }
-struct Collected { total: Option<u64>, rows: Vec<Row>, completion: CollectionCompletion, meta: ResultMeta }
+struct Collected<T> { total: Option<u64>, rows: Vec<T>, completion: CollectionCompletion, meta: ResultMeta }
 impl F10Client {
     pub fn market_report(&self, query: &MarketReportQuery, options: &OperationOptions) -> Result<Response> {
         self.endpoint("f10.market_report", Instant::now(), || query.to_call(), options)
     }
-    fn collect_market(&self, query: &CollectionQuery, section: &'static str, name: &'static str, options: &OperationOptions) -> Result<Collected> {
+    fn collect_market<T>(&self, query: &CollectionQuery, section: &'static str, name: &'static str, options: &OperationOptions, project: impl Fn(Row) -> T) -> Result<Collected<T>> {
         let context = self.context(Instant::now(), name, options)?;
         let size = (query.page_size.get() as usize).min(query.limits.page_size());
         let maximum = (query.max_pages.get() as usize).min(query.limits.max_pages());
@@ -220,17 +251,20 @@ impl F10Client {
                 .with_page_size(nz(u32::try_from(size).map_err(|_| crate::f10::values::invalid("collection page size overflow"))?))?.to_call()?;
             let mut response = self.endpoint_call(&call, &context)?;
             if !response.ok() { return Err(Error::new(ErrorKind::MissingData, "F10 collection has a server business error").with_context("server_error_code", response.error_code().unwrap_or_default().to_string())); }
-            if reported_total.is_none() { reported_total = total(&response); }
-            metadata.add(response.meta())?;
+            if reported_total.is_none() { reported_total = total(&response, &context)?; }
+            metadata.add(response.meta(), &context)?;
             let batch = response.take_first_rows(); let wire_count = batch.len();
             context.record_work(wire_count, 0)?;
             let before = rows.len();
             for row in batch {
                 context.check_boundary(TimeoutPhase::Aggregate)?;
-                if section == "board_members" && !keys.insert(record_key(&row)?) { continue; }
+                if section == "board_members" {
+                    keys.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 dividend identities").with_source(error))?;
+                    if !keys.insert(record_key(&row, &context)?) { continue; }
+                }
                 if rows.len() >= query.limits.max_records() { return Err(Error::new(ErrorKind::LimitExceeded, "F10 collection record limit reached")); }
                 rows.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 collection").with_source(error))?;
-                rows.push(row);
+                rows.push(project(row));
             }
             let ended = wire_count < size || reported_total.is_some_and(|total| rows.len() as u64 >= total);
             if ended || !query.all_pages {
@@ -245,23 +279,31 @@ impl F10Client {
         Err(Error::new(ErrorKind::LimitExceeded, "F10 collection page limit reached before end of data"))
     }
     pub fn index_members(&self, query: &IndexMembersQuery, options: &OperationOptions) -> Result<IndexMemberTable> {
-        let result = self.collect_market(&query.inner, "index_members", "f10.index_members", options)?;
-        Ok(IndexMemberTable { code: query.inner.code.clone(), total: result.total, rows: result.rows.into_iter().map(|raw| IndexMember { raw }).collect(), completion: result.completion, meta: result.meta })
+        let result = self.collect_market(&query.inner, "index_members", "f10.index_members", options, |raw| IndexMember { raw })?;
+        Ok(IndexMemberTable { code: query.inner.code.clone(), total: result.total, rows: result.rows, completion: result.completion, meta: result.meta })
     }
     pub fn index_tracking_products(&self, query: &IndexTrackingProductsQuery, options: &OperationOptions) -> Result<IndexTrackingTable> {
-        let result = self.collect_market(&query.inner, "index_etfs", "f10.index_tracking_products", options)?;
-        Ok(IndexTrackingTable { code: query.inner.code.clone(), total: result.total, rows: result.rows.into_iter().map(|raw| IndexTrackingProduct { raw }).collect(), completion: result.completion, meta: result.meta })
+        let result = self.collect_market(&query.inner, "index_etfs", "f10.index_tracking_products", options, |raw| IndexTrackingProduct { raw })?;
+        Ok(IndexTrackingTable { code: query.inner.code.clone(), total: result.total, rows: result.rows, completion: result.completion, meta: result.meta })
     }
     pub fn board_members(&self, query: &BoardMembersQuery, options: &OperationOptions) -> Result<BoardMemberTable> {
-        let result = self.collect_market(&query.inner, "board_members", "f10.board_members", options)?;
-        Ok(BoardMemberTable { code: query.inner.code.clone(), total: result.total, rows: result.rows.into_iter().map(|raw| BoardMember { raw }).collect(), completion: result.completion, meta: result.meta })
+        let result = self.collect_market(&query.inner, "board_members", "f10.board_members", options, |raw| BoardMember { raw })?;
+        Ok(BoardMemberTable { code: query.inner.code.clone(), total: result.total, rows: result.rows, completion: result.completion, meta: result.meta })
     }
     pub fn ipo_calendar(&self, options: &OperationOptions) -> Result<IpoCalendar> {
         let context = self.context(Instant::now(), "f10.ipo_calendar", options)?;
         let call = MarketReportQuery::new(None).with_section(SectionCode::new("market_report", "ipo_calendar")?)?.to_call()?;
         let mut response = self.endpoint_call(&call, &context)?;
-        let rows = response.take_first_rows().into_iter().map(|raw| IpoEntry { raw }).collect();
+        let mut rows = Vec::new();
+        for raw in response.take_first_rows() {
+            context.check_boundary(TimeoutPhase::Aggregate)?;
+            context.record_work(1, 0)?;
+            rows.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 IPO entries").with_source(error))?;
+            rows.push(IpoEntry { raw });
+        }
+        let mut metadata = crate::f10::response::MetaCollector::default();
+        metadata.add(response.meta(), &context)?;
         context.finish()?;
-        Ok(IpoCalendar { rows, meta: response.meta().clone() })
+        Ok(IpoCalendar { rows, meta: metadata.finish() })
     }
 }

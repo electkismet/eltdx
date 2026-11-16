@@ -98,10 +98,27 @@ pub(crate) enum ExecutionProfile {
 pub(crate) struct OperationSponsor {
     budget: Arc<OperationBudget>,
     profile: ExecutionProfile,
+    limits: WorkLimits,
 }
 
 impl OperationSponsor {
     pub(crate) fn check_boundary(&self) -> Result<()> { self.budget.check(Instant::now()) }
+
+    /// Charge a worker's streamed bytes against its parent's existing budget.
+    /// No second counter or separately renewed deadline is introduced.
+    #[cfg(feature = "f10")]
+    pub(crate) fn record_bytes(&self, bytes: usize) -> Result<()> {
+        self.budget.gate(Instant::now(), |state| {
+            let next = checked_add(state.counters.bytes, bytes)?;
+            if let Some(maximum) = self.limits.bytes {
+                if next > maximum {
+                    return Err(limit_error("bytes", maximum, state.counters.bytes, state.last_recoverable.as_ref()));
+                }
+            }
+            state.counters.bytes = next;
+            Ok(())
+        })
+    }
 
     pub(crate) fn deadline(&self) -> Option<Instant> {
         match self.profile { ExecutionProfile::RustPublic { deadline, .. } => Some(deadline), _ => None }
@@ -231,7 +248,7 @@ impl OperationContext {
 
     pub(crate) fn raw(&self) -> RawPolicy { self.options.raw }
     pub(crate) fn sponsor(&self) -> OperationSponsor {
-        OperationSponsor { budget: Arc::clone(&self.budget), profile: self.profile }
+        OperationSponsor { budget: Arc::clone(&self.budget), profile: self.profile, limits: self.limits }
     }
     pub(crate) fn owner(&self) -> &Arc<SessionOwner> { &self.owner }
     /// Freeze the injected-clock Shanghai date once for this logical operation.

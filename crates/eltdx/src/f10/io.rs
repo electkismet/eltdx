@@ -18,10 +18,11 @@ pub(crate) type BoxStream = Box<dyn Stream>;
 #[derive(Debug)]
 pub(crate) struct WireCapture {
     maximum: usize, received: usize, retain: bool, bytes: Vec<u8>, failure: Option<Error>,
+    control: Control,
 }
 impl WireCapture {
-    pub fn new(maximum: usize, retain: bool) -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Self { maximum, received: 0, retain, bytes: Vec::new(), failure: None }))
+    pub fn new(maximum: usize, retain: bool, control: Control) -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Self { maximum, received: 0, retain, bytes: Vec::new(), failure: None, control }))
     }
     pub fn take_bytes(&mut self) -> Vec<u8> { std::mem::take(&mut self.bytes) }
     pub fn failure(&self) -> Option<Error> { self.failure.clone() }
@@ -31,6 +32,7 @@ impl WireCapture {
                 .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "F10 wire byte counter overflow"))?;
             if self.received > self.maximum { return Err(Error::new(ErrorKind::LimitExceeded, "F10 HTTP framing and wire byte limit exceeded")); }
             if self.retain {
+                self.control.sponsor.record_bytes(bytes.len())?;
                 self.bytes.try_reserve(bytes.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 wire capture").with_source(error))?;
                 self.bytes.extend_from_slice(bytes);
             }
@@ -121,6 +123,7 @@ impl io::Write for Sink {
             self.control.check(TimeoutPhase::Decode)?;
             let next = self.bytes.len().checked_add(bytes.len()).ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "F10 decoded size overflow"))?;
             if next > self.maximum { return Err(Error::new(ErrorKind::LimitExceeded, "F10 decoded response exceeds limit")); }
+            self.control.sponsor.record_bytes(bytes.len())?;
             self.bytes.try_reserve(bytes.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 decoded response").with_source(error))?;
             self.bytes.extend_from_slice(bytes);
             Ok(bytes.len())

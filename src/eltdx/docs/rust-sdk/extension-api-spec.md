@@ -106,6 +106,8 @@ impl Row { pub fn get_all(&self, name: &str) -> impl Iterator<Item=&Cell>;
 
 `Response::attributes() -> &[(String, JsonValue)]` 保留非 `ResultSets` 顶层附加字段及其顺序和重复键，包括 `HitCache`/`hitCache`；`ErrorCode` 仍有checked专用访问。只有原始payload保留模式才另存输入中更早的重复 `ResultSets`，Omit不为这些重复表构造额外副本。请求与表raw的保留复制也检查父操作取消/期限；Params外包装及所有元素共用整文档的复杂度限额。
 
+多请求的累计保护由 `max_operation_bytes:NonZeroU64=64MiB` 配置，并提供 `with_max_operation_bytes` 和只读getter。它计入一次公开操作所有响应的解码字节、按raw策略另存的压缩payload/HTTP明文，以及分页去重键的逻辑字节；不是Rust堆内存测量值。传输在分配相应保留缓冲前扣同一OperationContext预算；不在每页/前置查询重置，也不在元数据合并时对共享Bytes句柄再扣一遍。较小配置允许提前终止整个操作，报LimitExceeded而非成功返回截断列表。该上限仅适用新Rust入口，Python既有策略不新增此保护。
+
 ### 2.2 query 字段类型、默认和分页
 
 下表每行定义一个 public query struct；名称为方法名 PascalCase + `Query`。例如 `ShareholdersQuery` 包含表列所有字段，签名是 `F10Client::shareholders(&self, query: &ShareholdersQuery, options: &OperationOptions) -> Result<Response>`。下表的 `method(Q) -> R` 是此完整签名的缩写；无参网络方法省略 query，仍有 `options`；只有 `news_channels()` 无网络 options。`call` 的互斥 Body/Params 用 enum 编译期表达，`params` 是 ParamsQuery 便捷包装。每个 query constructor 提供下面默认值，所有字段有 read-only getter 与 checked builder，禁止通过 public mutable 字段绕过校验。
@@ -512,6 +514,8 @@ MG条件分支明确如下：capital section002发送[002,us,page]，其他分�
 `index_members` 与 tracking：页大小1..100（Rust越界报错；Python max/min 钳制），页码从1起；短页、已达 server total 或 all_pages=false 终止，保留服务排序与所有重复。`board_members` 实际是分红记录：key=(code, dividend_plan, announce_date, record_date, ex_date, report_period)，按此去重保留首次出现顺序；同 code 的中报与年报不能合并。推进 page 而非唯一行数；空页、短页、达到总记录数或无新增记录终止。Rust 的无新增但未达总数返回显式 `Incomplete` 诊断；收集完整要求的入口返回 `LimitExceeded`/完整性错误而非声称全部。Python 按原代码提前返回列表。达到 max_pages 且不能证明完整：Rust 严格 collect 报 `LimitExceeded`，Python 原停止规则保持。
 
 普通 F10 endpoint 只返回指定页，不能全域自动分页。排序为服务端顺序；SDK 不通过本地重排使分页看似稳定。Ladder 日期全省略取调用时本地交易日期语义的 today（记录 clock 来源），只给一端复制到另一端，start>end 拒绝；include_summary 才第二次请求 `Params=["2", start, end]`，detail 为 `"1"`。两次调用共享 Rust 总期限；Python 每次独立期限及错误路径不变。
+
+Rust本地日期使用 `LocalDateClock::today() -> Result<TradingDate>`；默认 `SystemLocalDateClock` 读取调用时操作系统本机civil date，`F10ClientBuilder::with_local_date_clock(Arc<dyn LocalDateClock>)` 可注入确定来源。build与显式日期查询均不调用clock；全省日期每次公开操作仅调用一次。`LadderDateSource` 区分显式区间、复制start、复制end与本机clock，不能把HQ固定Shanghai日期无说明地替代本机日期。晋级率超1时保留原counts并给诊断，率省略，不静默裁剪。
 
 ### 2.4 typed 结果字段、单位和无值
 

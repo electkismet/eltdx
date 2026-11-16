@@ -14,6 +14,7 @@ mod resolver;
 mod http;
 mod worker;
 mod values;
+mod clock;
 mod endpoints;
 pub mod news;
 
@@ -26,6 +27,7 @@ pub use values::{AshareCode, BondCode, CodeUse, DateOrWindow, F10MarketCode, Fun
     HongKongCode, IndustryCode, PageSelector, PageSizeSelector, RequestId, SectionCode, ThirdBoardCode, UsTicker};
 pub use endpoints::*;
 pub use news::{NewsChannel, NewsChannelInfo, NewsHomeTab};
+pub use clock::{LocalDateClock, SystemLocalDateClock};
 
 /// Parse an already obtained TQLEX object without network work. Original HTTP
 /// bytes are only available on client responses; this parser retains table

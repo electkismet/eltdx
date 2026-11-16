@@ -10,7 +10,7 @@ repository.workspace = true
 default = []
 serde = ["dep:serde"]
 offline = []
-f10 = ["dep:serde_json", "dep:url", "dep:tokio", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:rustls", "dep:rustls-native-certs", "dep:hickory-resolver", "dep:flate2"]
+f10 = ["dep:serde_json", "dep:url", "dep:tokio", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:rustls", "dep:rustls-native-certs", "dep:hickory-resolver", "dep:flate2", "dep:chrono"]
 ex = []
 mac = ["ex"]
 full = ["serde", "offline", "f10", "ex", "mac"]
@@ -34,6 +34,7 @@ rustls = { version = "=0.23.46", default-features = false, features = ["std", "r
 rustls-native-certs = { version = "=0.8.2", optional = true }
 hickory-resolver = { version = "=0.24.4", default-features = false, features = ["tokio-runtime", "system-config"], optional = true }
 flate2 = { workspace = true, optional = true }
+chrono = { version = "=0.4.42", default-features = false, features = ["clock", "std"], optional = true }
 
 [dev-dependencies]
 rcgen = { version = "=0.13.2", default-features = false, features = ["crypto", "ring"] }

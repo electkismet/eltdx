@@ -63,3 +63,13 @@ fn independent_f10_build_close_and_header_order_need_no_network() -> eltdx::Resu
     client.close()?;
     Ok(())
 }
+
+#[test]
+fn operation_byte_limit_is_independent_of_single_response_limits() -> eltdx::Result<()> {
+    let client = F10Client::builder()
+        .with_max_operation_bytes(std::num::NonZeroU64::new(19).ok_or_else(|| eltdx::Error::new(eltdx::ErrorKind::Internal, "test constant"))?)
+        .build()?;
+    assert_eq!(client.config().max_operation_bytes().get(), 19);
+    assert_eq!(client.config().max_response_bytes().get(), 16 * 1024 * 1024);
+    client.close()
+}

@@ -2,6 +2,15 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage40: endpoint checkpoint5a4185c. Authored
+  shared F10 streamed aggregate bytes, composed prerequisite raw metadata,
+  deadline-covered market projections and validated report dates. Both ladder
+  entry/query models, per-day stats and lazy injected local-date clock exist;
+  chrono0.4.42 provisional only. Initial route/result/HTTP sources authored but
+  all unexecuted. Read task-20-report second/third checkpoints. Still full
+  fields/history/all157 branch evidence and remaining stages.19/5/6 unchanged,
+  active unlimited goal, no tests/build/dependency/network/AST/format checks.
+
 - Latest recovery 2026-11-17 stage39: HEAD a0893db; T20 concrete endpoint
   source foundation authored across values/news/seven endpoint modules.
   Counts19 source-complete/5 partial/6 unstarted. Read task-20-report first;

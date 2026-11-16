@@ -171,7 +171,7 @@ impl F10Client {
         let topic = topic.ok_or_else(|| Error::new(ErrorKind::MetadataUnavailable, "no topic id for topic comparison")
             .with_context("server_error_code", first.error_code().map_or_else(|| "absent".to_owned(), |value| value.to_string())))?;
         let call = super::params("CWServ.tdxf10_gg_rdtc_gndb", vec![j(query.section.as_str()), j(query.code.as_str()), j(topic), j(query.sort_by.as_str())])?;
-        let response = self.endpoint_call(&call, &context)?.with_prerequisite(&first);
+        let response = self.endpoint_call(&call, &context)?.with_prerequisite(&first, &context)?;
         context.finish()?; Ok(response)
     }
 }

@@ -182,7 +182,7 @@ async fn post_once(config: &F10Config, url: &Url, body: Bytes,
         .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "HTTP framing budget overflow"))?;
     let cap = usize::try_from(config.max_encoded_bytes.get()).ok().and_then(|value| value.checked_add(overhead))
         .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "HTTP wire budget overflow"))?;
-    let capture = WireCapture::new(cap, retain_wire);
+    let capture = WireCapture::new(cap, retain_wire, control.clone());
     let stream = ObservedStream { stream, capture: Arc::clone(&capture), control: control.clone(),
         headers: Some(request_headers), generated: Vec::new(), pending: Vec::new(), written: 0 };
     let mut builder = http1::Builder::new();
@@ -234,6 +234,7 @@ async fn post_once(config: &F10Config, url: &Url, body: Bytes,
                 encoded = encoded.checked_add(data.len() as u64).ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "encoded byte counter overflow"))?;
                 if encoded > config.max_encoded_bytes.get() { return Err(Error::new(ErrorKind::LimitExceeded, "F10 encoded response exceeds limit")); }
                 if retain_payload {
+                    control.sponsor.record_bytes(data.len())?;
                     retained.try_reserve(data.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve encoded HTTP payload").with_source(error))?;
                     retained.extend_from_slice(&data);
                 }

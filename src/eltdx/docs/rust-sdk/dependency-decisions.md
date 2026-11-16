@@ -158,3 +158,14 @@ available through Response::attributes even when whole-body retention is off.
 No candidate API, compile, dependency graph, runtime fixture, formatter or
 platform check has been executed. These remain implementation source changes,
 not a dependency-selection validation result.
+
+### T20 local civil-date dependency (provisional)
+
+`chrono = 0.4.42`, default features disabled, `clock/std`, optional under `f10`,
+implements the ladder's call-time operating-system local civil date. HQ's
+fixed Shanghai clock is not substituted for Python's `date.today()` contract.
+The public `LocalDateClock` allows an explicitly injected deterministic date;
+construction and explicit-date calls never invoke it. The crate pin, API,
+MSRV, license, timezone discovery and Windows/Linux/macOS behavior remain
+unresolved and unverified until the final dependency/platform phase. No
+dependency download or metadata command has run for this declaration.

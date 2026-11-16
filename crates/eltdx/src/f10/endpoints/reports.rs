@@ -261,32 +261,40 @@ string_field!(GovernanceQuery, arg, with_arg);
 impl GovernanceQuery { pub fn to_call(&self) -> Result<CallQuery> { super::params("CWServ.tdxf10_gg_zbyz", vec![j(self.section.as_str()), j(self.code.as_str()), j(self.arg.as_str())]) } }
 
 fn first_scalar(response: &Response, field: &str, context: &OperationContext) -> Result<Option<String>> {
-    if let Some(table) = response.first_table() {
-        for row in table.rows() {
+    if !response.ok() { return Ok(None); }
+    if let Some(row) = response.first_table().and_then(|table| table.rows().first()) {
+        for cell in row.cells() {
             context.check_boundary(TimeoutPhase::Decode)?;
-            if let Some(cell) = row.get_all(field).next() {
-                return Ok(match cell.value() { JsonValue::String(value) if !value.is_empty() => Some(value.clone()), JsonValue::Number(value) => Some(value.lexeme().to_owned()), _ => None });
-            }
+            if cell.name() != field { continue; }
+            let value = match cell.value() {
+                JsonValue::String(value) => value.as_str(),
+                JsonValue::Number(value) => value.lexeme(),
+                _ => return Ok(None),
+            };
+            // Prerequisites here are dates, never arbitrary display strings.
+            // Bound the copy before validating Gregorian syntax below.
+            return Ok((!value.is_empty() && value.len() <= 10).then(|| value.to_owned()));
         }
     }
     Ok(None)
 }
+fn canonical_period(value: &str) -> Option<String> {
+    if value.len() != 8 && value.len() != 10 { return None; }
+    let digits = if value.len() == 10 {
+        let bytes = value.as_bytes();
+        if !matches!((bytes[4], bytes[7]), (b'-', b'-') | (b'/', b'/')) { return None; }
+        value.bytes().enumerate().filter_map(|(index, byte)| (!matches!(index, 4 | 7)).then_some(byte)).collect::<Vec<_>>()
+    } else { value.as_bytes().to_vec() };
+    if !digits.iter().all(u8::is_ascii_digit) { return None; }
+    let digits = String::from_utf8(digits).ok()?;
+    let year = digits[..4].parse().ok()?;
+    let month = digits[4..6].parse().ok()?;
+    let day = digits[6..].parse().ok()?;
+    TradingDate::new(year, month, day).ok()?;
+    Some(digits)
+}
 fn latest_period(response: &Response, context: &OperationContext) -> Result<String> {
-    if let Some(row) = response.first_table().and_then(|table| table.rows().first()) {
-        context.check_boundary(TimeoutPhase::Decode)?;
-        if let Some(cell) = row.get_all("rq").next() {
-                let value = match cell.value() { JsonValue::String(value) => Some(value.clone()), JsonValue::Number(value) => Some(value.lexeme().to_owned()), _ => None };
-                if let Some(value) = value {
-                let digits: String = value.chars().filter(|ch| *ch != '-').collect();
-                if digits.len() == 8 && digits.bytes().all(|byte| byte.is_ascii_digit()) {
-                    let year = digits[..4].parse().ok(); let month = digits[4..6].parse().ok(); let day = digits[6..].parse().ok();
-                    if let (Some(year), Some(month), Some(day)) = (year, month, day) {
-                        if TradingDate::new(year, month, day).is_ok() { return Ok(digits); }
-                    }
-                }
-                }
-        }
-    }
+    if let Some(period) = first_scalar(response, "rq", context)?.as_deref().and_then(canonical_period) { return Ok(period); }
     Err(missing_metadata(response, "no valid fund report period"))
 }
 fn missing_metadata(response: &Response, message: &str) -> Error {
@@ -298,12 +306,13 @@ impl F10Client {
         let context = self.context(Instant::now(), "f10.business_composition", options)?;
         let (date, prerequisite) = if let Some(date) = query.report_date { (date_text(Some(date)), None) } else {
             let response = self.endpoint_call(&BusinessPeriodsQuery::new(query.code.clone()).to_call()?, &context)?;
-            let date = first_scalar(&response, "T002", &context)?.ok_or_else(|| missing_metadata(&response, "no business composition report period"))?;
+            let date = first_scalar(&response, "T002", &context)?.as_deref().and_then(canonical_period)
+                .ok_or_else(|| missing_metadata(&response, "no valid business composition report period"))?;
             (date, Some(response))
         };
         let call = super::params("CWServ.tdxf10_gg_jyfx", vec![j(query.code.as_str()), j("zygc"), j(date)])?;
         let mut response = self.endpoint_call(&call, &context)?;
-        if let Some(prerequisite) = prerequisite { response = response.with_prerequisite(&prerequisite); }
+        if let Some(prerequisite) = prerequisite { response = response.with_prerequisite(&prerequisite, &context)?; }
         context.finish()?; Ok(response)
     }
     pub fn fund_report(&self, query: &FundReportQuery, options: &OperationOptions) -> Result<Response> {
@@ -311,7 +320,7 @@ impl F10Client {
         let prerequisite = query.prerequisite()?.map(|call| self.endpoint_call(&call, &context)).transpose()?;
         let call = if let Some(response) = &prerequisite { query.resolved(Some(&latest_period(response, &context)?))? } else { query.to_call()? };
         let mut response = self.endpoint_call(&call, &context)?;
-        if let Some(prerequisite) = prerequisite { response = response.with_prerequisite(&prerequisite); }
+        if let Some(prerequisite) = prerequisite { response = response.with_prerequisite(&prerequisite, &context)?; }
         context.finish()?; Ok(response)
     }
 }

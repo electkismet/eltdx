@@ -72,12 +72,12 @@ impl Response {
     pub(crate) fn with_diagnostic(mut self, diagnostic: crate::types::Diagnostic) -> Self {
         self.meta = self.meta.with_diagnostic(diagnostic); self
     }
-    pub(crate) fn with_prerequisite(mut self, prerequisite: &Response) -> Self {
-        let mut sources = prerequisite.meta.sources().to_vec();
-        sources.extend_from_slice(self.meta.sources());
-        self.meta = self.meta.with_sources(sources);
-        for diagnostic in prerequisite.meta.diagnostics() { self.meta = self.meta.with_diagnostic(diagnostic.clone()); }
-        self
+    pub(crate) fn with_prerequisite(mut self, prerequisite: &Response, context: &crate::operation::OperationContext) -> Result<Self> {
+        let mut metadata = MetaCollector::default();
+        metadata.add(&prerequisite.meta, context)?;
+        metadata.add(&self.meta, context)?;
+        self.meta = metadata.finish_with_source(self.meta.source().clone());
+        Ok(self)
     }
 
     pub(crate) fn from_json(entry: String, request: RequestPayload, value: JsonValue,
@@ -122,24 +122,43 @@ pub(crate) struct MetaCollector {
     payloads: Vec<bytes::Bytes>, frames: Vec<bytes::Bytes>, wire: bool,
 }
 impl MetaCollector {
-    pub fn add(&mut self, meta: &ResultMeta) -> Result<()> {
+    pub fn add(&mut self, meta: &ResultMeta, context: &crate::operation::OperationContext) -> Result<()> {
+        context.check_boundary(crate::TimeoutPhase::Aggregate)?;
         self.sources.try_reserve(meta.sources().len()).map_err(allocation)?;
-        self.sources.extend_from_slice(meta.sources());
+        for source in meta.sources() {
+            context.check_boundary(crate::TimeoutPhase::Aggregate)?;
+            self.sources.push(source.clone());
+        }
         self.diagnostics.try_reserve(meta.diagnostics().len()).map_err(allocation)?;
-        self.diagnostics.extend_from_slice(meta.diagnostics());
+        for diagnostic in meta.diagnostics() {
+            context.check_boundary(crate::TimeoutPhase::Aggregate)?;
+            self.diagnostics.push(diagnostic.clone());
+        }
         if let Some(raw) = meta.raw() {
             self.payloads.try_reserve(raw.payloads().len()).map_err(allocation)?;
-            self.payloads.extend_from_slice(raw.payloads());
+            // The transport charged these immutable buffers to the same
+            // parent's streamed byte budget before allocation. Only handles
+            // are retained here, so aggregate raw retention cannot bypass it.
+            for payload in raw.payloads() {
+                context.check_boundary(crate::TimeoutPhase::Aggregate)?;
+                self.payloads.push(payload.clone());
+            }
             if let Some(frames) = raw.wire_frames() {
                 self.wire = true;
                 self.frames.try_reserve(frames.len()).map_err(allocation)?;
-                self.frames.extend_from_slice(frames);
+                for frame in frames {
+                    context.check_boundary(crate::TimeoutPhase::Aggregate)?;
+                    self.frames.push(frame.clone());
+                }
             }
         }
         Ok(())
     }
     pub fn finish(self) -> ResultMeta {
         let source = self.sources.first().cloned().unwrap_or_else(|| ResultMeta::default().source().clone());
+        self.finish_with_source(source)
+    }
+    fn finish_with_source(self, source: crate::types::SourceStamp) -> ResultMeta {
         let raw = (!self.payloads.is_empty()).then(|| crate::types::RawData::new(self.payloads, self.wire.then_some(self.frames), Vec::new()));
         ResultMeta::new(source, self.diagnostics, raw).with_sources(self.sources)
     }

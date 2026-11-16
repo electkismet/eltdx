@@ -195,6 +195,75 @@ fn compressed_payload_retention_differs_from_decoded_json_and_enforces_expansion
 }
 
 #[test]
+fn operation_bytes_include_retained_copies_before_the_response_is_accepted() -> TestResult {
+    for raw in [RawPolicy::Omit, RawPolicy::RetainPayload, RawPolicy::RetainWire] {
+        let server = Server::start(|mut stream| {
+            read_request(&mut stream)?;
+            answer(&mut stream, "200 OK", "", TABLE)
+        })?;
+        let client = F10Client::builder().with_base_url(server.url())
+            .with_max_operation_bytes(NonZeroU64::new(TABLE.len() as u64).ok_or("nonzero")?).build()?;
+        let result = client.call(&query("sample")?, &OperationOptions::default().with_raw(raw));
+        if raw == RawPolicy::Omit { assert!(result?.ok()); }
+        else { assert_eq!(result.unwrap_err().kind(), ErrorKind::LimitExceeded); }
+        client.close()?;
+        server.finish()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn report_prerequisite_retains_both_raw_sources_and_shares_streamed_byte_limit() -> TestResult {
+    use eltdx::f10::{AshareCode, BusinessCompositionQuery, F10MarketCode};
+    const PERIOD: &[u8] = br#"{"ResultSets":[{"ColName":["T002"],"Content":[["2024-06-30"]]}]}"#;
+    for limited in [false, true] {
+        let listener = TcpListener::bind("127.0.0.1:0")?;
+        let address = listener.local_addr()?;
+        listener.set_nonblocking(true)?;
+        let worker = thread::spawn(move || -> TestResult {
+            for index in 0..2 {
+                let deadline = Instant::now() + Duration::from_secs(5);
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < deadline => thread::sleep(Duration::from_millis(2)),
+                        Err(error) => return Err(error.into()),
+                    }
+                };
+                stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+                let (_, body) = read_request(&mut stream)?;
+                if index == 0 {
+                    assert_eq!(body, br#"{"Params":["zygcfx","600000"]}"#);
+                    answer(&mut stream, "200 OK", "", PERIOD)?;
+                } else {
+                    assert_eq!(body, br#"{"Params":["600000","zygc","20240630"]}"#);
+                    answer(&mut stream, "200 OK", "", TABLE)?;
+                }
+            }
+            Ok(())
+        });
+        let total = 2 * (PERIOD.len() + TABLE.len());
+        let limit = if limited { total - 1 } else { total };
+        let client = F10Client::builder().with_base_url(format!("http://{address}/TQLEX"))
+            .with_max_operation_bytes(NonZeroU64::new(limit as u64).ok_or("nonzero")?).build()?;
+        let query = BusinessCompositionQuery::new(AshareCode::new(F10MarketCode::new(1), "600000")?);
+        let result = client.business_composition(&query, &OperationOptions::default().with_raw(RawPolicy::RetainPayload));
+        if limited { assert_eq!(result.unwrap_err().kind(), ErrorKind::LimitExceeded); }
+        else {
+            let response = result?;
+            assert_eq!(response.meta().sources().len(), 2);
+            let raw = response.meta().raw().ok_or("missing composed raw")?;
+            assert_eq!(raw.payloads().len(), 2);
+            assert_eq!(raw.payloads()[0].as_ref(), PERIOD);
+            assert_eq!(raw.payloads()[1].as_ref(), TABLE);
+        }
+        client.close()?;
+        worker.join().map_err(|_| "report fixture panicked")??;
+    }
+    Ok(())
+}
+
+#[test]
 fn encoded_chunked_body_and_response_header_caps_apply_while_reading() -> TestResult {
     for headers in [false, true] {
         let server = Server::start(move |mut stream| {

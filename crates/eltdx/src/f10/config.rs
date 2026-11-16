@@ -82,6 +82,7 @@ pub struct F10Config {
     pub(crate) timeout: Duration,
     pub(crate) max_response_bytes: NonZeroU64,
     pub(crate) max_encoded_bytes: NonZeroU64,
+    pub(crate) max_operation_bytes: NonZeroU64,
     pub(crate) max_header_bytes: NonZeroUsize,
     pub(crate) max_redirects: u8,
     pub(crate) proxy: Option<ProxyUrl>,
@@ -97,6 +98,7 @@ impl F10Config {
             prefer_ipv4: true, timeout: Duration::from_secs(8),
             max_response_bytes: NonZeroU64::new(16 * 1024 * 1024).ok_or_else(internal_limit)?,
             max_encoded_bytes: NonZeroU64::new(16 * 1024 * 1024).ok_or_else(internal_limit)?,
+            max_operation_bytes: NonZeroU64::new(64 * 1024 * 1024).ok_or_else(internal_limit)?,
             max_header_bytes: NonZeroUsize::new(64 * 1024).ok_or_else(internal_limit)?,
             max_redirects: 0, proxy: None, tls: TlsPolicy::SystemRoots, resolver: ResolverPolicy::Bounded,
         })
@@ -109,6 +111,9 @@ impl F10Config {
     pub fn timeout(&self) -> Duration { self.timeout }
     pub fn max_response_bytes(&self) -> NonZeroU64 { self.max_response_bytes }
     pub fn max_encoded_bytes(&self) -> NonZeroU64 { self.max_encoded_bytes }
+    /// Combined decoded and retained HTTP bytes across all requests made by
+    /// one public operation. This is a logical byte budget, not a heap metric.
+    pub fn max_operation_bytes(&self) -> NonZeroU64 { self.max_operation_bytes }
     pub fn max_header_bytes(&self) -> NonZeroUsize { self.max_header_bytes }
     pub fn max_redirects(&self) -> u8 { self.max_redirects }
     pub fn proxy(&self) -> Option<&ProxyUrl> { self.proxy.as_ref() }

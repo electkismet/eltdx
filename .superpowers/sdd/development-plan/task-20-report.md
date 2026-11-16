@@ -42,3 +42,53 @@ started. T19 is still partial because source handoff and dependency/platform
 evidence are not complete. No tests, collection, build, check, clippy, doctest,
 AST/format/diff checks, dependency resolution/download or network verification
 ran. No new agents, push, tag, publication or merge.
+
+## Second checkpoint — parent budget and composed provenance
+
+First endpoint foundation committed `5a4185c`. Added one configurable 64 MiB
+logical aggregate limit to F10 config/builder. OperationSponsor carries the
+parent WorkLimits and charges its existing byte counter while decoded bytes,
+retained encoded payload and retained HTTP plaintext are streamed, before
+their allocation. No separate operation/deadline/counter is created.
+
+MetaCollector merges physical-response-order source/raw handles with parent
+cancellation checks; report/topic prerequisites retain both responses' raw
+payloads and diagnostics. Market collection projects each typed row before
+finishing the original context, retains cancellation during totals and record
+keys, and uses fallible identity-key storage. Corrected the row string helper
+lifetime. Business and fund prerequisites select the first row only, validate
+the actual Gregorian report date, and reject failed/absent metadata before a
+second request. Authored aggregate-limit and two-request raw source cases;
+these have not been executed.
+
+The remaining ladder/fields/history/full route cases and later T22–T30 work
+remain incomplete. Counts19/5/6 and active unlimited goal unchanged. No test,
+build, dependency, network, formatter, AST or other execution validation ran.
+
+## Third checkpoint — limit-board typed source and initial route/result cases
+
+Added both distinct query structs and public methods for limit_up_down_list /
+limit_board_ladder. Explicit/repeated/local-clock dates are distinguished;
+injected LocalDateClock is lazy, and SystemLocalDateClock uses provisional
+chrono0.4.42 rather than changing HQ's Shanghai clock. Date selection is fixed
+once inside the public operation; optional summary shares the same parent.
+
+Raw-backed rows preserve every native field; status1/3/0 and unknown remain
+distinct, positive type1 levels alone enter per-date counts. Invalid dates /
+numbers / unsupported market values are diagnosed without discarding raw.
+Stats preserve contradictory counts; promotion ratios outside0..1 are omitted
+with diagnostics. Native seal/summary amount units are not advertised as yuan.
+Detail and summary business status and original additional result sets remain
+independently accessible, with all source/raw metadata aggregated in order.
+
+Authored f10_routes.rs for explicit ladder dates, market aliases, report
+periods and pagination bounds; f10_results.rs for nonempty multi-date ladder,
+unknowns/invalid fields, summary business error, raw and injected local date,
+plus lossless duplicate columns and actual second-table news. HTTP source
+cases cover aggregate raw-byte limits and two-request report provenance.
+These are initial cases, not complete157-method coverage; none has executed.
+
+Still to implement: full scoped fields registry, historical money flow,
+complete endpoint/branch route inventory and remaining result projection
+details. Counts19/5/6; all later source stages remain required. No execution
+validation, dependency resolution, new agents or publication occurred.

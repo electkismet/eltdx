@@ -30,9 +30,11 @@ pub struct F10ClientBuilder {
     base_url: String, ladder_url: String, international_url: String,
     headers: Option<Vec<Header>>, prefer_ipv4: bool, timeout: Duration,
     max_response_bytes: NonZeroU64, max_encoded_bytes: NonZeroU64,
+    max_operation_bytes: NonZeroU64,
     max_header_bytes: NonZeroUsize, max_redirects: u8,
     proxy: Option<ProxyUrl>, tls: TlsPolicy, resolver: ResolverPolicy,
     close_timeout: Duration, cleanup_timeout: Duration,
+    local_date_clock: super::clock::LocalDateClockHandle,
 }
 impl Default for F10ClientBuilder { fn default() -> Self { Self::new() } }
 impl F10ClientBuilder {
@@ -43,10 +45,12 @@ impl F10ClientBuilder {
             prefer_ipv4: true, timeout: Duration::from_secs(8),
             max_response_bytes: NonZeroU64::new(16 * 1024 * 1024).unwrap_or(NonZeroU64::MIN),
             max_encoded_bytes: NonZeroU64::new(16 * 1024 * 1024).unwrap_or(NonZeroU64::MIN),
+            max_operation_bytes: NonZeroU64::new(64 * 1024 * 1024).unwrap_or(NonZeroU64::MIN),
             max_header_bytes: NonZeroUsize::new(64 * 1024).unwrap_or(NonZeroUsize::MIN),
             max_redirects: 0, proxy: None, tls: TlsPolicy::SystemRoots,
             resolver: ResolverPolicy::Bounded, close_timeout: Duration::from_secs(1),
             cleanup_timeout: Duration::from_secs(1),
+            local_date_clock: super::clock::LocalDateClockHandle::default(),
         }
     }
     pub fn with_base_url(mut self, value: impl Into<String>) -> Self { self.base_url = value.into(); self }
@@ -59,6 +63,7 @@ impl F10ClientBuilder {
     pub fn with_timeout(mut self, value: Duration) -> Self { self.timeout = value; self }
     pub fn with_max_response_bytes(mut self, value: NonZeroU64) -> Self { self.max_response_bytes = value; self }
     pub fn with_max_encoded_bytes(mut self, value: NonZeroU64) -> Self { self.max_encoded_bytes = value; self }
+    pub fn with_max_operation_bytes(mut self, value: NonZeroU64) -> Self { self.max_operation_bytes = value; self }
     pub fn with_max_header_bytes(mut self, value: NonZeroUsize) -> Self { self.max_header_bytes = value; self }
     pub fn with_max_redirects(mut self, value: u8) -> Self { self.max_redirects = value; self }
     pub fn with_proxy(mut self, value: Option<ProxyUrl>) -> Self { self.proxy = value; self }
@@ -66,6 +71,10 @@ impl F10ClientBuilder {
     pub fn with_resolver(mut self, value: ResolverPolicy) -> Self { self.resolver = value; self }
     pub fn with_close_timeout(mut self, value: Duration) -> Self { self.close_timeout = value; self }
     pub fn with_cleanup_timeout(mut self, value: Duration) -> Self { self.cleanup_timeout = value; self }
+    /// Used only when a ladder query omits both dates; never called by build.
+    pub fn with_local_date_clock(mut self, value: Arc<dyn super::LocalDateClock>) -> Self {
+        self.local_date_clock = super::clock::LocalDateClockHandle(value); self
+    }
 
     pub fn build(self) -> Result<F10Client> {
         let mut config = F10Config::defaults()?;
@@ -77,7 +86,7 @@ impl F10ClientBuilder {
                 return Err(Error::new(ErrorKind::InvalidArgument, "F10 timeouts must be positive and fit the monotonic clock"));
             }
         }
-        for size in [self.max_response_bytes.get(), self.max_encoded_bytes.get()] {
+        for size in [self.max_response_bytes.get(), self.max_encoded_bytes.get(), self.max_operation_bytes.get()] {
             if usize::try_from(size).is_err() {
                 return Err(Error::new(ErrorKind::InvalidArgument, "F10 byte limit exceeds this platform's address space"));
             }
@@ -107,6 +116,7 @@ impl F10ClientBuilder {
         config.timeout = self.timeout;
         config.max_response_bytes = self.max_response_bytes;
         config.max_encoded_bytes = self.max_encoded_bytes;
+        config.max_operation_bytes = self.max_operation_bytes;
         config.max_header_bytes = self.max_header_bytes;
         config.max_redirects = self.max_redirects;
         config.proxy = self.proxy;
@@ -129,6 +139,7 @@ impl F10ClientBuilder {
         let owner = Arc::new(SessionOwner::new(self.close_timeout, self.cleanup_timeout));
         let diagnostics = Mutex::new(F10Diagnostics { generation: owner.generation(), ..F10Diagnostics::default() });
         Ok(F10Client { inner: Arc::new(F10Inner { config, common, owner, diagnostics,
+            local_date_clock: self.local_date_clock,
             connected: AtomicBool::new(false), gate: Arc::new(super::worker::Concurrency::new(4)),
             connect_gate: Arc::new(super::worker::Concurrency::new(1)) }) })
     }
@@ -140,6 +151,7 @@ pub(crate) struct F10Inner {
     pub(crate) common: ClientConfig,
     pub(crate) owner: Arc<SessionOwner>,
     pub(crate) diagnostics: Mutex<F10Diagnostics>,
+    pub(crate) local_date_clock: super::clock::LocalDateClockHandle,
     connected: AtomicBool,
     gate: Arc<super::worker::Concurrency>,
     connect_gate: Arc<super::worker::Concurrency>,
@@ -204,7 +216,6 @@ impl F10Client {
                 retain_payload: context.raw() != RawPolicy::Omit,
                 retain_wire: context.raw() == RawPolicy::RetainWire,
             }, authorization, context, slot.clone())?;
-            context.record_work(0, reply.body.len())?;
             let value = super::json::decode(&reply.body, self.inner.config.max_response_bytes.get() as usize,
                 &mut || context.check_boundary(TimeoutPhase::Decode))?;
             context.check_boundary(TimeoutPhase::Decode)?;
@@ -231,7 +242,12 @@ impl F10Client {
         Ok(())
     }
     pub(crate) fn context(&self, entry: Instant, name: &'static str, options: &OperationOptions) -> Result<OperationContext> {
-        OperationContext::rust_public(entry, name, Arc::clone(&self.inner.owner), &self.inner.common, options)
+        let mut context = OperationContext::rust_public(entry, name, Arc::clone(&self.inner.owner), &self.inner.common, options)?;
+        context.set_work_limits(crate::operation::WorkLimits {
+            bytes: Some(self.inner.config.max_operation_bytes.get() as usize),
+            ..crate::operation::WorkLimits::default()
+        })?;
+        Ok(context)
     }
 }
 
