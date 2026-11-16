@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use eltdx::{BatchItemState, CancellationToken, CategoryQuery, ErrorKind, MissingPolicy, OperationOptions, RawPolicy, SecurityId, TdxClient};
+use eltdx::{BatchItemState, CancellationToken, CategoryQuery, EndEvidence, ErrorKind, MissingPolicy, OperationOptions, RawPolicy, SecurityId, TdxClient};
 use hq_server::{directory, directory_offset, snapshots, Server};
 
 fn ids(values: &[&str]) -> Vec<SecurityId> { values.iter().map(|value| value.parse().unwrap()).collect() }
@@ -224,8 +224,9 @@ fn operation_timeout_during_second_snapshot_recovery_remains_timeout() -> Result
     Ok(())
 }
 
-fn category_nonfinite_payload(field_offset: usize) -> Vec<u8> {
-    let mut payload = vec![0, 0, 1, 0];
+fn category_payload(min2_amount: f32, depth: f32, count: usize) -> Vec<u8> {
+    let mut payload = vec![0, 0];
+    payload.extend_from_slice(&u16::try_from(count).unwrap().to_le_bytes());
     let mut record = Vec::with_capacity(86);
     record.push(1);
     record.extend_from_slice(b"600000");
@@ -235,16 +236,17 @@ fn category_nonfinite_payload(field_offset: usize) -> Vec<u8> {
     record.extend_from_slice(&[0; 4]);
     record.extend_from_slice(&[0; 4]);
     let mut tail = [0; 56];
-    tail[field_offset..field_offset + 4].copy_from_slice(&f32::NAN.to_le_bytes());
+    tail[6..10].copy_from_slice(&min2_amount.to_le_bytes());
+    tail[26..30].copy_from_slice(&depth.to_le_bytes());
     record.extend_from_slice(&tail);
-    payload.extend_from_slice(&record);
+    for _ in 0..count { payload.extend_from_slice(&record); }
     payload
 }
 
 #[test]
 fn category_rejects_nonfinite_required_numeric_values() -> Result<(), Box<dyn std::error::Error>> {
-    for field_offset in [6, 26] {
-        let payload = category_nonfinite_payload(field_offset);
+    for (min2_amount, depth) in [(f32::NAN, 0.0), (0.0, f32::INFINITY)] {
+        let payload = category_payload(min2_amount, depth, 1);
         let server = Server::start(move |request| match request.msg_type {
             0x044d => catalog(request),
             0x054b => payload.clone(),
@@ -253,6 +255,27 @@ fn category_rejects_nonfinite_required_numeric_values() -> Result<(), Box<dyn st
         let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build()?;
         let error = client.quotes().category(&CategoryQuery::new(), &OperationOptions::default()).unwrap_err();
         assert_eq!(error.kind(), ErrorKind::Protocol);
+        client.close()?;
+        server.finish()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn category_offset_exhaustion_returns_requested_window_without_invalid_cursor() -> Result<(), Box<dyn std::error::Error>> {
+    for (start, count) in [(u16::MAX, 1), (u16::MAX - 80, 80)] {
+        let payload = category_payload(0.0, 0.0, count);
+        let server = Server::start(move |request| match request.msg_type {
+            0x044d => catalog(request),
+            0x054b => payload.clone(),
+            _ => panic!("unexpected request"),
+        })?;
+        let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build()?;
+        let query = CategoryQuery::new().with_start(start)?.with_count(count)?;
+        let page = client.quotes().category(&query, &OperationOptions::default())?;
+        assert_eq!(page.items().len(), count);
+        assert_eq!(page.end(), EndEvidence::RequestedWindow);
+        assert!(page.next_cursor().is_none());
         client.close()?;
         server.finish()?;
     }

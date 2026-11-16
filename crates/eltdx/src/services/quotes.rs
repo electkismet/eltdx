@@ -182,9 +182,14 @@ impl QuoteService {
             &page.records.iter().map(|row| row.record_range).collect::<Vec<_>>(), "quotes.category");
         let (end, cursor) = if items.is_empty() { (EndEvidence::EmptyPage, None) } else {
             let next = u32::from(query.start()).checked_add(u32::try_from(items.len()).map_err(|_| offset_overflow())?).ok_or_else(offset_overflow)?;
-            if next > u32::from(u16::MAX) { return Err(offset_overflow()); }
-            (EndEvidence::Unknown, Some(PageCursor::new(next, query.count(), fingerprint, context.session_id,
-                Some(source.host), Some(metadata.version()))))
+            let next_window_end = next.checked_add(u32::try_from(query.count()).map_err(|_| offset_overflow())?)
+                .ok_or_else(offset_overflow)?;
+            if next > u32::from(u16::MAX) || next_window_end > u32::from(u16::MAX) + 1 {
+                (EndEvidence::RequestedWindow, None)
+            } else {
+                (EndEvidence::Unknown, Some(PageCursor::new(next, query.count(), fingerprint, context.session_id,
+                    Some(source.host), Some(metadata.version()))))
+            }
         };
         context.finish()?;
         Ok(DataPage::new(items, u64::from(query.start()), query.count(), cursor, end, meta))
