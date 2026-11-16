@@ -2,6 +2,7 @@
 
 mod client;
 mod config;
+mod encoding;
 mod hq;
 mod session;
 mod operation;

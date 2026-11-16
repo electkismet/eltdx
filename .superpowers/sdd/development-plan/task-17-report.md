@@ -1,5 +1,70 @@
 # T17 Stage A — bounded archive and source statistics checkpoint
 
+## Stage A2 — approved shared GBK extraction checkpoint
+
+Controller source-only review approved Stage A `cd6735b` with no findings, then
+authorized this narrower shared encoding integration before network Stage B.
+The commit containing this section is the Stage A2 checkpoint; its SHA is in
+the handoff. The earlier Stage A notes below remain the historical evidence and
+limitations, with the following explicit updates:
+
+- The worktree absolute root and both source/destination absolute file paths
+  were resolved and checked to remain under
+  `C:\Users\ax\.codex\worktrees\rust-sdk-implementation\tdx抓包`
+  before native PowerShell `Move-Item` calls. Destination nonexistence was
+  checked. No recursive move/delete or cross-shell filesystem operations ran.
+- Moved `crates/eltdx/src/offline/gbk_pairs.rs` to
+  `crates/eltdx/src/encoding/gbk_pairs.rs`. The actual mapping constants were
+  preserved by moving the original file, without parsing/regenerating/replacing
+  mapping values. Two comment lines record the move and current generator path;
+  original generator/recipe, executable and Python 3.12.14 provenance are kept.
+- Moved `crates/eltdx/src/offline/generate_gbk_pairs.py` to
+  `crates/eltdx/src/encoding/generate_gbk_pairs.py`. Only the two emitted
+  generator/recipe path strings now name `encoding/`. Its codec, iteration,
+  sentinel, indexing and generation logic are unchanged. **The generator was
+  not run**, and no byte/hash/diff equivalence check was executed. Preservation
+  is by the native move and the intentionally comment-only table edit.
+- Added `crates/eltdx/src/encoding/mod.rs` with private `gbk_scalar` strict
+  two-byte lookup and allocation-free `scan_gbk`. The scanner takes explicit
+  `Replace`/`Ignore` policies, reports whether invalid bytes occurred, and emits
+  one scalar at a time. Invalid lead/undefined pair consumes only one byte;
+  ASCII, including NUL, passes through unchanged; standalone 0x80 is invalid.
+- `scan_gbk` has a caller boundary before input, after each 16 KiB of scanned
+  input (a two-byte pair may cross by one byte), and before successful return.
+  Errors propagate unchanged; already-emitted output belongs to the caller
+  and cannot be delivered as complete after a boundary error. Output allocation
+  and input limits remain each consumer's responsibility.
+- Added only private `mod encoding;` to `crates/eltdx/src/lib.rs`. No archive,
+  stats, services or other module registration was made in this checkpoint.
+- Removed the old `offline::gbk_pairs` module declaration and changed existing
+  `offline::decode_gbk` to delegate to `encoding::scan_gbk(Replace)` using an
+  infallible no-op boundary, preserving its signature and prior cancellation
+  behavior. Future users can pass real cancellation checks to the shared
+  scanner. The old offline wrapper itself has not gained a new public policy.
+- `stats.rs` and `archive.rs` remain unchanged. The existing
+  `crate::encoding::gbk_scalar` reference is now satisfied by this single table;
+  the existing stats scan still owns `Ignore` and per-chunk operation checks.
+  No caller-injected production codec, copied mapping table or public encoding
+  API was introduced. Stage B may consolidate its scan loop only with explicit
+  scope approval; it already shares the strict scalar source.
+- Added `crates/eltdx/tests/encoding.rs`: source cases for known strict pairs,
+  ASCII/NUL, invalid lead/trail and undefined pairs, standalone 0x80, replacement
+  versus ignore with recovery, cancellation before emission/between chunks/at
+  final return, empty input, a valid pair straddling a chunk boundary, and the
+  public offline industry consumer under the offline feature. All are unrun.
+- Controller accepted the financial preset's **all-member cumulative expanded
+  256 MiB as a new documented Rust protection**; selected DAT remains separately
+  limited to 256 MiB. The protection must not leak into the legacy Python
+  selected-DAT path. This resolves the earlier provisional aggregate-policy
+  question, without changing archive source or dependency validation status.
+
+Stage A2 has no Cargo changes or dependency fetches, no tests/collection/build/
+check/compilation/clippy/doctest/AST/format/diff checks, and no network actions.
+Only source reads/edits, the bounded native moves and ordinary Git checkpoint
+operations with hooks disabled were used. Source review alone does not confirm
+runtime correctness. T17 Stage B, full default-HQ archive/stats registration,
+dependencies and public resource/owner integration remain outstanding.
+
 Status: **partial T17 implementation only; authored, not executed or validated**.
 Stage A owns only `crates/eltdx/src/archive.rs`, `crates/eltdx/src/stats.rs`,
 `crates/eltdx/tests/stats.rs`, and this report. No Stage B public service, Cargo,

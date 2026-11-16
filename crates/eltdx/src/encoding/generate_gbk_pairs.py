@@ -13,8 +13,8 @@ def main():
     output = Path(__file__).with_name("gbk_pairs.rs")
     lines = [
         "// Generated source DATA from the Python standard-library gbk codec.",
-        "// Generator: crates/eltdx/src/offline/generate_gbk_pairs.py",
-        "// Recipe: python -I -S crates/eltdx/src/offline/generate_gbk_pairs.py",
+        "// Generator: crates/eltdx/src/encoding/generate_gbk_pairs.py",
+        "// Recipe: python -I -S crates/eltdx/src/encoding/generate_gbk_pairs.py",
         "// Executable: " + sys.executable,
         "// Python: " + sys.version.replace("\n", " "),
         "// Codec: gbk; strict two-byte decoding. Undefined entries are zero.",

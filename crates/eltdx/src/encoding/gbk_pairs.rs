@@ -1,6 +1,8 @@
 // Generated source DATA from the Python standard-library gbk codec.
 // Generator: crates/eltdx/src/offline/generate_gbk_pairs.py
 // Recipe: python -I -S crates/eltdx/src/offline/generate_gbk_pairs.py
+// T17 Stage A2: moved unchanged mapping data to encoding/; not regenerated.
+// Current generator: crates/eltdx/src/encoding/generate_gbk_pairs.py
 // Executable: C:\Program Files\WindowsApps\OpenAI.CodexPrimaryRuntime.v26-1112-737-0_26.1112.737.0_x64__3k8sg7r9htsxt\dependencies\python\python.exe
 // Python: 3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]
 // Codec: gbk; strict two-byte decoding. Undefined entries are zero.

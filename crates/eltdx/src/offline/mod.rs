@@ -15,7 +15,6 @@ pub mod minute;
 pub mod paths;
 mod models;
 mod options;
-mod gbk_pairs;
 
 pub use models::{BlockInfo, CoefficientDecision, Coefficients, CustomerBlock, DailyBar,
     Evidence, ExDailyBar, Exchange, IndustryCodes, IndustryMap, LocalCode, MinBar,
@@ -58,34 +57,14 @@ pub(crate) fn context_value(value: impl std::fmt::Display) -> String { format!("
 /// Decode pairs separately so a bad pair does not swallow its ASCII second byte.
 pub(crate) fn decode_gbk(bytes: &[u8]) -> String {
     let mut output = String::new();
-    let mut offset = 0;
-    while offset < bytes.len() {
-        let first = bytes[offset];
-        if first < 0x80 {
-            output.push(char::from(first));
-            offset += 1;
-        } else if (0x81..=0xfe).contains(&first) && offset + 1 < bytes.len()
-            && (0x40..=0xfe).contains(&bytes[offset + 1]) && bytes[offset + 1] != 0x7f
-        {
-            let trail = bytes[offset + 1];
-            let index = usize::from(first - 0x81) * 190 + usize::from(trail - 0x40)
-                - usize::from(trail > 0x7f);
-            let scalar = gbk_pairs::GBK_PAIRS[index];
-            if scalar == 0 {
-                output.push('\u{fffd}');
-                offset += 1;
-            } else {
-                // The table is generated from strict Python GBK Unicode scalar mappings.
-                output.push(char::from_u32(scalar).unwrap_or('\u{fffd}'));
-                offset += 2;
-            }
-        } else {
-            // In particular, Python GBK rejects the standalone byte 0x80 (not euro).
-            output.push('\u{fffd}');
-            offset += 1;
-        }
+    let result = crate::encoding::scan_gbk(
+        bytes, crate::encoding::InvalidBytePolicy::Replace,
+        |scalar| output.push(scalar), &mut || Ok::<(), std::convert::Infallible>(()),
+    );
+    match result {
+        Ok(_) => output,
+        Err(impossible) => match impossible {},
     }
-    output
 }
 
 pub(crate) fn ascii_replace(bytes: &[u8]) -> String {
