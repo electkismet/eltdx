@@ -26,6 +26,12 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
+    fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
+        charge.string(&self.source)?;
+        charge.string(&self.stage)?;
+        if let Some(message) = &self.message { charge.string(message)?; }
+        Ok(())
+    }
     pub fn new(
         source: impl Into<String>,
         stage: impl Into<String>,
@@ -65,6 +71,9 @@ pub struct SourceStamp {
 }
 
 impl SourceStamp {
+    fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
+        charge.string(&self.session_id)
+    }
     pub fn new(
         command: Option<u16>,
         endpoint: Option<SocketAddr>,
@@ -94,6 +103,17 @@ pub struct RawData {
 }
 
 impl RawData {
+    fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
+        charge.array::<Bytes>(self.payloads.capacity())?;
+        for payload in &self.payloads { charge.buffer(payload)?; }
+        if let Some(frames) = &self.wire_frames {
+            charge.array::<Bytes>(frames.capacity())?;
+            for frame in frames { charge.buffer(frame)?; }
+        }
+        charge.array::<(usize, usize, usize)>(self.row_ranges.capacity())?;
+        charge.array::<bool>(self.xor93_rows.capacity())?;
+        Ok(())
+    }
     pub fn new(
         payloads: Vec<Bytes>,
         wire_frames: Option<Vec<Bytes>>,
@@ -137,6 +157,15 @@ fn serialize_wire_frames<S: serde::Serializer>(values: &Option<Vec<Bytes>>, seri
 }
 
 impl ResultMeta {
+    pub(crate) fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
+        self.source.charge_heap(charge)?;
+        charge.array::<SourceStamp>(self.sources.capacity())?;
+        for source in &self.sources { source.charge_heap(charge)?; }
+        charge.array::<Diagnostic>(self.diagnostics.capacity())?;
+        for diagnostic in &self.diagnostics { diagnostic.charge_heap(charge)?; }
+        if let Some(raw) = &self.raw { raw.charge_heap(charge)?; }
+        Ok(())
+    }
     pub fn new(source: SourceStamp, diagnostics: Vec<Diagnostic>, raw: Option<RawData>) -> Self {
         Self { sources: vec![source.clone()], source, diagnostics, raw }
     }

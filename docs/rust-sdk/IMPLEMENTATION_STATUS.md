@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-2026-11-16 最新恢复点：T14全部13方法实现及自审源码已提交`ce46437`（逐笔前一检查点`992ba98`）。T15基础源码检查点`9bbafde`：订阅options/events/gap/RefreshRequest、连接身份绑定游标、独立gap控制槽/有界typed队列、runtime独占PushConsumer和合成测试源码已写入；dispatcher、pin/refresh、owner stop/join、renewal、legacy fanout adapter和完整内存计费仍未接入，T15不能标完成。完整0FFC实测证据仍缺失。没有运行测试、构建或检查；下一步继续T15。
+2026-11-16 最新恢复点：T14全部13方法源码已提交`ce46437`。T15基础检查点`9bbafde`；M23固定连接refresh及同pin冷元数据已提交`61672fe`。随后补写独占dispatcher、按精确Engine缓存和owner stop/join钩子、按实际DTO容量/共享缓冲区计费、固定ring存储及相关合成用例源码。M24活动订阅/lease/renewal/resync、最大事件预校验和Python受控raw适配仍未完成，T15不能标完成。没有运行任何测试、构建或执行检查；下一步继续T15。
 
 当前实际进度：T01–T14实现源码已写完；T21已完成源码与限定静态审阅，T15/T17/T22/T24/T25为部分实现。继续T15订阅与单消费者分发，再继续剩余任务和未完成集成。目标保持active且不设置额度限制；全部执行验证延期。
 
@@ -17,7 +17,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | `9bbafde` (T15基础源码；完整实现的最新任务为T14 ce46437) |
+| 最新检查点 | `61672fe` (T15 M23源码；dispatcher/内存计费后续检查点见Git和task-15-report，T15仍部分完成) |
 | 当前阶段 | P2：T01–T14实现源码完成；T15进行中。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

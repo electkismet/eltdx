@@ -66,6 +66,21 @@ impl<T> BatchOutcome<T> {
 
 pub type SnapshotBatch = BatchOutcome<Snapshot>;
 
+impl BatchOutcome<Snapshot> {
+    pub(crate) fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
+        charge.array::<BatchItem<Snapshot>>(self.items.capacity())?;
+        for item in &self.items {
+            item.security.charge_heap(charge)?;
+            match &item.state {
+                BatchItemState::Present(snapshot) => snapshot.charge_heap(charge)?,
+                BatchItemState::ConfirmedMissing(MissingReason::Other(reason)) => charge.string(reason)?,
+                BatchItemState::ConfirmedMissing(_) => {}
+            }
+        }
+        self.meta.charge_heap(charge)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum EndEvidence {

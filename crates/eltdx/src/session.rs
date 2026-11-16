@@ -77,6 +77,7 @@ struct SessionState {
     endpoint_engines: Vec<(Engine, String, Engine)>,
     pins: Vec<PinHandle>,
     tasks: Vec<Arc<dyn OwnerTaskGroup>>,
+    dispatchers: Vec<(Engine, Arc<crate::subscription::dispatcher::Dispatcher>)>,
 }
 
 #[derive(Debug)]
@@ -194,6 +195,7 @@ impl SessionOwner {
                 endpoint_engines: Vec::new(),
                 pins: Vec::new(),
                 tasks: vec![metadata as Arc<dyn OwnerTaskGroup>],
+                dispatchers: Vec::new(),
             }),
             changed: Condvar::new(),
             cleanup: Arc::new(CleanupControl::default()),
@@ -214,6 +216,30 @@ impl SessionOwner {
         self.cleanup.ensure_started()?;
         state.tasks.push(task);
         Ok(())
+    }
+
+    /// The cache key is exact Engine ownership, not an endpoint or slot number.
+    /// Construction is lazy; register stop/join before permitting worker start.
+    pub(crate) fn push_dispatcher(&self, engine: &Engine) -> Result<Arc<crate::subscription::dispatcher::Dispatcher>> {
+        let dispatcher = {
+            let mut state = self.lock_state()?;
+            if state.phase != SessionPhase::Open { return Err(closed_error()); }
+            if let Some((_, dispatcher)) = state.dispatchers.iter().find(|(source, _)| source.same_owner(engine)) {
+                Arc::clone(dispatcher)
+            } else {
+                self.cleanup.ensure_started()?;
+                state.tasks.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded,
+                    "unable to register push dispatcher").with_source(error))?;
+                state.dispatchers.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded,
+                    "unable to cache push dispatcher").with_source(error))?;
+                let dispatcher = crate::subscription::dispatcher::Dispatcher::new(engine)?;
+                state.tasks.push(Arc::clone(&dispatcher) as Arc<dyn OwnerTaskGroup>);
+                state.dispatchers.push((engine.clone(), Arc::clone(&dispatcher)));
+                dispatcher
+            }
+        };
+        dispatcher.start()?;
+        Ok(dispatcher)
     }
 
     pub(crate) fn ensure_open(&self) -> Result<()> {

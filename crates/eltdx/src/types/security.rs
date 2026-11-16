@@ -47,6 +47,10 @@ impl SecurityId {
     pub fn number(&self) -> &str {
         &self.number
     }
+
+    pub(crate) fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> Result<()> {
+        charge.string(&self.number)
+    }
 }
 
 impl FromStr for SecurityId {

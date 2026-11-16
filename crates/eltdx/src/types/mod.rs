@@ -27,3 +27,4 @@ pub use time::{Clock, EventTime, EventTimeSource, MarketDateChoice, SystemClock,
 pub use trades::{TradeColumnData, TradeColumns, TradeEventKind, TradePage, TradeQuery, TradeSide, TradeTick};
 pub use auctions::{AuctionPoint, AuctionQuery, AuctionSeries};
 pub use money_flow::{DailyMoneyFlow, MoneyFlowDay};
+pub(crate) mod memory;

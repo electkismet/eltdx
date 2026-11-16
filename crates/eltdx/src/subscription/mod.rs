@@ -1,6 +1,7 @@
-//! Subscription internals are integrated in stages; no active public handle is
-//! exposed until dispatcher, lease ownership and owner stop/join are connected.
+//! Shared dispatcher, exact-source cursors and independently budgeted queues.
+//! Active subscription lease/renewal integration is still under implementation.
 mod cursor;
+pub(crate) mod dispatcher;
 mod queue;
 
 #[cfg(test)]

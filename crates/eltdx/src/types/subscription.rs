@@ -128,6 +128,16 @@ pub enum PushEvent {
 }
 
 impl PushEvent {
+    pub(crate) fn retained_bytes(&self) -> Result<usize> {
+        let mut charge = super::memory::MemoryCharge::default();
+        charge.add(std::mem::size_of::<Self>())?;
+        match self {
+            Self::Initial(batch) | Self::Resynchronized(batch) => batch.charge_heap(&mut charge)?,
+            Self::Update(update) => update.charge_heap(&mut charge)?,
+            Self::Gap(_) => {}
+        }
+        Ok(charge.total())
+    }
     pub(crate) fn cursor(&self) -> Option<u32> {
         match self { Self::Update(update) => Some(update.cursor()), _ => None }
     }

@@ -161,6 +161,12 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
+    pub(crate) fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> Result<()> {
+        self.id.charge_heap(charge)?;
+        charge.array::<QuoteLevel>(self.bids.capacity())?;
+        charge.array::<QuoteLevel>(self.asks.capacity())?;
+        self.meta.charge_heap(charge)
+    }
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         id: SecurityId, active: u16, last: Price, pre_close: Price, open: Price, high: Price, low: Price,
@@ -306,6 +312,10 @@ pub struct QuoteUpdate {
 }
 
 impl QuoteUpdate {
+    pub(crate) fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> Result<()> {
+        self.id.charge_heap(charge)?;
+        self.snapshot.charge_heap(charge)
+    }
     pub(crate) const fn new(id: SecurityId, cursor: u32, active: u16, snapshot: Snapshot, status_raw: i64) -> Self {
         Self { id, cursor, active, snapshot, status_raw, desynchronized: false }
     }

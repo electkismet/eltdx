@@ -65,7 +65,7 @@ pub(crate) fn decode_reply_profile(
     let layout = QuoteLayout { precision, legacy };
     let RawReply {
         request,
-        response,
+        mut response,
         request_id,
         engine_epoch,
         slot_id,
@@ -80,6 +80,13 @@ pub(crate) fn decode_reply_profile(
         price_precision: &layout,
         raw: parse_raw,
     };
+    // A runtime Bytes slice can retain the full staging allocation. Queued DTO
+    // budgets must own only the declared payload/frame, so normalize retained
+    // buffers once here and share those exact-sized copies across all rows.
+    if !legacy && raw != RawPolicy::Omit {
+        response.data = Bytes::copy_from_slice(&response.data);
+        if raw == RawPolicy::RetainWire { response.raw = Bytes::copy_from_slice(&response.raw); }
+    }
     let parsed = CommandResponse::parse_with_context(request.clone(), response.data.clone(), &options)?;
     let payload = if parse_raw == ParseRawPolicy::Omit {
         Bytes::new()
