@@ -109,6 +109,7 @@
 - Task 7: complete (commits `26488cf..98e8558`, scoped reviews clean after three fix rounds; final verification deferred until T01–T30 implementation code is complete).
 - Recovery 2026-11-16: user resumed goal mode again. Existing goal is active and has no token budget. T08 and T09 have GO and are implementing within the disjoint scopes in their briefs; T10 brief is prepared, T11 onward remain unimplemented. Controller owns ledger/status and review coordination. Do not redispatch completed T01–T07.
 - Ruling: continue the already prepared T08/T09 work concurrently because T08 owns SDK operation/runtime and T09 owns protocol parsing plus SDK decode registration, with explicit separation of files and controller coordination for shared interfaces — cost if wrong: cross-layer interface drift can require integration rework; do not start T10's shared operation/session edits before T08/T09 are reviewed.
+- Preparation: T11 and T12 briefs saved as `task-11-brief.md` and `task-12-brief.md`, covering complete code/quote service methods, occurrence-aware missing recovery, shared pagination/cursors, and the first native Python bridge with custom transport compatibility. No GO yet; T10 metadata and reviewed T08/T09 interfaces remain dependencies. Existing snapshot parser's ordered marker split/foreign-singleton legacy behavior is a named T11 integration concern; T09 implementer notified to preserve an extension point rather than duplicate parsing.
 
 ## Execution state
 
