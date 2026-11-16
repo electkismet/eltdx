@@ -1078,3 +1078,22 @@ T18 remains partial18/4/8; next daily limits/ref-price/events/IPO, auction, mark
 boards, batch/subscription and installed-wheel consumer, then T19–T30/Stage B.
 Goal active with no cap. No tests/collection/build/check/dependency/network/AST/
 format/diff-check or equivalent execution, no subagents or publication.
+
+Twenty-eighth source stage committed as **0725189**; all execution deferred.
+
+## Twenty-ninth source checkpoint — daily limits and reference composition
+
+- Bound daily-limit orchestration, legacy percentage/rule labels, IPO first-five
+  calendar selection, last-qualifying Kline reference, same-day capital actions
+  and final row to Rust. Inverse affine arithmetic shares the strict pure helper.
+- Preserved ordered sources, empty/missing/NaN fields, original exception classes,
+  event order, two c4 reads, source label, custom hooks, prior-date fallback and
+  input occurrence assembly. Strict latest-date/complete/evidence policy remains.
+- Python retains ThreadPoolExecutor reference-request scheduling and parameter
+  normalization; the worker and resulting map execute native algorithms.
+- Authored13 Python/1 Rust contract functions and truthful source-only manifest
+  evidence. No test collection, execution, build, check, AST, format, dependency,
+  network or diff-check ran. No agents/push/publication.
+
+T18 remains partial18/4/8. Continue auction/market/board helpers and remaining
+batch/subscription/consumer, then T19–T30/Stage B. Active goal without quota.

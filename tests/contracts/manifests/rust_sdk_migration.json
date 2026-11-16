@@ -1974,7 +1974,11 @@
     {
       "id": "helper-daily-price-limits",
       "source_files": [
-        "docs/helpers/每日涨跌停价.md"
+        "docs/helpers/每日涨跌停价.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/helpers/daily.rs",
+        "crates/eltdx/src/helpers/calculation.rs",
+        "crates/eltdx-python/src/helper_daily.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -1983,6 +1987,33 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x054c + 业务规则",
       "api": "client.helpers.daily_price_limits(codes=None, trade_date=...)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::daily_price_limits",
+        "python_entry": "HelperApi.daily_price_limits -> helper_daily_limits; price reference/events/row/IPO helpers -> helper_daily",
+        "shared_algorithm": "inverse_affine_with for ordered same-day action adjustment; strict validated policy and legacy percentages remain distinct",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_limit_policy_keeps_legacy_difference_from_shortline",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_limit_row_applies_events_in_original_order_and_rounds_prices",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_limit_row_preserves_missing_and_new_stock_states",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_limit_events_downgrade_only_original_error_classes",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_limit_events_read_rights_twice_in_original_order",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_limit_nan_reference_keeps_legacy_numeric_result",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_new_stock_uses_inclusive_calendar_length_and_error_policy",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_limits_orchestration_preserves_source_order_and_input_occurrences",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_limits_invalid_date_fails_before_source_queries",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_prior_close_uses_last_qualifying_row_not_latest_date",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_prior_close_preserves_optional_failure_and_base_exception",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_capital_events_filters_today_and_keeps_last_nonempty_block",
+          "tests/contracts/test_sdk_daily_limits_bridge.py::test_daily_capital_events_downgrades_request_not_bad_record_iteration"
+        ],
+        "temporary_adapter": {
+          "scope": "Python reference-query worker scheduling and input normalization; original DTO construction, hooks and exception projections",
+          "reason": "Maintain custom ThreadPoolExecutor behavior and per-request budgets; strict SDK requires complete sources and evidence-backed policy.",
+          "exit_condition": "Worker scheduling remains a language adapter until its custom behavior can use shared scheduling without compatibility drift."
+        },
+        "validation": "Thirteen Python and one Rust contract functions authored, not collected or executed."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/每日涨跌停价.md",

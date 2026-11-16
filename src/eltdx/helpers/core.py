@@ -505,45 +505,9 @@ class HelperApi:
             if codes is None
             else _code_list(codes)
         )
-        normalizer = getattr(self._client.workdays, "normalize", None)
-        trade_date = normalizer(trade_date) if normalizer is not None else trade_date
-        if not isinstance(trade_date, date):
-            raise ValueError(f"invalid trade_date: {trade_date!r}")
-        is_workday = getattr(self._client.workdays, "is_workday", None)
-        if is_workday is not None and not is_workday(trade_date):
-            raise ValueError(f"trade_date is not a trading day: {trade_date.isoformat()}")
-        security_map = self._security_map(full_codes)
-        # The reference price comes from the latest unadjusted daily bar, then
-        # is corrected by today's ex-right events from 0x000f.
-        pre_close_trade_date = self._client.workdays.previous_workday(trade_date)
-        kline_map = self._kline_previous_close_map(full_codes, trade_date)
-        finance_map = self._finance_map(full_codes)
-        event_map = self._today_capital_change_map(full_codes, trade_date)
-        new_stock_map = {
-            code: _new_stock_phase(
-                getattr(finance_map.get(code), "ipo_date", None),
-                trade_date,
-                self._client.workdays,
-            )
-            for code in full_codes
-        }
-        rows = tuple(
-            _build_daily_price_limit(
-                full_code,
-                trade_date,
-                (
-                    kline_map.get(full_code, (None, None))[0]
-                    or pre_close_trade_date
-                    if full_code in kline_map
-                    else None
-                ),
-                security_map.get(full_code),
-                kline_map.get(full_code, (None, None))[1],
-                event_map.get(full_code, ()),
-                new_stock_map.get(full_code, False),
-            )
-            for full_code in full_codes
-        )
+        from eltdx.transport.native import native_module
+
+        rows = native_module().helper_daily_limits(self, full_codes, trade_date, globals())
         return DailyPriceLimitTable(codes=tuple(full_codes), rows=rows)
 
     def stock_daily_price_limits(
@@ -884,21 +848,10 @@ class HelperApi:
         if getter is None:
             return {}
 
+        from eltdx.transport.native import native_module
+
         def fetch(full_code: str) -> tuple[str, tuple[Any, float] | None]:
-            try:
-                series = getter(full_code, period="day", start=0, count=800, adjust="none")
-                bars = tuple(getattr(series, "bars", ()) or ())
-                prior = []
-                for bar in bars:
-                    bar_date = getattr(getattr(bar, "time", None), "date", lambda: None)()
-                    if bar_date is not None and bar_date < trade_date:
-                        prior.append((bar_date, bar))
-                if prior:
-                    bar_date, latest = prior[-1]
-                    return full_code, (bar_date, float(getattr(latest, "close")))
-            except Exception:
-                pass
-            return full_code, None
+            return native_module().daily_prior_close(getter, trade_date, full_code)
 
         workers = getattr(getattr(self._client, "transport", None), "pool_size", 1)
         workers = workers if isinstance(workers, int) and workers > 1 else 1
@@ -907,32 +860,14 @@ class HelperApi:
         else:
             with ThreadPoolExecutor(max_workers=min(workers, len(full_codes) or 1)) as executor:
                 pairs = list(executor.map(fetch, full_codes))
-        return {code: value for code, value in pairs if value is not None}
+        return native_module().daily_reference_map(pairs)
 
     def _today_capital_change_map(
         self, full_codes: Sequence[str], trade_date: Any
     ) -> dict[str, tuple[Any, ...]]:
-        getter = getattr(getattr(self._client, "corporate", None), "capital_changes", None)
-        if getter is None or not full_codes:
-            return {}
-        try:
-            result = getter(full_codes)
-        except Exception:
-            return {}
-        blocks = getattr(result, "blocks", None)
-        if blocks is None and hasattr(result, "full_code"):
-            blocks = (result,)
-        event_map: dict[str, tuple[Any, ...]] = {}
-        for block in blocks or ():
-            events = tuple(
-                record
-                for record in (getattr(block, "records", ()) or ())
-                if getattr(record, "category_raw", None) == 1
-                and getattr(record, "date", None) == trade_date
-            )
-            if events:
-                event_map[str(block.full_code)] = events
-        return event_map
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_capital_events(self, full_codes, trade_date)
 
     def _resolve_topic(self, full_seed: str, topic_id: str | None, topic_name: str | None) -> StockTopic:
         topics = self.stock_topics(full_seed).topics
@@ -1082,46 +1017,11 @@ def _build_daily_price_limit(
     events: Sequence[Any] = (),
     new_stock_phase: bool = False,
 ) -> DailyPriceLimit:
-    name = getattr(security, "name", None)
-    pre_close = kline_pre_close
-    pre_close_source = "kline_unadjusted" if pre_close is not None else None
-    if pre_close is not None and events:
-        try:
-            # Preserve the server's order for multiple same-day events.
-            for event in events:
-                multiplier = (10.0 + float(event.c3_value) + float(event.c4_value)) / 10.0
-                offset = (float(event.c1_value) - float(event.c4_value) * float(event.c2_value)) / 10.0
-                if multiplier <= 0:
-                    raise ValueError("non-positive capital-change multiplier")
-                pre_close = (pre_close - offset) / multiplier
-            pre_close_source = f"{pre_close_source}+capital_changes"
-        except (AttributeError, TypeError, ValueError):
-            pre_close = None
-            pre_close_source = None
-    ratio = None if new_stock_phase else _price_limit_ratio(full_code, name)
-    rule = "ipo_first_5_days" if new_stock_phase else _price_limit_rule(full_code, name)
-    status = "normal"
-    if ratio is None:
-        status = "no_price_limit"
-        limit_up = limit_down = None
-    elif pre_close is None:
-        status = "missing_pre_close"
-        limit_up = limit_down = None
-    else:
-        limit_up = round(pre_close * (1.0 + ratio / 100.0) + 1e-9, 2)
-        limit_down = round(pre_close * (1.0 - ratio / 100.0) + 1e-9, 2)
-    return DailyPriceLimit(
-        full_code=full_code,
-        trade_date=trade_date,
-        name=name,
-        pre_close_trade_date=pre_close_trade_date,
-        pre_close=pre_close,
-        limit_up_price=limit_up,
-        limit_down_price=limit_down,
-        limit_ratio_pct=ratio,
-        limit_rule=rule,
-        limit_status=("no_price_limit" if new_stock_phase else status),
-        pre_close_source=pre_close_source,
+    from eltdx.transport.native import native_module
+
+    return native_module().daily_limit_row(
+        full_code, trade_date, pre_close_trade_date, security,
+        kline_pre_close, events, new_stock_phase, globals(),
     )
 
 
@@ -1130,37 +1030,18 @@ def _new_stock_phase(ipo_date: Any | None, trade_date: Any, workdays: Any) -> bo
 
     A missing IPO date never causes a normal stock to be treated as a new stock.
     """
-    if ipo_date is None:
-        return False
-    try:
-        ipo = workdays.normalize(ipo_date)
-        target = workdays.normalize(trade_date)
-        if target < ipo:
-            return False
-        listing_days = workdays.range(ipo, target)
-        return 0 < len(listing_days) <= 5
-    except (AttributeError, TypeError, ValueError):
-        return False
+    from eltdx.transport.native import native_module
+
+    return native_module().daily_new_stock(ipo_date, trade_date, workdays)
 
 
 def _price_limit_ratio(full_code: str, name: str | None) -> float | None:
-    if full_code.startswith("bj"):
-        return 30.0
-    if full_code.startswith("sh688") or (
-        full_code.startswith("sz") and full_code[2:].startswith("30")
-    ):
-        return 20.0
-    return 10.0
+    from eltdx.transport.native import native_module
+
+    return native_module().daily_limit_ratio(full_code)
 
 
 def _price_limit_rule(full_code: str, name: str | None) -> str:
-    upper = str(name or "").strip().upper()
-    if full_code.startswith("bj"):
-        return "bse_30pct"
-    if full_code.startswith("sh688"):
-        return "star_20pct"
-    if full_code.startswith("sz") and full_code[2:].startswith("30"):
-        return "chinext_20pct"
-    if upper.startswith(("ST", "*ST", "SST", "S*ST")):
-        return "st_main_10pct"
-    return "main_10pct"
+    from eltdx.transport.native import native_module
+
+    return native_module().daily_limit_rule(full_code, name)

@@ -42,6 +42,14 @@ pub fn auction_ready(same_server_date: bool, before_auction: bool) -> bool {
     !(same_server_date && before_auction)
 }
 
+/// Apply a single inverse corporate action without imposing the caller's
+/// numeric validation, rounding, or exception policy.
+pub fn inverse_affine_with<T, E>(value: T, multiplier: &T, offset: &T,
+    subtract: impl FnOnce(T, &T) -> Result<T, E>,
+    divide: impl FnOnce(T, &T) -> Result<T, E>) -> Result<T, E> {
+    divide(subtract(value, offset)?, multiplier)
+}
+
 pub fn share_source_names(total: bool, circulating: bool, free_float: bool) -> Vec<&'static str> {
     let mut sources = Vec::new();
     if total || circulating { sources.push("finance_snapshot"); }
@@ -52,6 +60,16 @@ pub fn share_source_names(total: bool, circulating: bool, free_float: bool) -> V
 #[cfg(test)]
 mod source_cases {
     use super::*;
+
+    #[test]
+    fn inverse_action_keeps_subtraction_before_division() {
+        let mut steps = Vec::new();
+        let after_subtraction = inverse_affine_with::<_, ()>(10.0, &2.0, &1.0,
+            |value, offset| { steps.push((value, *offset)); Ok(value - offset) },
+            |value, multiplier| Ok(value / multiplier)).unwrap();
+        assert_eq!(after_subtraction, 4.5);
+        assert_eq!(steps, [(10.0, 1.0)]);
+    }
 
     #[test]
     fn limit_state_preserves_lazy_predicates_and_trading_day_progression() {

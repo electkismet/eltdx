@@ -203,7 +203,10 @@ fn adjusted_reference(reference: Option<Price>, changes: &CapitalChangeBlock, ta
         if event.category() != 1 || event.date() != Some(target) { continue; }
         let (multiplier, offset) = crate::adjustment::event_coefficients(event)
             .map_err(|error| protocol("same-day capital event has invalid source coefficients").with_source(error))?;
-        value = (value - offset) / multiplier; changed = true;
+        value = super::calculation::inverse_affine_with::<_, std::convert::Infallible>(value, &multiplier, &offset,
+            |value, offset| Ok(value - offset), |value, multiplier| Ok(value / multiplier))
+            .unwrap_or_else(|never| match never {});
+        changed = true;
         if !value.is_finite() || value <= 0.0 { return Err(protocol("same-day capital adjustment produces an invalid reference")); }
     }
     Ok(Some(if changed { Price::with_value_and_provenance(NumericValue::F64(value), ValueProvenance::WireRule) } else { price }))

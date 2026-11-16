@@ -319,6 +319,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T18：P2 Python 回迁及可用版本验收
 
+2026-11-17第二十九段：短线limit/日期/天梯已提交`0725189`。每日涨跌停高层/规则/IPO/除权/事件/前收盘价绑定已写，保留Python旧策略/末条合格K线/异常范围/原顺序，并与strict共用inverse affine；线程调度仍为Python adapter。新增13 Python/1 Rust合同函数源码，均未运行。T18仍部分18/4/8，继续其余HQ迁移和后续所有任务。
+
 2026-11-17第二十八段：短线source/指标已提交`9f66521`；短线limit/连板/天梯、握手日期及row-date/by-code绑定本段已写。lazy分类、等级日期和auction readiness共用，Python保留ST优先/新股名称规则、numeric与排序/校验顺序和日期错误；新增10 Python/1 Rust合同函数源码，全未执行。T18其余daily/auction/market/boards/批量/订阅/consumer仍待实现，18/4/8不变。
 
 2026-11-17第二十七段：短线日期/缓存已提交`6580450`。短线高层get、source查询和字段构造迁入绑定，shared乘积/比值保持legacy round6/空值/转换次数，保留每请求timeout、源顺序与optional错误范围。新增10合同函数源码，全未执行；短线限价/连板/握手日期及天梯仍待完成，T18部分18/4/8不变。

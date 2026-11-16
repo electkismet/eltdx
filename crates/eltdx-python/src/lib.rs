@@ -12,6 +12,7 @@ mod helper_shortline;
 mod helper_numeric;
 mod helper_indicator;
 mod helper_limits;
+mod helper_daily;
 mod protocol;
 mod request;
 mod response;
@@ -82,6 +83,14 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helper_limits::shortline_board_text, module)?)?;
     module.add_function(wrap_pyfunction!(helper_limits::shortline_ladder_level, module)?)?;
     module.add_function(wrap_pyfunction!(helper_limits::helper_ladder, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_limit_ratio, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_limit_rule, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_new_stock, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_limit_row, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::helper_daily_limits, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::helper_capital_events, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_prior_close, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_reference_map, module)?)?;
     transport::register(module)?;
     Ok(())
 }
