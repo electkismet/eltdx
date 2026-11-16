@@ -224,3 +224,30 @@ None was compiled or executed. No Python source was changed in this stage.
 T20 remains partial pending the rest of the named-entry/branch binding audit.
 Next complete that source coverage and continue T22/T23/T24–T30. Counts19/5/6,
 active unlimited goal; no execution checks, agents, push/tag/publish/merge.
+
+## Eighth checkpoint — public entry invocation and recovery inventory
+
+Typed market result checkpoint is `fc2e7cb`. Added f10_named_methods.rs with
+148 single-request named public invocations: international50, bonds31,
+industry/futures21, reports23, news/valuation21, generic2. Synthetic local
+HTTP source cases assert actual route/body, preserved duplicate/unknown
+fields and extra tables, raw bytes, alternating business status and closed
+owner rejection. Expected bodies use each query's to_call, so only the
+separate literal inventory establishes independent wire expectations.
+
+Extended literal inventory with open-section pass-through, closed-selector
+rejections and nondefault dates/filters/pages/arguments. Added dependent
+fund allocation sources for all three report families, empty/null/invalid/
+failed prerequisite rejection, and explicit business report dates. Fixed
+test-source scalar expectations for numeric MG pagination and Self-returning
+with_board_market by reading their implementations, without execution.
+
+Added f10-implementation-index.md to enumerate157 original entry points,
+their source ownership and evidence responsibilities. It also records the
+T23 legacy behavior boundaries, including Python's local-today HK forecast
+defaults and leap-day behavior. Closed registry documentation now includes
+the existing industry/futures families; production selector code unchanged.
+
+All source cases remain uncompiled and unexecuted. Counts19/5/6 unchanged;
+T20 final static source review remains before T22/T23 and T24–T30. Goal active
+without token cap; no execution verification, agents or publication.

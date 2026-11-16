@@ -519,3 +519,75 @@ fn requested_page_preserves_unknown_total_and_conflicting_total_diagnostic() -> 
     worker.join().map_err(|_| "fixture panicked")??;
     Ok(())
 }
+
+#[test]
+fn fund_allocation_prerequisites_use_first_report_period_and_keep_both_responses() -> TestResult {
+    for (section, prerequisite, resolved) in [
+        ("industry_allocation", "hyfbbgq", "hyfb"),
+        ("bond_allocation", "zczqbgq", "zczq"),
+        ("futures_allocation", "ccqhmxbgq", "ccqhmx"),
+    ] {
+        let first = br#"{"ResultSets":[{"ColName":["rq"],"Content":[["2024-06-30"],["20240930"]]}]}"#;
+        let second = br#"{"ErrorCode":17,"ResultSets":[{"ColName":["value"],"Content":[[42]]}]}"#;
+        let (url, worker) = fixture(vec![
+            ("CWServ.skef10_jj_tzzh".to_owned(), format!(r#"{{"Params":["{prerequisite}","600000",""]}}"#).into_bytes(), first.to_vec()),
+            ("CWServ.skef10_jj_tzzh".to_owned(), format!(r#"{{"Params":["{resolved}","600000","20240630"]}}"#).into_bytes(), second.to_vec()),
+        ])?;
+        let client = F10Client::builder().with_base_url(url).build()?;
+        let query = FundReportQuery::new(AshareCode::new(F10MarketCode::new(1), "600000")?)
+            .with_section(SectionCode::new("fund_report", section)?)?;
+        let result = client.fund_report(&query, &OperationOptions::default().with_raw(RawPolicy::RetainPayload))?;
+        assert!(!result.ok());
+        assert_eq!(result.error_code(), Some(17));
+        assert_eq!(result.meta().sources().len(), 2);
+        assert_eq!(result.meta().raw().ok_or("missing prerequisite raw")?.payloads()[0].as_ref(), first);
+        assert_eq!(client.diagnostics()?.completed_requests(), 2);
+        client.close()?;
+        worker.join().map_err(|_| "fixture panicked")??;
+    }
+    Ok(())
+}
+
+#[test]
+fn business_and_fund_prerequisites_stop_on_invalid_first_row_or_business_error() -> TestResult {
+    for field in ["T002", "rq"] {
+        for (status, rows) in [
+            (0, "[]"), (0, "[[null],[\"20240630\"]]"),
+            (0, "[[\"20240230\"],[\"20240630\"]]"), (17, "[[\"20240630\"]]"),
+        ] {
+            let first = format!(r#"{{"ErrorCode":{status},"ResultSets":[{{"ColName":["{field}"],"Content":{rows}}}]}}"#);
+            let (entry, params) = if field == "T002" {
+                ("CWServ.tdxf10_gg_comreq", br#"{"Params":["zygcfx","600000"]}"#.to_vec())
+            } else {
+                ("CWServ.skef10_jj_tzzh", br#"{"Params":["hyfbbgq","600000",""]}"#.to_vec())
+            };
+            let (url, worker) = fixture(vec![(entry.to_owned(), params, first.into_bytes())])?;
+            let client = F10Client::builder().with_base_url(url).build()?;
+            let code = AshareCode::new(F10MarketCode::new(1), "600000")?;
+            let result = if field == "T002" {
+                client.business_composition(&BusinessCompositionQuery::new(code), &OperationOptions::default())
+            } else {
+                client.fund_report(&FundReportQuery::new(code).with_section(SectionCode::new("fund_report", "industry_allocation")?)?, &OperationOptions::default())
+            };
+            assert_eq!(result.unwrap_err().kind(), eltdx::ErrorKind::MetadataUnavailable);
+            assert_eq!(client.diagnostics()?.completed_requests(), 1);
+            client.close()?;
+            worker.join().map_err(|_| "fixture panicked")??;
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn business_composition_explicit_date_skips_prerequisite() -> TestResult {
+    let (url, worker) = fixture(vec![("CWServ.tdxf10_gg_jyfx".to_owned(),
+        br#"{"Params":["600000","zygc","20240630"]}"#.to_vec(), br#"{"ResultSets":[]}"#.to_vec())])?;
+    let client = F10Client::builder().with_base_url(url).build()?;
+    let query = BusinessCompositionQuery::new(AshareCode::new(F10MarketCode::new(1), "600000")?)
+        .with_report_date(Some(TradingDate::new(2024, 6, 30)?));
+    assert!(client.business_composition(&query, &OperationOptions::default())?.ok());
+    assert_eq!(client.diagnostics()?.completed_requests(), 1);
+    client.close()?;
+    worker.join().map_err(|_| "fixture panicked")??;
+    Ok(())
+}

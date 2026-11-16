@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第四十五段恢复点：最新已提交`fc2e7cb`。新增148个单请求公开F10入口的调用/HTTP/响应/关闭用例源码，与独立字面量wire清单配对；补齐开放selector、closed拒绝、非默认参数和基金三类报告期前置的源码用例。新增`f10-implementation-index.md`逐项记录157入口、测试证据分工及T23兼容差异；补正closed registry文档漏项。以上均未编译或执行，不能称验收通过。总计19源码完整/5部分/6未开始；继续T20静态收尾，再T22财报/T23兼容和T24–T30。目标active、无额度上限，所有执行验证仍延期，无代理或发布。
+
 2026-11-17第四十四段恢复点：已核对HEAD为`5b67774`，目标active且remainingTokens=null。继续T20市场typed结果：保留逐页Response/附加表/顶层属性；仅zs列可作为分页总数，冲突为Unknown并诊断；非零业务码保留行且立即BusinessError终止。IPO保留原Response，增加parsed日期/有限数字诊断、字段单位及SourceMapping/Inferred/Unknown证据、count/codes/full_codes/ETF视图。七组测试源码已写但未执行。19完整源码/5部分/6未开始；下一步全部入口绑定/分支核对，再T22/T23和T24–T30。所有测试/构建/依赖解析/网络/执行验证继续延期，无代理或发布。
 
 2026-11-17第四十三段恢复点：历史资金流检查点`da1953f`。本段补独立字面量F10请求清单（各域默认、报告/基金/market分区、频道/cache/valuation分支），修正TopicCompare必填ID/首个可用主题及FundReport分区切换的日期窗口校验，新增相关route/result源码。所有用例未编译/运行，不能据清单宣称157入口全分支验收完成。19完整源码/5部分/6未开始，继续T20 typed结果/分页及分支收尾，再T22–T30；active无额度限制，全部执行验证延期。

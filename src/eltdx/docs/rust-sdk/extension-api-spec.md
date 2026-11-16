@@ -348,7 +348,13 @@ Wire notation: code/us/hk/bond = normalized query code; bond_market = explicit/i
 | `mg_market` | `001`, `003` |
 | `hk_finance` | `zhsyb`, `zcfzb`, `xjllb` |
 | `hk_finance_indicator` | `jbzb`, `ylnl`, `cznl`, `yynl`, `ccznl` |
+| `hy_summary` | `hqtj`, `hyzq`, `hygy`, `zszfb` |
 | `hy_members_rank` | `cwzkpm`, `gsgmpm`, `gzsppm`, `scbxpm`, `zysrpm` |
+| `qh_position_report` | `cjcc`, `cjjg`, `jcgc`, `ccjj`, `ykfx` |
+| `qh_variety_info` | `pzjj`, `hyjj`, `xgzq` |
+| `qh_index_info` | `zsgk`, `lsjg` |
+| `qh_index_valuation` | `dtpe`, `lspe`, `xjfh` |
+| `qh_weights` | `zxcfg`, `lscfg`, `cfgqz`, `cfghyfb`, `xwpl` |
 | `market_report` | `board_info`, `board_basics`, `board_description`, `board_trading`, `board_flow`, `board_members`, `board_analysis`, `board_finance_compare`, `board_candidates`, `board_trend`, `index_info`, `index_profile`, `index_valuation`, `index_tracking`, `index_flow`, `index_flow_members`, `index_notices`, `market_basic`, `market_margin`, `market_margin_summary`, `market_margin_investors`, `market_new_shares`, `market_capital` |
 | `profit_forecast` | `ylyctj`, `ylycmx`, `yzyq`, `tzpjtj`, `ycpjyjbg` |
 | `digest` | `tips`, `profile`, `events`, `news`, `announcements`, `reports`, `roadshows`, `interaction` |

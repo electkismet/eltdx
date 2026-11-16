@@ -511,3 +511,157 @@ fn themes_stage_wrappers_and_valuation_request_ids_keep_mixed_json_types() -> Re
     assert!(ValuationQuery::new(ashare()?).with_extra(vec![("filter".to_owned(), 1_i64.into()), ("filter".to_owned(), 2_i64.into())]).is_err());
     Ok(())
 }
+
+#[test]
+fn open_section_families_preserve_explicit_wire_selectors() -> Result<()> {
+    macro_rules! open {
+        ($query:ident, $method:literal, $code:expr, $entry:literal, [$($prefix:expr),*], [$($suffix:expr),*]) => {
+            request($query::new($code).with_section(SectionCode::new($method, "future_tag")?)?.to_call()?,
+                $entry, &[$($prefix,)* "future_tag", $($suffix),*]);
+        };
+    }
+    open!(MgRatingQuery, "mg_rating", us()?, "CWServ.skef10_mg_gspj", [], ["BRK.B"]);
+    open!(MgDeepAnalysisQuery, "mg_deep_analysis", us()?, "CWServ.skef10_mg_sdfx", [], ["BRK.B"]);
+    for (call, entry, suffix) in [
+        (HkTipsQuery::new(hk()?).with_section(SectionCode::new("hk_tips", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_zxts", false),
+        (HkEventsQuery::new(hk()?).with_section(SectionCode::new("hk_events", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_gsds", false),
+        (HkProfileQuery::new(hk()?).with_section(SectionCode::new("hk_profile", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_gsgk", false),
+        (HkRelatedQuery::new(hk()?).with_section(SectionCode::new("hk_related", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_glzq", false),
+        (HkExecutivesQuery::new(hk()?).with_section(SectionCode::new("hk_executives", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_ggzl", false),
+        (HkCapitalQuery::new(hk()?).with_section(SectionCode::new("hk_capital", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_gbjg", false),
+        (HkShareholdersQuery::new(hk()?).with_section(SectionCode::new("hk_shareholders", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_gdcg", true),
+        (HkBusinessQuery::new(hk()?).with_section(SectionCode::new("hk_business", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_jyfx", false),
+        (HkMarketQuery::new(hk()?).with_section(SectionCode::new("hk_market", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_schq", false),
+        (HkNewsQuery::new(hk()?).with_section(SectionCode::new("hk_news", "future_tag")?)?.to_call()?, "CWServ.skef10_hk_gszx", false),
+    ] { request(call, entry, if suffix { &["future_tag", "00700", ""] } else { &["future_tag", "00700"] }); }
+    open!(HkIndustryCompareQuery, "hk_industry_compare", hk()?, "CWServ.skef10_hk_hybj", [], ["00700", "0", "0"]);
+    open!(HkCapitalFlowQuery, "hk_capital_flow", hk()?, "CWServ.skef10_hk_schq_zjlx", [], ["00700", "0"]);
+    open!(SbProfileQuery, "sb_profile", sb()?, "CWServ.skef10_sb_gsgk", ["430047"], []);
+    open!(SbTipsQuery, "sb_tips", sb()?, "CWServ.skef10_sb_zxts", ["430047"], []);
+    open!(SbEventsQuery, "sb_events", sb()?, "CWServ.skef10_sb_jyds", ["430047"], []);
+    open!(SbCapitalQuery, "sb_capital", sb()?, "CWServ.skef10_sb_gbjg", ["430047"], []);
+    open!(SbShareholdersQuery, "sb_shareholders", sb()?, "CWServ.skef10_sb_gdyj", ["430047"], []);
+    open!(SbComplianceQuery, "sb_compliance", sb()?, "CWServ.skef10_sb_hgyy", ["430047"], []);
+    open!(SbDividendQuery, "sb_dividend", sb()?, "CWServ.skef10_sb_fhrz", ["430047"], []);
+    open!(SbFinanceQuery, "sb_finance", sb()?, "CWServ.skef10_sb_cwfx", ["430047"], []);
+    open!(SbBusinessQuery, "sb_business", sb()?, "CWServ.skef10_sb_jyfx", ["430047"], []);
+    open!(SbMajorEventsQuery, "sb_major_events", sb()?, "CWServ.skef10_sb_zdsx", ["430047"], []);
+    open!(SbNewsQuery, "sb_news", sb()?, "CWServ.skef10_sb_gszx", ["430047"], []);
+    open!(SbIndustryCompareQuery, "sb_industry_compare", sb()?, "CWServ.skef10_sb_hybj", ["430047"], []);
+    open!(BondFinanceQuery, "bond_finance", bond()?, "CWServ.skef10_bond_kzz_cwfx", [], ["123001"]);
+    open!(BondRatingQuery, "bond_rating", bond()?, "CWServ.skef10_bond_kzz_zqpj", [], ["123001"]);
+    open!(BondConversionQuery, "bond_conversion", bond()?, "CWServ.skef10_bond_kzz_zg", [], ["123001"]);
+    open!(BondRateQuery, "bond_rate", bond()?, "CWServ.skef10_bond_kzz_zqll", [], ["123001"]);
+    open!(BondAnnouncementsQuery, "bond_announcements", bond()?, "CWServ.skef10_bond_kzz_zjzx", ["123001"], []);
+    open!(GzProfileQuery, "gz_profile", bond()?, "CWServ.skef10_bond_gz_zjgk", [], ["123001", "0"]);
+    open!(GzInterestQuery, "gz_interest", bond()?, "CWServ.skef10_bond_gz_fxqk", [], ["123001", "0"]);
+    open!(GzMarketDataQuery, "gz_market_data", bond()?, "CWServ.skef10_bond_gz_zjsj", [], ["123001", "0"]);
+    open!(GzRatingQuery, "gz_rating", bond()?, "CWServ.skef10_bond_gz_zjpj", [], ["123001", "0"]);
+    open!(QyzProfileQuery, "qyz_profile", bond()?, "CWServ.skef10_bond_qyz_zqgk", [], ["123001", "0"]);
+    open!(QyzInterestQuery, "qyz_interest", bond()?, "CWServ.skef10_bond_qyz_xjlfx", [], ["123001", "0"]);
+    open!(QyzRatingQuery, "qyz_rating", bond()?, "CWServ.skef10_bond_qyz_zjpj", [], ["123001", "0"]);
+    open!(GzhgQuotesQuery, "gzhg_quotes", bond()?, "CWServ.skef10_bond_gzhg_zqxx", [], ["123001"]);
+    open!(ZczqRatingQuery, "zczq_rating", bond()?, "CWServ.skef10_bond_zczqh_zqpj", [], ["123001", "0"]);
+    open!(KjhzInterestQuery, "kjhz_interest", bond()?, "CWServ.skef10_bond_kjhz_fxqk", [], ["123001"]);
+    open!(KjhzRatingQuery, "kjhz_rating", bond()?, "CWServ.skef10_bond_kjhz_zqpj", [], ["123001"]);
+    open!(KjhzExchangeQuery, "kjhz_exchange", bond()?, "CWServ.skef10_bond_kjhz_jhqk", [], ["123001"]);
+    open!(KjhzRateQuery, "kjhz_rate", bond()?, "CWServ.skef10_bond_kjhz_zqll", [], ["123001"]);
+    open!(BondTermsQuery, "bond_terms", bond()?, "CWServ.skef10_bond_kzz_lltk", [], ["123001"]);
+    open!(HyCommentaryQuery, "hy_commentary", industry()?, "CWServ.skef10_hy_hyzl_hyplk", [], ["881319"]);
+    open!(HyNewsQuery, "hy_news", industry()?, "CWServ.skef10_hy_zxdt", [], ["881319"]);
+    open!(HyCapitalStatsQuery, "hy_capital_stats", industry()?, "CWServ.skef10_hy_hysj_bxzjtj", [], ["881319", ""]);
+    open!(HyFundHoldingsQuery, "hy_fund_holdings", industry()?, "CWServ.skef10_hy_hysj_jjzb", [], ["881319", ""]);
+    open!(HyCapitalFlowQuery, "hy_capital_flow", industry()?, "CWServ.skef10_hy_hysj_zjlx", [], ["881319"]);
+    open!(HyAnalystIndexQuery, "hy_analyst_index", industry()?, "CWServ.skef10_hy_hyyj_fxszs", [], ["881319", "", ""]);
+    open!(HyRatingSummaryQuery, "hy_rating_summary", industry()?, "CWServ.skef10_hy_hyyj_hypjhz", [], ["881319", ""]);
+    open!(CompanyProfileQuery, "company_profile", ashare()?, "CWServ.tdxf10_gg_gsgk", [], ["600000", ""]);
+    open!(DividendFinancingQuery, "dividend_financing", ashare()?, "CWServ.tdxf10_gg_fhrz", ["600000"], []);
+    open!(RankingDetailQuery, "ranking_detail", ashare()?, "CWServ.tdxf10_gg_zxts_rqpm", ["600000"], []);
+    open!(HotTopicsQuery, "hot_topics", ashare()?, "CWServ.tdxf10_gg_rdtc", ["600000"], []);
+    open!(StockFinanceWeightsQuery, "stock_finance_weights", ashare()?, "CWServ.tdxf10_gg_zxtscwbq", ["600000"], []);
+    open!(FinanceDiagnosisQuery, "finance_diagnosis", ashare()?, "CWServ.tdxf10_gg_cwzd", [], ["600000", ""]);
+    open!(StockScoreQuery, "stock_score", ashare()?, "CWServ.tdxf10_gg_ggzp", [], ["600000", "", ""]);
+    open!(GovernanceQuery, "governance", ashare()?, "CWServ.tdxf10_gg_zbyz", [], ["600000", ""]);
+    open!(CompanyNewsQuery, "company_news", ashare()?, "CWServ.tdxf10_gg_gszx", ["600000"], ["", "0", "1", "20"]);
+    open!(NorthboundHoldingQuery, "northbound_holding", ashare()?, "CWServ.tdxf10_gg_zlcc", ["600000"], ["", "1", "1", "20"]);
+    request(TopicCompareQuery::new(ashare()?, "topic")?.with_section(SectionCode::new("topic_compare", "future_tag")?)?.to_call()?,
+        "CWServ.tdxf10_gg_rdtc_gndb", &["future_tag", "600000", "topic", "zdf"]);
+    // US shareholder pages remain JSON numbers even for an unknown selector.
+    let call = MgShareholdersQuery::new(us()?).with_section(SectionCode::new("mg_shareholders", "future_tag")?)?.to_call()?;
+    assert_eq!(call.entry().as_str(), "CWServ.skef10_mg_gbgd");
+    let RequestPayload::Params(params) = call.payload() else { unreachable!() };
+    assert_eq!(params, &vec!["future_tag".into(), "BRK.B".into(), 1_i64.into(), 10_i64.into()]);
+    request(QhBasisSpreadQuery::new(future()?).with_section(SectionCode::new("qh_basis_spread", "future_tag")?)?
+        .with_period("6M")?.to_call()?, "CWServ.qhf9_sp_jcjcfx", &["future_tag", "rb", "6M", "", ""]);
+    Ok(())
+}
+
+#[test]
+fn checked_selectors_reject_unknown_sections_and_cross_method_reuse() -> Result<()> {
+    for method in ["shareholders", "capital_structure", "business_report", "industry_analysis", "trading_report",
+        "fund_report", "mg_tips", "mg_finance", "mg_finance_indicator", "mg_dividend", "mg_capital", "mg_directors", "mg_market",
+        "hk_finance", "hk_finance_indicator", "hy_summary", "hy_members_rank", "qh_position_report", "qh_variety_info",
+        "qh_index_info", "qh_index_valuation", "qh_weights", "market_report", "profit_forecast", "digest"] {
+        assert!(SectionCode::new(method, "future_tag").is_err(), "{method}");
+    }
+    assert!(MgTipsQuery::new(us()?).with_section(SectionCode::new("hk_tips", "zxdt")?).is_err());
+    for section in ["ylyctj", "ylycmx", "yzyq", "tzpjtj", "ycpjyjbg"] {
+        request(ProfitForecastQuery::new(ashare()?).with_section(SectionCode::new("profit_forecast", section)?)?.to_call()?,
+            "CWServ.tdxf10_gg_ybpj", &["600000", section]);
+    }
+    Ok(())
+}
+
+#[test]
+fn nondefault_free_fields_and_wrapper_parameters_are_not_silently_ignored() -> Result<()> {
+    let size = std::num::NonZeroU32::new(7).unwrap();
+    request(ShareholderChangePlansQuery::new(ashare()?).with_page(3)?.with_page_size(size)?
+        .with_filter1("plan")?.with_filter2("active")?.to_call()?, "CWServ.tdxf10_gg_gdyj",
+        &["600000", "gdzjcjh", "plan", "active", "3", "3", "7"]);
+    request(FinanceReportQuery::new(ashare()?).with_report_type("xjllb")?.to_call()?,
+        "CWServ.tdxf10_gg_cwfx", &["600000", "xjllb", ""]);
+    request(FinanceDiagnosisQuery::new(ashare()?).with_scope("scope")?.to_call()?,
+        "CWServ.tdxf10_gg_cwzd", &["zzyj", "600000", "scope"]);
+    request(StockScoreQuery::new(ashare()?).with_arg("range")?.to_call()?,
+        "CWServ.tdxf10_gg_ggzp", &["pf", "600000", "range", ""]);
+    request(GovernanceQuery::new(ashare()?).with_arg("range")?.to_call()?,
+        "CWServ.tdxf10_gg_zbyz", &["gljy", "600000", "range"]);
+    request(IndustryAnalysisQuery::new(ashare()?).with_arg("custom")?.to_call()?,
+        "CWServ.tdxf10_gg_hyfx", &["cwgz", "600000", "custom"]);
+    request(TradingReportQuery::new(ashare()?).with_section(SectionCode::new("trading_report", "dragon_board")?)?
+        .with_arg("1")?.to_call()?, "CWServ.tdxf10_gg_jyds", &["600000", "lgt", "1"]);
+    request(CompanyNewsQuery::new(ashare()?).with_keyword("keyword")?.with_rating("2")?
+        .with_page(3)?.with_page_size(size)?.to_call()?, "CWServ.tdxf10_gg_gszx",
+        &["600000", "gsyj", "keyword", "2", "3", "7"]);
+    request(NorthboundHoldingQuery::new(ashare()?).with_filter_value("filter")?.with_page(3)?
+        .with_page_size(size)?.to_call()?, "CWServ.tdxf10_gg_zlcc", &["600000", "bszj", "filter", "3", "3", "7"]);
+    request(ChannelNewsQuery::new(NewsChannel::FinanceLatest).with_query1("2")?.with_page(3)?
+        .with_page_size(size)?.with_keyword("keyword")?.to_call()?, "CWServ.tdxi_zxxwnews", &["2", "200", "3", "7", "keyword"]);
+    request(MarketNewsQuery::new().with_page(3)?.with_page_size(size)?.to_call()?,
+        "CWServ.tdxi_zxxwsy", &["3", "3", "7"]);
+    request(HyStageRiseQuery::new(industry()?).with_flag("m")?.to_call()?, "CWServ.skef10_hy_jdzf", &["881319", "m"]);
+    for (section, suffix, params) in [
+        ("seats", "jjzl", vec!["5", "600000", "arg", "3", "3", "7"]),
+        ("scale_history", "gmfe", vec!["arg", "600000", "", "6M"]),
+        ("finance", "cwzk", vec!["arg", "600000"]),
+        ("ratings", "jjpj", vec!["arg", "600000"]),
+        ("categories", "fxsy", vec!["arg", "600000", ""]),
+    ] {
+        let mut query = FundReportQuery::new(ashare()?).with_section(SectionCode::new("fund_report", section)?)?
+            .with_arg("arg")?.with_page(3)?.with_page_size(size)?;
+        if section == "scale_history" { query = query.with_date(Some(DateOrWindow::Window(FundWindow::new("6M")?)))?; }
+        request(query.to_call()?, &format!("CWServ.skef10_jj_{suffix}"), &params);
+    }
+    object(StockStageGainQuery::new(ashare()?).with_days(size)?.with_page_size(size)?.to_call()?, "HQServ.hq_nlp_tcihq",
+        br#"[{"ReqId":"200740","setcode":1,"code":"600000","Page":-1,"PageSize":"7","modname":"mod_tcihq.dll","zq_num":"7"}]"#)?;
+    object(StockBoardMemberQuotesQuery::new(ashare()?).with_board_market(F10MarketCode::new(0))
+        .with_page(PageSelector::Number(3))?.with_page_size(PageSizeSelector::Count(size))?.to_call()?, "HQServ.hq_nlp_tcihq",
+        br#"[{"ReqId":"200744","setcode":"0","code":"600000","Page":3,"PageSize":"7","modname":"mod_tcihq.dll"}]"#)?;
+    object(StockValuationPercentileQuery::new(ashare()?).with_kind("2")?.with_page(PageSelector::Number(3))?
+        .with_page_size(std::num::NonZeroU32::new(20).unwrap())?.to_call()?, "HQServ.hq_nlp_gpsj",
+        br#"[{"ReqId":"200192","Code":"600000|1","BeginDate":"0","EndDate":"0","Page":"3","PageSize":"20","Type":"2","modname":"mod_gpsj.dll"}]"#)?;
+    object(StockPepbPercentileQuery::new(ashare()?).with_indicator("1")?.with_window("3Y")?.with_period("2")?
+        .with_page(3)?.with_page_size(size)?.to_call()?, "HQServ.hq_nlp_gpsj",
+        br#"[{"ReqId":"200124","code":"600000","setcode":"1","sjfw":"3Y","sdate":"","edate":"","zb":"1","hqzq":"2","cwppgz":1,"jglx":0,"Page":3,"PageSize":"7","modname":"mod_gpsj.dll"}]"#)?;
+    Ok(())
+}
