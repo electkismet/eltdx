@@ -167,7 +167,7 @@
 | T14 | All13 M41–M52/M100 implementation/self-review sources committed at992ba98/ce46437; no execution verification |
 | T15 | Source implementation/self-review complete:9bbafde/61672fe/a964437/e995825/e35b5f2; controlled Python raw reader and deterministic subscription source cases authored; all execution verification deferred |
 | T16 | Source implementation/self-review complete at6fa4bc7/84061e7: M53-M66 corporate/finance/affine/calendar/special/policy and deterministic source cases; no execution |
-| T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
+| T17 | Source implementation/self-review complete at88b9036: M67–M78 resource/stats/company/session/health and public source cases; dependency/runtime validation deferred |
 | T18 | Not started |
 | T19 | Not started |
 | T20 | Not started |
@@ -217,3 +217,5 @@
 - Recovery 2026-11-16: T15 source implementation/self-review complete at e35b5f2 after M24 e995825. Controlled Python exclusive raw reader, renewal whole-operation staging and deterministic integration/memory/lifecycle source cases are authored. Count16 source complete/4 partial/10 unstarted. Next T16. Goal active, remainingTokens=null. No execution verification of any kind ran.
 
 - Recovery 2026-11-16: T16 source implementation/self-review complete at 6fa4bc7/84061e7. Corporate/finance/affine/calendar/special/unknown-rule services and source cases are authored, with M60 fallible Clock correction synchronized in specifications. Count17 source complete/4 partial/9 unstarted. User requested progress; actual Git state and active unlimited goal were read. Next T17 Stage B; reuse the single archive/stats/GBK implementation. No execution verification occurred. Historical T16 pending notes are superseded by the final task-16-report section.
+
+- Recovery 2026-11-16: T17 source implementation/self-review complete at88b9036 after T16 recovery commit1e7719b. All M67–M78 sources, sole default ZIP/GBK wiring, resource/company/session/health DTOs/getters and public-client source cases are authored. Exact provisional dependencies are declared but not resolved/downloaded/locked/verified. Added bounded raw provenance guards only for new Rust, preserved legacy constructors; T18 owns Python behavior. Count18 source complete/3 partial/9 unstarted. Next T18; brief and HQ11–14 already read, but no T18 source authored yet. No tests/builds/checks/network/format/AST/diff checks or equivalent execution ran. Goal stays active, no token quota. No subagents/push/tag/publication/merge.

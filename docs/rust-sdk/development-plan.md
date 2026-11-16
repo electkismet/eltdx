@@ -300,20 +300,22 @@ T15实现及限定源码自审检查点为`e35b5f2`，M24此前检查点为`e995
 - [x] 已写0452实际条数分页与空EOF、未知identity/f32位保留、有效日期profile应用及UnknownRule默认；六个T03冲突case源码保持未知，旧Python兼容映射由T18继续。
 - [ ] `cargo test -p eltdx --test adjustment --test calendar --test price_limits --locked`。
 
-T16源码检查点`6fa4bc7`/`84061e7`，另有`tests/corporate.rs`与私有用例源码。M60返回Result传播Clock错误的规格补正见decision-register；没有运行任何编译或测试。下一任务T17 Stage B。
+T16源码检查点`6fa4bc7`/`84061e7`，另有`tests/corporate.rs`与私有用例源码。M60返回Result传播Clock错误的规格补正见decision-register；没有运行任何编译或测试。后续T17源码已在`88b9036`接续完成。
 
 ### T17：服务器文件、统计文件和公司资料
 
 **文件：** 新增 `src/services/{resources,company_info,session,health}.rs`、`src/stats.rs`；新增 `tests/{resources,company_info,stats}.rs`。
 
 - [ ] 实现统计资源前完成内部 ZIP 库选型：锁定 MSRV、feature、许可证；用重复条目、加密、压缩/展开大小限额、截断及 zip bomb 语料验收。默认 HQ 构建即支持该解码；决策记入实施时新建的 `docs/rust-sdk/dependency-decisions.md`。
-- [ ] 同一文件全程pin；验证offset/长度/host身份，精确整块结尾还需一次空块。
-- [ ] 有界下载返回 `DownloadResult { data, completion, next_offset }`；到 max_bytes 且 EOF 未证实时为 `LimitReached`，只有 EOF 证据才为 `Complete`。严格 `download_complete` 未能证实完整性则返回 `LimitExceeded`，内存/帧限额在读取和分配前执行，错误时释放 pin。
-- [ ] 覆盖零上限、正好上限、超过上限、短/空块、offset 和 host 变化；Python `download_file(max_bytes)` 仍返回截取 bytes。`read_stats` 采用 max+1 探测，发现过大在解压前拒绝。
-- [ ] 统计文件解析保留来源与日期，95%覆盖/双文件同主日期等短线前置条件交由helper检查。
-- [ ] 公司目录/正文offset和GBK处理分别测试；不要与HTTP F10混淆。
+- [x] 同一文件全程pin；offset/长度/host及物理连接身份校验源码与边界用例已写，整块结尾在预算允许时空块探测；执行延期。
+- [x] 有界下载返回 `DownloadResult { data, completion, next_offset }`；到 max_bytes 且 EOF 未证实时为 `LimitReached`，只有 EOF 证据才为 `Complete`。严格方法、分配/来源限额、pin清理源码已写；执行延期。
+- [x] 零/精确/超限、短/空块、offset及lost-pin不换源用例源码已写；stats上限加一且解压前拒绝。Python旧截取/逐请求/None行为由T18适配；执行延期。
+- [x] 统计文件解析保留源身份、日期、计数字符串与单位，95%/主日期规则留给T18；默认HQ注册唯一ZIP及GBK源码。
+- [x] 公司GBK字节范围/有损诊断、会话控制字段、ping/probe及公开客户端用例源码已写，执行延期。
 - [ ] `cargo test -p eltdx --test resources --test company_info --test stats --locked`。
 - [ ] 新增 `crates/eltdx/tests/hq_loopback.rs`，经公开Client/service完成至少一次非空查询、一次分页和一次故障关闭；运行 `cargo test -p eltdx --test hq_loopback --locked`，不能只测试内部Engine。
+
+T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lock/独立语料验收继续延期。已新增dependency-decisions.md记录选型的暂定状态，不能将Cargo声明当作已解析或已验证。下一任务T18。
 
 ### T18：P2 Python 回迁及可用版本验收
 
