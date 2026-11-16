@@ -1,0 +1,489 @@
+//! Pure historical financial DAT/list parsing and bounded local DAT reads.
+//!
+//! ZIP decoding/selection is deliberately integrated in Stage B through the shared
+//! archive decoder. No ZIP decoder or network service is implemented here.
+use std::collections::BTreeMap;
+use std::ops::Range;
+use std::path::Path;
+use std::sync::Arc;
+
+use crate::error::{Error, ErrorKind, Result};
+use crate::types::{Diagnostic, EnrichmentStatus};
+use crate::{CancellationToken, RawPolicy, TradingDate};
+use super::{ascii_replace, bars, cancelled, invalid, malformed, source_trim,
+    ReadOptions, ReadResult, WireFloat};
+
+pub const FINANCIAL_LIST_PATH: &str = "tdxfin/gpcw.txt";
+pub const MAX_DAT_BYTES: u64 = 256 * 1024 * 1024;
+pub const MAX_ARCHIVE_BYTES: u64 = 64 * 1024 * 1024;
+pub const MAX_ARCHIVE_ENTRIES: u32 = 64;
+pub const MAX_FIELDS_PER_RECORD: u32 = 4096;
+pub const MAX_TOTAL_FIELDS: u64 = 4 * 1024 * 1024;
+const HEADER_BYTES: usize = 20;
+const INDEX_BYTES: usize = 11;
+
+/// Checked remote leaf; it never denotes a local filesystem destination.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FinancialArchiveName(String);
+impl FinancialArchiveName {
+    pub fn new(value: impl Into<String>) -> Result<Self> {
+        let value = value.into();
+        // HQ permits 300 ASCII path bytes; reserve the fixed `tdxfin/` prefix.
+        if value.is_empty() || value.len() > 293 || !value.is_ascii()
+            || value.trim() != value || value.chars().any(|c| c.is_control())
+            || value.contains(['/', '\\', ':']) || value == "." || value == ".."
+        { return Err(invalid("financial archive name must be a bounded ASCII remote leaf")); }
+        Ok(Self(value))
+    }
+    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn remote_path(&self) -> String { format!("tdxfin/{}", self.0) }
+}
+
+#[derive(Clone, Debug)]
+pub struct FinancialParseOptions {
+    max_dat_bytes: u64,
+    max_fields_per_record: u32,
+    max_total_fields: u64,
+    strict_index: bool,
+    raw: RawPolicy,
+    cancel: Option<CancellationToken>,
+}
+impl Default for FinancialParseOptions {
+    fn default() -> Self {
+        Self { max_dat_bytes: MAX_DAT_BYTES, max_fields_per_record: MAX_FIELDS_PER_RECORD,
+            max_total_fields: MAX_TOTAL_FIELDS, strict_index: false, raw: RawPolicy::Omit, cancel: None }
+    }
+}
+impl FinancialParseOptions {
+    pub fn new() -> Self { Self::default() }
+    pub const fn max_dat_bytes(&self) -> u64 { self.max_dat_bytes }
+    pub const fn max_fields_per_record(&self) -> u32 { self.max_fields_per_record }
+    pub const fn max_total_fields(&self) -> u64 { self.max_total_fields }
+    pub const fn strict_index(&self) -> bool { self.strict_index }
+    pub const fn raw(&self) -> RawPolicy { self.raw }
+    pub fn cancel(&self) -> Option<&CancellationToken> { self.cancel.as_ref() }
+    pub fn with_max_dat_bytes(mut self, value: u64) -> Result<Self> {
+        bounded(value, MAX_DAT_BYTES, "max_dat_bytes")?;
+        self.max_dat_bytes = value; Ok(self)
+    }
+    pub fn with_max_fields_per_record(mut self, value: u32) -> Result<Self> {
+        bounded(u64::from(value), u64::from(MAX_FIELDS_PER_RECORD), "max_fields_per_record")?;
+        self.max_fields_per_record = value; Ok(self)
+    }
+    pub fn with_max_total_fields(mut self, value: u64) -> Result<Self> {
+        bounded(value, MAX_TOTAL_FIELDS, "max_total_fields")?;
+        value.checked_mul(4).ok_or_else(|| invalid("total field byte size overflows"))?;
+        self.max_total_fields = value; Ok(self)
+    }
+    pub fn with_strict_index(mut self, value: bool) -> Self { self.strict_index = value; self }
+    pub fn with_raw(mut self, value: RawPolicy) -> Self { self.raw = value; self }
+    pub fn with_cancel(mut self, value: Option<CancellationToken>) -> Self { self.cancel = value; self }
+}
+fn bounded(value: u64, maximum: u64, name: &str) -> Result<()> {
+    if value == 0 || value > maximum || value > (isize::MAX as u64).saturating_sub(1) {
+        return Err(invalid(format!("{name} must be positive and no greater than {maximum}")));
+    }
+    Ok(())
+}
+
+/// Exact archive member name; checked construction is available through `named`.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub enum DatSelector { #[default] RequireSingle, Named(String) }
+impl DatSelector {
+    pub fn named(name: impl Into<String>) -> Result<Self> {
+        let name = name.into();
+        if name.is_empty() || name.contains('\0') || !name.ends_with(".dat") {
+            return Err(invalid("DAT selector must be a nonempty, NUL-free exact .dat member name"));
+        }
+        Ok(Self::Named(name))
+    }
+    fn validate(&self) -> Result<()> {
+        if let Self::Named(name) = self { Self::named(name.clone())?; }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FinancialReadOptions {
+    parse: FinancialParseOptions,
+    max_archive_bytes: u64,
+    max_entries: u32,
+    selector: DatSelector,
+    report_date: Option<TradingDate>,
+}
+impl Default for FinancialReadOptions {
+    fn default() -> Self {
+        Self { parse: FinancialParseOptions::default(), max_archive_bytes: MAX_ARCHIVE_BYTES,
+            max_entries: MAX_ARCHIVE_ENTRIES, selector: DatSelector::RequireSingle, report_date: None }
+    }
+}
+impl FinancialReadOptions {
+    pub fn new() -> Self { Self::default() }
+    pub fn parse(&self) -> &FinancialParseOptions { &self.parse }
+    pub const fn max_archive_bytes(&self) -> u64 { self.max_archive_bytes }
+    pub const fn max_entries(&self) -> u32 { self.max_entries }
+    pub fn selector(&self) -> &DatSelector { &self.selector }
+    pub const fn report_date(&self) -> Option<TradingDate> { self.report_date }
+    pub fn with_parse(mut self, value: FinancialParseOptions) -> Self { self.parse = value; self }
+    pub fn with_max_archive_bytes(mut self, value: u64) -> Result<Self> {
+        bounded(value, MAX_ARCHIVE_BYTES, "max_archive_bytes")?;
+        self.max_archive_bytes = value; Ok(self)
+    }
+    pub fn with_max_entries(mut self, value: u32) -> Result<Self> {
+        bounded(u64::from(value), u64::from(MAX_ARCHIVE_ENTRIES), "max_entries")?;
+        self.max_entries = value; Ok(self)
+    }
+    pub fn with_selector(mut self, value: DatSelector) -> Result<Self> {
+        value.validate()?; self.selector = value; Ok(self)
+    }
+    pub fn with_report_date(mut self, value: Option<TradingDate>) -> Self { self.report_date = value; self }
+}
+
+/// Pure checked query consumed by the Stage B HQ composition.
+#[derive(Clone, Debug)]
+pub struct FinancialRecordsQuery {
+    filename: FinancialArchiveName, selector: DatSelector, report_date: Option<TradingDate>,
+}
+impl FinancialRecordsQuery {
+    pub fn new(filename: FinancialArchiveName) -> Self {
+        Self { filename, selector: DatSelector::RequireSingle, report_date: None }
+    }
+    pub fn filename(&self) -> &FinancialArchiveName { &self.filename }
+    pub fn selector(&self) -> &DatSelector { &self.selector }
+    pub const fn report_date(&self) -> Option<TradingDate> { self.report_date }
+    pub fn with_selector(mut self, value: DatSelector) -> Result<Self> {
+        value.validate()?; self.selector = value; Ok(self)
+    }
+    pub fn with_report_date(mut self, value: Option<TradingDate>) -> Self { self.report_date = value; self }
+}
+
+/// Filled only by the shared archive adapter after it reads the validated index.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArchiveProvenance {
+    entry_name: Vec<u8>, entry_index: usize, declared_size: u64, actual_size: u64, selector: DatSelector,
+}
+impl ArchiveProvenance {
+    pub(crate) fn new(entry_name: Vec<u8>, entry_index: usize, declared_size: u64,
+        actual_size: u64, selector: DatSelector) -> Result<Self>
+    {
+        selector.validate()?;
+        if declared_size != actual_size || actual_size > MAX_DAT_BYTES {
+            return Err(malformed("archive DAT declared/actual size disagrees or exceeds limit"));
+        }
+        Ok(Self { entry_name, entry_index, declared_size, actual_size, selector })
+    }
+    pub fn entry_name(&self) -> &[u8] { &self.entry_name }
+    pub const fn entry_index(&self) -> usize { self.entry_index }
+    pub const fn declared_size(&self) -> u64 { self.declared_size }
+    pub const fn actual_size(&self) -> u64 { self.actual_size }
+    pub fn selector(&self) -> &DatSelector { &self.selector }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FinancialHeader {
+    unknown: i16, report_date_raw: u32, max_count: u16, unknown1: u32,
+    report_size: u32, unknown2: u32,
+}
+impl FinancialHeader {
+    pub const fn unknown(&self) -> i16 { self.unknown }
+    pub const fn report_date_raw(&self) -> u32 { self.report_date_raw }
+    pub const fn max_count(&self) -> u16 { self.max_count }
+    pub const fn unknown1(&self) -> u32 { self.unknown1 }
+    pub const fn report_size(&self) -> u32 { self.report_size }
+    pub const fn unknown2(&self) -> u32 { self.unknown2 }
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FinancialCompletion { Complete, Incomplete }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReportDateSource { Explicit, ArchiveFilename, Header, Unavailable, PythonLegacyOverride }
+#[derive(Clone, Debug)]
+pub struct FinancialRecord {
+    code: String, market_id: u8, report_date: Option<TradingDate>, report_date_raw: u32,
+    date_source: ReportDateSource, fields: Vec<WireFloat>, header: FinancialHeader,
+    index: usize, data_range: Range<usize>, raw: Option<Arc<[u8]>>,
+}
+impl FinancialRecord {
+    pub fn code(&self) -> &str { &self.code }
+    pub const fn market_id(&self) -> u8 { self.market_id }
+    pub const fn report_date(&self) -> Option<TradingDate> { self.report_date }
+    /// Effective unvalidated integer, including the legacy override when selected.
+    pub const fn report_date_raw(&self) -> u32 { self.report_date_raw }
+    pub const fn date_source(&self) -> ReportDateSource { self.date_source }
+    pub fn fields(&self) -> &[WireFloat] { &self.fields }
+    pub const fn header(&self) -> &FinancialHeader { &self.header }
+    pub const fn index(&self) -> usize { self.index }
+    pub fn data_range(&self) -> Range<usize> { self.data_range.clone() }
+    pub fn raw(&self) -> Option<&[u8]> { self.raw.as_deref().map(|data| &data[self.data_range.clone()]) }
+}
+/// Rich result retains facts that the shared T21 `ReadResult` cannot represent.
+#[derive(Clone, Debug)]
+pub struct FinancialDatResult {
+    records: ReadResult<FinancialRecord>, header: Option<FinancialHeader>,
+    completion: FinancialCompletion, consumed_indexes: usize, omitted_indexes: usize,
+    date_source: ReportDateSource, raw: Option<Arc<[u8]>>, archive: Option<ArchiveProvenance>,
+}
+impl FinancialDatResult {
+    pub fn records(&self) -> &ReadResult<FinancialRecord> { &self.records }
+    pub fn rows(&self) -> &[FinancialRecord] { self.records.rows() }
+    pub fn diagnostics(&self) -> &[Diagnostic] { self.records.diagnostics() }
+    pub const fn header(&self) -> Option<&FinancialHeader> { self.header.as_ref() }
+    pub const fn completion(&self) -> FinancialCompletion { self.completion }
+    pub const fn consumed_indexes(&self) -> usize { self.consumed_indexes }
+    pub const fn omitted_indexes(&self) -> usize { self.omitted_indexes }
+    pub const fn date_source(&self) -> ReportDateSource { self.date_source }
+    pub fn raw(&self) -> Option<&[u8]> { self.raw.as_deref() }
+    pub fn archive(&self) -> Option<&ArchiveProvenance> { self.archive.as_ref() }
+    pub fn into_records(self) -> ReadResult<FinancialRecord> { self.records }
+    pub(crate) fn with_archive(mut self, value: ArchiveProvenance) -> Self { self.archive = Some(value); self }
+}
+
+pub fn parse_dat(data: &[u8], report_date: Option<TradingDate>, options: &FinancialParseOptions)
+    -> Result<ReadResult<FinancialRecord>>
+{ Ok(parse_dat_detailed(data, report_date, options)?.into_records()) }
+
+pub fn parse_dat_detailed(data: &[u8], report_date: Option<TradingDate>, options: &FinancialParseOptions)
+    -> Result<FinancialDatResult>
+{ parse_core(data, DatePolicy::Rust { explicit: report_date, filename: None }, options, false) }
+
+/// Pure date-precedence entry point for Stage B after shared ZIP selection.
+pub fn parse_dat_for_archive(data: &[u8], filename: &str, report_date: Option<TradingDate>,
+    options: &FinancialParseOptions) -> Result<FinancialDatResult>
+{ parse_core(data, DatePolicy::Rust { explicit: report_date, filename: Some(filename) }, options, false) }
+
+/// Local DAT-only portion of `read`; archive routing is a Stage B responsibility.
+/// Filename dates are intentionally ignored on this local route.
+pub fn read_dat_file(path: &Path, options: &FinancialReadOptions) -> Result<FinancialDatResult> {
+    let local = ReadOptions::new().with_max_bytes(options.parse.max_dat_bytes)?
+        .with_cancel(options.parse.cancel.clone());
+    let bytes = bars::load(path, &local)?;
+    parse_dat_detailed(&bytes, options.report_date, &options.parse)
+}
+
+#[derive(Clone, Copy)]
+enum DatePolicy<'a> { Rust { explicit: Option<TradingDate>, filename: Option<&'a str> }, Legacy(u32) }
+fn date_parts(raw: u32) -> Option<TradingDate> {
+    let year = u16::try_from(raw / 10000).ok()?;
+    TradingDate::new(year, ((raw % 10000) / 100) as u8, (raw % 100) as u8).ok()
+}
+fn date_integer(value: TradingDate) -> u32 {
+    u32::from(value.year()) * 10000 + u32::from(value.month()) * 100 + u32::from(value.day())
+}
+/// Dates are found in the leaf name, in non-overlapping eight-digit runs, matching
+/// the legacy first-match shape while Rust additionally requires a valid date.
+pub fn filename_report_date(filename: &str) -> Option<TradingDate> {
+    filename_dates(filename).find_map(date_parts)
+}
+fn filename_dates(filename: &str) -> impl Iterator<Item = u32> + '_ {
+    let leaf = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
+    let mut at = 0;
+    std::iter::from_fn(move || {
+        while at + 8 <= leaf.len() {
+            let chunk = &leaf.as_bytes()[at..at + 8];
+            if chunk.iter().all(u8::is_ascii_digit) {
+                at += 8;
+                return Some(chunk.iter().fold(0, |value, digit| value * 10 + u32::from(*digit - b'0')));
+            }
+            at += 1;
+        }
+        None
+    })
+}
+fn resolve_date(policy: DatePolicy<'_>, header: u32) -> (u32, Option<TradingDate>, ReportDateSource) {
+    match policy {
+        DatePolicy::Legacy(value) if value != 0 => (value, date_parts(value), ReportDateSource::PythonLegacyOverride),
+        DatePolicy::Rust { explicit: Some(date), .. } => (date_integer(date), Some(date), ReportDateSource::Explicit),
+        DatePolicy::Rust { filename: Some(name), .. } => {
+            if let Some(date) = filename_report_date(name) {
+                return (date_integer(date), Some(date), ReportDateSource::ArchiveFilename);
+            }
+            (header, date_parts(header), if date_parts(header).is_some() { ReportDateSource::Header } else { ReportDateSource::Unavailable })
+        }
+        _ => (header, date_parts(header), if date_parts(header).is_some() { ReportDateSource::Header } else { ReportDateSource::Unavailable }),
+    }
+}
+fn issue(stage: &str, message: impl Into<String>) -> Diagnostic {
+    Diagnostic::new("offline.financial", stage, EnrichmentStatus::Unavailable,
+        Some(ErrorKind::ResourceFormat), Some(message.into()))
+}
+fn index_issue(options: &FinancialParseOptions, diagnostics: &mut Vec<Diagnostic>, index: usize,
+    message: &str) -> Result<()>
+{
+    if options.strict_index {
+        return Err(malformed(message).with_context("record_index", format!("{index}")));
+    }
+    diagnostics.push(issue("index", format!("record {index}: {message}")));
+    Ok(())
+}
+
+fn parse_core(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptions, legacy: bool)
+    -> Result<FinancialDatResult>
+{
+    cancelled(options.cancel())?;
+    if !legacy && data.len() as u64 > options.max_dat_bytes {
+        return Err(Error::new(ErrorKind::LimitExceeded, "financial DAT exceeds byte limit"));
+    }
+    let mut diagnostics = Vec::new();
+    let mut rows = Vec::new();
+    let mut completion = FinancialCompletion::Complete;
+    if data.len() < HEADER_BYTES {
+        if !data.is_empty() {
+            index_issue(options, &mut diagnostics, 0, "truncated financial DAT header")?;
+            completion = FinancialCompletion::Incomplete;
+        }
+        return Ok(FinancialDatResult { records: ReadResult::new(rows, data.len(), diagnostics), header: None,
+            completion, consumed_indexes: 0, omitted_indexes: 0, date_source: ReportDateSource::Unavailable,
+            raw: retain_payload(data, options)?, archive: None });
+    }
+    let header = FinancialHeader {
+        unknown: i16::from_le_bytes([data[0], data[1]]), report_date_raw: bars::u32_at(data, 2),
+        max_count: bars::u16_at(data, 6), unknown1: bars::u32_at(data, 8),
+        report_size: bars::u32_at(data, 12), unknown2: bars::u32_at(data, 16),
+    };
+    let (date_raw, date, date_source) = resolve_date(policy, header.report_date_raw);
+    if date_parts(header.report_date_raw).is_none() {
+        diagnostics.push(issue("date", format!("invalid raw header date {} retained", header.report_date_raw)));
+    }
+    let fields = header.report_size / 4;
+    if header.report_size % 4 != 0 || fields > options.max_fields_per_record {
+        return Err(malformed("financial report_size is unaligned or exceeds field limit"));
+    }
+    let count = usize::from(header.max_count);
+    let index_end = count.checked_mul(INDEX_BYTES).and_then(|length| HEADER_BYTES.checked_add(length))
+        .ok_or_else(|| malformed("financial index size overflows"))?;
+    let mut consumed = 0;
+    let mut omitted = 0;
+    let mut total_fields = 0_u64;
+    let mut ranges = BTreeMap::<usize, usize>::new();
+    if header.report_size != 0 {
+        for index in 0..count {
+            cancelled(options.cancel())?;
+            let at = HEADER_BYTES + index * INDEX_BYTES; // bounded by checked index_end
+            let Some(entry) = data.get(at..at + INDEX_BYTES) else {
+                index_issue(options, &mut diagnostics, index, "truncated financial index table")?;
+                omitted += count - index; completion = FinancialCompletion::Incomplete; break;
+            };
+            consumed += 1;
+            let code = ascii_replace(&entry[..6]).trim_end_matches('\0').to_owned();
+            let start = bars::u32_at(entry, 7) as usize;
+            if code.is_empty() || start == 0 {
+                diagnostics.push(issue("index", format!("record {index}: empty code or zero offset omitted")));
+                omitted += 1; completion = FinancialCompletion::Incomplete; continue;
+            }
+            // Python already rejects a repeated previously accepted offset. New
+            // Rust additionally rejects any overlap with metadata or other rows.
+            if ranges.contains_key(&start) {
+                return Err(malformed("duplicate valid financial offset").with_context("record_index", format!("{index}")));
+            }
+            let end = start.checked_add(header.report_size as usize)
+                .ok_or_else(|| malformed("financial data offset overflows"))?;
+            if end > data.len() {
+                index_issue(options, &mut diagnostics, index, "financial data offset is out of range")?;
+                omitted += 1; completion = FinancialCompletion::Incomplete; continue;
+            }
+            if !legacy && (start < index_end
+                || ranges.range(..start).next_back().is_some_and(|(_, previous_end)| *previous_end > start)
+                || ranges.range(start..).next().is_some_and(|(next_start, _)| *next_start < end))
+            {
+                return Err(malformed("overlapping financial data/index ranges").with_context("record_index", format!("{index}")));
+            }
+            total_fields = total_fields.checked_add(u64::from(fields))
+                .filter(|total| *total <= options.max_total_fields)
+                .ok_or_else(|| malformed("financial total field limit exceeded"))?;
+            let mut values = Vec::new();
+            values.try_reserve_exact(fields as usize).map_err(|_| malformed("financial field allocation failed"))?;
+            for bytes in data[start..end].chunks_exact(4) {
+                values.push(WireFloat::from_bits(bars::u32_at(bytes, 0)));
+            }
+            ranges.insert(start, end);
+            rows.try_reserve(1).map_err(|_| malformed("financial record allocation failed"))?;
+            rows.push(FinancialRecord { code, market_id: entry[6], report_date: date, report_date_raw: date_raw,
+                date_source, fields: values, header, index, data_range: start..end, raw: None });
+        }
+    }
+    cancelled(options.cancel())?;
+    // Copy only after all header/index/field budget checks have succeeded.
+    let raw = retain_payload(data, options)?;
+    for row in &mut rows { row.raw = raw.clone(); }
+    Ok(FinancialDatResult { records: ReadResult::new(rows, 0, diagnostics), header: Some(header),
+        completion, consumed_indexes: consumed, omitted_indexes: omitted, date_source, raw, archive: None })
+}
+
+fn retain_payload(data: &[u8], options: &FinancialParseOptions) -> Result<Option<Arc<[u8]>>> {
+    if options.raw == RawPolicy::Omit { return Ok(None); }
+    // One shared payload; field/index budgets are checked separately before allocation.
+    let mut copy = Vec::new();
+    copy.try_reserve_exact(data.len()).map_err(|_| malformed("financial raw allocation failed"))?;
+    for chunk in data.chunks(64 * 1024) { cancelled(options.cancel())?; copy.extend_from_slice(chunk); }
+    cancelled(options.cancel())?;
+    Ok(Some(Arc::from(copy)))
+}
+
+#[derive(Clone, Debug)]
+pub struct FinancialFileInfo {
+    filename: String, hash: String, filesize: Option<u64>, filesize_text: String,
+    diagnostics: Vec<Diagnostic>,
+}
+impl FinancialFileInfo {
+    pub fn filename(&self) -> &str { &self.filename }
+    /// Unverified server metadata; no digest authentication has been performed.
+    pub fn hash(&self) -> &str { &self.hash }
+    pub const fn filesize(&self) -> Option<u64> { self.filesize }
+    pub fn filesize_text(&self) -> &str { &self.filesize_text }
+    pub fn diagnostics(&self) -> &[Diagnostic] { &self.diagnostics }
+}
+
+pub fn parse_file_list(data: &[u8]) -> Result<Vec<FinancialFileInfo>> { parse_file_list_with_strict(data, false) }
+pub fn parse_file_list_with_strict(data: &[u8], strict: bool) -> Result<Vec<FinancialFileInfo>> {
+    let mut result = Vec::new();
+    let text = String::from_utf8_lossy(data);
+    for line in source_trim(&text).split('\n').map(source_trim).filter(|line| !line.is_empty()) {
+        let mut columns = line.split(',');
+        let (Some(filename), Some(hash), Some(size)) = (columns.next(), columns.next(), columns.next()) else { continue };
+        let Some(integer) = decimal_integer(size) else { continue };
+        let digits = integer.trim_start_matches(['+', '-']);
+        let filesize = if integer.starts_with('-') && digits.bytes().any(|b| b != b'0') {
+            None
+        } else { digits.parse::<u64>().ok() };
+        let diagnostics = if filesize.is_none() {
+            if strict { return Err(malformed("financial list size is negative or exceeds u64")); }
+            vec![issue("list", "financial list size is negative or exceeds u64; raw text retained")]
+        } else { Vec::new() };
+        result.push(FinancialFileInfo { filename: filename.to_owned(), hash: hash.to_owned(),
+            filesize, filesize_text: size.to_owned(), diagnostics });
+    }
+    Ok(result)
+}
+// Arbitrary-length signed decimal, including Python's between-digit underscores.
+// Unicode decimal digits outside ASCII are deferred to the T23 Python boundary.
+fn decimal_integer(text: &str) -> Option<String> {
+    let text = source_trim(text);
+    let digits = text.strip_prefix(['+', '-']).unwrap_or(text);
+    if digits.is_empty() { return None; }
+    let bytes = digits.as_bytes();
+    if !bytes.first()?.is_ascii_digit() || !bytes.last()?.is_ascii_digit() { return None; }
+    for (index, byte) in bytes.iter().enumerate() {
+        if !byte.is_ascii_digit() && !(*byte == b'_' && index > 0 && bytes[index - 1].is_ascii_digit()
+            && bytes.get(index + 1).is_some_and(u8::is_ascii_digit)) { return None; }
+    }
+    Some(text.replace('_', ""))
+}
+
+/// Internal T23 policy seam. It cannot be selected through public Rust options.
+/// This is the existing Python DAT policy, including no direct-DAT byte cap.
+#[doc(hidden)]
+pub mod python_legacy {
+    use super::*;
+    pub fn parse_dat(data: &[u8], nonzero_override: u32) -> Result<FinancialDatResult> {
+        parse_core(data, DatePolicy::Legacy(nonzero_override), &FinancialParseOptions::default(), true)
+    }
+    pub fn first_filename_date(filename: &str) -> u32 { filename_dates(filename).next().unwrap_or(0) }
+    /// Return signed size text for conversion to Python's arbitrary precision int.
+    pub fn parse_file_list(data: &[u8]) -> Vec<(String, String, String)> {
+        let text = String::from_utf8_lossy(data);
+        source_trim(&text).split('\n').filter_map(|line| {
+            let mut columns = source_trim(line).split(',');
+            let (filename, hash, size) = (columns.next()?, columns.next()?, columns.next()?);
+            Some((filename.to_owned(), hash.to_owned(), decimal_integer(size)?))
+        }).collect()
+    }
+}
