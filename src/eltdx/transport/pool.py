@@ -493,6 +493,9 @@ class PooledSocketTransport:
         dto = call_native(self._native().sdk_corporate, command, payload)
         return response_from_dto(dto)
 
+    def sdk_special_limits(self, payload: dict[str, Any]):
+        return response_from_dto(call_native(self._native().sdk_special_limits, payload))
+
     def sdk_resource(self, command: int, payload: dict[str, Any]):
         dto = call_native(self._native().sdk_resource, command, payload)
         return response_from_dto(dto)

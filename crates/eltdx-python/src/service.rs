@@ -134,6 +134,10 @@ pub fn corporate(py: Python<'_>, executor: LegacyExecutor, request: CommandReque
     unpriced_domain(py, executor, request, "python_corporate", LegacyOperation::corporate)
 }
 
+pub fn special_limits(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
+    unpriced_domain(py, executor, request, "python_special_limits", LegacyOperation::special_limits)
+}
+
 pub fn resource(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
     pin: Option<eltdx_runtime::engine::PinHandle>) -> PyResult<Py<PyAny>> {
     let result = run_legacy(py, move |token| {

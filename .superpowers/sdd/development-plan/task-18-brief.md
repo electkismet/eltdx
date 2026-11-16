@@ -73,6 +73,14 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Twenty-second recovery: stats committedc2ef123. Special-limit request/scan native
+source now shares domain/offset traversal, preserving raw/unknown/nonfinite,
+over-target last page, EOF, per-request timeouts and custom arithmetic/hooks.
+6 contract/4 integration/2 Rust functions authored/unexecuted. Health uses the
+existing shared heartbeat and zero-native-load local ping adapter; supplemental
+source cases added. Continue all HQ helper/batch/subscription migration,
+full manifest and installed-wheel consumer. Totals18/4/8 remain unchanged.
+
 Twenty-first recovery: resources committed4b0d38b. Statistics text/GBK/numeric/
 row decoder shared with Rust; Python ZIP codecs/layout/error cause and original
 empty-table/duplicate ordering remain adapters. Big integers remain decimal

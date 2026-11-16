@@ -1293,6 +1293,19 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0452",
       "api": "client.limits.special() / client.limits.scan_special()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/limits.rs::fetch_limit_reply; legacy_special_scan",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/limits.rs", "crates/eltdx-python/src/service.rs", "src/eltdx/api/limits.py"],
+        "contract_nodes": ["tests/contracts/test_sdk_limits_bridge.py::test_native_special_limit_scan_uses_actual_count_and_keeps_over_target_page", "tests/contracts/test_sdk_limits_bridge.py::test_native_special_limit_scan_stops_empty_and_skips_zero_max", "tests/contracts/test_sdk_limits_bridge.py::test_special_limit_builtin_execute_override_is_preserved"],
+        "integration_nodes": ["tests/integration/test_native_limits_bridge.py::test_native_special_limits_preserve_unknown_market_code_and_raw", "tests/integration/test_native_limits_bridge.py::test_native_special_limits_preserve_nonfinite_legacy_price", "tests/integration/test_native_limits_bridge.py::test_native_special_limits_scan_does_not_pin_or_require_full_target", "tests/integration/test_native_limits_bridge.py::test_native_special_limits_offset_overflow_keeps_next_request_error"],
+        "temporary_adapter": {
+          "scope": "Custom special/execute objects and nonstandard index/limit values",
+          "reason": "Retain arbitrary callback return values, Python arithmetic and per-request extraction; normal native scan shares its request/offset traversal.",
+          "exit_condition": "Extend callback arithmetic support without altering original custom behavior."
+        },
+        "validation": "Source only; no execution. Legacy permits unknown identities/nonfinite scalars and returns the final page without row truncation."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-特殊品种涨跌停限制.md",

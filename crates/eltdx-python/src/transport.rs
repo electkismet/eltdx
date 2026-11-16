@@ -270,6 +270,11 @@ impl NativeEngine {
         service::corporate(py, self.legacy.clone(), request)
     }
 
+    fn sdk_special_limits(&self, py: Python<'_>, payload: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, 0x0452, Some(payload))?;
+        service::special_limits(py, self.legacy.clone(), request)
+    }
+
     fn sdk_resource(&self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
         let request = request::from_python(py, command, Some(payload))?;
         service::resource(py, self.legacy.clone(), request, None)

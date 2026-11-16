@@ -908,3 +908,23 @@ Twentieth source stage committed as **4b0d38b**; all execution deferred.
 
 Counts18/4/8; T18 partial. Next special limits/health and remaining batching,
 helpers/subscription/evidence/installed-wheel consumer. Goal active/no cap.
+
+Twenty-first source stage committed as **c2ef123**; all execution deferred.
+
+## Twenty-second source checkpoint — special limits and health boundary
+
+- Shared special-limit request and offset traversal serve strict Rust and normal
+  native Python. Legacy retains unpinned per-request lifetime, unknown/oversized
+  identities, nonfinite prices and raw, final whole-page output past max_rows,
+  zero-max no request and next-request overflow validation. Custom execute/page
+  overrides and nonstandard arithmetic use the original Python adapter.
+- Health inspection confirms heartbeat already reaches shared SessionService;
+  local ping only returns the transport's existing response, does not load or
+  start native and remains a deliberate adapter. Added default/custom/client
+  before-after-close source cases, with no new health runtime or network work.
+- Authored6 contract/4 local integration functions and2 Rust source functions;
+  one manifest capability gains source-only evidence, no status promotion.
+  No tests/builds/checks/collection/dependency/network/format/AST execution ran.
+
+T18 partial;18/4/8. Next full helper/batch/subscription migration, manifest and
+installed-wheel consumer; all later T19–T30/Stage B remain outstanding.

@@ -5,6 +5,7 @@ mod corporate;
 mod calendar;
 mod resource;
 mod stats;
+mod limits;
 mod protocol;
 mod request;
 mod response;
@@ -39,6 +40,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(calendar::weekday, module)?)?;
     module.add_function(wrap_pyfunction!(resource::download_resource, module)?)?;
     module.add_function(wrap_pyfunction!(stats::stats_members, module)?)?;
+    module.add_function(wrap_pyfunction!(limits::scan_special, module)?)?;
     transport::register(module)?;
     Ok(())
 }

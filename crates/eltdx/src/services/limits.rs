@@ -9,6 +9,40 @@ use crate::operation::{ChildPurpose, OperationContext, OperationOptions, WorkLim
 use crate::types::{Collected, DataPage, EndEvidence, PageCursor, Price, SpecialLimit, SpecialLimitQuery, ValueProvenance, NumericValue};
 use crate::{Error, ErrorKind, Result, TimeoutPhase};
 use super::{aggregate_meta, allocation_error, endpoint_engine, identity_from_market, result_meta, verify_cursor, ServiceSource};
+use crate::hq::decode::DecodedReply;
+
+fn fetch_limit_reply(context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>) -> Result<DecodedReply> {
+    context.check_boundary(TimeoutPhase::Admission)?;
+    if !matches!(&request, CommandRequest::SpecialLimits(_)) {
+        return Err(Error::new(ErrorKind::InvalidArgument, "special-limit service requires its domain request"));
+    }
+    let reply = fetch(request)?;
+    if !matches!(&reply.response, CommandResponse::SpecialLimits(_)) {
+        return Err(Error::new(ErrorKind::Protocol, "invalid special-limit response kind"));
+    }
+    Ok(reply)
+}
+
+pub(crate) fn legacy_limit_reply(context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>) -> Result<CommandResponse> {
+    if !context.is_legacy() { return Err(Error::new(ErrorKind::InvalidArgument, "legacy special-limit request requires a Python-profile operation")); }
+    Ok(fetch_limit_reply(context, request, fetch)?.response)
+}
+
+fn advance_special_offset(offset: u64, count: u64) -> Option<u64> { offset.checked_add(count) }
+
+pub fn legacy_special_scan<E>(start: u64, maximum: u64,
+    mut query: impl FnMut(u64) -> std::result::Result<Option<u64>, E>,
+    overflow: impl Fn() -> E) -> std::result::Result<(), E> {
+    let end = start.checked_add(maximum).ok_or_else(&overflow)?;
+    let mut index = start;
+    while index < end {
+        let Some(count) = query(index)? else { break; };
+        index = advance_special_offset(index, count).ok_or_else(&overflow)?;
+    }
+    Ok(())
+}
 
 #[derive(Clone, Debug)]
 pub struct LimitService { executor: HqExecutor, engine: Engine, config: ClientConfig }
@@ -41,7 +75,7 @@ impl LimitService {
                 if page.items().is_empty() { return Ok(Collected::new(items, EndEvidence::EmptyPage, page_index + 1, aggregate_meta(&context, &metas, None)?)); }
                 let total = items.len().checked_add(page.items().len()).ok_or_else(cap)?;
                 if total > query.pages().max_records() { return Err(cap()); }
-                let next = u32::from(offset).checked_add(u32::try_from(page.items().len()).map_err(|_| cap())?).ok_or_else(cap)?;
+                let next = advance_special_offset(u64::from(offset), u64::try_from(page.items().len()).map_err(|_| cap())?).ok_or_else(cap)?;
                 offset = u16::try_from(next).map_err(|_| cap())?;
                 items.try_reserve(page.items().len()).map_err(allocation_error)?; items.extend(page.into_items());
                 if items.len() == query.pages().max_records() { return Err(cap()); }
@@ -58,11 +92,13 @@ impl LimitService {
     fn page_in_context(&self, context: &OperationContext, engine: &Engine, pin: Option<&PinHandle>, query: &SpecialLimitQuery,
         offset: u16, purpose: ChildPurpose) -> Result<DataPage<SpecialLimit>> {
         let request = CommandRequest::SpecialLimits(SpecialLimitsRequest::new(offset));
-        let raw = match pin {
-            Some(pin) => self.executor.execute_pinned_raw(engine, pin, context, request, purpose, None)?,
-            None => self.executor.execute_raw(engine, context, request, purpose, None)?,
-        };
-        let reply = self.executor.decode_received(context, raw)?;
+        let reply = fetch_limit_reply(context, request, |request| {
+            let raw = match pin {
+                Some(pin) => self.executor.execute_pinned_raw(engine, pin, context, request, purpose, None)?,
+                None => self.executor.execute_raw(engine, context, request, purpose, None)?,
+            };
+            self.executor.decode_received(context, raw)
+        })?;
         let CommandResponse::SpecialLimits(page) = &reply.response else { return Err(Error::new(ErrorKind::Protocol, "invalid special-limit response kind")); };
         if page.records.len() > query.pages().max_records() { return Err(cap()); }
         let source = ServiceSource::from_reply(&reply);
@@ -92,3 +128,22 @@ fn fingerprint(query: &SpecialLimitQuery) -> u64 {
     "hq:0452".hash(&mut hash); query.pages().page_size().hash(&mut hash); hash.finish()
 }
 fn cap() -> Error { Error::new(ErrorKind::LimitExceeded, "special-limit collection reached its row/page/offset cap before EOF") }
+
+#[cfg(test)]
+mod legacy_tests {
+    use super::*;
+    #[test]
+    fn legacy_scan_accepts_over_target_page_and_preserves_next_offset() {
+        let mut calls = Vec::new();
+        legacy_special_scan(4, 3, |index| { calls.push(index); Ok::<_, &str>(Some(2)) }, || "overflow").unwrap();
+        assert_eq!(calls, [4, 6]);
+    }
+    #[test]
+    fn legacy_scan_empty_page_and_zero_maximum_stop_without_extra_query() {
+        let mut calls = 0;
+        legacy_special_scan(0, 10, |_| { calls += 1; Ok::<_, &str>(None) }, || "overflow").unwrap();
+        assert_eq!(calls, 1);
+        legacy_special_scan(0, 0, |_| { calls += 1; Ok::<_, &str>(None) }, || "overflow").unwrap();
+        assert_eq!(calls, 1);
+    }
+}

@@ -23,10 +23,11 @@ pub(crate) use company_info::legacy_company_reply;
 pub use session::SessionService;
 pub(crate) use session::legacy_session_reply;
 pub use health::HealthService;
-mod limits;
+pub(crate) mod limits;
 pub use corporate::CorporateService;
 pub(crate) use corporate::legacy_corporate_reply;
 pub use limits::LimitService;
+pub(crate) use limits::legacy_limit_reply;
 mod trades;
 pub(crate) mod pagination;
 

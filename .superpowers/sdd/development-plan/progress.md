@@ -78,6 +78,11 @@
 
 ## Task log
 
+2026-11-17 T18 twenty-second checkpoint: stats committedc2ef123. Special-limits
+native request/scan plus health boundary contracts authored6/4/2 source functions,
+1 manifest source-only entry. All unexecuted18/4/8. Next helpers/batches/
+subscription/manifest/consumer; active/no cap/no agents.
+
 2026-11-17 T18 twenty-first checkpoint: resources committed4b0d38b. Statistics
 shared member decoder authored;8 contract/2 Rust source functions,1 manifest
 source-only entry. Python ZIP compatibility retained. All unexecuted18/4/8;
