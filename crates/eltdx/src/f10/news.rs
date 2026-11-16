@@ -12,6 +12,28 @@ pub fn home_tab_name(tab: NewsHomeTab) -> Option<&'static str> {
     Some(match tab.wire() { 1 => "滚动资讯", 2 => "今日焦点", 3 => "要闻速递", 4 => "正面消息", 5 => "负面消息", 6 => "精华集锦", 7 => "最新提示", 9 => "机构调研", _ => return None })
 }
 
+/// News payloads always follow the first metadata result set.
+#[doc(hidden)]
+pub const NEWS_RESULT_SET_INDEX: usize = 1;
+
+/// Keep key and fallback preparation eager and ordered for dynamic callers.
+#[doc(hidden)]
+pub fn lookup_name_with<K, V, E>(key: impl FnOnce() -> Result<K, E>,
+    fallback: impl FnOnce() -> Result<V, E>, lookup: impl FnOnce(K, V) -> Result<V, E>) -> Result<V, E>
+{
+    let key = key()?;
+    let fallback = fallback()?;
+    lookup(key, fallback)
+}
+
+#[doc(hidden)]
+pub fn visit_rows<T, E>(rows: impl IntoIterator<Item = Result<T, E>>,
+    mut copy: impl FnMut(T) -> Result<(), E>) -> Result<(), E>
+{
+    for row in rows { copy(row?)?; }
+    Ok(())
+}
+
 macro_rules! channels {
     ($($name:ident = $id:literal => ($label:literal, $group:literal)),* $(,)?) => {
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -62,7 +84,15 @@ channels! {
 }
 pub fn channel_name(channel: NewsChannel) -> Option<&'static str> { CHANNELS.iter().find(|info| info.id == channel.wire()).map(|info| info.label) }
 /// News is in the second table. Never substitute metadata in the first table.
-pub fn extract_rows(response: &Response) -> Vec<&Row> { response.result_sets().get(1).map(|table| table.rows().iter().collect()).unwrap_or_default() }
+pub fn extract_rows(response: &Response) -> Vec<&Row> {
+    let mut rows = Vec::new();
+    if let Some(table) = response.result_sets().get(NEWS_RESULT_SET_INDEX) {
+        let result = visit_rows(table.rows().iter().map(Ok::<_, std::convert::Infallible>),
+            |row| { rows.push(row); Ok(()) });
+        match result { Ok(()) => (), Err(impossible) => match impossible {} }
+    }
+    rows
+}
 
 #[cfg(test)]
 mod tests {

@@ -28,6 +28,7 @@
 from __future__ import annotations
 
 from enum import IntEnum
+from sys import modules as _MODULES
 from typing import Any
 
 
@@ -205,12 +206,16 @@ NEWS_CHANNEL_LABELS: dict[int, str] = {
 
 def home_tab_name(tab: "NewsHomeTab | int") -> str:
     """返回要闻流（query）对应的中文名。"""
-    return HOME_TAB_LABELS.get(int(tab), str(int(tab)))
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_news_name(tab, True, _MODULES[__name__])
 
 
 def channel_name(channel: "NewsChannel | int") -> str:
     """返回频道号对应的中文栏目名。"""
-    return NEWS_CHANNEL_LABELS.get(int(channel), str(int(channel)))
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_news_name(channel, False, _MODULES[__name__])
 
 
 def extract_news_rows(response: Any) -> list[dict[str, Any]]:
@@ -218,10 +223,6 @@ def extract_news_rows(response: Any) -> list[dict[str, Any]]:
 
     数据在第 2 个结果集（``result_sets[1].rows``）；缺省返回空列表。
     """
-    try:
-        sets = response.result_sets
-    except AttributeError:
-        return []
-    if len(sets) < 2:
-        return []
-    return [dict(row) for row in sets[1].rows]
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_news_rows(response, _MODULES[__name__])

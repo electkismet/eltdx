@@ -1355,3 +1355,180 @@ def test_f10_ladder_row_conversion_remains_lazy_for_tuple_override(monkeypatch):
     assert result.rows is marker and parsed == []
     assert next(iterator_holder[0]) == "first"
     assert parsed == ["first"]
+
+
+def test_f10_field_dictionary_keeps_scope_metadata_and_copy():
+    from eltdx.f10 import fields
+
+    entry = "CWServ.tdxf10_gg_cwfx"
+    body = {"Params": ["600000", "zcfzb"]}
+    assert fields.field_labels_for(entry, body) == {}
+    labels = fields.field_labels_for(entry, body, metadata={"nhytype": 0})
+    assert labels == dict(fields._FIELD_LABELS[(entry, "zcfzb:0")])
+    labels.clear()
+    assert fields.field_labels_for(entry, body, metadata={"nhytype": 0})
+    assert fields.field_labels_for(entry, {"Params": "zcfzb"}) == {}
+
+
+def test_f10_field_projection_retains_distinct_empty_label_policies(monkeypatch):
+    from eltdx.f10 import fields, fields_mg_hk
+
+    known = {"x": "base", "x__2": "", "x__3": None}
+    monkeypatch.setattr(fields, "field_labels_for", lambda *a, **k: known)
+    monkeypatch.setattr(fields_mg_hk, "labels_for", lambda *a: known)
+    keys = ["x__2", "x__3", "other"]
+    assert fields.describe_fields("e", {}, keys) == (
+        {"x__2": "（2）", "x__3": "base（3）"}, ["other"])
+    assert fields_mg_hk.describe_fields("e", {}, keys) == (
+        {"x__2": "base（2）", "x__3": "base（3）"}, ["other"])
+
+
+@pytest.mark.parametrize("module_name", ["fields", "fields_mg_hk"])
+def test_f10_duplicate_suffix_keeps_unicode_and_two_conversions(monkeypatch, module_name):
+    from importlib import import_module
+
+    module = import_module("eltdx.f10." + module_name)
+    assert module._split_duplicate_suffix("x__００２") == ("x", 2)
+    assert module._split_duplicate_suffix("x__001") == ("x__001", None)
+    with pytest.raises(ValueError):
+        module._split_duplicate_suffix("x__²")
+    calls = []
+    monkeypatch.setattr(module, "int", lambda value: calls.append(value) or len(calls) + 1, raising=False)
+    assert module._split_duplicate_suffix("x__2") == ("x", 3)
+    assert calls == ["2", "2"]
+
+
+def test_f10_international_exact_empty_map_does_not_use_wildcard(monkeypatch):
+    from eltdx.f10 import fields_mg_hk as fields
+
+    entry = "CWServ.skef10_mg_jyfx"
+    monkeypatch.setattr(fields, "FIELD_LABELS", {
+        (entry, "exact"): {}, (entry, "*"): {"x": "wildcard"}})
+    assert fields.labels_for(entry, {"Params": ["exact"]}) == {}
+    assert fields.labels_for(entry, {"Params": ["missing"]}) == {"x": "wildcard"}
+
+
+def test_f10_field_notes_keep_empty_value_and_original_order(monkeypatch):
+    from eltdx.f10 import fields
+
+    monkeypatch.setattr(fields, "field_notes_for", lambda *a, **k: {"x": "", "y": "note"})
+    notes = fields.describe_field_notes("e", {}, ["y__2", "x__3", "missing", "y__2"])
+    assert list(notes.items()) == [("y__2", "note"), ("x__3", "")]
+
+
+def test_f10_field_projection_keeps_live_split_and_format_special_method(monkeypatch):
+    from eltdx.f10 import fields
+
+    class Label:
+        def __format__(self, spec):
+            assert spec == ""
+            return "formatted"
+
+    monkeypatch.setattr(fields, "_split_duplicate_suffix", lambda key: ("base", 5))
+    monkeypatch.setattr(fields, "field_labels_for", lambda *a, **k: {"base": Label()})
+    monkeypatch.setattr(fields, "format", lambda *a: "wrong", raising=False)
+    assert fields.describe_fields("e", {}, ["raw"]) == ({"raw": "formatted（5）"}, [])
+
+
+def test_f10_field_scope_preserves_negative_custom_index_and_str_hooks(monkeypatch):
+    from eltdx.f10 import fields, fields_mg_hk
+
+    for module, scope in [(fields, fields._field_scope), (fields_mg_hk, fields_mg_hk._scope)]:
+        monkeypatch.setattr(module, "_SCOPE_PARAM_INDEX", {"custom": -1})
+        args = {"metadata": None} if module is fields else {}
+        assert scope("custom", {"Params": ["first", "last"]}, **args) == "last"
+
+
+def test_f10_international_entry_retains_live_startswith():
+    from eltdx.f10 import fields_mg_hk
+
+    marker = object()
+
+    class Entry:
+        def startswith(self, prefixes):
+            assert prefixes == ("CWServ.skef10_mg_", "CWServ.skef10_hk_", "CWServ.skef10_sb_")
+            return marker
+
+    assert fields_mg_hk.is_mg_hk_entry(Entry()) is marker
+
+
+@pytest.mark.parametrize("function,registry,key", [
+    ("home_tab_name", "HOME_TAB_LABELS", 1),
+    ("channel_name", "NEWS_CHANNEL_LABELS", 200),
+])
+def test_f10_news_name_eager_fallback_and_live_registry(monkeypatch, function, registry, key):
+    from eltdx.f10 import news
+
+    calls = []
+
+    class Selector:
+        def __int__(self):
+            calls.append("int")
+            return key
+
+    marker = object()
+    monkeypatch.setattr(news, registry, {key: marker})
+    assert getattr(news, function)(Selector()) is marker
+    assert calls == ["int", "int"]
+
+
+def test_f10_news_name_default_conversion_can_fail_even_for_known_key(monkeypatch):
+    from eltdx.f10 import news
+
+    calls = []
+
+    def convert(value):
+        calls.append(value)
+        if len(calls) == 2:
+            raise ValueError("second conversion")
+        return 1
+
+    monkeypatch.setattr(news, "int", convert, raising=False)
+    with pytest.raises(ValueError, match="second conversion"):
+        news.home_tab_name("1")
+    assert calls == ["1", "1"]
+
+
+def test_f10_news_rows_copies_only_second_table_and_retains_values():
+    from eltdx.f10 import news
+
+    marker = object()
+    row = {"Title": "news", "extra": marker}
+    response = SimpleNamespace(result_sets=(SimpleNamespace(rows=({"metadata": 1},)),
+                                           SimpleNamespace(rows=(row,))))
+    result = news.extract_news_rows(response)
+    assert result == [row] and result[0] is not row
+    assert result[0]["extra"] is marker
+    assert news.extract_news_rows(object()) == []
+    assert news.extract_news_rows(SimpleNamespace(result_sets=())) == []
+
+
+def test_f10_news_rows_only_catches_initial_attribute_error():
+    from eltdx.f10 import news
+
+    with pytest.raises(AttributeError):
+        news.extract_news_rows(SimpleNamespace(result_sets=(None, object())))
+
+    class Response:
+        @property
+        def result_sets(self):
+            raise RuntimeError("descriptor failed")
+
+    with pytest.raises(RuntimeError, match="descriptor failed"):
+        news.extract_news_rows(Response())
+
+
+def test_f10_news_rows_reads_live_dict_for_each_row(monkeypatch):
+    from eltdx.f10 import news
+
+    calls = []
+
+    def first(row):
+        calls.append(("first", row))
+        monkeypatch.setattr(news, "dict", lambda value: calls.append(("second", value)) or value, raising=False)
+        return row
+
+    monkeypatch.setattr(news, "dict", first, raising=False)
+    response = SimpleNamespace(result_sets=(None, SimpleNamespace(rows=(1, 2))))
+    assert news.extract_news_rows(response) == [1, 2]
+    assert calls == [("first", 1), ("second", 2)]

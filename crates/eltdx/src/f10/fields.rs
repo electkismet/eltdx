@@ -156,6 +156,34 @@ fn append_labels(labels: &'static [Label], output: &mut Vec<(&'static str, &'sta
 fn allocation(error: std::collections::TryReserveError) -> Error {
     Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 field descriptions").with_source(error)
 }
+
+/// Shared ordered field projection. Adapters provide string/numeric and
+/// missing-value policies so dynamic Python values are never narrowed here.
+#[doc(hidden)]
+pub fn visit_projected<F, L, D, E>(
+    fields: impl IntoIterator<Item = std::result::Result<F, E>>,
+    mut split: impl FnMut(&F) -> std::result::Result<(F, D), E>,
+    mut lookup: impl FnMut(&F) -> std::result::Result<Option<L>, E>,
+    mut needs_fallback: impl FnMut(&Option<L>) -> std::result::Result<bool, E>,
+    mut emit: impl FnMut(F, Option<L>, D) -> std::result::Result<(), E>,
+) -> std::result::Result<(), E> {
+    for field in fields {
+        let field = field?;
+        let (base, duplicate) = split(&field)?;
+        let mut label = lookup(&field)?;
+        if needs_fallback(&label)? { label = lookup(&base)?; }
+        emit(field, label, duplicate)?;
+    }
+    Ok(())
+}
+
+/// Scope composition is shared; validation and metadata conversion are
+/// deliberately performed by the caller's strict or legacy policy.
+#[doc(hidden)]
+pub fn requires_industry_template(entry: &str, scope: &str) -> bool {
+    entry == "CWServ.tdxf10_gg_cwfx" && matches!(scope, "zcfzb" | "lyb" | "xjllb")
+}
+
 fn duplicate_suffix(field: &str) -> (&str, Option<&str>) {
     if let Some((base, suffix)) = field.rsplit_once("__") {
         let number = suffix.trim_start_matches('0');
@@ -197,11 +225,20 @@ pub fn describe_field(context: &FieldContext, field: &str) -> FieldDescription {
 }
 /// Explicit Python suffix projection. Source cells should use describe_field.
 pub fn describe_projected_field(context: &FieldContext, field: &str) -> FieldDescription {
-    let (base, duplicate) = duplicate_suffix(field);
-    let label = lookup(context.labels(), field).or_else(|| lookup(context.labels(), base));
-    FieldDescription { field: field.to_owned(), label: label.map(|label| match duplicate { Some(index) => format!("{label}（{index}）"), None => label.to_owned() }),
-        note: lookup(context.notes(), field).or_else(|| lookup(context.notes(), base)),
-        evidence: if label.is_some() { FieldEvidence::LegacyDictionary } else { FieldEvidence::Unknown } }
+    let mut description = None;
+    let result = visit_projected([Ok::<_, std::convert::Infallible>(field)],
+        |field| Ok(duplicate_suffix(*field)),
+        |field| Ok(lookup(context.labels(), field)),
+        |label| Ok(label.is_none()),
+        |field, label, duplicate| {
+            let (base, _) = duplicate_suffix(field);
+            description = Some(FieldDescription { field: field.to_owned(),
+                label: label.map(|label| match duplicate { Some(index) => format!("{label}（{index}）"), None => label.to_owned() }),
+                note: lookup(context.notes(), field).or_else(|| lookup(context.notes(), base)),
+                evidence: if label.is_some() { FieldEvidence::LegacyDictionary } else { FieldEvidence::Unknown } });
+            Ok(())
+        });
+    match result { Ok(()) => description.expect("one field was projected"), Err(impossible) => match impossible {} }
 }
 pub fn describe_fields(context: &FieldContext, fields: &[&str]) -> Result<Vec<FieldDescription>> {
     let mut output = Vec::new(); output.try_reserve(fields.len()).map_err(allocation)?;
@@ -210,13 +247,15 @@ pub fn describe_fields(context: &FieldContext, fields: &[&str]) -> Result<Vec<Fi
 }
 pub fn describe_field_notes(context: &FieldContext, fields: &[&str]) -> Result<Vec<(String, &'static str)>> {
     let mut output = Vec::new();
-    for field in fields {
-        let (base, _) = duplicate_suffix(field);
-        if let Some(note) = lookup(context.notes(), field).or_else(|| lookup(context.notes(), base)) {
-            output.try_reserve(1).map_err(allocation)?;
-            output.push(((*field).to_owned(), note));
-        }
-    }
+    visit_projected(fields.iter().copied().map(Ok),
+        |field| Ok(duplicate_suffix(*field)), |field| Ok(lookup(context.notes(), field)),
+        |note| Ok(note.is_none()), |field, note, _| {
+            if let Some(note) = note {
+                output.try_reserve(1).map_err(allocation)?;
+                output.push((field.to_owned(), note));
+            }
+            Ok(())
+        })?;
     Ok(output)
 }
 impl Response {
@@ -224,5 +263,23 @@ impl Response {
     /// from its ticker or the meaning of one raw field.
     pub fn field_context(&self, metadata: FieldMetadata) -> Result<FieldContext> {
         FieldContext::from_request(&EntryName::new(self.entry())?, self.request(), metadata)
+    }
+}
+
+#[cfg(test)]
+mod projection_tests {
+    use super::*;
+
+    #[test]
+    fn projection_preserves_order_fallback_and_duplicate_suffix() {
+        let mut output = Vec::new();
+        visit_projected(["x__02", "unknown", "x"].into_iter().map(Ok::<_, ()>),
+            |field| Ok(duplicate_suffix(*field)),
+            |field| Ok(if *field == "x" { Some("label") } else { None }),
+            |label| Ok(label.is_none()),
+            |field, label, suffix| { output.push((field, label, suffix)); Ok(()) }).unwrap();
+        assert_eq!(output, vec![("x__02", Some("label"), Some("2")), ("unknown", None, None), ("x", Some("label"), None)]);
+        assert!(requires_industry_template("CWServ.tdxf10_gg_cwfx", "xjllb"));
+        assert!(!requires_industry_template("CWServ.skef10_mg_cwfx", "xjllb"));
     }
 }

@@ -494,3 +494,25 @@ no tests/collection/build/check/dependency/network/AST/format/diff-whitespace
 verification or agents/publication.21/4/5 task counts, active unlimited goal.
 Next F10 field scope/duplicate/label logic, model business, native scalar/row
 helpers and cross-source helper composition; then allT24–T30 sources.
+## Seventeenth checkpoint — field dictionaries and news helpers
+
+Base45bc64a. Added f10_fields.rs and f10_news.rs native adapters. Both Python
+field modules now use the SDK ordered projection traversal; exact/raw lookup,
+unknown fields, labels and notes retain order. Existing mutable dictionaries
+stay Python data. Mainland only falls back on None; international falls back
+on falsey labels but does not use wildcard for an exact empty dictionary.
+Scope retains live Mapping/Sequence/str/len/index hooks, negative custom indices,
+metadata truthiness, isolated surrogates, Unicode suffix digit/int behavior and
+two int calls. Literal str.format retains type-level __format__ semantics.
+
+News name lookup retains two int calls and eager default conversion even for a
+known selector; registry.get is captured before arguments. News extraction
+shares second-result index and ordered traversal; copies each row with the live
+dict callable, catches only AttributeError while getting result_sets, and keeps
+row value identity. Python public types/signatures remain unchanged.
+
+Fourteen Python contract functions and one Rust projection function authored,
+all unexecuted. Only ordinary source review/diffs and hooks-disabled checkpoint
+allowed. No manifest status promoted. Still21 source complete/4 partial/5
+unstarted. Next models, scalar/date/row, cross-source helper services and full
+T23 manifest evidence; thenT24–T30 and unified validation after all sources.
