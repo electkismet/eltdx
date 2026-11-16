@@ -31,6 +31,26 @@ def build_adjustment_factor_response(
         and record.date is not None
         and (resolved_start is None or record.date >= resolved_start)
     ]
+    if (_event_coefficients is _ORIGINAL_EVENT_COEFFICIENTS
+            and _qfq_coefficients is _ORIGINAL_QFQ_COEFFICIENTS
+            and _hfq_coefficients is _ORIGINAL_HFQ_COEFFICIENTS
+            and all(type(event) is CapitalChangeRecord and type(event.date) is date
+                    and all(type(value) is float for value in
+                            (event.c1_value, event.c2_value, event.c3_value, event.c4_value))
+                    for event in events)):
+        from eltdx.transport.native import native_module
+
+        composed = native_module().adjustment_factors(
+            [(event.date.toordinal(), (event.c1_value, event.c2_value, event.c3_value, event.c4_value))
+             for event in events],
+            None if resolved_anchor is None else resolved_anchor.toordinal(),
+        )
+        return AdjustmentFactorResponse(
+            exchange=changes.exchange, market_id=changes.market_id, code=changes.code,
+            anchor_date=resolved_anchor, start_date=resolved_start,
+            items=tuple(AdjustmentFactor(date.fromordinal(ordinal), *values)
+                        for ordinal, values in composed),
+        )
     chronological = sorted(events, key=lambda item: item.date or date.min)
     reverse_chronological = [
         event
@@ -119,3 +139,8 @@ def _normalize_optional_date(value, name: str) -> date | None:
     if parsed is None:
         raise ValueError(f"invalid {name}: {value!r}")
     return parsed
+
+
+_ORIGINAL_EVENT_COEFFICIENTS = _event_coefficients
+_ORIGINAL_QFQ_COEFFICIENTS = _qfq_coefficients
+_ORIGINAL_HFQ_COEFFICIENTS = _hfq_coefficients

@@ -73,6 +73,13 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Eighteenth recovery: corporate committed851774a. Equity normal plain-float model
+events now use the shared Rust stable affine composition. Preserve same-day
+source order, both offsets, anchor/start and legacy nonfinite/nonpositive error;
+custom events/scalars/functions remain explicit adapters. Added9 contract and3
+Rust function sources plus1 source-only manifest, no execution. Next calendar,
+resources/stats/health and all remaining batch/helpers/subscriptions/evidence.
+
 Seventeenth recovery: daily flow committed6b4fc0b. Capital/finance native source
 routes now share corporate request boundaries, prefix cursor and generic ordered
 binary tree. Legacy preserves32 recovery calls excluding initial, Python warning

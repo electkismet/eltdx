@@ -23,6 +23,7 @@ use crate::{CancellationToken, RawPolicy};
 
 pub use crate::services::code_selection::CodeSelection as LegacyCodeSelection;
 pub use crate::services::money_flow_probe::{legacy_money_flow_recover, LegacyMoneyFlowSources};
+pub use crate::adjustment::factors::legacy_adjustment_factors;
 pub use crate::services::corporate_legacy::{legacy_capital_collect, legacy_finance_recover,
     LegacyCapitalCollection, LegacyCapitalPage, LegacyCapitalSource,
     LegacyFinanceCollection, LegacyFinanceError, LegacyFinancePage, LegacyFinanceSource};

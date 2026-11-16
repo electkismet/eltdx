@@ -1,4 +1,4 @@
-mod factors;
+pub(crate) mod factors;
 mod apply;
 pub use factors::build_adjustment_factors;
 pub(crate) use factors::build_with_boundary;

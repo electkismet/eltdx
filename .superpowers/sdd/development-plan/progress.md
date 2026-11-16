@@ -78,6 +78,11 @@
 
 ## Task log
 
+2026-11-17 T18 eighteenth checkpoint: corporate committed851774a. Shared affine
+factor source plus Python model bridge authored;9 contract/3 Rust source functions,
+one source-only manifest. All unexecuted;18/4/8 unchanged. Calendar is next, then
+resources/stats/health/batch/helper/subscription/manifest/consumer. Active/no cap.
+
 2026-11-17 T18 seventeenth checkpoint: daily money-flow committed6b4fc0b. Corporate
 capital/finance shared request/cursor/recovery code and Python bindings authored,
 15 contract/7 local integration/3 Rust functions unexecuted;2 manifest source-only

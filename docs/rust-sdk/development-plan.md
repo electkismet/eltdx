@@ -343,6 +343,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 2026-11-17第十七段：daily flow已提交`6b4fc0b`。capital/finance共用Rust请求边界和资本prefix cursor/财务二分树已写；Python保留每请求预算、32次恢复、原始响应序/raw、重复项恢复排序/缺失warning、旧字段别名/生成器/属性读取和custom execute。新增15合同/7本机集成/3Rust函数源码及两项source-only manifest，全未执行。外层资本chunk调度暂保留adapter；下一步equity/calendar/resources/stats/health和剩余T18 scope，任务计数18/4/8不变。
 
+2026-11-17第十八段：corporate已提交`851774a`。equity前后复权共用Rust affine算法，保留稳定日期排序、同日原始顺序、offset及Python非finite/非正乘数错误；custom记录/标量/函数覆盖继续兼容adapter。新增9合同/3Rust函数源码及1项source-only manifest，均未执行。下一步calendar/resources/stats/health和剩余T18；总计18源码完整/4部分/8未开始。
+
 - [ ] 在默认 HQ feature 下实现矩阵中的 full_quotes、每日股本/涨跌停价、排行、board_quotes、limit_ladder、market_stat、shortline 和完整 stock_profile_table。现有 profile 仅依赖 HQ 的 full_quotes、证券目录和 finance_batch，不虚构 F10 依赖。
 - [ ] 按代码关联指数、市场统计及各批量来源；短线验证服务器日期、09:25、双文件主日期、>=95% 覆盖和前交易日对齐门槛，不能按返回位置猜对象。
 - [ ] 主数据链失败返回错误；full_quotes 刷新等已定义的可选补充源失败保留主数据并附诊断，新 Rust 取消/总 deadline 则终止操作。Python 逐请求超时、原可选请求超时降级条件与结果模型按旧样本验收。

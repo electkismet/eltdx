@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17 第十八段源码恢复点：corporate资本/财务已提交`851774a`。equity标准事件的前后复权接入共用Rust affine排序/同日原序/组合循环；strict保留有限正值检查，Python保留非finite/日期/非正乘数错误及custom记录/函数覆盖adapter。新增9合同/3Rust函数源码和1项source-only manifest，全部未执行。T18仍部分，总数18/4/8不变。下一步calendar/resources/stats/health及批量/helper/订阅/manifest/consumer；active无额度限制。
+
 2026-11-17 第十七段源码恢复点：daily money flow已提交`6b4fc0b`。corporate资本变迁/财务共用请求边界、资本prefix cursor、财务二分恢复树和Python native接入已写；保留原32补查预算、首次服务器序/恢复后重复项队列、raw/非finite/日期/异常、字段别名及属性两次读取。新增15合同/7本机集成/3Rust函数源码和两项source-only manifest；全部未执行。外层资本chunk调度仍是adapter，equity未开始修改。T18仍部分，总计18源码完成/4部分/8未开始；下一步equity/calendar/resources/stats/health及剩余helper/订阅/manifest/consumer，active无额度限制。
 
 2026-11-17 第十六段源码恢复点：竞价已提交`fa7e07d`，恢复记录`353336d`。daily money flow共用Rust请求边界和备用源循环源码已写，保留原3/24循环预算（含skip扣额）、cursor规则、selected错误传播、新源TransportError降级、factory/adopt/close和custom query/execute；原无目录预取、unknown/multiple block、非finite/date/raw行为保留。新增12合同/6本机集成/3Rust函数及1项source-only manifest，全部未执行。batch调度和F10 history仍待后续任务；T18仍部分，总计18源码完成/4部分/8未开始。下一步corporate/equity/calendar/resources/stats/health及helper/订阅/manifest/consumer；active无额度限制。
@@ -35,11 +37,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | daily money flow `6b4fc0b`；corporate资本/财务域及恢复源码已写；全部执行验证延期 |
+| 最新检查点 | corporate资本/财务 `851774a`；equity共用affine算法源码已写；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T18：equity/calendar/resources/stats/health、capital/money-flow批量调度、全部helper及剩余subscription编排回迁、manifest和installed-wheel consumer；已有域不重复，最终统一验证 |
+| 下一步 | T18：calendar/resources/stats/health、capital/money-flow批量调度、全部helper及剩余subscription编排回迁、manifest和installed-wheel consumer；已有域不重复，最终统一验证 |
 
 ## 阶段进度
 

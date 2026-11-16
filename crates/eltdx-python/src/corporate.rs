@@ -177,3 +177,11 @@ pub fn project_finance_fields<'py>(py: Python<'py>, records: Bound<'py, PyAny>,
     }
     Ok(result.unbind().into_any())
 }
+
+#[pyfunction]
+pub fn adjustment_factors(py: Python<'_>, events: Vec<(u32, [f64; 4])>, anchor: Option<u32>)
+    -> PyResult<Vec<(u32, [f64; 4])>> {
+    eltdx::__python_compat::legacy_adjustment_factors(events, anchor,
+        || pyo3::exceptions::PyValueError::new_err("capital-change event produces a non-positive price multiplier"),
+        || py.check_signals())
+}

@@ -1200,6 +1200,26 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x000f",
       "api": "client.corporate.adjustment_factors(code_or_codes, anchor_date=None, *, start_date=None, batch_size=75)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/adjustment/factors.rs::compose_affine",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/corporate.rs", "src/eltdx/equity.py"],
+        "contract_nodes": [
+          "tests/contracts/test_sdk_equity_bridge.py::test_native_equity_same_day_order_matches_original_composition",
+          "tests/contracts/test_sdk_equity_bridge.py::test_native_equity_date_windows_and_dated_filter_match_original",
+          "tests/contracts/test_sdk_equity_bridge.py::test_native_equity_nonpositive_multiplier_keeps_exact_error",
+          "tests/contracts/test_sdk_equity_bridge.py::test_native_equity_nonfinite_values_keep_legacy_arithmetic",
+          "tests/contracts/test_sdk_equity_bridge.py::test_native_equity_corporate_batch_keeps_response_order"
+        ],
+        "fixtures": ["tests/contracts/test_sdk_equity_bridge.py::_event"],
+        "temporary_adapter": {
+          "scope": "Python date/input filtering and custom scalar/record/coefficient overrides",
+          "reason": "Keep Python date normalization, dynamic attribute evaluation and user-replaced coefficient hooks; normal plain-float model events use the common affine algorithm.",
+          "contract_nodes": ["tests/contracts/test_sdk_equity_bridge.py::test_native_equity_preserves_patched_coefficient_extension", "tests/contracts/test_sdk_equity_bridge.py::test_native_equity_custom_record_subclass_retains_property_evaluation"],
+          "exit_condition": "Retain dynamic Python object hooks while moving remaining outer aggregate/date orchestration with identical evaluation ordering."
+        },
+        "validation": "Not collected, compiled or executed. Legacy permits nonfinite scalars; strict Rust retains finite/positive composition checks."
+      },
       "kind": "组合接口",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-本地复权系数.md",

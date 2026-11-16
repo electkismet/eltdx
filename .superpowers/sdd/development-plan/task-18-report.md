@@ -821,3 +821,25 @@ AST/compile/format/diff-check or equivalent validation ran. Counts remain18
 source complete/4 partial/8 unstarted. T18 remains partial; next equity, calendar,
 resources/stats/health, capital/moneyflow batch scheduling, helpers/subscription,
 manifest and installed-wheel consumer. Goal active/no cap; no agents/publication.
+
+Seventeenth source stage committed as **851774a**; all execution deferred.
+
+## Eighteenth source checkpoint — shared affine adjustment
+
+- Strict Rust and normal Python events now use one compose_affine implementation
+  for stable date sorting, unique dates, chronological qfq and reverse-date hfq
+  with forward source order inside each same-day group. Offsets are retained.
+  Strict coefficient/result finite checks and fallible reservations remain;
+  legacy only rejects nonpositive multipliers, preserving NaN/infinity/underflow.
+- Python retains original date normalization/start filtering and exact models.
+  Plain CapitalChangeRecord/date/float inputs use the new binding. Subclasses,
+  custom scalar objects and monkeypatched coefficient functions keep their
+  original dynamic evaluation route. No public function signature changed.
+- Added9 contract functions (same-day order, date windows, empty, exact error,
+  nonfinite, custom hook/record and batches) and3 Rust functions (source order,
+  NaN, cancellation). One manifest entry has source-only evidence. None executed.
+
+No tests/collection/build/check/clippy/doctest/dependency/network/AST/compile/
+format/diff-check ran. T18 remains partial, counts18/4/8. Next calendar, resources,
+stats/health, outer batch scheduling and ALL helper/subscription/evidence/consumer
+work. Goal active without token cap; no agents or publication.

@@ -26,6 +26,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(corporate::recover_finance, module)?)?;
     module.add_function(wrap_pyfunction!(corporate::assemble_finance, module)?)?;
     module.add_function(wrap_pyfunction!(corporate::project_finance_fields, module)?)?;
+    module.add_function(wrap_pyfunction!(corporate::adjustment_factors, module)?)?;
     transport::register(module)?;
     Ok(())
 }
