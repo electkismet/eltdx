@@ -2,6 +2,13 @@
 
 ## Setup
 
+- Latest recovery 2026-11-17 stage39: HEAD a0893db; T20 concrete endpoint
+  source foundation authored across values/news/seven endpoint modules.
+  Counts19 source-complete/5 partial/6 unstarted. Read task-20-report first;
+  finish market/prerequisite boundaries, ladder, fields, history and all157
+  route/result sources before later tasks. All execution validation deferred,
+  active unlimited goal, no new agents/publication.
+
 - Latest recovery 2026-11-17: HTTP/DNS/TLS6196df2 committed; T19 follow-up
   source adds strict zlib termination, shared connect admission leases,
   document-wide Params limits, cancellable retention and service attributes.

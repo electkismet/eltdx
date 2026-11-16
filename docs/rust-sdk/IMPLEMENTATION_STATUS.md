@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第三十九段恢复点：最新已提交为`a0893db`。T20已开始：新增独立身份/分页/日期值类型、具名query/endpoint层，美股/港股/三板、债券、行业/期货、公司/基金报告、新闻频道/缓存、估值/主题及市场分页首批源码。157入口尚未全部完成；涨跌停梯队、完整fields registry、历史资金流和完整路由/结果源码用例仍待补。市场collector及prerequisite的原始数据/取消/总期限边界正在收尾。当前19项完整源码/5项部分（T19/T20/T22/T24/T25）/6项未开始；此统计仅为源码进度，所有执行验收未开始。目标active无额度限制；继续禁止测试、collection、build/check/clippy、依赖解析/下载、网络/AST/格式/diff检查，全部T01–T30源码完成后统一执行。恢复优先读task-20-report.md。
+
 2026-11-17第三十八段恢复点：HTTP/DNS/TLS已提交`6196df2`。继续T19源码边界复查，补zlib完整StreamEnd/尾随字节拒绝、共享connect串行门及未确认清理时保留门租约、Params整文档node/depth/byte上限、响应/请求保留副本的可取消遍历，以及HitCache/未知顶层字段保真。补并发connect、等待者取消、gzip拼接/截断、redirect和保留副本源码用例，全部未执行。T19仍部分，19源码完成/4部分/7未开始；下一步完成T19源码交接，进入T20全部157入口。目标active无额度限制，测试/构建/依赖解析/网络验证全部延期。
 
 2026-11-17第三十七段恢复点：F10 owner已提交`545dd8b`。HTTP/DNS/TLS/worker及connect/call/params已接入源码；共用原预算、4 worker上限、取消/关闭确认、IPv4/IPv6、显式CONNECT、header/压缩/解压限额与raw已写，公共HTTP/TLS/故障用例源码已补。依赖全部暂定，未resolve/build/test；T19仍部分，需继续源码边界复查，再做T20完整157入口。19/4/7不变。读task-19-report第三段，目标active无额度限制。

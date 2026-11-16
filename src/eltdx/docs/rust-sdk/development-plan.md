@@ -409,6 +409,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T20：F10 动态结果、端点与历史资金流
 
+2026-11-17首段源码：已新增具名query/endpoint层及美股/港股/三板、债券、行业/期货、报告、新闻、估值和市场分页首批源码。独立身份类型与方法限定section保留不同域的输入语义；多次请求复用原OperationContext。涨跌停梯队、完整字段字典、历史资金流及逐入口路由/结果用例尚未完成，市场聚合与prerequisite边界待收尾。T20仍部分；19完整源码/5部分/6未开始，任何编译/测试/依赖/平台/兼容性验收均未执行。
+
 **文件：** 新增 `src/f10/{client,fields,news}.rs`，完善response，新增 `tests/{f10_results,f10_routes}.rs`；启用money_flow历史区间。
 
 - [ ] 多表、重复/缺失列、标量行、嵌套JSON保留ordered cells和raw。

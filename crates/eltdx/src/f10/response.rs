@@ -68,6 +68,17 @@ impl Response {
     pub fn meta(&self) -> &ResultMeta { &self.meta }
     pub fn ok(&self) -> bool { self.error_code.is_none_or(|code| code == 0) }
     pub fn first_table(&self) -> Option<&ResultSet> { self.result_sets.first() }
+    pub(crate) fn take_first_rows(&mut self) -> Vec<Row> { self.result_sets.first_mut().map(|table| std::mem::take(&mut table.rows)).unwrap_or_default() }
+    pub(crate) fn with_diagnostic(mut self, diagnostic: crate::types::Diagnostic) -> Self {
+        self.meta = self.meta.with_diagnostic(diagnostic); self
+    }
+    pub(crate) fn with_prerequisite(mut self, prerequisite: &Response) -> Self {
+        let mut sources = prerequisite.meta.sources().to_vec();
+        sources.extend_from_slice(self.meta.sources());
+        self.meta = self.meta.with_sources(sources);
+        for diagnostic in prerequisite.meta.diagnostics() { self.meta = self.meta.with_diagnostic(diagnostic.clone()); }
+        self
+    }
 
     pub(crate) fn from_json(entry: String, request: RequestPayload, value: JsonValue,
         retain: bool, meta: ResultMeta, boundary: &mut dyn FnMut() -> Result<()>) -> Result<Self> {
@@ -100,6 +111,37 @@ impl Response {
         object.retain(|(key, _)| key != "ResultSets");
         boundary()?;
         Ok(Self { entry, request, error_code, result_sets, attributes: object, meta })
+    }
+}
+
+/// Aggregate page provenance without retaining whole Response trees. Buffer
+/// handles share underlying bytes; source order is physical response order.
+#[derive(Default)]
+pub(crate) struct MetaCollector {
+    sources: Vec<crate::types::SourceStamp>, diagnostics: Vec<crate::types::Diagnostic>,
+    payloads: Vec<bytes::Bytes>, frames: Vec<bytes::Bytes>, wire: bool,
+}
+impl MetaCollector {
+    pub fn add(&mut self, meta: &ResultMeta) -> Result<()> {
+        self.sources.try_reserve(meta.sources().len()).map_err(allocation)?;
+        self.sources.extend_from_slice(meta.sources());
+        self.diagnostics.try_reserve(meta.diagnostics().len()).map_err(allocation)?;
+        self.diagnostics.extend_from_slice(meta.diagnostics());
+        if let Some(raw) = meta.raw() {
+            self.payloads.try_reserve(raw.payloads().len()).map_err(allocation)?;
+            self.payloads.extend_from_slice(raw.payloads());
+            if let Some(frames) = raw.wire_frames() {
+                self.wire = true;
+                self.frames.try_reserve(frames.len()).map_err(allocation)?;
+                self.frames.extend_from_slice(frames);
+            }
+        }
+        Ok(())
+    }
+    pub fn finish(self) -> ResultMeta {
+        let source = self.sources.first().cloned().unwrap_or_else(|| ResultMeta::default().source().clone());
+        let raw = (!self.payloads.is_empty()).then(|| crate::types::RawData::new(self.payloads, self.wire.then_some(self.frames), Vec::new()));
+        ResultMeta::new(source, self.diagnostics, raw).with_sources(self.sources)
     }
 }
 
