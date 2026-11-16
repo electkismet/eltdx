@@ -11,6 +11,7 @@ mod helper_profile;
 mod helper_shortline;
 mod helper_numeric;
 mod helper_indicator;
+mod helper_limits;
 mod protocol;
 mod request;
 mod response;
@@ -67,10 +68,20 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_finance, module)?)?;
     module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_bars, module)?)?;
     module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_rush, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_handshake, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_market_context, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_by_code, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_shortline_row_date, module)?)?;
     module.add_function(wrap_pyfunction!(helper_numeric::shortline_scalar, module)?)?;
     module.add_function(wrap_pyfunction!(helper_numeric::shortline_locked, module)?)?;
     module.add_function(wrap_pyfunction!(helper_numeric::shortline_volume_ratio, module)?)?;
     module.add_function(wrap_pyfunction!(helper_indicator::shortline_indicator, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_limits::shortline_limit_ratio, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_limits::shortline_price_compare, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_limits::shortline_limit_status, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_limits::shortline_board_text, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_limits::shortline_ladder_level, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_limits::helper_ladder, module)?)?;
     transport::register(module)?;
     Ok(())
 }

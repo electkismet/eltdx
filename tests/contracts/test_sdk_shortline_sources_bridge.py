@@ -154,3 +154,120 @@ def test_shortline_indicator_uses_native_composition_with_original_numeric_hooks
     assert row.prev_amount == 100000.0 and row.open_volume_hand == 20.0
     assert row.ladder_level == 3 and row.open_volume_ratio == 20.0
     assert row.opening_rush == 2.0 and row.limit_board_text == "7天5板"
+
+
+def test_shortline_legacy_limit_policy_preserves_st_before_board_and_new_names():
+    assert shortline._price_limit_ratio("sh688001", "ST example") == 5.0
+    assert shortline._price_limit_ratio("bj430001", "ST example") == 5.0
+    assert shortline._price_limit_ratio(CODE, "N example") is None
+    assert shortline._price_limit_ratio("sh688001", "normal") == 20.0
+    assert shortline._price_limit_ratio(CODE, "normal") == 10.0
+
+
+def test_shortline_legacy_limit_status_sealed_touched_and_missing():
+    assert shortline._limit_status(CODE, None, None) == "unknown"
+    quote = SimpleNamespace(pre_close_price=10.0, last_price=11.0, high_price=11.0,
+                            buy_levels=[SimpleNamespace(price=11.0, volume=0)])
+    assert shortline._limit_status(CODE, quote, None) == "sealed"
+    quote.last_price = 10.0
+    assert shortline._limit_status(CODE, quote, None) == "touched"
+    quote.high_price = 10.0
+    assert shortline._limit_status(CODE, quote, None) == "none"
+    assert shortline._limit_status(CODE, quote, "N example") == "none"
+    quote.pre_close_price = 0
+    assert shortline._limit_status(CODE, quote, None) == "none"
+
+
+def test_shortline_board_progress_preserves_prior_date_and_positive_floor():
+    stat = SimpleNamespace(limit_up_streak_days=3)
+    assert shortline._ladder_level(stat, stats_date=DAY, target=DAY,
+                                  previous=date(2024, 5, 31), limit_status="sealed") == 3
+    assert shortline._ladder_level(stat, stats_date=date(2024, 5, 31), target=DAY,
+                                  previous=date(2024, 5, 31), limit_status="sealed") == 4
+    assert shortline._ladder_level(stat, stats_date=DAY, target=DAY,
+                                  previous=date(2024, 5, 31), limit_status="touched") is None
+    assert shortline._limit_board_text("7", 5) == "7天5板"
+    assert shortline._limit_board_text(0, 5) is None
+
+
+def test_shortline_price_tolerance_and_nan_keep_legacy_comparisons():
+    assert shortline._price_close(1, 1.005, tolerance=0.0051)
+    assert not shortline._price_close(None, 1)
+    assert not shortline._price_close(float("nan"), 1)
+    assert shortline._price_at_or_above(0.995, 1)
+    assert not shortline._price_at_or_above(None, 1)
+
+
+def test_ladder_filters_and_orders_before_validating_count():
+    from eltdx.helpers.core import HelperApi
+
+    client = Client()
+    helper = HelperApi(client)
+    rows = [SimpleNamespace(full_code="sh600003", limit_status="touched", ladder_level=5, seal_amount=1),
+            SimpleNamespace(full_code=CODE, limit_status="sealed", ladder_level=3, seal_amount=100),
+            SimpleNamespace(full_code="sh600002", limit_status="sealed", ladder_level=3, seal_amount=200)]
+    calls = []
+    helper.shortline_indicators = lambda codes: calls.append(codes) or SimpleNamespace(rows=rows, target_trade_date=DAY)
+    result = helper.limit_ladder([CODE], include_touched=True, count=2)
+    assert [row.full_code for row in result.rows] == ["sh600003", "sh600002"]
+    with pytest.raises(ValueError, match="count must be positive"):
+        helper.limit_ladder([CODE], count=0)
+    assert len(calls) == 2
+
+
+def test_shortline_date_context_uses_latest_handshake_date_and_server_ready_time():
+    handshake = SimpleNamespace(server_date_1=DAY, server_date_2=date(2024, 6, 4),
+                                server_datetime=datetime(2024, 6, 4, 9, 24))
+    client = Client(transport=SimpleNamespace(last_handshake=handshake),
+                    workdays=SimpleNamespace(previous_workday=lambda target: DAY))
+    context = shortline._resolve_market_date_context(client)
+    assert context.target_trade_date == date(2024, 6, 4) and context.previous_trade_date == DAY
+    assert not context.ready
+    handshake.server_datetime = datetime(2024, 6, 4, 9, 25)
+    assert shortline._resolve_market_date_context(client).ready
+    handshake.server_datetime = datetime(2024, 6, 3, 9, 24)
+    assert shortline._resolve_market_date_context(client).ready
+
+
+def test_shortline_handshake_candidates_precede_session_fallback():
+    expected = object()
+    client = Client(transport=SimpleNamespace(_transports=[SimpleNamespace(last_handshake=None),
+                                                         SimpleNamespace(last_handshake=expected)]),
+                    session=SimpleNamespace(handshake=lambda: pytest.fail("fallback")))
+    assert shortline._client_handshake_info(client) is expected
+    client.transport._transports = []
+    client.session.handshake = lambda: expected
+    assert shortline._client_handshake_info(client) is expected
+
+
+def test_shortline_row_date_prefers_second_stat_and_preserves_parse_cause():
+    assert shortline._row_stats_date(SimpleNamespace(stats_date="invalid"),
+                                    SimpleNamespace(stats_date="20240603")) == DAY
+    assert shortline._row_stats_date(SimpleNamespace(stats_date="20240603"), None) == DAY
+    assert shortline._row_stats_date(None, None) is None
+    with pytest.raises(shortline.ResourceFormatError) as caught:
+        shortline._row_stats_date(None, SimpleNamespace(stats_date="invalid"))
+    assert isinstance(caught.value.__cause__, ValueError)
+
+
+def test_shortline_mapping_keeps_original_last_duplicate_and_missing_codes():
+    first = SimpleNamespace(full_code=CODE)
+    last = SimpleNamespace(full_code=CODE)
+    assert shortline._by_full_code([first, SimpleNamespace(), last]) == {CODE: last}
+    assert shortline._by_full_code(None) == {}
+
+
+def test_shortline_market_context_preserves_missing_handshake_errors():
+    with pytest.raises(shortline.TdxStatsDateError, match="without a TDX handshake"):
+        shortline._resolve_market_date_context(Client())
+    handshake = SimpleNamespace(server_datetime=None)
+    client = Client(transport=SimpleNamespace(last_handshake=handshake))
+    with pytest.raises(shortline.TdxStatsDateError, match="usable server datetime"):
+        shortline._resolve_market_date_context(client)
+    handshake.server_datetime = datetime(2024, 6, 3, 10, 0)
+    with pytest.raises(shortline.TdxStatsDateError, match="usable target trading day"):
+        shortline._resolve_market_date_context(client)
+    handshake.server_date_1 = DAY
+    client.workdays = SimpleNamespace(previous_workday=lambda day: None)
+    with pytest.raises(shortline.TdxStatsDateError, match="previous trading day for 2024-06-03"):
+        shortline._resolve_market_date_context(client)

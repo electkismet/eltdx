@@ -207,7 +207,7 @@ fn ready_target(info: &HandshakeInfo) -> Result<TradingDate> {
         .ok_or_else(|| date_error("shortline requires a usable server datetime"))?;
     let target = info.server_date1().into_iter().chain(info.server_date2()).max()
         .ok_or_else(|| date_error("shortline requires a valid handshake target date"))?;
-    if datetime.date() == Some(target) && datetime.clock().is_some_and(|clock| clock < (9, 25, 0)) {
+    if !super::calculation::auction_ready(datetime.date() == Some(target), datetime.clock().is_some_and(|clock| clock < (9, 25, 0))) {
         return Err(Error::new(ErrorKind::DataNotReady, "shortline auction data is not ready before server 09:25")
             .with_context("target", format!("{target}")));
     }
@@ -335,11 +335,10 @@ fn classify_limit(snapshot: &Snapshot, decision: &LimitDecision) -> LimitStatus 
     // it cannot provide or infer a missing executable upper limit.
     let close = |value: f64| value.is_finite() && (value - upper).abs() <= 0.0051;
     let bid_at_limit = snapshot.bids().first().is_some_and(|level| close(level.price().as_f64()));
-    if close(snapshot.last().as_f64()) && (bid_at_limit || amount_value(seal_amount(snapshot)).is_some_and(|value| value > 0.0)) {
-        LimitStatus::Sealed
-    } else if [snapshot.high(), snapshot.last()].iter().any(|price| price.as_f64().is_finite() && price.as_f64() + 0.0051 >= upper) {
-        LimitStatus::Touched
-    } else { LimitStatus::NotAtLimit }
+    super::calculation::classify_limit_state::<std::convert::Infallible>(close(snapshot.last().as_f64()),
+        || Ok(bid_at_limit || amount_value(seal_amount(snapshot)).is_some_and(|value| value > 0.0)),
+        || Ok([snapshot.high(), snapshot.last()].iter().any(|price| price.as_f64().is_finite() && price.as_f64() + 0.0051 >= upper)))
+        .unwrap_or_else(|never| match never {})
 }
 
 fn board_progress(stat: Option<&StatRow>, target: TradingDate, previous: TradingDate, status: LimitStatus)
@@ -352,8 +351,8 @@ fn board_progress(stat: Option<&StatRow>, target: TradingDate, previous: Trading
     };
     let days = increment(stat.limit_stat_days())?; let count = increment(stat.limit_up_count())?;
     let text = match (days, count) { (Some(days), Some(count)) if days > 0 && count > 0 => Some(format!("{days}天{count}板")), _ => None };
-    let level = if !sealed { None } else if stat.stats_date() == Some(target) { Some(stat.limit_streak().unwrap_or(0).max(1)) }
-        else if advance { Some(stat.limit_streak().unwrap_or(0).checked_add(1).ok_or_else(overflow)?.max(1)) } else { None };
+    let level = if !sealed { None } else { super::calculation::ladder_level_with(stat.limit_streak().unwrap_or(0),
+        stat.stats_date() == Some(target), advance, |prior| prior.checked_add(1).ok_or_else(overflow), |prior| Ok(prior.max(1)))? };
     Ok((text, level))
 }
 
@@ -361,7 +360,8 @@ fn select_ladder(mut rows: Vec<ShortlineIndicator>, include_touched: bool, count
     mut boundary: impl FnMut() -> Result<()>) -> Result<Vec<ShortlineIndicator>> {
     let mut selected = Vec::new(); selected.try_reserve(rows.len()).map_err(allocation_error)?;
     for row in rows.drain(..) { boundary()?;
-        if row.limit_status == LimitStatus::Sealed || (include_touched && row.limit_status == LimitStatus::Touched) { selected.push(row); }
+        if super::calculation::include_ladder_row(row.limit_status == LimitStatus::Sealed,
+            row.limit_status == LimitStatus::Touched, include_touched) { selected.push(row); }
     }
     boundary()?;
     selected.sort_by(|left, right| right.ladder_level.unwrap_or(0).cmp(&left.ladder_level.unwrap_or(0))

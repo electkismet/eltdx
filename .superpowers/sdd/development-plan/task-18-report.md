@@ -1055,3 +1055,26 @@ Twenty-sixth source stage committed as **6580450**; all execution deferred.
 No tests/build/checks/collection/AST/format/dependency/network verification ran.
 T18 partial18/4/8; next remaining shortline limit/board/handshake date and ladder,
 daily limits, auction/market/boards, batch/subscription/consumer then T19–T30.
+
+Twenty-seventh source stage committed as **9f66521**; all execution deferred.
+
+## Twenty-eighth source checkpoint — shortline policy, ladder and market date
+
+- Shared lazy price-state predicates, trading-day ladder progression, inclusion
+  and auction readiness between strict SDK and legacy binding. Strict policy
+  lookup remains evidence-based; Python keeps ST-first5/board20/30/default10,
+  N/C exclusion, float/round/tolerance/NaN and original field access behavior.
+- Python ladder selection runs in binding, preserving original row identity,
+  tuple-key numeric sorting and sort-before-count validation/slicing.
+- Handshake selection, market date context and row-date/by-code loops now use
+  binding endpoints. Keep both server date property reads before filtering,
+  latest valid date, original error text/order, transport-before-session fallback,
+  previous-day lookup and 09:25 readiness. Date parsing/cause and normalization
+  remain thin language adapters.
+- Added10 Python and1 Rust contract functions; manifest evidence source-only,
+  no public-sdk or migration status promotion. All functions are unexecuted.
+
+T18 remains partial18/4/8; next daily limits/ref-price/events/IPO, auction, market,
+boards, batch/subscription and installed-wheel consumer, then T19–T30/Stage B.
+Goal active with no cap. No tests/collection/build/check/dependency/network/AST/
+format/diff-check or equivalent execution, no subagents or publication.

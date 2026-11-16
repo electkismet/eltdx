@@ -18,6 +18,30 @@ pub fn ratio_with<T, E>(numerator: T, denominator: T,
     divide(numerator, denominator)
 }
 
+/// Optional policy selection happens before these shared price-state rules.
+/// Lazy predicates preserve original short-circuit field access.
+pub fn classify_limit_state<E>(last_at_limit: bool, sealed: impl FnOnce() -> Result<bool, E>,
+    touched: impl FnOnce() -> Result<bool, E>) -> Result<crate::LimitStatus, E> {
+    if last_at_limit && sealed()? { Ok(crate::LimitStatus::Sealed) }
+    else if touched()? { Ok(crate::LimitStatus::Touched) }
+    else { Ok(crate::LimitStatus::NotAtLimit) }
+}
+
+pub fn ladder_level_with<T, E>(prior: T, same_day: bool, previous_day: bool,
+    increment: impl FnOnce(T) -> Result<T, E>, floor: impl Fn(T) -> Result<T, E>) -> Result<Option<T>, E> {
+    if same_day { Ok(Some(floor(prior)?)) }
+    else if previous_day { Ok(Some(floor(increment(prior)?)?)) }
+    else { Ok(None) }
+}
+
+pub fn include_ladder_row(sealed: bool, touched: bool, include_touched: bool) -> bool {
+    sealed || (include_touched && touched)
+}
+
+pub fn auction_ready(same_server_date: bool, before_auction: bool) -> bool {
+    !(same_server_date && before_auction)
+}
+
 pub fn share_source_names(total: bool, circulating: bool, free_float: bool) -> Vec<&'static str> {
     let mut sources = Vec::new();
     if total || circulating { sources.push("finance_snapshot"); }
@@ -28,6 +52,22 @@ pub fn share_source_names(total: bool, circulating: bool, free_float: bool) -> V
 #[cfg(test)]
 mod source_cases {
     use super::*;
+
+    #[test]
+    fn limit_state_preserves_lazy_predicates_and_trading_day_progression() {
+        let state = classify_limit_state::<()>(true, || Ok(true), || panic!("sealed does not evaluate touched")).unwrap();
+        assert_eq!(state, crate::LimitStatus::Sealed);
+        let state = classify_limit_state::<()>(false, || panic!("last is not at limit"), || Ok(true)).unwrap();
+        assert_eq!(state, crate::LimitStatus::Touched);
+        assert_eq!(ladder_level_with::<_, ()>(0_u32, true, false, |_| panic!("same day"), |n| Ok(n.max(1))).unwrap(), Some(1));
+        assert_eq!(ladder_level_with::<_, ()>(3_u32, false, true, |n| Ok(n + 1), |n| Ok(n.max(1))).unwrap(), Some(4));
+        assert_eq!(ladder_level_with::<_, ()>(3_u32, false, false, |_| panic!("unrelated day"), |_| panic!("unrelated day")).unwrap(), None);
+        assert!(!auction_ready(true, true));
+        assert!(auction_ready(false, true));
+        assert!(auction_ready(true, false));
+        assert!(include_ladder_row(true, false, false));
+        assert!(!include_ladder_row(false, true, false));
+    }
 
     #[test]
     fn profile_math_preserves_operation_order_and_source_labels() {

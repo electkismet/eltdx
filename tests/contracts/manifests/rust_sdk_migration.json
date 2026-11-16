@@ -2118,7 +2118,11 @@
     {
       "id": "helper-limit-ladder",
       "source_files": [
-        "docs/helpers/连板天梯.md"
+        "docs/helpers/连板天梯.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/helpers/shortline.rs",
+        "crates/eltdx/src/helpers/calculation.rs",
+        "crates/eltdx-python/src/helper_limits.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2127,6 +2131,22 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.helpers.limit_ladder(codes=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::limit_ladder",
+        "python_entry": "HelperApi.limit_ladder -> helper_ladder",
+        "shared_algorithm": "include_ladder_row, ladder_level_with and the shortline source/indicator path; legacy retains Python tuple sorting and count slicing",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_ladder_filters_and_orders_before_validating_count",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_board_progress_preserves_prior_date_and_positive_floor"
+        ],
+        "temporary_adapter": {
+          "scope": "Original Python rows, lazy attribute reads, sorting numeric behavior and validation order",
+          "reason": "Strict Rust uses typed limits/policy evidence; Python keeps the existing public result and numeric behavior.",
+          "exit_condition": "Language-specific projection remains; no implicit adoption of strict price policy."
+        },
+        "validation": "Source authored only; tests, compilation and runtime verification deferred."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/连板天梯.md",
@@ -2212,7 +2232,9 @@
         "crates/eltdx/src/helpers/stats_alignment.rs",
         "crates/eltdx-python/src/helper_shortline.rs",
         "crates/eltdx-python/src/helper_numeric.rs",
-        "crates/eltdx-python/src/helper_indicator.rs"
+        "crates/eltdx-python/src/helper_indicator.rs",
+        "crates/eltdx-python/src/helper_limits.rs",
+        "crates/eltdx/src/helpers/calculation.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2225,7 +2247,7 @@
         "state": "source_only_unverified",
         "rust_entry": "eltdx::HelperService::shortline_indicators",
         "python_entry": "ShortlineIndicatorService.get and source/date helpers -> native helper_shortline; _build_indicator -> helper_indicator; rounded arithmetic -> helper_numeric",
-        "shared_algorithm": "dominant_date count/tie/denominator, stat2_columns, 80-item finance chunks, product and ratio; full legacy limit/date policy migration still in progress",
+        "shared_algorithm": "dominant_date count/tie/denominator, stat2_columns, 80-item finance chunks, product/ratio, lazy classify_limit_state, ladder_level_with and auction_ready; legacy policy and Python scalar behavior stay at binding boundary",
         "contract_nodes": [
           "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_dominant_date_counts_missing_rows_in_coverage_and_uses_later_tie",
           "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_dominant_date_materializes_before_reading_and_keeps_double_property_access",
@@ -2244,14 +2266,23 @@
           "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_scalar_preserves_denominator_conversion_order",
           "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_volume_ratio_requires_five_and_keeps_twice_read",
           "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_locked_amount_keeps_first_level_and_negative_values",
-          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_indicator_uses_native_composition_with_original_numeric_hooks"
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_indicator_uses_native_composition_with_original_numeric_hooks",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_legacy_limit_policy_preserves_st_before_board_and_new_names",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_legacy_limit_status_sealed_touched_and_missing",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_board_progress_preserves_prior_date_and_positive_floor",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_price_tolerance_and_nan_keep_legacy_comparisons",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_date_context_uses_latest_handshake_date_and_server_ready_time",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_handshake_candidates_precede_session_fallback",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_row_date_prefers_second_stat_and_preserves_parse_cause",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_mapping_keeps_original_last_duplicate_and_missing_codes",
+          "tests/contracts/test_sdk_shortline_sources_bridge.py::test_shortline_market_context_preserves_missing_handshake_errors"
         ],
         "temporary_adapter": {
-          "scope": "Legacy limit classification, board progression and handshake-date selection remain under active migration; Python numeric conversions/round6/hooks and lock/errors retained",
-          "reason": "Partial checkpoint records actual shared dates/cache/source/numeric work and does not claim the whole Python helper is migrated.",
-          "exit_condition": "Finish all remaining shortline source and field algorithms with unchanged custom hooks and legacy policy."
+          "scope": "Legacy limit percentages, Python numeric conversions/round6/hooks, class construction, input normalization and lock/errors",
+          "reason": "The binding preserves the original ST/new-name policy while strict Rust requires an evidence-backed policy; source, date, indicator, classification and progression loops now use Rust implementations.",
+          "exit_condition": "Language-specific compatibility projection remains; complete unified execution evidence before promoting migration status."
         },
-        "validation": "Eighteen Python and two Rust functions authored across alignment/source files, not collected/compiled/executed."
+        "validation": "Twenty-eight Python and three Rust functions authored across alignment/source/calculation files, not collected/compiled/executed."
       },
       "kind": "组合能力",
       "catalog_source": "Helper",

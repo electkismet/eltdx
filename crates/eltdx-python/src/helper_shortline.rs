@@ -19,6 +19,71 @@ fn records<'py>(page: &Bound<'py, PyAny>, name: &str) -> PyResult<Bound<'py, PyA
 }
 
 #[pyfunction]
+pub fn helper_shortline_by_code(py: Python<'_>, items: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let result = PyDict::new(py);
+    let items = if items.is_truthy()? { items } else { PyTuple::empty(py).into_any() };
+    for item in items.try_iter()? {
+        py.check_signals()?;
+        let item = item?;
+        let code = get(&item, "full_code")?;
+        if !code.is_none() { result.set_item(code.str()?, item)?; }
+    }
+    Ok(result.into_any().unbind())
+}
+
+#[pyfunction]
+pub fn helper_shortline_row_date(py: Python<'_>, stat: Bound<'_, PyAny>, stat2: Bound<'_, PyAny>,
+    parse: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let first = get(&stat2, "stats_date")?;
+    let value = if first.is_truthy()? { first } else { get(&stat, "stats_date")? };
+    if value.is_truthy()? { Ok(parse.call1((value,))?.unbind()) } else { Ok(py.None()) }
+}
+
+#[pyfunction]
+pub fn helper_handshake(py: Python<'_>, client: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let transport = get(&client, "transport")?;
+    let raw = get(&transport, "_transports")?;
+    let candidates = if raw.is_truthy()? { py.import("builtins")?.getattr("list")?.call1((raw,))? }
+        else { PyList::empty(py).into_any() };
+    if !transport.is_none() && !candidates.is_truthy()? { candidates.call_method1("append", (transport,))?; }
+    for candidate in candidates.try_iter()? {
+        let value = get(&candidate?, "last_handshake")?;
+        if !value.is_none() { return Ok(value.unbind()); }
+    }
+    let request = get(&get(&client, "session")?, "handshake")?;
+    if request.is_callable() { Ok(request.call0()?.unbind()) } else { Ok(py.None()) }
+}
+
+#[pyfunction]
+pub fn helper_market_context(py: Python<'_>, client: Bound<'_, PyAny>, scope: Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
+    let handshake = hook(&scope, "_client_handshake_info")?.call1((&client,))?;
+    let error = hook(&scope, "TdxStatsDateError")?;
+    if handshake.is_none() { return Err(raised(&error, "unable to resolve the target trading day without a TDX handshake")); }
+    let datetime = get(&handshake, "server_datetime")?;
+    if !datetime.is_instance(&hook(&scope, "datetime")?)? {
+        return Err(raised(&error, "TDX handshake does not contain a usable server datetime"));
+    }
+    let dates = PyList::empty(py);
+    // Both getattr calls precede filtering and sorting in the original tuple.
+    let first = get(&handshake, "server_date_1")?;
+    let second = get(&handshake, "server_date_2")?;
+    for date in [first, second] { if date.is_instance(&hook(&scope, "date")?)? { dates.append(date)?; } }
+    let dates = py.import("builtins")?.getattr("sorted")?.call1((dates,))?;
+    if dates.len()? == 0 { return Err(raised(&error, "TDX handshake does not contain a usable target trading day")); }
+    let target = dates.get_item(dates.len()? - 1)?;
+    let previous = client.getattr("workdays")?.call_method1("previous_workday", (&target,))?;
+    if previous.is_none() {
+        return Err(raised(&error, &format!("unable to resolve the previous trading day for {}", target.call_method0("isoformat")?.str()?.to_str()?)));
+    }
+    let same = datetime.call_method0("date")?.eq(&target)?;
+    let before = same && datetime.call_method0("time")?.lt(hook(&scope, "AUCTION_READY_TIME")?)?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("target_trade_date", target)?; kwargs.set_item("previous_trade_date", previous)?;
+    kwargs.set_item("ready", eltdx::__python_compat::auction_ready(same, before))?;
+    Ok(hook(&scope, "_MarketDateContext")?.call((), Some(&kwargs))?.unbind())
+}
+
+#[pyfunction]
 pub fn helper_shortline_get(py: Python<'_>, service: Bound<'_, PyAny>, codes: Bound<'_, PyAny>,
     path: Bound<'_, PyAny>, refresh: Bound<'_, PyAny>, scope: Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
     let context = hook(&scope, "_resolve_market_date_context")?.call1((service.getattr("_client")?,))?;

@@ -566,18 +566,10 @@ class HelperApi:
             else _code_list(codes)
         )
         table = self.shortline_indicators(full_codes)
-        rows = [
-            row
-            for row in table.rows
-            if row.limit_status == "sealed"
-            or (include_touched and row.limit_status == "touched")
-        ]
-        rows.sort(key=lambda row: (-(row.ladder_level or 0), -(row.seal_amount or 0.0), row.full_code))
-        if count is not None:
-            if count <= 0:
-                raise ValueError("count must be positive or None")
-            rows = rows[:count]
-        return LimitLadderTable(trade_date=table.target_trade_date, rows=tuple(rows))
+        from eltdx.transport.native import native_module
+
+        rows = native_module().helper_ladder(table, include_touched, count)
+        return LimitLadderTable(trade_date=table.target_trade_date, rows=rows)
 
     def stock_limit_ladder(self, codes: str | Sequence[str] | None = None, **kwargs: Any) -> LimitLadderTable:
         """Alias matching the data-catalog name for the limit-up ladder."""

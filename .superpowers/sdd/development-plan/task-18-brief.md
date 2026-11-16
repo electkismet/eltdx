@@ -188,6 +188,8 @@ Migration evidence truthful per124 capability records, root public symbol/source
 
 ## Workflow and report
 
+Recovery2026-11-17 stage28: source/indicator checkpoint9f66521; shortline limit/ladder/date/by-code loops now bound to Rust with original Python policy/hooks. Continue daily limits/events/IPO then auction/market/boards/batch/subscription/consumer. Counts18/4/8; no execution allowed until T01–T30 source complete.
+
 Workspace `C:/Users/ax/.codex/worktrees/rust-sdk-implementation/tdx抓包`, branch `codex/rust-sdk-implementation`. Until ALL T01–T30 code complete NO tests/collection/build/check/clippy/doctest/network/compile/AST/format/diff checks/equivalents. Author all suites/examples/consumer sources without running. Ordinary source reads/review diff generation/git checkpoints allowed. No subagents/push/tag/publish/merge/controller status edits; coordinate broad shared scope, commit domain checkpoints with hooks disabled so recovery is durable.
 
 Report `.superpowers/sdd/development-plan/task-18-report.md`: all HQ M methods and Python entry mapping, algorithms/provenance/cache/optional errors, exact commits/files and authored cases/consumer, migration evidence/retained adapter list, no-execution, self-review/concerns. Return compact status/SHAs/no-tests/concerns/path; no usable/verified release claim before final evidence.
