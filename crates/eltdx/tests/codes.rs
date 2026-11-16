@@ -5,7 +5,7 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use eltdx::{CodeQuery, CodeScanQuery, EndEvidence, ErrorKind, HqMarket, OperationOptions, PageOptions, TdxClient};
+use eltdx::{CodeQuery, CodeScanQuery, EndEvidence, ErrorKind, HqMarket, OperationOptions, PageOptions, SecurityCategory, TdxClient};
 use hq_server::{directory, directory_offset, Server};
 
 #[test]
@@ -41,6 +41,26 @@ fn repeated_directory_identity_is_protocol_and_cap_before_eof_is_limit() -> Resu
     let query = CodeScanQuery::default().with_pages(PageOptions::new(1_600, 1, 320_000)?)?;
     let error = client.codes().all(HqMarket::Shanghai, &query, &OperationOptions::default()).unwrap_err();
     assert_eq!(error.kind(), ErrorKind::LimitExceeded);
+    client.close()?;
+    server.finish()?;
+    Ok(())
+}
+
+#[test]
+fn unknown_security_prefix_remains_unknown_in_public_directory_result() -> Result<(), Box<dyn std::error::Error>> {
+    let server = Server::start(|request| {
+        assert_eq!(request.msg_type, 0x044d);
+        match directory_offset(request) {
+            0 => directory(&[("555555", 2)]),
+            1 => directory(&[]),
+            _ => panic!("unexpected offset"),
+        }
+    })?;
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build()?;
+    let result = client.codes().all(HqMarket::Shanghai, &CodeScanQuery::default(), &OperationOptions::default())?;
+    assert_eq!(result.items().len(), 1);
+    assert_eq!(result.items()[0].category(), &SecurityCategory::Unknown);
+    assert!(!result.items()[0].category_reason().is_empty());
     client.close()?;
     server.finish()?;
     Ok(())
