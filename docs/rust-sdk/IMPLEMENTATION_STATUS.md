@@ -9,18 +9,18 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1：T08 原四项 Important 已获静态确认，第二轮只修新增测试类型问题；T10 Stage A 与 T24 Stage A 实施中，T21 静态审阅批准 |
-| 已提交进度 | T01–T07 与 T09 实现及对应静态审阅完成；T08 修复轮从 `b3371c0` 开始；T10 Stage A 仅拥有新 metadata/types/value/clock 和源码用例，暂不接 owner；T21 已提交 `f921d81`，GBK 静态映射数据已按授权生成，源码用例/报告仍在收尾；全部验证延期 |
+| 当前阶段 | P1：T08 静态审阅批准、T10 Stage B 集成中；T17/T24 独立 Stage A 实施中，T21 静态审阅批准 |
+| 已提交进度 | T01–T09 的既有实现与对应静态审阅完成；T08 至 `d8574bb`；T10 Stage A 源码 `5222e60`、报告 `193daa4`；T21 至 `b6e4beb`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | 完成 T08 限定修复及复审；完成 T10 Stage A 与 T21 源码/报告审阅；T08 通过后再授权 T10 Stage B；之后推进 T11–T30 并统一验证 |
+| 下一步 | 完成 T10 owner/metadata/context 集成并审阅，随后推进 T11/T12；T17 archive/stats 与 T24 EX codec 先在新文件中独立实施；全部代码完成后统一验证 |
 
 ## 阶段进度
 
 | 阶段 | 任务 | 实现状态 | 测试状态 |
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
-| P1 | T04–T10 SDK基础、runtime、metadata | T04–T07 和 T09 静态审阅完成；T08 原四项修复已确认，新增测试 trait-object 方法调用需 round2；T10 Stage A 正实现，owner 接入待 Stage B | 按用户要求暂不运行 |
-| P2 | T11–T18 HQ与Python首批迁移 | 未开始 | 按用户要求暂不运行 |
+| P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 对应静态审阅完成；T10 Stage A 已提交，Stage B 正接 owner/operation/实际 HQ loader | 按用户要求暂不运行 |
+| P2 | T11–T18 HQ与Python首批迁移 | T17 Stage A 仅实现独立 archive/stats 和源码用例；服务与迁移主线待依赖 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T21 至 `b6e4beb` 静态审阅批准；其他 P3 任务尚未开始 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A 已获 GO，仅 EX 新目录中的 codecs/models/config 与 wire 用例；共享传输待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
@@ -55,7 +55,7 @@
 
 ## 恢复规则
 
-最新恢复点：goal 模式继续 active，remainingTokens=null。T09 已提交 `ae11c2a`/`65ef657` 并获限定静态审阅批准。T08 fix round 1 正针对四个 Important 发现修改；T10 Stage A 已获 GO，限定在新 metadata/types/value/clock 与 metadata/unit 源码用例；T21 正收尾离线实现，已按授权用 Python 3.12.14 内置 gbk codec 生成静态映射表和 provenance。T10 暂不接入 SessionOwner，须待 T08 scoped re-review 通过后才有 Stage B GO。T11–T30 的 brief 仍只是计划，不表示实现完成。没有运行测试、构建、检查或网络验证。
+最新恢复点：goal 模式 active，remainingTokens=null。T08 至 `d8574bb` 的两轮修复已经静态复审批准，T10 获得 Stage B GO；其 Stage A 源码 `5222e60`、报告 `193daa4` 已保存。T21 至 `b6e4beb` 的空 leaf 修复静态复审批准。T17 仅在新 archive/stats 和源码用例中实施 Stage A，T24 仅在新 EX 目录和 wire 源码用例中实施 Stage A；二者均不触碰共享 owner/operation/Cargo/root。T11–T30 未实施部分仍按 brief 推进。没有运行测试、构建、检查或网络验证。
 
 T21 于 `9734db3` 完成35个非财报本地 API、模型/格式算法、GBK 静态查表数据及四组测试源码；所有验证延期。仅运行了经授权的一次 Python 3.12.14 标准库 GBK 映射数据生成，脚本、版本和来源已在实现报告记录。任务审阅包以 `230e566` 为基线，仅含 T21 自有文件，scoped source review 进行中。T10 的 `Diagnostic`/`EnrichmentStatus` 共享实现仍待完成；这不是 T21 已验证集成的证据。
 
