@@ -274,7 +274,10 @@ pub(crate) fn legacy_snapshot_rows(
     execute: impl FnMut(&[NormalizedCode], ChildPurpose, Option<RecoveryLimit>) -> Result<DecodedReply>,
 ) -> Result<LegacySnapshotBatch> {
     if !context.is_legacy() { return Err(Error::new(ErrorKind::InvalidArgument, "legacy snapshot adapter requires a Python-profile operation")); }
-    let fetched = retrieve_snapshot_rows(context, codes, SNAPSHOT_CHUNK_SIZE, execute)?;
+    if codes.is_empty() {
+        return Ok(LegacySnapshotBatch { records: Vec::new(), missing: Vec::new(), recovered: false });
+    }
+    let fetched = retrieve_snapshot_rows(context, codes, codes.len(), execute)?;
     let mut records = Vec::new();
     let mut missing = Vec::new();
     records.try_reserve(fetched.slots.len()).map_err(allocation_error)?;
@@ -593,7 +596,7 @@ fn project_category(
         quote_quantity(row.total_hand), quote_quantity(row.current_hand), quote_quantity(row.inside_dish),
         quote_quantity(row.outer_disc), unknown_amount(row.amount), cny_hundredths(row.open_amount_raw)?,
         vec![bid.clone()], vec![ask.clone()], meta.clone()).with_amount_wire_word(row.amount_raw)
-        .with_quote_wire_fields(Some(row.neg_price_raw), Some(row.after_outer_raw), Some(row.open_amount_raw));
+        .with_quote_wire_fields(None, Some(row.after_outer_raw), Some(row.open_amount_raw));
     Ok(CategoryQuote::new(snapshot, bid, ask, row.status_or_sort_raw,
         percentage_points(row.rise_speed_raw), percentage_points(row.short_turnover_raw),
         percentage_points(row.opening_rush_raw), unknown_ratio(row.vol_rise_speed)?,

@@ -136,6 +136,16 @@ impl LegacyOperation {
             purpose.into(), recovery.map(|limit| RecoveryLimit { name: limit.name, maximum: limit.maximum }))
     }
 
+    /// Freezes the caller-selected legacy precision markets in their historical
+    /// request order, without applying Rust's source-work cap or inference rules.
+    pub fn prepare_hq_metadata(&self, namespace: &str, markets: &[HqMarket]) -> Result<()> {
+        self.executor.executor.prepare_legacy_metadata(
+            &self.executor.engine, &self.context, namespace, markets,
+            self.executor.request_timeout, self.executor.cleanup_timeout,
+        )?;
+        Ok(())
+    }
+
     /// Runs the same SDK directory paginator with Python's unlimited legacy
     /// page policy and the caller's one continuous operation context.
     pub fn security_pages(&self, market: HqMarket, page_size: usize) -> Result<Vec<LegacySecurityPage>> {
