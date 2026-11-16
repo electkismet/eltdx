@@ -73,6 +73,14 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Twentieth recovery: calendar committedb7ae0d1. Resource single requests/metadata
+and standard native downloads share Rust boundary/DownloadCursor. Preserve
+public pin lifecycle including cap0, per-request deadlines, EOF/cap truncation,
+raw and host-change errors. Custom read/execute routes retain old adapter.
+Added8 contract/2 integration/1 Rust functions and2 source-only manifest entries,
+all unexecuted. Next stats/health and remaining batches/helpers/subscriptions/
+manifest/consumer. Counts18/4/8, no agents, active without cap.
+
 Nineteenth recovery: equity committedfc3088e. Calendar ordered-day collection,
 window/neighbor/contains and legacy weekday fallback sources authored. Python
 retains benchmark loading, independent _day_set, cache/weakref behavior, empty

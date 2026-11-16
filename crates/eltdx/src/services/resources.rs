@@ -9,6 +9,29 @@ use crate::operation::{ChildPurpose, OperationContext, OperationOptions};
 use crate::types::{BlockMeta, DownloadCompletion, DownloadResult, ResultMeta, StatsQuery, StatsResource};
 use crate::{Error, ErrorKind, Result, TimeoutPhase};
 use super::{aggregate_meta, allocation_error, reply_meta};
+use crate::hq::decode::DecodedReply;
+use super::resource_legacy::DownloadCursor;
+
+fn fetch_resource_reply(context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>) -> Result<DecodedReply> {
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let file = match &request {
+        CommandRequest::FileContent(_) => true,
+        CommandRequest::BlockMeta(_) => false,
+        _ => return Err(Error::new(ErrorKind::InvalidArgument, "resource service requires file or block metadata request")),
+    };
+    let reply = fetch(request)?;
+    if !matches!((&reply.response, file), (CommandResponse::FileContent(_), true) | (CommandResponse::BlockMeta(_), false)) {
+        return Err(protocol("unexpected resource response"));
+    }
+    Ok(reply)
+}
+
+pub(crate) fn legacy_resource_reply(context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>) -> Result<CommandResponse> {
+    if !context.is_legacy() { return Err(Error::new(ErrorKind::InvalidArgument, "legacy resource adapter requires a Python-profile operation")); }
+    Ok(fetch_resource_reply(context, request, fetch)?.response)
+}
 
 #[derive(Clone, Debug)]
 pub struct ResourceService { executor: HqExecutor, engine: Engine, config: ClientConfig }
@@ -60,15 +83,15 @@ impl ResourceService {
         let mut pin = self.executor.acquire_pin(&self.engine, context)?;
         let result = (|| {
             let mut output = Vec::new(); let mut pages = Vec::new(); let mut source = None; let mut retained_bytes = 0_usize;
-            let mut offset = 0_u64; let mut page_index = 0_usize;
-            while output.len() < max_bytes {
+            let mut cursor = DownloadCursor::new(chunk_size, Some(max_bytes));
+            let mut page_index = 0_usize;
+            while let Some((offset, size)) = cursor.request() {
                 context.check_boundary(TimeoutPhase::Admission)?;
                 if retain_meta && page_index == 65_536 {
                     return Err(Error::new(ErrorKind::LimitExceeded, "resource provenance exceeds 65536 response pages"));
                 }
-                let size = chunk_size.min(max_bytes - output.len());
                 output.try_reserve_exact(size).map_err(allocation_error)?;
-                let (chunk, meta, identity) = self.chunk(context, Some(pin.handle()?), &path, offset, size,
+                let (chunk, meta, identity) = self.chunk(context, Some(pin.handle()?), &path, offset as u64, size,
                     if page_index == 0 { ChildPurpose::Required } else { ChildPurpose::Page })?;
                 if source.as_ref().is_some_and(|expected| expected != &identity) {
                     return Err(Error::new(ErrorKind::Protocol, "resource source changed during a pinned download"));
@@ -78,7 +101,7 @@ impl ResourceService {
                 if next_len > max_bytes { return Err(incomplete(max_bytes)); }
                 context.check_boundary(TimeoutPhase::Aggregate)?;
                 output.extend_from_slice(&chunk.data);
-                offset = offset.checked_add(chunk.data.len() as u64).ok_or_else(|| incomplete(max_bytes))?;
+                cursor.advance(chunk.data.len()).ok_or_else(|| incomplete(max_bytes))?;
                 if retain_meta {
                     if let Some(raw) = meta.raw() {
                         for bytes in raw.payloads().iter().chain(raw.wire_frames().unwrap_or(&[])) {
@@ -94,7 +117,7 @@ impl ResourceService {
                         completion: DownloadCompletion::Complete, next_offset: None }, meta: aggregate_meta(context, &pages, None)? });
                 }
             }
-            Ok(ResourceDownload { result: limited(Bytes::from(output), offset), meta: aggregate_meta(context, &pages, None)? })
+            Ok(ResourceDownload { result: limited(Bytes::from(output), cursor.offset() as u64), meta: aggregate_meta(context, &pages, None)? })
         })();
         match result {
             Ok(value) => { self.executor.release_pin(context, &mut pin, None)?; Ok(value) }
@@ -109,11 +132,13 @@ impl ResourceService {
         validate_range(offset, size)?;
         let request = CommandRequest::FileContent(FileContentRequest::new(path, offset as u32, size as u32)
             .map_err(Error::from_protocol)?);
-        let raw = match pin {
-            Some(pin) => self.executor.execute_pinned_raw(&self.engine, pin, context, request, purpose, None)?,
-            None => self.executor.execute_raw(&self.engine, context, request, purpose, None)?,
-        };
-        let reply = self.executor.decode_unpriced(context, raw)?;
+        let reply = fetch_resource_reply(context, request, |request| {
+            let raw = match pin {
+                Some(pin) => self.executor.execute_pinned_raw(&self.engine, pin, context, request, purpose, None)?,
+                None => self.executor.execute_raw(&self.engine, context, request, purpose, None)?,
+            };
+            self.executor.decode_unpriced(context, raw)
+        })?;
         let CommandResponse::FileContent(chunk) = &reply.response else { return Err(protocol("unexpected file content response")); };
         if chunk.chunk_len as usize != chunk.content.len() || chunk.content.len() > size {
             return Err(protocol("file content declared length does not match requested/actual bytes"));
@@ -130,8 +155,10 @@ impl ResourceService {
         let entry = Instant::now();
         let context = self.executor.begin_context_at(entry, "block_meta", &self.config, options)?;
         let request = CommandRequest::BlockMeta(BlockMetaRequest::new(filename).map_err(Error::from_protocol)?);
-        let raw = self.executor.execute_raw(&self.engine, &context, request, ChildPurpose::Required, None)?;
-        let reply = self.executor.decode_unpriced(&context, raw)?;
+        let reply = fetch_resource_reply(&context, request, |request| {
+            let raw = self.executor.execute_raw(&self.engine, &context, request, ChildPurpose::Required, None)?;
+            self.executor.decode_unpriced(&context, raw)
+        })?;
         let CommandResponse::BlockMeta(value) = &reply.response else { return Err(protocol("unexpected block metadata response")); };
         let result = BlockMeta::new(value.size, value.md5.clone(), reply_meta(&context, &self.config, &reply, &[], "resources.block_meta"));
         context.finish()?; Ok(result)

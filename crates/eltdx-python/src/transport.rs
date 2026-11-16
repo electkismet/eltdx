@@ -270,6 +270,11 @@ impl NativeEngine {
         service::corporate(py, self.legacy.clone(), request)
     }
 
+    fn sdk_resource(&self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::resource(py, self.legacy.clone(), request, None)
+    }
+
     #[pyo3(signature = (command, payload, *, collect=false, opening=false, max_pages=None, bulk=false))]
     fn sdk_trade_read(&self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>,
         collect: bool, opening: bool, max_pages: Option<usize>, bulk: bool) -> PyResult<Py<PyAny>> {
@@ -386,6 +391,11 @@ impl NativeEngine {
 
 #[pymethods]
 impl NativePin {
+    fn sdk_resource(&self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::resource(py, self.legacy.clone(), request, Some(self.pin.clone()))
+    }
+
     fn sdk_quotes(&self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
         let request = request::from_python(py, command, Some(payload))?;
         // The Python subscription resolver runs before pin acquisition. Never

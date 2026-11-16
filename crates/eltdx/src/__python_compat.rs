@@ -26,6 +26,7 @@ pub use crate::services::money_flow_probe::{legacy_money_flow_recover, LegacyMon
 pub use crate::adjustment::factors::legacy_adjustment_factors;
 pub use crate::calendar::index::{calendar_window, calendar_neighbor, legacy_weekday,
     calendar_days, calendar_contains, legacy_weekday_range, legacy_weekday_neighbor};
+pub use crate::services::resource_legacy::legacy_resource_download;
 pub use crate::services::corporate_legacy::{legacy_capital_collect, legacy_finance_recover,
     LegacyCapitalCollection, LegacyCapitalPage, LegacyCapitalSource,
     LegacyFinanceCollection, LegacyFinanceError, LegacyFinancePage, LegacyFinanceSource};
@@ -336,6 +337,18 @@ impl LegacyOperation {
         crate::services::legacy_corporate_reply(&self.context, request, |request| {
             let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,
                 request, ChildPurpose::Required, None)?;
+            self.executor.executor.decode_unpriced(&self.context, raw)
+        })
+    }
+
+    pub fn resource(&self, request: CommandRequest, pin: Option<&PinHandle>) -> Result<CommandResponse> {
+        crate::services::legacy_resource_reply(&self.context, request, |request| {
+            let raw = match pin {
+                Some(pin) => self.executor.executor.execute_pinned_raw(&self.executor.engine, pin,
+                    &self.context, request, ChildPurpose::Required, None)?,
+                None => self.executor.executor.execute_raw(&self.executor.engine, &self.context,
+                    request, ChildPurpose::Required, None)?,
+            };
             self.executor.executor.decode_unpriced(&self.context, raw)
         })
     }

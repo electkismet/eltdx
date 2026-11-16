@@ -134,6 +134,17 @@ pub fn corporate(py: Python<'_>, executor: LegacyExecutor, request: CommandReque
     unpriced_domain(py, executor, request, "python_corporate", LegacyOperation::corporate)
 }
 
+pub fn resource(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
+    pin: Option<eltdx_runtime::engine::PinHandle>) -> PyResult<Py<PyAny>> {
+    let result = run_legacy(py, move |token| {
+        let operation = executor.begin_operation("python_resource", RawPolicy::RetainPayload, Some(token))?;
+        let result = operation.resource(request, pin.as_ref())?;
+        operation.finish()?;
+        Ok(result)
+    })?;
+    response::to_python(py, result)
+}
+
 struct PythonMoneyFlowSources<'py> {
     api: Bound<'py, PyAny>,
     failover: Bound<'py, PyAny>,

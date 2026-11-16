@@ -264,6 +264,10 @@ class SocketTransport:
         dto = call_native(self._native().sdk_corporate, command, payload)
         return response_from_dto(dto)
 
+    def sdk_resource(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_resource, command, payload)
+        return response_from_dto(dto)
+
     def sdk_trade_batch(self, command: int, payload: dict[str, Any]):
         if command != 0x0FC6:
             raise ValueError("trade batch only supports historical ticks")

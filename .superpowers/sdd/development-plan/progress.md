@@ -78,6 +78,11 @@
 
 ## Task log
 
+2026-11-17 T18 twentieth checkpoint: calendar committedb7ae0d1. Resource request/
+cursor and Python standard download sources authored;8 contract/2 integration/
+1 Rust functions unexecuted,2 manifest source-only entries. Next stats/health
+and remaining T18;18/4/8, active/no cap/no agents.
+
 2026-11-17 T18 nineteenth checkpoint: equity committedfc3088e. Shared calendar
 index/weekday source and Python bridge,9 contract/2 Rust functions authored;
 all unexecuted. Counts18/4/8; next resources/stats/health then remaining T18.

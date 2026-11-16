@@ -1316,6 +1316,14 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x06b9",
       "api": "client.resources.read(path, ...)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/resources.rs::fetch_resource_reply",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/service.rs", "crates/eltdx-python/src/transport.rs", "src/eltdx/api/resources.py"],
+        "contract_nodes": ["tests/contracts/test_sdk_resource_bridge.py::test_native_resource_single_requests_use_shared_domain", "tests/contracts/test_sdk_resource_bridge.py::test_native_resource_execute_override_remains_an_adapter"],
+        "integration_nodes": ["tests/integration/test_native_resource_bridge.py::test_native_resource_single_read_keeps_raw_and_trailing_bytes"],
+        "validation": "Source only, not compiled/collected/executed. Original extractor/raw parser retained; custom execute remains an adapter."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-服务器文件读取.md",
@@ -2177,6 +2185,19 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.resources.download_file(path, ...)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/resource_legacy.rs::DownloadCursor",
+        "bridge_sources": ["crates/eltdx-python/src/resource.rs", "src/eltdx/api/resources.py", "src/eltdx/transport/pool.py"],
+        "contract_nodes": ["tests/contracts/test_sdk_resource_bridge.py::test_native_resource_exact_multiple_probes_eof_and_cap_stops_without_probe", "tests/contracts/test_sdk_resource_bridge.py::test_native_resource_host_none_adopts_first_concrete_and_rejects_later_change", "tests/contracts/test_sdk_resource_bridge.py::test_native_resource_zero_cap_still_observes_public_pin"],
+        "integration_nodes": ["tests/integration/test_native_resource_bridge.py::test_native_resource_download_uses_one_connection_and_original_eof_policy"],
+        "temporary_adapter": {
+          "scope": "Public pin context, custom read/execute and custom response subclasses",
+          "reason": "Retain Python pin enter/exit semantics, original exceptions/attributes and dynamic custom transport behavior; standard built-in pinned requests use Rust domain and download cursor.",
+          "exit_condition": "Preserve arbitrary object arithmetic/properties before widening the callback adapter beyond standard built-in transports."
+        },
+        "validation": "No execution. Exact cap truncates; uncapped exact multiple requests empty EOF. Cap zero still enters/exits pin."
+      },
       "kind": "协议封装",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-服务器文件下载.md",

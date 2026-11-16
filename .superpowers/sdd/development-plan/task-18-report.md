@@ -822,6 +822,27 @@ source complete/4 partial/8 unstarted. T18 remains partial; next equity, calenda
 resources/stats/health, capital/moneyflow batch scheduling, helpers/subscription,
 manifest and installed-wheel consumer. Goal active/no cap; no agents/publication.
 
+Nineteenth source stage committed as **b7ae0d1**; all execution deferred.
+
+## Twentieth source checkpoint — resource requests and download cursor
+
+- Shared fetch_resource_reply serves strict and legacy read/block_meta, including
+  NativeEngine and NativePin. Original request extractor, raw payload and trailing
+  bytes remain. No metadata prefetch or extra read validation is introduced.
+- DownloadCursor now drives strict download and legacy callback loop, preserving
+  cap truncation, short/empty EOF and uncapped exact-size final probe. Python
+  retains _bounded_int and public pin enter/exit (including cap0), per-request
+  deadlines, current-host checks and original error classes. Standard built-in
+  transports use Rust cursor/domain; custom read/execute retain explicit adapter.
+- Authored8 contract/2 loopback integration functions and1 Rust source test,
+  covering caps/EOF, host changes/None, errors, route overrides, cap0 pin and
+  actual one-connection download. Two manifest entries are source-only. All
+  tests, collection, build/check/clippy/doctest/AST/format/dependency/network and
+  equivalent execution remain prohibited/unrun.
+
+T18 remains partial18/4/8. Next stats parsing/health and ALL remaining batch,
+helper/subscription/manifest/consumer scope, then T19–T30/Stage B. Active/no cap.
+
 Seventeenth source stage committed as **851774a**; all execution deferred.
 
 ## Eighteenth source checkpoint — shared affine adjustment

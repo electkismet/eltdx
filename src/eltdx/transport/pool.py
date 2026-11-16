@@ -196,6 +196,11 @@ class PinnedTransportProxy:
         dto = call_native(self._native_pin.sdk_quotes, command, payload)
         return response_from_dto(dto)
 
+    def sdk_resource(self, command: int, payload: dict[str, Any]):
+        self._require_open()
+        dto = call_native(self._native_pin.sdk_resource, command, payload)
+        return response_from_dto(dto)
+
     def execute_trade_batch(self, command: int, payload: dict[str, Any] | None = None):
         self._require_open()
         if command != 0x0FC6:
@@ -486,6 +491,10 @@ class PooledSocketTransport:
 
     def sdk_corporate(self, command: int, payload: dict[str, Any]):
         dto = call_native(self._native().sdk_corporate, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_resource(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_resource, command, payload)
         return response_from_dto(dto)
 
     def sdk_trade_batch(self, command: int, payload: dict[str, Any]):

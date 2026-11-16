@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17 第二十段源码恢复点：calendar已提交`b7ae0d1`。resources read/block_meta及标准download_file接入共用Rust请求边界和DownloadCursor；保留原pin enter/exit（含cap0）、逐请求预算、截断/EOF、raw和换源错误。custom read/execute回旧adapter。新增8合同/2本机集成/1Rust函数源码及两项source-only manifest，全部未执行。stats解析/health和剩余T18仍待做，总数18/4/8不变；active无额度限制。
+
 2026-11-17 第十九段源码恢复点：equity已提交`fc3088e`。calendar共享有序日期去重/区间/邻居/包含查询及Python weekday近似已写；WorkdayService保留原基准bars加载/缓存与独立_day_set、弱引用失效、无覆盖时False/None、日期越界和custom日期/容器adapter。新增9合同/2Rust函数源码，均未执行；日历不在124 capability记录内，按模块/报告记录。T18仍部分，总数18/4/8不变；下一步resources/stats/health及剩余批量/helper/订阅/manifest/consumer，active无额度限制。
 
 2026-11-17 第十八段源码恢复点：corporate资本/财务已提交`851774a`。equity标准事件的前后复权接入共用Rust affine排序/同日原序/组合循环；strict保留有限正值检查，Python保留非finite/日期/非正乘数错误及custom记录/函数覆盖adapter。新增9合同/3Rust函数源码和1项source-only manifest，全部未执行。T18仍部分，总数18/4/8不变。下一步calendar/resources/stats/health及批量/helper/订阅/manifest/consumer；active无额度限制。
@@ -39,11 +41,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | equity `fc3088e`；calendar共用日期算法源码已写；全部执行验证延期 |
+| 最新检查点 | calendar `b7ae0d1`；resources共用请求/分页源码已写；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T18：resources/stats/health、capital/money-flow批量调度、全部helper及剩余subscription编排回迁、manifest和installed-wheel consumer；已有域不重复，最终统一验证 |
+| 下一步 | T18：stats/health、capital/money-flow批量调度、全部helper及剩余subscription编排回迁、manifest和installed-wheel consumer；已有域不重复，最终统一验证 |
 
 ## 阶段进度
 

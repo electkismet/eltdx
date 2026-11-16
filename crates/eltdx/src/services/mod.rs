@@ -11,6 +11,8 @@ mod recovery;
 mod corporate;
 pub(crate) mod corporate_legacy;
 mod resources;
+pub(crate) mod resource_legacy;
+pub(crate) use resources::legacy_resource_reply;
 mod company_info;
 mod session;
 mod health;
