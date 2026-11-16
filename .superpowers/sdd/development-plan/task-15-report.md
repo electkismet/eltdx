@@ -26,3 +26,9 @@ Status: partial source only. M23 pinned refresh, M24 subscribe, active Subscript
 9. Add deterministic integration source cases from task-15-brief: cold metadata101/pool2, impossible pool1 no pin/I/O, second activation rollback, overlapping consumers/fanout, stale identities, cursor150000->93000 renewal, slow consumer2+3updates, setup token independence, read cancellation, parent close/Drop/owner cycle, resync failure, actual memory charge. Do not use sleep synchronization in new source cases.
 
 All tests/collection/build/check/clippy/doctests/network/compile/AST/format/diff checks/equivalent execution verification remain forbidden until ALL T01–T30 implementation code is complete. Only source reading/authoring, ordinary Git review/status and hooks-disabled checkpoints were performed. No subagents/push/tag/publication/merge. Goal active with no token budget.
+
+## 2026-11-16 M23 source checkpoint
+
+M23 implementation is now authored (still unexecuted): TdxClient::pin(options), borrowed PinnedQuoteService::refresh, source-bound cold metadata scanning on the reserved connection, empty wire polling using the previous activation only as a parser hint, and invalidation of uncertain activation after a stateful call fails. The metadata pagination loop is shared with cooperative metadata flights. Depth and pinned refresh share one identity validator/DTO projection. Authored loopback cases cover pool1 cold metadata without self-wait, empty polling, over100 rejection without additional command I/O, and closed-pin errors. These are source cases only; no tests/builds/checks or other execution verification ran.
+
+T15 remains partial: active Subscription/M24, dispatcher, lease transfer/stop/join, renewal/resync, actual memory accounting and Python controlled raw fanout integration remain outstanding. Resume at those paths; do not reimplement M23 or mark T15 complete.

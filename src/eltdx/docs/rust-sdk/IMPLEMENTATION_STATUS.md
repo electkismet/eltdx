@@ -132,3 +132,5 @@ T21 第一轮静态审阅指出 `read_custom` 将空 leaf 当作可跳过数据�
 - T02 库存确认既有 7709 样本中 36 个来自合成输入，`delisted_bars/normal` 引用了仓库中缺失的 UI 样例记录；37 个 `expected.json` 均为 Python 回归基线，不是独立 oracle。新增 7 个案例均为合成输入；完整 `0x0FFC` 抓包、非空 category22 和 EX/MAC/F10 实测响应仍是明确缺口。
 - T03 未取得有日期的权威涨跌停规则来源，因此六个 Rust 涨跌停案例均保持 `UnknownRule`，而 Python 的 daily/shortline/MAC 三套投影分别保留。T03 policy fixture 是代码审阅/兼容及算术契约，不是监管规则、线上抓包或独立业务事实的证明；全部契约测试源码待 T01–T30 实现完成后统一执行。
 - T04 两轮静态 scoped review 已关闭；`Price` 的 `i64::MIN` 缩放边界没有单独 authored case，最终全分支复审需再次检查。serde schema E06 仍未解决，身份/日期/时间仅保留 Serialize，未暴露不安全 Deserialize。
+
+2026-11-16 M23恢复点：已写TdxClient::pin、借用PinnedQuoteService::refresh、同pin冷元数据加载、空wire轮询和失败激活失效处理；depth/refresh共用投影，元数据分页共用scanner。新增pool1冷元数据/空轮询/超100无额外命令/已关闭pin的合成用例源码，均未执行。T15仍部分完成，接续M24 dispatcher/lease/owner/renewal/resync/真实内存计费/Python受控fanout。任务完成计数仍为15完整源码、5部分、10未开始；没有测试或构建成功证据。

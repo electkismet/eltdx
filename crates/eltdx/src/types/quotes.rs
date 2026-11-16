@@ -333,6 +333,9 @@ impl QuoteUpdates {
     pub fn requested(&self) -> &[SecurityId] { &self.requested }
     pub fn updates(&self) -> &[QuoteUpdate] { &self.updates }
     pub fn meta(&self) -> &ResultMeta { &self.meta }
+    pub(crate) fn into_parts(self) -> (Vec<SecurityId>, Vec<QuoteUpdate>, ResultMeta) {
+        (self.requested, self.updates, self.meta)
+    }
 }
 
 pub(crate) fn price_from_raw(raw: i64, wire_denominator: u16, divisor: u16) -> Result<Price> {

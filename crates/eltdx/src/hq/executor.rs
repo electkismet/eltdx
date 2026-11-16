@@ -160,6 +160,50 @@ impl HqExecutor {
         Ok(snapshot)
     }
 
+    /// A reserved connection loads cold catalogs through itself, avoiding an
+    /// ordinary-pool request that could wait forever on this same reservation.
+    pub(crate) fn prepare_pinned_metadata(
+        &self, engine: &Engine, pin: &PinHandle, context: &OperationContext,
+        namespace: &str, requests: &[CommandRequest],
+    ) -> Result<Arc<MetadataSnapshot>> {
+        self.check_context(context)?;
+        context.check_boundary(TimeoutPhase::Admission)?;
+        if context.is_legacy() || namespace.is_empty() {
+            return Err(Error::new(ErrorKind::InvalidArgument, "pinned metadata requires a Rust source namespace"));
+        }
+        if let Some(snapshot) = context.metadata()? {
+            if snapshot.key().namespace() != namespace {
+                return Err(Error::new(ErrorKind::InvalidArgument, "operation metadata belongs to a different source"));
+            }
+            validate_request_precision(&snapshot, requests)?;
+            return Ok(snapshot);
+        }
+        let mut snapshots = Vec::new();
+        let mut candidates = Vec::new();
+        for market in required_markets(requests) {
+            let key = crate::metadata::SnapshotKey::hq(namespace, market);
+            if let Some(snapshot) = self.owner.metadata().current(&key)? {
+                snapshots.push(snapshot);
+            } else {
+                candidates.push(crate::metadata::scan_market(
+                    crate::metadata::MarketCandidate::new(key)?, market,
+                    || context.check_boundary(TimeoutPhase::Admission),
+                    |request| {
+                        let raw = self.execute_pinned_raw(engine, pin, context, request, ChildPurpose::Metadata, None)?;
+                        Ok(self.decode_unpriced(context, raw)?.response)
+                    },
+                )?);
+            }
+        }
+        // Complete all missing markets before publishing any candidate.
+        snapshots.extend(self.owner.metadata().publish_code_scans(
+            candidates, Duration::from_secs(24 * 60 * 60), context)?);
+        let snapshot = self.owner.metadata().capture(namespace, &snapshots)?;
+        validate_request_precision(&snapshot, requests)?;
+        context.install_metadata(Arc::clone(&snapshot))?;
+        Ok(snapshot)
+    }
+
     /// Compatibility callers pass exactly the historical selected market order.
     /// No Rust source total cap or market inference is imposed on that path.
     pub(crate) fn prepare_legacy_metadata(

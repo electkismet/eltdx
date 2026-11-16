@@ -17,12 +17,8 @@ impl PricePrecisionSource for NoPrecision {
 }
 
 pub(super) fn load_market(engine: &Engine, market: HqMarket, request_timeout: Duration, control: &FlightControl) -> Result<MarketCandidate> {
-    let mut candidate = MarketCandidate::with_limits(control.key().clone(), control.catalog_limits())?;
-    let mut page = SecurityListRequest::first_page(protocol_market(market));
-    loop {
-        control.check_active()?;
-        let offset = page.start;
-        let request = CommandRequest::SecurityList(page);
+    let candidate = MarketCandidate::with_limits(control.key().clone(), control.catalog_limits())?;
+    scan_market(candidate, market, || control.check_active(), |request| {
         let options = match control.source_deadline() {
             Some(deadline) => SubmissionOptions::new(deadline),
             None => SubmissionOptions::legacy_after_startup(request_timeout),
@@ -32,7 +28,24 @@ pub(super) fn load_market(engine: &Engine, market: HqMarket, request_timeout: Du
         control.check_active()?;
         let decoded = crate::hq::decode::decode_reply(raw, RawPolicy::Omit, &NoPrecision)
             .map_err(|error| Error::new(ErrorKind::Protocol, "invalid security metadata page").with_source(error))?;
-        let CommandResponse::SecurityList(rows) = decoded.response else {
+        Ok(decoded.response)
+    })
+}
+
+/// One catalog pagination and validation algorithm for both shared flights and
+/// an already-reserved connection. The latter must not wait on its own pool.
+pub(crate) fn scan_market(
+    mut candidate: MarketCandidate, market: HqMarket,
+    mut boundary: impl FnMut() -> Result<()>,
+    mut execute: impl FnMut(CommandRequest) -> Result<CommandResponse>,
+) -> Result<MarketCandidate> {
+    let mut page = SecurityListRequest::first_page(protocol_market(market));
+    loop {
+        boundary()?;
+        let offset = page.start;
+        let response = execute(CommandRequest::SecurityList(page))?;
+        boundary()?;
+        let CommandResponse::SecurityList(rows) = response else {
             return Err(Error::new(ErrorKind::Protocol, "metadata source returned a non-security page"));
         };
         if rows.len() > usize::from(page.limit) {
@@ -41,7 +54,7 @@ pub(super) fn load_market(engine: &Engine, market: HqMarket, request_timeout: Du
         let count = u32::try_from(rows.len()).map_err(|_| Error::new(ErrorKind::LimitExceeded, "security page count overflow"))?;
         let mut records = Vec::with_capacity(rows.len());
         for row in rows {
-            control.check_active()?;
+            boundary()?;
             if row.market != protocol_market(market) {
                 return Err(Error::new(ErrorKind::Protocol, "security page has a mismatched market"));
             }

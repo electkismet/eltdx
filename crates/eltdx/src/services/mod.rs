@@ -13,9 +13,10 @@ pub(crate) use codes::{legacy_directory_pages, publish_legacy_directory_metadata
 pub use klines::KlineService;
 pub use minutes::MinuteService;
 pub use money_flow::MoneyFlowService;
-pub use quotes::QuoteService;
+pub use quotes::{PinnedQuoteService, QuoteService};
 pub use trades::TradeService;
 pub(crate) use quotes::{legacy_snapshot_rows, RawSnapshotBatch, RawSnapshotSlot};
+pub(crate) use quotes::{project_refresh_updates, refresh_command};
 
 use std::hash::{Hash, Hasher};
 use std::net::SocketAddr;

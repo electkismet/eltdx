@@ -19,7 +19,7 @@ use crate::types::quotes::{cny_hundredths, parse_identity, percentage_points,
     price_from_quote_delta, price_from_raw, quote_quantity, unknown_amount, unknown_ratio};
 use crate::types::{Amount, AmountUnit, BatchItem, BatchItemState, BatchOutcome, CategoryQuery,
     CategoryQuote, DataPage, EndEvidence, HqMarket, LegacyQuote, MissingPolicy, MissingReason,
-    NumericValue, PageCursor, QuoteLevel, QuoteUpdate, QuoteUpdates, ResultMeta, SecurityId, Snapshot,
+    NumericValue, PageCursor, QuoteLevel, QuoteUpdate, QuoteUpdates, RefreshRequest, ResultMeta, SecurityId, Snapshot,
     SnapshotBatch, ValueProvenance};
 
 use super::{aggregate_meta, allocation_error, checked_ids, endpoint_engine, identity_from_market,
@@ -35,6 +35,67 @@ pub struct QuoteService {
     engine: Engine,
     config: ClientConfig,
     namespace: String,
+}
+
+/// A quote endpoint that cannot outlive or clone the fixed-connection guard.
+pub struct PinnedQuoteService<'a> {
+    pin: &'a crate::PinnedSession,
+}
+
+impl<'a> PinnedQuoteService<'a> {
+    pub(crate) fn new(pin: &'a crate::PinnedSession) -> Self { Self { pin } }
+
+    pub fn refresh(&self, requests: &[RefreshRequest], options: &OperationOptions) -> Result<QuoteUpdates> {
+        let entry = Instant::now();
+        let source = self.pin.quote_source()?;
+        let executor = HqExecutor::new(Arc::clone(self.pin.owner()));
+        let context = executor.begin_context_at(entry, "quotes_refresh", &source.config, options)?;
+        // Build and validate the actual request before waiting on serialization.
+        // Empty is still sent once; it polls the previous activation.
+        let request = refresh_command(requests)?;
+        let mut activation = loop {
+            context.check_boundary(TimeoutPhase::Admission)?;
+            match source.activation.try_lock() {
+                Ok(guard) => break guard,
+                Err(std::sync::TryLockError::WouldBlock) => {
+                    std::thread::park_timeout(eltdx_runtime::engine::SIGNAL_POLL_INTERVAL);
+                }
+                Err(std::sync::TryLockError::Poisoned(_)) => return Err(Error::new(ErrorKind::Internal, "pin activation state is poisoned")),
+            }
+        };
+        let previous = activation.as_ref().ok_or_else(|| Error::new(ErrorKind::PinLost, "refresh activation failed; acquire a new pin"))?;
+        let effective = if requests.is_empty() { previous.as_slice() } else { requests };
+        let parse_request = refresh_command(effective)?;
+        let ids = effective.iter().map(|item| item.id().clone()).collect::<Vec<_>>();
+        let next = if requests.is_empty() { None } else { Some(requests.to_vec()) };
+        let metadata = executor.prepare_pinned_metadata(&source.engine, self.pin.handle()?, &context,
+            &source.namespace, std::slice::from_ref(&parse_request))?;
+        let result = (|| {
+            let mut raw = executor.execute_pinned_raw(&source.engine, self.pin.handle()?, &context,
+                request.clone(), ChildPurpose::Required, None)?;
+            // Empty wire polling still needs the previous activation identities
+            // to split multirow XOR payloads. Preserve the actual sent command.
+            raw.request = parse_request;
+            let mut decoded = executor.decode_received(&context, raw)?;
+            decoded.request = request;
+            let result = project_refresh_updates(&ids, &context, &source.config, &metadata, &decoded, "quotes.refresh")?;
+            context.finish()?;
+            Ok(result)
+        })();
+        match result {
+            Ok(result) => {
+                if let Some(next) = next { *activation = Some(next); }
+                Ok(result)
+            }
+            Err(error) => {
+                // A failed stateful call cannot safely restore the previous
+                // activation. Owner registration retains retirement responsibility.
+                *activation = None;
+                let _ = self.pin.handle()?.begin_close();
+                Err(error)
+            }
+        }
+    }
 }
 
 impl QuoteService {
@@ -214,19 +275,10 @@ impl QuoteService {
                 let purpose = if index == 0 { ChildPurpose::Required } else { ChildPurpose::Page };
                 let raw = self.executor.execute_pinned_raw(&self.engine, pin.handle()?, &context, request, purpose, None)?;
                 let decoded = self.executor.decode_received(&context, raw)?;
-                let CommandResponse::RefreshStream(page) = &decoded.response else { return Err(wrong_response("depth refresh")); };
-                // Incremental absence means no update. Foreign and excess
-                // duplicate records must still be rejected before projection.
-                validate_update_identities(chunk, page.records.iter().map(|row| parse_identity(row.market_id, &row.code)))?;
-                for row in &page.records {
-                    let id = parse_identity(row.market_id, &row.code)?;
-                    let snapshot = project_refresh_snapshot(row, id.clone(), &context, &self.config, &metadata, &decoded)?;
-                    updates.push(QuoteUpdate::new(id, row.update_time_raw, row.active, snapshot, row.status_or_reserved_raw));
-                }
-                context.record_work(page.records.len(), 0)?;
-                metas.push(result_meta(&context, &self.config, Some(&metadata), &ServiceSource::from_reply(&decoded),
-                    Some(decoded.payload.clone()), decoded.wire.as_ref().map(|wire| wire.raw.clone()),
-                    &page.records.iter().map(|row| row.record_range).collect::<Vec<_>>(), "quotes.depth"));
+                let page = project_refresh_updates(chunk, &context, &self.config, &metadata, &decoded, "quotes.depth")?;
+                let (_, rows, meta) = page.into_parts();
+                updates.extend(rows);
+                metas.push(meta);
             }
             let mut requested = Vec::new();
             requested.try_reserve(ids.len()).map_err(allocation_error)?;
@@ -241,6 +293,39 @@ impl QuoteService {
             },
         }
     }
+}
+
+pub(crate) fn refresh_command(requests: &[RefreshRequest]) -> Result<CommandRequest> {
+    if requests.len() > 100 {
+        return Err(Error::new(ErrorKind::InvalidArgument, "refresh accepts at most 100 identities"));
+    }
+    let ids = requests.iter().map(|item| item.id().clone()).collect::<Vec<_>>();
+    let codes = checked_ids(&ids)?;
+    RefreshStreamRequest::new(codes.into_iter().zip(requests).map(|(code, item)|
+        RefreshCursor { code, cursor: item.cursor() }).collect())
+        .map(CommandRequest::RefreshStream).map_err(Error::from_protocol)
+}
+
+/// Depth, borrowed refresh, activation, renewal and pushed frames share this
+/// identity validation and DTO projection, including raw retention and units.
+pub(crate) fn project_refresh_updates(
+    ids: &[SecurityId], context: &OperationContext, config: &ClientConfig,
+    metadata: &MetadataSnapshot, decoded: &DecodedReply, diagnostic: &str,
+) -> Result<QuoteUpdates> {
+    let CommandResponse::RefreshStream(page) = &decoded.response else { return Err(wrong_response("quote refresh")); };
+    validate_update_identities(ids, page.records.iter().map(|row| parse_identity(row.market_id, &row.code)))?;
+    let mut updates = Vec::new();
+    updates.try_reserve(page.records.len()).map_err(allocation_error)?;
+    for row in &page.records {
+        let id = parse_identity(row.market_id, &row.code)?;
+        let snapshot = project_refresh_snapshot(row, id.clone(), context, config, metadata, decoded, diagnostic)?;
+        updates.push(QuoteUpdate::new(id, row.update_time_raw, row.active, snapshot, row.status_or_reserved_raw));
+    }
+    context.record_work(page.records.len(), 0)?;
+    let meta = result_meta(context, config, Some(metadata), &ServiceSource::from_reply(decoded),
+        Some(decoded.payload.clone()), decoded.wire.as_ref().map(|wire| wire.raw.clone()),
+        &page.records.iter().map(|row| row.record_range).collect::<Vec<_>>(), diagnostic);
+    Ok(QuoteUpdates::new(ids.to_vec(), updates, meta))
 }
 
 pub(crate) enum RawSnapshotSlot {
@@ -680,6 +765,7 @@ fn project_refresh_snapshot(
     config: &ClientConfig,
     metadata: &MetadataSnapshot,
     decoded: &DecodedReply,
+    diagnostic: &str,
 ) -> Result<Snapshot> {
     finite_amount(row.amount)?;
     let raw = &row.price_raw;
@@ -689,7 +775,7 @@ fn project_refresh_snapshot(
         price_from_quote_delta(raw.current, level.price_delta_raw, raw.divisor)?, quote_quantity(level.volume)))).collect::<Result<Vec<_>>>()?;
     let source = super::ServiceSource::from_reply(decoded);
     let meta = super::result_meta(context, config, Some(metadata), &source, Some(decoded.payload.clone()),
-        decoded.wire.as_ref().map(|wire| wire.raw.clone()), &[row.record_range], "quotes.depth");
+        decoded.wire.as_ref().map(|wire| wire.raw.clone()), &[row.record_range], diagnostic);
     let open_amount = row.open_amount_raw.checked_mul(10)
         .ok_or_else(|| Error::new(ErrorKind::Protocol, "refresh opening amount overflows"))?;
     Ok(Snapshot::new(id, row.active,

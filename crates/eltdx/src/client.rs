@@ -169,6 +169,22 @@ impl TdxClient {
         CodeService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
     }
 
+    /// Reserves a fixed connection. The returned quote service borrows this
+    /// unique guard and executes metadata and refresh on that same connection.
+    pub fn pin(&self, options: &OperationOptions) -> Result<crate::PinnedSession> {
+        let entry = Instant::now();
+        let context = self.hq.begin_context_at(entry, "pin", &self.config, options)?;
+        let mut pin = self.hq.acquire_pin(&self.engine, &context)?;
+        pin.bind_quotes(self.engine.clone(), self.config.clone(), self.namespace.clone());
+        if let Err(root) = context.finish() {
+            return match self.hq.release_pin(&context, &mut pin, Some(root)) {
+                Err(error) => Err(error),
+                Ok(()) => Err(Error::new(ErrorKind::Internal, "pin delivery lost its stop cause")),
+            };
+        }
+        Ok(pin)
+    }
+
     pub fn quotes(&self) -> QuoteService {
         QuoteService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
     }

@@ -587,6 +587,16 @@ pub(crate) struct SessionOperation {
 pub struct PinnedSession {
     owner: Arc<SessionOwner>,
     pin: Option<PinHandle>,
+    quote_source: Option<PinnedQuoteSource>,
+}
+
+pub(crate) struct PinnedQuoteSource {
+    pub(crate) engine: Engine,
+    pub(crate) config: crate::config::ClientConfig,
+    pub(crate) namespace: String,
+    // Also serializes activation state with the wire operation. Empty polling
+    // keeps the last successful activation's parser identities and precision.
+    pub(crate) activation: Mutex<Option<Vec<crate::types::RefreshRequest>>>,
 }
 
 impl PinnedSession {
@@ -598,7 +608,22 @@ impl PinnedSession {
         Ok(Self {
             owner,
             pin: Some(pin),
+            quote_source: None,
         })
+    }
+
+    pub(crate) fn bind_quotes(&mut self, engine: Engine, config: crate::config::ClientConfig, namespace: String) {
+        self.quote_source = Some(PinnedQuoteSource { engine, config, namespace, activation: Mutex::new(Some(Vec::new())) });
+    }
+
+    pub(crate) fn quote_source(&self) -> Result<&PinnedQuoteSource> {
+        self.quote_source.as_ref().ok_or_else(|| Error::new(ErrorKind::InvalidArgument, "internal pin has no public quote source"))
+    }
+
+    pub(crate) fn owner(&self) -> &Arc<SessionOwner> { &self.owner }
+
+    pub fn quotes(&self) -> crate::services::PinnedQuoteService<'_> {
+        crate::services::PinnedQuoteService::new(self)
     }
 
     pub fn identity(&self) -> Option<eltdx_runtime::pin::PinIdentity> {
