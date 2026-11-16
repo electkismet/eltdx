@@ -237,6 +237,13 @@ impl NativeEngine {
         service::minutes(py, self.legacy.clone(), self.namespace.clone(), request, original_code)
     }
 
+    fn sdk_security_request(
+        &self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::directory(py, self.legacy.clone(), request)
+    }
+
     fn sdk_session(
         &self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>,
     ) -> PyResult<Py<PyAny>> {

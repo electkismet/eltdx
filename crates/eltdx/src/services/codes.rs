@@ -21,6 +21,7 @@ use super::{aggregate_meta, allocation_error, endpoint_engine, identity_from_mar
     normalize_ids, result_meta, verify_cursor, ServiceSource};
 use super::pagination::{advance_offset, CollectionLimits, PageProgress};
 use super::code_fingerprint;
+use super::code_selection::CodeSelection;
 
 const ALL_MARKETS: [HqMarket; 3] = [HqMarket::Shanghai, HqMarket::Shenzhen, HqMarket::Beijing];
 
@@ -28,6 +29,33 @@ const ALL_MARKETS: [HqMarket; 3] = [HqMarket::Shanghai, HqMarket::Shenzhen, HqMa
 enum DirectoryValidation {
     Strict,
     Legacy,
+}
+
+fn fetch_directory_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>,
+) -> Result<DecodedReply> {
+    let count = match &request {
+        CommandRequest::SecurityCount(_) => true,
+        CommandRequest::SecurityList(_) => false,
+        _ => return Err(query_error("command", "directory service requires count or list")),
+    };
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let reply = fetch(request)?;
+    if !matches!((count, &reply.response),
+        (true, CommandResponse::SecurityCount(_)) | (false, CommandResponse::SecurityList(_))) {
+        return Err(wrong_response());
+    }
+    context.check_boundary(TimeoutPhase::Decode)?;
+    Ok(reply)
+}
+
+pub(crate) fn legacy_directory_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>,
+) -> Result<CommandResponse> {
+    if !context.is_legacy() { return Err(query_error("profile", "legacy directory requires a compatibility operation")); }
+    Ok(fetch_directory_reply(context, request, fetch)?.response)
 }
 
 /// One directory algorithm for strict Rust collectors and the native legacy
@@ -134,10 +162,11 @@ impl CodeService {
         let context = self.executor.begin_context_at(entry, "codes_count", &self.config, options)?;
         let date = self.executor.owner().current_shanghai_date()?;
         let client_date = u32::from(date.year()) * 10_000 + u32::from(date.month()) * 100 + u32::from(date.day());
-        let raw = self.executor.execute_raw(&self.engine, &context,
-            CommandRequest::SecurityCount(SecurityCountRequest { market: protocol_market(market), client_date }),
-            ChildPurpose::Required, None)?;
-        let decoded = self.executor.decode_unpriced(&context, raw)?;
+        let request = CommandRequest::SecurityCount(SecurityCountRequest { market: protocol_market(market), client_date });
+        let decoded = fetch_directory_reply(&context, request, |request| {
+            let raw = self.executor.execute_raw(&self.engine, &context, request, ChildPurpose::Required, None)?;
+            self.executor.decode_unpriced(&context, raw)
+        })?;
         let CommandResponse::SecurityCount(count) = decoded.response else { return Err(wrong_response()); };
         context.finish()?;
         Ok(u32::from(count))
@@ -216,12 +245,12 @@ impl CodeService {
 
     pub fn etfs(&self, market: HqMarket, query: &CodeScanQuery, options: &OperationOptions) -> Result<Collected<Security>> {
         let entry = Instant::now();
-        self.collect_at(entry, "codes_etfs", &[market], query, options, |item| item.category() == &SecurityCategory::Etf)
+        self.collect_at(entry, "codes_etfs", &[market], query, options, |item| CodeSelection::Etfs.matches_security(item))
     }
 
     pub fn indices(&self, market: HqMarket, query: &CodeScanQuery, options: &OperationOptions) -> Result<Collected<Security>> {
         let entry = Instant::now();
-        self.collect_at(entry, "codes_indices", &[market], query, options, |item| item.category() == &SecurityCategory::Index)
+        self.collect_at(entry, "codes_indices", &[market], query, options, |item| CodeSelection::Indices.matches_security(item))
     }
 
     pub fn all_stocks(&self, query: &CodeScanQuery, options: &OperationOptions) -> Result<Collected<SecurityId>> {
@@ -236,12 +265,12 @@ impl CodeService {
 
     pub fn all_etfs(&self, query: &CodeScanQuery, options: &OperationOptions) -> Result<Collected<SecurityId>> {
         let entry = Instant::now();
-        self.collect_ids_at(entry, "codes_all_etfs", query, options, |item| item.category() == &SecurityCategory::Etf)
+        self.collect_ids_at(entry, "codes_all_etfs", query, options, |item| CodeSelection::Etfs.matches_security(item))
     }
 
     pub fn all_indices(&self, query: &CodeScanQuery, options: &OperationOptions) -> Result<Collected<SecurityId>> {
         let entry = Instant::now();
-        self.collect_ids_at(entry, "codes_all_indices", query, options, |item| item.category() == &SecurityCategory::Index)
+        self.collect_ids_at(entry, "codes_all_indices", query, options, |item| CodeSelection::Indices.matches_security(item))
     }
 
     pub fn latest_stock_list(&self, market: Option<HqMarket>, options: &OperationOptions) -> Result<Collected<Security>> {
@@ -332,8 +361,10 @@ impl CodeService {
         size: usize, purpose: ChildPurpose) -> Result<DecodedReply> {
         let limit = u16::try_from(size).map_err(|_| query_error("page_size", "exceeds the wire range"))?;
         let request = SecurityListRequest::new(protocol_market(market), offset, limit).map_err(Error::from_protocol)?;
-        let raw = self.executor.execute_raw(engine, context, CommandRequest::SecurityList(request), purpose, None)?;
-        self.executor.decode_unpriced(context, raw)
+        fetch_directory_reply(context, CommandRequest::SecurityList(request), |request| {
+            let raw = self.executor.execute_raw(engine, context, request, purpose, None)?;
+            self.executor.decode_unpriced(context, raw)
+        })
     }
 
     fn scan(&self, context: &OperationContext, markets: &[HqMarket], query: &CodeScanQuery) -> Result<ScanResult> {
@@ -435,11 +466,10 @@ fn security_row(market: HqMarket, row: &eltdx_protocol::commands::security::Secu
         f64::from(row.volume_ratio_base), category, row.category_reason.to_owned(), board, row.board_reason().to_owned()), row.record_range))
 }
 
-fn is_stock(item: &Security) -> bool { matches!(item.category(), SecurityCategory::AShare | SecurityCategory::BShare) }
-pub(crate) fn is_a_share(item: &Security) -> bool { item.category() == &SecurityCategory::AShare }
+fn is_stock(item: &Security) -> bool { CodeSelection::Stocks.matches_security(item) }
+pub(crate) fn is_a_share(item: &Security) -> bool { CodeSelection::AShares.matches_security(item) }
 pub(crate) fn is_st_name(name: &str) -> bool {
-    let name = name.trim().to_ascii_uppercase();
-    ["ST", "*ST", "SST", "S*ST"].iter().any(|prefix| name.starts_with(prefix))
+    super::code_selection::st_name(name, false)
 }
 fn offset_overflow() -> Error { Error::new(ErrorKind::LimitExceeded, "security page offset or page count overflows") }
 fn wrong_response() -> Error { Error::new(ErrorKind::Protocol, "security request returned the wrong response kind") }

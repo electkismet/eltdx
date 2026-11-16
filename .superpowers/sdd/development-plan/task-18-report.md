@@ -570,3 +570,51 @@ remain18 source complete/4 partial/8 unstarted. Resume directory count/list and
 selection/statistics, then the other HQ/native domains, whole manifest evidence
 and installed-wheel consumer. This checkpoint does not complete health/probe
 ranking migration or the entire Python lifecycle audit. Goal active, no quota.
+
+Eleventh source stage committed as **2cbcd53**. All execution deferred.
+
+## Twelfth source checkpoint — directory requests and selection
+
+- Added `fetch_directory_reply` as the count/list request/decode boundary for
+  public Rust CodeService and Python LegacyOperation.directory. The existing
+  shared `walk_directory` still owns scanning and pagination. Both built-in
+  Python transports expose the original extractor/tuple projection through
+  sdk_security_request; arbitrary custom transport results and metadata sinks
+  retain the old adapter. A list limit of zero still sends a request, and the
+  old binding still supplies its local current date for count.
+- Added shared CodeSelection for stock/A-share/ETF/index selection and ST names.
+  Pure native selection returns indices into the original Python list, retaining
+  row object identity, order and duplicate occurrences. It does not initialize
+  a network Engine. Unicode uppercase and Python's extra strip characters are
+  retained for legacy ST matching; typed Rust keeps its existing ASCII policy.
+  latest_st remains a name-only filter after latest_stock_list, preserving a
+  user override that supplies a non-A-share row. Cross-market order stays
+  sh, sz, bj. latest_suspended is deferred to the remaining quote integration.
+- Legacy SecurityList decode invokes the original protocol parser so each
+  parsed row still registers its precision in the old process registry used
+  by unmigrated execute commands. Earlier rows retain that side effect if a
+  later row fails. Strict Rust still uses immutable context snapshots and its
+  separate row identity/duplicate/count checks; legacy acquires none of these.
+- Custom row/container/field behavior stays an explicit adapter. all_* ID
+  comprehensions retain category then full_code per row, including exception
+  order and fields with user formatting hooks; native IDs require exact string
+  identifiers. Counts retain original sum/equality behavior for non-bool custom
+  equality. Empty lists avoid loading the pure selector. This source review
+  corrected a draft select-then-project path that changed custom property order.
+- Authored11 contract functions,7 local differential/integration functions and
+  one private Rust selection case. Coverage includes both native transports,
+  zero limits, duplicate/over-limit rows, raw fields/trailing data, date source,
+  market order, row identity, Unicode ST, pure no-engine selection, original
+  protocol exceptions, precision registry publication (including later-row
+  failure), arbitrary sink results and custom attribute/equality ordering.
+  Two manifest records now carry actual source/fixture/exact-node evidence and
+  adapter reasons/exit conditions; their migration statuses remain unchanged.
+
+All sources remain uncollected, uncompiled and unexecuted. No tests, builds,
+checks, dependency resolution/download, network probes, AST, formatting, diff
+whitespace checks or equivalent verification ran. T18 stays partial and overall
+counts remain18 source complete/4 partial/8 unstarted. Resume remaining quote
+entry points/latest_suspended, then trades/auctions/dailyflow/corporate/equity/
+calendar/resources/stats/health/helpers/subscription, complete manifest evidence
+and installed-wheel consumer. Do not rewrite already authored domain/helper
+sources. Goal stays active without a token limit; no subagents or publication.

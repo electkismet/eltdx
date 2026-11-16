@@ -25,6 +25,15 @@ must not be confused with clearing the Python engine holder. Resume directory
 count/list and filter/statistics, then remaining HQ/evidence/installed-wheel
 consumer. All verification is still deferred and T18 remains partial.
 
+Twelfth recovery: session/company committed2cbcd53. Directory count/list and
+stock/A-share/ETF/index/ST selection now authored, sharing Rust domain boundaries
+and pure selectors. Retains limit0 request, local count date, original row/order,
+legacy precision registry including earlier-row effects on later-row failure,
+Unicode ST, no-engine empty/pure selection and custom field/equality timing.
+Added11 contract/7 integration functions and1 Rust case, all unexecuted; two
+manifest records carry source-only evidence, no status promotion. Resume other
+quotes/latest_suspended and ALL remaining HQ migration/evidence/consumer work.
+
 ## Exact plan scope
 
 New `src/helpers/{mod,market,boards,shortline,profile}.rs` (split focused files as necessary), all HQ helper DTO/query types, `tests/hq_helpers.rs`, `examples/hq_query.rs`. Migrate Python HQ `api`, `helpers`, `equity.py`, `workday.py`, `stats.py`, native bridge and manifest per completed domain; author domain differential/compatibility source tests. Implement all HQ M79–M97 including pure classify_fund_flow M95. Complete all HQ methods left by prior tasks; no exposed placeholder/Unsupported for documented valid supported HQ behavior.

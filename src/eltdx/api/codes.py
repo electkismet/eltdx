@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import builtins
 
+from eltdx.models.security import SecurityCode
+from eltdx.protocol.commands import command_code
 from eltdx.protocol.constants import DEFAULT_CODE_PAGE_SIZE, MAX_CODE_PAGE_SIZE
 
 from .base import ApiBase
@@ -11,11 +13,11 @@ from .base import ApiBase
 
 class CodeApi(ApiBase):
     def count(self, market: str):
-        return self._execute("security_count", market=market)
+        return self._query("security_count", market=market)
 
     def list(self, market: str, *, start: int = 0, limit: int = 1600):
         _validate_limit(limit)
-        result = self._execute("security_list", market=market, start=start, limit=limit)
+        result = self._query("security_list", market=market, start=start, limit=limit)
         sink = self._metadata_sink() if self._metadata_sink is not None else None
         if sink is not None:
             sink(result)
@@ -55,22 +57,30 @@ class CodeApi(ApiBase):
             start += len(page)
 
     def stock_count(self, market: str) -> int:
-        return sum(item.category in {"a_share", "b_share"} for item in self.all(market))
+        rows = self.all(market)
+        selected = self._native_selection(rows, "stocks")
+        if selected is not None:
+            return len(selected)
+        return sum(item.category in {"a_share", "b_share"} for item in rows)
 
     def a_share_count(self, market: str) -> int:
-        return sum(item.category == "a_share" for item in self.all(market))
+        rows = self.all(market)
+        selected = self._native_selection(rows, "a_shares")
+        if selected is not None:
+            return len(selected)
+        return sum(item.category == "a_share" for item in rows)
 
     def stocks(self, market: str):
-        return [item for item in self.all(market) if item.category in {"a_share", "b_share"}]
+        return self._select(self.all(market), "stocks")
 
     def a_shares(self, market: str):
-        return [item for item in self.all(market) if item.category == "a_share"]
+        return self._select(self.all(market), "a_shares")
 
     def etfs(self, market: str):
-        return [item for item in self.all(market) if item.category == "etf"]
+        return self._select(self.all(market), "etfs")
 
     def indices(self, market: str):
-        return [item for item in self.all(market) if item.category == "index"]
+        return self._select(self.all(market), "indices")
 
     def all_markets(self) -> builtins.list:
         items = []
@@ -79,27 +89,43 @@ class CodeApi(ApiBase):
         return items
 
     def all_stocks(self) -> builtins.list[str]:
-        return [item.full_code for item in self.all_markets() if item.category in {"a_share", "b_share"}]
+        rows = self.all_markets()
+        selected = self._native_selection(rows, "stocks", identifiers=True)
+        if selected is not None:
+            return [item.full_code for item in selected]
+        return [item.full_code for item in rows if item.category in {"a_share", "b_share"}]
 
     def all_a_shares(self) -> builtins.list[str]:
-        return [item.full_code for item in self.all_markets() if item.category == "a_share"]
+        rows = self.all_markets()
+        selected = self._native_selection(rows, "a_shares", identifiers=True)
+        if selected is not None:
+            return [item.full_code for item in selected]
+        return [item.full_code for item in rows if item.category == "a_share"]
 
     def all_etfs(self) -> builtins.list[str]:
-        return [item.full_code for item in self.all_markets() if item.category == "etf"]
+        rows = self.all_markets()
+        selected = self._native_selection(rows, "etfs", identifiers=True)
+        if selected is not None:
+            return [item.full_code for item in selected]
+        return [item.full_code for item in rows if item.category == "etf"]
 
     def all_indices(self) -> builtins.list[str]:
-        return [item.full_code for item in self.all_markets() if item.category == "index"]
+        rows = self.all_markets()
+        selected = self._native_selection(rows, "indices", identifiers=True)
+        if selected is not None:
+            return [item.full_code for item in selected]
+        return [item.full_code for item in rows if item.category == "index"]
 
     def latest_stock_list(self, market: str | None = None):
         """Return the current A-share security rows from the 0x044d table."""
         if market is None:
-            return [item for item in self.all_markets() if item.category == "a_share"]
+            return self._select(self.all_markets(), "a_shares")
         return [item for item in self.a_shares(market)]
 
     def latest_st(self, market: str | None = None):
         """Return the latest ST/*ST list using the current code-table names."""
         rows = self.latest_stock_list(market)
-        return [item for item in rows if _is_st_name(getattr(item, "name", ""))]
+        return self._select(rows, "st")
 
     def st(self, market: str | None = None):
         """Short alias for :meth:`latest_st`."""
@@ -128,6 +154,42 @@ class CodeApi(ApiBase):
     def suspended(self, market: str | None = None):
         """Short alias for :meth:`latest_suspended`."""
         return self.latest_suspended(market)
+
+    def _query(self, name: str, **payload):
+        if self._native_services:
+            return self._transport.sdk_security_request(command_code(name), payload)
+        return self._execute(name, **payload)
+
+    def _native_selection(self, rows, selection: str, *, identifiers: bool = False):
+        # Preserve arbitrary custom row attributes/equality/iteration semantics.
+        # Native directory rows are the exact frozen dataclass with str fields.
+        if self._native_services and type(rows) is builtins.list:
+            if not rows:
+                return []
+            if builtins.all(type(row) is SecurityCode and type(getattr(row, "category", None)) is str
+                            and type(getattr(row, "name", None)) is str
+                            and (not identifiers or (type(getattr(row, "exchange", None)) is str
+                                                     and type(getattr(row, "code", None)) is str))
+                            for row in rows):
+                indices = self._transport.sdk_select_codes(
+                    [(row.category, row.name) for row in rows], selection,
+                )
+                return [rows[index] for index in indices]
+        return None
+
+    def _select(self, rows, selection: str):
+        selected = self._native_selection(rows, selection)
+        if selected is not None:
+            return selected
+        if selection == "stocks":
+            return [item for item in rows if item.category in {"a_share", "b_share"}]
+        if selection == "a_shares":
+            return [item for item in rows if item.category == "a_share"]
+        if selection == "etfs":
+            return [item for item in rows if item.category == "etf"]
+        if selection == "indices":
+            return [item for item in rows if item.category == "index"]
+        return [item for item in rows if _is_st_name(getattr(item, "name", ""))]
 
 
 def _validate_page_size(value: int) -> None:

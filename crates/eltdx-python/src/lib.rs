@@ -19,6 +19,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(protocol::decode_response, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::encode_request_frame, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::parse_command_response, module)?)?;
+    module.add_function(wrap_pyfunction!(service::select_security_rows, module)?)?;
     transport::register(module)?;
     Ok(())
 }

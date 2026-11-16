@@ -1,7 +1,7 @@
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
-use eltdx::__python_compat::{LegacyBarTime, LegacyExecutor, LegacyOperation};
+use eltdx::__python_compat::{LegacyBarTime, LegacyCodeSelection, LegacyExecutor, LegacyOperation};
 use eltdx::types::HqMarket;
 use eltdx::{CancellationToken, Error, ErrorKind, RawPolicy};
 use eltdx_protocol::{CommandRequest, CommandResponse};
@@ -112,6 +112,21 @@ pub fn minutes(
         Ok(result)
     })?;
     response::to_python(py, result)
+}
+
+pub fn directory(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
+    unpriced_domain(py, executor, request, "python_directory", LegacyOperation::directory)
+}
+
+#[pyfunction]
+pub fn select_security_rows(py: Python<'_>, rows: Vec<(String, String)>, selection: &str) -> PyResult<Vec<usize>> {
+    let selection = LegacyCodeSelection::from_name(selection).map_err(|source| error::from_sdk(py, source))?;
+    let mut selected = Vec::new();
+    for (index, (category, name)) in rows.iter().enumerate() {
+        if index % 256 == 0 { py.check_signals()?; }
+        if selection.matches_legacy(category, name) { selected.push(index); }
+    }
+    Ok(selected)
 }
 
 pub fn session(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {

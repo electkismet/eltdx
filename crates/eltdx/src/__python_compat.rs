@@ -21,6 +21,8 @@ use crate::session::SessionOwner;
 use crate::types::HqMarket;
 use crate::{CancellationToken, RawPolicy};
 
+pub use crate::services::code_selection::CodeSelection as LegacyCodeSelection;
+
 #[derive(Clone, Copy, Debug)]
 pub enum LegacyChildPurpose { Required, Metadata, Page, MissingRecovery, EmptyProbe, Fallback, Renewal }
 
@@ -278,6 +280,14 @@ impl LegacyOperation {
                 &self.context, request, purpose, None)?;
             if priced { self.executor.executor.decode_received(&self.context, raw) }
             else { self.executor.executor.decode_unpriced(&self.context, raw) }
+        })
+    }
+
+    pub fn directory(&self, request: CommandRequest) -> Result<CommandResponse> {
+        crate::services::legacy_directory_reply(&self.context, request, |request| {
+            let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,
+                request, ChildPurpose::Required, None)?;
+            self.executor.executor.decode_unpriced(&self.context, raw)
         })
     }
 

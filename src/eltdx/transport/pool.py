@@ -453,6 +453,13 @@ class PooledSocketTransport:
         dto = call_native(self._native().sdk_minutes, command, payload)
         return response_from_dto(dto)
 
+    def sdk_security_request(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_security_request, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_select_codes(self, rows, selection: str):
+        return call_native(native_module().select_security_rows, rows, selection)
+
     def sdk_session(self, command: int, payload: dict[str, Any]):
         dto = call_native(self._native().sdk_session, command, payload)
         return response_from_dto(dto)

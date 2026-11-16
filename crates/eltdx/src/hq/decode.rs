@@ -98,7 +98,14 @@ fn decode_frame_profile(
         response.data = Bytes::copy_from_slice(&response.data);
         if raw == RawPolicy::RetainWire { response.raw = Bytes::copy_from_slice(&response.raw); }
     }
-    let parsed = CommandResponse::parse_with_context(request.clone(), response.data.clone(), &options)?;
+    // A legacy directory parse historically publishes each row's precision to
+    // the old process registry, including rows before a later parse failure.
+    // Retain that effect only for Python; typed Rust stays snapshot isolated.
+    let parsed = if legacy && matches!(&request, CommandRequest::SecurityList(_)) {
+        CommandResponse::parse(request.clone(), &response.data)?
+    } else {
+        CommandResponse::parse_with_context(request.clone(), response.data.clone(), &options)?
+    };
     let payload = if parse_raw == ParseRawPolicy::Omit {
         Bytes::new()
     } else {

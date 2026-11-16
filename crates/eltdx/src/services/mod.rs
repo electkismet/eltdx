@@ -1,4 +1,5 @@
 mod codes;
+pub(crate) mod code_selection;
 mod auctions;
 mod klines;
 mod bar_collection;
@@ -28,6 +29,7 @@ pub use codes::CodeService;
 pub(crate) use codes::{is_a_share, is_st_name};
 pub use auctions::AuctionService;
 pub(crate) use codes::{legacy_directory_pages, publish_legacy_directory_metadata};
+pub(crate) use codes::legacy_directory_reply;
 pub use klines::KlineService;
 pub(crate) use klines::legacy_bar_series;
 pub use minutes::MinuteService;

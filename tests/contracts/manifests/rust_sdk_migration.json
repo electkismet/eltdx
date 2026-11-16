@@ -138,7 +138,15 @@
       "id": "7709-code-count",
       "source_files": [
         "docs/methods/7709-代码数量.md",
-        "src/eltdx/api/codes.py"
+        "src/eltdx/api/codes.py",
+        "src/eltdx/transport/socket.py",
+        "src/eltdx/transport/pool.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/codes.rs",
+        "crates/eltdx/src/services/code_selection.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -149,6 +157,32 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x044e",
       "api": "client.codes.count(market)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::codes -> eltdx::services::CodeService::{count,stock_count,a_share_count}",
+        "python_entry": "CodeApi.count -> transport.sdk_security_request -> NativeEngine.sdk_security_request -> LegacyOperation.directory; stock_count/a_share_count -> select_security_rows",
+        "shared_algorithm": "crates/eltdx/src/services/codes.rs::fetch_directory_reply; crates/eltdx/src/services/code_selection.rs::CodeSelection",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_code_bridge.py::test_native_code_count_and_list_preserve_parameters_and_sink",
+          "tests/contracts/test_sdk_code_bridge.py::test_native_stock_counts_are_lengths_of_shared_selection"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_code_bridge.py::test_native_code_count_keeps_original_binding_date_and_single_request",
+          "tests/integration/test_native_code_bridge.py::test_native_directory_selection_matches_existing_rows_order_and_counts",
+          "tests/integration/test_native_code_bridge.py::test_native_directory_protocol_errors_keep_original_text_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/security_count/normal", "tests/integration/test_native_code_bridge.py::_directory"],
+        "temporary_adapter": {
+          "scope": "custom transports/subclasses and nonstandard row containers/category/name fields",
+          "reason": "Retain execute extension points, arbitrary count replies and original sum/equality evaluation for custom rows; the ordinary frozen native rows use shared Rust selection.",
+          "contract_nodes": [
+            "tests/contracts/test_sdk_code_bridge.py::test_native_filters_keep_custom_row_adapter_and_unicode_name_behavior",
+            "tests/contracts/test_sdk_code_bridge.py::test_custom_category_count_keeps_original_nonboolean_equality_sum"
+          ],
+          "exit_condition": "A callback selection seam preserves Python iteration, non-bool equality sums, arbitrary replies and exact exceptions before removing the custom adapter."
+        },
+        "validation": "Not collected, compiled or executed. Count keeps the old binding's local current date rather than imposing the strict Rust Shanghai-clock default."
+      },
       "kind": "底层协议 / 便捷筛选",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-代码数量.md",
@@ -161,7 +195,16 @@
       "id": "7709-code-list",
       "source_files": [
         "docs/methods/7709-代码表.md",
-        "src/eltdx/api/codes.py"
+        "src/eltdx/api/codes.py",
+        "src/eltdx/transport/socket.py",
+        "src/eltdx/transport/pool.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/codes.rs",
+        "crates/eltdx/src/services/code_selection.rs",
+        "crates/eltdx/src/hq/decode.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -172,6 +215,39 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x044d",
       "api": "client.codes.list() / client.codes.all()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::codes -> eltdx::services::CodeService::{list,all,stocks,a_shares,etfs,indices,all_stocks,all_a_shares,all_etfs,all_indices,latest_st}",
+        "python_entry": "CodeApi.list -> transport.sdk_security_request -> LegacyOperation.directory; CodeApi.all -> sdk_security_pages -> legacy_directory_pages; filters -> select_security_rows",
+        "shared_algorithm": "crates/eltdx/src/services/codes.rs::{fetch_directory_reply,walk_directory}; crates/eltdx/src/services/code_selection.rs::{CodeSelection,st_name}",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_code_bridge.py::test_native_code_count_and_list_preserve_parameters_and_sink",
+          "tests/contracts/test_sdk_code_bridge.py::test_native_code_filters_keep_original_row_objects",
+          "tests/contracts/test_sdk_code_bridge.py::test_native_all_market_ids_keep_market_scan_order",
+          "tests/contracts/test_sdk_code_bridge.py::test_native_st_filter_keeps_name_only_after_latest_stock_extension",
+          "tests/contracts/test_sdk_code_bridge.py::test_native_empty_filter_does_not_call_stateless_native_selector"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_code_bridge.py::test_native_code_list_keeps_zero_limit_duplicate_rows_and_raw_fields",
+          "tests/integration/test_native_code_bridge.py::test_native_directory_selection_matches_existing_rows_order_and_counts",
+          "tests/integration/test_native_code_bridge.py::test_native_directory_retains_old_precision_registry_for_unmigrated_commands",
+          "tests/integration/test_native_code_bridge.py::test_native_directory_retains_prior_row_precision_when_later_row_fails",
+          "tests/integration/test_native_code_bridge.py::test_native_st_selection_handles_python_unicode_rules_without_starting_engine",
+          "tests/integration/test_native_code_bridge.py::test_native_directory_protocol_errors_keep_original_text_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/security_list/normal", "tests/fixtures/7709/security_list/sh_empty", "tests/integration/test_native_code_bridge.py::_directory"],
+        "temporary_adapter": {
+          "scope": "custom transports/subclasses, arbitrary row objects/iterables and custom identifier/category/name fields",
+          "reason": "Preserve original category/full_code interleaving, equality, exceptions, arbitrary response/sink values and Python string conversion. Native exact frozen rows use the Rust selectors and keep original row identity.",
+          "contract_nodes": [
+            "tests/contracts/test_sdk_code_bridge.py::test_code_list_keeps_custom_untyped_response_and_sink",
+            "tests/contracts/test_sdk_code_bridge.py::test_custom_identifier_selection_keeps_per_row_attribute_order",
+            "tests/contracts/test_sdk_code_bridge.py::test_exact_security_row_with_custom_identifier_keeps_interleaved_selection"
+          ],
+          "exit_condition": "A callback executor and selector preserve arbitrary objects and per-row property/exception ordering before removing custom adapter paths."
+        },
+        "validation": "Unexecuted source only. Legacy list retains limit=0 request, duplicates, trailing data, per-row process precision registration and Unicode ST rules; strict Rust snapshot isolation and row assertions remain separate."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-代码表.md",
