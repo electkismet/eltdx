@@ -122,10 +122,15 @@ in the Python compatibility adapter rather than adopting strict Rust defaults:
 - History weak factories/executor scope and reserialized `raw_payload` remain
   separate from new Rust actual HTTP raw bytes and strict history days/count.
 
-## Remaining work outside this source gate
+## T23 source handoff and remaining verification
 
-T19 still needs real dependency resolution, API/MSRV/license/feature-tree and
-platform verification, deferred by the user. T22 financial archives/downloads,
-T23 Python and cross-source migration, T24–T27 extension services/bridges and
-T28–T30 packaging/consumers/final verification are separate required tasks.
-Do not infer completion of those tasks from this F10 source index.
+T22 financial archive/download sources and T23 Python/cross-source migration
+sources are now authored. The compatibility differences above are implemented
+in native adapters, including the separate MoneyFlowApi history orchestration.
+See [T23 migration index](t23-migration-index.md) for required/optional sources,
+feature gates, intentional adapters, manifest and independent consumer sources.
+
+T19 still needs dependency resolution, API/MSRV/license/feature-tree and
+platform verification, deferred by the user. T24–T27 extension services/bridges
+and T28–T30 packaging/consumers/final verification remain required tasks.
+No source-completion entry establishes a compiled, tested or usable release.

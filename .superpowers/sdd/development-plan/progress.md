@@ -2,6 +2,17 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage73: based59a51c. T23 source scope complete:
+  added source-only evidence for25 F10 catalog records and3 topic helper
+  records; supplemental international/bond/sector, fields/models, collection
+  helper, history, offline and financial domains preserve124 catalog count
+  and leave public acceptance statuses unchanged. Added full T23 source/
+  compatibility/required-optional/feature/consumer index and updated older
+  handoffs.22 source complete/3 partial/5 unstarted. Next read task-24/25
+  reports and continue Stage B owner/session/transport, thenT26–T30.
+  All tests/build/check/dependency/network/AST/format/diff-check execution
+  remains deferred. Goal active unlimited; no agents or publication.
+
 - Latest recovery2026-11-17 stage72: base6257811. Discovered and migrated the
   remaining MoneyFlowApi._single_history orchestration to native. Strict and
   Python history share request layout and reverse-before-window policy; legacy
@@ -356,7 +367,7 @@ execution deferred until T01–T30 implementation is fully authored; no subagent
 | T20 | All157 F10 entries, fields, history, typed results and authored source cases complete at `1722815`; execution deferred |
 | T21 | Implementation and scoped source review complete through `b6e4beb`; verification deferred |
 | T22 | Shared ZIP/local DAT/HQ financial service/examples/consumer source complete through `df29d6b`; execution deferred |
-| T23 | Partial: shared list parser `74ccae3`, shared DAT visitor/Python projection authored; ZIP/remaining offline/F10/helpers/evidence pending |
+| T23 | Source complete: all F10/offline/financial/history native bridges, typed helpers/topic/theme compositions, source-only manifest and consumers; execution deferred |
 | T24 | Stage A through04f613a scoped review approved; transport/owner integration requires Stage B |
 | T25 | Isolated Stage A bitmap/command/native model `c87e5b0`, report `78bf121`; response coverage and owner/session integration remain Stage B |
 | T26 | Not started |

@@ -78,5 +78,8 @@ with Rust object classes.
 - `crates/eltdx/tests/offline_bars.rs`, `offline_industry.rs`, `offline_blocks.rs`,
   `gbbq.rs`, `financial.rs`: typed Rust behavior and shared policy/callback cases.
 
-Full F10 migration, cross-source helpers and final capability manifest evidence
-remain T23 work. Compile/install/consumer/platform verification remains deferred.
+T23 F10/cross-source migration, authored capability manifest evidence and
+independent offline/financial consumers are now written. See the
+[T23 migration index](t23-migration-index.md) for the complete source handoff.
+Compile/install/consumer/platform verification remains deferred until all
+T01–T30 implementation sources are complete; no listed case has run.

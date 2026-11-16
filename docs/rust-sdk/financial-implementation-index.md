@@ -87,7 +87,8 @@ API. No hash-verification claim is made.
 | existing `tests/resources.rs` and `tests/stats.rs` | Regression coverage of the shared resource loop and ZIP decoder |
 | `examples/financial_read.rs` | Explicit local-path reader |
 | `examples/financial_download.rs` | Explicit endpoint/remote-leaf download with owner cleanup |
-| `tests/consumers/rust-sdk/src/financial.rs` | One production dependency, std-only hand-authored ZIP/DAT, raw signed zero, lazy/closed service |
+| `tests/consumers/rust-sdk/src/financial.rs` | One production dependency, std-only hand-authored ZIP/DAT, actual HQ list/archive downloads, raw signed zero, filename date and shared close |
+| `tests/consumers/python-wheel/consumer.py` | Installed public Python models, actual HQ list/archive download and local DAT/ZIP header-date behavior without Rust build tools |
 
 No listed command has run. At the final execution gate, include:
 
@@ -101,9 +102,9 @@ The independent consumer must also run against a packaged/copied SDK as part
 of T28/T29. A source path consumer alone does not establish package contents,
 MSRV/platform support or independence from the repository layout.
 
-## Required Python handoff
+## Python source handoff completed in T23
 
-T23 retains the existing Python API and custom resource-client hooks. Its
+T23 native binding sources retain the existing Python API and custom resource-client hooks. Its
 first-DAT-in-archive-order rule, Python runtime `int`/Unicode `re`, arbitrary
 signed file sizes and integer date overrides differ intentionally from the
 strict Rust API. Legacy direct DAT reads do not acquire the new total-byte
@@ -111,4 +112,6 @@ cap or strict overlap policy. Legacy ZIP does not acquire new all-member
 validation/expansion rules. Those differences require explicit adapters over
 the shared algorithms; calling the strict public service from Python is not
 a compatibility implementation. Original exceptions and partial-download
-behavior remain part of the Python tests. T22 does not claim that migration.
+behavior remain part of the authored Python tests. Implementation mappings
+are in [T23 migration index](t23-migration-index.md) and
+`tests/contracts/manifests/rust_sdk_migration.json`; none has been executed.

@@ -704,3 +704,29 @@ was compiled, collected, imported or run. The new test file uses constructed
 security strings to avoid unrelated pre-existing substituted sample literals.
 T23 still needs full manifest evidence and documentation handoff; counts remain
 21 source complete/4 partial/5 unstarted. Goal active without a token cap.
+
+## Twenty-fifth checkpoint — T23 source gate and evidence handoff
+
+Based59a51c. Authored evidence now maps all25 F10 catalog records and3 topic
+helper records to implementation/bridge sources and exact authored Rust/Python
+case names. Supplemental domains cover international/bond/sector entries,
+fields/values/news/models, four collection helpers, historical fund flow,
+offline files and financial files/downloads. Consumer metadata includes the
+new F10/offline/financial modes. The old daily-money-flow adapter note no
+longer incorrectly describes the now-native 7615 history as unimplemented.
+All evidence remains source_only_unverified. Authoritative26 wire/25 registry/
+124 catalog/37 fixture counts, status vocabulary, public_sdk_status and
+sdk_evidence are unchanged. Source review corrected two initially authored
+path references to actual core.py/financial.py paths; no manifest validator
+or AST/compiler/test execution occurred.
+
+Added docs/rust-sdk/t23-migration-index.md: independent products, feature gates,
+shared core versus language projection, required/optional sources, one parent
+owner/deadline/budget, topic/rank policies, retained custom adapters with exit
+conditions, exact consumer scope and final-only verification obligations.
+Updated F10/offline/financial handoffs, development plan/current task table
+and mirrored public docs. T23 source implementation scope is complete; all
+acceptance checkboxes/execution remain deferred.22 source complete/3 partial
+(T19/T24/T25)/5 unstarted(T26–T30). Next T24/T25 Stage B; task reports read,
+existing all-task user authorization covers integration. No tests/collection/
+build/check/dependency/network/AST/format/diff-check, agents or publication.

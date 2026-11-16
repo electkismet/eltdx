@@ -11,9 +11,76 @@
     "state": "source_only_unverified",
     "rust": "tests/consumers/rust-sdk/src/main.rs",
     "rust_fixture": "tests/consumers/rust-sdk/src/server.rs",
+    "rust_modes": ["tests/consumers/rust-sdk/src/f10.rs", "tests/consumers/rust-sdk/src/offline.rs", "tests/consumers/rust-sdk/src/financial.rs"],
     "python_wheel": "tests/consumers/python-wheel/consumer.py",
     "requirements": "Copy outside the checkout; Rust environment has no Python, wheel environment has no Rust build tools. Package/feature/MSRV/platform execution is deferred to final validation."
   },
+  "supplemental_domain_evidence": [
+    {
+      "domain": "f10-international-bond-sector-entries",
+      "state": "source_only_unverified",
+      "rust_entry": "F10Client named US/HK/third-board/bond/industry/futures methods; 157-entry source index",
+      "source_files": ["crates/eltdx/src/f10/endpoints/international.rs", "crates/eltdx/src/f10/endpoints/bonds.rs", "crates/eltdx/src/f10/endpoints/sectors.rs", "crates/eltdx/src/f10/endpoints/simple_registry.rs", "crates/eltdx/src/f10/endpoints/request_shapes.rs", "crates/eltdx/src/f10/endpoints/sector_templates.rs", "crates/eltdx-python/src/f10_request.rs", "crates/eltdx-python/src/f10_report.rs", "src/eltdx/f10/client.py"],
+      "contract_nodes": ["tests/test_native_f10_contract.py::test_f10_fixed_templates_preserve_original_public_requests", "tests/test_native_f10_contract.py::test_f10_page_branches_keep_raw_objects_and_fixed_numbers", "tests/test_native_f10_contract.py::test_f10_sector_templates_keep_all_entry_selections", "tests/test_native_f10_contract.py::test_f10_forecast_preserves_leap_day_default_error"],
+      "rust_nodes": ["crates/eltdx/tests/f10_named_methods.rs::every_international_named_method_executes_its_query_and_retains_response", "crates/eltdx/tests/f10_named_methods.rs::every_bond_named_method_executes_its_query_and_retains_response", "crates/eltdx/tests/f10_named_methods.rs::every_sector_named_method_executes_its_query_and_retains_response"],
+      "compatibility": "Supplemental methods do not add catalog records. Python retains BRK.B legacy identity, six-digit HK input, open selectors, runtime dates and exception/conversion order. Rust retains explicit typed identities."
+    },
+    {
+      "domain": "f10-fields-values-news-models",
+      "state": "source_only_unverified",
+      "rust_entry": "f10::fields, JsonValue/Response/Row, f10::news and typed collection/ladder models",
+      "source_files": ["crates/eltdx/src/f10/fields.rs", "crates/eltdx/src/f10/fields/data.rs", "crates/eltdx/src/f10/collection.rs", "crates/eltdx/src/f10/news.rs", "crates/eltdx/src/f10/python_legacy.rs", "crates/eltdx-python/src/f10_response.rs", "crates/eltdx-python/src/f10_fields.rs", "crates/eltdx-python/src/f10_news.rs", "crates/eltdx-python/src/f10_values.rs", "crates/eltdx-python/src/f10_models.rs", "src/eltdx/f10/fields.py", "src/eltdx/f10/fields_mg_hk.py", "src/eltdx/f10/models.py"],
+      "contract_nodes": ["tests/test_native_f10_contract.py::test_f10_field_dictionary_keeps_scope_metadata_and_copy", "tests/test_native_f10_contract.py::test_f10_first_value_stops_at_first_matching_none", "tests/test_native_f10_contract.py::test_f10_model_sequences_keep_duplicates_and_first_seen_unique_order", "tests/test_native_f10_contract.py::test_f10_ladder_model_retains_merged_ranges_day_order_and_rates_above_one"],
+      "rust_nodes": ["crates/eltdx/tests/f10_results.rs::dynamic_columns_news_position_and_business_failure_preserve_source_structure", "crates/eltdx/tests/f10_results.rs::field_labels_require_the_correct_entry_report_and_industry_template", "crates/eltdx/tests/f10_values.rs::ordered_duplicate_members_and_large_numeric_text_roundtrip"],
+      "compatibility": "Python retains runtime dictionaries, permissive numeric/bool/date rules, duplicate suffix/collision policy, lazy tuples, raw objects and dataclasses. Rust retains duplicate cells/number lexemes and unknown units."
+    },
+    {
+      "domain": "f10-collection-helpers",
+      "state": "source_only_unverified",
+      "rust_entry": "HelperService::index_members; HelperService::index_etfs; HelperService::board_members; HelperService::ipo_calendar",
+      "feature_requirement": "f10",
+      "source_files": ["crates/eltdx/src/helpers/f10.rs", "crates/eltdx/src/f10/endpoints/market.rs", "crates/eltdx/src/f10/collection.rs", "crates/eltdx/src/client.rs", "crates/eltdx-python/src/helper_f10.rs", "crates/eltdx-python/src/f10_collection.rs", "src/eltdx/helpers/core.py"],
+      "contract_nodes": ["tests/test_native_f10_helpers_contract.py::test_f10_helper_cache_normalizes_key_but_passes_original_code", "tests/test_native_f10_helpers_contract.py::test_index_entry_looks_up_live_cache_override_and_source", "tests/test_native_f10_helpers_contract.py::test_index_cache_none_is_a_miss_and_failed_refresh_keeps_old_entry", "tests/test_native_f10_helpers_contract.py::test_ipo_cache_has_static_key_and_refresh_does_not_stringify"],
+      "rust_nodes": ["crates/eltdx/tests/helpers.rs::f10_helpers_return_nonempty_typed_results_without_connecting_hq", "crates/eltdx/tests/helpers.rs::closing_either_shared_domain_closes_the_whole_owner", "crates/eltdx/tests/helpers.rs::required_f10_protocol_failure_is_not_downgraded_to_empty_or_hq"],
+      "compatibility": "Rust HTTP helpers share the originating TdxClient owner/context without opening HQ. Python keeps existing F10 lifecycle, normalized cache keys, original getter inputs, cached identity and failed-refresh behavior. Standalone F10Client has its own owner."
+    },
+    {
+      "domain": "f10-money-flow-history",
+      "state": "source_only_unverified",
+      "rust_entry": "F10Client::money_flow_history -> MoneyFlowHistoryService::history/range",
+      "feature_requirement": "f10",
+      "source_files": ["crates/eltdx/src/services/money_flow_history.rs", "crates/eltdx/src/f10/collection.rs", "crates/eltdx-python/src/money_flow_history.rs", "src/eltdx/api/money_flow.py"],
+      "contract_nodes": ["tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_history_retains_f10_route_and_never_uses_daily", "tests/contracts/test_sdk_money_flow_history_bridge.py::test_history_materializes_full_reverse_before_window_and_keeps_row_identity", "tests/contracts/test_sdk_money_flow_history_bridge.py::test_history_captures_params_and_constructor_but_reloads_split_and_str", "tests/contracts/test_sdk_money_flow_history_bridge.py::test_history_private_window_keeps_python_add_slice_and_live_tuple", "tests/contracts/test_sdk_money_flow_history_bridge.py::test_history_raw_dumps_is_captured_before_property_and_encoded_with_original_kwargs", "tests/contracts/test_sdk_money_flow_history_bridge.py::test_history_reverse_failure_keeps_root_and_does_not_construct_model"],
+      "rust_nodes": ["crates/eltdx/tests/f10_results.rs::money_flow_history_comp050_reverses_then_slices_without_sorting", "crates/eltdx/tests/f10_results.rs::money_flow_history_keeps_business_status_unknown_units_and_additional_tables", "crates/eltdx/tests/f10_results.rs::money_flow_history_empty_response_and_outside_window_make_one_request_each"],
+      "compatibility": "One 7615 request, no HQ daily/category22 fallback. Shared request and reverse-before-window order, no sort. Python keeps callbacks, complete tuple, private arbitrary slices and compact Unicode JSON raw; Rust retains actual HTTP bytes/status/extra tables and typed diagnostics."
+    },
+    {
+      "domain": "offline-files",
+      "state": "source_only_unverified",
+      "rust_entry": "eltdx::offline path/industry/bar/append/GBBQ/block APIs",
+      "feature_requirement": "offline",
+      "source_index": "docs/rust-sdk/offline-migration-index.md",
+      "source_files": ["crates/eltdx/src/offline/mod.rs", "crates/eltdx/src/offline/bars.rs", "crates/eltdx/src/offline/gbbq.rs", "crates/eltdx/src/offline/block.rs", "crates/eltdx-python/src/offline_paths.rs", "crates/eltdx-python/src/offline_bars.rs", "crates/eltdx-python/src/offline_write.rs", "crates/eltdx-python/src/offline_gbbq.rs", "crates/eltdx-python/src/offline_blocks.rs"],
+      "contract_nodes": ["tests/test_native_offline_contract.py::test_daily_reader_keeps_invalid_raw_date_tail_and_runtime_coefficients", "tests/test_native_offline_contract.py::test_append_filters_against_original_last_key_and_keeps_input_order", "tests/test_native_offline_contract.py::test_gbbq_shared_cipher_keeps_source_dates_categories_and_values"],
+      "rust_test_sources": ["crates/eltdx/tests/offline_bars.rs", "crates/eltdx/tests/offline_industry.rs", "crates/eltdx/tests/offline_blocks.rs", "crates/eltdx/tests/gbbq.rs"],
+      "consumer_sources": ["tests/consumers/rust-sdk/src/offline.rs", "tests/consumers/python-wheel/consumer.py"],
+      "temporary_adapter": "Python file contexts/durability and replaced Struct/layout/buffer/parser/codec hooks retain existing object/exception semantics. Exit conditions are in the source index.",
+      "compatibility": "Shared codecs and traversal preserve raw bits, original-tail append threshold, duplicates/input order and industry overwrite order. Strict Rust path/tail rules do not replace Python legacy policies."
+    },
+    {
+      "domain": "financial-files-and-download",
+      "state": "source_only_unverified",
+      "rust_entry": "FinancialService list/download/archive/records; offline DAT/ZIP/local readers",
+      "feature_requirement": "offline",
+      "source_index": "docs/rust-sdk/financial-implementation-index.md",
+      "source_files": ["crates/eltdx/src/financial.rs", "crates/eltdx/src/offline/financial.rs", "crates/eltdx/src/services/resources.rs", "crates/eltdx-python/src/offline_financial.rs", "src/eltdx/offline/history_financial.py", "src/eltdx/financial.py"],
+      "contract_nodes": ["tests/test_native_financial_contract.py::test_zip_selects_first_distinct_dat_and_reads_exact_validated_info", "tests/test_native_financial_contract.py::test_financial_list_composition_keeps_resource_and_model_hooks", "tests/test_native_financial_contract.py::test_local_financial_projection_keeps_parser_and_record_hooks", "tests/test_native_financial_contract.py::test_financial_badzip_cause_and_truncated_download_behavior"],
+      "rust_nodes": ["crates/eltdx/tests/financial.rs::exact_bits_raw_header_market_code_and_ranges", "crates/eltdx/tests/financial.rs::local_zip_uses_header_date_explicit_override_and_cancellation", "crates/eltdx/tests/financial_service.rs::records_compose_list_hq_archive_zip_and_dat_with_source_provenance", "crates/eltdx/tests/financial_service.rs::capped_download_is_not_complete_even_when_expected_size_matches"],
+      "consumer_sources": ["tests/consumers/rust-sdk/src/financial.rs", "tests/consumers/python-wheel/consumer.py"],
+      "temporary_adapter": "Python ZIP/resource/path/parser/model hooks, first distinct DAT selection, arbitrary dates/integers, legacy byte/overlap/error policies remain explicit adapters.",
+      "compatibility": "Same DAT/ZIP/resource algorithms with separate strict/legacy policies. Local date uses header; downloaded archive uses filename priority. Opaque hash/stale size never prove EOF or hash verification."
+    }
+  ],
   "supplemental_hq_evidence": [
     {
       "method_ids": ["M93"],
@@ -1264,7 +1331,7 @@
         ],
         "fixtures": ["tests/fixtures/7709", "tests/integration/test_native_money_flow_domain_bridge.py::_block"],
         "temporary_adapter": {
-          "scope": "Python factory/transport/executor lifetime, custom query and result projection; native binding submits/collects batches; 7615 history core remains T20/T23 work",
+          "scope": "Python factory/transport/executor lifetime, custom query and result projection; native binding submits/collects batches; 7615 history uses the shared F10 request/reverse-window policy through native money_flow_history, retaining live legacy callbacks and JSON projection",
           "reason": "Shared Rust source loop calls narrow Python callbacks to preserve exception identity, preferred ownership, factory errors, skipped-host budget debits and existing weak callback lifetimes.",
           "contract_nodes": ["tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_recovery_keeps_custom_query_callback", "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_execute_replacement_keeps_custom_response", "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_history_retains_f10_route_and_never_uses_daily"],
           "exit_condition": "Retain language ownership and arbitrary callback hooks; final source-to-result evidence and F10 history core remain unverified."
@@ -1442,7 +1509,16 @@
     {
       "id": "f10-generic-entry",
       "source_files": [
-        "docs/methods/F10-通用Entry调用.md"
+        "docs/methods/F10-通用Entry调用.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/client.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1451,6 +1527,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.call(...) / client.f10.params(...)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::call; F10Client::params",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_call_and_params_keep_instance_overrides_and_original_body"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_named_methods.rs::generic_call_and_params_execute_their_distinct_body_shapes"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "高级调用",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-通用Entry调用.md",
@@ -1462,7 +1556,16 @@
     {
       "id": "f10-stock-info",
       "source_files": [
-        "docs/methods/F10-股票基础信息.md"
+        "docs/methods/F10-股票基础信息.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1471,6 +1574,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.stock_info() / client.f10.business_periods() / client.f10.topic_ids()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::stock_info; F10Client::business_periods; F10Client::topic_ids",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_fixed_templates_preserve_original_public_requests"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::ashare_default_single_request_inventory"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-股票基础信息.md",
@@ -1482,7 +1603,16 @@
     {
       "id": "f10-limit-board-ladder",
       "source_files": [
-        "docs/methods/F10-涨跌停列表.md"
+        "docs/methods/F10-涨跌停列表.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/ladder.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_collection.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1491,6 +1621,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.limit_up_down_list()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::limit_up_down_list; F10Client::limit_board_ladder",
+        "python_entry": "F10Client public facade -> native f10_collection.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_ladder_preserves_summary_before_detail_projection"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_results.rs::ladder_keeps_raw_unknowns_and_counts_only_positive_up_rows_per_day"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-涨跌停列表.md",
@@ -1502,7 +1650,16 @@
     {
       "id": "f10-company-profile",
       "source_files": [
-        "docs/methods/F10-公司概况.md"
+        "docs/methods/F10-公司概况.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1511,6 +1668,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.company_profile()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::company_profile",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_fixed_templates_preserve_original_public_requests"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::ashare_default_single_request_inventory"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-公司概况.md",
@@ -1522,7 +1697,16 @@
     {
       "id": "f10-business-composition",
       "source_files": [
-        "docs/methods/F10-主营构成.md"
+        "docs/methods/F10-主营构成.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_report.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1531,6 +1715,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.business_composition()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::business_composition",
+        "python_entry": "F10Client public facade -> native f10_report.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_business_composition_keeps_first_value_and_original_code"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_named_methods.rs::every_report_named_single_request_method_executes_its_query"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-主营构成.md",
@@ -1542,7 +1744,16 @@
     {
       "id": "f10-shareholder-change",
       "source_files": [
-        "docs/methods/F10-股东增减持.md"
+        "docs/methods/F10-股东增减持.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_report.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1551,6 +1762,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.shareholder_change_plans()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::shareholder_change_plans; F10Client::shareholders",
+        "python_entry": "F10Client public facade -> native f10_report.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_shareholder_alias_preserves_public_override_and_raw_inputs"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::shareholder_capital_business_and_industry_branches"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-股东增减持.md",
@@ -1562,7 +1791,16 @@
     {
       "id": "f10-dividend-financing",
       "source_files": [
-        "docs/methods/F10-分红融资.md"
+        "docs/methods/F10-分红融资.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1571,6 +1809,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.dividend_financing()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::dividend_financing",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_fixed_templates_preserve_original_public_requests"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::ashare_default_single_request_inventory"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-分红融资.md",
@@ -1582,7 +1838,16 @@
     {
       "id": "f10-allotment",
       "source_files": [
-        "docs/methods/F10-增发获配.md"
+        "docs/methods/F10-增发获配.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1591,6 +1856,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.allotment_dates() / client.f10.allotment_details()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::allotment_dates; F10Client::allotment_details",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_named_input_templates_keep_original_payloads"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_named_methods.rs::every_report_named_single_request_method_executes_its_query"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-增发获配.md",
@@ -1602,7 +1885,16 @@
     {
       "id": "f10-finance-report",
       "source_files": [
-        "docs/methods/F10-财务报表.md"
+        "docs/methods/F10-财务报表.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_report.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1611,6 +1903,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.finance_report()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::finance_report",
+        "python_entry": "F10Client public facade -> native f10_report.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_report_tables_keep_original_wire_values"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::every_market_report_section_and_alias_has_a_literal_request"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-财务报表.md",
@@ -1622,7 +1932,16 @@
     {
       "id": "f10-finance-diagnosis",
       "source_files": [
-        "docs/methods/F10-财务诊断.md"
+        "docs/methods/F10-财务诊断.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_report.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1631,6 +1950,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.finance_diagnosis()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::finance_diagnosis",
+        "python_entry": "F10Client public facade -> native f10_report.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_report_tables_keep_original_wire_values"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::every_market_report_section_and_alias_has_a_literal_request"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-财务诊断.md",
@@ -1642,7 +1979,16 @@
     {
       "id": "f10-stock-score",
       "source_files": [
-        "docs/methods/F10-个股总评.md"
+        "docs/methods/F10-个股总评.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_report.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1651,6 +1997,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.stock_score()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::stock_score",
+        "python_entry": "F10Client public facade -> native f10_report.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_report_tables_keep_original_wire_values"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_named_methods.rs::every_report_named_single_request_method_executes_its_query"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-个股总评.md",
@@ -1662,7 +2026,16 @@
     {
       "id": "f10-profit-forecast",
       "source_files": [
-        "docs/methods/F10-盈利预测.md"
+        "docs/methods/F10-盈利预测.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1671,6 +2044,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.profit_forecast()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::profit_forecast",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_fixed_templates_preserve_original_public_requests"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::ashare_default_single_request_inventory"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-盈利预测.md",
@@ -1682,7 +2073,16 @@
     {
       "id": "f10-theme-market",
       "source_files": [
-        "docs/methods/F10-题材概念行情.md"
+        "docs/methods/F10-题材概念行情.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/valuation.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_object.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1691,6 +2091,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.theme_market()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::theme_market; F10Client::stock_stage_gain; F10Client::stock_main_funds",
+        "python_entry": "F10Client public facade -> native f10_object.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_theme_repeats_request_conversion_and_preserves_extra_overwrite"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::themes_stage_wrappers_and_valuation_request_ids_keep_mixed_json_types"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-题材概念行情.md",
@@ -1702,7 +2120,16 @@
     {
       "id": "f10-valuation",
       "source_files": [
-        "docs/methods/F10-估值市场数据.md"
+        "docs/methods/F10-估值市场数据.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/valuation.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_object.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1711,6 +2138,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.valuation()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::valuation; F10Client::stock_pepb_percentile; F10Client::stock_history_trend",
+        "python_entry": "F10Client public facade -> native f10_object.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_valuation_keeps_branch_payload_types"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::themes_stage_wrappers_and_valuation_request_ids_keep_mixed_json_types"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-估值市场数据.md",
@@ -1722,7 +2167,16 @@
     {
       "id": "f10-ranking",
       "source_files": [
-        "docs/methods/F10-市场行业排名.md"
+        "docs/methods/F10-市场行业排名.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1731,6 +2185,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.ranking_detail()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::ranking_detail",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_fixed_templates_preserve_original_public_requests"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::ashare_default_single_request_inventory"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-市场行业排名.md",
@@ -1742,7 +2214,16 @@
     {
       "id": "f10-governance",
       "source_files": [
-        "docs/methods/F10-资本运作治理.md"
+        "docs/methods/F10-资本运作治理.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_report.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1751,6 +2232,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.governance()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::governance",
+        "python_entry": "F10Client public facade -> native f10_report.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_report_tables_keep_original_wire_values"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_named_methods.rs::every_report_named_single_request_method_executes_its_query"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-资本运作治理.md",
@@ -1762,7 +2261,16 @@
     {
       "id": "f10-hot-topics",
       "source_files": [
-        "docs/methods/F10-热点题材.md"
+        "docs/methods/F10-热点题材.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/reports.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1771,6 +2279,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.hot_topics()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::hot_topics",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_fixed_templates_preserve_original_public_requests"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::ashare_default_single_request_inventory"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-热点题材.md",
@@ -1782,7 +2308,16 @@
     {
       "id": "f10-topic-compare",
       "source_files": [
-        "docs/methods/F10-题材内对比.md"
+        "docs/methods/F10-题材内对比.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/news_queries.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_report.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1791,6 +2326,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.topic_compare() / client.f10.topic_compare_first()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::topic_compare; F10Client::topic_compare_first",
+        "python_entry": "F10Client public facade -> native f10_report.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_topic_first_preserves_zero_and_live_override"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_named_methods.rs::every_news_and_valuation_named_single_request_method_executes_its_query"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-题材内对比.md",
@@ -1802,7 +2355,16 @@
     {
       "id": "f10-market-news",
       "source_files": [
-        "docs/methods/F10-首页要闻.md"
+        "docs/methods/F10-首页要闻.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/news_queries.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1811,6 +2373,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.market_news()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::market_news",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_news_inputs_keep_call_override_and_explicit_body"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::news_cache_digest_home_and_all_channel_requests"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-首页要闻.md",
@@ -1822,7 +2402,16 @@
     {
       "id": "f10-channel-news",
       "source_files": [
-        "docs/methods/F10-频道资讯.md"
+        "docs/methods/F10-频道资讯.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/news_queries.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1831,6 +2420,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.channel_news()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::channel_news",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_news_inputs_keep_call_override_and_explicit_body"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::news_cache_digest_home_and_all_channel_requests"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-频道资讯.md",
@@ -1842,7 +2449,16 @@
     {
       "id": "f10-news-channels",
       "source_files": [
-        "docs/methods/F10-资讯频道列表.md"
+        "docs/methods/F10-资讯频道列表.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/news.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1851,6 +2467,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.news_channels()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::news_channels",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_news_channels_keeps_live_registry_and_sorted_hook"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_values.rs::news_channel_registry_is_sorted_independent_and_available_without_io"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "静态枚举",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-资讯频道列表.md",
@@ -1862,7 +2496,16 @@
     {
       "id": "f10-company-news",
       "source_files": [
-        "docs/methods/F10-公司资讯研报.md"
+        "docs/methods/F10-公司资讯研报.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/news_queries.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1871,6 +2514,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.company_news()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::company_news",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_named_input_templates_keep_original_payloads"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::news_cache_digest_home_and_all_channel_requests"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-公司资讯研报.md",
@@ -1882,7 +2543,16 @@
     {
       "id": "f10-northbound",
       "source_files": [
-        "docs/methods/F10-沪深股通持仓.md"
+        "docs/methods/F10-沪深股通持仓.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/news_queries.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1891,6 +2561,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.northbound_holding()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::northbound_holding",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_northbound_converts_page_twice_after_code"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_named_methods.rs::every_news_and_valuation_named_single_request_method_executes_its_query"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-沪深股通持仓.md",
@@ -1902,7 +2590,16 @@
     {
       "id": "f10-detail",
       "source_files": [
-        "docs/methods/F10-详情正文.md"
+        "docs/methods/F10-详情正文.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/news_queries.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1911,6 +2608,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.detail()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::detail",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_topic_and_detail_preserve_raw_fields_and_only_stringify_selected_input"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::news_cache_digest_home_and_all_channel_requests"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-详情正文.md",
@@ -1922,7 +2637,16 @@
     {
       "id": "f10-news-cache",
       "source_files": [
-        "docs/methods/F10-新闻公告路演.md"
+        "docs/methods/F10-新闻公告路演.md",
+        "src/eltdx/f10/client.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/f10/endpoints/news_queries.rs",
+        "crates/eltdx/src/f10/request.rs",
+        "crates/eltdx/src/f10/response.rs",
+        "crates/eltdx/src/f10/python_legacy.rs",
+        "crates/eltdx/src/f10/endpoints/template.rs",
+        "crates/eltdx/src/f10/endpoints/simple_registry.rs",
+        "crates/eltdx-python/src/f10_request.rs"
       ],
       "feature": "f10",
       "stage": "P3",
@@ -1931,6 +2655,24 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.f10.cache_list() / client.f10.news() / client.f10.announcements() / client.f10.roadshows()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "F10Client::cache_list; F10Client::news; F10Client::announcements; F10Client::roadshows",
+        "python_entry": "F10Client public facade -> native f10_request.rs; original per-request HTTP transport/hooks retained",
+        "shared_algorithm": "Ordered request templates/row traversal in crates/eltdx/src/f10; source index docs/rust-sdk/f10-implementation-index.md lists all 157 named methods",
+        "contract_nodes": [
+          "tests/test_native_f10_contract.py::test_f10_cache_aliases_keep_user_override"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/f10_route_inventory.rs::news_cache_digest_home_and_all_channel_requests"
+        ],
+        "temporary_adapter": {
+          "scope": "Live Python params/call/HTTP overrides, global dictionaries/builtins, scalar/date/row/model construction and per-request timing",
+          "reason": "Compatibility requires original object identity, evaluation and exception order, legacy identity rules and mixed JSON types. Strict Rust query/resource limits remain independent.",
+          "exit_condition": "Keep language-specific projections; promote acceptance only after final compatibility/public consumer execution passes."
+        },
+        "validation": "Source only; not collected, compiled, executed, package-installed or checked. Catalog/public_sdk_status/sdk_evidence are not promoted by authored evidence."
+      },
       "kind": "Entry 封装",
       "catalog_source": "F10",
       "catalog_doc": "methods/F10-新闻公告路演.md",
@@ -2384,7 +3126,13 @@
     {
       "id": "helper-theme-strength-rank",
       "source_files": [
-        "docs/helpers/题材强度排行.md"
+        "docs/helpers/题材强度排行.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/helpers/theme.rs",
+        "crates/eltdx/src/helpers/topics.rs",
+        "crates/eltdx-python/src/helper_f10.rs",
+        "crates/eltdx-python/src/helper_theme.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2393,6 +3141,25 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.helpers.theme_strength_rank(codes=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "HelperService::theme_strength_rank",
+        "feature_requirement": "f10; default HQ helpers remain available without f10",
+        "python_entry": "HelperApi.theme_strength_rank -> native helper_theme.rs",
+        "shared_algorithm": "Ordered topic-source/field/selector traversal, id-before-name resolution and theme update/rank steps; strict shared-owner total budget versus legacy callback policy",
+        "contract_nodes": [
+          "tests/test_native_f10_helpers_contract.py::test_theme_queries_complete_ladder_then_all_topics_before_truncating"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/helpers.rs::theme_empty_selection_is_lazy_and_ladder_top_n_cannot_truncate_input"
+        ],
+        "temporary_adapter": {
+          "scope": "Python live F10/helper/model/converter hooks, source objects, lazy tuple and original numeric/optional-source exceptions",
+          "reason": "Legacy callbacks and permissive Python values cannot be forced through strict typed queries or a new total deadline.",
+          "exit_condition": "Language-specific projection stays; final execution must establish all authored compatibility and source-failure obligations."
+        },
+        "validation": "Unexecuted source evidence only; no migration-status promotion or online-protocol claim."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/题材强度排行.md",
@@ -2521,7 +3288,12 @@
     {
       "id": "helper-stock-topics",
       "source_files": [
-        "docs/helpers/个股概念板块.md"
+        "docs/helpers/个股概念板块.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/helpers/topics.rs",
+        "crates/eltdx-python/src/helper_f10.rs",
+        "crates/eltdx-python/src/helper_topics.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2530,6 +3302,25 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.helpers.stock_topics(code)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "HelperService::stock_topics",
+        "feature_requirement": "f10; default HQ helpers remain available without f10",
+        "python_entry": "HelperApi.stock_topics -> native helper_topics.rs",
+        "shared_algorithm": "Ordered topic-source/field/selector traversal, id-before-name resolution and theme update/rank steps; strict shared-owner total budget versus legacy callback policy",
+        "contract_nodes": [
+          "tests/test_native_f10_helpers_contract.py::test_topics_materialize_both_sources_before_merging_and_keep_first_order"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/helpers.rs::stock_topics_merge_both_sources_in_discovery_order_with_last_source_raw"
+        ],
+        "temporary_adapter": {
+          "scope": "Python live F10/helper/model/converter hooks, source objects, lazy tuple and original numeric/optional-source exceptions",
+          "reason": "Legacy callbacks and permissive Python values cannot be forced through strict typed queries or a new total deadline.",
+          "exit_condition": "Language-specific projection stays; final execution must establish all authored compatibility and source-failure obligations."
+        },
+        "validation": "Unexecuted source evidence only; no migration-status promotion or online-protocol claim."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/个股概念板块.md",
@@ -2541,7 +3332,12 @@
     {
       "id": "helper-topic-stocks",
       "source_files": [
-        "docs/helpers/概念板块成分股.md"
+        "docs/helpers/概念板块成分股.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/helpers/topics.rs",
+        "crates/eltdx-python/src/helper_f10.rs",
+        "crates/eltdx-python/src/helper_topics.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2550,6 +3346,25 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.helpers.topic_stocks(seed_code, ...)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "HelperService::topic_stocks",
+        "feature_requirement": "f10; default HQ helpers remain available without f10",
+        "python_entry": "HelperApi.topic_stocks -> native helper_topics.rs",
+        "shared_algorithm": "Ordered topic-source/field/selector traversal, id-before-name resolution and theme update/rank steps; strict shared-owner total budget versus legacy callback policy",
+        "contract_nodes": [
+          "tests/test_native_f10_helpers_contract.py::test_topic_stocks_explicit_id_skips_resolution_and_keeps_order_raw_and_options"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/helpers.rs::explicit_topic_id_needs_only_compare_and_retains_nonempty_row_order"
+        ],
+        "temporary_adapter": {
+          "scope": "Python live F10/helper/model/converter hooks, source objects, lazy tuple and original numeric/optional-source exceptions",
+          "reason": "Legacy callbacks and permissive Python values cannot be forced through strict typed queries or a new total deadline.",
+          "exit_condition": "Language-specific projection stays; final execution must establish all authored compatibility and source-failure obligations."
+        },
+        "validation": "Unexecuted source evidence only; no migration-status promotion or online-protocol claim."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/概念板块成分股.md",
