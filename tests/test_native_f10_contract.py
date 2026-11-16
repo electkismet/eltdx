@@ -1206,3 +1206,152 @@ def test_f10_valuation_aliases_keep_overrides_and_extra_objects():
     assert client.stock_pepb_percentile(marker, marker, window=marker, period=marker) == (
         (marker, 200124), {"page": 1, "page_size": 300, "extra": {"sjfw": marker, "zb": marker, "hqzq": marker}})
     assert client.stock_history_trend(marker) == ((marker, 200135), {})
+
+
+def test_f10_index_collection_preserves_order_total_and_raw_rows():
+    calls = []
+    original = {"N001": "600000", "N002": " name ", "N003": "invalid-date", "N004": "1", "extra": object()}
+
+    class Client(f10.F10Client):
+        def market_report(self, code, section, *, page, page_size):
+            calls.append((code, section, page, page_size))
+            return SimpleNamespace(first_table=SimpleNamespace(rows=(original, original)),
+                                   result_sets=(SimpleNamespace(key="table0", rows=()),
+                                                SimpleNamespace(key="total", rows=({"unrelated": "2"},))))
+
+    result = Client().index_members("sh000300", page_size=2)
+    assert calls == [("sh000300", "index_members", 1, 2)]
+    assert result.total == 2 and result.count == 2
+    assert result.index_code == "000300"
+    assert result.rows[0].name == "name"
+    assert result.rows[0].join_date == "invalid-date"
+    assert result.rows[0].raw == original and result.rows[0].raw is not original
+    assert result.rows[0].raw["extra"] is original["extra"]
+
+
+def test_f10_collection_page_cap_is_soft_and_nonzero_business_status_is_retained():
+    calls = []
+
+    class Client(f10.F10Client):
+        def market_report(self, code, section, *, page, page_size):
+            calls.append(page)
+            return SimpleNamespace(first_table=SimpleNamespace(rows=({"N001": "600000"},)),
+                                   result_sets=(), error_code=17)
+
+    result = Client().index_members("sh000300", page_size=1, max_pages=2)
+    assert result.count == 2
+    assert calls == [1, 2]
+    calls.clear()
+    assert Client().index_members("sh000300", page_size=1, max_pages=0).count == 1
+    assert calls == [1]
+
+
+def test_f10_collection_size_conversion_precedes_request(monkeypatch):
+    events = []
+    import builtins
+
+    for name in ("int", "min", "max"):
+        original = getattr(builtins, name)
+        monkeypatch.setattr(f10, name, lambda *args, _name=name, _fn=original: events.append(_name) or _fn(*args), raising=False)
+    monkeypatch.setattr(f10, "_MAX_PAGE_SIZE", 3)
+
+    class Client(f10.F10Client):
+        def market_report(self, code, section, **kwargs):
+            events.append(("request", kwargs))
+            return SimpleNamespace(first_table=None, result_sets=())
+
+    assert Client().index_members("sh000300", page_size="100").count == 0
+    assert events == ["int", "min", "max", ("request", {"page": 1, "page_size": 3})]
+
+
+def test_f10_board_collection_deduplicates_records_and_stops_without_progress():
+    calls = []
+    first = {"N001": "600000", "N003": "dividend", "N005": "d1", "N006": "d2", "N007": "d3", "N008": "period"}
+    second = {**first, "N008": "other-period"}
+
+    class Client(f10.F10Client):
+        def market_report(self, code, section, *, page, page_size):
+            calls.append(page)
+            return SimpleNamespace(first_table=SimpleNamespace(rows=(first, second)), result_sets=())
+
+    result = Client().board_members("sh880472", page_size=2)
+    assert calls == [1, 2]
+    assert result.count == 2
+    assert result.rows[0].report_period == "period"
+    assert result.rows[1].report_period == "other-period"
+
+
+def test_f10_tracking_and_ipo_keep_raw_unknown_values():
+    row = {"N001": " 510300 ", "N002": " name ", "N003": "3.5", "N005": "bad",
+           "N006": "6.5", "N008": "unknown-date", "N009": "manager", "N010": "company", "N011": "1.2", "sc": "33"}
+
+    class Client(f10.F10Client):
+        def market_report(self, *args, **kwargs):
+            return SimpleNamespace(first_table=SimpleNamespace(rows=(row,)), result_sets=())
+
+    result = Client().index_tracking_products("sh000300")
+    assert result.rows[0].code == "510300"
+    assert result.rows[0].scale_yuan == 3.5 and result.rows[0].change_pct is None
+    assert result.rows[0].inception_date == "unknown-date"
+    ipo = Client().ipo_calendar()
+    assert ipo.rows[0].apply_date == " 510300 "
+    assert ipo.rows[0].raw == row
+
+
+def test_f10_collection_retains_live_row_constructor(monkeypatch):
+    events = []
+    marker = object()
+    monkeypatch.setattr(f10, "IndexMember", lambda **kwargs: events.append(kwargs) or marker)
+
+    class Client(f10.F10Client):
+        def market_report(self, *args, **kwargs):
+            return SimpleNamespace(first_table=SimpleNamespace(rows=({"N001": "600000"},)), result_sets=())
+
+    result = Client().index_members("sh000300")
+    assert result.rows == (marker,)
+    assert events == [{"code": "600000", "name": None, "market_id": None, "join_date": None, "raw": {"N001": "600000"}}]
+
+
+def test_f10_ladder_preserves_summary_before_detail_projection(monkeypatch):
+    events = []
+    raw = {"source": object()}
+    row_marker, summary = object(), ({"overview": 1},)
+    monkeypatch.setattr(f10, "_normalize_limit_board_dates", lambda start, end: ("start", "end"))
+    monkeypatch.setattr(f10, "_parse_limit_board_ladder_row", lambda row: events.append(("parse", row)) or row_marker)
+
+    class Client(f10.F10Client):
+        def _post(self, entry, body):
+            events.append(("post", body["Params"][0]))
+            return SimpleNamespace(entry=entry, rows=summary if body["Params"][0] == "2" else ("row",),
+                                   raw=raw, error_code=17)
+
+    result = Client().limit_up_down_list(include_summary=True)
+    assert result.rows == (row_marker,) and result.summary is summary
+    assert result.raw is raw and result.error_code == 17
+    assert result.request_body == {"Params": ["1", "start", "end"]}
+    assert events == [("post", "1"), ("post", "2"), ("parse", "row")]
+
+
+def test_f10_ladder_alias_retains_overridden_method():
+    start, end, include = object(), object(), object()
+    client = f10.F10Client()
+    client.limit_up_down_list = lambda *args, **kwargs: (args, kwargs)
+    assert client.limit_board_ladder(start, end, include_summary=include) == (
+        (start, end), {"include_summary": include})
+
+
+def test_f10_ladder_row_conversion_remains_lazy_for_tuple_override(monkeypatch):
+    iterator_holder = []
+    parsed = []
+    marker = object()
+    monkeypatch.setattr(f10, "tuple", lambda iterator: iterator_holder.append(iterator) or marker, raising=False)
+    monkeypatch.setattr(f10, "_parse_limit_board_ladder_row", lambda row: parsed.append(row) or row)
+
+    class Client(f10.F10Client):
+        def _post(self, entry, body):
+            return SimpleNamespace(entry=entry, rows=("first", "second"), raw={}, error_code=0)
+
+    result = Client().limit_up_down_list("20260102")
+    assert result.rows is marker and parsed == []
+    assert next(iterator_holder[0]) == "first"
+    assert parsed == ["first"]

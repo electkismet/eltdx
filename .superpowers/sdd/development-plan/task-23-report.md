@@ -464,3 +464,33 @@ board_members, ipo_calendar. This does not imply F10 models/fields/helpers
 are migrated or any code accepted. Task counts remain21/4/5, active unlimited.
 Next the six model/collector methods, then fields/models/helpers/manifest and
 T24–T30; all execution stays deferred.
+## Sixteenth checkpoint — collection loops and all157 entry bridges
+
+Base `f3da958`. Added f10/collection.rs common pagination driver, typed row
+field map and ladder parameter layout. Checked Rust market collectors now
+use the common loop while retaining hard limits, total/record validation,
+BusinessError and missing-progress errors. Their public row getters consume
+the same field mapping as the Python row constructors.
+
+Python index_members/index_tracking_products/board_members/ipo_calendar
+now run through native code while retaining live market_report overrides,
+row constructors, converters, dict/tuple/len/max/min/int hooks and raw object
+values. Historical total lookup, soft max_pages (including zero still making
+one request), nonzero business-code handling and per-page timing remain.
+Board dedup is still by Python record_key, keeping original hash exceptions
+and first-seen order. IPO retains its code-less named call.
+
+Both ladder entries now call native assembly, preserving normalized-date
+hook, body identity, live entry, detail then optional summary requests before
+row parsing, original model/raw and aliases. A native iterator preserves
+lazy row parsing if tuple is overridden, including StopIteration conversion.
+All157 public F10 methods have native entry source. This is not T23 complete:
+remaining scalar/date/row helpers, model algorithms, fields, cross-source
+helpers and manifest accounting still require implementation.
+
+Nine Python contract functions and one Rust pagination-driver function
+were authored and remain unexecuted. Source reads/ordinary diffs only;
+no tests/collection/build/check/dependency/network/AST/format/diff-whitespace
+verification or agents/publication.21/4/5 task counts, active unlimited goal.
+Next F10 field scope/duplicate/label logic, model business, native scalar/row
+helpers and cross-source helper composition; then allT24–T30 sources.

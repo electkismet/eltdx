@@ -176,3 +176,22 @@ fn shared_object_layouts_keep_wire_types_and_request_families() -> eltdx::Result
     assert_eq!(digest.payload(), &RequestPayload::Params(vec!["600000".into(), "zxts".into(), "".into()]));
     Ok(())
 }
+
+#[test]
+fn shared_collection_loop_stops_before_next_page_on_success_or_error() {
+    use eltdx::f10::collection::collect_pages;
+    let mut pages = Vec::new();
+    let result = collect_pages(1, |page| {
+        pages.push(*page);
+        Ok::<_, &'static str>((*page == 3).then_some("complete"))
+    }, |page| Ok(page + 1));
+    assert_eq!(result, Ok("complete"));
+    assert_eq!(pages, [1, 2, 3]);
+    let mut pages = Vec::new();
+    let result = collect_pages(1, |page| {
+        pages.push(*page);
+        if *page == 2 { Err("cancelled") } else { Ok(None::<()>) }
+    }, |page| Ok(page + 1));
+    assert_eq!(result, Err("cancelled"));
+    assert_eq!(pages, [1, 2]);
+}

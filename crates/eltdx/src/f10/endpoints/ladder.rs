@@ -59,7 +59,8 @@ impl LimitBoardLadderQuery {
 }
 
 fn request(selector: &str, start: TradingDate, end: TradingDate) -> Result<CallQuery> {
-    super::params("CWServ.cfg_fx_lbtt", vec![j(selector), j(date_text(Some(start))), j(date_text(Some(end)))])
+    super::params("CWServ.cfg_fx_lbtt", super::super::collection::ladder_parameters(
+        j(selector), j(date_text(Some(start))), j(date_text(Some(end)))).into())
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

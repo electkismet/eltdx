@@ -15,6 +15,7 @@ mod f10_response;
 mod f10_request;
 mod f10_report;
 mod f10_object;
+mod f10_collection;
 mod limits;
 mod helpers;
 mod helper_profile;
@@ -120,6 +121,9 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(f10_report::f10_topic_compare_first, module)?)?;
     module.add_function(wrap_pyfunction!(f10_object::f10_object_request, module)?)?;
     module.add_function(wrap_pyfunction!(f10_object::f10_object_alias, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_collection::f10_collect, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_collection::f10_ladder, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_collection::f10_ladder_alias, module)?)?;
     module.add_function(wrap_pyfunction!(limits::scan_special, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_fund_flow, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_full_quotes, module)?)?;

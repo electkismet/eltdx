@@ -117,10 +117,10 @@ fn full_code(identity: Option<AshareCode>) -> Option<String> {
 pub struct IndexMember { raw: Row, join_date: Option<TradingDate> }
 impl IndexMember {
     pub fn raw(&self) -> &Row { &self.raw }
-    pub fn code(&self) -> Option<&str> { string(&self.raw, "N001") }
-    pub fn name(&self) -> Option<&str> { string(&self.raw, "N002") }
-    pub fn market(&self) -> Option<F10MarketCode> { market(&self.raw, "N004") }
-    pub fn join_date(&self) -> Option<&JsonValue> { value(&self.raw, "N003") }
+    pub fn code(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("index_members", "code")) }
+    pub fn name(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("index_members", "name")) }
+    pub fn market(&self) -> Option<F10MarketCode> { market(&self.raw, super::super::collection::column("index_members", "market_id")) }
+    pub fn join_date(&self) -> Option<&JsonValue> { value(&self.raw, super::super::collection::column("index_members", "join_date")) }
     pub fn parsed_join_date(&self) -> Option<TradingDate> { self.join_date }
     pub fn inferred_identity(&self) -> Option<AshareCode> { inferred_identity(&self.raw, "N001", "N004") }
     pub fn full_code(&self) -> Option<String> { full_code(self.inferred_identity()) }
@@ -132,18 +132,18 @@ impl IndexMember {
 pub struct IndexTrackingProduct { raw: Row, inception_date: Option<TradingDate> }
 impl IndexTrackingProduct {
     pub fn raw(&self) -> &Row { &self.raw }
-    pub fn code(&self) -> Option<&str> { string(&self.raw, "N001") }
-    pub fn name(&self) -> Option<&str> { string(&self.raw, "N002") }
-    pub fn market(&self) -> Option<F10MarketCode> { market(&self.raw, "sc") }
-    pub fn scale_yuan(&self) -> Option<f64> { number(&self.raw, "N003") }
-    pub fn change_pct(&self) -> Option<f64> { number(&self.raw, "N005") }
-    pub fn amount_yuan(&self) -> Option<f64> { number(&self.raw, "N006") }
-    pub fn inception_date(&self) -> Option<&JsonValue> { value(&self.raw, "N008") }
+    pub fn code(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("index_tracking_products", "code")) }
+    pub fn name(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("index_tracking_products", "name")) }
+    pub fn market(&self) -> Option<F10MarketCode> { market(&self.raw, super::super::collection::column("index_tracking_products", "market_id")) }
+    pub fn scale_yuan(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("index_tracking_products", "scale_yuan")) }
+    pub fn change_pct(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("index_tracking_products", "change_pct")) }
+    pub fn amount_yuan(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("index_tracking_products", "amount_yuan")) }
+    pub fn inception_date(&self) -> Option<&JsonValue> { value(&self.raw, super::super::collection::column("index_tracking_products", "inception_date")) }
     pub fn parsed_inception_date(&self) -> Option<TradingDate> { self.inception_date }
-    pub fn manager(&self) -> Option<&str> { string(&self.raw, "N009") }
-    pub fn company(&self) -> Option<&str> { string(&self.raw, "N010") }
-    pub fn nav(&self) -> Option<f64> { number(&self.raw, "N011") }
-    pub fn fee_rate_pct(&self) -> Option<f64> { number(&self.raw, "N012") }
+    pub fn manager(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("index_tracking_products", "manager")) }
+    pub fn company(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("index_tracking_products", "company")) }
+    pub fn nav(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("index_tracking_products", "nav")) }
+    pub fn fee_rate_pct(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("index_tracking_products", "fee_rate_pct")) }
     pub fn inferred_identity(&self) -> Option<AshareCode> { inferred_identity(&self.raw, "N001", "sc") }
     pub fn full_code(&self) -> Option<String> { full_code(self.inferred_identity()) }
     pub fn field_info(&self, name: &str) -> MarketFieldInfo {
@@ -167,15 +167,15 @@ pub struct BoardMember {
 }
 impl BoardMember {
     pub fn raw(&self) -> &Row { &self.raw }
-    pub fn code(&self) -> Option<&str> { string(&self.raw, "N001") }
-    pub fn name(&self) -> Option<&str> { string(&self.raw, "N002") }
-    pub fn market(&self) -> Option<F10MarketCode> { market(&self.raw, "sc") }
-    pub fn dividend_plan(&self) -> Option<&str> { string(&self.raw, "N003") }
-    pub fn progress(&self) -> Option<&str> { string(&self.raw, "N004") }
-    pub fn announce_date(&self) -> Option<&JsonValue> { value(&self.raw, "N005") }
-    pub fn record_date(&self) -> Option<&JsonValue> { value(&self.raw, "N006") }
-    pub fn ex_date(&self) -> Option<&JsonValue> { value(&self.raw, "N007") }
-    pub fn report_period(&self) -> Option<&JsonValue> { value(&self.raw, "N008") }
+    pub fn code(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("board_members", "code")) }
+    pub fn name(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("board_members", "name")) }
+    pub fn market(&self) -> Option<F10MarketCode> { market(&self.raw, super::super::collection::column("board_members", "market_id")) }
+    pub fn dividend_plan(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("board_members", "dividend_plan")) }
+    pub fn progress(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("board_members", "progress")) }
+    pub fn announce_date(&self) -> Option<&JsonValue> { value(&self.raw, super::super::collection::column("board_members", "announce_date")) }
+    pub fn record_date(&self) -> Option<&JsonValue> { value(&self.raw, super::super::collection::column("board_members", "record_date")) }
+    pub fn ex_date(&self) -> Option<&JsonValue> { value(&self.raw, super::super::collection::column("board_members", "ex_date")) }
+    pub fn report_period(&self) -> Option<&JsonValue> { value(&self.raw, super::super::collection::column("board_members", "report_period")) }
     /// These three semantic names are inferred from dividend workflow. The
     /// parsed values validate only calendar syntax, not those interpretations.
     pub fn parsed_announce_date(&self) -> Option<TradingDate> { self.announce_date }
@@ -244,16 +244,16 @@ impl BoardMemberTable {
 pub struct IpoEntry { raw: Row, apply_date: Option<TradingDate> }
 impl IpoEntry {
     pub fn raw(&self) -> &Row { &self.raw }
-    pub fn apply_date(&self) -> Option<&JsonValue> { value(&self.raw, "N001") }
+    pub fn apply_date(&self) -> Option<&JsonValue> { value(&self.raw, super::super::collection::column("ipo_calendar", "apply_date")) }
     pub fn parsed_apply_date(&self) -> Option<TradingDate> { self.apply_date }
-    pub fn code(&self) -> Option<&str> { string(&self.raw, "N002") }
-    pub fn name(&self) -> Option<&str> { string(&self.raw, "N003") }
-    pub fn market(&self) -> Option<F10MarketCode> { market(&self.raw, "sc") }
-    pub fn issue_pe(&self) -> Option<f64> { number(&self.raw, "N004") }
-    pub fn extra_pct(&self) -> Option<f64> { number(&self.raw, "N005") }
-    pub fn issue_price(&self) -> Option<f64> { number(&self.raw, "N006") }
-    pub fn apply_limit(&self) -> Option<f64> { number(&self.raw, "N007") }
-    pub fn raise_amount(&self) -> Option<f64> { number(&self.raw, "N008") }
+    pub fn code(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("ipo_calendar", "code")) }
+    pub fn name(&self) -> Option<&str> { string(&self.raw, super::super::collection::column("ipo_calendar", "name")) }
+    pub fn market(&self) -> Option<F10MarketCode> { market(&self.raw, super::super::collection::column("ipo_calendar", "market_id")) }
+    pub fn issue_pe(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("ipo_calendar", "issue_pe")) }
+    pub fn extra_pct(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("ipo_calendar", "extra_pct")) }
+    pub fn issue_price(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("ipo_calendar", "issue_price")) }
+    pub fn apply_limit(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("ipo_calendar", "apply_limit")) }
+    pub fn raise_amount(&self) -> Option<f64> { number(&self.raw, super::super::collection::column("ipo_calendar", "raise_amount")) }
     pub fn raise_amount_yi(&self) -> Option<f64> { self.raise_amount().map(|value| value / 1e8) }
     pub fn inferred_identity(&self) -> Option<AshareCode> { inferred_identity(&self.raw, "N002", "sc") }
     pub fn full_code(&self) -> Option<String> { full_code(self.inferred_identity()) }
@@ -417,7 +417,10 @@ impl F10Client {
         let mut metadata = super::super::response::MetaCollector::default();
         let mut reported_total = None;
         let mut keys = std::collections::HashSet::new();
-        for index in 1..=maximum {
+        let result = super::super::collection::collect_pages(1_usize, |&index| {
+            if index > maximum {
+                return Err(Error::new(ErrorKind::LimitExceeded, "F10 collection page limit reached before end of data"));
+            }
             context.check_boundary(TimeoutPhase::Aggregate)?;
             let call = MarketReportQuery::new(Some(query.code.clone())).with_section(SectionCode::new("market_report", section)?)?
                 .with_page(u32::try_from(index).map_err(|_| crate::f10::values::invalid("collection page overflow"))?)?
@@ -447,17 +450,18 @@ impl F10Client {
             if business_error || ended || !query.all_pages {
                 let completion = if business_error { CollectionCompletion::BusinessError }
                     else if ended { CollectionCompletion::EndOfData } else { CollectionCompletion::RequestedPage };
-                let result = Collected { code: query.code.clone(), total: reported_total, rows, completion,
-                    responses, meta: metadata.finish() };
-                context.finish()?;
-                return Ok(result);
+                return Ok(Some(Collected { code: query.code.clone(), total: reported_total,
+                    rows: std::mem::take(&mut rows), completion, responses: std::mem::take(&mut responses),
+                    meta: std::mem::take(&mut metadata).finish() }));
             }
             if section == "board_members" && rows.len() == before {
                 return Err(Error::new(ErrorKind::MissingData, "F10 board pagination made no new-record progress")
                     .with_context("completion", "incomplete").with_context("page", index.to_string()));
             }
-        }
-        Err(Error::new(ErrorKind::LimitExceeded, "F10 collection page limit reached before end of data"))
+            Ok(None)
+        }, |index| index.checked_add(1).ok_or_else(|| crate::f10::values::invalid("collection page overflow")))?;
+        context.finish()?;
+        Ok(result)
     }
     pub fn index_members(&self, query: &IndexMembersQuery, options: &OperationOptions) -> Result<IndexMemberTable> {
         let result = self.collect_market(&query.inner, "index_members", "f10.index_members", options, index_member)?;

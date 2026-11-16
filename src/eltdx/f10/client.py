@@ -153,29 +153,10 @@ class F10Client:
         market overview is fetched with ``Params=["2", start, end]``.
         """
 
-        selected_start, selected_end = _normalize_limit_board_dates(
-            start_date, end_date
-        )
-        body = {"Params": ["1", selected_start, selected_end]}
-        response = self._post(LIMIT_BOARD_LADDER_ENTRY, body)
-        summary_rows: tuple[dict[str, Any], ...] = ()
-        if include_summary:
-            summary = self._post(
-                LIMIT_BOARD_LADDER_ENTRY,
-                {"Params": ["2", selected_start, selected_end]},
-            )
-            summary_rows = summary.rows
+        from eltdx._native_abi import load_native
 
-        rows = tuple(_parse_limit_board_ladder_row(row) for row in response.rows)
-        return LimitBoardLadder(
-            entry=response.entry,
-            request_body=body,
-            error_code=response.error_code,
-            start_date=selected_start,
-            end_date=selected_end,
-            rows=rows,
-            summary=summary_rows,
-            raw=response.raw,
+        return load_native().f10_ladder(
+            self, start_date, end_date, include_summary, _MODULES[__name__]
         )
 
     def limit_board_ladder(
@@ -187,11 +168,9 @@ class F10Client:
     ) -> LimitBoardLadder:
         """Compatibility alias for :meth:`limit_up_down_list`."""
 
-        return self.limit_up_down_list(
-            start_date,
-            end_date,
-            include_summary=include_summary,
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_ladder_alias(self, start_date, end_date, include_summary)
 
     def stock_info(self, code: str) -> F10Response:
         """股票基础信息，通常用于页面初始化。"""
@@ -1704,32 +1683,11 @@ class F10Client:
             **服务端不返回成份权重**，需要权重请走通达信客户端。
         """
 
-        size = max(1, min(int(page_size), _MAX_PAGE_SIZE))
-        rows: list[IndexMember] = []
-        total: int | None = None
-        page = 1
-        while True:
-            response = self.market_report(code, "index_members", page=page, page_size=size)
-            table = response.first_table
-            batch = table.rows if table is not None else ()
-            if total is None:
-                total = _result_total(response)
-            for row in batch:
-                rows.append(
-                    IndexMember(
-                        code=_text(row.get("N001")),
-                        name=_text(row.get("N002")),
-                        market_id=_market_flag(row.get("N004")),
-                        join_date=row.get("N003"),
-                        raw=dict(row),
-                    )
-                )
-            if not all_pages or len(batch) < size or page >= max_pages:
-                break
-            if total is not None and len(rows) >= total:
-                break
-            page += 1
-        return IndexMemberTable(index_code=_code6(code), total=total, rows=tuple(rows))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_collect(
+            self, "index_members", code, all_pages, page_size, max_pages, _MODULES[__name__]
+        )
 
     def index_tracking_products(
         self,
@@ -1753,39 +1711,11 @@ class F10Client:
             服务端未标注含义，不做猜测，只保留在各行的 ``raw`` 里。
         """
 
-        size = max(1, min(int(page_size), _MAX_PAGE_SIZE))
-        rows: list[IndexTrackingProduct] = []
-        total: int | None = None
-        page = 1
-        while True:
-            response = self.market_report(code, "index_etfs", page=page, page_size=size)
-            table = response.first_table
-            batch = table.rows if table is not None else ()
-            if total is None:
-                total = _result_total(response)
-            for row in batch:
-                rows.append(
-                    IndexTrackingProduct(
-                        code=_text(row.get("N001")),
-                        name=_text(row.get("N002")),
-                        market_id=_int(row.get("sc")),
-                        scale_yuan=_float(row.get("N003")),
-                        change_pct=_float(row.get("N005")),
-                        amount_yuan=_float(row.get("N006")),
-                        inception_date=row.get("N008"),
-                        manager=_text(row.get("N009")),
-                        company=_text(row.get("N010")),
-                        nav=_float(row.get("N011")),
-                        fee_rate_pct=_float(row.get("N012")),
-                        raw=dict(row),
-                    )
-                )
-            if not all_pages or len(batch) < size or page >= max_pages:
-                break
-            if total is not None and len(rows) >= total:
-                break
-            page += 1
-        return IndexTrackingTable(index_code=_code6(code), total=total, rows=tuple(rows))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_collect(
+            self, "index_tracking_products", code, all_pages, page_size, max_pages, _MODULES[__name__]
+        )
 
     def board_members(
         self,
@@ -1814,46 +1744,11 @@ class F10Client:
             想完全绕开翻页，用 ``page_size=100``（默认）单页取全。
         """
 
-        size = max(1, min(int(page_size), _MAX_PAGE_SIZE))
-        rows: list[BoardMember] = []
-        seen: set[tuple] = set()
-        total: int | None = None
-        page = 1
-        while True:
-            response = self.market_report(code, "board_members", page=page, page_size=size)
-            table = response.first_table
-            batch = table.rows if table is not None else ()
-            if total is None:
-                total = _result_total(response)
-            added = 0
-            for row in batch:
-                item = BoardMember(
-                    code=_text(row.get("N001")),
-                    name=_text(row.get("N002")),
-                    market_id=_market_flag(row.get("sc")),
-                    dividend_plan=_text(row.get("N003")),
-                    progress=_text(row.get("N004")),
-                    announce_date=row.get("N005"),
-                    record_date=row.get("N006"),
-                    ex_date=row.get("N007"),
-                    report_period=row.get("N008"),
-                    raw=dict(row),
-                )
-                key = item.record_key
-                if key in seen:
-                    continue
-                seen.add(key)
-                rows.append(item)
-                added += 1
-            if not all_pages or not batch or len(batch) < size or page >= max_pages:
-                break
-            if total is not None and len(rows) >= total:
-                break
-            if added == 0:
-                # 整页都是已见记录：服务端页界在原地打滑，再翻也不会扩容。
-                break
-            page += 1
-        return BoardMemberTable(board_code=_code6(code), total=total, rows=tuple(rows))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_collect(
+            self, "board_members", code, all_pages, page_size, max_pages, _MODULES[__name__]
+        )
 
     def ipo_calendar(self) -> IpoCalendar:
         """近期新股列表（含申购日、发行价、募资额）。
@@ -1867,25 +1762,11 @@ class F10Client:
         **均为推断**，请用行内 ``raw`` 复核后再用于生产。
         """
 
-        response = self.market_report(section="ipo_calendar")
-        table = response.first_table
-        rows: list[IpoEntry] = []
-        for row in table.rows if table is not None else ():
-            rows.append(
-                IpoEntry(
-                    apply_date=row.get("N001"),
-                    code=_text(row.get("N002")),
-                    name=_text(row.get("N003")),
-                    market_id=_int(row.get("sc")),
-                    issue_pe=_float(row.get("N004")),
-                    extra_pct=_float(row.get("N005")),
-                    issue_price=_float(row.get("N006")),
-                    apply_limit=_float(row.get("N007")),
-                    raise_amount=_float(row.get("N008")),
-                    raw=dict(row),
-                )
-            )
-        return IpoCalendar(rows=tuple(rows))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_collect(
+            self, "ipo_calendar", None, None, None, None, _MODULES[__name__]
+        )
 
     def dividend_financing(self, code: str, section: str = "fh") -> F10Response:
         """分红融资类数据。section=fh 为分红方案历史。"""

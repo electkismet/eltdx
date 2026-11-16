@@ -16,6 +16,8 @@ mod worker;
 mod values;
 mod clock;
 mod endpoints;
+#[doc(hidden)]
+pub mod collection;
 pub mod news;
 pub mod fields;
 #[doc(hidden)]
