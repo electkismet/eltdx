@@ -2001,10 +2001,9 @@ class F10Client:
     def topic_compare_first(self, code: str, section: str = "gndbzfsj", sort_by: str = "zdf") -> F10Response:
         """用股票第一个题材 ID 查询题材内对比排名。"""
 
-        topic_id = _first_value(self.topic_ids(code), "t001")
-        if topic_id is None:
-            raise ProtocolError(f"no topic id for {_code6(code)}")
-        return self.topic_compare(code, str(topic_id), section=section, sort_by=sort_by)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_topic_compare_first(self, code, section, sort_by, _MODULES[__name__])
 
     def company_news(
         self,
@@ -2051,20 +2050,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        zxts = "CWServ.tdxf10_gg_zxts"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "tips": (zxts, (code6, "zxts", "")),
-            "profile": (zxts, (code6, "gsgy", "")),
-            "events": (zxts, (code6, "gsds", "")),
-            "news": (zxts, (code6, "gsxw", "")),
-            "announcements": (zxts, (code6, "gsgg", "")),
-            "reports": (zxts, (code6, "gsyj", "")),
-            "roadshows": (zxts, (code6, "lyhd", "")),
-            "interaction": ("CWServ.tdxf10_gg_zxtstzzhd", (code6, "1", "1", str(page_size))),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "digest", code, section, {"page_size": page_size}, _MODULES[__name__]
+        )
 
     def northbound_holding(
         self,
@@ -2186,19 +2176,13 @@ class F10Client:
     ) -> F10Response:
         """题材概念行情。req_id=200743 为相关板块。"""
 
-        payload = {
-            "ReqId": str(req_id),
-            "setcode": split_code(code)[0],
-            "code": _code6(code),
-            "Page": page,
-            "PageSize": str(page_size),
-            "modname": "mod_tcihq.dll",
-        }
-        if str(req_id) in {"200740", "200742", "200745", "200747"}:
-            payload["zq_num"] = str(zq_num)
-        if extra:
-            payload.update(extra)
-        return self.call("HQServ.hq_nlp_tcihq", [payload])
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_request(
+            self, "theme_market", code,
+            {"req_id": req_id, "page": page, "page_size": page_size, "zq_num": zq_num, "extra": extra},
+            _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------
     # 个股总评（ggzp）与深度分析（sdfx）页面的语义化封装
@@ -2219,9 +2203,9 @@ class F10Client:
         ``days`` 为回看天数（客户端默认 60）。
         """
 
-        return self.theme_market(
-            code, 200740, page_size=page_size, zq_num=days
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_stage_gain", code, {"days": days, "page_size": page_size})
 
     def stock_main_funds(
         self, code: str, *, days: int | str = 30, page_size: int = 10
@@ -2232,9 +2216,9 @@ class F10Client:
         主力流入/流出/净额/占比（口径随服务端）。
         """
 
-        return self.theme_market(
-            code, 200742, page_size=page_size, zq_num=days
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_main_funds", code, {"days": days, "page_size": page_size})
 
     def stock_industry_rank(
         self, code: str, *, days: int | str = 30, page_size: int = 10
@@ -2246,9 +2230,9 @@ class F10Client:
         ``t1`` 为行业指数近期走势（``N001`` 日期 / ``N002`` 点位）。
         """
 
-        return self.theme_market(
-            code, 200745, page_size=page_size, zq_num=days
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_industry_rank", code, {"days": days, "page_size": page_size})
 
     def stock_industry_pct_rank(
         self, code: str, *, days: int | str = 30, page_size: int = 10
@@ -2259,9 +2243,9 @@ class F10Client:
         ``[排名, setcode, code, name, 涨跌幅]``。
         """
 
-        return self.theme_market(
-            code, 200747, page_size=page_size, zq_num=days
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_industry_pct_rank", code, {"days": days, "page_size": page_size})
 
     def stock_board_member_quotes(
         self,
@@ -2279,15 +2263,12 @@ class F10Client:
         ``N004`` / ``N005`` 涨跌幅与量比。
         """
 
-        payload = {
-            "ReqId": "200744",
-            "setcode": str(board_market),
-            "code": _code6(board_code),
-            "Page": page,
-            "PageSize": str(page_size),
-            "modname": "mod_tcihq.dll",
-        }
-        return self.call("HQServ.hq_nlp_tcihq", [payload])
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_request(
+            self, "stock_board_member_quotes", board_code,
+            {"board_market": board_market, "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def stock_valuation_percentile(
         self,
@@ -2303,8 +2284,10 @@ class F10Client:
         ``t1`` 每行：``DATE`` 日期、``value`` 估值、``bfw`` 百分位。
         """
 
-        return self.valuation(
-            code, 200192, page=page, page_size=page_size, extra={"Type": kind}
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(
+            self, "stock_valuation_percentile", code, {"kind": kind, "page": page, "page_size": page_size}
         )
 
     def stock_pepb_percentile(
@@ -2326,12 +2309,11 @@ class F10Client:
         ``t1`` 为区间统计（``TotalNum`` / ``Min`` / ``Mid``）。
         """
 
-        return self.valuation(
-            code,
-            200124,
-            page=page,
-            page_size=page_size,
-            extra={"sjfw": window, "zb": indicator, "hqzq": period},
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(
+            self, "stock_pepb_percentile", code,
+            {"indicator": indicator, "window": window, "period": period, "page": page, "page_size": page_size}
         )
 
     def stock_history_trend(self, code: str) -> F10Response:
@@ -2340,7 +2322,9 @@ class F10Client:
         ``t0`` 每行一个年度（``N001`` 年份、``N002~N014`` 年度涨跌幅与估值）。
         """
 
-        return self.valuation(code, 200135)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_history_trend", code, {})
 
     def stock_finance_weights(self, code: str, section: str = "zcfzb") -> F10Response:
         """财务指标权重（``CWServ.tdxf10_gg_zxtscwbq``，最新提示页）。
@@ -2366,56 +2350,12 @@ class F10Client:
     ) -> F10Response:
         """估值市场数据。req_id=200191 为估值表。"""
 
-        market_id, _, code6 = split_code(code)
-        req_id_text = str(req_id)
-        payload: dict[str, Any]
-        if req_id_text in {"200191", "200192"}:
-            payload = {
-                "ReqId": req_id_text,
-                "Code": f"{code6}|{market_id}",
-                "BeginDate": "0",
-                "EndDate": "0",
-                "Page": str(page),
-                "PageSize": str(page_size),
-                "modname": "mod_gpsj.dll",
-            }
-            if req_id_text == "200192":
-                payload.setdefault("Type", "0")
-                payload["Page"] = str(page if page != 0 else -1)
-                payload["PageSize"] = str(page_size if page_size != 20 else 5)
-        elif req_id_text == "200135":
-            payload = {
-                "ReqId": req_id_text,
-                "code": code6,
-                "setcode": str(market_id),
-                "modname": "mod_gpsj.dll",
-            }
-        elif req_id_text == "200124":
-            payload = {
-                "ReqId": req_id_text,
-                "code": code6,
-                "setcode": str(market_id),
-                "sjfw": "1Y",
-                "sdate": "",
-                "edate": "",
-                "zb": "0",
-                "hqzq": "0",
-                "cwppgz": 1,
-                "jglx": 0,
-                "Page": page if page != 0 else 1,
-                "PageSize": str(page_size if page_size != 20 else 300),
-                "modname": "mod_gpsj.dll",
-            }
-        else:
-            payload = {
-                "ReqId": req_id_text,
-                "code": code6,
-                "setcode": str(market_id),
-                "modname": "mod_gpsj.dll",
-            }
-        if extra:
-            payload.update(extra)
-        return self.call("HQServ.hq_nlp_gpsj", [payload])
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_request(
+            self, "valuation", code,
+            {"req_id": req_id, "page": page, "page_size": page_size, "extra": extra}, _MODULES[__name__]
+        )
 
     def _post(self, entry: str, body: Any) -> F10Response:
         from eltdx._native_abi import load_native

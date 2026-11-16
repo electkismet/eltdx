@@ -436,3 +436,31 @@ check, test, collection, dependency/network, AST/format/diff-whitespace runs.
 No manifest promotion.21 source-complete/4partial/5unstarted, active unlimited.
 Next20 named F10 methods/collectors, fields/models/cross-source helpers and
 manifest, then allT24–T30 sources before unified verification.
+## Fifteenth checkpoint — object requests, digest and topic composition
+
+Base `a3bee51` (stage62). Added shared object field definitions for theme,
+board quotes, valuation ranges/history/series, window ids and stage aliases.
+Rust checked queries and Python bridges consume the same layouts; strict
+Rust extra restrictions remain distinct from Python dict.update overwrite.
+Python retains two req_id conversions for themes, live split_code versus
+_code6 behavior, explicit raw Page fields, percentile repeated conversions,
+conditional default values, f-string formatting and object/list payloads.
+Aliases call live theme_market/valuation with original objects and integer
+request ids. Digest uses the shared eager report table including unused
+page_size conversion; topic_compare_first retains first matching row value,
+None failure, zero acceptance and live topic_ids/topic_compare/_first_value.
+
+Ten Python contract functions (with six valuation branches and four stage
+aliases) and one Rust object-family function authored; none executed. Static
+source review repaired reserved pytest parameter naming before checkpoint.
+No build/test/check/collection/dependency/network/AST/format/diff-whitespace
+verification, agents or publication.
+
+Inventory correction: prior totals counted only business named methods and
+omitted the already migrated call/params foundation. A source-only pass over
+all157 F10 public methods now finds151 with native entry source. Remaining6:
+limit_up_down_list, limit_board_ladder, index_members, index_tracking_products,
+board_members, ipo_calendar. This does not imply F10 models/fields/helpers
+are migrated or any code accepted. Task counts remain21/4/5, active unlimited.
+Next the six model/collector methods, then fields/models/helpers/manifest and
+T24–T30; all execution stays deferred.

@@ -1075,3 +1075,134 @@ def test_f10_business_composition_keeps_first_value_and_original_code(monkeypatc
     client.business_report = lambda *args, **kwargs: (args, kwargs)
     assert client.business_composition(code) == ((code, "composition"), {"report_date": "selected"})
     assert events == [("normalize", code), ("periods", "normalized"), ("first", "response", "T002"), ("str", date)]
+
+
+def test_f10_digest_stringifies_unused_size_but_ignores_page():
+    events = []
+
+    class Size:
+        def __str__(self):
+            events.append("size")
+            return "custom-size"
+
+    class Page:
+        def __str__(self):
+            raise AssertionError("page is unused")
+
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert client.digest("sh600000", page=Page(), page_size=Size()) == (
+        "CWServ.tdxf10_gg_zxts", "600000", "zxts", "")
+    assert client.digest("sh600000", "interaction", page_size=Size()) == (
+        "CWServ.tdxf10_gg_zxtstzzhd", "600000", "1", "1", "custom-size")
+    assert events == ["size", "size"]
+
+
+def test_f10_topic_first_preserves_zero_and_live_override(monkeypatch):
+    events = []
+    client = f10.F10Client()
+    client.topic_ids = lambda code: SimpleNamespace(rows=({"other": 1}, {"t001": 0}))
+    client.topic_compare = lambda *args, **kwargs: (args, kwargs)
+    monkeypatch.setattr(f10, "_code6", lambda code: pytest.fail("no success-path normalization"))
+    assert client.topic_compare_first("original", "section", "sort") == (
+        ("original", "0"), {"section": "section", "sort_by": "sort"})
+    assert events == []
+
+
+def test_f10_topic_first_none_is_not_skipped():
+    client = f10.F10Client()
+    client.topic_ids = lambda code: SimpleNamespace(rows=({"t001": None}, {"t001": "later"}))
+    client.topic_compare = lambda *args, **kwargs: pytest.fail("None must fail")
+    with pytest.raises(f10.ProtocolError, match="no topic id for 600000"):
+        client.topic_compare_first("sh600000")
+
+
+def test_f10_theme_repeats_request_conversion_and_preserves_extra_overwrite(monkeypatch):
+    events = []
+
+    class Request:
+        def __str__(self):
+            events.append("req")
+            return "200743" if len(events) == 1 else "200740"
+
+    monkeypatch.setattr(f10, "split_code", lambda code: (7, None, "ignored"))
+    monkeypatch.setattr(f10, "_code6", lambda code: "number")
+    marker = object()
+    client = f10.F10Client()
+    client.call = lambda *args: args
+    result = client.theme_market("raw", Request(), page=marker, zq_num=123,
+                                 extra={"code": marker, "ReqId": "replaced"})
+    assert result == ("HQServ.hq_nlp_tcihq", [{
+        "ReqId": "replaced", "setcode": 7, "code": marker, "Page": marker,
+        "PageSize": "10", "modname": "mod_tcihq.dll", "zq_num": "123"}])
+    assert events == ["req", "req"]
+    assert list(result[1][0]) == ["ReqId", "setcode", "code", "Page", "PageSize", "modname", "zq_num"]
+
+
+@pytest.mark.parametrize("req_id,page,size,expected", [
+    ("200191", 0, 20, {"Code": "600000|1", "Page": "0", "PageSize": "20", "BeginDate": "0", "EndDate": "0"}),
+    ("200192", 0, 20, {"Code": "600000|1", "Page": "-1", "PageSize": "5", "Type": "0", "BeginDate": "0", "EndDate": "0"}),
+    ("200192", 3, 99, {"Code": "600000|1", "Page": "3", "PageSize": "99", "Type": "0", "BeginDate": "0", "EndDate": "0"}),
+    ("200135", 0, 20, {"code": "600000", "setcode": "1"}),
+    ("custom", 0, 20, {"code": "600000", "setcode": "1"}),
+    ("200124", 0, 20, {"code": "600000", "setcode": "1", "sjfw": "1Y", "sdate": "", "edate": "", "zb": "0",
+                         "hqzq": "0", "cwppgz": 1, "jglx": 0, "Page": 1, "PageSize": "300"}),
+])
+def test_f10_valuation_keeps_branch_payload_types(req_id, page, size, expected):
+    client = f10.F10Client()
+    client.call = lambda *args: args
+    result = client.valuation("sh600000", req_id, page=page, page_size=size)
+    assert result == ("HQServ.hq_nlp_gpsj", [{"ReqId": req_id, **expected, "modname": "mod_gpsj.dll"}])
+
+
+def test_f10_percentile_reconverts_page_after_initial_conversion():
+    events = []
+
+    class Value:
+        def __init__(self, label, default):
+            self.label, self.default = label, default
+
+        def __str__(self):
+            events.append(("str", self.label))
+            return self.label
+
+        def __ne__(self, other):
+            events.append(("ne", self.label, other))
+            return False
+
+    client = f10.F10Client()
+    client.call = lambda *args: args
+    result = client.valuation("sh600000", 200192, page=Value("page", 0), page_size=Value("size", 20))
+    assert result[1][0]["Page"] == "-1"
+    assert result[1][0]["PageSize"] == "5"
+    assert events == [("str", "page"), ("str", "size"), ("ne", "page", 0), ("ne", "size", 20)]
+
+
+def test_f10_board_object_keeps_raw_page_and_string_market():
+    marker = object()
+    client = f10.F10Client()
+    client.call = lambda *args: args
+    assert client.stock_board_member_quotes("sh600000", board_market=99, page=marker) == (
+        "HQServ.hq_nlp_tcihq", [{"ReqId": "200744", "setcode": "99", "code": "600000",
+                               "Page": marker, "PageSize": "-1", "modname": "mod_tcihq.dll"}])
+
+
+@pytest.mark.parametrize("method,req_id", [("stock_stage_gain", 200740), ("stock_main_funds", 200742),
+    ("stock_industry_rank", 200745), ("stock_industry_pct_rank", 200747)])
+def test_f10_stage_aliases_keep_overridden_theme_method(method, req_id):
+    marker = object()
+    client = f10.F10Client()
+    client.theme_market = lambda *args, **kwargs: (args, kwargs)
+    assert getattr(client, method)(marker, days=marker, page_size=marker) == (
+        (marker, req_id), {"page_size": marker, "zq_num": marker})
+
+
+def test_f10_valuation_aliases_keep_overrides_and_extra_objects():
+    marker = object()
+    client = f10.F10Client()
+    client.valuation = lambda *args, **kwargs: (args, kwargs)
+    assert client.stock_valuation_percentile(marker, marker) == (
+        (marker, 200192), {"page": -1, "page_size": 5, "extra": {"Type": marker}})
+    assert client.stock_pepb_percentile(marker, marker, window=marker, period=marker) == (
+        (marker, 200124), {"page": 1, "page_size": 300, "extra": {"sjfw": marker, "zb": marker, "hqzq": marker}})
+    assert client.stock_history_trend(marker) == ((marker, 200135), {})

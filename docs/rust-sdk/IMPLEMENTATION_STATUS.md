@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第六十三段恢复点：报告检查点`a3bee51`。题材/估值/便捷别名、digest/topic-first共享源码接入。逐项库存发现先前漏计已迁移call/params，准确合计151/157，剩ladder两方法及四typed collector；fields/model/helpers/manifest仍待做。新增10个Python/1个Rust源码函数均未执行。21源码完整/4部分/5未开始，active无额度上限；继续六方法后T23剩余及T24–T30，全部执行验证延期。
+
 2026-11-17第六十二段恢复点：新闻/cache检查点`c75fb89`。新增共享报告表，接入七个report与business_composition/shareholder_change_plans，共137/157方法源码；保留全部分区提前求值、动态字典和方法覆盖、基金前置与限售日期顺序。新增11个Python/1个Rust源码函数未执行。下一步20个方法/typed collector、fields/model/helpers/manifest，再T24–T30。21源码完整/4部分/5未开始，active无额度上限，全部执行验证延期。
 
 2026-11-17第六十一段恢复点：第六十段已提交`f8fd116`。本段新闻/缓存11个方法共享源码已写并完成限定源码自审，合计128/157；保留call显式body、实时int/str与两次page转换、finance_review惰性参数、缓存set/unpack/f-string特殊方法及动态qsid/频道表。新增11个Python合同函数及1个Rust函数源码均未执行。T23仍需29个方法、fields/model/helpers/manifest，随后T24–T30；21源码完整/4部分/5未开始，目标active无额度上限，所有执行验证延期。
@@ -121,7 +123,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | T23 F10共享请求编排；第六十二段137/157方法源码接入，全部执行验证延期 |
+| 最新检查点 | T23 F10共享请求编排；第六十三段151/157方法源码接入（含已迁移call/params），全部执行验证延期 |
 | 当前阶段 | T01–T18及T20–T22源码完成；T19/T23/T24/T25部分；21完整源码/4部分/5未开始。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

@@ -87,9 +87,8 @@ impl DigestQuery {
     pub fn with_page(mut self, value: u32) -> Result<Self> { self.page = page(value)?; Ok(self) }
     pub fn with_page_size(mut self, value: NonZeroU32) -> Result<Self> { self.page_size = count(value)?; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        if self.section.as_str() == "interaction" { return super::params("CWServ.tdxf10_gg_zxtstzzhd", vec![j(self.code.as_str()), j("1"), j("1"), j(self.page_size.get().to_string())]); }
-        let wire = match self.section.as_str() { "tips" => "zxts", "profile" => "gsgy", "events" => "gsds", "news" => "gsxw", "announcements" => "gsgg", "reports" => "gsyj", "roadshows" => "lyhd", _ => unreachable!("closed digest registry") };
-        super::params("CWServ.tdxf10_gg_zxts", vec![j(self.code.as_str()), j(wire), j("")])
+        super::report_templates::native_report("digest", self.code.as_str(), self.section.as_str(),
+            |_| Ok(j(format!("{}", self.page_size.get()))))
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -223,7 +222,8 @@ impl F10Client {
         } } }
         let topic = topic.ok_or_else(|| Error::new(ErrorKind::MetadataUnavailable, "no topic id for topic comparison")
             .with_context("server_error_code", first.error_code().map_or_else(|| "absent".to_owned(), |value| value.to_string())))?;
-        let call = super::params("CWServ.tdxf10_gg_rdtc_gndb", vec![j(query.section.as_str()), j(query.code.as_str()), j(topic), j(query.sort_by.as_str())])?;
+        let call = super::template::native_named("topic_compare", &query.code, query.section.as_str(), |name|
+            Ok(j(if name == "topic_id" { topic.as_str() } else { query.sort_by.as_str() })))?;
         let response = self.endpoint_call(&call, &context)?.with_prerequisite(&first, &context)?;
         context.finish()?; Ok(response)
     }

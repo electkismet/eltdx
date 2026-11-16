@@ -189,6 +189,8 @@ mod request_shapes;
 pub use request_shapes::{cache_alias, cache_payload, CacheValue, CACHE_ENTRY, CACHE_KINDS};
 mod report_templates;
 pub use report_templates::{report_table, fund_period_section, market_section, ReportArgument, ReportEntry, SHAREHOLDER_PLAN_SECTION};
+mod object_templates;
+pub use object_templates::{object_entry, object_fields, object_part, stage_request, ObjectArgument, ObjectPart, THEME_WINDOW_REQUESTS, VALUATION_RANGE_REQUESTS};
 mod simple_registry;
 pub use simple_registry::simple_endpoint;
 mod international;

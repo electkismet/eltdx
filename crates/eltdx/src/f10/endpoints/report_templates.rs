@@ -31,6 +31,16 @@ macro_rules! table {
 pub fn report_table(method: &str) -> &'static [ReportEntry] {
     use ReportArgument::{Code as C, Input as I, Literal as L, OrInput as O};
     match method {
+        "digest" => table![
+            "tips" => "CWServ.tdxf10_gg_zxts" [C, L("zxts"), L("")],
+            "profile" => "CWServ.tdxf10_gg_zxts" [C, L("gsgy"), L("")],
+            "events" => "CWServ.tdxf10_gg_zxts" [C, L("gsds"), L("")],
+            "news" => "CWServ.tdxf10_gg_zxts" [C, L("gsxw"), L("")],
+            "announcements" => "CWServ.tdxf10_gg_zxts" [C, L("gsgg"), L("")],
+            "reports" => "CWServ.tdxf10_gg_zxts" [C, L("gsyj"), L("")],
+            "roadshows" => "CWServ.tdxf10_gg_zxts" [C, L("lyhd"), L("")],
+            "interaction" => "CWServ.tdxf10_gg_zxtstzzhd" [C, L("1"), L("1"), I("page_size")],
+        ],
         "shareholders" => table![
             "count" => "CWServ.tdxf10_gg_gdyj" [C, L("gdrs"), I("filter1"), I("filter2"), I("page"), I("page"), I("page_size")],
             "ranking" => "CWServ.tdxf10_gg_gdyj" [C, L("thygdrs"), I("filter1"), I("filter2"), I("page"), I("page"), I("page_size")],

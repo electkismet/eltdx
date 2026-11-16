@@ -24,6 +24,23 @@ fn apply_extra(payload: &mut OrderedJsonObject, extra: &OrderedJsonObject) -> Re
 }
 fn page_number(value: PageSelector) -> JsonValue { match value { PageSelector::All => j(-1_i64), PageSelector::Number(value) => j(u64::from(value)) } }
 
+fn range_payload(code: &AshareCode, request: &str, page: PageSelector, size: u32) -> OrderedJsonObject {
+    super::object_templates::native_part(super::ObjectPart::Range, |name| match name {
+        "req_id" => j(request), "full_code" => j(format!("{}|{}", code.as_str(), code.market().get())),
+        "page" => j(page.wire()), "page_size" => j(format!("{size}")), _ => unreachable!(),
+    })
+}
+
+fn series_payload(code: &AshareCode, page: PageSelector, size: u32,
+    window: &str, indicator: &str, period: &str) -> OrderedJsonObject
+{
+    super::object_templates::native_part(super::ObjectPart::Series, |name| match name {
+        "req_id" => j("200124"), "code" => j(code.as_str()), "market" => j(format!("{}", code.market().get())),
+        "page" => page_number(page), "page_size" => j(format!("{size}")),
+        "window" => j(window), "indicator" => j(indicator), "period" => j(period), _ => unreachable!(),
+    })
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ThemeMarketQuery { code: AshareCode, req_id: RequestId, page: PageSelector, page_size: NonZeroU32, zq_num: NonZeroU32, extra: OrderedJsonObject }
 impl ThemeMarketQuery {
@@ -40,19 +57,21 @@ impl ThemeMarketQuery {
     pub fn with_zq_num(mut self, value: NonZeroU32) -> Result<Self> { self.zq_num = count(value)?; Ok(self) }
     pub fn with_extra(mut self, value: OrderedJsonObject) -> Result<Self> { checked_extra(&value)?; self.extra = value; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        let mut payload = vec![
-            ("ReqId".to_owned(), j(self.req_id.as_str())), ("setcode".to_owned(), j(u64::from(self.code.market().get()))),
-            ("code".to_owned(), j(self.code.as_str())), ("Page".to_owned(), page_number(self.page)),
-            ("PageSize".to_owned(), j(self.page_size.get().to_string())), ("modname".to_owned(), j("mod_tcihq.dll")),
-        ];
-        if matches!(self.req_id.as_str(), "200740" | "200742" | "200745" | "200747") { payload.push(("zq_num".to_owned(), j(self.zq_num.get().to_string()))); }
+        let mut payload = super::object_templates::native_part(super::ObjectPart::Theme, |name| match name {
+            "req_id" => j(self.req_id.as_str()), "market" => j(u64::from(self.code.market().get())),
+            "code" => j(self.code.as_str()), "page" => page_number(self.page),
+            "page_size" => j(format!("{}", self.page_size.get())), _ => unreachable!(),
+        });
+        if super::THEME_WINDOW_REQUESTS.contains(&self.req_id.as_str()) {
+            payload.extend(super::object_templates::native_part(super::ObjectPart::Window, |_| j(format!("{}", self.zq_num.get()))));
+        }
         apply_extra(&mut payload, &self.extra)?;
-        object_call("HQServ.hq_nlp_tcihq", payload)
+        object_call(super::object_entry(true), payload)
     }
 }
 
 macro_rules! stage_query {
-    ($name:ident, $request:literal, $days:literal) => {
+    ($name:ident, $method:literal, $days:literal) => {
         #[derive(Clone, Debug, Eq, PartialEq)]
         pub struct $name { code: AshareCode, days: NonZeroU32, page_size: NonZeroU32 }
         impl $name {
@@ -63,15 +82,15 @@ macro_rules! stage_query {
             pub fn with_days(mut self, value: NonZeroU32) -> Result<Self> { self.days = count(value)?; Ok(self) }
             pub fn with_page_size(mut self, value: NonZeroU32) -> Result<Self> { self.page_size = count(value)?; Ok(self) }
             pub fn to_call(&self) -> Result<CallQuery> {
-                ThemeMarketQuery::new(self.code.clone()).with_req_id(id($request)).with_zq_num(self.days)?.with_page_size(self.page_size)?.to_call()
+                ThemeMarketQuery::new(self.code.clone()).with_req_id(id(super::stage_request($method).expect("built-in stage request"))).with_zq_num(self.days)?.with_page_size(self.page_size)?.to_call()
             }
         }
     };
 }
-stage_query!(StockStageGainQuery, "200740", 60);
-stage_query!(StockMainFundsQuery, "200742", 30);
-stage_query!(StockIndustryRankQuery, "200745", 30);
-stage_query!(StockIndustryPctRankQuery, "200747", 30);
+stage_query!(StockStageGainQuery, "stock_stage_gain", 60);
+stage_query!(StockMainFundsQuery, "stock_main_funds", 30);
+stage_query!(StockIndustryRankQuery, "stock_industry_rank", 30);
+stage_query!(StockIndustryPctRankQuery, "stock_industry_pct_rank", 30);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StockBoardMemberQuotesQuery { board_code: AshareCode, board_market: F10MarketCode, page: PageSelector, page_size: PageSizeSelector }
@@ -85,9 +104,11 @@ impl StockBoardMemberQuotesQuery {
     pub fn with_page(mut self, value: PageSelector) -> Result<Self> { self.page = value.checked(false, true)?; Ok(self) }
     pub fn with_page_size(mut self, value: PageSizeSelector) -> Result<Self> { self.page_size = value.checked(true)?; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        object_call("HQServ.hq_nlp_tcihq", vec![("ReqId".to_owned(), j("200744")), ("setcode".to_owned(), j(self.board_market.get().to_string())),
-            ("code".to_owned(), j(self.board_code.as_str())), ("Page".to_owned(), page_number(self.page)),
-            ("PageSize".to_owned(), j(self.page_size.wire())), ("modname".to_owned(), j("mod_tcihq.dll"))])
+        let payload = super::object_templates::native_part(super::ObjectPart::Board, |name| match name {
+            "market" => j(format!("{}", self.board_market.get())), "code" => j(self.board_code.as_str()),
+            "page" => page_number(self.page), "page_size" => j(self.page_size.wire()), _ => unreachable!(),
+        });
+        object_call(super::object_entry(true), payload)
     }
 }
 
@@ -106,32 +127,26 @@ impl ValuationQuery {
     pub fn with_extra(mut self, value: OrderedJsonObject) -> Result<Self> { checked_extra(&value)?; self.extra = value; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
         let request = self.req_id.as_str();
-        let mut payload = vec![("ReqId".to_owned(), j(request))];
-        if matches!(request, "200191" | "200192") {
+        let mut payload = if super::VALUATION_RANGE_REQUESTS.contains(&request) {
             let page = if request == "200192" && self.page == PageSelector::Number(0) { PageSelector::All } else { self.page };
             let size = if request == "200192" && self.page_size.get() == 20 { 5 } else { self.page_size.get() };
-            payload.extend([
-                ("Code".to_owned(), j(format!("{}|{}", self.code.as_str(), self.code.market().get()))),
-                ("BeginDate".to_owned(), j("0")), ("EndDate".to_owned(), j("0")),
-                ("Page".to_owned(), j(page.wire())), ("PageSize".to_owned(), j(size.to_string())),
-            ]);
+            let mut payload = range_payload(&self.code, request, page, size);
             if request == "200192" { payload.push(("Type".to_owned(), j("0"))); }
+            payload
+        } else if request == "200124" {
+            let page = if self.page == PageSelector::Number(0) { PageSelector::Number(1) } else { self.page };
+            if page == PageSelector::All { return Err(crate::f10::values::invalid("PE/PB series requires a numbered page")); }
+            let size = if self.page_size.get() == 20 { 300 } else { self.page_size.get() };
+            series_payload(&self.code, page, size, "1Y", "0", "0")
         } else {
-            payload.extend([("code".to_owned(), j(self.code.as_str())), ("setcode".to_owned(), j(self.code.market().get().to_string()))]);
-            if request == "200124" {
-                let page = if self.page == PageSelector::Number(0) { PageSelector::Number(1) } else { self.page };
-                if page == PageSelector::All { return Err(crate::f10::values::invalid("PE/PB series requires a numbered page")); }
-                let size = if self.page_size.get() == 20 { 300 } else { self.page_size.get() };
-                payload.extend([
-                    ("sjfw".to_owned(), j("1Y")), ("sdate".to_owned(), j("")), ("edate".to_owned(), j("")),
-                    ("zb".to_owned(), j("0")), ("hqzq".to_owned(), j("0")), ("cwppgz".to_owned(), j(1_i64)), ("jglx".to_owned(), j(0_i64)),
-                    ("Page".to_owned(), page_number(page)), ("PageSize".to_owned(), j(size.to_string())),
-                ]);
-            }
-        }
-        payload.push(("modname".to_owned(), j("mod_gpsj.dll")));
+            super::object_templates::native_part(super::ObjectPart::History, |name| match name {
+                "req_id" => j(request), "code" => j(self.code.as_str()),
+                "market" => j(format!("{}", self.code.market().get())), _ => unreachable!(),
+            })
+        };
+        payload.extend(super::object_templates::native_part(super::ObjectPart::ValuationModule, |_| unreachable!()));
         apply_extra(&mut payload, &self.extra)?;
-        object_call("HQServ.hq_nlp_gpsj", payload)
+        object_call(super::object_entry(false), payload)
     }
 }
 
@@ -147,12 +162,10 @@ impl StockValuationPercentileQuery {
     pub fn with_page(mut self, value: PageSelector) -> Result<Self> { self.page = value.checked(false, true)?; Ok(self) }
     pub fn with_page_size(mut self, value: NonZeroU32) -> Result<Self> { self.page_size = count(value)?; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        // These values are explicit: a requested page_size=20 is really 20,
-        // rather than the legacy generic method's 20->5 default substitution.
-        object_call("HQServ.hq_nlp_gpsj", vec![("ReqId".to_owned(), j("200192")),
-            ("Code".to_owned(), j(format!("{}|{}", self.code.as_str(), self.code.market().get()))),
-            ("BeginDate".to_owned(), j("0")), ("EndDate".to_owned(), j("0")), ("Page".to_owned(), j(self.page.wire())),
-            ("PageSize".to_owned(), j(self.page_size.get().to_string())), ("Type".to_owned(), j(self.kind.as_str())), ("modname".to_owned(), j("mod_gpsj.dll"))])
+        let mut payload = range_payload(&self.code, "200192", self.page, self.page_size.get());
+        payload.push(("Type".to_owned(), j(self.kind.as_str())));
+        payload.extend(super::object_templates::native_part(super::ObjectPart::ValuationModule, |_| unreachable!()));
+        object_call(super::object_entry(false), payload)
     }
 }
 
@@ -172,11 +185,10 @@ impl StockPepbPercentileQuery {
     pub fn with_page(mut self, value: u32) -> Result<Self> { self.page = crate::f10::values::page(value)?; Ok(self) }
     pub fn with_page_size(mut self, value: NonZeroU32) -> Result<Self> { self.page_size = count(value)?; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        object_call("HQServ.hq_nlp_gpsj", vec![("ReqId".to_owned(), j("200124")), ("code".to_owned(), j(self.code.as_str())),
-            ("setcode".to_owned(), j(self.code.market().get().to_string())), ("sjfw".to_owned(), j(self.window.as_str())),
-            ("sdate".to_owned(), j("")), ("edate".to_owned(), j("")), ("zb".to_owned(), j(self.indicator.as_str())), ("hqzq".to_owned(), j(self.period.as_str())),
-            ("cwppgz".to_owned(), j(1_i64)), ("jglx".to_owned(), j(0_i64)), ("Page".to_owned(), j(u64::from(self.page))),
-            ("PageSize".to_owned(), j(self.page_size.get().to_string())), ("modname".to_owned(), j("mod_gpsj.dll"))])
+        let mut payload = series_payload(&self.code, PageSelector::Number(self.page), self.page_size.get(),
+            &self.window, &self.indicator, &self.period);
+        payload.extend(super::object_templates::native_part(super::ObjectPart::ValuationModule, |_| unreachable!()));
+        object_call(super::object_entry(false), payload)
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]

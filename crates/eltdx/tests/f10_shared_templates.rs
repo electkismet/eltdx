@@ -153,3 +153,26 @@ fn shared_report_layouts_preserve_nondefault_requests() -> eltdx::Result<()> {
     assert_eq!(market.payload(), &RequestPayload::Params(vec!["001".into(), "600000".into(), "1".into(), "20".into()]));
     Ok(())
 }
+
+#[test]
+fn shared_object_layouts_keep_wire_types_and_request_families() -> eltdx::Result<()> {
+    use eltdx::f10::*;
+    let code = AshareCode::new(F10MarketCode::new(1), "600000")?;
+    let stage = StockMainFundsQuery::new(code.clone()).to_call()?;
+    assert_eq!(stage.entry().as_str(), "HQServ.hq_nlp_tcihq");
+    assert_eq!(stage.payload(), &RequestPayload::Body(JsonValue::Array(vec![JsonValue::Object(vec![
+        ("ReqId".into(), "200742".into()), ("setcode".into(), 1_i64.into()), ("code".into(), "600000".into()),
+        ("Page".into(), (-1_i64).into()), ("PageSize".into(), "10".into()), ("modname".into(), "mod_tcihq.dll".into()),
+        ("zq_num".into(), "30".into()),
+    ])])));
+    let valuation = StockValuationPercentileQuery::new(code.clone()).to_call()?;
+    assert_eq!(valuation.entry().as_str(), "HQServ.hq_nlp_gpsj");
+    assert_eq!(valuation.payload(), &RequestPayload::Body(JsonValue::Array(vec![JsonValue::Object(vec![
+        ("ReqId".into(), "200192".into()), ("Code".into(), "600000|1".into()), ("BeginDate".into(), "0".into()),
+        ("EndDate".into(), "0".into()), ("Page".into(), "-1".into()), ("PageSize".into(), "5".into()),
+        ("Type".into(), "0".into()), ("modname".into(), "mod_gpsj.dll".into()),
+    ])])));
+    let digest = DigestQuery::new(code).to_call()?;
+    assert_eq!(digest.payload(), &RequestPayload::Params(vec!["600000".into(), "zxts".into(), "".into()]));
+    Ok(())
+}

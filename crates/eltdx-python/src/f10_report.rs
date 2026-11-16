@@ -59,6 +59,9 @@ pub fn f10_report<'py>(py: Python<'py>, client: Bound<'py, PyAny>, method: &str,
         inputs.set_item("page", builtin(&module, "str")?.call1((get(&inputs, "page")?,))?)?;
         inputs.set_item("page_size", builtin(&module, "str")?.call1((get(&inputs, "page_size")?,))?)?;
     }
+    if method == "digest" {
+        inputs.set_item("page_size", builtin(&module, "str")?.call1((get(&inputs, "page_size")?,))?)?;
+    }
     match method {
         "shareholders" => inputs.set_item("date", or_empty(get(&inputs, "report_date")?)?)?,
         "business_report" => {
@@ -139,4 +142,26 @@ pub fn f10_business_composition<'py>(py: Python<'py>, client: Bound<'py, PyAny>,
     let kwargs = PyDict::new(py);
     kwargs.set_item("report_date", builtin(&module, "str")?.call1((selected,))?)?;
     Ok(method.call((code, "composition"), Some(&kwargs))?.unbind())
+}
+
+#[pyfunction]
+pub fn f10_topic_compare_first<'py>(py: Python<'py>, client: Bound<'py, PyAny>,
+    code: Bound<'py, PyAny>, section: Bound<'py, PyAny>, sort_by: Bound<'py, PyAny>,
+    module: Bound<'py, PyAny>) -> PyResult<Py<PyAny>>
+{
+    let first = module.getattr("_first_value")?;
+    let response = client.call_method1("topic_ids", (&code,))?;
+    let topic = first.call1((response, "t001"))?;
+    if topic.is_none() {
+        let exception = module.getattr("ProtocolError")?;
+        let number = module.getattr("_code6")?.call1((code,))?;
+        let message = "no topic id for {:}".into_pyobject(py)?.call_method1("format", (number,))?;
+        return Err(PyErr::from_value(exception.call1((message,))?));
+    }
+    let method = client.getattr("topic_compare")?;
+    let topic = builtin(&module, "str")?.call1((topic,))?;
+    let kwargs = PyDict::new(py);
+    kwargs.set_item("section", section)?;
+    kwargs.set_item("sort_by", sort_by)?;
+    Ok(method.call((code, topic), Some(&kwargs))?.unbind())
 }
