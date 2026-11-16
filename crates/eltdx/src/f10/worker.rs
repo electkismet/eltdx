@@ -131,13 +131,24 @@ impl Concurrency {
             context.owner().reap_completed_tasks();
             active = self.active.lock().map_err(|_| poisoned())?;
             context.check_boundary(TimeoutPhase::Queue)?;
-            if *active < self.maximum { *active += 1; return Ok(Slot(Arc::new(Lease(Arc::clone(self))))); }
+            if *active < self.maximum {
+                *active += 1;
+                return Ok(Slot { _lease: Arc::new(Lease(Arc::clone(self))), prerequisites: Vec::new() });
+            }
             active = self.changed.wait_timeout(active, Duration::from_millis(10)).map_err(|_| poisoned())?.0;
         }
     }
 }
 #[derive(Clone)]
-pub(crate) struct Slot(Arc<Lease>);
+pub(crate) struct Slot { _lease: Arc<Lease>, prerequisites: Vec<Slot> }
+impl Slot {
+    /// A probe's serial admission must remain held by the registered job if
+    /// its caller cannot confirm cleanup. Clones share the underlying leases.
+    pub fn holding(mut self, prerequisite: Slot) -> Self {
+        self.prerequisites.push(prerequisite);
+        self
+    }
+}
 struct Lease(Arc<Concurrency>);
 impl Drop for Lease {
     fn drop(&mut self) {

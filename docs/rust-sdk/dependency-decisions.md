@@ -139,3 +139,22 @@ RetainWire additionally stores received HTTP plaintext. Ordered caller headers
 are emitted through a bounded first-header-block adapter because HeaderMap
 alone groups separated duplicate names. All of these contracts still require
 the authored public-client fixtures and final feature/platform/MSRV runs.
+
+### T19 fourth source checkpoint — transport boundary follow-up
+
+The zlib path now uses the already-selected flate2 `Decompress` primitive with
+8 KiB output chunks, requiring `StreamEnd` and rejecting bytes after the stream.
+This makes checksum/truncated-end handling explicit without a second inflater
+dependency. Gzip retains MultiGzDecoder so concatenated members remain valid;
+fixture source covers both concatenated members and missing footer bytes.
+
+Explicit connect probes share a cancellable single-slot gate in addition to
+the owner's four-worker cap. Both leases stay with a registered worker when a
+caller cannot confirm cleanup. JSON Params now share one document-wide node,
+depth and byte budget; request/response retention checks cancellation during
+copying. Unknown top-level service metadata and repeated HitCache keys remain
+available through Response::attributes even when whole-body retention is off.
+
+No candidate API, compile, dependency graph, runtime fixture, formatter or
+platform check has been executed. These remain implementation source changes,
+not a dependency-selection validation result.

@@ -18,25 +18,24 @@ impl EntryName {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RequestPayload { Body(JsonValue), Params(Vec<JsonValue>) }
 impl RequestPayload {
+    pub(crate) fn retained(&self, boundary: &mut dyn FnMut() -> Result<()>) -> Result<Self> {
+        match self {
+            Self::Body(value) => Ok(Self::Body(super::json::clone_value(value, boundary)?)),
+            Self::Params(values) => {
+                let mut output = Vec::new();
+                for value in values {
+                    boundary()?;
+                    output.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot retain F10 parameters").with_source(error))?;
+                    output.push(super::json::clone_value(value, boundary)?);
+                }
+                Ok(Self::Params(output))
+            }
+        }
+    }
     pub(crate) fn encoded(&self, maximum: usize, boundary: &mut dyn FnMut() -> Result<()>) -> Result<Vec<u8>> {
         match self {
             Self::Body(value) => super::json::encode(value, maximum, boundary),
-            Self::Params(values) => {
-                // Encode borrowed elements without cloning a potentially large body.
-                let mut output = Vec::from(&b"{\"Params\":["[..]);
-                for (index, value) in values.iter().enumerate() {
-                    if index != 0 { output.push(b','); }
-                    let remaining = maximum.checked_sub(output.len().saturating_add(2))
-                        .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "F10 request exceeds byte limit"))?;
-                    let encoded = super::json::encode(value, remaining, boundary)?;
-                    output.try_reserve(encoded.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 request").with_source(error))?;
-                    output.extend_from_slice(&encoded);
-                }
-                output.extend_from_slice(b"]}");
-                if output.len() > maximum { return Err(Error::new(ErrorKind::LimitExceeded, "F10 request exceeds byte limit")); }
-                boundary()?;
-                Ok(output)
-            }
+            Self::Params(values) => super::json::encode_params(values, maximum, boundary),
         }
     }
 }
@@ -50,12 +49,15 @@ impl CallQuery {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ParamsQuery { entry: EntryName, params: Vec<JsonValue> }
+pub struct ParamsQuery { call: CallQuery }
 impl ParamsQuery {
-    pub fn new(entry: EntryName, params: Vec<JsonValue>) -> Self { Self { entry, params } }
-    pub fn entry(&self) -> &EntryName { &self.entry }
-    pub fn params(&self) -> &[JsonValue] { &self.params }
-    pub fn into_call(self) -> CallQuery { CallQuery::new(self.entry, RequestPayload::Params(self.params)) }
+    pub fn new(entry: EntryName, params: Vec<JsonValue>) -> Self { Self { call: CallQuery::new(entry, RequestPayload::Params(params)) } }
+    pub fn entry(&self) -> &EntryName { self.call.entry() }
+    pub fn params(&self) -> &[JsonValue] {
+        match self.call.payload() { RequestPayload::Params(values) => values, RequestPayload::Body(_) => unreachable!("ParamsQuery stores Params only") }
+    }
+    pub fn into_call(self) -> CallQuery { self.call }
+    pub(crate) fn call(&self) -> &CallQuery { &self.call }
 }
 
 /// Typed query extras preserve order, reject duplicate names, and cannot replace

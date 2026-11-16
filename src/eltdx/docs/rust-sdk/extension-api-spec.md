@@ -104,6 +104,8 @@ impl Row { pub fn get_all(&self, name: &str) -> impl Iterator<Item=&Cell>;
 
 `error_code` 缺失或 0 时 `ok=true`；非 0 仍 `Ok(Response { ok=false, ... })`，不把服务业务码升级成传输异常。typed 组合若缺必要报告期/topic，报 `MetadataUnavailable` 并附原响应状态；旧 Python 原 `ProtocolError` 保留。字段字典必须按 Entry + scope + nhytype/reporttype 解码，不全局将同名 `N001` 解释为同一业务字段；未知字段和银行 `T088` 不猜测。
 
+`Response::attributes() -> &[(String, JsonValue)]` 保留非 `ResultSets` 顶层附加字段及其顺序和重复键，包括 `HitCache`/`hitCache`；`ErrorCode` 仍有checked专用访问。只有原始payload保留模式才另存输入中更早的重复 `ResultSets`，Omit不为这些重复表构造额外副本。请求与表raw的保留复制也检查父操作取消/期限；Params外包装及所有元素共用整文档的复杂度限额。
+
 ### 2.2 query 字段类型、默认和分页
 
 下表每行定义一个 public query struct；名称为方法名 PascalCase + `Query`。例如 `ShareholdersQuery` 包含表列所有字段，签名是 `F10Client::shareholders(&self, query: &ShareholdersQuery, options: &OperationOptions) -> Result<Response>`。下表的 `method(Q) -> R` 是此完整签名的缩写；无参网络方法省略 query，仍有 `options`；只有 `news_channels()` 无网络 options。`call` 的互斥 Body/Params 用 enum 编译期表达，`params` 是 ParamsQuery 便捷包装。每个 query constructor 提供下面默认值，所有字段有 read-only getter 与 checked builder，禁止通过 public mutable 字段绕过校验。

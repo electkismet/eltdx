@@ -215,6 +215,70 @@ pub(crate) fn encode(value: &JsonValue, maximum: usize, boundary: &mut dyn FnMut
     (encoder.boundary)()?;
     Ok(encoder.bytes)
 }
+/// Params is part of the same JSON document. Keep its wrapper and every
+/// element within one byte, depth and node budget instead of resetting limits
+/// separately for each item.
+pub(crate) fn encode_params(values: &[JsonValue], maximum: usize, boundary: &mut dyn FnMut() -> Result<()>) -> Result<Vec<u8>> {
+    let mut encoder = Encoder { bytes: Vec::new(), maximum, nodes: 2, boundary };
+    encoder.append(b"{\"Params\":[")?;
+    for (index, value) in values.iter().enumerate() {
+        if index != 0 { encoder.append(b",")?; }
+        encoder.value(value, 2)?;
+    }
+    encoder.append(b"]}")?;
+    (encoder.boundary)()?;
+    Ok(encoder.bytes)
+}
+
+/// Copy retained values with the same bounded traversal used by parsing. A
+/// derived Clone on a whole response can run for arbitrarily long after the
+/// parent's deadline, even if parsing itself checked cancellation frequently.
+pub(crate) fn clone_value(value: &JsonValue, boundary: &mut dyn FnMut() -> Result<()>) -> Result<JsonValue> {
+    Cloner { nodes: 0, boundary }.value(value, 0)
+}
+pub(crate) fn clone_object(values: &OrderedJsonObject, boundary: &mut dyn FnMut() -> Result<()>) -> Result<OrderedJsonObject> {
+    Cloner { nodes: 1, boundary }.object(values, 0)
+}
+struct Cloner<'a> { nodes: usize, boundary: &'a mut dyn FnMut() -> Result<()> }
+impl Cloner<'_> {
+    fn text(&mut self, value: &str) -> Result<String> {
+        let mut output = Vec::new();
+        for chunk in value.as_bytes().chunks(4096) {
+            (self.boundary)()?;
+            output.try_reserve(chunk.len()).map_err(allocation)?;
+            output.extend_from_slice(chunk);
+        }
+        String::from_utf8(output).map_err(|error| Error::new(ErrorKind::Internal, "invalid copied JSON text").with_source(error))
+    }
+    fn object(&mut self, values: &OrderedJsonObject, depth: usize) -> Result<OrderedJsonObject> {
+        let mut output = Vec::new();
+        for (name, value) in values {
+            let name = self.text(name)?;
+            let value = self.value(value, depth + 1)?;
+            push(&mut output, (name, value))?;
+        }
+        Ok(output)
+    }
+    fn value(&mut self, value: &JsonValue, depth: usize) -> Result<JsonValue> {
+        (self.boundary)()?;
+        if depth > 128 || self.nodes >= 1_000_000 {
+            return Err(Error::new(ErrorKind::LimitExceeded, "retained JSON nesting or node limit exceeded"));
+        }
+        self.nodes += 1;
+        Ok(match value {
+            JsonValue::Null => JsonValue::Null,
+            JsonValue::Bool(value) => JsonValue::Bool(*value),
+            JsonValue::Number(value) => JsonValue::Number(JsonNumber(self.text(value.lexeme())?)),
+            JsonValue::String(value) => JsonValue::String(self.text(value)?),
+            JsonValue::Array(values) => {
+                let mut output = Vec::new();
+                for value in values { push(&mut output, self.value(value, depth + 1)?)?; }
+                JsonValue::Array(output)
+            }
+            JsonValue::Object(values) => JsonValue::Object(self.object(values, depth)?),
+        })
+    }
+}
 struct Encoder<'a> { bytes: Vec<u8>, maximum: usize, nodes: usize, boundary: &'a mut dyn FnMut() -> Result<()> }
 impl Encoder<'_> {
     fn append(&mut self, bytes: &[u8]) -> Result<()> {
@@ -296,5 +360,27 @@ mod tests {
     fn limits_prevent_unbounded_recursive_json() {
         let nested = format!("{}0{}", "[".repeat(130), "]".repeat(130));
         assert_eq!(JsonValue::parse(nested.as_bytes()).unwrap_err().kind(), ErrorKind::LimitExceeded);
+    }
+
+    #[test]
+    fn params_elements_share_node_and_wrapper_depth_limits() {
+        let values = vec![JsonValue::Null; 999_999];
+        assert_eq!(encode_params(&values, 16 * 1024 * 1024, &mut || Ok(())).unwrap_err().kind(), ErrorKind::LimitExceeded);
+        let nested = format!("{}0{}", "[".repeat(127), "]".repeat(127));
+        let value = JsonValue::parse(nested.as_bytes()).unwrap();
+        assert_eq!(encode_params(&[value], 16 * 1024 * 1024, &mut || Ok(())).unwrap_err().kind(), ErrorKind::LimitExceeded);
+    }
+
+    #[test]
+    fn retained_copy_checks_cancellation_inside_large_strings_and_preserves_order() -> Result<()> {
+        let original = JsonValue::parse(br#"{"same":1e100,"same":null,"nested":["text",true]}"#)?;
+        assert_eq!(clone_value(&original, &mut || Ok(()))?, original);
+        let mut boundaries = 0;
+        let error = clone_value(&JsonValue::String("x".repeat(20_000)), &mut || {
+            boundaries += 1;
+            if boundaries == 3 { Err(Error::new(ErrorKind::Cancelled, "cancel retained copy")) } else { Ok(()) }
+        }).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::Cancelled);
+        Ok(())
     }
 }

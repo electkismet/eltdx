@@ -55,13 +55,16 @@ impl ResultSet {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Response {
     entry: String, request: RequestPayload, error_code: Option<i64>,
-    result_sets: Vec<ResultSet>, meta: ResultMeta,
+    result_sets: Vec<ResultSet>, attributes: super::OrderedJsonObject, meta: ResultMeta,
 }
 impl Response {
     pub fn entry(&self) -> &str { &self.entry }
     pub fn request(&self) -> &RequestPayload { &self.request }
     pub fn error_code(&self) -> Option<i64> { self.error_code }
     pub fn result_sets(&self) -> &[ResultSet] { &self.result_sets }
+    /// Non-table top-level members, including HitCache/hitCache and unknown
+    /// service metadata, retain their original order, types and duplicate keys.
+    pub fn attributes(&self) -> &[(String, JsonValue)] { &self.attributes }
     pub fn meta(&self) -> &ResultMeta { &self.meta }
     pub fn ok(&self) -> bool { self.error_code.is_none_or(|code| code == 0) }
     pub fn first_table(&self) -> Option<&ResultSet> { self.result_sets.first() }
@@ -92,8 +95,11 @@ impl Response {
             boundary()?;
             result_sets.push(parse_table(value, retain, boundary)?);
         }
+        // Earlier duplicate ResultSets are available in explicitly retained
+        // payload bytes. Do not keep a second whole table tree under Omit.
+        object.retain(|(key, _)| key != "ResultSets");
         boundary()?;
-        Ok(Self { entry, request, error_code, result_sets, meta })
+        Ok(Self { entry, request, error_code, result_sets, attributes: object, meta })
     }
 }
 
@@ -126,7 +132,7 @@ fn array(value: Option<JsonValue>, label: &str) -> Result<Vec<JsonValue>> {
 }
 fn parse_table(value: JsonValue, retain: bool, boundary: &mut dyn FnMut() -> Result<()>) -> Result<ResultSet> {
     let JsonValue::Object(mut object) = value else { return Err(protocol("TQLEX ResultSet must be an object")); };
-    let raw = retain.then(|| JsonValue::Object(object.clone()));
+    let raw = if retain { Some(JsonValue::Object(super::json::clone_object(&object, boundary)?)) } else { None };
     let key = match take(&mut object, "ResultSetKey") {
         None | Some(JsonValue::Null) => None,
         Some(JsonValue::String(value)) => Some(value),
@@ -191,6 +197,16 @@ mod tests {
         assert_eq!(response.result_sets()[2].key(), None);
         assert!(response.result_sets()[0].raw().is_some());
         assert_eq!(response.result_sets()[0].rows()[0].cells()[0].value(), &JsonValue::Null);
+        Ok(())
+    }
+
+    #[test]
+    fn service_attributes_survive_without_retaining_a_complete_table_tree() -> Result<()> {
+        let response = response(br#"{"HitCache":true,"unknown":{"flag":1},"HitCache":false,"ResultSets":[]}"#, false)?;
+        assert_eq!(response.attributes().len(), 3);
+        assert_eq!(response.attributes()[0], ("HitCache".to_owned(), JsonValue::Bool(true)));
+        assert_eq!(response.attributes()[2], ("HitCache".to_owned(), JsonValue::Bool(false)));
+        assert_eq!(response.attributes()[1].1.get("flag").and_then(JsonValue::as_number).and_then(|value| value.as_i64()), Some(1));
         Ok(())
     }
 }

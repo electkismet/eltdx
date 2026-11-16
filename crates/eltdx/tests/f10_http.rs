@@ -435,6 +435,69 @@ fn successful_connect_is_idempotent_and_closed_owner_rejects_before_network() ->
 }
 
 #[test]
+fn simultaneous_connect_calls_share_one_transport_probe() -> TestResult {
+    let (der, tls) = certificate()?;
+    let (entered_tx, entered_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let server = Server::start(move |stream| {
+        // Observe a real ClientHello without consuming bytes from rustls.
+        let mut first = [0_u8];
+        assert_eq!(stream.peek(&mut first)?, 1);
+        entered_tx.send(())?;
+        release_rx.recv_timeout(Duration::from_secs(2))?;
+        let session = rustls::ServerConnection::new(tls)?;
+        let mut secured = rustls::StreamOwned::new(session, stream);
+        while secured.conn.is_handshaking() { secured.conn.complete_io(&mut secured.sock)?; }
+        Ok(())
+    })?;
+    let (dns, stop, dns_thread) = dns_server(server.address)?;
+    let client = F10Client::builder().with_base_url(format!("https://f10.fixture.test:{}/TQLEX", server.address.port()))
+        .with_resolver(ResolverPolicy::Nameservers(vec![dns])).with_tls(TlsPolicy::CustomRoots(vec![der])).build()?;
+    let first_client = client.clone();
+    let first = thread::spawn(move || first_client.connect(&OperationOptions::default()));
+    entered_rx.recv_timeout(Duration::from_secs(2))?;
+    let (waiting_tx, waiting_rx) = mpsc::channel();
+    let second_client = client.clone();
+    let second = thread::spawn(move || {
+        waiting_tx.send(()).unwrap();
+        second_client.connect(&OperationOptions::default())
+    });
+    waiting_rx.recv_timeout(Duration::from_secs(2))?;
+    release_tx.send(())?;
+    first.join().map_err(|_| "first connect panic")??;
+    second.join().map_err(|_| "second connect panic")??;
+    assert_eq!(client.diagnostics()?.completed_requests(), 1);
+    stop.send(())?;
+    dns_thread.join().map_err(|_| "DNS fixture panic")??;
+    client.close()?;
+    server.finish()
+}
+
+#[test]
+fn connect_waiter_cancellation_keeps_the_first_probe_running() -> TestResult {
+    let dns = UdpSocket::bind("127.0.0.1:0")?;
+    dns.set_read_timeout(Some(Duration::from_secs(2)))?;
+    let client = F10Client::builder().with_base_url("https://pending.fixture.test/TQLEX")
+        .with_resolver(ResolverPolicy::Nameservers(vec![dns.local_addr()?])).build()?;
+    let first_token = CancellationToken::default();
+    let first_options = OperationOptions::default().with_cancellation(first_token.clone());
+    let first_client = client.clone();
+    let first = thread::spawn(move || first_client.connect(&first_options));
+    dns.recv_from(&mut [0_u8; 2048])?;
+    let waiter_token = CancellationToken::default();
+    let waiter_options = OperationOptions::default().with_cancellation(waiter_token.clone());
+    let waiter_client = client.clone();
+    let waiter = thread::spawn(move || waiter_client.connect(&waiter_options));
+    waiter_token.cancel();
+    assert_eq!(waiter.join().map_err(|_| "connect waiter panic")?.unwrap_err().kind(), ErrorKind::Cancelled);
+    assert!(!first.is_finished());
+    first_token.cancel();
+    assert_eq!(first.join().map_err(|_| "first connect panic")?.unwrap_err().kind(), ErrorKind::Cancelled);
+    client.close()?;
+    Ok(())
+}
+
+#[test]
 fn invalid_certificate_hostname_is_rejected_even_when_root_is_trusted() -> TestResult {
     let (der, tls) = certificate()?;
     let server = Server::start(move |stream| {
@@ -529,4 +592,118 @@ fn close_during_dns_releases_the_owner_and_rejects_future_calls() -> TestResult 
     assert_eq!(worker.join().map_err(|_| "close client panic")?.unwrap_err().kind(), ErrorKind::Closed);
     assert_eq!(client.call(&query("sample")?, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Closed);
     Ok(())
+}
+
+#[test]
+fn zlib_requires_checksum_end_and_rejects_trailing_bytes() -> TestResult {
+    use flate2::{write::ZlibEncoder, Compression};
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(TABLE)?;
+    let compressed = encoder.finish()?;
+    for variant in [0, 1, 2] {
+        let mut data = compressed.clone();
+        if variant == 1 { data.truncate(data.len() - 2); }
+        if variant == 2 { data.extend_from_slice(b"extra"); }
+        let server = Server::start(move |mut stream| {
+            read_request(&mut stream)?;
+            answer(&mut stream, "200 OK", "Content-Encoding: deflate\r\n", &data)
+        })?;
+        let client = client(server.url())?;
+        let result = client.call(&query("sample")?, &OperationOptions::default());
+        if variant == 0 { assert!(result?.ok()); } else { assert_eq!(result.unwrap_err().kind(), ErrorKind::Protocol); }
+        client.close()?;
+        server.finish()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn gzip_requires_footer_and_preserves_concatenated_member_semantics() -> TestResult {
+    use flate2::{write::GzEncoder, Compression};
+    fn gzip(bytes: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(bytes)?;
+        encoder.finish()
+    }
+    let split = TABLE.len() / 2;
+    let mut members = gzip(&TABLE[..split])?;
+    members.extend_from_slice(&gzip(&TABLE[split..])?);
+    for (mut data, valid) in [(members, true), (gzip(TABLE)?, false)] {
+        if !valid { data.truncate(data.len() - 4); }
+        let server = Server::start(move |mut stream| {
+            read_request(&mut stream)?;
+            answer(&mut stream, "200 OK", "Content-Encoding: gzip\r\n", &data)
+        })?;
+        let client = client(server.url())?;
+        let result = client.call(&query("sample")?, &OperationOptions::default());
+        if valid { assert!(result?.ok()); } else { assert_eq!(result.unwrap_err().kind(), ErrorKind::Protocol); }
+        client.close()?;
+        server.finish()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn opted_in_same_origin_redirect_preserves_post_body_and_request_headers() -> TestResult {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    listener.set_nonblocking(true)?;
+    let server = thread::spawn(move || -> TestResult {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        for index in 0..2 {
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < deadline => thread::sleep(Duration::from_millis(2)),
+                    Err(error) => return Err(Box::new(error)),
+                }
+            };
+            stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+            stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+            let (header, body) = read_request(&mut stream)?;
+            assert_eq!(body, "{\"Params\":[\"中文\",7]}".as_bytes());
+            if index == 0 {
+                assert!(header.starts_with("POST /TQLEX?Entry=sample HTTP/1.1\r\n"));
+                answer(&mut stream, "307 Temporary Redirect", "Location: /moved?Entry=sample\r\n", b"")?;
+            } else {
+                assert!(header.starts_with("POST /moved?Entry=sample HTTP/1.1\r\n"));
+                answer(&mut stream, "200 OK", "", TABLE)?;
+            }
+        }
+        Ok(())
+    });
+    let client = F10Client::builder().with_base_url(format!("http://{address}/TQLEX")).with_max_redirects(1).build()?;
+    let response = client.call(&query("sample")?, &OperationOptions::default())?;
+    assert!(response.ok());
+    assert!(client.diagnostics()?.active_endpoint().unwrap_or_default().contains("/moved?Entry=sample"));
+    client.close()?;
+    server.join().map_err(|_| "redirect fixture panic")?
+}
+
+#[test]
+fn redirect_policy_rejects_cross_origin_method_rewrite_and_limit_exhaustion() -> TestResult {
+    for (status, location) in [
+        ("307 Temporary Redirect", "http://127.0.0.1:1/other"),
+        ("302 Found", "/moved"),
+        ("308 Permanent Redirect", "/moved#fragment"),
+        ("307 Temporary Redirect", "http://user:password@127.0.0.1:1/other"),
+    ] {
+        let extra = format!("Location: {location}\r\n");
+        let server = Server::start(move |mut stream| {
+            read_request(&mut stream)?;
+            answer(&mut stream, status, &extra, b"")
+        })?;
+        let client = F10Client::builder().with_base_url(server.url()).with_max_redirects(1).build()?;
+        assert_eq!(client.call(&query("sample")?, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Protocol);
+        client.close()?;
+        server.finish()?;
+    }
+    let server = Server::start(|mut stream| {
+        read_request(&mut stream)?;
+        answer(&mut stream, "307 Temporary Redirect", "Location: /moved\r\n", b"")
+    })?;
+    let client = client(server.url())?;
+    assert_eq!(client.call(&query("sample")?, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Protocol);
+    client.close()?;
+    server.finish()
 }

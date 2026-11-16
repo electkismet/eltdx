@@ -131,7 +131,7 @@ impl io::Write for Sink {
 }
 
 pub(crate) enum Decoder {
-    Plain(Sink), Gzip(flate2::write::MultiGzDecoder<Sink>), Deflate(flate2::write::ZlibDecoder<Sink>),
+    Plain(Sink), Gzip(flate2::write::MultiGzDecoder<Sink>), Deflate(Deflater),
 }
 impl Decoder {
     pub fn new(encoding: &str, maximum: usize, control: Control) -> Result<Self> {
@@ -139,24 +139,54 @@ impl Decoder {
         match encoding.trim().to_ascii_lowercase().as_str() {
             "" | "identity" => Ok(Self::Plain(sink)),
             "gzip" | "x-gzip" => Ok(Self::Gzip(flate2::write::MultiGzDecoder::new(sink))),
-            "deflate" => Ok(Self::Deflate(flate2::write::ZlibDecoder::new(sink))),
+            "deflate" => Ok(Self::Deflate(Deflater { decoder: flate2::Decompress::new(true), sink, ended: false })),
             _ => Err(Error::new(ErrorKind::Protocol, "unsupported F10 Content-Encoding")),
         }
     }
-    fn sink(&self) -> &Sink { match self { Self::Plain(sink) => sink, Self::Gzip(decoder) => decoder.get_ref(), Self::Deflate(decoder) => decoder.get_ref() } }
+    fn sink(&self) -> &Sink { match self { Self::Plain(sink) => sink, Self::Gzip(decoder) => decoder.get_ref(), Self::Deflate(decoder) => &decoder.sink } }
     pub fn write(&mut self, bytes: &[u8]) -> Result<()> {
         use io::Write;
-        let result = match self { Self::Plain(sink) => sink.write_all(bytes), Self::Gzip(decoder) => decoder.write_all(bytes), Self::Deflate(decoder) => decoder.write_all(bytes) };
+        let result = match self { Self::Plain(sink) => sink.write_all(bytes), Self::Gzip(decoder) => decoder.write_all(bytes), Self::Deflate(decoder) => decoder.decode(bytes) };
         result.map_err(|error| self.sink().failure.clone().unwrap_or_else(|| Error::new(ErrorKind::Protocol, "invalid compressed F10 response").with_source(error)))
     }
     pub fn finish(mut self) -> Result<Vec<u8>> {
-        let result = match &mut self { Self::Plain(_) => Ok(()), Self::Gzip(decoder) => decoder.try_finish(), Self::Deflate(decoder) => decoder.try_finish() };
+        let result = match &mut self { Self::Plain(_) => Ok(()), Self::Gzip(decoder) => decoder.try_finish(), Self::Deflate(decoder) if decoder.ended => Ok(()), Self::Deflate(_) => Err(io::Error::new(io::ErrorKind::UnexpectedEof, "truncated zlib response")) };
         if let Err(error) = result { return Err(self.sink().failure.clone().unwrap_or_else(|| Error::new(ErrorKind::Protocol, "truncated compressed F10 response").with_source(error))); }
         let sink = match self {
             Self::Plain(sink) => sink,
             Self::Gzip(decoder) => decoder.finish().map_err(|error| Error::new(ErrorKind::Protocol, "invalid gzip end").with_source(error))?,
-            Self::Deflate(decoder) => decoder.finish().map_err(|error| Error::new(ErrorKind::Protocol, "invalid deflate end").with_source(error))?,
+            Self::Deflate(decoder) => decoder.sink,
         };
         Ok(sink.bytes)
+    }
+}
+
+pub(crate) struct Deflater { decoder: flate2::Decompress, sink: Sink, ended: bool }
+impl Deflater {
+    fn decode(&mut self, mut bytes: &[u8]) -> io::Result<()> {
+        use io::Write;
+        if self.ended && !bytes.is_empty() { return Err(io::Error::new(io::ErrorKind::InvalidData, "trailing data after zlib response")); }
+        loop {
+            self.sink.control.check(TimeoutPhase::Decode).map_err(io::Error::other)?;
+            let mut output = [0_u8; 8192];
+            let before_in = self.decoder.total_in();
+            let before_out = self.decoder.total_out();
+            let status = self.decoder.decompress(bytes, &mut output, flate2::FlushDecompress::None)
+                .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+            let consumed = (self.decoder.total_in() - before_in) as usize;
+            let produced = (self.decoder.total_out() - before_out) as usize;
+            self.sink.write_all(&output[..produced])?;
+            bytes = &bytes[consumed..];
+            if status == flate2::Status::StreamEnd {
+                self.ended = true;
+                if !bytes.is_empty() { return Err(io::Error::new(io::ErrorKind::InvalidData, "trailing data after zlib response")); }
+                return Ok(());
+            }
+            if consumed == 0 && produced == 0 {
+                if bytes.is_empty() { return Ok(()); }
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "zlib decoder made no progress"));
+            }
+            if bytes.is_empty() && produced < output.len() { return Ok(()); }
+        }
     }
 }

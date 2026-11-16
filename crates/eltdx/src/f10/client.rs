@@ -129,7 +129,8 @@ impl F10ClientBuilder {
         let owner = Arc::new(SessionOwner::new(self.close_timeout, self.cleanup_timeout));
         let diagnostics = Mutex::new(F10Diagnostics { generation: owner.generation(), ..F10Diagnostics::default() });
         Ok(F10Client { inner: Arc::new(F10Inner { config, common, owner, diagnostics,
-            connected: AtomicBool::new(false), gate: Arc::new(super::worker::Concurrency::new(4)) }) })
+            connected: AtomicBool::new(false), gate: Arc::new(super::worker::Concurrency::new(4)),
+            connect_gate: Arc::new(super::worker::Concurrency::new(1)) }) })
     }
 }
 
@@ -141,6 +142,7 @@ pub(crate) struct F10Inner {
     pub(crate) diagnostics: Mutex<F10Diagnostics>,
     connected: AtomicBool,
     gate: Arc<super::worker::Concurrency>,
+    connect_gate: Arc<super::worker::Concurrency>,
 }
 
 /// An independent F10 owner. Clones share its lifetime and irreversible close.
@@ -159,7 +161,11 @@ impl F10Client {
     pub fn connect(&self, options: &OperationOptions) -> Result<()> {
         let context = self.context(Instant::now(), "f10.connect", options)?;
         if self.inner.connected.load(Ordering::Acquire) { return context.finish(); }
-        let slot = self.inner.gate.acquire(&context)?;
+        // Only one explicit transport probe may run at a time. Waiting callers
+        // retain their own deadline/cancellation and recheck successful state.
+        let connect_slot = self.inner.connect_gate.acquire(&context)?;
+        if self.inner.connected.load(Ordering::Acquire) { return context.finish(); }
+        let slot = self.inner.gate.acquire(&context)?.holding(connect_slot.clone());
         if self.inner.connected.load(Ordering::Acquire) { return context.finish(); }
         let authorization = context.begin_child(crate::operation::ChildPurpose::Required, None)?.into_transport_authorization();
         let reply = super::worker::Job::execute(self.inner.config.clone(),
@@ -177,8 +183,7 @@ impl F10Client {
     }
     pub fn params(&self, query: &ParamsQuery, options: &OperationOptions) -> Result<Response> {
         let context = self.context(Instant::now(), "f10.params", options)?;
-        let query = CallQuery::new(query.entry().clone(), super::RequestPayload::Params(query.params().to_vec()));
-        let response = self.call_in_context(&query, &context)?;
+        let response = self.call_in_context(query.call(), &context)?;
         context.finish()?;
         Ok(response)
     }
@@ -208,7 +213,8 @@ impl F10Client {
                 None, Some(reply.url.clone()));
             let raw = (context.raw() != RawPolicy::Omit).then(|| RawData::new(vec![Bytes::from(reply.encoded)],
                 (context.raw() == RawPolicy::RetainWire).then(|| vec![Bytes::from(reply.wire)]), Vec::new()));
-            let response = Response::from_json(query.entry().as_str().to_owned(), query.payload().clone(), value,
+            let request = query.payload().retained(&mut || context.check_boundary(TimeoutPhase::Decode))?;
+            let response = Response::from_json(query.entry().as_str().to_owned(), request, value,
                 context.raw() != RawPolicy::Omit, ResultMeta::new(source, vec![diagnostic], raw),
                 &mut || context.check_boundary(TimeoutPhase::Decode))?;
             self.record_endpoint(reply.url)?;

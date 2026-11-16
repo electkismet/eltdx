@@ -2,6 +2,14 @@
 
 ## Setup
 
+- Latest recovery 2026-11-17: HTTP/DNS/TLS6196df2 committed; T19 follow-up
+  source adds strict zlib termination, shared connect admission leases,
+  document-wide Params limits, cancellable retention and service attributes.
+  Concurrent connect/cancel/compression/redirect fixture sources added, all
+  unexecuted. Counts19 source complete/4 partial/7 unstarted unchanged. Next
+  finish T19 source handoff and implement T20 all157 endpoints. Goal active,
+  no token cap; all execution and dependency validation deferred.
+
 - Latest: shortline-date6580450 committed; shortline source/numeric/builder
   migration now authored with10 further unexecuted contract functions. Pending
   legacy limit/board/date and other T18 scope;18/4/8 active/no cap, no verification.

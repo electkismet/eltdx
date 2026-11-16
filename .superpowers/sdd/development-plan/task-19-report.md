@@ -97,3 +97,34 @@ registered tasks are reaped outside the concurrency lock, so leaked capacity
 cannot strand later requests. SessionOwner's existing reap method is now
 crate-visible; no new owner registry was added. Header override order is emitted
 through bounded plaintext header adaptation, and related source cases authored.
+
+## Fourth checkpoint — source boundary follow-up
+
+Third transport checkpoint committed as `6196df2`. Source review found and
+addressed the following before continuing the endpoint layer:
+
+- Explicit zlib StreamEnd/Adler32 completion with trailing-byte rejection,
+  using the existing flate2 primitive and bounded output blocks. Authored
+  success/truncation/trailing cases; gzip concatenated-member/footer cases.
+- Concurrent connect callers share a one-slot probe gate, with independent
+  waiter cancellation. Probe and worker leases remain owned by the registered
+  task until confirmed retirement; no second probe can bypass unconfirmed
+  cleanup. Authored overlapping TLS connect and cancelled-waiter cases.
+- Params encoding uses one Encoder for wrapper plus all elements, including
+  shared node/depth counts; it no longer resets complexity per parameter.
+  ParamsQuery stores its CallQuery internally to avoid a full preflight clone.
+- Retained request and response JSON use fallible, cancellation-aware copying;
+  large strings are copied in bounded blocks. Authored preservation and
+  mid-copy cancellation cases. Omit still avoids retaining complete table JSON.
+- Response::attributes retains ordered non-table top-level service metadata,
+  including HitCache/hitCache and duplicate unknown keys. Earlier duplicate
+  ResultSets stay in retained original payload only, not another tree under Omit.
+- Authored same-origin 307 POST continuation and cross-origin/method-changing/
+  credential/fragment/default-limit redirect rejection cases.
+
+All added source cases remain unexecuted. No dependency resolution, tests,
+collection, compilation, formatting, check, clippy, network, AST or equivalent
+validation ran. This is a continuation checkpoint, not a passing release or
+T19 runtime/dependency gate. Counts19 complete source/4 partial/7 unstarted
+remain unchanged. Next finish source evidence/handoff, then T20 all157 methods,
+schemas, field registry, news and historical flow. Active goal has no token cap.
