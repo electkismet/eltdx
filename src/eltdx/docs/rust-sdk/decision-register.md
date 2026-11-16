@@ -33,6 +33,7 @@
 | D14 | 有界下载显式Complete/LimitReached；严格下载单列 | 精确cap不是EOF；Python截取bytes不变 |
 | D15 | 本地write既有追加语义保持 | 不批内排序/去重；空输入也先拒绝残尾 |
 | D16 | 新Rust默认不隐式写用户目录 | Python既有缓存路径与副作用按兼容层维持 |
+| D17 | 扩展域单页无法证明 EOF 时返回 `PageCompletion::Unknown` | 完整解析成功与已遍历全部分开；短页/空页不擅自推断终止 |
 
 ## 3. 新 Rust 默认预算
 
@@ -87,6 +88,7 @@
 | stats条目 | 最多128，单条32MiB，累计64MiB展开 | 分配/展开前与过程中执行 |
 | 财报ZIP | 64MiB、64条目 | 专业财报与stats不能共用错误上限 |
 | 财报DAT | 单DAT256MiB；每行最多4096float；总4Mi float | report_size须4倍数，索引范围检查 |
+| 新Rust财报ZIP累计展开 | 256MiB，覆盖所有成员 | 单一内部ZIP解码器对所有成员做流式完整性检查时的CPU/输出总预算；这是新Rust保护，不施加到Python旧选中DAT路径 |
 | 新Rust本地读取 | 默认256MiB | ReadOptions可显式设置正有限值；不向Python旧直接DAT读取新增该上限 |
 | 新Rust扩展下载 | 默认64MiB；chunk30000 bytes | DownloadOptions显式配置；HQ单块仍不超过60000，未证实EOF不交付完整结果 |
 | F10响应 | 新Rust暂定16MiB解码后上限，可显式配置 | 设计新增限制，Python旧默认不受影响；上线前E03验证真实样本是否适合 |

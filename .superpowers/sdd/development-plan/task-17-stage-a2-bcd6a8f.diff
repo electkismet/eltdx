@@ -1,0 +1,467 @@
+Base: cd6735b
+Head: bcd6a8f
+bcd6a8f refactor(encoding): share original GBK mapping and scanner
+7a85f5c feat(sdk): integrate owner metadata lifecycle and frozen decoding
+ .../sdd/development-plan/task-17-report.md         | 65 ++++++++++++++
+ .../eltdx/src/{offline => encoding}/gbk_pairs.rs   |  2 +
+ .../{offline => encoding}/generate_gbk_pairs.py    |  4 +-
+ crates/eltdx/src/encoding/mod.rs                   | 71 ++++++++++++++++
+ crates/eltdx/src/lib.rs                            |  3 +
+ crates/eltdx/src/offline/mod.rs                    | 35 ++------
+ crates/eltdx/tests/encoding.rs                     | 99 ++++++++++++++++++++++
+ 7 files changed, 249 insertions(+), 30 deletions(-)
+diff --git a/.superpowers/sdd/development-plan/task-17-report.md b/.superpowers/sdd/development-plan/task-17-report.md
+index b7ea153..dd81b75 100644
+--- a/.superpowers/sdd/development-plan/task-17-report.md
++++ b/.superpowers/sdd/development-plan/task-17-report.md
+@@ -1,14 +1,79 @@
+ # T17 Stage A — bounded archive and source statistics checkpoint
+ 
++## Stage A2 — approved shared GBK extraction checkpoint
++
++Controller source-only review approved Stage A `cd6735b` with no findings, then
++authorized this narrower shared encoding integration before network Stage B.
++The commit containing this section is the Stage A2 checkpoint; its SHA is in
++the handoff. The earlier Stage A notes below remain the historical evidence and
++limitations, with the following explicit updates:
++
++- The worktree absolute root and both source/destination absolute file paths
++  were resolved and checked to remain under
++  `C:\Users\ax\.codex\worktrees\rust-sdk-implementation\tdx抓包`
++  before native PowerShell `Move-Item` calls. Destination nonexistence was
++  checked. No recursive move/delete or cross-shell filesystem operations ran.
++- Moved `crates/eltdx/src/offline/gbk_pairs.rs` to
++  `crates/eltdx/src/encoding/gbk_pairs.rs`. The actual mapping constants were
++  preserved by moving the original file, without parsing/regenerating/replacing
++  mapping values. Two comment lines record the move and current generator path;
++  original generator/recipe, executable and Python 3.12.14 provenance are kept.
++- Moved `crates/eltdx/src/offline/generate_gbk_pairs.py` to
++  `crates/eltdx/src/encoding/generate_gbk_pairs.py`. Only the two emitted
++  generator/recipe path strings now name `encoding/`. Its codec, iteration,
++  sentinel, indexing and generation logic are unchanged. **The generator was
++  not run**, and no byte/hash/diff equivalence check was executed. Preservation
++  is by the native move and the intentionally comment-only table edit.
++- Added `crates/eltdx/src/encoding/mod.rs` with private `gbk_scalar` strict
++  two-byte lookup and allocation-free `scan_gbk`. The scanner takes explicit
++  `Replace`/`Ignore` policies, reports whether invalid bytes occurred, and emits
++  one scalar at a time. Invalid lead/undefined pair consumes only one byte;
++  ASCII, including NUL, passes through unchanged; standalone 0x80 is invalid.
++- `scan_gbk` has a caller boundary before input, after each 16 KiB of scanned
++  input (a two-byte pair may cross by one byte), and before successful return.
++  Errors propagate unchanged; already-emitted output belongs to the caller
++  and cannot be delivered as complete after a boundary error. Output allocation
++  and input limits remain each consumer's responsibility.
++- Added only private `mod encoding;` to `crates/eltdx/src/lib.rs`. No archive,
++  stats, services or other module registration was made in this checkpoint.
++- Removed the old `offline::gbk_pairs` module declaration and changed existing
++  `offline::decode_gbk` to delegate to `encoding::scan_gbk(Replace)` using an
++  infallible no-op boundary, preserving its signature and prior cancellation
++  behavior. Future users can pass real cancellation checks to the shared
++  scanner. The old offline wrapper itself has not gained a new public policy.
++- `stats.rs` and `archive.rs` remain unchanged. The existing
++  `crate::encoding::gbk_scalar` reference is now satisfied by this single table;
++  the existing stats scan still owns `Ignore` and per-chunk operation checks.
++  No caller-injected production codec, copied mapping table or public encoding
++  API was introduced. Stage B may consolidate its scan loop only with explicit
++  scope approval; it already shares the strict scalar source.
++- Added `crates/eltdx/tests/encoding.rs`: source cases for known strict pairs,
++  ASCII/NUL, invalid lead/trail and undefined pairs, standalone 0x80, replacement
++  versus ignore with recovery, cancellation before emission/between chunks/at
++  final return, empty input, a valid pair straddling a chunk boundary, and the
++  public offline industry consumer under the offline feature. All are unrun.
++- Controller accepted the financial preset's **all-member cumulative expanded
++  256 MiB as a new documented Rust protection**; selected DAT remains separately
++  limited to 256 MiB. The protection must not leak into the legacy Python
++  selected-DAT path. This resolves the earlier provisional aggregate-policy
++  question, without changing archive source or dependency validation status.
++
++Stage A2 has no Cargo changes or dependency fetches, no tests/collection/build/
++check/compilation/clippy/doctest/AST/format/diff checks, and no network actions.
++Only source reads/edits, the bounded native moves and ordinary Git checkpoint
++operations with hooks disabled were used. Source review alone does not confirm
++runtime correctness. T17 Stage B, full default-HQ archive/stats registration,
++dependencies and public resource/owner integration remain outstanding.
++
+ Status: **partial T17 implementation only; authored, not executed or validated**.
+ Stage A owns only `crates/eltdx/src/archive.rs`, `crates/eltdx/src/stats.rs`,
+ `crates/eltdx/tests/stats.rs`, and this report. No Stage B public service, Cargo,
+ root registration, DTO, Python, shared owner/operation or ledger changes are part
+ of this checkpoint. Reviewed base was d8574bb; the controller's documentation
+ checkpoint bf94f0b was HEAD when authoring began. The commit containing this
+ report is the Stage A checkpoint (its SHA is supplied in the handoff).
+ 
+ ## Source and method coverage
+ 
+ Read the T17 brief, HQ API §10 and limits/F23–F27, public API download/statistics
+ contract, decision register §3/E04, Python `stats.py`, resource/company/session/
+diff --git a/crates/eltdx/src/offline/gbk_pairs.rs b/crates/eltdx/src/encoding/gbk_pairs.rs
+similarity index 99%
+rename from crates/eltdx/src/offline/gbk_pairs.rs
+rename to crates/eltdx/src/encoding/gbk_pairs.rs
+index 3330283..935d74c 100644
+--- a/crates/eltdx/src/offline/gbk_pairs.rs
++++ b/crates/eltdx/src/encoding/gbk_pairs.rs
+@@ -1,15 +1,17 @@
+ // Generated source DATA from the Python standard-library gbk codec.
+ // Generator: crates/eltdx/src/offline/generate_gbk_pairs.py
+ // Recipe: python -I -S crates/eltdx/src/offline/generate_gbk_pairs.py
++// T17 Stage A2: moved unchanged mapping data to encoding/; not regenerated.
++// Current generator: crates/eltdx/src/encoding/generate_gbk_pairs.py
+ // Executable: C:\Program Files\WindowsApps\OpenAI.CodexPrimaryRuntime.v26-1112-737-0_26.1112.737.0_x64__3k8sg7r9htsxt\dependencies\python\python.exe
+ // Python: 3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]
+ // Codec: gbk; strict two-byte decoding. Undefined entries are zero.
+ // Index: (lead - 0x81) * 190 + trail - 0x40 - (trail > 0x7f).
+ pub(super) const GBK_PAIRS: &[u32] = &[
+     // Lead 0x81
+     0x4e02, 0x4e04, 0x4e05, 0x4e06, 0x4e0f, 0x4e12, 0x4e17, 0x4e1f, 0x4e20, 0x4e21,
+     0x4e23, 0x4e26, 0x4e29, 0x4e2e, 0x4e2f, 0x4e31, 0x4e33, 0x4e35, 0x4e37, 0x4e3c,
+     0x4e40, 0x4e41, 0x4e42, 0x4e44, 0x4e46, 0x4e4a, 0x4e51, 0x4e55, 0x4e57, 0x4e5a,
+     0x4e5b, 0x4e62, 0x4e63, 0x4e64, 0x4e65, 0x4e67, 0x4e68, 0x4e6a, 0x4e6b, 0x4e6c,
+     0x4e6d, 0x4e6e, 0x4e6f, 0x4e72, 0x4e74, 0x4e75, 0x4e76, 0x4e77, 0x4e78, 0x4e79,
+     0x4e7a, 0x4e7b, 0x4e7c, 0x4e7d, 0x4e7f, 0x4e80, 0x4e81, 0x4e82, 0x4e83, 0x4e84,
+diff --git a/crates/eltdx/src/offline/generate_gbk_pairs.py b/crates/eltdx/src/encoding/generate_gbk_pairs.py
+similarity index 90%
+rename from crates/eltdx/src/offline/generate_gbk_pairs.py
+rename to crates/eltdx/src/encoding/generate_gbk_pairs.py
+index bcd1895..a66bb53 100644
+--- a/crates/eltdx/src/offline/generate_gbk_pairs.py
++++ b/crates/eltdx/src/encoding/generate_gbk_pairs.py
+@@ -4,26 +4,26 @@ Run once with an isolated interpreter: python -I -S generate_gbk_pairs.py
+ This generator never imports the project, invokes a test, or compares implementations.
+ Zero denotes an undefined two-byte mapping, never a decoded NUL character.
+ """
+ 
+ import sys
+ from pathlib import Path
+ 
+ 
+ def main():
+     output = Path(__file__).with_name("gbk_pairs.rs")
+     lines = [
+         "// Generated source DATA from the Python standard-library gbk codec.",
+-        "// Generator: crates/eltdx/src/offline/generate_gbk_pairs.py",
+-        "// Recipe: python -I -S crates/eltdx/src/offline/generate_gbk_pairs.py",
++        "// Generator: crates/eltdx/src/encoding/generate_gbk_pairs.py",
++        "// Recipe: python -I -S crates/eltdx/src/encoding/generate_gbk_pairs.py",
+         "// Executable: " + sys.executable,
+         "// Python: " + sys.version.replace("\n", " "),
+         "// Codec: gbk; strict two-byte decoding. Undefined entries are zero.",
+         "// Index: (lead - 0x81) * 190 + trail - 0x40 - (trail > 0x7f).",
+         "pub(super) const GBK_PAIRS: &[u32] = &[",
+     ]
+     for lead in range(0x81, 0xFF):
+         values = []
+         for trail in range(0x40, 0xFF):
+             if trail == 0x7F:
+                 continue
+             try:
+diff --git a/crates/eltdx/src/encoding/mod.rs b/crates/eltdx/src/encoding/mod.rs
+new file mode 100644
+index 0000000..9933f43
+--- /dev/null
++++ b/crates/eltdx/src/encoding/mod.rs
+@@ -0,0 +1,71 @@
++//! Private, feature-independent Python GBK source decoding.
++//!
++//! The mapping table is the original T21 source data. It is shared by default
++//! HQ statistics and optional offline readers; invalid-byte policies belong to
++//! each consumer, not to the table. No WHATWG extensions (notably 0x80/euro).
++
++mod gbk_pairs;
++
++const SCAN_CHUNK_BYTES: usize = 16 * 1024;
++
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub(crate) enum InvalidBytePolicy {
++    Replace,
++    Ignore,
++}
++
++/// Strict Python GBK mapping for exactly two bytes. Undefined pairs, invalid
++/// lead/trail bytes and standalone ASCII return None. Zero is the source table's
++/// undefined sentinel; ASCII NUL is handled separately by the scanner.
++pub(crate) fn gbk_scalar(lead: u8, trail: u8) -> Option<char> {
++    if !(0x81..=0xfe).contains(&lead) || !(0x40..=0xfe).contains(&trail) || trail == 0x7f {
++        return None;
++    }
++    let index = usize::from(lead - 0x81) * 190 + usize::from(trail - 0x40)
++        - usize::from(trail > 0x7f);
++    let scalar = *gbk_pairs::GBK_PAIRS.get(index)?;
++    if scalar == 0 { None } else { char::from_u32(scalar) }
++}
++
++/// Emit decoded scalars without allocating a second buffer. On an invalid lead
++/// or undefined pair consume one byte, then retry the next byte, matching the
++/// original offline replacement decoder and Python GBK ignore behavior.
++///
++/// `boundary` runs before work, after each <=16 KiB scan chunk (a two-byte scalar
++/// may straddle the boundary by one byte), and before successful return. Its
++/// original error stops emission immediately. The output already emitted on an
++/// error belongs to the caller and must not be published as a complete decode.
++/// `Ok(true)` means at least one invalid input byte was replaced/ignored.
++pub(crate) fn scan_gbk<E>(
++    bytes: &[u8],
++    policy: InvalidBytePolicy,
++    mut emit: impl FnMut(char),
++    boundary: &mut impl FnMut() -> Result<(), E>,
++) -> Result<bool, E> {
++    boundary()?;
++    let mut cursor = 0;
++    let mut next_boundary = SCAN_CHUNK_BYTES;
++    let mut had_errors = false;
++    while cursor < bytes.len() {
++        if cursor >= next_boundary {
++            boundary()?;
++            next_boundary = cursor.saturating_add(SCAN_CHUNK_BYTES);
++        }
++        let lead = bytes[cursor];
++        if lead < 0x80 {
++            emit(char::from(lead));
++            cursor += 1;
++            continue;
++        }
++        if let Some(scalar) = bytes.get(cursor + 1).and_then(|trail| gbk_scalar(lead, *trail)) {
++            emit(scalar);
++            cursor += 2;
++            continue;
++        }
++        had_errors = true;
++        if policy == InvalidBytePolicy::Replace { emit('\u{fffd}'); }
++        cursor += 1;
++    }
++    boundary()?;
++    Ok(had_errors)
++}
+diff --git a/crates/eltdx/src/lib.rs b/crates/eltdx/src/lib.rs
+index 5ae2ad7..072283a 100644
+--- a/crates/eltdx/src/lib.rs
++++ b/crates/eltdx/src/lib.rs
+@@ -1,30 +1,33 @@
+ #![forbid(unsafe_code)]
+ 
+ mod client;
+ mod config;
++mod encoding;
+ mod hq;
+ mod session;
+ mod operation;
+ mod policy;
++mod metadata;
+ #[doc(hidden)]
+ pub mod __python_compat;
+ pub mod error;
+ pub mod types;
+ #[cfg(feature = "offline")]
+ pub mod offline;
+ 
+ pub use client::{ClientBuilder, TdxClient};
+ pub use config::ClientConfig;
+ pub use operation::{CancellationToken, OperationOptions};
+ pub use session::PinnedSession;
+ pub use error::{Error, ErrorContext, ErrorKind, Result, TimeoutPhase};
+ pub use types::batch::{
+     BatchItem, BatchItemState, BatchOutcome, MissingPolicy, MissingReason, SnapshotBatch,
+ };
+ pub use types::numeric::{
+     Amount, AmountUnit, NumericValue, Price, PriceSource, Quantity, QuantityUnit, Ratio,
+     RatioUnit, RoundingMode,
+ };
+ pub use types::raw::RawPolicy;
+ pub use types::security::{HqMarket, SecurityId};
+ pub use types::time::{EventTime, EventTimeSource, TradingDate};
++pub use types::time::{Clock, SystemClock};
+diff --git a/crates/eltdx/src/offline/mod.rs b/crates/eltdx/src/offline/mod.rs
+index cbf0caa..0297be1 100644
+--- a/crates/eltdx/src/offline/mod.rs
++++ b/crates/eltdx/src/offline/mod.rs
+@@ -6,25 +6,24 @@
+ 
+ pub mod alignment;
+ pub mod bars;
+ pub mod block;
+ pub mod daily;
+ pub mod ex_daily;
+ pub mod gbbq;
+ pub mod industry;
+ pub mod minute;
+ pub mod paths;
+ mod models;
+ mod options;
+-mod gbk_pairs;
+ 
+ pub use models::{BlockInfo, CoefficientDecision, Coefficients, CustomerBlock, DailyBar,
+     Evidence, ExDailyBar, Exchange, IndustryCodes, IndustryMap, LocalCode, MinBar,
+     MinuteKey, RecordKey, SecurityType, TimeOfDay, WireFloat};
+ pub use gbbq::GbbqRecord;
+ pub use options::{AppendOptions, Durability, ReadOptions, ReadResult, TailPolicy, WriteReport};
+ 
+ use crate::error::{Error, ErrorKind, Result};
+ use crate::types::{Diagnostic, EnrichmentStatus};
+ 
+ pub(crate) fn invalid(message: impl Into<String>) -> Error {
+     Error::new(ErrorKind::InvalidArgument, message).with_context("domain", "offline")
+@@ -49,52 +48,32 @@ pub(crate) fn cancelled(token: Option<&crate::CancellationToken>) -> Result<()>
+ pub(crate) fn io_error(operation: &str, path: &std::path::Path, error: std::io::Error) -> Error {
+     Error::new(ErrorKind::Io, format!("local {operation} failed"))
+         .with_context("domain", "offline").with_context("operation", operation)
+         .with_context("path", format!("{}", path.display())).with_source(error)
+ }
+ 
+ pub(crate) fn context_value(value: impl std::fmt::Display) -> String { format!("{value}") }
+ 
+ /// Python's GBK decoder replaces one invalid input byte, then resumes decoding.
+ /// Decode pairs separately so a bad pair does not swallow its ASCII second byte.
+ pub(crate) fn decode_gbk(bytes: &[u8]) -> String {
+     let mut output = String::new();
+-    let mut offset = 0;
+-    while offset < bytes.len() {
+-        let first = bytes[offset];
+-        if first < 0x80 {
+-            output.push(char::from(first));
+-            offset += 1;
+-        } else if (0x81..=0xfe).contains(&first) && offset + 1 < bytes.len()
+-            && (0x40..=0xfe).contains(&bytes[offset + 1]) && bytes[offset + 1] != 0x7f
+-        {
+-            let trail = bytes[offset + 1];
+-            let index = usize::from(first - 0x81) * 190 + usize::from(trail - 0x40)
+-                - usize::from(trail > 0x7f);
+-            let scalar = gbk_pairs::GBK_PAIRS[index];
+-            if scalar == 0 {
+-                output.push('\u{fffd}');
+-                offset += 1;
+-            } else {
+-                // The table is generated from strict Python GBK Unicode scalar mappings.
+-                output.push(char::from_u32(scalar).unwrap_or('\u{fffd}'));
+-                offset += 2;
+-            }
+-        } else {
+-            // In particular, Python GBK rejects the standalone byte 0x80 (not euro).
+-            output.push('\u{fffd}');
+-            offset += 1;
+-        }
++    let result = crate::encoding::scan_gbk(
++        bytes, crate::encoding::InvalidBytePolicy::Replace,
++        |scalar| output.push(scalar), &mut || Ok::<(), std::convert::Infallible>(()),
++    );
++    match result {
++        Ok(_) => output,
++        Err(impossible) => match impossible {},
+     }
+-    output
+ }
+ 
+ pub(crate) fn ascii_replace(bytes: &[u8]) -> String {
+     bytes.iter().map(|byte| if byte.is_ascii() { char::from(*byte) } else { '\u{fffd}' }).collect()
+ }
+ 
+ /// `str.splitlines()` separators, including CRLF, as used by the Python readers.
+ pub(crate) fn source_lines(text: &str) -> impl Iterator<Item = &str> {
+     text.split(['\n', '\r', '\u{b}', '\u{c}', '\u{1c}', '\u{1d}', '\u{1e}',
+         '\u{85}', '\u{2028}', '\u{2029}'])
+ }
+ 
+diff --git a/crates/eltdx/tests/encoding.rs b/crates/eltdx/tests/encoding.rs
+new file mode 100644
+index 0000000..1736186
+--- /dev/null
++++ b/crates/eltdx/tests/encoding.rs
+@@ -0,0 +1,99 @@
++//! Shared GBK source cases. Authored only; do not execute before the plan gate.
++#![allow(dead_code)]
++
++#[path = "../src/encoding/mod.rs"]
++mod encoding;
++
++use encoding::{gbk_scalar, scan_gbk, InvalidBytePolicy};
++
++fn decode(bytes: &[u8], policy: InvalidBytePolicy) -> (String, bool) {
++    let mut text = String::new();
++    let result = scan_gbk(bytes, policy, |scalar| text.push(scalar), &mut || Ok::<(), ()>(()));
++    (text, result.expect("infallible source fixture"))
++}
++
++#[test]
++fn strict_gbk_pairs_and_ascii_preserve_original_mapping() {
++    assert_eq!(gbk_scalar(0xb9, 0xab), Some('公'));
++    assert_eq!(gbk_scalar(0xcb, 0xbe), Some('司'));
++    assert_eq!(gbk_scalar(0x81, 0x40), Some('\u{4e02}'));
++    assert_eq!(gbk_scalar(0xa3, 0xb9), Some('９'));
++    assert_eq!(decode(b"ASCII\0\r\n\xb9\xab\xcb\xbe", InvalidBytePolicy::Replace),
++        ("ASCII\0\r\n公司".to_owned(), false));
++}
++
++#[test]
++fn invalid_leads_trails_and_undefined_pairs_are_not_whatwg_extensions() {
++    for (lead, trail) in [(0x80, 0x40), (0xff, 0x40), (0x81, 0x3f),
++        (0x81, 0x7f), (0x81, 0xff), (0xa1, 0x40), (b'A', b'B')] {
++        assert_eq!(gbk_scalar(lead, trail), None);
++    }
++    let bytes = b"\x80A\xff\x81\x7f\xa1@\x81";
++    assert_eq!(decode(bytes, InvalidBytePolicy::Replace), ("�A��\u{7f}�@�".to_owned(), true));
++    assert_eq!(decode(bytes, InvalidBytePolicy::Ignore), ("A\u{7f}@".to_owned(), true));
++}
++
++#[test]
++fn undefined_pair_consumes_only_its_lead_then_retries_ascii_or_valid_pair() {
++    assert_eq!(decode(b"\xa1@\xb9\xab", InvalidBytePolicy::Replace), ("�@公".to_owned(), true));
++    assert_eq!(decode(b"\xa1@\xb9\xab", InvalidBytePolicy::Ignore), ("@公".to_owned(), true));
++    assert_eq!(decode(b"\x81\x20\xb9\xab", InvalidBytePolicy::Replace), ("� 公".to_owned(), true));
++    assert_eq!(decode(b"\x81\x20\xb9\xab", InvalidBytePolicy::Ignore), (" 公".to_owned(), true));
++}
++
++#[test]
++fn scanner_propagates_cancellation_before_emission_and_between_chunks() {
++    let mut emitted = String::new();
++    let error = scan_gbk(b"abc", InvalidBytePolicy::Replace,
++        |scalar| emitted.push(scalar), &mut || Err("cancelled"));
++    assert_eq!(error, Err("cancelled"));
++    assert!(emitted.is_empty());
++
++    let bytes = vec![b'a'; 32 * 1024];
++    let mut calls = 0;
++    let mut emitted = 0;
++    let error = scan_gbk(&bytes, InvalidBytePolicy::Ignore, |_| emitted += 1, &mut || {
++        calls += 1;
++        if calls == 2 { Err("expired") } else { Ok(()) }
++    });
++    assert_eq!(error, Err("expired"));
++    assert_eq!(emitted, 16 * 1024);
++}
++
++#[test]
++fn final_boundary_can_reject_completed_output_and_empty_input_is_checked() {
++    let mut calls = 0;
++    let result = scan_gbk(b"a", InvalidBytePolicy::Ignore, |_| {}, &mut || {
++        calls += 1;
++        if calls == 2 { Err("late cancellation") } else { Ok(()) }
++    });
++    assert_eq!(result, Err("late cancellation"));
++    assert_eq!(decode(b"", InvalidBytePolicy::Replace), (String::new(), false));
++    assert_eq!(scan_gbk(b"", InvalidBytePolicy::Ignore, |_| {}, &mut || Err("closed")), Err("closed"));
++}
++
++#[test]
++fn a_pair_crossing_the_chunk_edge_is_decoded_once() {
++    let mut bytes = vec![b'a'; 16 * 1024 - 1];
++    bytes.extend_from_slice(b"\xb9\xabz");
++    let mut calls = 0;
++    let mut text = String::new();
++    let result = scan_gbk(&bytes, InvalidBytePolicy::Replace, |scalar| text.push(scalar), &mut || {
++        calls += 1;
++        Ok::<(), ()>(())
++    });
++    assert_eq!(result, Ok(false));
++    assert!(text.ends_with("公z"));
++    assert_eq!(text.chars().count(), 16 * 1024 + 1);
++    assert_eq!(calls, 3);
++}
++
++#[cfg(feature = "offline")]
++#[test]
++fn public_offline_reader_preserves_replacement_policy() {
++    let records = eltdx::offline::industry::parse(b"0|000001|\x80\xb9\xab\xcb\xbe|||\xa1@").expect("source industry row");
++    assert_eq!(records.len(), 1);
++    let row = records.get("000001").expect("known source identity");
++    assert_eq!(row.tdx(), "�公司");
++    assert_eq!(row.sw(), "�@");
++}

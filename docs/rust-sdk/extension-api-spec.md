@@ -45,12 +45,14 @@ pub struct PageResult<T> {
     pub next_offset: Option<u32>, pub completion: PageCompletion,
     pub meta: ExtensionMeta,
 }
-pub enum PageCompletion { EndOfData, RequestedCount, MoreAvailable, Incomplete }
+pub enum PageCompletion { EndOfData, RequestedCount, MoreAvailable, Unknown, Incomplete }
 ```
 
 这里和下文的 `pub` 字段只表达逻辑 schema；除主规格已公开字段的 `DownloadResult` 外，query/DTO实际字段私有、同名只读getter，Vec返回slice，String返回str。构造与 `with_<field>` 在纯本地校验。`ExtensionMeta` 是 [HQ规格第3节](hq-api-spec.md#3-所有领域共用的返回单位与限制) 定义的 `eltdx::types::ResultMeta` 类型别名，不是第二份meta；它复用 `SourceStamp{command,endpoint,session_id,metadata_version,trading_date}`、`Diagnostic{source,stage,status,error_kind,message}`、`EnrichmentStatus` 和 `RawData{payloads,wire_frames,row_ranges}`。HTTP来源没有SocketAddr时endpoint=None并在source诊断保存route名，聚合每页来源分别保留。`TimeOfDay` 为本域值类型 `{hour:u8,minute:u8,second:u8}`（0..23/0..59/0..59）；`EventTime`、`TradingDate`复用主规格。`RecordKey` 为 `Date(TradingDate) | Minute(MinuteKey)`，`MinuteKey{date:TradingDate,time:TimeOfDay}` 且second必须0。
 
 `PageResult` 为本域命名空间类型，不新增根级重导出。`Incomplete` 必须有诊断，只由明确允许部分结果的分页 API 返回；“收集全部”的入口不能借它掩盖上限、坏帧或取消。达到调用方请求的最近 N 条是 `RequestedCount`，不是声称已遍历数据集。`next_offset` 按实际消耗的 wire 行数推进，不能按去重后行数推进。空但格式完整的响应是成功空集；声明行数超出完整记录数、半条行、非法压缩体等在普通 Rust 路径报 `Protocol`，Python 保留各旧 parser 的 break/截断行为。
+
+`Unknown` 表示当前单次响应已完整解码，但协议证据不足以确认还有数据或已经到末尾。EX 普通单页短响应（包括合法空页）没有已核实终止标记时使用此值，不能凭长度改成 `EndOfData` 或 `MoreAvailable`；它也不是损坏或遗漏已声明记录的 `Incomplete`。`next_offset` 若存在，仅为按实际 wire 行数计算的后续查询位置，不证明该位置存在数据。明确达到请求条数时可使用 `RequestedCount`，只有经该命令证据支持的终止/剩余标记才使用另外两种状态。完整收集入口仍必须取得终止证据，不能将 `Unknown` 当完成。
 
 自动分页默认上限（新Rust设计）固定为：F10 index/tracking分别100页×100条=10000记录，board分红50页×100条=5000记录；MAC报价/板块成员2000页×80条=160000记录、bar200页×700条=140000记录、transactions100页×1000条=100000记录；MAC-EX HK all为50页/90000条；EX原11入口为单页或单次range，另需collect时显式 `PageOptions{page_size,max_pages,max_records}`，不得默认为无限。商品fallback扫描默认2000页、每页600、最多1200000目录项，仍受总期限和32次额外尝试约束。调用目标count小于max_records时以目标为准，PageOptions更小值优先。单页方法只收一页不会把保护页数当EOF。Python不新增这些保护值，保持原循环和上限。
 

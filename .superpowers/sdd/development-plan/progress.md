@@ -160,7 +160,7 @@
 | T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
 | T08 | Implementation and scoped static review complete through `d8574bb`; verification deferred |
 | T09 | Source and scoped static review complete at `65ef657`; unified verification deferred |
-| T10 | Stage A committed; Stage B source authored, final report/checkpoint pending; static review required before T11 |
+| T10 | Stage B 7a85f5c committed; full scoped static review running; T11 follows approval |
 | T11 | Not started |
 | T12 | Not started |
 | T13 | Not started |
@@ -172,10 +172,10 @@
 | T19 | Not started |
 | T20 | Not started |
 | T21 | Implementation and scoped source review complete through `b6e4beb`; verification deferred |
-| T22 | Not started |
+| T22 | Stage A `9b6c8fd` DAT/list parser complete; scoped static review pending; shared ZIP/network integration deferred |
 | T23 | Not started |
-| T24 | Stage A 1220bf2/report83540ec submitted to scoped static review; transport/owner integration requires Stage B |
-| T25 | Not started |
+| T24 | Stage A through04f613a scoped review approved; transport/owner integration requires Stage B |
+| T25 | Isolated Stage A bitmap/command/native model authoring authorized; owner/session integration deferred |
 | T26 | Not started |
 | T27 | Not started |
 | T28 | Not started |
@@ -185,3 +185,14 @@
 - Recovery 2026-11-16: user resumed goal mode. Existing goal confirmed active, remainingTokens=null, no budget added. Reused all three live implementations; no completed task redispatched. T10 Stage B source authored and completing report/checkpoint; T17 Stage A `cd6735b`, T24 Stage A code `1220bf2` and report `83540ec` now persisted.
 - Task 17: Stage A scoped static review Approved with no Critical/Important/Minor source findings. Retained in `task-17-stage-a-review.md`, package `task-17-stage-a-cd6735b.diff`. This only closes the archive/stats parser stage; shared GBK, dependencies, actual resource/company/session/health services, DTO/getters and public entry remain Stage B. Dependency API/licenses and all runtime evidence remain deferred.
 - Task 24: Stage A scoped static review dispatched to `/root/t24_stage_a_review`, package `task-24-stage-a-83540ec.diff`. All eleven wire commands are authored; actual owner/serialized transport/admission and public client remain Stage B. No validation performed.
+- Task 10: full Stage A/B source submitted `7a85f5c`, package `task-10-review-7a85f5c.diff`; `/root/t10_metadata_review` checks immutable capture, sponsor handoff and owner lifecycle. Report contains exact T11/T12 signatures. Review explicitly includes last-owner Drop requirement (must not synchronously join); source-only, no validation.
+- Task 24: fix round1 `04f613a` closed Important partial-trailing-record acceptance and both Minor raw-clock-context/direct-getter findings. Scoped re-review approved without new breakage; retained `task-24-fix1-review.md`. This closes Stage A only.
+- Ruling: add `PageCompletion::Unknown` for complete single response decoding without evidence of remaining data/EOF; `Incomplete` remains restricted to explicitly allowed partial results. EX short/empty pages cannot prove EOF or more data. — Cost if wrong: a pre-release enum grows one variant and consumers must handle unknown completion; avoids false completion of real data.
+- Ruling: new Rust financial archive cumulative expansion is 256MiB across all members, while selected DAT is separately capped at256MiB and fields at4Mi. The shared ZIP decoder checks every member, so a finite aggregate CPU/output budget is required; this policy is documented and must not be applied to legacy Python's selected-DAT behavior. — Cost if wrong: a legitimate multi-member archive with total expansion above256MiB is rejected by new Rust; callers cannot mistake it for an invalid selected DAT or a Python compatibility limit.
+- Task 22: isolated Stage A authorized at review base7a85f5c for new offline/financial.rs, tests/financial.rs and report only. Pure DAT/list/options/local read source can proceed while T10 review runs; no shared root/Cargo/archive/network edits, no duplicate ZIP decoder and no execution. Agent `/root/t22_financial_impl`.
+- Task 17: Stage A2 `bcd6a8f` moves the sole T21 GBK table/generator into private shared `encoding/`; authored shared scalar scanner and offline replacement wrapper while stats keeps ignore semantics. Scoped review approved without findings, retained in task-17 report. No generator or other verification was run.
+- Task 22: Stage A source `d6de324`, final owned-path implementation/report `9b6c8fd`; focused static review dispatched using `task-22-stage-a-9b6c8fd.diff`. No registration/ZIP/service integration yet.
+- Task 25: isolated Stage A authorized for new `mac/` pure bitmap/command/native model source and `tests/mac_wire.rs` only, brief `task-25-stage-a-brief.md`. This does not authorize owner/session/public client integration or claim T25 complete. No tests or equivalent validation.
+- Task 10: full static review findings retained in `task-10-review.md`: (1) blocking/self-wait risk in last-owner Drop; (2) final waiter stop can race metadata publication; (3) aggregate 65535 limit leaks into Python legacy; (4) reservation start Timeout is discarded and can become Cancelled. Implementer fix round1 ongoing; no review gate passed yet.
+- Task 17: Stage A2 shared GBK refactor at `bcd6a8f` separately approved by `task-17-stage-a2-review.md`; single source table and no regeneration confirmed. T17 remains incomplete pending default Cargo ZIP dependency/service/resource/session/company/health integration.
+- Task 24: fix round1 `83540ec..04f613a` approved with all findings addressed and no new breakage (`task-24-fix1-review.md`). Ruling adding `Unknown` to PageCompletion is recorded in extension spec and decision register; complete collect must still prove EOF.

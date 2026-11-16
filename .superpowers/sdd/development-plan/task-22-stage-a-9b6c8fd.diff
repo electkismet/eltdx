@@ -1,0 +1,1031 @@
+Base: 7a85f5c Head: 9b6c8fd
+9b6c8fd feat(financial): finish stage A policy seams and handoff report
+d6de324 feat(financial): author isolated DAT and list parsing stage A
+ .../sdd/development-plan/task-22-report.md         |  86 ++++
+ crates/eltdx/src/offline/financial.rs              | 573 +++++++++++++++++++++
+ crates/eltdx/tests/financial.rs                    | 347 +++++++++++++
+ 3 files changed, 1006 insertions(+)
+diff --git a/.superpowers/sdd/development-plan/task-22-report.md b/.superpowers/sdd/development-plan/task-22-report.md
+new file mode 100644
+index 0000000..78959ac
+--- /dev/null
++++ b/.superpowers/sdd/development-plan/task-22-report.md
+@@ -0,0 +1,86 @@
++# T22 isolated Stage A implementation report
++
++Status: Stage A source implementation complete; public registration, shared ZIP integration and all network composition remain Stage B. No compilation or executable verification has occurred. No whole-T22 completion claim is made.
++
++Authority: `task-22-brief.md` staged authorization; development-plan T22; extension-api-spec sections 6–7; public-api raw/resource/error contracts; current T21 offline implementation; Python `src/eltdx/offline/history_financial.py` and `src/eltdx/financial.py`. The controller supplied review base `7a85f5c` for T10 context, not ownership of T10 edits. T17 `cd6735b` has a scoped static Stage A approval, not dependency/build/runtime validation. The later controller ruling in decision-register fixes new Rust financial ZIP total expanded bytes at 256 MiB across all members, separate from the selected-DAT cap.
++
++Owned paths only:
++
++- `crates/eltdx/src/offline/financial.rs`
++- `crates/eltdx/tests/financial.rs`
++- `.superpowers/sdd/development-plan/task-22-report.md`
++
++Source checkpoint: `d6de324` (`feat(financial): author isolated DAT and list parsing stage A`) contains the initial parser/models/options/tests. The final owned-path checkpoint containing this report and follow-up source review changes is returned to the controller with its exact SHA. Hooks are disabled for both checkpoints. No shared root/offline registration, archive.rs, Cargo, encoding, T10 files, ledger or controller status files were edited.
++
++## Implemented pure API and method coverage
++
++| Required method / component | Stage A source | Stage B remaining work |
++| --- | --- | --- |
++| `offline::financial::parse_dat(data, report_date, options) -> Result<ReadResult<FinancialRecord>>` | Complete DAT algorithm and T21-compatible result projection | Register module/exports |
++| `parse_dat_detailed(...) -> Result<FinancialDatResult>` | Header, completion, index counts, raw payload and provenance-capable result | Decide whether to additionally export detailed API at offline root |
++| `parse_dat_for_archive(data, filename, report_date, options)` | Pure Rust date precedence over already-selected DAT | Feed only complete, verified archive content |
++| `parse_dat_for_archive_with_boundary(..., &mut FnMut() -> Result<()>)` | Crate-private operation/deadline callback at bounded CPU units | Pass the same HQ operation checkpoint used for list/download/ZIP |
++| `parse_file_list(data) -> Result<Vec<FinancialFileInfo>>` | Replacement decoding, source whitespace rules, comma splitting and metadata | Register/export |
++| `parse_file_list_with_strict(data, strict)` | Optional rejection for negative/overflow size; default nullable size with row diagnostic | Any network strict preference remains explicit |
++| `parse_file_list_with_boundary(..., boundary)` | Crate-private list checkpoints, unchanged error propagation | Use inherited operation in network list service |
++| `read_dat_file(path, options) -> Result<FinancialDatResult>` | Direct DAT file loading through T21 `bars::load`, selected byte cap and cancellation | Public `read` must route `.zip` via shared decoder and `.dat` here |
++| `offline::financial::read(path, options) -> Result<ReadResult<FinancialRecord>>` | DAT constituent complete | Entire public dispatcher withheld rather than ship a ZIP error stub |
++| `FinancialArchiveName`, `FinancialRecordsQuery` | Checked pure remote name/query values | Re-export/use in root financial module |
++| `FinancialParseOptions`, `FinancialReadOptions`, `DatSelector` | Private fields/getters/checked options; exact named selector | Connect selectors to shared archive adapter |
++| `FinancialHeader`, `FinancialRecord`, `FinancialDatResult`, `FinancialCompletion`, `ReportDateSource`, `ArchiveProvenance`, `FinancialFileInfo` | Source-authoritative local result/model types and getters | Populate archive provenance only from validated shared entry metadata |
++| `FinancialService::list_archive_files` | Fixed `FINANCIAL_LIST_PATH = tdxfin/gpcw.txt` and parser ready | Owned HQ service implementation |
++| `FinancialService::download_archive` | Remote leaf/value ready | HQ 0x06B9 complete/bounded source download |
++| `FinancialService::download_records` | Query, parsers, inherited CPU boundary ready | Same-operation list/download/ZIP/DAT and Complete-only composition |
++| `open_calc_client` / `CalcClientConfig` | No network stub introduced | Lazy TdxClient composition, default 120.76.152.87:7709, 8s, probe_hosts=false |
++| `DownloadOptions` | No competing partial type introduced | Coordinate existing HQ resource options and max_bytes/chunk/offset budgets |
++
++All mutable DTO fields are private. Getters return references, slices or Copy values. `FinancialArchiveName` accepts a nonempty ASCII remote leaf without separators, colon, NUL/control bytes or surrounding whitespace, reserves the seven-byte `tdxfin/` prefix inside HQ's 300-byte path limit, and never creates a local path.
++
++## DAT semantics and limits
++
++- Header is the exact 20-byte `<hIHIII>` layout: signed unknown, raw date, u16 max_count, unknown1, report_size, unknown2. Unknowns and raw date are available regardless of RawPolicy. Index layout is 11 bytes (`6s`, market u8, absolute u32 offset).
++- New Rust direct DAT has a 256 MiB maximum; callers can lower it. Per-record fields <=4096; total decoded fields <=4*1024*1024. Options reject zero, values above source limits, and allocation-unrepresentable values. Header/index multiplication, offset addition and total-field addition use checked arithmetic; report_size not divisible by four and exceeded field budgets are ResourceFormat. Byte input excess is LimitExceeded. Field allocations follow size checks. Full retained payload allocation occurs only after all DAT checks complete.
++- Empty bytes are complete empty data with no header. Nonempty <20-byte input is Incomplete plus diagnostic (strict rejects). report_size=0 is successful empty, even if index count is nonzero, preserving source behavior. Nonzero reports inspect only full index entries. Out-of-range/truncated indexes are skipped/broken with diagnostics and Incomplete; strict_index rejects those faults. Empty-code and zero-offset entries remain omitted with explicit incomplete facts, including under strict mode (strict applies to malformed ranges/truncation).
++- Repeated previously accepted valid offsets fail in both policies, matching current Python. New Rust additionally rejects record/header-index overlap and non-identical record range overlap. A sorted range map permits nonoverlapping out-of-order data while returning rows in index order. Invalid offsets are not added to accepted ranges.
++- Code decoding uses shared ASCII replacement then trailing NUL removal; market stays arbitrary u8. Every float uses `WireFloat::from_bits`; NaN payloads, infinity, signed zero and subnormals remain exact. No field dictionary, unit or financial metric name is guessed.
++- New Rust date precedence is explicit TradingDate > first valid eight-digit filename match > header. Only the filename leaf is scanned. Direct local DAT reads use header unless explicitly overridden. Invalid header integers remain available and are diagnosed even when an override is valid. Invalid effective legacy overrides are also diagnosed. No clock/today substitution exists.
++- `ReadResult` has no completion/header/provenance slots. `parse_dat` preserves its specified signature and exposes any omissions in diagnostics. `FinancialDatResult` is an additive detailed wrapper containing explicit Complete/Incomplete, consumed and omitted indexes, optional header, date source, shared raw payload and optional archive provenance. Stage B `download_records` must consult detailed completion rather than treat any `Ok(ReadResult)` as complete.
++- RetainPayload and local RetainWire keep one shared Arc payload with row ranges; local DAT has no fabricated network frame. Omit keeps only required raw bits/header/ranges. Stage B owns retaining actual archive/wire sources. `ArchiveProvenance.entry_name` keeps original bytes so lossy-decoded names do not become identity.
++- DAT CPU callbacks run before parsing, at each index, during retained payload copying (64 KiB units), while attaching shared row payloads, and before return. List callbacks run around parsing and each row. Local file loading reuses T21 metadata checks, bounded chunk reads, growth probe and cancellation, without network operations or implicit eight-second deadlines.
++
++## List and Python compatibility seam
++
++List parser uses UTF-8 replacement, Python-style source whitespace trim, newline split, comma split, fewer-than-three/noninteger skip, and ignores extra columns. Filename/hash fields preserve internal/field whitespace after line trimming. Sizes accept signed decimal and between-digit underscores. Negative nonzero or >u64 yields filesize=None plus a per-row diagnostic; strict mode rejects. Negative zero is zero. Both raw size text and unverified hash are retained; no MD5/authenticity or actual-file-size verification is claimed.
++
++The doc-hidden `python_legacy` submodule is a concrete T23 handoff, not a new selector in Rust options:
++
++- `parse_dat(data, nonzero_override)` shares the same decoding algorithm but does not enforce new direct-DAT byte cap and does not introduce Rust's metadata/range overlap rule. It keeps existing Python per-row/total field protections and repeated-valid-offset rejection, old short/truncated/invalid index omission, and raw integer dates. Python adapter projects rows to its original result shape and ignores enhanced Rust diagnostics.
++- `first_filename_date` returns the first unvalidated eight-digit filename text as integer; nonzero override takes precedence, zero uses header. New Rust validates filename dates separately.
++- `file_list_candidates` retains original three text columns so the Python binding can call Python `int(text)` and catch ValueError, preserving arbitrary-precision negatives and Unicode decimal digits. The convenience `python_legacy::parse_file_list` returns normalized ASCII decimal strings and is not a substitute for Python `int` for Unicode decimal input.
++- T23 must use the legacy candidates plus Python int for exact list behavior; preserve original Python exception/result projection and independent request deadlines. No Python source or bridge has yet been migrated.
++- Legacy local direct-DAT reading still needs a deliberately uncapped byte loader in the compatibility bridge; do not call new public `read_dat_file` (which correctly enforces new Rust limits).
++- Legacy ZIP still selects the first distinct `.dat` in archive order and retains selected-DAT 256 MiB and entries64 protections. New Rust RequireSingle or all-member expansion/validation rules must not be retrofitted.
++
++## Exact Stage B archive and service seams
++
++`archive.rs` remains unchanged. T17 `decode_selected(payload, ArchiveLimits, select(&[u8]), boundary)` already uses same index for validation and reading, bounded metadata, CRC and actual-byte checks. Its returned `ArchiveMember { name, contents }` lacks entry index and declared/actual sizes. `ArchiveLimits::financial()` is a private fixed preset with no lower caller-limit constructor. Required narrow adaptation:
++
++1. Shared archive metadata must retain `{name: Vec<u8>, index: usize, declared_size: u64, actual_size: u64, is_directory: bool}` on the same checked entry used by `by_index`. Do not locate an entry by name after validating another entry.
++2. Add checked per-use lower overrides for compressed bytes, entries and selected-DAT expansion. Keep new Rust aggregate expanded total <=256 MiB across all members and selected DAT independently <=min(256 MiB, caller max_dat_bytes). Both declared and streaming actual counts enforce those bounds before allocation/growth. Existing fixed total256 is consistent with controller ruling but smaller caller limits are not yet expressible.
++3. Shared selection must inspect all candidate metadata before retaining a DAT: ignore directories; case-sensitive `.dat`; reject duplicate DAT names; RequireSingle rejects multiple distinct DAT names with candidates; Named exact match; missing -> MissingData. Selection belongs to shared integration, not a second ZIP parser in this module.
++4. Preserve separate Python legacy policy: first distinct DAT, current duplicate DAT/selected encryption/CRC checks, no new all-member expanded budget or unselected-member rejection. The current decoder validates/rejects all member duplicates/encryption and inflates all entries, so it cannot silently become the legacy route without explicit policy adaptation. Reuse one decoder implementation with policy differences, not copied ZIP code.
++5. Shared adapter constructs `ArchiveProvenance::new(...)`, attaches via `FinancialDatResult::with_archive`, and calls `parse_dat_for_archive_with_boundary` with inherited HQ operation. Detailed result completion must be Complete for a complete-records API.
++6. Register `pub mod financial;` in `offline/mod.rs`; re-export specified offline models/options (and decide additive detailed types); add root `financial` module under offline feature and owned `TdxClient::financial()` getter. Do not require F10, HTTP, EX or MAC.
++7. Add `financial::read(path, options)` with `.zip` routing through shared decoder, lowercase extension selection matching local source, and default header date even for local ZIP filenames; `.dat`/other direct input uses `read_dat_file(...).into_records()`. The current `read_dat_file` is intentionally explicitly DAT-only.
++8. HQ `download_archive(filename, download, operation)` propagates max_bytes to 0x06B9 source, validates finite chunk (default30000, max60000), max_chunks4096, u32 wire offset and checked offset progress. max_bytes0 returns LimitReached without I/O after validation. Nonzero start offset is range-only. Same pin and operation budget span every chunk and cleanup. No `LimitReached` bytes enter archive decoding.
++9. `download_records(query, operation)` inherits one operation through list, source download, shared ZIP and pure DAT. It checks Complete and origin, cancellation and deadline remain terminal, no fallback to empty result. `list_archive_files` uses `tdxfin/gpcw.txt`. `open_calc_client` is lazy; build/getter do not connect or probe.
++
++## Authored cases, self-review and evidence limits
++
++`tests/financial.rs` contains synthetic source cases for: exact NaN/sign/subnormal bits; raw policies/header fields/market255/ASCII replacement/ranges; empty versus short header versus report_size0; hostile huge headers and 4096 field boundary; direct-byte exact/smaller cap; small total budget and full default total-field boundary; truncated indexes and strict rejection; out-of-range offsets and diagnostics; duplicate/overlap and out-of-order ranges; metadata overlap legacy difference; omission counts; explicit/archive/header dates and invalid-date retention; Python first-invalid filename date; list replacement/negative/overflow/underscores/negative0/strict behavior; option validation; remote name length/selector checks; local DAT date/byte limit/I/O errors; cancellation before file open.
++
++Additional `#[cfg(test)]` source cases in the module cover: inherited callback Timeout/Cancelled/Closed unchanged; archive provenance identity/size fields; legacy direct-DAT cap bypass with a lowered test cap. No input fixture requires a network source. ZIP CRC/encryption/duplicates/candidates/limits and HQ source cap/pin cleanup/lazy client cases remain Stage B, since their implementations and shared seams are not yet present.
++
++Self-review read source against contracts and fixed: an initially invalid index-context string conversion; negative-zero size handling; delayed retained payload allocation until header/index/field checks finish; missing effective-legacy-date diagnostic; deadline/cancellation callbacks through DAT and list CPU loops; cancellation while assigning row payloads. Normal source reads and owned-path Git checkpointing only were used. Source files remain unregistered by design, so authored integration cases cannot yet be collected successfully. Unused private Stage B seam warnings are possible until integration.
++
++Explicitly not run: tests or test collection, build/check/clippy/doctest, cargo metadata/resolution, dependency download, network, compile/AST/format/diff checks or equivalent validation. No claim about compilation, dependency API/MSRV/license, runtime behavior, passing cases or performance. Deferred command after all T01–T30 implementation and Stage B completion: `cargo test -p eltdx --features offline --test financial --locked`.
+diff --git a/crates/eltdx/src/offline/financial.rs b/crates/eltdx/src/offline/financial.rs
+new file mode 100644
+index 0000000..96359a0
+--- /dev/null
++++ b/crates/eltdx/src/offline/financial.rs
+@@ -0,0 +1,573 @@
++//! Pure historical financial DAT/list parsing and bounded local DAT reads.
++//!
++//! ZIP decoding/selection is deliberately integrated in Stage B through the shared
++//! archive decoder. No ZIP decoder or network service is implemented here.
++use std::collections::BTreeMap;
++use std::ops::Range;
++use std::path::Path;
++use std::sync::Arc;
++
++use crate::error::{Error, ErrorKind, Result};
++use crate::types::{Diagnostic, EnrichmentStatus};
++use crate::{CancellationToken, RawPolicy, TradingDate};
++use super::{ascii_replace, bars, cancelled, invalid, malformed, source_trim,
++    ReadOptions, ReadResult, WireFloat};
++
++pub const FINANCIAL_LIST_PATH: &str = "tdxfin/gpcw.txt";
++pub const MAX_DAT_BYTES: u64 = 256 * 1024 * 1024;
++pub const MAX_ARCHIVE_BYTES: u64 = 64 * 1024 * 1024;
++pub const MAX_ARCHIVE_ENTRIES: u32 = 64;
++pub const MAX_FIELDS_PER_RECORD: u32 = 4096;
++pub const MAX_TOTAL_FIELDS: u64 = 4 * 1024 * 1024;
++const HEADER_BYTES: usize = 20;
++const INDEX_BYTES: usize = 11;
++
++/// Checked remote leaf; it never denotes a local filesystem destination.
++#[derive(Clone, Debug, Eq, PartialEq)]
++pub struct FinancialArchiveName(String);
++impl FinancialArchiveName {
++    pub fn new(value: impl Into<String>) -> Result<Self> {
++        let value = value.into();
++        // HQ permits 300 ASCII path bytes; reserve the fixed `tdxfin/` prefix.
++        if value.is_empty() || value.len() > 293 || !value.is_ascii()
++            || value.trim() != value || value.chars().any(|c| c.is_control())
++            || value.contains(['/', '\\', ':']) || value == "." || value == ".."
++        { return Err(invalid("financial archive name must be a bounded ASCII remote leaf")); }
++        Ok(Self(value))
++    }
++    pub fn as_str(&self) -> &str { &self.0 }
++    pub fn remote_path(&self) -> String { format!("tdxfin/{}", self.0) }
++}
++
++#[derive(Clone, Debug)]
++pub struct FinancialParseOptions {
++    max_dat_bytes: u64,
++    max_fields_per_record: u32,
++    max_total_fields: u64,
++    strict_index: bool,
++    raw: RawPolicy,
++    cancel: Option<CancellationToken>,
++}
++impl Default for FinancialParseOptions {
++    fn default() -> Self {
++        Self { max_dat_bytes: MAX_DAT_BYTES, max_fields_per_record: MAX_FIELDS_PER_RECORD,
++            max_total_fields: MAX_TOTAL_FIELDS, strict_index: false, raw: RawPolicy::Omit, cancel: None }
++    }
++}
++impl FinancialParseOptions {
++    pub fn new() -> Self { Self::default() }
++    pub const fn max_dat_bytes(&self) -> u64 { self.max_dat_bytes }
++    pub const fn max_fields_per_record(&self) -> u32 { self.max_fields_per_record }
++    pub const fn max_total_fields(&self) -> u64 { self.max_total_fields }
++    pub const fn strict_index(&self) -> bool { self.strict_index }
++    pub const fn raw(&self) -> RawPolicy { self.raw }
++    pub fn cancel(&self) -> Option<&CancellationToken> { self.cancel.as_ref() }
++    pub fn with_max_dat_bytes(mut self, value: u64) -> Result<Self> {
++        bounded(value, MAX_DAT_BYTES, "max_dat_bytes")?;
++        self.max_dat_bytes = value; Ok(self)
++    }
++    pub fn with_max_fields_per_record(mut self, value: u32) -> Result<Self> {
++        bounded(u64::from(value), u64::from(MAX_FIELDS_PER_RECORD), "max_fields_per_record")?;
++        self.max_fields_per_record = value; Ok(self)
++    }
++    pub fn with_max_total_fields(mut self, value: u64) -> Result<Self> {
++        bounded(value, MAX_TOTAL_FIELDS, "max_total_fields")?;
++        value.checked_mul(4).ok_or_else(|| invalid("total field byte size overflows"))?;
++        self.max_total_fields = value; Ok(self)
++    }
++    pub fn with_strict_index(mut self, value: bool) -> Self { self.strict_index = value; self }
++    pub fn with_raw(mut self, value: RawPolicy) -> Self { self.raw = value; self }
++    pub fn with_cancel(mut self, value: Option<CancellationToken>) -> Self { self.cancel = value; self }
++}
++fn bounded(value: u64, maximum: u64, name: &str) -> Result<()> {
++    if value == 0 || value > maximum || value > (isize::MAX as u64).saturating_sub(1) {
++        return Err(invalid(format!("{name} must be positive and no greater than {maximum}")));
++    }
++    Ok(())
++}
++
++/// Exact archive member name; checked construction is available through `named`.
++#[derive(Clone, Debug, Default, Eq, PartialEq)]
++pub enum DatSelector { #[default] RequireSingle, Named(String) }
++impl DatSelector {
++    pub fn named(name: impl Into<String>) -> Result<Self> {
++        let name = name.into();
++        if name.is_empty() || name.contains('\0') || !name.ends_with(".dat") {
++            return Err(invalid("DAT selector must be a nonempty, NUL-free exact .dat member name"));
++        }
++        Ok(Self::Named(name))
++    }
++    fn validate(&self) -> Result<()> {
++        if let Self::Named(name) = self { Self::named(name.clone())?; }
++        Ok(())
++    }
++}
++
++#[derive(Clone, Debug)]
++pub struct FinancialReadOptions {
++    parse: FinancialParseOptions,
++    max_archive_bytes: u64,
++    max_entries: u32,
++    selector: DatSelector,
++    report_date: Option<TradingDate>,
++}
++impl Default for FinancialReadOptions {
++    fn default() -> Self {
++        Self { parse: FinancialParseOptions::default(), max_archive_bytes: MAX_ARCHIVE_BYTES,
++            max_entries: MAX_ARCHIVE_ENTRIES, selector: DatSelector::RequireSingle, report_date: None }
++    }
++}
++impl FinancialReadOptions {
++    pub fn new() -> Self { Self::default() }
++    pub fn parse(&self) -> &FinancialParseOptions { &self.parse }
++    pub const fn max_archive_bytes(&self) -> u64 { self.max_archive_bytes }
++    pub const fn max_entries(&self) -> u32 { self.max_entries }
++    pub fn selector(&self) -> &DatSelector { &self.selector }
++    pub const fn report_date(&self) -> Option<TradingDate> { self.report_date }
++    pub fn with_parse(mut self, value: FinancialParseOptions) -> Self { self.parse = value; self }
++    pub fn with_max_archive_bytes(mut self, value: u64) -> Result<Self> {
++        bounded(value, MAX_ARCHIVE_BYTES, "max_archive_bytes")?;
++        self.max_archive_bytes = value; Ok(self)
++    }
++    pub fn with_max_entries(mut self, value: u32) -> Result<Self> {
++        bounded(u64::from(value), u64::from(MAX_ARCHIVE_ENTRIES), "max_entries")?;
++        self.max_entries = value; Ok(self)
++    }
++    pub fn with_selector(mut self, value: DatSelector) -> Result<Self> {
++        value.validate()?; self.selector = value; Ok(self)
++    }
++    pub fn with_report_date(mut self, value: Option<TradingDate>) -> Self { self.report_date = value; self }
++}
++
++/// Pure checked query consumed by the Stage B HQ composition.
++#[derive(Clone, Debug)]
++pub struct FinancialRecordsQuery {
++    filename: FinancialArchiveName, selector: DatSelector, report_date: Option<TradingDate>,
++}
++impl FinancialRecordsQuery {
++    pub fn new(filename: FinancialArchiveName) -> Self {
++        Self { filename, selector: DatSelector::RequireSingle, report_date: None }
++    }
++    pub fn filename(&self) -> &FinancialArchiveName { &self.filename }
++    pub fn selector(&self) -> &DatSelector { &self.selector }
++    pub const fn report_date(&self) -> Option<TradingDate> { self.report_date }
++    pub fn with_selector(mut self, value: DatSelector) -> Result<Self> {
++        value.validate()?; self.selector = value; Ok(self)
++    }
++    pub fn with_report_date(mut self, value: Option<TradingDate>) -> Self { self.report_date = value; self }
++}
++
++/// Filled only by the shared archive adapter after it reads the validated index.
++#[derive(Clone, Debug, Eq, PartialEq)]
++pub struct ArchiveProvenance {
++    entry_name: Vec<u8>, entry_index: usize, declared_size: u64, actual_size: u64, selector: DatSelector,
++}
++impl ArchiveProvenance {
++    pub(crate) fn new(entry_name: Vec<u8>, entry_index: usize, declared_size: u64,
++        actual_size: u64, selector: DatSelector) -> Result<Self>
++    {
++        selector.validate()?;
++        if declared_size != actual_size || actual_size > MAX_DAT_BYTES {
++            return Err(malformed("archive DAT declared/actual size disagrees or exceeds limit"));
++        }
++        Ok(Self { entry_name, entry_index, declared_size, actual_size, selector })
++    }
++    pub fn entry_name(&self) -> &[u8] { &self.entry_name }
++    pub const fn entry_index(&self) -> usize { self.entry_index }
++    pub const fn declared_size(&self) -> u64 { self.declared_size }
++    pub const fn actual_size(&self) -> u64 { self.actual_size }
++    pub fn selector(&self) -> &DatSelector { &self.selector }
++}
++
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub struct FinancialHeader {
++    unknown: i16, report_date_raw: u32, max_count: u16, unknown1: u32,
++    report_size: u32, unknown2: u32,
++}
++impl FinancialHeader {
++    pub const fn unknown(&self) -> i16 { self.unknown }
++    pub const fn report_date_raw(&self) -> u32 { self.report_date_raw }
++    pub const fn max_count(&self) -> u16 { self.max_count }
++    pub const fn unknown1(&self) -> u32 { self.unknown1 }
++    pub const fn report_size(&self) -> u32 { self.report_size }
++    pub const fn unknown2(&self) -> u32 { self.unknown2 }
++}
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum FinancialCompletion { Complete, Incomplete }
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum ReportDateSource { Explicit, ArchiveFilename, Header, Unavailable, PythonLegacyOverride }
++#[derive(Clone, Debug)]
++pub struct FinancialRecord {
++    code: String, market_id: u8, report_date: Option<TradingDate>, report_date_raw: u32,
++    date_source: ReportDateSource, fields: Vec<WireFloat>, header: FinancialHeader,
++    index: usize, data_range: Range<usize>, raw: Option<Arc<[u8]>>,
++}
++impl FinancialRecord {
++    pub fn code(&self) -> &str { &self.code }
++    pub const fn market_id(&self) -> u8 { self.market_id }
++    pub const fn report_date(&self) -> Option<TradingDate> { self.report_date }
++    /// Effective unvalidated integer, including the legacy override when selected.
++    pub const fn report_date_raw(&self) -> u32 { self.report_date_raw }
++    pub const fn date_source(&self) -> ReportDateSource { self.date_source }
++    pub fn fields(&self) -> &[WireFloat] { &self.fields }
++    pub const fn header(&self) -> &FinancialHeader { &self.header }
++    pub const fn index(&self) -> usize { self.index }
++    pub fn data_range(&self) -> Range<usize> { self.data_range.clone() }
++    pub fn raw(&self) -> Option<&[u8]> { self.raw.as_deref().map(|data| &data[self.data_range.clone()]) }
++}
++/// Rich result retains facts that the shared T21 `ReadResult` cannot represent.
++#[derive(Clone, Debug)]
++pub struct FinancialDatResult {
++    records: ReadResult<FinancialRecord>, header: Option<FinancialHeader>,
++    completion: FinancialCompletion, consumed_indexes: usize, omitted_indexes: usize,
++    date_source: ReportDateSource, raw: Option<Arc<[u8]>>, archive: Option<ArchiveProvenance>,
++}
++impl FinancialDatResult {
++    pub fn records(&self) -> &ReadResult<FinancialRecord> { &self.records }
++    pub fn rows(&self) -> &[FinancialRecord] { self.records.rows() }
++    pub fn diagnostics(&self) -> &[Diagnostic] { self.records.diagnostics() }
++    pub const fn header(&self) -> Option<&FinancialHeader> { self.header.as_ref() }
++    pub const fn completion(&self) -> FinancialCompletion { self.completion }
++    pub const fn consumed_indexes(&self) -> usize { self.consumed_indexes }
++    pub const fn omitted_indexes(&self) -> usize { self.omitted_indexes }
++    pub const fn date_source(&self) -> ReportDateSource { self.date_source }
++    pub fn raw(&self) -> Option<&[u8]> { self.raw.as_deref() }
++    pub fn archive(&self) -> Option<&ArchiveProvenance> { self.archive.as_ref() }
++    pub fn into_records(self) -> ReadResult<FinancialRecord> { self.records }
++    pub(crate) fn with_archive(mut self, value: ArchiveProvenance) -> Self { self.archive = Some(value); self }
++}
++
++pub fn parse_dat(data: &[u8], report_date: Option<TradingDate>, options: &FinancialParseOptions)
++    -> Result<ReadResult<FinancialRecord>>
++{ Ok(parse_dat_detailed(data, report_date, options)?.into_records()) }
++
++pub fn parse_dat_detailed(data: &[u8], report_date: Option<TradingDate>, options: &FinancialParseOptions)
++    -> Result<FinancialDatResult>
++{ parse_core(data, DatePolicy::Rust { explicit: report_date, filename: None }, options, false) }
++
++/// Pure date-precedence entry point for Stage B after shared ZIP selection.
++pub fn parse_dat_for_archive(data: &[u8], filename: &str, report_date: Option<TradingDate>,
++    options: &FinancialParseOptions) -> Result<FinancialDatResult>
++{ parse_core(data, DatePolicy::Rust { explicit: report_date, filename: Some(filename) }, options, false) }
++
++/// Stage B supplies its existing operation checkpoint, preserving its error and
++/// total deadline at each bounded CPU unit without constructing a new operation.
++pub(crate) fn parse_dat_for_archive_with_boundary(data: &[u8], filename: &str,
++    report_date: Option<TradingDate>, options: &FinancialParseOptions,
++    boundary: &mut impl FnMut() -> Result<()>) -> Result<FinancialDatResult>
++{
++    parse_core_with_boundary(data, DatePolicy::Rust { explicit: report_date, filename: Some(filename) },
++        options, false, boundary)
++}
++
++/// Local DAT-only portion of `read`; archive routing is a Stage B responsibility.
++/// Filename dates are intentionally ignored on this local route.
++pub fn read_dat_file(path: &Path, options: &FinancialReadOptions) -> Result<FinancialDatResult> {
++    let local = ReadOptions::new().with_max_bytes(options.parse.max_dat_bytes)?
++        .with_cancel(options.parse.cancel.clone());
++    let bytes = bars::load(path, &local)?;
++    parse_dat_detailed(&bytes, options.report_date, &options.parse)
++}
++
++#[derive(Clone, Copy)]
++enum DatePolicy<'a> { Rust { explicit: Option<TradingDate>, filename: Option<&'a str> }, Legacy(u32) }
++fn date_parts(raw: u32) -> Option<TradingDate> {
++    let year = u16::try_from(raw / 10000).ok()?;
++    TradingDate::new(year, ((raw % 10000) / 100) as u8, (raw % 100) as u8).ok()
++}
++fn date_integer(value: TradingDate) -> u32 {
++    u32::from(value.year()) * 10000 + u32::from(value.month()) * 100 + u32::from(value.day())
++}
++/// Dates are found in the leaf name, in non-overlapping eight-digit runs, matching
++/// the legacy first-match shape while Rust additionally requires a valid date.
++pub fn filename_report_date(filename: &str) -> Option<TradingDate> {
++    filename_dates(filename).find_map(date_parts)
++}
++fn filename_dates(filename: &str) -> impl Iterator<Item = u32> + '_ {
++    let leaf = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
++    let mut at = 0;
++    std::iter::from_fn(move || {
++        while at + 8 <= leaf.len() {
++            let chunk = &leaf.as_bytes()[at..at + 8];
++            if chunk.iter().all(u8::is_ascii_digit) {
++                at += 8;
++                return Some(chunk.iter().fold(0, |value, digit| value * 10 + u32::from(*digit - b'0')));
++            }
++            at += 1;
++        }
++        None
++    })
++}
++fn resolve_date(policy: DatePolicy<'_>, header: u32) -> (u32, Option<TradingDate>, ReportDateSource) {
++    match policy {
++        DatePolicy::Legacy(value) if value != 0 => (value, date_parts(value), ReportDateSource::PythonLegacyOverride),
++        DatePolicy::Rust { explicit: Some(date), .. } => (date_integer(date), Some(date), ReportDateSource::Explicit),
++        DatePolicy::Rust { filename: Some(name), .. } => {
++            if let Some(date) = filename_report_date(name) {
++                return (date_integer(date), Some(date), ReportDateSource::ArchiveFilename);
++            }
++            (header, date_parts(header), if date_parts(header).is_some() { ReportDateSource::Header } else { ReportDateSource::Unavailable })
++        }
++        _ => (header, date_parts(header), if date_parts(header).is_some() { ReportDateSource::Header } else { ReportDateSource::Unavailable }),
++    }
++}
++fn issue(stage: &str, message: impl Into<String>) -> Diagnostic {
++    Diagnostic::new("offline.financial", stage, EnrichmentStatus::Unavailable,
++        Some(ErrorKind::ResourceFormat), Some(message.into()))
++}
++fn index_issue(options: &FinancialParseOptions, diagnostics: &mut Vec<Diagnostic>, index: usize,
++    message: &str) -> Result<()>
++{
++    if options.strict_index {
++        return Err(malformed(message).with_context("record_index", format!("{index}")));
++    }
++    diagnostics.push(issue("index", format!("record {index}: {message}")));
++    Ok(())
++}
++
++fn parse_core(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptions, legacy: bool)
++    -> Result<FinancialDatResult>
++{
++    parse_core_with_boundary(data, policy, options, legacy, &mut || Ok(()))
++}
++fn checkpoint(options: &FinancialParseOptions, boundary: &mut impl FnMut() -> Result<()>) -> Result<()> {
++    cancelled(options.cancel())?;
++    boundary()
++}
++fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptions,
++    legacy: bool, boundary: &mut impl FnMut() -> Result<()>) -> Result<FinancialDatResult>
++{
++    checkpoint(options, boundary)?;
++    if !legacy && data.len() as u64 > options.max_dat_bytes {
++        return Err(Error::new(ErrorKind::LimitExceeded, "financial DAT exceeds byte limit"));
++    }
++    let mut diagnostics = Vec::new();
++    let mut rows = Vec::new();
++    let mut completion = FinancialCompletion::Complete;
++    if data.len() < HEADER_BYTES {
++        if !data.is_empty() {
++            index_issue(options, &mut diagnostics, 0, "truncated financial DAT header")?;
++            completion = FinancialCompletion::Incomplete;
++        }
++        return Ok(FinancialDatResult { records: ReadResult::new(rows, data.len(), diagnostics), header: None,
++            completion, consumed_indexes: 0, omitted_indexes: 0, date_source: ReportDateSource::Unavailable,
++            raw: retain_payload(data, options, boundary)?, archive: None });
++    }
++    let header = FinancialHeader {
++        unknown: i16::from_le_bytes([data[0], data[1]]), report_date_raw: bars::u32_at(data, 2),
++        max_count: bars::u16_at(data, 6), unknown1: bars::u32_at(data, 8),
++        report_size: bars::u32_at(data, 12), unknown2: bars::u32_at(data, 16),
++    };
++    let (date_raw, date, date_source) = resolve_date(policy, header.report_date_raw);
++    if date_parts(header.report_date_raw).is_none() {
++        diagnostics.push(issue("date", format!("invalid raw header date {} retained", header.report_date_raw)));
++    }
++    if date.is_none() && date_raw != header.report_date_raw {
++        diagnostics.push(issue("date", format!("invalid legacy override date {date_raw} retained")));
++    }
++    let fields = header.report_size / 4;
++    if header.report_size % 4 != 0 || fields > options.max_fields_per_record {
++        return Err(malformed("financial report_size is unaligned or exceeds field limit"));
++    }
++    let count = usize::from(header.max_count);
++    let index_end = count.checked_mul(INDEX_BYTES).and_then(|length| HEADER_BYTES.checked_add(length))
++        .ok_or_else(|| malformed("financial index size overflows"))?;
++    let mut consumed = 0;
++    let mut omitted = 0;
++    let mut total_fields = 0_u64;
++    let mut ranges = BTreeMap::<usize, usize>::new();
++    if header.report_size != 0 {
++        for index in 0..count {
++            checkpoint(options, boundary)?;
++            let at = HEADER_BYTES + index * INDEX_BYTES; // bounded by checked index_end
++            let Some(entry) = data.get(at..at + INDEX_BYTES) else {
++                index_issue(options, &mut diagnostics, index, "truncated financial index table")?;
++                omitted += count - index; completion = FinancialCompletion::Incomplete; break;
++            };
++            consumed += 1;
++            let code = ascii_replace(&entry[..6]).trim_end_matches('\0').to_owned();
++            let start = bars::u32_at(entry, 7) as usize;
++            if code.is_empty() || start == 0 {
++                diagnostics.push(issue("index", format!("record {index}: empty code or zero offset omitted")));
++                omitted += 1; completion = FinancialCompletion::Incomplete; continue;
++            }
++            // Python already rejects a repeated previously accepted offset. New
++            // Rust additionally rejects any overlap with metadata or other rows.
++            if ranges.contains_key(&start) {
++                return Err(malformed("duplicate valid financial offset").with_context("record_index", format!("{index}")));
++            }
++            let end = start.checked_add(header.report_size as usize)
++                .ok_or_else(|| malformed("financial data offset overflows"))?;
++            if end > data.len() {
++                index_issue(options, &mut diagnostics, index, "financial data offset is out of range")?;
++                omitted += 1; completion = FinancialCompletion::Incomplete; continue;
++            }
++            if !legacy && (start < index_end
++                || ranges.range(..start).next_back().is_some_and(|(_, previous_end)| *previous_end > start)
++                || ranges.range(start..).next().is_some_and(|(next_start, _)| *next_start < end))
++            {
++                return Err(malformed("overlapping financial data/index ranges").with_context("record_index", format!("{index}")));
++            }
++            total_fields = total_fields.checked_add(u64::from(fields))
++                .filter(|total| *total <= options.max_total_fields)
++                .ok_or_else(|| malformed("financial total field limit exceeded"))?;
++            let mut values = Vec::new();
++            values.try_reserve_exact(fields as usize).map_err(|_| malformed("financial field allocation failed"))?;
++            for bytes in data[start..end].chunks_exact(4) {
++                values.push(WireFloat::from_bits(bars::u32_at(bytes, 0)));
++            }
++            ranges.insert(start, end);
++            rows.try_reserve(1).map_err(|_| malformed("financial record allocation failed"))?;
++            rows.push(FinancialRecord { code, market_id: entry[6], report_date: date, report_date_raw: date_raw,
++                date_source, fields: values, header, index, data_range: start..end, raw: None });
++        }
++    }
++    checkpoint(options, boundary)?;
++    // Copy only after all header/index/field budget checks have succeeded.
++    let raw = retain_payload(data, options, boundary)?;
++    for row in &mut rows { checkpoint(options, boundary)?; row.raw = raw.clone(); }
++    checkpoint(options, boundary)?;
++    Ok(FinancialDatResult { records: ReadResult::new(rows, 0, diagnostics), header: Some(header),
++        completion, consumed_indexes: consumed, omitted_indexes: omitted, date_source, raw, archive: None })
++}
++
++fn retain_payload(data: &[u8], options: &FinancialParseOptions,
++    boundary: &mut impl FnMut() -> Result<()>) -> Result<Option<Arc<[u8]>>>
++{
++    if options.raw == RawPolicy::Omit { return Ok(None); }
++    // One shared payload; field/index budgets are checked separately before allocation.
++    let mut copy = Vec::new();
++    copy.try_reserve_exact(data.len()).map_err(|_| malformed("financial raw allocation failed"))?;
++    for chunk in data.chunks(64 * 1024) { checkpoint(options, boundary)?; copy.extend_from_slice(chunk); }
++    checkpoint(options, boundary)?;
++    Ok(Some(Arc::from(copy)))
++}
++
++#[derive(Clone, Debug)]
++pub struct FinancialFileInfo {
++    filename: String, hash: String, filesize: Option<u64>, filesize_text: String,
++    diagnostics: Vec<Diagnostic>,
++}
++impl FinancialFileInfo {
++    pub fn filename(&self) -> &str { &self.filename }
++    /// Unverified server metadata; no digest authentication has been performed.
++    pub fn hash(&self) -> &str { &self.hash }
++    pub const fn filesize(&self) -> Option<u64> { self.filesize }
++    pub fn filesize_text(&self) -> &str { &self.filesize_text }
++    pub fn diagnostics(&self) -> &[Diagnostic] { &self.diagnostics }
++}
++
++pub fn parse_file_list(data: &[u8]) -> Result<Vec<FinancialFileInfo>> { parse_file_list_with_strict(data, false) }
++pub fn parse_file_list_with_strict(data: &[u8], strict: bool) -> Result<Vec<FinancialFileInfo>> {
++    parse_file_list_with_boundary(data, strict, &mut || Ok(()))
++}
++pub(crate) fn parse_file_list_with_boundary(data: &[u8], strict: bool,
++    boundary: &mut impl FnMut() -> Result<()>) -> Result<Vec<FinancialFileInfo>>
++{
++    boundary()?;
++    let mut result = Vec::new();
++    let text = String::from_utf8_lossy(data);
++    for line in source_trim(&text).split('\n').map(source_trim).filter(|line| !line.is_empty()) {
++        boundary()?;
++        let mut columns = line.split(',');
++        let (Some(filename), Some(hash), Some(size)) = (columns.next(), columns.next(), columns.next()) else { continue };
++        let Some(integer) = decimal_integer(size) else { continue };
++        let digits = integer.trim_start_matches(['+', '-']);
++        let filesize = if integer.starts_with('-') && digits.bytes().any(|b| b != b'0') {
++            None
++        } else { digits.parse::<u64>().ok() };
++        let diagnostics = if filesize.is_none() {
++            if strict { return Err(malformed("financial list size is negative or exceeds u64")); }
++            vec![issue("list", "financial list size is negative or exceeds u64; raw text retained")]
++        } else { Vec::new() };
++        result.push(FinancialFileInfo { filename: filename.to_owned(), hash: hash.to_owned(),
++            filesize, filesize_text: size.to_owned(), diagnostics });
++    }
++    boundary()?;
++    Ok(result)
++}
++// Arbitrary-length signed decimal, including Python's between-digit underscores.
++// Unicode decimal digits outside ASCII are deferred to the T23 Python boundary.
++fn decimal_integer(text: &str) -> Option<String> {
++    let text = source_trim(text);
++    let digits = text.strip_prefix(['+', '-']).unwrap_or(text);
++    if digits.is_empty() { return None; }
++    let bytes = digits.as_bytes();
++    if !bytes.first()?.is_ascii_digit() || !bytes.last()?.is_ascii_digit() { return None; }
++    for (index, byte) in bytes.iter().enumerate() {
++        if !byte.is_ascii_digit() && !(*byte == b'_' && index > 0 && bytes[index - 1].is_ascii_digit()
++            && bytes.get(index + 1).is_some_and(u8::is_ascii_digit)) { return None; }
++    }
++    Some(text.replace('_', ""))
++}
++
++/// Internal T23 policy seam. It cannot be selected through public Rust options.
++/// This is the existing Python DAT policy, including no direct-DAT byte cap.
++#[doc(hidden)]
++pub mod python_legacy {
++    use super::*;
++    pub fn parse_dat(data: &[u8], nonzero_override: u32) -> Result<FinancialDatResult> {
++        parse_core(data, DatePolicy::Legacy(nonzero_override), &FinancialParseOptions::default(), true)
++    }
++    pub fn first_filename_date(filename: &str) -> u32 { filename_dates(filename).next().unwrap_or(0) }
++    /// The binding must apply Python `int(text)` and skip ValueError. Keeping the
++    /// original token here also preserves Unicode decimal digits and arbitrary
++    /// precision that the Rust public u64 projection cannot represent.
++    pub fn file_list_candidates(data: &[u8]) -> Vec<(String, String, String)> {
++        let text = String::from_utf8_lossy(data);
++        source_trim(&text).split('\n').filter_map(|line| {
++            let mut columns = source_trim(line).split(',');
++            Some((columns.next()?.to_owned(), columns.next()?.to_owned(), columns.next()?.to_owned()))
++        }).collect()
++    }
++    /// Return signed size text for conversion to Python's arbitrary precision int.
++    pub fn parse_file_list(data: &[u8]) -> Vec<(String, String, String)> {
++        let text = String::from_utf8_lossy(data);
++        source_trim(&text).split('\n').filter_map(|line| {
++            let mut columns = source_trim(line).split(',');
++            let (filename, hash, size) = (columns.next()?, columns.next()?, columns.next()?);
++            Some((filename.to_owned(), hash.to_owned(), decimal_integer(size)?))
++        }).collect()
++    }
++}
++
++#[cfg(test)]
++mod source_cases {
++    use super::*;
++
++    #[test]
++    fn operation_boundary_errors_survive_before_any_dat_or_list_parsing() {
++        for kind in [ErrorKind::Timeout, ErrorKind::Cancelled, ErrorKind::Closed] {
++            let mut stop = || Err(Error::new(kind, "inherited operation stopped"));
++            let error = parse_dat_for_archive_with_boundary(&[], "file.zip", None,
++                &FinancialParseOptions::default(), &mut stop).unwrap_err();
++            assert_eq!(error.kind(), kind);
++            let error = parse_file_list_with_boundary(b"a,h,1", false, &mut stop).unwrap_err();
++            assert_eq!(error.kind(), kind);
++        }
++    }
++
++    #[test]
++    fn legacy_policy_has_no_direct_dat_byte_cap() {
++        let bytes = [0_u8; HEADER_BYTES];
++        let options = FinancialParseOptions::default().with_max_dat_bytes(1).unwrap();
++        assert_eq!(parse_core(&bytes, DatePolicy::Legacy(0), &options, false).unwrap_err().kind(),
++            ErrorKind::LimitExceeded);
++        assert!(parse_core(&bytes, DatePolicy::Legacy(0), &options, true).is_ok());
++    }
++
++    #[test]
++    fn archive_provenance_keeps_exact_identity_and_size_without_guessing() {
++        let provenance = ArchiveProvenance::new(b"folder/a.dat".to_vec(), 7, 20, 20,
++            DatSelector::RequireSingle).unwrap();
++        let result = parse_dat_detailed(&[], None, &FinancialParseOptions::default()).unwrap()
++            .with_archive(provenance);
++        let retained = result.archive().unwrap();
++        assert_eq!(retained.entry_name(), b"folder/a.dat");
++        assert_eq!(retained.entry_index(), 7);
++        assert_eq!(retained.declared_size(), 20);
++        assert_eq!(retained.actual_size(), 20);
++        assert_eq!(retained.selector(), &DatSelector::RequireSingle);
++        assert!(ArchiveProvenance::new(b"a.dat".to_vec(), 0, 20, 19, DatSelector::RequireSingle).is_err());
++    }
++}
+diff --git a/crates/eltdx/tests/financial.rs b/crates/eltdx/tests/financial.rs
+new file mode 100644
+index 0000000..1cb6bf2
+--- /dev/null
++++ b/crates/eltdx/tests/financial.rs
+@@ -0,0 +1,347 @@
++#![cfg(feature = "offline")]
++//! Authored source cases; execution is deferred by the T01-T30 implementation gate.
++//! The public offline module registration belongs to T22 Stage B.
++use std::path::PathBuf;
++use std::sync::atomic::{AtomicU64, Ordering};
++use eltdx::{CancellationToken, ErrorKind, RawPolicy, TradingDate};
++use eltdx::offline::financial::{self, python_legacy, DatSelector, FinancialArchiveName,
++    FinancialCompletion, FinancialParseOptions, FinancialReadOptions, FinancialRecordsQuery,
++    ReportDateSource};
++
++type TestResult = Result<(), Box<dyn std::error::Error>>;
++fn header(count: u16, size: u32, date: u32) -> Vec<u8> {
++    let mut bytes = Vec::new();
++    bytes.extend_from_slice(&(-7_i16).to_le_bytes());
++    bytes.extend_from_slice(&date.to_le_bytes());
++    bytes.extend_from_slice(&count.to_le_bytes());
++    bytes.extend_from_slice(&0x12345678_u32.to_le_bytes());
++    bytes.extend_from_slice(&size.to_le_bytes());
++    bytes.extend_from_slice(&0xfedcba98_u32.to_le_bytes());
++    bytes
++}
++fn entry(code: [u8; 6], market: u8, offset: u32) -> Vec<u8> {
++    let mut bytes = code.to_vec();
++    bytes.push(market);
++    bytes.extend_from_slice(&offset.to_le_bytes());
++    bytes
++}
++fn fixture(rows: &[([u8; 6], u8, Vec<u32>)], date: u32) -> Vec<u8> {
++    let fields = rows.first().map_or(0, |row| row.2.len());
++    let base = 20 + rows.len() * 11;
++    let mut bytes = header(rows.len() as u16, (fields * 4) as u32, date);
++    for (index, (code, market, _)) in rows.iter().enumerate() {
++        bytes.extend(entry(*code, *market, (base + index * fields * 4) as u32));
++    }
++    for (_, _, values) in rows { for value in values { bytes.extend(value.to_le_bytes()); } }
++    bytes
++}
++fn options() -> FinancialParseOptions { FinancialParseOptions::default() }
++fn sample() -> Vec<u8> { fixture(&[(*b"600000", 1, vec![0x3f800000])], 20240331) }
++fn kind<T: std::fmt::Debug>(value: eltdx::Result<T>, expected: ErrorKind) {
++    assert_eq!(value.expect_err("expected rejection").kind(), expected);
++}
++
++#[test]
++fn exact_bits_raw_header_market_code_and_ranges() -> TestResult {
++    let bits = vec![0x80000000, 0x7fc12345, 0x7fa54321, 0xff800000, 0x7f800000,
++        0x00000001, 0x7f7fffff, 0xffffffff];
++    let bytes = fixture(&[([b'A', 0xff, b'B', 0, 0, 0], 255, bits.clone())], 20240229);
++    for policy in [RawPolicy::Omit, RawPolicy::RetainPayload, RawPolicy::RetainWire] {
++        let result = financial::parse_dat_detailed(&bytes, None, &options().with_raw(policy))?;
++        assert_eq!(result.completion(), FinancialCompletion::Complete);
++        let row = &result.rows()[0];
++        assert_eq!(row.code(), "A\u{fffd}B");
++        assert_eq!(row.market_id(), 255);
++        assert_eq!(row.fields().iter().map(|v| v.bits()).collect::<Vec<_>>(), bits);
++        assert_eq!(row.header().unknown(), -7);
++        assert_eq!(row.header().unknown1(), 0x12345678);
++        assert_eq!(row.header().unknown2(), 0xfedcba98);
++        assert_eq!(row.header().report_size(), 32);
++        assert_eq!(row.index(), 0);
++        assert_eq!(row.data_range(), 31..63);
++        assert_eq!(row.raw(), (policy != RawPolicy::Omit).then_some(&bytes[31..]));
++        assert_eq!(result.raw(), (policy != RawPolicy::Omit).then_some(bytes.as_slice()));
++    }
++    Ok(())
++}
++
++#[test]
++fn empty_short_and_zero_report_size_are_distinct() -> TestResult {
++    let empty = financial::parse_dat_detailed(&[], None, &options())?;
++    assert_eq!(empty.completion(), FinancialCompletion::Complete);
++    assert!(empty.header().is_none());
++    for length in 1..20 {
++        let bytes = vec![0; length];
++        let short = financial::parse_dat_detailed(&bytes, None, &options())?;
++        assert_eq!(short.completion(), FinancialCompletion::Incomplete);
++        assert_eq!(short.records().ignored_tail_bytes(), length);
++        assert_eq!(short.diagnostics().len(), 1);
++        kind(financial::parse_dat(&bytes, None, &options().with_strict_index(true)), ErrorKind::ResourceFormat);
++    }
++    let zero = financial::parse_dat_detailed(&header(u16::MAX, 0, 20240331), None, &options().with_strict_index(true))?;
++    assert_eq!(zero.completion(), FinancialCompletion::Complete);
++    assert_eq!(zero.header().unwrap().max_count(), u16::MAX);
++    assert!(zero.rows().is_empty());
++    Ok(())
++}
++
++#[test]
++fn header_and_field_limits_are_checked_before_record_allocation() -> TestResult {
++    for size in [1, 2, 3, 5, u32::MAX, 4097 * 4] {
++        kind(financial::parse_dat(&header(u16::MAX, size, 20240331), None, &options()), ErrorKind::ResourceFormat);
++    }
++    let bytes = fixture(&[(*b"600000", 1, vec![0; 4096])], 20240331);
++    assert_eq!(financial::parse_dat(&bytes, None, &options())?.rows()[0].fields().len(), 4096);
++    kind(financial::parse_dat(&bytes, None, &options().with_max_fields_per_record(4095)?), ErrorKind::ResourceFormat);
++    Ok(())
++}
++
++#[test]
++fn exact_and_smaller_dat_byte_budgets() -> TestResult {
++    let bytes = sample();
++    assert_eq!(financial::parse_dat(&bytes, None, &options().with_max_dat_bytes(bytes.len() as u64)?)?.rows().len(), 1);
++    kind(financial::parse_dat(&bytes, None, &options().with_max_dat_bytes(bytes.len() as u64 - 1)?), ErrorKind::LimitExceeded);
++    Ok(())
++}
++
++#[test]
++fn total_field_budget_counts_accepted_rows_before_allocation() -> TestResult {
++    let bytes = fixture(&[(*b"600000", 1, vec![0; 3]), (*b"000001", 0, vec![0; 3])], 20240331);
++    assert_eq!(financial::parse_dat(&bytes, None, &options().with_max_total_fields(6)?)?.rows().len(), 2);
++    kind(financial::parse_dat(&bytes, None, &options().with_max_total_fields(5)?), ErrorKind::ResourceFormat);
++    Ok(())
++}
++
++#[test]
++fn full_default_total_budget_boundary() -> TestResult {
++    // Synthetic 16 MiB payload, 1024 * 4096 fields exactly, then one extra row.
++    let rows = (0..1024).map(|_| (*b"600000", 1, vec![0; 4096])).collect::<Vec<_>>();
++    assert_eq!(financial::parse_dat(&fixture(&rows, 20240331), None, &options())?.rows().len(), 1024);
++    let mut over = rows;
++    over.push((*b"000001", 0, vec![0; 4096]));
++    kind(financial::parse_dat(&fixture(&over, 20240331), None, &options()), ErrorKind::ResourceFormat);
++    Ok(())
++}
++
++#[test]
++fn truncated_indexes_are_partial_and_strict_rejects() -> TestResult {
++    let mut bytes = header(2, 4, 20240331);
++    bytes.extend(entry([0; 6], 0, 0));
++    bytes.extend([1; 5]);
++    let result = financial::parse_dat_detailed(&bytes, None, &options())?;
++    assert_eq!(result.completion(), FinancialCompletion::Incomplete);
++    assert_eq!(result.consumed_indexes(), 1);
++    assert_eq!(result.omitted_indexes(), 2);
++    assert_eq!(result.diagnostics().len(), 2);
++    kind(financial::parse_dat(&bytes, None, &options().with_strict_index(true)), ErrorKind::ResourceFormat);
++    Ok(())
++}
++
++#[test]
++fn invalid_offsets_are_skipped_with_diagnostics_and_never_complete() -> TestResult {
++    for offset in [36, u32::MAX] {
++        let mut bytes = header(1, 4, 20240331);
++        bytes.extend(entry(*b"600000", 1, offset));
++        bytes.extend([0; 4]);
++        let result = financial::parse_dat_detailed(&bytes, None, &options())?;
++        assert!(result.rows().is_empty());
++        assert_eq!(result.completion(), FinancialCompletion::Incomplete);
++        assert_eq!(result.omitted_indexes(), 1);
++        assert_eq!(result.diagnostics()[0].source(), "offline.financial");
++        assert_eq!(result.diagnostics()[0].error_kind(), Some(ErrorKind::ResourceFormat));
++        kind(financial::parse_dat(&bytes, None, &options().with_strict_index(true)), ErrorKind::ResourceFormat);
++    }
++    Ok(())
++}
++
++#[test]
++fn duplicate_valid_offsets_and_partial_overlaps_fail() {
++    for second in [42_u32, 44] {
++        let mut bytes = header(2, 8, 20240331);
++        bytes.extend(entry(*b"600000", 1, 42));
++        bytes.extend(entry(*b"000001", 0, second));
++        bytes.extend([0; 16]);
++        kind(financial::parse_dat(&bytes, None, &options()), ErrorKind::ResourceFormat);
++    }
++}
++
++#[test]
++fn out_of_order_nonoverlapping_data_is_valid_and_wire_order_is_kept() -> TestResult {
++    let mut bytes = header(2, 4, 20240331);
++    bytes.extend(entry(*b"600000", 1, 46));
++    bytes.extend(entry(*b"000001", 0, 42));
++    bytes.extend(0x80000000_u32.to_le_bytes());
++    bytes.extend(0x7fc12345_u32.to_le_bytes());
++    let result = financial::parse_dat(&bytes, None, &options())?;
++    assert_eq!(result.rows()[0].code(), "600000");
++    assert_eq!(result.rows()[0].fields()[0].bits(), 0x7fc12345);
++    assert_eq!(result.rows()[1].fields()[0].bits(), 0x80000000);
++    Ok(())
++}
++
++#[test]
++fn metadata_overlap_is_rust_error_but_legacy_keeps_existing_policy() -> TestResult {
++    let mut bytes = header(1, 4, 20240331);
++    bytes.extend(entry(*b"600000", 1, 8));
++    kind(financial::parse_dat(&bytes, None, &options()), ErrorKind::ResourceFormat);
++    assert_eq!(python_legacy::parse_dat(&bytes, 0)?.rows()[0].fields()[0].bits(), 0x12345678);
++    Ok(())
++}
++
++#[test]
++fn legacy_also_rejects_previously_accepted_duplicate_offsets() {
++    let mut bytes = header(2, 4, 20240331);
++    bytes.extend(entry(*b"600000", 1, 42));
++    bytes.extend(entry(*b"000001", 0, 42));
++    bytes.extend([0; 4]);
++    kind(python_legacy::parse_dat(&bytes, 0), ErrorKind::ResourceFormat);
++}
++
++#[test]
++fn skip_markers_are_recorded_even_when_other_rows_are_valid() -> TestResult {
++    let mut bytes = fixture(&[([0; 6], 0, vec![0]), (*b"600000", 1, vec![0])], 20240331);
++    let result = financial::parse_dat_detailed(&bytes, None, &options())?;
++    assert_eq!(result.rows().len(), 1);
++    assert_eq!(result.completion(), FinancialCompletion::Incomplete);
++    assert_eq!(result.omitted_indexes(), 1);
++    bytes[7 + 20 + 11..11 + 20 + 11].copy_from_slice(&0_u32.to_le_bytes());
++    let result = financial::parse_dat_detailed(&bytes, None, &options())?;
++    assert!(result.rows().is_empty());
++    assert_eq!(result.omitted_indexes(), 2);
++    Ok(())
++}
++
++#[test]
++fn date_precedence_header_archive_and_explicit() -> TestResult {
++    let bytes = sample();
++    let explicit = TradingDate::new(2025, 6, 30)?;
++    assert_eq!(financial::parse_dat_detailed(&bytes, None, &options())?.rows()[0].report_date_raw(), 20240331);
++    let archive = financial::parse_dat_for_archive(&bytes, "x20240230_20241231.zip", None, &options())?;
++    assert_eq!(archive.rows()[0].report_date_raw(), 20241231);
++    assert_eq!(archive.date_source(), ReportDateSource::ArchiveFilename);
++    let result = financial::parse_dat_for_archive(&bytes, "20241231.zip", Some(explicit), &options())?;
++    assert_eq!(result.rows()[0].report_date(), Some(explicit));
++    assert_eq!(result.date_source(), ReportDateSource::Explicit);
++    assert!(financial::filename_report_date("20240230.zip").is_none());
++    assert!(financial::filename_report_date("parent20240101/no_date.zip").is_none());
++    Ok(())
++}
++
++#[test]
++fn invalid_header_remains_visible_even_with_valid_override() -> TestResult {
++    let bytes = fixture(&[(*b"600000", 1, vec![0])], 20240230);
++    let result = financial::parse_dat_detailed(&bytes, None, &options())?;
++    assert_eq!(result.rows()[0].report_date(), None);
++    assert_eq!(result.rows()[0].report_date_raw(), 20240230);
++    assert_eq!(result.date_source(), ReportDateSource::Unavailable);
++    assert_eq!(result.diagnostics()[0].stage(), "date");
++    let result = financial::parse_dat_detailed(&bytes, Some(TradingDate::new(2024, 3, 31)?), &options())?;
++    assert_eq!(result.rows()[0].header().report_date_raw(), 20240230);
++    assert_eq!(result.diagnostics().len(), 1);
++    Ok(())
++}
++
++#[test]
++fn python_date_override_keeps_first_unvalidated_eight_digit_text() -> TestResult {
++    let filename = "tdxfin/a20240230_20241231.zip";
++    assert_eq!(python_legacy::first_filename_date(filename), 20240230);
++    assert_eq!(python_legacy::first_filename_date("none"), 0);
++    let result = python_legacy::parse_dat(&sample(), python_legacy::first_filename_date(filename))?;
++    assert_eq!(result.rows()[0].report_date_raw(), 20240230);
++    assert_eq!(result.rows()[0].report_date(), None);
++    assert_eq!(python_legacy::parse_dat(&sample(), 0)?.rows()[0].report_date_raw(), 20240331);
++    Ok(())
++}
++
++#[test]
++fn list_replacement_trimming_extra_columns_and_invalid_sizes() -> TestResult {
++    let bytes = b" \n abc.zip , hash , +42 ,ignored\r\nnegative,h,-1\nhuge,h,18446744073709551616\n\xff.zip,h,7\nbad,h,no\nshort,h\nzero,h,-0\nunder,h,1_000\n";
++    let list = financial::parse_file_list(bytes)?;
++    assert_eq!(list.len(), 6);
++    assert_eq!(list[0].filename(), "abc.zip ");
++    assert_eq!(list[0].hash(), " hash ");
++    assert_eq!(list[0].filesize(), Some(42));
++    assert_eq!(list[1].filesize(), None);
++    assert_eq!(list[1].filesize_text(), "-1");
++    assert_eq!(list[1].diagnostics().len(), 1);
++    assert_eq!(list[2].filesize(), None);
++    assert_eq!(list[3].filename(), "\u{fffd}.zip");
++    assert_eq!(list[4].filesize(), Some(0));
++    assert_eq!(list[5].filesize(), Some(1000));
++    kind(financial::parse_file_list_with_strict(bytes, true), ErrorKind::ResourceFormat);
++    assert!(financial::parse_file_list(&[])?.is_empty());
++    let legacy = python_legacy::parse_file_list(bytes);
++    assert_eq!(legacy[1].2, "-1");
++    assert_eq!(legacy[2].2, "18446744073709551616");
++    let candidates = python_legacy::file_list_candidates("unicode,h,１２３\nbad,h,no".as_bytes());
++    assert_eq!(candidates[0].2, "１２３");
++    assert_eq!(candidates[1].2, "no"); // Python int/ValueError remains the binding's decision.
++    Ok(())
++}
++
++#[test]
++fn options_reject_zero_unbounded_and_oversized_values() -> TestResult {
++    for value in [0, u64::MAX, financial::MAX_DAT_BYTES + 1] { kind(options().with_max_dat_bytes(value), ErrorKind::InvalidArgument); }
++    for value in [0, u32::MAX, 4097] { kind(options().with_max_fields_per_record(value), ErrorKind::InvalidArgument); }
++    for value in [0, u64::MAX, financial::MAX_TOTAL_FIELDS + 1] { kind(options().with_max_total_fields(value), ErrorKind::InvalidArgument); }
++    for value in [0, u64::MAX, financial::MAX_ARCHIVE_BYTES + 1] { kind(FinancialReadOptions::default().with_max_archive_bytes(value), ErrorKind::InvalidArgument); }
++    for value in [0, u32::MAX, 65] { kind(FinancialReadOptions::default().with_max_entries(value), ErrorKind::InvalidArgument); }
++    assert_eq!(FinancialReadOptions::default().with_max_entries(1)?.max_entries(), 1);
++    assert_eq!(FinancialReadOptions::default().with_max_archive_bytes(1)?.max_archive_bytes(), 1);
++    Ok(())
++}
++
++#[test]
++fn remote_names_and_selectors_are_checked_without_file_or_network_io() -> TestResult {
++    for name in ["", ".", "..", "a/b.zip", "a\\b.zip", "C:a.zip", "x\0.zip", " x.zip", "中.zip"] {
++        kind(FinancialArchiveName::new(name), ErrorKind::InvalidArgument);
++    }
++    assert!(FinancialArchiveName::new("a".repeat(293)).is_ok());
++    kind(FinancialArchiveName::new("a".repeat(294)), ErrorKind::InvalidArgument);
++    let name = FinancialArchiveName::new("gpcw20240331.zip")?;
++    assert_eq!(name.remote_path(), "tdxfin/gpcw20240331.zip");
++    let query = FinancialRecordsQuery::new(name).with_selector(DatSelector::named("inside/report.dat")?)?;
++    assert_eq!(query.filename().as_str(), "gpcw20240331.zip");
++    assert_eq!(query.selector(), &DatSelector::Named("inside/report.dat".into()));
++    for name in ["", "data.DAT", "x\0.dat"] { kind(DatSelector::named(name), ErrorKind::InvalidArgument); }
++    kind(FinancialReadOptions::default().with_selector(DatSelector::Named("bad.DAT".into())), ErrorKind::InvalidArgument);
++    Ok(())
++}
++
++static NEXT: AtomicU64 = AtomicU64::new(0);
++struct Scratch(PathBuf);
++impl Scratch {
++    fn new() -> std::io::Result<Self> {
++        let path = std::env::temp_dir().join(format!("eltdx-financial-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
++        std::fs::create_dir(&path)?; Ok(Self(path))
++    }
++}
++impl Drop for Scratch { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); } }
++
++#[test]
++fn local_dat_uses_shared_loader_limits_and_header_not_filename() -> TestResult {
++    let scratch = Scratch::new()?;
++    let path = scratch.0.join("gpcw20241231.dat");
++    let bytes = sample();
++    std::fs::write(&path, &bytes)?;
++    let result = financial::read_dat_file(&path, &FinancialReadOptions::default())?;
++    assert_eq!(result.rows()[0].report_date_raw(), 20240331);
++    let small = FinancialReadOptions::default().with_parse(options().with_max_dat_bytes(bytes.len() as u64 - 1)?);
++    kind(financial::read_dat_file(&path, &small), ErrorKind::LimitExceeded);
++    let overridden = FinancialReadOptions::default().with_report_date(Some(TradingDate::new(2025, 6, 30)?));
++    assert_eq!(financial::read_dat_file(&path, &overridden)?.rows()[0].report_date_raw(), 20250630);
++    kind(financial::read_dat_file(&scratch.0.join("missing.dat"), &FinancialReadOptions::default()), ErrorKind::Io);
++    kind(financial::read_dat_file(&scratch.0, &FinancialReadOptions::default()), ErrorKind::Io);
++    Ok(())
++}
++
++#[test]
++fn cancelled_parser_and_local_loader_return_cancelled() -> TestResult {
++    let token = CancellationToken::default();
++    token.cancel();
++    let options = options().with_cancel(Some(token));
++    kind(financial::parse_dat(&sample(), None, &options), ErrorKind::Cancelled);
++    kind(financial::parse_dat(&[], None, &options), ErrorKind::Cancelled);
++    kind(financial::read_dat_file(&PathBuf::from("not-opened.dat"), &FinancialReadOptions::default().with_parse(options)), ErrorKind::Cancelled);
++    Ok(())
++}
