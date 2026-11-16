@@ -251,3 +251,20 @@ the existing industry/futures families; production selector code unchanged.
 All source cases remain uncompiled and unexecuted. Counts19/5/6 unchanged;
 T20 final static source review remains before T22/T23 and T24–T30. Goal active
 without token cap; no execution verification, agents or publication.
+
+## Ninth checkpoint — source scope closed, execution remains deferred
+
+Public invocation/inventory checkpoint: `7b21857`. Final static pass confirmed
+the157 named entry inventory, source result/field/history implementations and
+paired wire/invocation cases. Added cancellation/expired-deadline zero-I/O
+cases for prerequisite, collection, IPO and ladder entry points. Corrected
+the two allotment entry labels and mandatory details date in the specification
+to match actual Python source/literal cases; corrected the old brief's history
+sorting phrase to COMP-050 reverse-only. No production request was changed.
+
+T20 source scope is complete. This is not compilation or acceptance: all
+authored cases remain unexecuted, dependencies unresolved and platform/MSRV
+behavior unverified. Totals20 source complete/4 partial/6 unstarted. Next T22
+shared ZIP integration/local dispatcher/HQ financial service, then all T23–T30
+and the deferred T19 execution gates. Goal active unlimited; no agents or
+publication, and no execution checks occurred.

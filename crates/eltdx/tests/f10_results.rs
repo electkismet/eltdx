@@ -591,3 +591,34 @@ fn business_composition_explicit_date_skips_prerequisite() -> TestResult {
     worker.join().map_err(|_| "fixture panicked")??;
     Ok(())
 }
+
+#[test]
+fn composite_and_collection_preflight_honors_cancel_or_expired_deadline_without_io() -> TestResult {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    listener.set_nonblocking(true)?;
+    let url = format!("http://{}/TQLEX", listener.local_addr()?);
+    let client = F10Client::builder().with_base_url(url.clone()).with_ladder_url(url).build()?;
+    let code = AshareCode::new(F10MarketCode::new(1), "600000")?;
+    for cancelled in [false, true] {
+        let token = eltdx::CancellationToken::default();
+        let options = if cancelled {
+            token.cancel();
+            OperationOptions::default().with_cancellation(token)
+        } else {
+            OperationOptions::default().with_deadline(Instant::now())
+        };
+        let expected = if cancelled { eltdx::ErrorKind::Cancelled } else { eltdx::ErrorKind::Timeout };
+        assert_eq!(client.business_composition(&BusinessCompositionQuery::new(code.clone()), &options).unwrap_err().kind(), expected);
+        assert_eq!(client.fund_report(&FundReportQuery::new(code.clone()), &options).unwrap_err().kind(), expected);
+        assert_eq!(client.topic_compare_first(&TopicCompareFirstQuery::new(code.clone()), &options).unwrap_err().kind(), expected);
+        assert_eq!(client.index_members(&IndexMembersQuery::new(code.clone()), &options).unwrap_err().kind(), expected);
+        assert_eq!(client.index_tracking_products(&IndexTrackingProductsQuery::new(code.clone()), &options).unwrap_err().kind(), expected);
+        assert_eq!(client.board_members(&BoardMembersQuery::new(code.clone()), &options).unwrap_err().kind(), expected);
+        assert_eq!(client.ipo_calendar(&options).unwrap_err().kind(), expected);
+        assert_eq!(client.limit_up_down_list(&LimitUpDownListQuery::new(), &options).unwrap_err().kind(), expected);
+        assert_eq!(listener.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+    }
+    assert_eq!(client.diagnostics()?.completed_requests(), 0);
+    client.close()?;
+    Ok(())
+}

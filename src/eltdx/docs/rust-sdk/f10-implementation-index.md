@@ -74,6 +74,11 @@ never be described as an independent oracle for the request values themselves.
 Every case contains synthetic local responses, not independently captured
 production data or proof that a remote server still supports the page.
 
+The two allotment methods use the source implementation's exact
+`CWServ.tdxf10_gg_fhrz_zfhpmx` entry. An earlier specification table used a
+different entry label; the table has been corrected to match the source and
+the independent literal fixture. `AllotmentDetailsQuery` requires its date.
+
 ## Result and collection contracts
 
 - Raw cells retain position, duplicates, unknown names, nested JSON and exact

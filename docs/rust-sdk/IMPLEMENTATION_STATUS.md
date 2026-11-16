@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第四十六段恢复点：入口清单检查点`7b21857`。T20的157公开入口、历史资金流、字段字典、typed结果及分支/调用源码已齐；末轮补取消/过期deadline零请求用例，并按Python实际源码修正文档中两条配股Entry及必填日期，修正brief中历史资金流“排序”误写。T20标为源码完成，所有测试/依赖/编译/运行验收仍未做。现为20源码完整/4部分（T19/T22/T24/T25）/6未开始；进入T22共用ZIP decoder、财报本地读取与HQ服务接线。目标active且无额度上限；T23仍须完整保留Python既有行为。
+
 2026-11-17第四十五段恢复点：最新已提交`fc2e7cb`。新增148个单请求公开F10入口的调用/HTTP/响应/关闭用例源码，与独立字面量wire清单配对；补齐开放selector、closed拒绝、非默认参数和基金三类报告期前置的源码用例。新增`f10-implementation-index.md`逐项记录157入口、测试证据分工及T23兼容差异；补正closed registry文档漏项。以上均未编译或执行，不能称验收通过。总计19源码完整/5部分/6未开始；继续T20静态收尾，再T22财报/T23兼容和T24–T30。目标active、无额度上限，所有执行验证仍延期，无代理或发布。
 
 2026-11-17第四十四段恢复点：已核对HEAD为`5b67774`，目标active且remainingTokens=null。继续T20市场typed结果：保留逐页Response/附加表/顶层属性；仅zs列可作为分页总数，冲突为Unknown并诊断；非零业务码保留行且立即BusinessError终止。IPO保留原Response，增加parsed日期/有限数字诊断、字段单位及SourceMapping/Inferred/Unknown证据、count/codes/full_codes/ETF视图。七组测试源码已写但未执行。19完整源码/5部分/6未开始；下一步全部入口绑定/分支核对，再T22/T23和T24–T30。所有测试/构建/依赖解析/网络/执行验证继续延期，无代理或发布。
@@ -93,11 +95,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | F10 HTTP/DNS/TLS `6196df2`；第三十八段传输/取消/保留副本边界补强源码已写；全部执行验证延期 |
-| 当前阶段 | T01–T18及T21源码完成；T19/T22/T24/T25部分；19完整源码/4部分/7未开始。 |
+| 最新检查点 | F10入口调用清单 `7b21857`；第四十六段完成T20源码范围，全部执行验证延期 |
+| 当前阶段 | T01–T18及T20/T21源码完成；T19/T22/T24/T25部分；20完整源码/4部分/6未开始。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T19 HTTP/F10基础，继续全部T20–T30及Stage B；HQ索引见hq-implementation-index.md，最终统一验证 |
+| 下一步 | T22 ZIP/财报服务集成，再T23兼容及T24–T30；T19依赖/平台验证留到统一执行阶段 |
 
 ## 阶段进度
 
@@ -106,7 +108,7 @@
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | T11–T18实现源码完成；HQ桥/证据/consumer源码具备；兼容和可用版本验收全部待最终执行 | 按用户要求暂不运行 |
-| P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Unicode修复 `a64a4a6` 通过限定复审，ZIP/资源集成待做 | 按用户要求暂不运行 |
+| P3 | T19–T23 F10、offline、financial | T20/T21源码完成；T19依赖/平台验收待最终执行；T22 ZIP/资源集成进行中，T23兼容迁移待做 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
 
