@@ -273,6 +273,9 @@ fn list_replacement_trimming_extra_columns_and_invalid_sizes() -> TestResult {
     let legacy = python_legacy::parse_file_list(bytes);
     assert_eq!(legacy[1].2, "-1");
     assert_eq!(legacy[2].2, "18446744073709551616");
+    let candidates = python_legacy::file_list_candidates("unicode,h,１２３\nbad,h,no".as_bytes());
+    assert_eq!(candidates[0].2, "１２３");
+    assert_eq!(candidates[1].2, "no"); // Python int/ValueError remains the binding's decision.
     Ok(())
 }
 

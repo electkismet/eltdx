@@ -250,6 +250,16 @@ pub fn parse_dat_for_archive(data: &[u8], filename: &str, report_date: Option<Tr
     options: &FinancialParseOptions) -> Result<FinancialDatResult>
 { parse_core(data, DatePolicy::Rust { explicit: report_date, filename: Some(filename) }, options, false) }
 
+/// Stage B supplies its existing operation checkpoint, preserving its error and
+/// total deadline at each bounded CPU unit without constructing a new operation.
+pub(crate) fn parse_dat_for_archive_with_boundary(data: &[u8], filename: &str,
+    report_date: Option<TradingDate>, options: &FinancialParseOptions,
+    boundary: &mut impl FnMut() -> Result<()>) -> Result<FinancialDatResult>
+{
+    parse_core_with_boundary(data, DatePolicy::Rust { explicit: report_date, filename: Some(filename) },
+        options, false, boundary)
+}
+
 /// Local DAT-only portion of `read`; archive routing is a Stage B responsibility.
 /// Filename dates are intentionally ignored on this local route.
 pub fn read_dat_file(path: &Path, options: &FinancialReadOptions) -> Result<FinancialDatResult> {
@@ -318,7 +328,16 @@ fn index_issue(options: &FinancialParseOptions, diagnostics: &mut Vec<Diagnostic
 fn parse_core(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptions, legacy: bool)
     -> Result<FinancialDatResult>
 {
+    parse_core_with_boundary(data, policy, options, legacy, &mut || Ok(()))
+}
+fn checkpoint(options: &FinancialParseOptions, boundary: &mut impl FnMut() -> Result<()>) -> Result<()> {
     cancelled(options.cancel())?;
+    boundary()
+}
+fn parse_core_with_boundary(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptions,
+    legacy: bool, boundary: &mut impl FnMut() -> Result<()>) -> Result<FinancialDatResult>
+{
+    checkpoint(options, boundary)?;
     if !legacy && data.len() as u64 > options.max_dat_bytes {
         return Err(Error::new(ErrorKind::LimitExceeded, "financial DAT exceeds byte limit"));
     }
@@ -332,7 +351,7 @@ fn parse_core(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptio
         }
         return Ok(FinancialDatResult { records: ReadResult::new(rows, data.len(), diagnostics), header: None,
             completion, consumed_indexes: 0, omitted_indexes: 0, date_source: ReportDateSource::Unavailable,
-            raw: retain_payload(data, options)?, archive: None });
+            raw: retain_payload(data, options, boundary)?, archive: None });
     }
     let header = FinancialHeader {
         unknown: i16::from_le_bytes([data[0], data[1]]), report_date_raw: bars::u32_at(data, 2),
@@ -342,6 +361,9 @@ fn parse_core(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptio
     let (date_raw, date, date_source) = resolve_date(policy, header.report_date_raw);
     if date_parts(header.report_date_raw).is_none() {
         diagnostics.push(issue("date", format!("invalid raw header date {} retained", header.report_date_raw)));
+    }
+    if date.is_none() && date_raw != header.report_date_raw {
+        diagnostics.push(issue("date", format!("invalid legacy override date {date_raw} retained")));
     }
     let fields = header.report_size / 4;
     if header.report_size % 4 != 0 || fields > options.max_fields_per_record {
@@ -356,7 +378,7 @@ fn parse_core(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptio
     let mut ranges = BTreeMap::<usize, usize>::new();
     if header.report_size != 0 {
         for index in 0..count {
-            cancelled(options.cancel())?;
+            checkpoint(options, boundary)?;
             let at = HEADER_BYTES + index * INDEX_BYTES; // bounded by checked index_end
             let Some(entry) = data.get(at..at + INDEX_BYTES) else {
                 index_issue(options, &mut diagnostics, index, "truncated financial index table")?;
@@ -400,21 +422,24 @@ fn parse_core(data: &[u8], policy: DatePolicy<'_>, options: &FinancialParseOptio
                 date_source, fields: values, header, index, data_range: start..end, raw: None });
         }
     }
-    cancelled(options.cancel())?;
+    checkpoint(options, boundary)?;
     // Copy only after all header/index/field budget checks have succeeded.
-    let raw = retain_payload(data, options)?;
-    for row in &mut rows { row.raw = raw.clone(); }
+    let raw = retain_payload(data, options, boundary)?;
+    for row in &mut rows { checkpoint(options, boundary)?; row.raw = raw.clone(); }
+    checkpoint(options, boundary)?;
     Ok(FinancialDatResult { records: ReadResult::new(rows, 0, diagnostics), header: Some(header),
         completion, consumed_indexes: consumed, omitted_indexes: omitted, date_source, raw, archive: None })
 }
 
-fn retain_payload(data: &[u8], options: &FinancialParseOptions) -> Result<Option<Arc<[u8]>>> {
+fn retain_payload(data: &[u8], options: &FinancialParseOptions,
+    boundary: &mut impl FnMut() -> Result<()>) -> Result<Option<Arc<[u8]>>>
+{
     if options.raw == RawPolicy::Omit { return Ok(None); }
     // One shared payload; field/index budgets are checked separately before allocation.
     let mut copy = Vec::new();
     copy.try_reserve_exact(data.len()).map_err(|_| malformed("financial raw allocation failed"))?;
-    for chunk in data.chunks(64 * 1024) { cancelled(options.cancel())?; copy.extend_from_slice(chunk); }
-    cancelled(options.cancel())?;
+    for chunk in data.chunks(64 * 1024) { checkpoint(options, boundary)?; copy.extend_from_slice(chunk); }
+    checkpoint(options, boundary)?;
     Ok(Some(Arc::from(copy)))
 }
 
@@ -434,9 +459,16 @@ impl FinancialFileInfo {
 
 pub fn parse_file_list(data: &[u8]) -> Result<Vec<FinancialFileInfo>> { parse_file_list_with_strict(data, false) }
 pub fn parse_file_list_with_strict(data: &[u8], strict: bool) -> Result<Vec<FinancialFileInfo>> {
+    parse_file_list_with_boundary(data, strict, &mut || Ok(()))
+}
+pub(crate) fn parse_file_list_with_boundary(data: &[u8], strict: bool,
+    boundary: &mut impl FnMut() -> Result<()>) -> Result<Vec<FinancialFileInfo>>
+{
+    boundary()?;
     let mut result = Vec::new();
     let text = String::from_utf8_lossy(data);
     for line in source_trim(&text).split('\n').map(source_trim).filter(|line| !line.is_empty()) {
+        boundary()?;
         let mut columns = line.split(',');
         let (Some(filename), Some(hash), Some(size)) = (columns.next(), columns.next(), columns.next()) else { continue };
         let Some(integer) = decimal_integer(size) else { continue };
@@ -451,6 +483,7 @@ pub fn parse_file_list_with_strict(data: &[u8], strict: bool) -> Result<Vec<Fina
         result.push(FinancialFileInfo { filename: filename.to_owned(), hash: hash.to_owned(),
             filesize, filesize_text: size.to_owned(), diagnostics });
     }
+    boundary()?;
     Ok(result)
 }
 // Arbitrary-length signed decimal, including Python's between-digit underscores.
@@ -477,6 +510,16 @@ pub mod python_legacy {
         parse_core(data, DatePolicy::Legacy(nonzero_override), &FinancialParseOptions::default(), true)
     }
     pub fn first_filename_date(filename: &str) -> u32 { filename_dates(filename).next().unwrap_or(0) }
+    /// The binding must apply Python `int(text)` and skip ValueError. Keeping the
+    /// original token here also preserves Unicode decimal digits and arbitrary
+    /// precision that the Rust public u64 projection cannot represent.
+    pub fn file_list_candidates(data: &[u8]) -> Vec<(String, String, String)> {
+        let text = String::from_utf8_lossy(data);
+        source_trim(&text).split('\n').filter_map(|line| {
+            let mut columns = source_trim(line).split(',');
+            Some((columns.next()?.to_owned(), columns.next()?.to_owned(), columns.next()?.to_owned()))
+        }).collect()
+    }
     /// Return signed size text for conversion to Python's arbitrary precision int.
     pub fn parse_file_list(data: &[u8]) -> Vec<(String, String, String)> {
         let text = String::from_utf8_lossy(data);
@@ -485,5 +528,46 @@ pub mod python_legacy {
             let (filename, hash, size) = (columns.next()?, columns.next()?, columns.next()?);
             Some((filename.to_owned(), hash.to_owned(), decimal_integer(size)?))
         }).collect()
+    }
+}
+
+#[cfg(test)]
+mod source_cases {
+    use super::*;
+
+    #[test]
+    fn operation_boundary_errors_survive_before_any_dat_or_list_parsing() {
+        for kind in [ErrorKind::Timeout, ErrorKind::Cancelled, ErrorKind::Closed] {
+            let mut stop = || Err(Error::new(kind, "inherited operation stopped"));
+            let error = parse_dat_for_archive_with_boundary(&[], "file.zip", None,
+                &FinancialParseOptions::default(), &mut stop).unwrap_err();
+            assert_eq!(error.kind(), kind);
+            let error = parse_file_list_with_boundary(b"a,h,1", false, &mut stop).unwrap_err();
+            assert_eq!(error.kind(), kind);
+        }
+    }
+
+    #[test]
+    fn legacy_policy_has_no_direct_dat_byte_cap() {
+        let bytes = [0_u8; HEADER_BYTES];
+        let options = FinancialParseOptions::default().with_max_dat_bytes(1).unwrap();
+        assert_eq!(parse_core(&bytes, DatePolicy::Legacy(0), &options, false).unwrap_err().kind(),
+            ErrorKind::LimitExceeded);
+        assert!(parse_core(&bytes, DatePolicy::Legacy(0), &options, true).is_ok());
+    }
+
+    #[test]
+    fn archive_provenance_keeps_exact_identity_and_size_without_guessing() {
+        let provenance = ArchiveProvenance::new(b"folder/a.dat".to_vec(), 7, 20, 20,
+            DatSelector::RequireSingle).unwrap();
+        let result = parse_dat_detailed(&[], None, &FinancialParseOptions::default()).unwrap()
+            .with_archive(provenance);
+        let retained = result.archive().unwrap();
+        assert_eq!(retained.entry_name(), b"folder/a.dat");
+        assert_eq!(retained.entry_index(), 7);
+        assert_eq!(retained.declared_size(), 20);
+        assert_eq!(retained.actual_size(), 20);
+        assert_eq!(retained.selector(), &DatSelector::RequireSingle);
+        assert!(ArchiveProvenance::new(b"a.dat".to_vec(), 0, 20, 19, DatSelector::RequireSingle).is_err());
     }
 }
