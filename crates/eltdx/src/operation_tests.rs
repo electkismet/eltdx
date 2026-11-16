@@ -210,7 +210,8 @@ fn shorter_attempt_deadline_is_rechecked_inside_admission_gate_and_refunds_both_
         budget: Arc::clone(&operation.budget), purpose: ChildPurpose::EmptyProbe,
         recovery: Some(RecoveryLimit { name: "short_slice", maximum: 1 }), rust_public: true,
     };
-    let reservation = authorization.reserve(1, None).expect("atomic local/global reservation");
+    let mut reservation = operation.budget.reserve(true, authorization.recovery, None)
+        .expect("atomic local/global reservation");
     let deadline = Instant::now() + Duration::from_secs(1);
     let observed = Instant::now();
     let error = reservation.commit_with_clock(observed, Some(deadline), || deadline)

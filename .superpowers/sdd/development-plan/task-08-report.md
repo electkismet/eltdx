@@ -69,3 +69,9 @@ Addressed the four Important findings in `task-08-review.md` against `b3371c0` w
 4. Operation cancellation/deadline is annotated before becoming the stored first root. Subsequent observations merge missing phase/command/operation/session context without replacing the original kind or source; a runtime diagnostic source is attached only when no first source exists. Confirmed retirement returns this stored cause, including the known command. The focused source case passes a typed runtime timeout through annotation, stored stop, and successful retirement delivery, then asserts its kind, source, operation/session/phase/command/host/attempt fields survive.
 
 No verification was run for this scoped fix round: tests, collection, build, check, clippy, doctest, network, compile/AST, formatting, diff inspection, or equivalent remain deferred until T01–T30 completion. The four added regressions are authored source only; no runtime-success claim is made.
+
+## Scoped review fix round 2
+
+Corrected the injected-clock regression case identified against `fc90734`: it now obtains a concrete mutable `Reservation` directly from `OperationBudget::reserve(true, authorization.recovery, None)`, then invokes the existing concrete `commit_with_clock` method. The prior test called that method on `Box<dyn ReservedAttempt>`, whose trait API does not expose it. The test retains both local/global reservation and refund assertions; production admission gates and runtime trait semantics are unchanged.
+
+Only `crates/eltdx/src/operation_tests.rs` and this report changed for round 2. No tests, collection, build, check, clippy, doctest, network, compile/AST, format/diff checks, or equivalent verification were executed. This is a source correction, not a compilation or runtime-success claim.
