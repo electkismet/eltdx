@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use eltdx_runtime::engine::Engine;
@@ -74,6 +75,81 @@ struct SessionState {
     tasks: Vec<Arc<dyn OwnerTaskGroup>>,
 }
 
+#[derive(Debug)]
+enum CleanupSignal {
+    Drop { engines: Vec<Engine>, tasks: Vec<Arc<dyn OwnerTaskGroup>>, deadline: Instant },
+    ExplicitComplete,
+}
+
+#[derive(Debug, Default)]
+struct CleanupState {
+    signal: Option<CleanupSignal>,
+    worker: Option<JoinHandle<()>>,
+}
+
+/// Independent retirement state. Its worker owns neither SessionOwner nor an
+/// Engine task's parent; explicit close can confirm it, while Drop only signals.
+#[derive(Debug, Default)]
+struct CleanupControl {
+    state: Mutex<CleanupState>,
+    changed: Condvar,
+}
+
+impl CleanupControl {
+    fn ensure_started(self: &Arc<Self>) -> Result<()> {
+        let mut state = self.state.lock().map_err(|_| poisoned_state_error())?;
+        if state.worker.is_some() || state.signal.is_some() { return Ok(()); }
+        let control = Arc::clone(self);
+        let worker = thread::Builder::new().name("eltdx-owner-cleanup".to_owned()).spawn(move || {
+            let signal = {
+                let mut state = match control.state.lock() { Ok(state) => state, Err(poison) => poison.into_inner() };
+                while state.signal.is_none() {
+                    state = match control.changed.wait(state) { Ok(state) => state, Err(poison) => poison.into_inner() };
+                }
+                state.signal.take()
+            };
+            if let Some(CleanupSignal::Drop { engines, tasks, deadline }) = signal {
+                for task in &tasks { task.stop_before(deadline); }
+                for engine in engines { let _ = engine.close_until(deadline); }
+                for task in tasks { let _ = task.close_until(deadline); }
+            }
+        }).map_err(|error| Error::new(ErrorKind::Internal, "unable to start owner cleanup controller").with_source(error))?;
+        state.worker = Some(worker);
+        Ok(())
+    }
+
+    fn signal_drop(&self, engines: Vec<Engine>, tasks: Vec<Arc<dyn OwnerTaskGroup>>, deadline: Instant) {
+        let mut state = self.state.lock().unwrap_or_else(|poison| poison.into_inner());
+        if let Some(worker) = state.worker.as_ref() {
+            if worker.thread().id() != thread::current().id() {
+                state.signal = Some(CleanupSignal::Drop { engines, tasks, deadline });
+                self.changed.notify_all();
+                return;
+            }
+        }
+        // No SDK-owned work could have started before the lazy controller was
+        // armed. Release handles here; EngineInner itself only signals shutdown.
+        drop(state);
+        drop(engines);
+        for task in tasks { task.stop(); }
+    }
+
+    fn explicit_complete(&self) -> Result<()> {
+        let worker = {
+            let mut state = self.state.lock().map_err(|_| poisoned_state_error())?;
+            let Some(worker) = state.worker.take() else { return Ok(()); };
+            if worker.thread().id() == thread::current().id() {
+                state.worker = Some(worker);
+                return Err(Error::new(ErrorKind::Internal, "cleanup controller cannot join itself"));
+            }
+            state.signal = Some(CleanupSignal::ExplicitComplete);
+            self.changed.notify_all();
+            worker
+        };
+        worker.join().map_err(|_| Error::new(ErrorKind::Internal, "owner cleanup controller panicked"))
+    }
+}
+
 /// Shared owner for clients, services, operations, pins, and subscriptions.
 #[derive(Debug)]
 pub(crate) struct SessionOwner {
@@ -83,6 +159,7 @@ pub(crate) struct SessionOwner {
     cleanup_timeout: Duration,
     state: Mutex<SessionState>,
     changed: Condvar,
+    cleanup: Arc<CleanupControl>,
 }
 
 impl SessionOwner {
@@ -112,6 +189,7 @@ impl SessionOwner {
                 tasks: vec![metadata as Arc<dyn OwnerTaskGroup>],
             }),
             changed: Condvar::new(),
+            cleanup: Arc::new(CleanupControl::default()),
         }
     }
 
@@ -124,6 +202,7 @@ impl SessionOwner {
     pub(crate) fn register_task_group(&self, task: Arc<dyn OwnerTaskGroup>) -> Result<()> {
         let mut state = self.lock_state()?;
         if state.phase != SessionPhase::Open { return Err(closed_error()); }
+        self.cleanup.ensure_started()?;
         state.tasks.push(task);
         Ok(())
     }
@@ -171,6 +250,7 @@ impl SessionOwner {
         if state.phase != SessionPhase::Open {
             return Err(closed_error());
         }
+        self.cleanup.ensure_started()?;
         state.pins.push(pin);
         Ok(())
     }
@@ -245,12 +325,18 @@ impl SessionOwner {
 
     pub(crate) fn register_engine(&self, engine: Engine) -> Result<()> {
         let mut state = self.lock_state()?;
+        if state.phase != SessionPhase::Open { return Err(closed_error()); }
+        self.cleanup.ensure_started()?;
+        register_engine_locked(&mut state, engine);
+        Ok(())
+    }
+
+    pub(crate) fn register_engine_lazy(&self, engine: Engine) -> Result<()> {
+        let mut state = self.lock_state()?;
         if state.phase != SessionPhase::Open {
             return Err(closed_error());
         }
-        if !state.engines.iter().any(|registered| registered.same_owner(&engine)) {
-            state.engines.push(engine);
-        }
+        register_engine_locked(&mut state, engine);
         Ok(())
     }
 
@@ -438,6 +524,8 @@ impl SessionOwner {
         };
         state.completed_generation = generation;
         self.changed.notify_all();
+        drop(state);
+        if terminal.is_ok() { self.cleanup.explicit_complete()?; }
         terminal
     }
 
@@ -448,15 +536,18 @@ impl SessionOwner {
 
 impl Drop for SessionOwner {
     fn drop(&mut self) {
-        // Last owner Drop has no borrower to wait for. Stop first, then retire each
-        // task/engine under the same bounded deadline without a strong owner cycle.
+        // The finalizer signals an independent owner of retirement work and never waits.
         let deadline = Instant::now().checked_add(self.cleanup_timeout).unwrap_or_else(Instant::now);
         let state = self.state.get_mut().unwrap_or_else(|poison| poison.into_inner());
         state.phase = SessionPhase::Closing;
         signal_operation_cancellation(state);
-        for task in &state.tasks { task.stop_before(deadline); }
-        for engine in &state.engines { let _ = engine.close_until(deadline); }
-        for task in &state.tasks { let _ = task.close_until(deadline); }
+        self.cleanup.signal_drop(std::mem::take(&mut state.engines), std::mem::take(&mut state.tasks), deadline);
+    }
+}
+
+fn register_engine_locked(state: &mut SessionState, engine: Engine) {
+    if !state.engines.iter().any(|registered| registered.same_owner(&engine)) {
+        state.engines.push(engine);
     }
 }
 
@@ -716,6 +807,54 @@ mod tests {
         (owner, pin, server)
     }
 
+    fn unstarted_engine() -> eltdx_runtime::engine::Engine {
+        use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions};
+        Engine::new(EngineConfig::new(vec!["127.0.0.1:1".to_owned()], 1.0, EngineConfigOptions {
+            pool_size: 1, runtime_workers: Some(1), server_count: 1,
+            max_connections_per_host: None, connect_concurrency: None, connect_concurrency_per_host: None,
+            global_raw_bytes: None, global_decoded_bytes: None, heartbeat_interval: None,
+            max_pending_requests: 1, push_queue_size: 1, push_queue_bytes: 1024,
+        }).expect("valid unstarted Engine config")).expect("lazy Engine construction")
+    }
+
+    #[test]
+    fn lazy_engine_registration_starts_no_cleanup_controller() {
+        let owner = SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1));
+        owner.register_engine_lazy(unstarted_engine()).expect("owner open");
+        assert!(owner.cleanup.state.lock().unwrap().worker.is_none());
+        owner.close().expect("explicit close handles lazy Engine synchronously");
+        assert!(owner.cleanup.state.lock().unwrap().worker.is_none());
+    }
+
+    #[test]
+    fn engine_registration_racing_close_cannot_leave_a_late_cleanup_worker() {
+        for _ in 0..8 {
+            let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+            let barrier = Arc::new(Barrier::new(3));
+            let register_owner = Arc::clone(&owner);
+            let register_barrier = Arc::clone(&barrier);
+            let registration = thread::spawn(move || {
+                register_barrier.wait();
+                register_owner.register_engine(unstarted_engine())
+            });
+            let close_owner = Arc::clone(&owner);
+            let close_barrier = Arc::clone(&barrier);
+            let closer = thread::spawn(move || {
+                close_barrier.wait();
+                close_owner.close()
+            });
+            barrier.wait();
+
+            assert!(closer.join().expect("closer exits").is_ok());
+            match registration.join().expect("registration exits") {
+                Ok(()) => {}
+                Err(error) => assert_eq!(error.kind(), ErrorKind::Closed),
+            }
+            assert_eq!(owner.state.lock().unwrap().phase, super::SessionPhase::Closed);
+            assert!(owner.cleanup.state.lock().unwrap().worker.is_none());
+        }
+    }
+
     #[test]
     fn dropped_pin_remains_owned_until_owner_confirms_release() {
         let (owner, pin, server) = loopback_pin();
@@ -926,6 +1065,7 @@ mod tests {
             assert!(closer.join().expect("close thread exits").is_ok());
         }
         assert!(owner.close().is_ok());
+        assert!(owner.cleanup.state.lock().unwrap().worker.is_none(), "explicit close joins its cleanup controller");
     }
 
     #[test]

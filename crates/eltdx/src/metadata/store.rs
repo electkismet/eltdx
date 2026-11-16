@@ -20,6 +20,17 @@ const MAX_MARKET_PAGES: usize = MAX_MARKET_RECORDS + 1;
 const MAX_ACTIVE_FLIGHTS: usize = 16;
 const MAX_FLIGHT_WAITERS: usize = 65_535;
 
+#[derive(Clone, Copy, Debug)]
+pub(super) struct CatalogLimits {
+    records: Option<usize>,
+    pages: Option<usize>,
+}
+
+impl CatalogLimits {
+    const RUST: Self = Self { records: Some(MAX_MARKET_RECORDS), pages: Some(MAX_MARKET_PAGES) };
+    const LEGACY: Self = Self { records: None, pages: None };
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum PageEvidence {
     More,
@@ -36,14 +47,19 @@ pub(crate) struct MarketCandidate {
     terminal: bool,
     rejected: bool,
     records: HashMap<SecurityId, MetadataRecord>,
+    limits: CatalogLimits,
 }
 
 impl MarketCandidate {
     pub(crate) fn new(key: SnapshotKey) -> Result<Self> {
+        Self::with_limits(key, CatalogLimits::RUST)
+    }
+
+    pub(super) fn with_limits(key: SnapshotKey, limits: CatalogLimits) -> Result<Self> {
         if key.family() != super::ProtocolFamily::Hq || !matches!(key.market(), super::snapshot::MarketScope::Hq(_)) {
             return Err(Error::new(ErrorKind::InvalidArgument, "HQ market candidate requires an HQ snapshot key"));
         }
-        Ok(Self { key, next_offset: 0, pages: 0, terminal: false, rejected: false, records: HashMap::new() })
+        Ok(Self { key, next_offset: 0, pages: 0, terminal: false, rejected: false, records: HashMap::new(), limits })
     }
 
     pub(crate) fn push_page(
@@ -69,9 +85,12 @@ impl MarketCandidate {
                 .with_context("expected_offset", format!("{}", self.next_offset))
                 .with_context("actual_offset", format!("{offset}")));
         }
-        if self.pages >= MAX_MARKET_PAGES || self.records.len().checked_add(records.len()).map_or(true, |count| count > MAX_MARKET_RECORDS) {
+        let total_records = self.records.len().checked_add(records.len())
+            .ok_or_else(|| candidate_error("metadata record count overflows usize"))?;
+        if self.limits.pages.is_some_and(|limit| self.pages >= limit)
+            || self.limits.records.is_some_and(|limit| total_records > limit) {
             return Err(Error::new(ErrorKind::LimitExceeded, "metadata market exceeds bounded catalog work")
-                .with_context("limit_source", "HQ u16 catalog count"));
+                .with_context("limit_source", "Rust metadata catalog policy"));
         }
         let count = u32::try_from(records.len()).map_err(|_| candidate_error("market page record count overflows u32"))?;
         match evidence {
@@ -122,17 +141,20 @@ pub(crate) struct FlightPolicy {
     source_timeout: Option<Duration>,
     timeout_source: &'static str,
     cleanup_timeout: Duration,
+    catalog_limits: CatalogLimits,
 }
 
 impl FlightPolicy {
     /// Rust source-work cap; its clock begins when the shared flight is created.
     pub(crate) const fn rust_source_cap(source_timeout: Duration, cleanup_timeout: Duration) -> Self {
-        Self { source_timeout: Some(source_timeout), timeout_source: "ClientConfig::request_timeout", cleanup_timeout }
+        Self { source_timeout: Some(source_timeout), timeout_source: "ClientConfig::request_timeout", cleanup_timeout,
+            catalog_limits: CatalogLimits::RUST }
     }
 
     /// Compatibility adapter retains Python's per-request timing without a new total prefetch cap.
     pub(crate) const fn legacy_per_request(cleanup_timeout: Duration) -> Self {
-        Self { source_timeout: None, timeout_source: "legacy per-request policy", cleanup_timeout }
+        Self { source_timeout: None, timeout_source: "legacy per-request policy", cleanup_timeout,
+            catalog_limits: CatalogLimits::LEGACY }
     }
 }
 
@@ -147,12 +169,17 @@ struct FlightResult {
     result: Option<Result<Arc<MetadataSnapshot>>>,
 }
 
+#[derive(Debug, Default)]
+struct FlightTerminal { stopped: bool, published: bool }
+
 #[derive(Debug)]
 struct Flight {
     created_at: Instant,
     source_deadline: Option<Instant>,
     timeout_source: &'static str,
     cleanup_timeout: Duration,
+    catalog_limits: CatalogLimits,
+    terminal: Mutex<FlightTerminal>,
     stop_requested: AtomicBool,
     cleanup_deadline: Mutex<Option<Instant>>,
     waiters: Mutex<Vec<FlightWaiter>>,
@@ -174,6 +201,8 @@ impl Flight {
             source_deadline,
             timeout_source: policy.timeout_source,
             cleanup_timeout: policy.cleanup_timeout,
+            catalog_limits: policy.catalog_limits,
+            terminal: Mutex::new(FlightTerminal::default()),
             stop_requested: AtomicBool::new(false),
             cleanup_deadline: Mutex::new(None),
             waiters: Mutex::new(vec![first_waiter]),
@@ -208,12 +237,14 @@ impl Flight {
     }
 
     fn request_stop(&self) {
+        let mut terminal = self.terminal.lock().unwrap_or_else(|poison| poison.into_inner());
         if let Some(deadline) = Instant::now().checked_add(self.cleanup_timeout) {
             if let Ok(mut bound) = self.cleanup_deadline.lock() {
                 *bound = Some(bound.map_or(deadline, |previous| previous.min(deadline)));
             }
         }
         self.stop_requested.store(true, Ordering::Release);
+        terminal.stopped = true;
         self.changed.notify_all();
     }
 
@@ -549,7 +580,17 @@ impl StoreInner {
             .ok_or_else(|| Error::new(ErrorKind::InvalidArgument, "metadata expiry overflows epoch range"))?;
         flight.check_source()?;
         let mut state = self.state.lock().map_err(|_| flight_poisoned())?;
-        if self.sealed.load(Ordering::Acquire) || flight.stop_requested.load(Ordering::Acquire)
+        self.publish_locked(&mut state, key, fetched_at, expires_at, records, flight)
+    }
+
+    fn publish_locked(
+        &self, state: &mut StoreState, key: SnapshotKey, fetched_at: i64, expires_at: i64,
+        records: HashMap<SecurityId, MetadataRecord>, flight: &Arc<Flight>,
+    ) -> Result<Arc<MetadataSnapshot>> {
+        // Final waiter stop and insertion linearize under the same terminal
+        // mutex. No owner/cache callback or I/O is invoked while it is held.
+        let mut terminal = flight.terminal.lock().map_err(|_| flight_poisoned())?;
+        if self.sealed.load(Ordering::Acquire) || terminal.stopped || terminal.published
             || !state.flights.get(&key).is_some_and(|current| Arc::ptr_eq(current, flight)) {
             return Err(cancelled_error("superseded metadata flight cannot publish"));
         }
@@ -560,6 +601,7 @@ impl StoreInner {
             .map_err(|_| Error::new(ErrorKind::Internal, "metadata snapshot version exhausted"))?;
         let snapshot = Arc::new(MetadataSnapshot::new(key.clone(), version, fetched_at, Some(expires_at), records));
         state.snapshots.insert(key, Arc::clone(&snapshot));
+        terminal.published = true;
         Ok(snapshot)
     }
 }
@@ -586,6 +628,7 @@ impl FlightControl {
     pub(crate) fn key(&self) -> &SnapshotKey { &self.key }
     pub(crate) fn source_deadline(&self) -> Option<Instant> { self.flight.source_deadline }
     pub(crate) fn cleanup_timeout(&self) -> Duration { self.flight.cleanup_timeout }
+    pub(super) fn catalog_limits(&self) -> CatalogLimits { self.flight.catalog_limits }
     pub(crate) fn cleanup_deadline(&self, local: Instant) -> Result<Instant> {
         let bound = *self.flight.cleanup_deadline.lock().map_err(|_| flight_poisoned())?;
         Ok(bound.map_or(local, |owner| local.min(owner)))
@@ -750,20 +793,42 @@ impl SponsoredReservation {
     fn start_with_bound(mut self: Box<Self>, now: Instant, bound: Option<Instant>) -> std::result::Result<(), RuntimeError> {
         let mut excluded = HashSet::new();
         let mut candidate = Some((self.sponsor_id, self.reservation.take().ok_or_else(|| RuntimeError::internal("metadata reservation was already consumed"))?));
-        let last_error = self.last_failure.clone();
+        let mut last_error = self.last_failure.clone();
         loop {
+            if bound.is_some_and(|deadline| Instant::now() >= deadline) {
+                return Err(RuntimeError::timeout(eltdx_runtime::error::TimeoutPhase::Retry));
+            }
             let (id, reservation) = match candidate.take() {
                 Some(candidate) => candidate,
                 None => {
                     let failure = last_error.as_ref();
                     match self.state.reserve_for(self.attempt, failure, &excluded, self.endpoint_continuation) {
                         Ok((id, reservation)) => (id, reservation),
-                        Err(error) => return Err(error),
+                        Err(error) => {
+                            if matches!(&error, RuntimeError::Timeout { .. }) {
+                                return Err(error);
+                            }
+                            if bound.is_some_and(|deadline| Instant::now() >= deadline) {
+                                return Err(RuntimeError::timeout(eltdx_runtime::error::TimeoutPhase::Retry));
+                            }
+                            return Err(last_error.unwrap_or(error));
+                        }
                     }
                 }
             };
             excluded.insert(id);
-            let live = self.state.authorizers_for_live_sponsors()?.into_iter().any(|(current, _, _)| current == id);
+            let live = match self.state.authorizers_for_live_sponsors() {
+                Ok(sponsors) => sponsors.into_iter().any(|(current, _, _)| current == id),
+                Err(error) => {
+                    if matches!(&error, RuntimeError::Timeout { .. }) {
+                        return Err(error);
+                    }
+                    if bound.is_some_and(|deadline| Instant::now() >= deadline) {
+                        return Err(RuntimeError::timeout(eltdx_runtime::error::TimeoutPhase::Retry));
+                    }
+                    return Err(last_error.unwrap_or(error));
+                }
+            };
             if !live {
                 drop(reservation);
                 continue;
@@ -775,7 +840,11 @@ impl SponsoredReservation {
             };
             match started {
                 Ok(()) => return Ok(()),
-                Err(_) => {}
+                Err(error @ RuntimeError::Timeout { .. }) => return Err(error),
+                Err(error) => {
+                    if bound.is_some_and(|deadline| Instant::now() >= deadline) { return Err(error); }
+                    last_error = Some(error);
+                }
             }
         }
     }
@@ -877,6 +946,170 @@ mod tests {
         candidate.push_page(0, vec![record(decimal)], PageEvidence::More).unwrap();
         candidate.push_page(1, vec![], PageEvidence::TerminalEmpty).unwrap();
         candidate
+    }
+
+    fn catalog_records(start: usize, count: usize) -> Vec<MetadataRecord> {
+        (start..start + count)
+            .map(|index| MetadataRecord::new(
+                SecurityId::new(HqMarket::Shanghai, &format!("{index:06}")).unwrap(),
+                None, None, None,
+            ))
+            .collect()
+    }
+
+    #[test]
+    fn legacy_catalog_accepts_more_than_u16_max_records_while_rust_stays_bounded() {
+        let key = SnapshotKey::hq("legacy-catalog", HqMarket::Shanghai);
+        let legacy_limits = FlightPolicy::legacy_per_request(Duration::from_secs(1)).catalog_limits;
+        let mut legacy = MarketCandidate::with_limits(key.clone(), legacy_limits).unwrap();
+        legacy.push_page(0, catalog_records(0, u16::MAX as usize), PageEvidence::More).unwrap();
+        legacy.push_page(u32::from(u16::MAX), catalog_records(u16::MAX as usize, 1), PageEvidence::More).unwrap();
+        legacy.push_page(u32::from(u16::MAX) + 1, vec![], PageEvidence::TerminalEmpty).unwrap();
+        let (_, pages, records) = legacy.into_records().unwrap();
+        assert_eq!(pages, 3);
+        assert_eq!(records.len(), usize::from(u16::MAX) + 1);
+
+        let rust_limits = FlightPolicy::rust_source_cap(Duration::from_secs(8), Duration::from_secs(1)).catalog_limits;
+        let mut rust = MarketCandidate::with_limits(key, rust_limits).unwrap();
+        rust.push_page(0, catalog_records(0, u16::MAX as usize), PageEvidence::More).unwrap();
+        assert!(matches!(
+            rust.push_page(u32::from(u16::MAX), catalog_records(u16::MAX as usize, 1), PageEvidence::More),
+            Err(error) if error.kind() == ErrorKind::LimitExceeded
+        ));
+    }
+
+    #[test]
+    fn final_waiter_stop_and_publication_share_one_terminal_decision() {
+        let clock = Arc::new(TestClock(AtomicI64::new(1_000)));
+        let store = MetadataStore::new(clock);
+        let context = operation(CancellationToken::default());
+        let policy = FlightPolicy::rust_source_cap(Duration::from_secs(8), Duration::from_secs(1));
+        let key = SnapshotKey::hq("terminal-race", HqMarket::Shanghai);
+        let mut state = StoreState::default();
+
+        let stopped_flight = Arc::new(Flight::new(policy, FlightWaiter {
+            id: 1, sponsor: context.sponsor(),
+        }).unwrap());
+        let (_, _, original_records) = candidate(key.clone(), 2).into_records().unwrap();
+        let original = Arc::new(MetadataSnapshot::new(key.clone(), 1, 1_000, Some(2_000), original_records));
+        state.snapshots.insert(key.clone(), Arc::clone(&original));
+        state.flights.insert(key.clone(), Arc::clone(&stopped_flight));
+        stopped_flight.deregister(1);
+        let (_, _, replacement_records) = candidate(key.clone(), 4).into_records().unwrap();
+        let stopped = store.inner.publish_locked(&mut state, key.clone(), 1_001, 2_001,
+            replacement_records, &stopped_flight).unwrap_err();
+        assert_eq!(stopped.kind(), ErrorKind::Cancelled);
+        assert!(Arc::ptr_eq(state.snapshots.get(&key).unwrap(), &original));
+
+        let published_flight = Arc::new(Flight::new(policy, FlightWaiter {
+            id: 2, sponsor: context.sponsor(),
+        }).unwrap());
+        state.flights.insert(key.clone(), Arc::clone(&published_flight));
+        let (_, _, replacement_records) = candidate(key.clone(), 6).into_records().unwrap();
+        let published = store.inner.publish_locked(&mut state, key.clone(), 1_002, 2_002,
+            replacement_records, &published_flight).unwrap();
+        published_flight.deregister(2);
+        assert!(Arc::ptr_eq(state.snapshots.get(&key).unwrap(), &published));
+        let terminal = published_flight.terminal.lock().unwrap();
+        assert!(terminal.published);
+        assert!(terminal.stopped);
+    }
+
+    #[derive(Debug)]
+    struct StartFailureAuthorization {
+        reservations: Arc<std::sync::atomic::AtomicUsize>,
+        error: RuntimeError,
+        wait_for_deadline: bool,
+    }
+
+    impl AttemptAuthorization for StartFailureAuthorization {
+        fn check_boundary(&self, _: Instant) -> std::result::Result<(), RuntimeError> { Ok(()) }
+
+        fn reserve(&self, _: u32, _: Option<&RuntimeError>) -> std::result::Result<Box<dyn ReservedAttempt>, RuntimeError> {
+            self.reservations.fetch_add(1, Ordering::AcqRel);
+            Ok(Box::new(StartFailureReservation {
+                error: self.error.clone(), wait_for_deadline: self.wait_for_deadline,
+            }))
+        }
+
+        fn count_endpoint_failover(&self) -> bool { false }
+    }
+
+    #[derive(Debug)]
+    struct StartFailureReservation { error: RuntimeError, wait_for_deadline: bool }
+
+    impl ReservedAttempt for StartFailureReservation {
+        fn start(self: Box<Self>, _: Instant) -> std::result::Result<(), RuntimeError> { Err(self.error) }
+
+        fn start_before(self: Box<Self>, deadline: Instant) -> std::result::Result<(), RuntimeError> {
+            if self.wait_for_deadline {
+                while Instant::now() < deadline { thread::yield_now(); }
+            }
+            Err(self.error)
+        }
+    }
+
+    fn sponsored_attempt_authorization(
+        flight: Arc<Flight>,
+        first_error: RuntimeError,
+        first_wait_for_deadline: bool,
+        first_reservations: Arc<std::sync::atomic::AtomicUsize>,
+        second_reservations: Arc<std::sync::atomic::AtomicUsize>,
+    ) -> MetadataAttemptAuthorization {
+        let authorizer = |error, wait_for_deadline, reservations| CachedAuthorizer {
+            authorizer: Arc::new(StartFailureAuthorization { reservations, error, wait_for_deadline }),
+        };
+        MetadataAttemptAuthorization {
+            state: Arc::new(MetadataAttemptState {
+                flight,
+                authorizers: Mutex::new(HashMap::from([
+                    (1, authorizer(first_error, first_wait_for_deadline, first_reservations)),
+                    (2, authorizer(RuntimeError::internal("second sponsor must not start"), false, second_reservations)),
+                ])),
+            }),
+        }
+    }
+
+    #[test]
+    fn sponsor_timeout_from_start_before_is_preserved_without_reassignment() {
+        let first = operation(CancellationToken::default());
+        let second = operation(CancellationToken::default());
+        let policy = FlightPolicy::rust_source_cap(Duration::from_secs(8), Duration::from_secs(1));
+        let flight = Arc::new(Flight::new(policy, FlightWaiter { id: 1, sponsor: first.sponsor() }).unwrap());
+        flight.register(FlightWaiter { id: 2, sponsor: second.sponsor() }).unwrap();
+        let expected = RuntimeError::timeout(eltdx_runtime::error::TimeoutPhase::Retry)
+            .with_context("attempt_start", "shared_deadline");
+        let first_reservations = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let second_reservations = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let authorization = sponsored_attempt_authorization(
+            flight, expected.clone(), false, Arc::clone(&first_reservations), Arc::clone(&second_reservations),
+        );
+        let previous = RuntimeError::internal("earlier wire failure");
+        let error = authorization.reserve(1, Some(&previous)).unwrap()
+            .start_before(Instant::now() + Duration::from_secs(1)).unwrap_err();
+        assert_eq!(error, expected);
+        assert_eq!(first_reservations.load(Ordering::Acquire), 1);
+        assert_eq!(second_reservations.load(Ordering::Acquire), 0);
+    }
+
+    #[test]
+    fn sponsors_are_not_retried_after_a_shared_attempt_deadline_expires() {
+        let first = operation(CancellationToken::default());
+        let second = operation(CancellationToken::default());
+        let policy = FlightPolicy::rust_source_cap(Duration::from_secs(8), Duration::from_secs(1));
+        let flight = Arc::new(Flight::new(policy, FlightWaiter { id: 1, sponsor: first.sponsor() }).unwrap());
+        flight.register(FlightWaiter { id: 2, sponsor: second.sponsor() }).unwrap();
+        let first_error = RuntimeError::internal("first sponsor start failure");
+        let first_reservations = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let second_reservations = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let authorization = sponsored_attempt_authorization(
+            flight, first_error.clone(), true, Arc::clone(&first_reservations), Arc::clone(&second_reservations),
+        );
+        let error = authorization.reserve(1, None).unwrap()
+            .start_before(Instant::now() + Duration::from_millis(100)).unwrap_err();
+        assert_eq!(error, first_error);
+        assert_eq!(first_reservations.load(Ordering::Acquire), 1);
+        assert_eq!(second_reservations.load(Ordering::Acquire), 0);
     }
 
     #[test]
@@ -989,21 +1222,45 @@ mod tests {
 
     #[test]
     fn last_owner_drop_stops_its_independently_owned_task_group() {
+        use std::sync::mpsc;
+        use std::sync::Mutex;
         #[derive(Debug)]
-        struct Probe(Arc<AtomicBool>, Arc<AtomicBool>);
-        impl crate::session::OwnerTaskGroup for Probe {
-            fn stop(&self) { self.0.store(true, Ordering::Release); }
-            fn close_until(&self, _: Instant) -> Result<()> { self.1.store(true, Ordering::Release); Ok(()) }
+        struct Probe {
+            stopped: mpsc::Sender<()>,
+            started: mpsc::Sender<thread::ThreadId>,
+            release: Mutex<mpsc::Receiver<()>>,
+            joined: mpsc::Sender<()>,
         }
-        let stopped = Arc::new(AtomicBool::new(false));
-        let joined = Arc::new(AtomicBool::new(false));
+        impl crate::session::OwnerTaskGroup for Probe {
+            fn stop(&self) { let _ = self.stopped.send(()); }
+            fn close_until(&self, _: Instant) -> Result<()> {
+                let _ = self.started.send(thread::current().id());
+                self.release.lock().map_err(|_| flight_poisoned())?.recv()
+                    .map_err(|_| Error::new(ErrorKind::Internal, "test cleanup release was dropped"))?;
+                let _ = self.joined.send(());
+                Ok(())
+            }
+        }
+        let (stopped_tx, stopped_rx) = mpsc::channel();
+        let (started_tx, started_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let (joined_tx, joined_rx) = mpsc::channel();
         let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
         let weak = Arc::downgrade(&owner);
-        owner.register_task_group(Arc::new(Probe(Arc::clone(&stopped), Arc::clone(&joined)))).unwrap();
-        drop(owner);
+        owner.register_task_group(Arc::new(Probe {
+            stopped: stopped_tx, started: started_tx, release: Mutex::new(release_rx), joined: joined_tx,
+        })).unwrap();
+        let (drop_tx, drop_rx) = mpsc::channel();
+        let dropping = thread::spawn(move || { drop(owner); drop_tx.send(thread::current().id()).unwrap(); });
+        stopped_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        let cleanup_thread = started_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        // Cleanup is deliberately blocked; Drop must return before release.
+        let drop_thread = drop_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_ne!(cleanup_thread, drop_thread);
+        dropping.join().unwrap();
         assert!(weak.upgrade().is_none());
-        assert!(stopped.load(Ordering::Acquire));
-        assert!(joined.load(Ordering::Acquire));
+        release_tx.send(()).unwrap();
+        joined_rx.recv_timeout(Duration::from_secs(1)).unwrap();
     }
 
     #[test]

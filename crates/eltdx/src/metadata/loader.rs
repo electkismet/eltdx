@@ -17,7 +17,7 @@ impl PricePrecisionSource for NoPrecision {
 }
 
 pub(super) fn load_market(engine: &Engine, market: HqMarket, request_timeout: Duration, control: &FlightControl) -> Result<MarketCandidate> {
-    let mut candidate = MarketCandidate::new(control.key().clone())?;
+    let mut candidate = MarketCandidate::with_limits(control.key().clone(), control.catalog_limits())?;
     let mut page = SecurityListRequest::first_page(protocol_market(market));
     loop {
         control.check_active()?;

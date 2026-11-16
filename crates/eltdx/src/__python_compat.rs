@@ -57,7 +57,7 @@ impl LegacyExecutor {
         }
         let owner = Arc::new(SessionOwner::new(close_timeout, cleanup_timeout));
         let executor = HqExecutor::new(owner);
-        executor.register_engine(engine.clone())?;
+        executor.owner().register_engine_lazy(engine.clone())?;
         Ok(Self { executor, engine, request_timeout, cleanup_timeout })
     }
 
