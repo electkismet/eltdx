@@ -12,6 +12,8 @@ pub(crate) mod stats_alignment;
 mod shortline;
 mod board_decode;
 mod boards;
+#[cfg(feature = "f10")]
+mod f10;
 pub(crate) use cache::HelperCache;
 pub use market::classify_fund_flow;
 pub use service::HelperService;

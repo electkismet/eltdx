@@ -556,3 +556,28 @@ compiled/collected/run. No build/check/network/dependency/AST/format/diff-check,
 agents or publication. T23 remains open for cross-source helper services,
 native migration and manifest/consumer evidence; thenT24–T30 source work.
 Counts21/4/5 and active unlimited goal remain.
+
+## Twentieth checkpoint — shared owner and F10 collection helpers
+
+Base c3f683b. TdxClient now accepts an optional F10 builder and exposes a lazy
+F10 domain sharing the HQ SessionOwner. Closing either domain closes the same
+owner; standalone F10Client builders remain independent. The common owner's
+close/cleanup configuration governs composed clients. No builder or accessor
+starts a network worker. HelperService now offers index_members, index_etfs,
+board_members and ipo_calendar through in-context F10 collection seams, with
+one admission/deadline/work budget and no HQ fallback. Query bounds, typed
+rows, response metadata and business error completion remain unchanged.
+
+Python's four public collection helpers and private cache dispatcher now use
+native adapters. Existing _index_cached override/getter lookup order, normalized
+cache keys with original source argument, static IPO key, None-as-miss, refresh
+failure preservation and object identity remain intact. Native builtin lookup
+checks module globals then __builtins__; ordinary str no longer requires a
+module-global binding. Six Python contract functions (including parameterized
+cases) and four Rust public helper functions authored; none executed.
+
+T23 still needs stock_topics/topic_stocks/theme_strength_rank, their private
+projection/resolution functions, full migration/consumer evidence, then all
+T24–T30 source work. Counts remain21 source complete/4 partial/5 unstarted.
+Goal active with no token budget. No tests/collection/build/check/dependency/
+network/AST/format/diff-check, agents, push, tags or publication.

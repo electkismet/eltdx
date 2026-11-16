@@ -411,6 +411,13 @@ impl F10Client {
     fn collect_market<T>(&self, query: &CollectionQuery, section: &'static str, name: &'static str,
         options: &OperationOptions, project: impl Fn(Row, &mut Response, &OperationContext) -> Result<T>) -> Result<Collected<T>> {
         let context = self.context(Instant::now(), name, options)?;
+        let result = self.collect_market_in_context(query, section, &context, project)?;
+        context.finish()?;
+        Ok(result)
+    }
+
+    fn collect_market_in_context<T>(&self, query: &CollectionQuery, section: &'static str,
+        context: &OperationContext, project: impl Fn(Row, &mut Response, &OperationContext) -> Result<T>) -> Result<Collected<T>> {
         let size = (query.page_size.get() as usize).min(query.limits.page_size());
         let maximum = (query.max_pages.get() as usize).min(query.limits.max_pages());
         let mut rows = Vec::new(); let mut responses = Vec::new();
@@ -425,9 +432,9 @@ impl F10Client {
             let call = MarketReportQuery::new(Some(query.code.clone())).with_section(SectionCode::new("market_report", section)?)?
                 .with_page(u32::try_from(index).map_err(|_| crate::f10::values::invalid("collection page overflow"))?)?
                 .with_page_size(nz(u32::try_from(size).map_err(|_| crate::f10::values::invalid("collection page size overflow"))?))?.to_call()?;
-            let mut response = self.endpoint_call(&call, &context)?;
+            let mut response = self.endpoint_call(&call, context)?;
             let business_error = !response.ok();
-            if reported_total.is_none() { reported_total = total(&mut response, &context)?; }
+            if reported_total.is_none() { reported_total = total(&mut response, context)?; }
             let batch = response.take_first_rows(); let wire_count = batch.len();
             context.record_work(wire_count, 0)?;
             let before = rows.len();
@@ -435,15 +442,15 @@ impl F10Client {
                 context.check_boundary(TimeoutPhase::Aggregate)?;
                 if section == "board_members" {
                     keys.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 dividend identities").with_source(error))?;
-                    if !keys.insert(record_key(&row, &context)?) { continue; }
+                    if !keys.insert(record_key(&row, context)?) { continue; }
                 }
                 if rows.len() >= query.limits.max_records() { return Err(Error::new(ErrorKind::LimitExceeded, "F10 collection record limit reached")); }
                 rows.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 collection").with_source(error))?;
-                rows.push(project(row, &mut response, &context)?);
+                rows.push(project(row, &mut response, context)?);
             }
             // Add diagnostics after projection, and retain the remaining
             // response tree even when raw HTTP retention is disabled.
-            metadata.add(response.meta(), &context)?;
+            metadata.add(response.meta(), context)?;
             responses.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 page responses").with_source(error))?;
             responses.push(response);
             let ended = wire_count < size || reported_total.is_some_and(|total| rows.len() as u64 >= total);
@@ -460,8 +467,22 @@ impl F10Client {
             }
             Ok(None)
         }, |index| index.checked_add(1).ok_or_else(|| crate::f10::values::invalid("collection page overflow")))?;
-        context.finish()?;
         Ok(result)
+    }
+    pub(crate) fn index_members_in_context(&self, query: &IndexMembersQuery, context: &OperationContext) -> Result<IndexMemberTable> {
+        let result = self.collect_market_in_context(&query.inner, "index_members", context, index_member)?;
+        Ok(IndexMemberTable { code: result.code, total: result.total, rows: result.rows, completion: result.completion,
+            responses: result.responses, meta: result.meta })
+    }
+    pub(crate) fn index_tracking_in_context(&self, query: &IndexTrackingProductsQuery, context: &OperationContext) -> Result<IndexTrackingTable> {
+        let result = self.collect_market_in_context(&query.inner, "index_etfs", context, tracking_product)?;
+        Ok(IndexTrackingTable { code: result.code, total: result.total, rows: result.rows, completion: result.completion,
+            responses: result.responses, meta: result.meta })
+    }
+    pub(crate) fn board_members_in_context(&self, query: &BoardMembersQuery, context: &OperationContext) -> Result<BoardMemberTable> {
+        let result = self.collect_market_in_context(&query.inner, "board_members", context, board_member)?;
+        Ok(BoardMemberTable { code: result.code, total: result.total, rows: result.rows, completion: result.completion,
+            responses: result.responses, meta: result.meta })
     }
     pub fn index_members(&self, query: &IndexMembersQuery, options: &OperationOptions) -> Result<IndexMemberTable> {
         let result = self.collect_market(&query.inner, "index_members", "f10.index_members", options, index_member)?;
@@ -480,20 +501,24 @@ impl F10Client {
     }
     pub fn ipo_calendar(&self, options: &OperationOptions) -> Result<IpoCalendar> {
         let context = self.context(Instant::now(), "f10.ipo_calendar", options)?;
+        let result = self.ipo_in_context(&context)?;
+        context.finish()?;
+        Ok(result)
+    }
+    pub(crate) fn ipo_in_context(&self, context: &OperationContext) -> Result<IpoCalendar> {
         let call = MarketReportQuery::new(None).with_section(SectionCode::new("market_report", "ipo_calendar")?)?.to_call()?;
-        let mut response = self.endpoint_call(&call, &context)?;
+        let mut response = self.endpoint_call(&call, context)?;
         let mut rows = Vec::new();
         for raw in response.take_first_rows() {
             context.check_boundary(TimeoutPhase::Aggregate)?;
             context.record_work(1, 0)?;
             rows.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 IPO entries").with_source(error))?;
-            let apply_date = project_date(&raw, "N001", &mut response, &context)?;
-            check_numbers(&raw, &["N004", "N005", "N006", "N007", "N008"], &mut response, &context)?;
-            check_market(&raw, "sc", &mut response, &context)?;
+            let apply_date = project_date(&raw, "N001", &mut response, context)?;
+            check_numbers(&raw, &["N004", "N005", "N006", "N007", "N008"], &mut response, context)?;
+            check_market(&raw, "sc", &mut response, context)?;
             rows.push(IpoEntry { raw, apply_date });
         }
         let result = IpoCalendar { rows, response };
-        context.finish()?;
         Ok(result)
     }
 }

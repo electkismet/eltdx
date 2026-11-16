@@ -303,7 +303,9 @@ class HelperApi:
         **服务端不返回成份权重**，需要权重请用通达信客户端。
         """
 
-        return self._index_cached("members", code, refresh, self._client.f10.index_members)
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_f10_cached(self, "index_members", code, refresh, globals())
 
     def index_etfs(self, code: str, *, refresh: bool = False) -> IndexTrackingTable:
         """跟踪某个指数的全部产品（ETF / LOF / 场外基金）。
@@ -312,7 +314,9 @@ class HelperApi:
         实测 ``000300`` 返回 299 只，其中 44 只是场内 ETF（见 ``.etfs``）。
         """
 
-        return self._index_cached("etfs", code, refresh, self._client.f10.index_tracking_products)
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_f10_cached(self, "index_etfs", code, refresh, globals())
 
     def ipo_calendar(self, *, refresh: bool = False) -> IpoCalendar:
         """近期新股列表（申购日、发行价、募资额），等价于 TQ ``get_ipo_info``。
@@ -320,13 +324,9 @@ class HelperApi:
         实测约 50 行，覆盖沪深北三市，按日期倒序。
         """
 
-        if not refresh:
-            cached = self._index_cache.get(("ipo", ""))
-            if cached is not None:
-                return cached
-        result = self._client.f10.ipo_calendar()
-        self._index_cache[("ipo", "")] = result
-        return result
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_f10_cached(self, "ipo_calendar", None, refresh, globals())
 
     def board_members(self, code: str, *, refresh: bool = False) -> BoardMemberTable:
         """板块成份股的分红记录清单（含分红方案与关键日期），按记录去重自动翻页。
@@ -343,24 +343,14 @@ class HelperApi:
             想完全绕开翻页，传 ``page_size=100``（默认）单页取全。
         """
 
-        key = str(code).strip().lower()
-        if not refresh:
-            cached = self._index_cache.get(("board_members", key))
-            if cached is not None:
-                return cached
-        result = self._client.f10.board_members(code)
-        self._index_cache[("board_members", key)] = result
-        return result
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_f10_cached(self, "board_members", code, refresh, globals())
 
     def _index_cached(self, kind: str, code: str, refresh: bool, getter: Any) -> Any:
-        key = str(code).strip().lower()
-        if not refresh:
-            cached = self._index_cache.get((kind, key))
-            if cached is not None:
-                return cached
-        result = getter(code)
-        self._index_cache[(kind, key)] = result
-        return result
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_index_cached(self, kind, code, refresh, getter, globals())
 
     def board_quotes(self, *, category: str = "概念", refresh: bool = False) -> BoardQuoteTable:
         """Return board quotes for one category (concepts by default)."""

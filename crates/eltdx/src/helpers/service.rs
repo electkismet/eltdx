@@ -62,12 +62,16 @@ pub struct HelperService {
     pub(super) executor: HqExecutor, pub(super) engine: Engine,
     pub(super) config: ClientConfig, pub(super) namespace: String,
     pub(super) pools: Arc<crate::hq::domains::DomainPools>,
+    #[cfg(feature = "f10")]
+    pub(super) f10: crate::f10::F10Client,
 }
 
 impl HelperService {
     pub(crate) fn new(executor: HqExecutor, engine: Engine, config: ClientConfig, namespace: String,
-        pools: Arc<crate::hq::domains::DomainPools>) -> Self {
-        Self { executor, engine, config, namespace, pools }
+        pools: Arc<crate::hq::domains::DomainPools>,
+        #[cfg(feature = "f10")] f10: crate::f10::F10Client) -> Self {
+        Self { executor, engine, config, namespace, pools,
+            #[cfg(feature = "f10")] f10 }
     }
 
     pub(super) fn quotes(&self) -> QuoteService {

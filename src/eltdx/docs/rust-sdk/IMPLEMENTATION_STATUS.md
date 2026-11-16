@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第六十八段恢复点：基础提交`c3f683b`。TdxClient与F10共用owner，并提供惰性F10配置/入口；四个F10集合helper在同一个context内完成，不启动HQ或回退。Python四入口与缓存dispatcher已接入native，保留实时override/getter、原参数/规范化key、None miss、refresh失败旧缓存及对象identity，修复builtin str解析。新增6个Python/4个Rust测试函数源码，全部未执行。T23仍需题材合并/成分/强度及私有投影、manifest/consumer，再T24–T30；21完整源码/4部分/5未开始，目标active无额度上限，全部执行验证延期。
+
 2026-11-17第六十四段恢复点：题材/估值检查点`f3da958`。共享分页driver/字段映射及ladder参数接入最后六入口，157/157公开F10方法均有native入口源码。保留Python软页数上限、动态模型/转换/方法、记录去重和惰性ladder投影；Rust严格限额与业务状态不变。新增9个Python/1个Rust源码函数未执行。T23仍需scalar/date/row helpers、fields/model、跨来源helpers及manifest，再T24–T30；21/4/5 active无额度上限，全部执行验证延期。
 
 2026-11-17第六十三段恢复点：报告检查点`a3bee51`。题材/估值/便捷别名、digest/topic-first共享源码接入。逐项库存发现先前漏计已迁移call/params，准确合计151/157，剩ladder两方法及四typed collector；fields/model/helpers/manifest仍待做。新增10个Python/1个Rust源码函数均未执行。21源码完整/4部分/5未开始，active无额度上限；继续六方法后T23剩余及T24–T30，全部执行验证延期。

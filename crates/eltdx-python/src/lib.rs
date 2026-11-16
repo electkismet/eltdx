@@ -29,6 +29,7 @@ mod helper_indicator;
 mod helper_limits;
 mod helper_daily;
 mod helper_market;
+mod helper_f10;
 mod helper_boards;
 mod batch;
 mod subscription;
@@ -203,6 +204,8 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helper_market::helper_market_stat, module)?)?;
     module.add_function(wrap_pyfunction!(helper_market::helper_today_flow, module)?)?;
     module.add_function(wrap_pyfunction!(helper_market::helper_latest_suspended, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_f10::helper_f10_cached, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_f10::helper_index_cached, module)?)?;
     module.add_function(wrap_pyfunction!(helper_boards::board_quotes, module)?)?;
     module.add_function(wrap_pyfunction!(helper_boards::board_member_quotes, module)?)?;
     module.add_function(wrap_pyfunction!(helper_boards::board_prepare, module)?)?;

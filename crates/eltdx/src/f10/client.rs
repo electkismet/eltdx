@@ -77,6 +77,14 @@ impl F10ClientBuilder {
     }
 
     pub fn build(self) -> Result<F10Client> {
+        self.build_inner(None)
+    }
+
+    pub(crate) fn build_with_owner(self, owner: Arc<SessionOwner>) -> Result<F10Client> {
+        self.build_inner(Some(owner))
+    }
+
+    fn build_inner(self, owner: Option<Arc<SessionOwner>>) -> Result<F10Client> {
         let mut config = F10Config::defaults()?;
         config.base_url = checked_url(&self.base_url)?;
         config.ladder_url = checked_url(&self.ladder_url)?;
@@ -136,7 +144,7 @@ impl F10ClientBuilder {
             cleanup_timeout: self.cleanup_timeout, heartbeat_interval: None,
             ..ConfigDraft::default()
         }.validate()?;
-        let owner = Arc::new(SessionOwner::new(self.close_timeout, self.cleanup_timeout));
+        let owner = owner.unwrap_or_else(|| Arc::new(SessionOwner::new(self.close_timeout, self.cleanup_timeout)));
         let diagnostics = Mutex::new(F10Diagnostics { generation: owner.generation(), ..F10Diagnostics::default() });
         Ok(F10Client { inner: Arc::new(F10Inner { config, common, owner, diagnostics,
             local_date_clock: self.local_date_clock,

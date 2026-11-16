@@ -17,12 +17,16 @@ use crate::services::{AuctionService, CodeService, KlineService, MinuteService, 
 #[derive(Clone, Debug)]
 pub struct ClientBuilder {
     draft: ConfigDraft,
+    #[cfg(feature = "f10")]
+    f10: Option<crate::f10::F10ClientBuilder>,
 }
 
 impl ClientBuilder {
     pub fn new() -> Self {
         Self {
             draft: ConfigDraft::default(),
+            #[cfg(feature = "f10")]
+            f10: None,
         }
     }
 
@@ -84,6 +88,13 @@ impl ClientBuilder {
         self
     }
 
+    /// Configures HTTP routing without resolving DNS or starting HQ/F10 I/O.
+    /// The resulting domain shares this client's close and operation owner.
+    #[cfg(feature = "f10")]
+    pub fn f10(mut self, builder: crate::f10::F10ClientBuilder) -> Self {
+        self.f10 = Some(builder); self
+    }
+
     pub fn build(self) -> Result<TdxClient> {
         let config = self.draft.validate()?;
         let hosts = configured_hosts(&config);
@@ -94,12 +105,19 @@ impl ClientBuilder {
             config.cleanup_timeout,
             config.clock.clone(),
         ));
+        #[cfg(feature = "f10")]
+        let f10 = self.f10.unwrap_or_else(|| crate::f10::F10Client::builder()
+            .with_timeout(config.request_timeout())
+            .with_close_timeout(config.close_timeout())
+            .with_cleanup_timeout(config.cleanup_timeout())).build_with_owner(Arc::clone(&owner))?;
         Ok(TdxClient {
             config,
             hq: HqExecutor::new(owner),
             engine,
             namespace,
             domains: Arc::new(crate::hq::domains::DomainPools::default()),
+            #[cfg(feature = "f10")]
+            f10,
         })
     }
 }
@@ -135,6 +153,8 @@ pub struct TdxClient {
     engine: Engine,
     namespace: String,
     domains: Arc<crate::hq::domains::DomainPools>,
+    #[cfg(feature = "f10")]
+    f10: crate::f10::F10Client,
 }
 
 impl TdxClient {
@@ -143,8 +163,13 @@ impl TdxClient {
         crate::financial::FinancialService::new(self.resources())
     }
     pub fn helpers(&self) -> crate::helpers::HelperService {
-        crate::helpers::HelperService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone(), self.domains.clone())
+        crate::helpers::HelperService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone(), self.domains.clone(),
+            #[cfg(feature = "f10")] self.f10.clone())
     }
+    /// HTTP domain of this client. It shares the same irreversible close;
+    /// use F10Client::builder for a separately owned HTTP-only client.
+    #[cfg(feature = "f10")]
+    pub fn f10(&self) -> crate::f10::F10Client { self.f10.clone() }
     pub fn resources(&self) -> crate::services::ResourceService {
         crate::services::ResourceService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
     }
