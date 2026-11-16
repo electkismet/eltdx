@@ -17,6 +17,10 @@ Consume the same non-HQ attempt-admission integration introduced by T19 if avail
 
 ## Evidence/workflow/report
 
+## Staged implementation boundary
+
+Controller may authorize Stage A before T10 owner integration is complete. Stage A owns only new files under `crates/eltdx/src/ex/` and `crates/eltdx/tests/ex_wire.rs`: checked EX identities/query/models, complete frame and eleven command codecs, source-backed host/config helpers and pure wire/time/unit/raw projection logic. It must not edit root `lib.rs`, Cargo manifests/lock, shared types, owner/session/operation/runtime/metadata, or Python. Source test cases remain unexecuted. No placeholder public client methods may be presented as implemented. Stage A is a partial checkpoint; Stage B needs explicit controller GO for the actual owner/admission/transport and public API integration. The report must distinguish authored wire code from pending transport implementation and carry exact integration seams.
+
 Author independently specified setup/request goldens, fragmented header/body/declared short/invalid zlib and length bombs, sequence wrap/two owners/serial requests/stale response, full command boundary/layout/raw/GBK/time cases, transport-only failover and cancel/close during handshake/request. Public-client loopback integration arrives T26, but low-level tests exercise real transport source code. Deferred `cargo test -p eltdx --features ex --test ex_wire --test ex_session --locked`.
 
 Worktree `C:/Users/ax/.codex/worktrees/rust-sdk-implementation/tdx抓包`, branch `codex/rust-sdk-implementation`. Until ALL T01–T30 code complete NO tests/collection/build/check/clippy/doctest/network/compile/AST/format/diff checks/equivalents. Source read/write/ordinary review diff/Git exact checkpoint/hooks disabled only. No subagents/push/tag/publish/merge/controller status edits. Coordinate shared Cargo/types/operation files; don't create competing owner or cancellation state machine.

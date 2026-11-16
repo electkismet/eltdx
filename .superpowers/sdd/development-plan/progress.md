@@ -138,6 +138,10 @@
 - Recovery 2026-11-16: user resumed goal mode; existing goal is active with no token budget. T10 Stage A GO issued against base `2ac3870`, restricted to new metadata/value/type/clock modules and metadata/unit source cases; T08-owned operation/session/executor/runtime/root/bridge paths remain gated until scoped re-review approves. T21 reports one-shot GBK mapping-table generation using bundled Python 3.12.14 built-in codec, with generator/version provenance; source/report/commit are still in progress. T08 fix round 1 is still in progress. No tests or validation commands have run.
 - Task 21: final source/data/case/report commit `9734db3` complete; implementation report is `task-21-report.md`. Task-scoped static source review is running over `task-21-review-9734db3.diff` (base `230e566`; owned offline paths only). The authorized GBK one-shot source-data generator was executed once with bundled Python 3.12.14 built-in `gbk`, and provenance is recorded. No tests, collection, build/check/clippy/doctest, network, compile/AST/format/diff checks, or equivalent validation ran. T10 shared Diagnostic integration and GBK/platform behaviors remain unverified until the final unified validation phase.
 - Task 21: scoped static review of `9734db3` found one Important spec mismatch plus its matching Minor source-case mismatch: an empty customer-block leaf name was skipped although the brief requires rejection; an empty block name remains a separate documented legacy skip. Original implementer resumed for fix round 1 from review head `9734db3`; change only the invalid-leaf behavior and source case, then scoped re-review. No validation commands ran.
+- Task 8: fix round 1 committed `fc90734`; limited package `task-08-fix1-fc90734.diff` from review head `b3371c0` dispatched to scoped re-review. All four original findings are addressed by implementation claims, awaiting independent verdict; no execution evidence exists.
+- Task 21: fix round 1 `b6e4beb` approved by scoped re-review; Important empty-leaf behavior and associated source case ADDRESSED, no new breakage. Review retained in `task-21-review.md`.
+- Task 21: complete (source `f921d81`/`9734db3`, fix `b6e4beb`, scoped source review approved; all runtime/compile/platform validation deferred).
+- Ruling: T24 may start isolated Stage A in only new `src/ex/` files and `tests/ex_wire.rs` while the T10 owner interface is pending. It authors the frame/command/model/host pure implementation without editing shared owner/operation/runtime/Cargo/root/Python paths; transport and public client integration require Stage B GO. — Cost if wrong: the later transport integration may need narrow adapters, but shared lifecycle work remains serialized and Stage A cannot be mistaken for full T24 completion.
 
 | Task | Status |
 |---|---|
@@ -148,7 +152,7 @@
 | T05 | Implementation and source cases committed in `3ba3902`; final verification deferred until T01-T30 implementation is complete |
 | T06 | Implementation and scoped review complete (`4bf47d7..561dcf5`); final verification deferred |
 | T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
-| T08 | Fix round1 for four Important scoped-review findings; original implementer working from review head `b3371c0`, unified verification deferred |
+| T08 | Fix round1 `fc90734` in scoped re-review against `b3371c0`; unified verification deferred |
 | T09 | Source and scoped static review complete at `65ef657`; unified verification deferred |
 | T10 | Stage A authorized and in progress; no owner/operation integration before explicit Stage B GO |
 | T11 | Not started |
@@ -161,10 +165,10 @@
 | T18 | Not started |
 | T19 | Not started |
 | T20 | Not started |
-| T21 | Fix round 1 for one Important finding; base/review head `9734db3`; verification deferred |
+| T21 | Implementation and scoped source review complete through `b6e4beb`; verification deferred |
 | T22 | Not started |
 | T23 | Not started |
-| T24 | Not started |
+| T24 | Stage A isolated EX codec implementation authorized; transport/owner integration requires Stage B |
 | T25 | Not started |
 | T26 | Not started |
 | T27 | Not started |
