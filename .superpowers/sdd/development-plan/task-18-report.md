@@ -37,6 +37,18 @@ Continue from this report and task-18-brief.md; do not repeat T17 implementation
 
 ## Second source checkpoint — shared-context HQ helper services
 
+Committed as **d0f8c2c** (25 files,738 additions). Source task totals remain
+18 complete/4 partial/8 unstarted. Post-commit recovery review read CorporateService,
+FinanceRecord/FinanceValue, owner/calendar caches and original Python profile/
+ordered-tuple finance cache. No profile/cache code has been authored yet. Next
+first extract a finance collector accepting &OperationContext without setting
+limits; keep the public mutable entry wrapper's limits. Profile must call that
+collector after primary full_quotes, not the existing finance_in_context that
+would reset limits after requests. New helper cache belongs to shared owner,
+records failure/partial/version/expiry, and clear must invalidate in-flight
+publication without clearing the owner's calendar. These are next-step notes,
+not a claim that M86/M87 are implemented.
+
 Authored, not compiled or executed:
 
 - Registered lazy TdxClient::helpers() and public HelperService. New FullQuote,

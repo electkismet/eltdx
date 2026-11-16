@@ -78,7 +78,7 @@
 
 ## Task log
 
-2026-11-16 T18 second source checkpoint: authored lazy HelperService/M79–M85,
+2026-11-16 T18 second source checkpoint d0f8c2c: authored lazy HelperService/M79–M85,
 shared-context quote/depth/legacy/category/minute and directory seams, typed
 FullQuote/RankQuery/RealtimeRankRow, optional Table.end completion evidence and
 synthetic depth/rank/entry/80+1/cancellation source cases. No Python facade or

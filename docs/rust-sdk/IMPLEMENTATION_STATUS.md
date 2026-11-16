@@ -6,7 +6,7 @@
 
 2026-11-16 最新恢复点：T17源码集成`88b9036`、T18首段M95纯资金流`e3e768c`，本轮增加M79–M85首批HelperService组合源码与对应未执行用例。共享quote/legacy/category/depth/minute与directory上下文接口已接入；full_quotes按80分组且只补五档/open_amount，rank保持服务端序/重复并明确Table.end。T18仍部分，profile/cache/market-stat/day-flow/短线/板块及Python回迁未完成。当前18项源码完整、4项部分、8项未开始；没有运行任何测试、构建或执行检查。
 
-当前实际进度：T01–T17及T21实现源码已写完；T18/T22/T24/T25为部分实现（18完整源码/4部分/8未开始）。恢复先读task-18-report和brief及HQ规格11–14节，继续完整组合业务与兼容适配；M95已写，不重复实现。目标保持active且不设置额度限制；全部执行验证延期。
+当前实际进度：T01–T17及T21实现源码已写完；T18/T22/T24/T25为部分实现（18完整源码/4部分/8未开始）。T18最新源码提交`d0f8c2c`，恢复先读task-18-report第二段和brief及HQ规格11–14节，从M86 profile/cache及CorporateService不可重设limits的共享finance接口继续。M79–M85及M95首批源码已写，不重复实现。目标保持active且不设置额度限制；全部执行验证延期。
 
 2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。
 
@@ -17,8 +17,8 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | `e3e768c`：T18 M95源码首段，T17收尾88b9036；全部执行验证延期 |
-| 当前阶段 | P2：T01–T17实现源码完成；T18已开始，M95已写。 |
+| 最新检查点 | `d0f8c2c`：T18 M79–M85组合源码与未执行用例；M95首段e3e768c；全部执行验证延期 |
+| 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M85/M95首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
 | 下一步 | T18：M86–M94/M96–M97，profile/cache/market-stat/day-flow/短线/板块、Python/native逐域回迁及consumer源码；M79–M85首批实现待最终统一验证 |
