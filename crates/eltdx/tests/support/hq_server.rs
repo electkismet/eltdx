@@ -1,9 +1,9 @@
 //! Synthetic loopback framing. This is not a real-server capture.
 
 use std::io::{self, Read, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::net::{SocketAddr, Shutdown, TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -16,8 +16,36 @@ pub struct Server {
     accepted: Arc<AtomicUsize>,
 }
 
+/// A separately owned fixture writer. Test channels can publish unsolicited
+/// frames or close a source after establishment without timing sleeps.
+#[derive(Clone, Debug)]
+pub struct Connection {
+    writer: Arc<Mutex<TcpStream>>,
+    push_id: Arc<AtomicU32>,
+}
+
+impl Connection {
+    pub fn push(&self, msg_type: u16, payload: &[u8]) -> io::Result<()> {
+        let message = self.push_id.fetch_add(1, Ordering::Relaxed);
+        self.write(&framed_response(message, msg_type, payload))
+    }
+
+    pub fn disconnect(&self) -> io::Result<()> {
+        self.writer.lock().map_err(|_| io::Error::other("fixture writer poisoned"))?
+            .shutdown(Shutdown::Both)
+    }
+
+    fn write(&self, raw: &[u8]) -> io::Result<()> {
+        self.writer.lock().map_err(|_| io::Error::other("fixture writer poisoned"))?.write_all(raw)
+    }
+}
+
 impl Server {
     pub fn start(handler: impl Fn(&RequestFrame) -> Vec<u8> + Send + Sync + 'static) -> io::Result<Self> {
+        Self::start_controlled(move |request, _| handler(request))
+    }
+
+    pub fn start_controlled(handler: impl Fn(&RequestFrame, &Connection) -> Vec<u8> + Send + Sync + 'static) -> io::Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         listener.set_nonblocking(true)?;
         let address = listener.local_addr()?;
@@ -34,6 +62,8 @@ impl Server {
                         worker_accepted.fetch_add(1, Ordering::SeqCst);
                         stream.set_read_timeout(Some(Duration::from_millis(100)))?;
                         stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+                        let connection = Connection { writer: Arc::new(Mutex::new(stream.try_clone()?)),
+                            push_id: Arc::new(AtomicU32::new(0x7000_0000)) };
                         let handler = Arc::clone(&handler);
                         let stop = Arc::clone(&worker_stop);
                         connections.push(thread::spawn(move || -> io::Result<()> {
@@ -41,15 +71,16 @@ impl Server {
                                 let request = match read_request(&mut stream) {
                                     Ok(request) => request,
                                     Err(error) if matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) => continue,
-                                    Err(error) if matches!(error.kind(), io::ErrorKind::UnexpectedEof | io::ErrorKind::ConnectionReset) => return Ok(()),
+                                    Err(error) if matches!(error.kind(), io::ErrorKind::UnexpectedEof | io::ErrorKind::ConnectionReset
+                                        | io::ErrorKind::ConnectionAborted | io::ErrorKind::NotConnected) => return Ok(()),
                                     Err(error) => return Err(error),
                                 };
                                 let payload = match request.msg_type {
                                     0x000d => vec![0; 189],
                                     0x0004 => vec![0; 10],
-                                    _ => handler(&request),
+                                    _ => handler(&request, &connection),
                                 };
-                                stream.write_all(&response(&request, &payload))?;
+                                connection.write(&response(&request, &payload))?;
                             }
                             Ok(())
                         }));
@@ -97,13 +128,17 @@ fn read_request(stream: &mut TcpStream) -> io::Result<RequestFrame> {
 }
 
 fn response(request: &RequestFrame, payload: &[u8]) -> Vec<u8> {
+    framed_response(request.msg_id, request.msg_type, payload)
+}
+
+fn framed_response(msg_id: u32, msg_type: u16, payload: &[u8]) -> Vec<u8> {
     let length = u16::try_from(payload.len()).expect("bounded synthetic payload");
     let mut raw = Vec::new();
     raw.extend_from_slice(&RESPONSE_PREFIX);
     raw.push(1);
-    raw.extend_from_slice(&request.msg_id.to_le_bytes());
+    raw.extend_from_slice(&msg_id.to_le_bytes());
     raw.push(0);
-    raw.extend_from_slice(&request.msg_type.to_le_bytes());
+    raw.extend_from_slice(&msg_type.to_le_bytes());
     raw.extend_from_slice(&length.to_le_bytes());
     raw.extend_from_slice(&length.to_le_bytes());
     raw.extend_from_slice(payload);
@@ -142,6 +177,32 @@ pub fn snapshots(rows: &[(&str, i64)]) -> Vec<u8> {
         for _ in 0..8 { append_varint(&mut payload, 0); } // inside/outside/unknown/open, bid/ask/volumes.
     }
     payload
+}
+
+pub fn refresh(rows: &[(&str, u32)]) -> Vec<u8> {
+    let mut payload = (rows.len() as u16).to_le_bytes().to_vec();
+    for &(number, cursor) in rows {
+        payload.push(1); // Shanghai.
+        payload.extend_from_slice(number.as_bytes());
+        payload.extend_from_slice(&1_u16.to_le_bytes());
+        append_varint(&mut payload, 10);
+        for _ in 0..4 { append_varint(&mut payload, 0); }
+        payload.extend_from_slice(&cursor.to_le_bytes());
+        for _ in 0..3 { append_varint(&mut payload, 0); }
+        payload.extend_from_slice(&0_u32.to_le_bytes());
+        for _ in 0..24 { append_varint(&mut payload, 0); } // four fields, five levels with four fields each.
+    }
+    for byte in &mut payload { *byte ^= 0x93; }
+    payload
+}
+
+pub fn snapshot_codes(request: &RequestFrame) -> Vec<String> {
+    request.data[10..].chunks_exact(7).map(|row| String::from_utf8(row[1..].to_vec()).unwrap()).collect()
+}
+
+pub fn refresh_requests(request: &RequestFrame) -> Vec<(String, u32)> {
+    request.data[2..].chunks_exact(11).map(|row| (String::from_utf8(row[1..7].to_vec()).unwrap(),
+        u32::from_le_bytes(row[7..11].try_into().unwrap()))).collect()
 }
 
 fn append_varint(target: &mut Vec<u8>, value: i64) {

@@ -46,11 +46,19 @@ fn legacy_bridge_is_cross_crate_visible_without_python_runtime() {
             max_pending_requests: 8, push_queue_size: 8, push_queue_bytes: 1024,
         },
     ).expect("config")).expect("lazy engine");
-    let executor = LegacyExecutor::new(engine, Duration::from_secs(8), Duration::from_secs(1), Duration::from_secs(1))
+    let executor = LegacyExecutor::new(engine.clone(), Duration::from_secs(8), Duration::from_secs(1), Duration::from_secs(1))
         .expect("independent legacy generation");
+    let reader = executor.claim_raw_push_reader().expect("exclusive raw compatibility mode");
+    assert!(matches!(engine.poll_push(Duration::ZERO), Err(eltdx_runtime::RuntimeError::PoolBusy { .. })));
+    assert!(matches!(engine.drain_pushes(), Err(eltdx_runtime::RuntimeError::PoolBusy { .. })));
+    assert!(reader.poll_push(Duration::ZERO).unwrap().is_none());
+    assert!(reader.drain_pushes().unwrap().is_empty());
+    assert_eq!(engine.pool_diagnostics().unwrap().epoch, 0, "claiming never starts the runtime");
     let operation = executor.begin_operation("binding_fixture", RawPolicy::Omit, None)
         .expect("context").with_page_limit(None).expect("unlimited legacy pages");
     let _purpose = LegacyChildPurpose::Metadata;
     operation.finish().expect("empty legacy operation succeeds");
+    drop(reader);
+    assert!(engine.claim_push_consumer().is_ok(), "dropping the raw adapter releases only its claim");
     executor.close().expect("no runtime/network was started");
 }

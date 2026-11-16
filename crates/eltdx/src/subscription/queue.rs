@@ -268,4 +268,15 @@ mod tests {
             assert_eq!(queue.events.as_ptr(), address);
         }
     }
+
+    #[test]
+    fn real_event_larger_than_the_data_budget_reports_gap_then_limit_error() {
+        let mut event = PushEvent::Update(update("sh600000", 93000));
+        event.canonical_heap();
+        let bytes = event.retained_bytes().unwrap();
+        let mut queue = EventQueue::new(&options(2, bytes - 1)).unwrap();
+        assert_eq!(queue.publish(event).unwrap(), QueueAction::Stop);
+        assert!(matches!(queue.pop().unwrap(), Some(PushEvent::Gap(gap)) if gap.reason() == GapReason::OversizedEvent));
+        assert_eq!(queue.pop().unwrap_err().kind(), ErrorKind::LimitExceeded);
+    }
 }

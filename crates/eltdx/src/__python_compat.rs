@@ -8,8 +8,10 @@ use std::time::{Duration, Instant};
 use eltdx_protocol::commands::security::SecurityListRequest;
 use eltdx_protocol::unit::NormalizedCode;
 use eltdx_protocol::{CommandRequest, CommandResponse};
-use eltdx_runtime::engine::{Engine, PinHandle};
+use eltdx_runtime::engine::{Engine, PinHandle, PushConsumer};
 use eltdx_runtime::execution::RawReply;
+use eltdx_runtime::push::PushFrame;
+use eltdx_runtime::RuntimeError;
 
 use crate::error::{Error, ErrorKind, Result};
 use crate::hq::executor::HqExecutor;
@@ -75,6 +77,29 @@ impl LegacyExecutor {
     }
 
     pub fn close(&self) -> Result<()> { self.executor.close() }
+
+    /// Select the exclusive legacy raw mode for this Engine. Python owns a
+    /// separate Engine generation; it cannot share a Rust subscription's
+    /// dispatcher. Every native poll/drain uses this one claim. Construction
+    /// starts no worker, buffers no frames and performs no network I/O.
+    pub fn claim_raw_push_reader(&self) -> std::result::Result<LegacyPushReader, RuntimeError> {
+        Ok(LegacyPushReader { consumer: self.engine.claim_push_consumer()? })
+    }
+}
+
+/// Unstable raw compatibility boundary. Retain RuntimeError unchanged so the
+/// existing Python projection preserves PushOverflow's cumulative count,
+/// message and context. Parsing and callbacks remain on the calling thread.
+#[derive(Debug)]
+pub struct LegacyPushReader { consumer: PushConsumer }
+
+impl LegacyPushReader {
+    pub fn poll_push(&self, timeout: Duration) -> std::result::Result<Option<PushFrame>, RuntimeError> {
+        self.consumer.poll_push(timeout)
+    }
+    pub fn drain_pushes(&self) -> std::result::Result<Vec<PushFrame>, RuntimeError> {
+        self.consumer.drain_pushes()
+    }
 }
 
 #[derive(Debug)]

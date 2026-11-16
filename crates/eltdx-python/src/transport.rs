@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use eltdx::__python_compat::LegacyExecutor;
+use eltdx::__python_compat::{LegacyExecutor, LegacyPushReader};
 use eltdx_protocol::CommandResponse;
 use eltdx_runtime::diagnostics::{
     ActorSnapshot, BrokerSnapshot, PoolDiagnostics, TransportDiagnostics,
@@ -17,6 +17,7 @@ use crate::{error, request, response};
 pub struct NativeEngine {
     engine: Engine,
     legacy: LegacyExecutor,
+    raw_push: LegacyPushReader,
     namespace: String,
 }
 
@@ -94,9 +95,11 @@ impl NativeEngine {
             CANCEL_CONFIRM_TIMEOUT,
         )
         .map_err(|sdk_error| error::from_sdk(py, sdk_error))?;
+        let raw_push = legacy.claim_raw_push_reader().map_err(error::from_runtime)?;
         Ok(Self {
             engine,
             legacy,
+            raw_push,
             namespace,
         })
     }
@@ -244,7 +247,7 @@ impl NativeEngine {
                 .saturating_duration_since(now)
                 .min(SIGNAL_POLL_INTERVAL);
             let result = py
-                .detach(|| self.engine.poll_push(wait))
+                .detach(|| self.raw_push.poll_push(wait))
                 .map_err(error::from_runtime)?;
             py.check_signals()?;
             if let Some(item) = result {
@@ -259,7 +262,7 @@ impl NativeEngine {
     #[pyo3(signature = (parse=false))]
     fn drain_pushes(&self, py: Python<'_>, parse: bool) -> PyResult<Vec<Py<PyAny>>> {
         let items = py
-            .detach(|| self.engine.drain_pushes())
+            .detach(|| self.raw_push.drain_pushes())
             .map_err(error::from_runtime)?;
         items
             .into_iter()

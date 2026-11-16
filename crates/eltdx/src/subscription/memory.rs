@@ -57,3 +57,54 @@ fn buffers(charge: &mut MemoryCharge, pages: usize, raw: RawPolicy) -> Result<()
 }
 
 fn overflow() -> Error { Error::new(ErrorKind::InvalidArgument, "supported subscription event size overflows") }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{BatchItemState, EnrichmentStatus, RawData, ResultMeta, SnapshotBatch};
+
+    #[test]
+    fn maximum_shape_covers_canonical_snapshots_updates_and_shared_raw_storage() {
+        let host = "127.0.0.1:7709"; let owner = "owner-1234567890abcdef";
+        for raw in [RawPolicy::Omit, RawPolicy::RetainPayload, RawPolicy::RetainWire] {
+            let payload = bytes::Bytes::from(vec![1; eltdx_protocol::limits::MAX_RESPONSE_PAYLOAD_SIZE]);
+            let wire = bytes::Bytes::from(vec![2; eltdx_protocol::limits::MAX_RESPONSE_BUFFER_SIZE]);
+            let source = SourceStamp::new(Some(0x054c), Some(host.parse().unwrap()), owner, Some(1), None);
+            let diagnostic = Diagnostic::new("quotes.subscription", "response", EnrichmentStatus::Succeeded,
+                None, Some(format!("endpoint={host}")));
+            let retained = || {
+                if raw == RawPolicy::Omit { return None; }
+                let mut payloads = Vec::with_capacity(1024); payloads.push(payload.clone());
+                let frames = (raw == RawPolicy::RetainWire).then(|| {
+                    let mut frames = Vec::with_capacity(1024); frames.push(wire.clone()); frames
+                });
+                Some(RawData::new(payloads, frames, vec![(0, 0, 10)]))
+            };
+            let base = crate::subscription::source_cases::update("sh600000", 93000);
+            let row = base.snapshot();
+            let level = QuoteLevel::new(row.last(), row.total());
+            let mut bids = Vec::with_capacity(256); bids.resize(5, level.clone());
+            let mut asks = Vec::with_capacity(256); asks.resize(5, level);
+            let snapshot = Snapshot::new(row.id().clone(), row.active(), row.last(), row.pre_close(), row.open(),
+                row.high(), row.low(), row.event_time(), row.server_time_raw(), row.total(), row.current(),
+                row.inside(), row.outside(), row.amount(), row.open_amount(), bids, asks,
+                ResultMeta::new(source.clone(), vec![diagnostic.clone()], retained()));
+            let update_snapshot = snapshot.clone();
+            let batch = SnapshotBatch::with_meta(vec![BatchItem::new(0, row.id().clone(),
+                BatchItemState::Present(snapshot))], ResultMeta::new(source, vec![diagnostic], retained()));
+            let mut initial = PushEvent::Initial(batch);
+            let before = initial.retained_bytes().unwrap();
+            initial.canonical_heap();
+            let after = initial.retained_bytes().unwrap();
+            assert!(after < before, "canonical publication discards spare collection capacity");
+            let maximum = maximum_event_bytes(1, host.len(), owner.len(), raw).unwrap();
+            assert!(after <= maximum);
+            let PushEvent::Initial(batch) = &initial else { unreachable!() };
+            let mut restored = PushEvent::Resynchronized(batch.clone()); restored.canonical_heap();
+            assert!(restored.retained_bytes().unwrap() <= maximum);
+            let mut update = PushEvent::Update(crate::types::QuoteUpdate::new(row.id().clone(), 93000, 1, update_snapshot, 0));
+            update.canonical_heap();
+            assert!(update.retained_bytes().unwrap() <= maximum);
+        }
+    }
+}

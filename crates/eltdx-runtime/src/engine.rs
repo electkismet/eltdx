@@ -429,9 +429,9 @@ pub struct PinHandle {
     identity: PinIdentity,
 }
 
-/// Exclusive queue consumer for a controlled dispatcher. This handle is not
-/// Clone; mutable polling serializes consumption through its owner. Ordinary
-/// poll/drain remain available whenever no controlled consumer is claimed.
+/// Exclusive queue consumer for a controlled dispatcher or legacy raw reader.
+/// The claim is not Clone. Concurrent reads through the same claim retain the
+/// runtime's existing waiter ordering; unrelated raw readers remain excluded.
 #[derive(Debug)]
 pub struct PushConsumer {
     engine: Engine,
@@ -456,10 +456,10 @@ impl Drop for PushReadGuard {
 }
 
 impl PushConsumer {
-    pub fn poll_push(&mut self, timeout: Duration) -> Result<Option<PushFrame>, RuntimeError> {
+    pub fn poll_push(&self, timeout: Duration) -> Result<Option<PushFrame>, RuntimeError> {
         self.engine.poll_push_as(Some(self.identity), timeout)
     }
-    pub fn drain_pushes(&mut self) -> Result<Vec<PushFrame>, RuntimeError> {
+    pub fn drain_pushes(&self) -> Result<Vec<PushFrame>, RuntimeError> {
         self.engine.drain_pushes_as(Some(self.identity))
     }
 }

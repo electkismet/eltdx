@@ -87,6 +87,7 @@ impl Dispatcher {
         context.check_boundary(TimeoutPhase::Admission)?;
         routes.paused = routes.paused.checked_add(1).ok_or_else(||
             Error::new(ErrorKind::LimitExceeded, "push routing pause counter overflow"))?;
+        self.routing_changed.notify_all();
         while routes.active_deliveries != 0 {
             if let Err(error) = context.check_boundary(TimeoutPhase::Queue) {
                 routes.paused -= 1; self.routing_changed.notify_all(); return Err(error);
@@ -149,7 +150,7 @@ impl Dispatcher {
         Ok(())
     }
 
-    fn run(&self, mut consumer: PushConsumer) {
+    fn run(&self, consumer: PushConsumer) {
         let result = (|| {
             let mut reported_dropped = 0_u64;
             while !self.stopped.load(Ordering::Acquire) {
@@ -362,5 +363,37 @@ mod tests {
         dispatcher.close_until(Instant::now() + Duration::from_secs(1)).unwrap();
         let consumer = engine.claim_push_consumer().unwrap();
         drop(consumer);
+    }
+
+    #[test]
+    fn pause_waits_for_an_already_selected_delivery_before_returning() {
+        let (_, dispatcher) = lazy();
+        let (delivery, _) = dispatcher.targets(None).unwrap();
+        let config = crate::config::ConfigDraft::default().validate().unwrap();
+        let owner = Arc::new(crate::session::SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+        let context = crate::operation::OperationContext::rust_public(Instant::now(), "pause-fence-source-case",
+            owner.clone(), &config, &crate::OperationOptions::default()).unwrap();
+        let paused = dispatcher.clone();
+        let (entered_tx, entered_rx) = std::sync::mpsc::sync_channel(1);
+        let (ready_tx, ready_rx) = std::sync::mpsc::sync_channel(1);
+        let waiter = thread::spawn(move || {
+            entered_tx.send(()).unwrap();
+            let pause = paused.pause(&context).unwrap();
+            ready_tx.send(pause).unwrap();
+        });
+        entered_rx.recv().unwrap();
+        let until = Instant::now() + Duration::from_secs(1);
+        let mut routes = dispatcher.routes.lock().unwrap();
+        while routes.paused == 0 {
+            let remaining = until.saturating_duration_since(Instant::now());
+            assert!(!remaining.is_zero(), "the pause must enter while delivery is held");
+            routes = dispatcher.routing_changed.wait_timeout(routes, remaining).unwrap().0;
+        }
+        assert!(matches!(ready_rx.try_recv(), Err(std::sync::mpsc::TryRecvError::Empty)));
+        drop(routes);
+        drop(delivery);
+        let pause = ready_rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        assert_eq!(dispatcher.routes.lock().unwrap().active_deliveries, 0);
+        drop(pause); waiter.join().unwrap(); owner.close().unwrap();
     }
 }

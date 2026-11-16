@@ -334,11 +334,15 @@ impl Control {
             }
             if next_renewal.is_some_and(|at| Instant::now() >= at) {
                 let (executor, context) = self.context("subscription_renewal")?;
+                let mut received = Vec::new(); received.try_reserve(self.groups.len()).map_err(allocation)?;
                 for group in &self.groups {
                     let (updates, sequence) = self.refresh(&executor, &context, group, false)?;
-                    self.publish_updates(group, updates, sequence)?;
+                    received.push((group, updates, sequence));
                 }
+                // Publish no group until the whole finite renewal succeeds.
+                // Interleaved pushes remain ordered by their receive sequence.
                 context.finish()?;
+                for (group, updates, sequence) in received { self.publish_updates(group, updates, sequence)?; }
                 next_renewal = self.policy.renew_interval().and_then(|interval| Instant::now().checked_add(interval));
                 confirmed_until = Instant::now().checked_add(self.config.request_timeout()).ok_or_else(clock_overflow)?;
             }
@@ -443,7 +447,8 @@ impl OwnerTaskGroup for Control {
             let mut state = self.state.lock().map_err(|_| poisoned())?;
             while !state.retired || state.worker.as_ref().is_some_and(|worker| !worker.is_finished()) {
                 if state.worker.as_ref().is_some_and(JoinHandle::is_finished) && !state.retired {
-                    drop(state); self.retire(); state = self.state.lock().map_err(|_| poisoned())?; continue;
+                    drop(state); self.retire(); state = self.state.lock().map_err(|_| poisoned())?;
+                    if state.retired { break; }
                 }
                 let remaining = deadline.saturating_duration_since(Instant::now());
                 if remaining.is_zero() { return Err(Error::new(ErrorKind::CloseTimeout, "subscription retirement was not confirmed")); }
@@ -461,3 +466,61 @@ fn allocation(source: std::collections::TryReserveError) -> Error {
 }
 fn clock_overflow() -> Error { Error::new(ErrorKind::InvalidArgument, "subscription deadline or capacity overflows") }
 fn poisoned() -> Error { Error::new(ErrorKind::Internal, "subscription state is poisoned") }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    fn lazy_control(owner: &Arc<SessionOwner>, raw: RawPolicy) -> Arc<Control> {
+        let config = crate::config::ConfigDraft::default().validate().unwrap();
+        let engine = crate::client::engine_with_hosts(&config, vec!["127.0.0.1:9".into()]).unwrap();
+        let dispatcher = Dispatcher::new(&engine).unwrap();
+        let policy = SubscriptionOptions::default().with_renew_interval(None);
+        let queue = EventQueue::new(&policy).unwrap();
+        Arc::new(Control { owner: Arc::downgrade(owner), engine, config,
+            metadata: Arc::new(MetadataSnapshot::empty("subscription-source-case")), raw, policy,
+            dispatcher, groups: Vec::new(), token: CancellationToken::default(),
+            state: Mutex::new(State { queue, routes: Vec::new(), armed: false, stopping: false,
+                own_closed: false, deadline: None, worker: None, retiring: false,
+                retired: false, cleanup_error: None }), changed: Condvar::new() })
+    }
+
+    #[test]
+    fn renewal_contexts_have_fresh_budgets_and_only_inherit_raw_policy() {
+        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+        let control = lazy_control(&owner, RawPolicy::RetainWire);
+        let setup_token = CancellationToken::default();
+        let setup_deadline = Instant::now() + Duration::from_secs(1);
+        let setup = OperationContext::rust_public(Instant::now(), "setup", owner.clone(), &control.config,
+            &OperationOptions::default().with_deadline(setup_deadline).with_cancellation(setup_token.clone())).unwrap();
+        setup.finish().unwrap(); drop(setup); setup_token.cancel();
+        let (_, first) = control.context("subscription_renewal").unwrap();
+        assert_eq!(first.raw(), RawPolicy::RetainWire);
+        assert!(first.sponsor().deadline().unwrap() > setup_deadline);
+        assert_eq!(first.counters().unwrap().logical_requests, 0);
+        let (_, second) = control.context("subscription_renewal").unwrap();
+        assert_ne!(first.id, second.id);
+        assert!(second.sponsor().deadline().unwrap() >= first.sponsor().deadline().unwrap());
+        control.token.cancel();
+        assert_eq!(first.check_boundary(TimeoutPhase::Queue).unwrap_err().kind(), ErrorKind::Cancelled);
+        assert_eq!(second.check_boundary(TimeoutPhase::Queue).unwrap_err().kind(), ErrorKind::Cancelled);
+        drop(first); drop(second); owner.close().unwrap();
+    }
+
+    #[test]
+    fn a_registered_worker_and_control_do_not_keep_the_last_owner_alive() {
+        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+        let weak = Arc::downgrade(&owner);
+        let control = lazy_control(&owner, RawPolicy::Omit);
+        owner.register_task_group(control.clone()).unwrap();
+        control.start().unwrap();
+        let subscription = Subscription { owner: owner.clone(), control: control.clone() };
+        drop(owner); drop(subscription);
+        // This confirms the real worker exit after Drop signalled it, without
+        // making another public read or retaining a strong owner for joining.
+        control.close_until(Instant::now() + Duration::from_secs(1)).unwrap();
+        assert!(weak.upgrade().is_none());
+        assert!(control.state.lock().unwrap().retired);
+    }
+}
