@@ -67,6 +67,8 @@ build, dependency, network, formatter, AST or other execution validation ran.
 
 ## Third checkpoint — limit-board typed source and initial route/result cases
 
+Committed as `2a9e05d`; preceding endpoint foundation is `5a4185c`.
+
 Added both distinct query structs and public methods for limit_up_down_list /
 limit_board_ladder. Explicit/repeated/local-clock dates are distinguished;
 injected LocalDateClock is lazy, and SystemLocalDateClock uses provisional
@@ -92,3 +94,14 @@ Still to implement: full scoped fields registry, historical money flow,
 complete endpoint/branch route inventory and remaining result projection
 details. Counts19/5/6; all later source stages remain required. No execution
 validation, dependency resolution, new agents or publication occurred.
+
+Resume note: read both Python `fields.py` and `fields_mg_hk.py` in full after
+this commit. Next migrate their complete literal registries, dictionary
+inheritance/override order, two cash-flow notes and exact scope routing. All
+four A-share statement templates require nhytype; bank cash-flow T088 has
+only a dynamic-field note and must not inherit the balance-sheet T088 label.
+MG/HK/SB labels use their declared scope index and wildcard fallback. The
+non-prefix analyst forecast mapping exists in the MG/HK helper registry but
+the top Python dispatcher does not route it there; retain this compatibility
+distinction separately from the new Rust explicit field resolver. No field
+registry source has been written yet, and no runtime was invoked to extract it.

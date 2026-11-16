@@ -2,6 +2,12 @@
 
 ## Setup
 
+- Durable stage40 source commit is2a9e05d; endpoint foundation5a4185c.
+  Fully read both Python F10 field dictionaries; next registry migration must
+  preserve template overlays, scope indices, notes and unknown bank cashflow
+  T088. No field implementation yet. Counts19/5/6, active goal without quota;
+  all execution validation remains deferred.
+
 - Latest recovery2026-11-17 stage40: endpoint checkpoint5a4185c. Authored
   shared F10 streamed aggregate bytes, composed prerequisite raw metadata,
   deadline-covered market projections and validated report dates. Both ladder
