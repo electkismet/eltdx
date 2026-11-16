@@ -226,7 +226,7 @@ impl SessionOwner {
         Ok(())
     }
 
-    fn reap_completed_tasks(&self) {
+    pub(crate) fn reap_completed_tasks(&self) {
         let tasks = match self.state.lock() {
             Ok(state) => state.tasks.clone(),
             Err(_) => return,

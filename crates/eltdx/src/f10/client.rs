@@ -1,9 +1,10 @@
 use std::num::{NonZeroU64, NonZeroUsize};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use super::config::{checked_url, INTERNATIONAL_URL, LADDER_URL, STATIC_URL};
-use super::{F10Config, Header, ProxyUrl, ResolverPolicy, TlsPolicy};
+use super::{CallQuery, F10Config, Header, ParamsQuery, ProxyUrl, ResolverPolicy, Response, Route, TlsPolicy};
 use crate::config::{ClientConfig, ConfigDraft};
 use crate::operation::{OperationContext, OperationOptions};
 use crate::session::SessionOwner;
@@ -111,6 +112,15 @@ impl F10ClientBuilder {
         config.proxy = self.proxy;
         config.tls = self.tls;
         config.resolver = self.resolver;
+        for header in &config.headers {
+            hyper::header::HeaderName::from_bytes(header.name().as_bytes())
+                .map_err(|error| Error::new(ErrorKind::InvalidArgument, "invalid HTTP header name").with_source(error))?;
+            hyper::header::HeaderValue::from_str(header.value())
+                .map_err(|error| Error::new(ErrorKind::InvalidArgument, "invalid HTTP header value").with_source(error))?;
+            if ["Host", "Content-Length", "Transfer-Encoding", "Connection"].iter().any(|name| header.name().eq_ignore_ascii_case(name)) {
+                return Err(Error::new(ErrorKind::InvalidArgument, "F10 framing headers are transport-owned").with_context("header", header.name()));
+            }
+        }
         let common = ConfigDraft {
             request_timeout: self.timeout, close_timeout: self.close_timeout,
             cleanup_timeout: self.cleanup_timeout, heartbeat_interval: None,
@@ -118,7 +128,8 @@ impl F10ClientBuilder {
         }.validate()?;
         let owner = Arc::new(SessionOwner::new(self.close_timeout, self.cleanup_timeout));
         let diagnostics = Mutex::new(F10Diagnostics { generation: owner.generation(), ..F10Diagnostics::default() });
-        Ok(F10Client { inner: Arc::new(F10Inner { config, common, owner, diagnostics }) })
+        Ok(F10Client { inner: Arc::new(F10Inner { config, common, owner, diagnostics,
+            connected: AtomicBool::new(false), gate: Arc::new(super::worker::Concurrency::new(4)) }) })
     }
 }
 
@@ -128,6 +139,8 @@ pub(crate) struct F10Inner {
     pub(crate) common: ClientConfig,
     pub(crate) owner: Arc<SessionOwner>,
     pub(crate) diagnostics: Mutex<F10Diagnostics>,
+    connected: AtomicBool,
+    gate: Arc<super::worker::Concurrency>,
 }
 
 /// An independent F10 owner. Clones share its lifetime and irreversible close.
@@ -141,6 +154,76 @@ impl F10Client {
             .map_err(|_| Error::new(ErrorKind::Internal, "F10 diagnostics lock poisoned"))
     }
     pub fn close(&self) -> Result<()> { self.inner.owner.close() }
+    /// Explicitly resolve and negotiate the base endpoint. F10 has no protocol
+    /// login; this probe closes its socket after transport negotiation.
+    pub fn connect(&self, options: &OperationOptions) -> Result<()> {
+        let context = self.context(Instant::now(), "f10.connect", options)?;
+        if self.inner.connected.load(Ordering::Acquire) { return context.finish(); }
+        let slot = self.inner.gate.acquire(&context)?;
+        if self.inner.connected.load(Ordering::Acquire) { return context.finish(); }
+        let authorization = context.begin_child(crate::operation::ChildPurpose::Required, None)?.into_transport_authorization();
+        let reply = super::worker::Job::execute(self.inner.config.clone(),
+            super::worker::Work::Connect(self.inner.config.base_url.clone()), authorization, &context, slot)
+            .map_err(|error| context.annotate(error, crate::TimeoutPhase::Connect, None).with_context("domain", "f10"))?;
+        self.record_endpoint(reply.url)?;
+        self.inner.connected.store(true, Ordering::Release);
+        context.finish()
+    }
+    pub fn call(&self, query: &CallQuery, options: &OperationOptions) -> Result<Response> {
+        let context = self.context(Instant::now(), "f10.call", options)?;
+        let response = self.call_in_context(query, &context)?;
+        context.finish()?;
+        Ok(response)
+    }
+    pub fn params(&self, query: &ParamsQuery, options: &OperationOptions) -> Result<Response> {
+        let context = self.context(Instant::now(), "f10.params", options)?;
+        let query = CallQuery::new(query.entry().clone(), super::RequestPayload::Params(query.params().to_vec()));
+        let response = self.call_in_context(&query, &context)?;
+        context.finish()?;
+        Ok(response)
+    }
+    /// T20 convenience endpoints use this seam so prerequisites and all pages
+    /// share the original entry clock, owner admission and request counters.
+    pub(crate) fn call_in_context(&self, query: &CallQuery, context: &OperationContext) -> Result<Response> {
+        use crate::types::{Diagnostic, EnrichmentStatus, RawData, RawPolicy, ResultMeta, SourceStamp};
+        use crate::{operation::ChildPurpose, TimeoutPhase};
+        use bytes::Bytes;
+        let result = (|| {
+            context.check_boundary(TimeoutPhase::Send)?;
+            let slot = self.inner.gate.acquire(context)?;
+            let body = query.payload().encoded(self.inner.config.max_encoded_bytes.get() as usize,
+                &mut || context.check_boundary(TimeoutPhase::Send))?;
+            let authorization = context.begin_child(ChildPurpose::Required, None)?.into_transport_authorization();
+            let reply = super::worker::Job::execute(self.inner.config.clone(), super::worker::Work::Post {
+                url: self.inner.config.request_url(query.entry()), body: Bytes::from(body),
+                retain_payload: context.raw() != RawPolicy::Omit,
+                retain_wire: context.raw() == RawPolicy::RetainWire,
+            }, authorization, context, slot.clone())?;
+            context.record_work(0, reply.body.len())?;
+            let value = super::json::decode(&reply.body, self.inner.config.max_response_bytes.get() as usize,
+                &mut || context.check_boundary(TimeoutPhase::Decode))?;
+            context.check_boundary(TimeoutPhase::Decode)?;
+            let source = SourceStamp::new(None, Some(reply.endpoint), context.session_id.to_string(), None, None);
+            let diagnostic = Diagnostic::new(Route::for_entry(query.entry()).name(), "http", EnrichmentStatus::Succeeded,
+                None, Some(reply.url.clone()));
+            let raw = (context.raw() != RawPolicy::Omit).then(|| RawData::new(vec![Bytes::from(reply.encoded)],
+                (context.raw() == RawPolicy::RetainWire).then(|| vec![Bytes::from(reply.wire)]), Vec::new()));
+            let response = Response::from_json(query.entry().as_str().to_owned(), query.payload().clone(), value,
+                context.raw() != RawPolicy::Omit, ResultMeta::new(source, vec![diagnostic], raw),
+                &mut || context.check_boundary(TimeoutPhase::Decode))?;
+            self.record_endpoint(reply.url)?;
+            Ok(response)
+        })();
+        result.map_err(|error| context.annotate(error, TimeoutPhase::Response, None)
+            .with_context("domain", "f10").with_context("entry", query.entry().as_str()))
+    }
+    fn record_endpoint(&self, url: String) -> Result<()> {
+        let mut state = self.inner.diagnostics.lock().map_err(|_| Error::new(ErrorKind::Internal, "F10 diagnostics lock poisoned"))?;
+        state.active_endpoint = Some(url);
+        state.completed_requests = state.completed_requests.checked_add(1)
+            .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "F10 diagnostic counter overflow"))?;
+        Ok(())
+    }
     pub(crate) fn context(&self, entry: Instant, name: &'static str, options: &OperationOptions) -> Result<OperationContext> {
         OperationContext::rust_public(entry, name, Arc::clone(&self.inner.owner), &self.inner.common, options)
     }

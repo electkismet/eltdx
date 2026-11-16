@@ -391,6 +391,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T19：HTTP 依赖验证与 F10 基础传输
 
+2026-11-17第三段源码：owner检查点`545dd8b`后接入HTTP/DNS/TLS、原预算授权、4-worker准入/取消/关闭确认、CONNECT/IPv4回退/原始字节/三类限额，补公共F10故障用例源码。依赖选择均暂定，完全未执行验证。T19仍部分待源码边界复查和完整证据，19/4/7不变；随后T20必须覆盖157入口。
+
 2026-11-17第二段源码：值层`8a339c0`后增加独立F10 owner/builder/diagnostics与现有RequestPermit授权转移。只完成本地配置/共享关闭和预算接缝，HTTP/DNS/TLS/connect/call/params仍待接线。新增用例未运行，19/4/7不变。
 
 2026-11-17首段源码：在`515a13c`后开始T19，config/json/request/response和公开值层用例已写；保留数字lexeme/重复字段/多表及Python列名碰撞视图。HTTP/TLS/DNS、客户端owner与完整本机fixture仍待实现，T19仅部分。19源码完成/4部分/7未开始，全部执行验证延期。

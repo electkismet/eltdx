@@ -8,6 +8,11 @@ mod client;
 mod json;
 mod request;
 mod response;
+mod control;
+mod io;
+mod resolver;
+mod http;
+mod worker;
 
 pub use config::{F10Config, Header, ProxyUrl, ResolverPolicy, Route, TlsPolicy};
 pub use client::{F10Client, F10ClientBuilder, F10Diagnostics};

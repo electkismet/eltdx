@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第三十七段恢复点：F10 owner已提交`545dd8b`。HTTP/DNS/TLS/worker及connect/call/params已接入源码；共用原预算、4 worker上限、取消/关闭确认、IPv4/IPv6、显式CONNECT、header/压缩/解压限额与raw已写，公共HTTP/TLS/故障用例源码已补。依赖全部暂定，未resolve/build/test；T19仍部分，需继续源码边界复查，再做T20完整157入口。19/4/7不变。读task-19-report第三段，目标active无额度限制。
+
 2026-11-17第三十六段恢复点：T19值层已提交`8a339c0`。新增F10独立惰性owner/client/builder/diagnostics，完整with_*配置、header覆盖顺序与共享关闭；现有RequestPermit新增内部授权转移，供HTTP复用同一预算。新增相关源码用例均未执行。HTTP/DNS/TLS和connect/call/params尚待接线，T19仍部分，19/4/7。恢复读task-19-report第二段继续，active无额度限制。
 
 2026-11-17第三十五段恢复点：T18 HQ源码收尾已提交`515a13c`。T19已开始，新增F10 config/json/request/response、feature声明及未执行用例源码；精确数字/重复键/多表模型和路由默认值已写。HTTP/TLS/DNS传输、builder/client及完整故障fixture仍待实现；不把值层当作T19完成。当前19源码完成/4部分（T19/T22/T24/T25）/7未开始。恢复读task-19-report.md继续HTTP foundation；全部测试/构建/依赖解析/网络/执行检查仍延期，active无额度限制。
@@ -73,7 +75,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | F10值层 `8a339c0`；第三十六段独立owner与授权接缝已写；全部执行验证延期 |
+| 最新检查点 | F10 owner `545dd8b`；第三十七段HTTP/DNS/TLS与公开调用源码已写；全部执行验证延期 |
 | 当前阶段 | T01–T18及T21源码完成；T19/T22/T24/T25部分；19完整源码/4部分/7未开始。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

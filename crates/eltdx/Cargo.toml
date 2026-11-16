@@ -10,7 +10,7 @@ repository.workspace = true
 default = []
 serde = ["dep:serde"]
 offline = []
-f10 = ["dep:serde_json", "dep:url"]
+f10 = ["dep:serde_json", "dep:url", "dep:tokio", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:rustls", "dep:rustls-native-certs", "dep:hickory-resolver", "dep:flate2"]
 ex = []
 mac = ["ex"]
 full = ["serde", "offline", "f10", "ex", "mac"]
@@ -25,6 +25,18 @@ eltdx-runtime = { path = "../eltdx-runtime" }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 url = { version = "=2.5.8", optional = true }
+tokio = { workspace = true, optional = true }
+hyper = { version = "=1.12.0", default-features = false, features = ["client", "http1"], optional = true }
+hyper-util = { version = "=0.1.21", default-features = false, features = ["tokio"], optional = true }
+http-body-util = { version = "=0.1.5", optional = true }
+tokio-rustls = { version = "=0.26.6", default-features = false, features = ["ring", "tls12"], optional = true }
+rustls = { version = "=0.23.46", default-features = false, features = ["std", "ring", "tls12"], optional = true }
+rustls-native-certs = { version = "=0.8.2", optional = true }
+hickory-resolver = { version = "=0.24.4", default-features = false, features = ["tokio-runtime", "system-config"], optional = true }
+flate2 = { workspace = true, optional = true }
+
+[dev-dependencies]
+rcgen = { version = "=0.13.2", default-features = false, features = ["crypto", "ring"] }
 
 [lints]
 workspace = true

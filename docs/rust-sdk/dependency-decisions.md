@@ -96,3 +96,46 @@ and cancellation/close retiring every owned task. It must consume the existing
 `RequestPermit`/`AttemptAuthorization` instead of inventing a second operation
 budget. T19 is incomplete until this path and all required source cases exist;
 final execution evidence remains deferred until all implementation is complete.
+
+### T19 third source checkpoint — provisional transport is now authored
+
+The previous unselected-transport paragraph is historical. F10 now declares
+the following optional source choices; **none is resolved, downloaded, locked,
+compiled, license-audited or exercised in this implementation session**:
+
+| Dependency | Pin/features | Role and expected metadata |
+| --- | --- | --- |
+| hyper | 1.12.0, client/http1 only | HTTP parser/framing; cached metadata Rust 1.63, MIT |
+| hyper-util | 0.1.21, tokio only | Tokio I/O bridge; cached metadata Rust 1.85, MIT |
+| http-body-util | 0.1.5 | streaming response frames, fixed request body; metadata pending |
+| rustls | 0.23.46, std/ring/tls12, defaults off | certificate/hostname TLS; cached metadata Rust 1.71, Apache-2.0 OR ISC OR MIT |
+| tokio-rustls | 0.26.6, ring/tls12, defaults off | cancellable TLS handshake; cached metadata Rust 1.71, MIT OR Apache-2.0 |
+| rustls-native-certs | 0.8.2 | system trust loading at first TLS use; pin/API/MSRV/license provisional |
+| hickory-resolver | 0.24.4, tokio-runtime/system-config, defaults off | asynchronous DNS without blocking getaddrinfo; pin/API/MSRV/license provisional |
+| flate2 | workspace 1.1.2, rust_backend | same existing inflater for streaming gzip/deflate, no extra ZIP stack |
+| rcgen | 0.13.2, crypto/ring, dev only | authored local TLS certificate fixture; pin/API/MSRV/license provisional |
+
+One synchronous public call starts an owner-registered worker with its own
+current-thread Tokio runtime, capped at four live workers per F10 owner.
+The worker's DNS/TCP/TLS/HTTP futures all use the original operation sponsor;
+no blocking DNS task is detached. Physical connect attempts reserve/commit the
+existing RequestPermit authorization. Failed addresses and redirects preserve
+one increasing attempt number. There is no application retry after a POST.
+The worker drops its runtime before publishing done, and callers wait for the
+thread to finish before joining. Owner close stops and joins registered work.
+
+System DNS configuration and native trust loading are synchronous local OS
+operations inside the registered worker. Cancellation can terminate waiting
+and return CancelUnconfirmed if one of those OS calls fails to retire before
+the cleanup deadline; success must never claim the thread exited without the
+join. Their platform behavior, including Windows trust-store loading, remains
+an explicit final verification concern. No build/getter reads either source.
+
+Hyper enforces response header bytes; streamed body frames enforce encoded
+bytes, and the inflater's checked writer enforces decoded bytes. A separate
+bounded observer retains actual HTTP plaintext (TLS ciphertext excluded) and
+bounds chunk/header overhead. RetainPayload stores encoded body bytes;
+RetainWire additionally stores received HTTP plaintext. Ordered caller headers
+are emitted through a bounded first-header-block adapter because HeaderMap
+alone groups separated duplicate names. All of these contracts still require
+the authored public-client fixtures and final feature/platform/MSRV runs.

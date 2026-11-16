@@ -57,3 +57,43 @@ header order, duplicate header and close source cases.
 Continue HTTP/DNS/TLS, actual public connect/call/params, bounded streaming and
 all fault fixture sources. Counts19 complete/4 partial/7 unstarted unchanged.
 No test/build/check/AST/dependency/format/network execution or subagents.
+
+## Third checkpoint — HTTP/DNS/TLS source and public fixture matrix
+
+Second checkpoint committed as `545dd8b`. Added control.rs/resolver.rs/io.rs/
+http.rs/worker.rs and wired public connect/call/params plus the T20
+call_in_context seam. Provisional dependencies and limitations are recorded in
+dependency-decisions.md, not claimed as verified choices.
+
+- Registered worker/runtime ownership, max4 active jobs, cancellable queue,
+  original sponsor/deadline and unique RequestPermit connect authorization.
+  Post has no application retry. Address and redirect attempts share counters.
+- Async Hickory DNS, numeric IPv4/IPv6 fast path, v4 preference plus v6 fallback,
+  explicit proxy CONNECT, rustls hostname/custom/system trust and HTTP/1.1 ALPN.
+- Default no environment proxy, cookies or cache. Strict POST-preserving
+  redirect handling, independent routes, UTF8 body and no injected QSID.
+- Header/encoded/decoded/frame-overhead limits, streamed gzip/deflate and raw
+  encoded payload versus actual received HTTP plaintext. Header order adapter
+  preserves separated duplicate caller names without changing Hyper body framing.
+- Worker done publishes after runtime destruction, join only after finished,
+  failed cleanup preserves original cause, and successful pages do not start
+  a terminal cleanup deadline on the shared multi-page parent.
+- Authored public f10_http.rs source for normal/route/status/JSON/BOM/short
+  headers/chunks/compression/byte caps/cancel/close/DNS/queue/TLS/SNI/hostname/
+  untrusted root/CONNECT/IPv6/environment isolation/idempotent connect/header
+  ordering; no fixture server or test has been started.
+
+T19 remains partial pending focused source review of transport boundary cases,
+complete source evidence and remaining fixture matrix. OS trust/config reads
+are local synchronous calls inside a registered worker; an unresponsive call
+must yield unconfirmed cleanup, never a false successful cancellation. Final
+dependency/API/MSRV/platform evidence is absent by user instruction.
+Next finish this source review, then T20 all157 entry/query implementations;
+do not treat generic call as full F10. Counts19/4/7 unchanged, unlimited active.
+
+Same-stage review correction: worker now retains a shared concurrency lease
+through confirmed thread exit, including CancelUnconfirmed paths. Completed
+registered tasks are reaped outside the concurrency lock, so leaked capacity
+cannot strand later requests. SessionOwner's existing reap method is now
+crate-visible; no new owner registry was added. Header override order is emitted
+through bounded plaintext header adaptation, and related source cases authored.
