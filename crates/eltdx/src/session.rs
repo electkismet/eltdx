@@ -161,6 +161,7 @@ impl CleanupControl {
 pub(crate) struct SessionOwner {
     metadata: Arc<MetadataStore>,
     calendar: crate::calendar::CalendarCache,
+    helpers: crate::helpers::HelperCache,
     generation: usize,
     clock: ClockHandle,
     close_timeout: Duration,
@@ -180,6 +181,7 @@ impl SessionOwner {
         Self {
             metadata: Arc::clone(&metadata),
             calendar: crate::calendar::CalendarCache::default(),
+            helpers: crate::helpers::HelperCache::default(),
             generation: NEXT_OWNER_GENERATION.fetch_add(1, Ordering::Relaxed),
             clock,
             close_timeout,
@@ -207,6 +209,7 @@ impl SessionOwner {
 
     pub(crate) fn metadata(&self) -> &Arc<MetadataStore> { &self.metadata }
     pub(crate) fn calendar(&self) -> &crate::calendar::CalendarCache { &self.calendar }
+    pub(crate) fn helpers(&self) -> &crate::helpers::HelperCache { &self.helpers }
 
     pub(crate) const fn generation(&self) -> usize { self.generation }
 

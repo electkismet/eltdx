@@ -22,7 +22,8 @@ const FULL_QUOTE_CHUNK: usize = 80;
 /// touch the filesystem. Every network composition owns one operation context.
 #[derive(Clone, Debug)]
 pub struct HelperService {
-    executor: HqExecutor, engine: Engine, config: ClientConfig, namespace: String,
+    pub(super) executor: HqExecutor, pub(super) engine: Engine,
+    pub(super) config: ClientConfig, pub(super) namespace: String,
 }
 
 impl HelperService {
@@ -33,7 +34,7 @@ impl HelperService {
     fn quotes(&self) -> QuoteService {
         QuoteService::new(self.executor.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
     }
-    fn codes(&self) -> CodeService {
+    pub(super) fn codes(&self) -> CodeService {
         CodeService::new(self.executor.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
     }
     fn minutes(&self) -> MinuteService {
@@ -262,7 +263,7 @@ pub(crate) fn optional_failure(context: &OperationContext, error: &Error) -> Res
         _ => Ok(()),
     }
 }
-fn failed_diagnostic(source: &str, stage: &str, error: &Error) -> Diagnostic {
+pub(super) fn failed_diagnostic(source: &str, stage: &str, error: &Error) -> Diagnostic {
     Diagnostic::new(source, stage, EnrichmentStatus::Failed, Some(error.kind()), Some(error.message().to_owned()))
 }
 fn helper_overflow() -> Error { Error::new(ErrorKind::LimitExceeded, "HQ helper count or offset exceeds its finite range") }

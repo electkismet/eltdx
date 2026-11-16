@@ -139,6 +139,8 @@ T18源码算术补正（2026-11-16）：HQ样例F37的四笔Buy金额40000+20000
 
 T18组合源码补充（2026-11-16）：Table新增可选end()结束证据，使rank的RequestedWindow/EmptyPage能由调用方直接区分；公司目录等非收集table返回None。当前category没有独立短页EOF证据，Rust只把合法空页当EOF，页数/记录/wire offset触顶仍为LimitExceeded；不去重、不重排。full_quotes先冻结所有输入市场的元数据，随后每80个主快照与可选五档使用同一OperationContext；五档只替换两侧深度及open_amount，保留主快照原价格/wire/raw字段，补充来源单独记录。Python旧入口尚未在本检查点切换，迁移manifest不提升。这些均是源码裁定，未运行任何验证。
 
+T18 profile缓存裁定（2026-11-16）：共享owner维护目录market缓存和finance完整有序occurrence tuple缓存，附加载日/metadata版本/RawPolicy键；完整或确认缺失900秒，失败/部分失败30秒；每源16项及8192行/occurrence权重，超大不保留，clear以generation隔离旧在途发布。缓存保持原状态/错误/来源时间，不将加载日当服务端日；目录按实际发布版本缓存。财务内部collector沿用外层上下文与预算，不能重设已使用limits。clear不清calendar或precision、不删文件。Python旧缓存另走兼容适配，当前尚未迁移；本记录无运行验证含义。
+
 可以验证：静态快照重新生成一致、所有源码链接对应固定提交、Markdown链接与表格/围栏、MkDocs严格构建、根文档/包内镜像一致、已有文档测试。
 
 不能据此声称：拟议Rust API编译成功、所有业务与Python一致、线上行情正确、性能提高、wheel支持某个平台或已发布。上述结论必须等待实现后的独立验收。

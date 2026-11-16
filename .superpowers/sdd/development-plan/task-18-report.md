@@ -92,3 +92,45 @@ then ALL outstanding HQ Python/native migration, compatibility/consumer/example
 sources and exact evidence. T19–T30 remaining work still precedes any execution.
 No tests/collection/build/check/clippy/doctest/network/dependency resolution/
 AST/format/diff checks ran. Goal remains active without token quota; no agents.
+
+## Third source checkpoint — M86 profile and M87 owner-local cache
+
+Authored source and bounded source-only self-review complete; all execution still
+deferred. T18 remains partial, so totals remain18 complete/4 partial/8 unstarted.
+
+- Added ProfileQuery and StockProfile, root/types exports, and
+  HelperService::stock_profile_table/clear_cache. One outer context freezes
+  aggregate limits, gets required full quotes first, then optional directory and
+  finance. Preserves input occurrences, original security/finance values, source
+  dates/units/raw and independent Succeeded/Unavailable/Failed/NotRequested states.
+- Turnover is percentage points (hands*100/shares*100); values are shares*price
+  CNY. Zero/invalid denominators and unsupported units omit the affected derived
+  field with diagnostics. Finite raw EPS remains F32, including negative values;
+  nonfinite EPS is omitted while the original FinanceRecord remains accessible.
+- Extracted CorporateService::finance_collect_in_context, which never resets
+  parent limits or finishes the outer operation. Public finance retains its
+  original limit wrapper/chunk300; profile uses chunk80/Fallback and keeps
+  successful batches when a separate optional batch fails. Cancellation, owner
+  close and total deadline are never converted into cached optional success.
+- HelperCache belongs to SessionOwner and is shared by cloned clients/services.
+  Catalog keys use market, finance keys the full ordered occurrence tuple; both
+  include local load date, metadata version and exact RawPolicy. Complete or
+  confirmed-missing results expire after900s, failures/partial failures after30s.
+  Both source caches are bounded to16 entries/8192 retained row or occurrence
+  weights. Oversized results are returned but not retained. Date is local load
+  date, never proof of a server trading date; original source stamps are retained.
+- Clear invalidates in-flight publication by generation and only clears helper
+  memory. It preserves calendar/precision/session/user files. No cache lock spans
+  I/O; clock reversal invalidates hits; late older version/load cannot overwrite
+  newer retained entries. Catalog uses the actually published version after a
+  complete scan, avoiding repeated misses. Finance conservatively reloads once
+  after a primary metadata version change.
+- Added source cases for units/derived fields/raw/order/duplicates, explicit
+  source states, zero denominator, empty/disabled sources, expiry/clear/raw keys,
+  80+1 partial finance, in-flight clear/cancellation, published catalog version,
+  and calendar preservation. These are synthetic and have never run.
+
+Next: M88–M94/M96–M97 (shares/limits/shortline/ladder/auction/market/day-flow/
+boards), complete Python HQ/native migration, manifest evidence, independent
+consumer/examples. M95 and M79–M87 must not be reimplemented after recovery.
+No Python facade switch or manifest status upgrade occurred in this checkpoint.

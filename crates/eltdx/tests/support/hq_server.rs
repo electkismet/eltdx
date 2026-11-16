@@ -192,6 +192,43 @@ pub fn snapshots(rows: &[(&str, i64)]) -> Vec<u8> {
     payload
 }
 
+/// Source hand volumes allow profile arithmetic to have nonzero inputs.
+pub fn snapshots_with_volume(rows: &[(&str, i64, i64)]) -> Vec<u8> {
+    let mut payload = vec![0, 0];
+    payload.extend_from_slice(&(rows.len() as u16).to_le_bytes());
+    for &(number, current_hundredths, total_hand) in rows {
+        payload.push(1); payload.extend_from_slice(number.as_bytes());
+        payload.extend_from_slice(&1_u16.to_le_bytes());
+        append_varint(&mut payload, current_hundredths / 100);
+        for _ in 0..6 { append_varint(&mut payload, 0); }
+        append_varint(&mut payload, total_hand); append_varint(&mut payload, 0);
+        payload.extend_from_slice(&0_u32.to_le_bytes());
+        for _ in 0..8 { append_varint(&mut payload, 0); }
+    }
+    payload
+}
+
+/// Fixed finance records. Only circulation/total (ten-thousand shares) and
+/// raw EPS vary; remaining source values are finite zero, with explicit dates.
+pub fn finance(rows: &[(&str, f32, f32, f32)]) -> Vec<u8> {
+    let mut payload = (rows.len() as u16).to_le_bytes().to_vec();
+    for &(number, circulation, total, eps) in rows {
+        payload.push(1); payload.extend_from_slice(number.as_bytes());
+        payload.extend_from_slice(&circulation.to_le_bytes());
+        payload.extend_from_slice(&3_u16.to_le_bytes()); payload.extend_from_slice(&7_u16.to_le_bytes());
+        payload.extend_from_slice(&20261116_u32.to_le_bytes()); payload.extend_from_slice(&19910101_u32.to_le_bytes());
+        for index in 1..31 {
+            let value = if index == 1 { total } else if index == 7 { eps } else { 0.0 };
+            payload.extend_from_slice(&value.to_le_bytes());
+        }
+    }
+    payload
+}
+
+pub fn finance_codes(request: &RequestFrame) -> Vec<String> {
+    request.data[2..].chunks_exact(7).map(|row| String::from_utf8(row[1..7].to_vec()).unwrap()).collect()
+}
+
 pub fn refresh(rows: &[(&str, u32)]) -> Vec<u8> {
     let mut payload = (rows.len() as u16).to_le_bytes().to_vec();
     for &(number, cursor) in rows {

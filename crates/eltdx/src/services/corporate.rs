@@ -123,16 +123,28 @@ impl CorporateService {
         let codes = checked_ids(ids)?;
         if codes.is_empty() { return Ok(BatchOutcome::new(Vec::new())); }
         context.set_work_limits(WorkLimits { pages: std::num::NonZeroUsize::new(ids.len().div_ceil(FINANCE_CHUNK)), records: Some(ids.len()), bytes: None })?;
+        self.finance_collect_in_context(context, ids, query, FINANCE_CHUNK, ChildPurpose::Required)
+    }
+
+    /// A composition freezes its aggregate limits before its first child.
+    /// This collector never resets those limits or finishes its parent context.
+    pub(crate) fn finance_collect_in_context(&self, context: &OperationContext, ids: &[SecurityId],
+        query: &FinanceQuery, chunk_size: usize, first_purpose: ChildPurpose) -> Result<BatchOutcome<FinanceRecord>> {
+        if !(1..=FINANCE_CHUNK).contains(&chunk_size) {
+            return Err(Error::new(ErrorKind::InvalidArgument, "finance chunk size must be between 1 and 300"));
+        }
+        let codes = checked_ids(ids)?;
+        if codes.is_empty() { return Ok(BatchOutcome::new(Vec::new())); }
         super::capture_existing_metadata(context, &self.namespace, ids)?;
         let mut first = true; let mut slots = Vec::new(); let mut metas = Vec::new();
         slots.try_reserve(ids.len()).map_err(allocation_error)?;
         let mut execute = |part: &[NormalizedCode], recovery: bool| {
-            let purpose = if recovery { ChildPurpose::MissingRecovery } else if first { first = false; ChildPurpose::Required } else { ChildPurpose::Page };
+            let purpose = if recovery { ChildPurpose::MissingRecovery } else if first { first = false; first_purpose } else { ChildPurpose::Page };
             let request = CommandRequest::FinanceBatch(FinanceBatchRequest::new(part.to_vec()).map_err(Error::from_protocol)?);
             let raw = self.executor.execute_raw(&self.engine, context, request, purpose, recovery.then_some(FINANCE_RECOVERY))?;
             self.executor.decode_received(context, raw)
         };
-        for chunk in codes.chunks(FINANCE_CHUNK) {
+        for chunk in codes.chunks(chunk_size) {
             let fetched = ordered_tree(context, chunk, false,
                 &mut |part, recovery| finance_step(context, part, recovery, &mut execute), &merge_finance)?;
             for reply in &fetched.replies {

@@ -386,6 +386,8 @@ rank按服务端返回顺序，不客户端重新排名；Some(count)达目标�
 
 T18源码接口补充：`Table<T>::end() -> Option<EndEvidence>`暴露组合收集器的结束证据；rank达到Some(count)为Some(RequestedWindow)，真正空页为Some(EmptyPage)。普通非分页table（如公司资料目录）为None。当前category的短页尚无独立EOF证明，Rust继续到空页或显式有限上限，不把短页当完整数据。此为尚未发布Rust入口的新增只读方法，不更改Python结果外观；实现与用例尚未执行验证。
 
+T18 profile/cache源码补充：`ProfileQuery::new()`默认启用security/finance，`with_security/with_finance`可关闭；StockProfile增加security_status/finance_status只读状态。两补充来源按输入occurrence关联且保留原DTO，零/非法股本及非有限EPS不产出错误派生字段。Helper缓存归属共享owner，目录按market、财务按完整有序occurrence tuple，再匹配本地加载日、metadata版本和RawPolicy；完整或确认缺失缓存900秒，失败/部分失败30秒，每源至多16项/8192行或occurrence权重，超大返回但不缓存。local load date不证明服务端交易日；不把旧stamp重写成当前来源。clear只清helper内存，通过generation拒绝清理前在途发布，calendar/precision/session/用户文件保持各自职责。目录扫描使用实际发布版本作缓存键；financial collector不得重设已发请求的外层limits。这是源码约定，未执行验证；Python旧缓存尚未切换。
+
 ## 12. 每日股本、涨跌停、短线与天梯（T16、T18）
 
 旧daily_share_capital(codes=None,stats_path="zhb.zip",refresh_stats=False)，daily_price_limits(codes=None,*,trade_date)；shortline_indicators(codes,stats_path="zhb.zip",refresh_stats=False)；limit_ladder(codes=None,include_touched=False,count=None)。daily_shares/stock_daily_price_limits/stock_limit_ladder只是Python别名。

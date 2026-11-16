@@ -54,6 +54,25 @@ fn owner_cache_is_shared_by_getters_but_expires_at_shanghai_midnight() {
 }
 
 #[test]
+fn clearing_helper_memory_preserves_the_independent_workday_cache() {
+    let loads = Arc::new(AtomicUsize::new(0)); let observed = loads.clone();
+    let server = hq_server::Server::start(move |request| {
+        if offset(request) == 0 { observed.fetch_add(1, Ordering::SeqCst); bars(request, &[19700102, 19700105]) }
+        else { bars(request, &[]) }
+    }).unwrap();
+    let client = client(&server, Arc::new(FixedClock(AtomicI64::new(0))));
+    let options = OperationOptions::default(); let query = CalendarQuery::new();
+    assert!(client.calendar().is_workday(date(2), &query, &options).unwrap());
+    client.clone().helpers().clear_cache();
+    assert!(client.calendar().is_workday(date(2), &query, &options).unwrap());
+    assert_eq!(loads.load(Ordering::SeqCst), 1);
+    client.calendar().clear_cache();
+    assert!(client.calendar().is_workday(date(2), &query, &options).unwrap());
+    assert_eq!(loads.load(Ordering::SeqCst), 2);
+    client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
 fn failed_refresh_keeps_the_previous_complete_snapshot_and_empty_has_no_coverage() {
     let loads = AtomicUsize::new(0);
     let server = hq_server::Server::start(move |request| {
