@@ -21,7 +21,7 @@
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T07 和 T09 实现及对应静态审阅完成；T08 正修复取消确认/attempt期限/legacy计数/诊断四项问题；T10 Stage A 正实现独立 metadata/types/value/clock 文件，owner 接入待 Stage B | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | 未开始 | 按用户要求暂不运行 |
-| P3 | T19–T23 F10、offline、financial | T21 本地编解码与源码用例收尾中，GBK 数据生成有 provenance；其余尚未开始 | 按用户要求暂不运行 |
+| P3 | T19–T23 F10、offline、financial | T21 的 `9734db3` 静态审阅发现空 customer-block leaf 应拒绝却被跳过；原实施者正做限定修复，其他 P3 任务尚未开始 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | 未开始 | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
 
@@ -56,6 +56,10 @@
 ## 恢复规则
 
 最新恢复点：goal 模式继续 active，remainingTokens=null。T09 已提交 `ae11c2a`/`65ef657` 并获限定静态审阅批准。T08 fix round 1 正针对四个 Important 发现修改；T10 Stage A 已获 GO，限定在新 metadata/types/value/clock 与 metadata/unit 源码用例；T21 正收尾离线实现，已按授权用 Python 3.12.14 内置 gbk codec 生成静态映射表和 provenance。T10 暂不接入 SessionOwner，须待 T08 scoped re-review 通过后才有 Stage B GO。T11–T30 的 brief 仍只是计划，不表示实现完成。没有运行测试、构建、检查或网络验证。
+
+T21 于 `9734db3` 完成35个非财报本地 API、模型/格式算法、GBK 静态查表数据及四组测试源码；所有验证延期。仅运行了经授权的一次 Python 3.12.14 标准库 GBK 映射数据生成，脚本、版本和来源已在实现报告记录。任务审阅包以 `230e566` 为基线，仅含 T21 自有文件，scoped source review 进行中。T10 的 `Diagnostic`/`EnrichmentStatus` 共享实现仍待完成；这不是 T21 已验证集成的证据。
+
+T21 第一轮静态审阅指出 `read_custom` 将空 leaf 当作可跳过数据，违背 brief 的路径名边界；另一个 Minor 是用例同样期望跳过。修复限定为拒绝空 leaf 并保留空 block 名称/missing `.blk` 的独立兼容跳过。原实施者正在从 `9734db3` 进行 fix round 1；之后需对修复 diff 做 scoped re-review。没有运行测试或验证。
 
 1. 以当前实施分支最新提交为准；不切回或直接提交 `main`。
 2. 先读本文件、`development-plan.md` 对应任务、相关API规格及 `git status`；保留未提交的用户工作。

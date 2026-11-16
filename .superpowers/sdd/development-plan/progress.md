@@ -136,6 +136,8 @@
 - Ruling: T10 may begin isolated Stage A after a slot opens, confined to new metadata files, shared types/value/clock modules and its metadata/unit source cases; no operation/session/executor/root/client/config/runtime/bridge edits until explicit Stage B GO after T08 approval. Frozen sponsor and Diagnostic interfaces already define this independent work. — Cost if wrong: integration may require narrow adaptation after T08 fixes; do not preempt its terminal/admission changes. This supersedes only the earlier blanket no-code wait, not the shared-file gate. Stage A is partial implementation, not task completion. Brief updated; dispatch still pending slot availability.
 - Ruling: T21 may execute a one-shot source DATA GENERATOR using only installed Python's built-in gbk codec to emit the authoritative two-byte Rust lookup table and generator provenance. This is implementation-data generation, not a project test or Rust/codec comparison: no project imports, assertions, validation/compile/AST/format/network commands, or test runners. Python GBK and WHATWG/GB18030 mappings differ, so encoding_rs alone cannot establish exact legacy decoding. — Cost if wrong: a generated table tied to this interpreter could hide platform/version behavior differences; retain generator/version provenance and independent manually specified source cases for unified parity validation. Report accurately states data generation occurred while no validation ran.
 - Recovery 2026-11-16: user resumed goal mode; existing goal is active with no token budget. T10 Stage A GO issued against base `2ac3870`, restricted to new metadata/value/type/clock modules and metadata/unit source cases; T08-owned operation/session/executor/runtime/root/bridge paths remain gated until scoped re-review approves. T21 reports one-shot GBK mapping-table generation using bundled Python 3.12.14 built-in codec, with generator/version provenance; source/report/commit are still in progress. T08 fix round 1 is still in progress. No tests or validation commands have run.
+- Task 21: final source/data/case/report commit `9734db3` complete; implementation report is `task-21-report.md`. Task-scoped static source review is running over `task-21-review-9734db3.diff` (base `230e566`; owned offline paths only). The authorized GBK one-shot source-data generator was executed once with bundled Python 3.12.14 built-in `gbk`, and provenance is recorded. No tests, collection, build/check/clippy/doctest, network, compile/AST/format/diff checks, or equivalent validation ran. T10 shared Diagnostic integration and GBK/platform behaviors remain unverified until the final unified validation phase.
+- Task 21: scoped static review of `9734db3` found one Important spec mismatch plus its matching Minor source-case mismatch: an empty customer-block leaf name was skipped although the brief requires rejection; an empty block name remains a separate documented legacy skip. Original implementer resumed for fix round 1 from review head `9734db3`; change only the invalid-leaf behavior and source case, then scoped re-review. No validation commands ran.
 
 | Task | Status |
 |---|---|
@@ -159,7 +161,7 @@
 | T18 | Not started |
 | T19 | Not started |
 | T20 | Not started |
-| T21 | Implementing isolated offline codecs/read/write/paths and source cases; GBK static data generated with provenance; report/review pending |
+| T21 | Fix round 1 for one Important finding; base/review head `9734db3`; verification deferred |
 | T22 | Not started |
 | T23 | Not started |
 | T24 | Not started |
