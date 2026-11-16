@@ -2,6 +2,14 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage41: after2a9e05d/fba8a77 authored full
+  fields/data Rust dictionaries and scope/template/note resolver. PowerShell
+  literal-only authoring generator ran; no Python import/AST or code validation
+  ran. Authored unexecuted field cases across12 statement templates and MG/HK.
+  Read task-20-report fourth checkpoint. Next F10 history/range and all157
+  endpoint/branch fixture completeness, then remaining stages.19/5/6 unchanged,
+  unlimited active goal; all execution tests/checks remain deferred.
+
 - Durable stage40 source commit is2a9e05d; endpoint foundation5a4185c.
   Fully read both Python F10 field dictionaries; next registry migration must
   preserve template overlays, scope indices, notes and unknown bank cashflow

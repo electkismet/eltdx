@@ -17,6 +17,7 @@ mod values;
 mod clock;
 mod endpoints;
 pub mod news;
+pub mod fields;
 
 pub use config::{F10Config, Header, ProxyUrl, ResolverPolicy, Route, TlsPolicy};
 pub use client::{F10Client, F10ClientBuilder, F10Diagnostics};

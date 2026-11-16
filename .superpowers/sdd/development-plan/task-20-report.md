@@ -105,3 +105,36 @@ non-prefix analyst forecast mapping exists in the MG/HK helper registry but
 the top Python dispatcher does not route it there; retain this compatibility
 distinction separately from the new Rust explicit field resolver. No field
 registry source has been written yet, and no runtime was invoked to extract it.
+
+## Fourth checkpoint — full scoped field dictionary source
+
+The preceding resume note is now superseded: `f10/fields.rs` and
+`f10/fields/data.rs` are authored. The data file was transcribed by
+`tools/generate_f10_fields.ps1`, which reads literal pairs/includes without
+importing, evaluating or running either Python module. That authoring command
+did run; it performs no AST/build/test/format/runtime/network validation.
+
+All source dictionaries are represented, including include/override order,
+four balance/income/cash-flow templates, all MG/HK labels and cash-flow notes.
+FieldContext takes Entry/request scope and explicit FieldMetadata for nhytype
+and reporttype; conflicting known report families select no known labels.
+No schema is inferred from ticker or a globally shared N001/Txxx meaning.
+Unknown fields/units remain unknown. Bank cash-flow T088 has only its dynamic
+note; other templates keep their own T088 meaning. Literal raw field names and
+Python suffixed projections use separate describe functions, so a real raw
+field called T039__2 is not silently reinterpreted.
+
+The new Rust explicit resolver also reaches the declared HK analyst-forecast
+mapping despite its nonstandard Entry prefix; later Python migration must
+retain the original dispatcher behavior. Response::field_context requires
+explicit metadata rather than guessing which table contains a template.
+
+Authored three public field test groups spanning all12 A-share statement
+templates, duplicate/unknown semantics, conflicting metadata, include order,
+MG/HK scope position and wildcard behavior. All remain unexecuted.
+
+Next: historical money_flow history/range through F10; complete the157 named
+method/branch request fixture inventory and remaining typed model projection
+details; then T22/T23/T24–T30. Counts19/5/6 unchanged, active unlimited goal.
+No tests/build/check/collection/AST/format/diff checks, dependency resolution,
+network validation, agents or publication ran.
