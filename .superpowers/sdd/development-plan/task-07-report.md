@@ -14,9 +14,15 @@ Implemented the SDK owner lifecycle foundation and absolute runtime close deadli
 - Added owner-bound `hq::executor` as the narrow future service/operation boundary. Python per-domain shutdown behavior remains outside this SDK owner and is reserved for the later Python binding tasks.
 - Authored lifecycle source cases for the shared close gate, concurrent closers, owner retention by a service-like executor handle, clone terminal behavior, and close-before-connect using a loopback listener.
 
+## Review follow-up
+
+- Each admitted operation now has an owner-signalled cancellation token. Entering `Closing` broadcasts cancellation, and guards expose `is_cancelled` / `wait_cancelled` for synchronous operation paths; the Engine deadline close still terminates runtime wire work.
+- Added the non-Clone public `PinnedSession` wrapper with a private constructor, owner registration, explicit idempotent release, and best-effort release request on Drop. Its owner registration is removed when the guard releases; registered pins are released before Engine shutdown. Subscription implementations can use this same resource-registration boundary as they are added rather than adding another lifecycle state machine.
+- Updated the concurrent-close unit source case to attach and start a real Engine runtime configured against a loopback endpoint, so the close race includes an owned runtime resource. The existing lifecycle integration source remains focused on client-level behavior.
+
 ## Deferred integration
 
-No business service or Engine creation path exists in `eltdx` yet. `SessionOwner::register_engine` is the controlled attachment point for later executor work; no Engine is created during build or close of an unstarted client. Public `PinnedSession` and subscription types remain with their scheduled service/subscription implementation tasks rather than being exposed as empty placeholder types.
+No business service or Engine creation path exists in `eltdx` yet. `SessionOwner::register_engine` and the crate-private `PinnedSession::new` are the controlled attachment points for later executor work; no Engine is created during build or close of an unstarted client. Subscription remains to be implemented with the same owner child-resource lifecycle.
 
 ## Verification
 

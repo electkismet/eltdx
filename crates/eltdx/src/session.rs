@@ -1,7 +1,9 @@
-use std::sync::{Arc, Condvar, Mutex, MutexGuard};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 
 use eltdx_runtime::engine::Engine;
+use eltdx_runtime::engine::PinHandle;
 
 use crate::error::{Error, ErrorKind, Result};
 
@@ -48,7 +50,9 @@ struct SessionState {
     last_result: Option<std::result::Result<(), CloseFailure>>,
     cleanup_confirmed: bool,
     active_operations: usize,
+    operations: Vec<Weak<OperationCancellation>>,
     engines: Vec<Engine>,
+    pins: Vec<PinHandle>,
 }
 
 /// Shared owner for clients, services, operations, pins, and subscriptions.
@@ -74,7 +78,9 @@ impl SessionOwner {
                 last_result: None,
                 cleanup_confirmed: false,
                 active_operations: 0,
+                operations: Vec::new(),
                 engines: Vec::new(),
+                pins: Vec::new(),
             }),
             changed: Condvar::new(),
         }
@@ -98,9 +104,27 @@ impl SessionOwner {
             .active_operations
             .checked_add(1)
             .ok_or_else(|| Error::new(ErrorKind::Internal, "active operation count overflow"))?;
+        let cancellation = Arc::new(OperationCancellation::default());
+        state.operations.push(Arc::downgrade(&cancellation));
         Ok(SessionOperation {
             owner: Arc::clone(self),
+            cancellation,
         })
+    }
+
+    pub(crate) fn register_pin(&self, pin: PinHandle) -> Result<()> {
+        let mut state = self.lock_state()?;
+        if state.phase != SessionPhase::Open {
+            return Err(closed_error());
+        }
+        state.pins.push(pin);
+        Ok(())
+    }
+
+    fn unregister_pin(&self, identity: eltdx_runtime::pin::PinIdentity) {
+        if let Ok(mut state) = self.state.lock() {
+            state.pins.retain(|pin| pin.identity() != identity);
+        }
     }
 
     pub(crate) fn register_engine(&self, engine: Engine) -> Result<()> {
@@ -113,7 +137,7 @@ impl SessionOwner {
     }
 
     pub(crate) fn close(&self) -> Result<()> {
-        let (deadline, generation, engines, prior_failure) = {
+        let (deadline, generation, engines, pins, prior_failure) = {
             let mut state = self.lock_state()?;
             loop {
                 match state.phase {
@@ -161,6 +185,7 @@ impl SessionOwner {
                             })?;
                         state.shutdown_deadline = Some(deadline);
                         state.phase = SessionPhase::Closing;
+                        signal_operation_cancellation(&mut state);
                         state.close_failure = None;
                         state.cleanup_confirmed = false;
                         state.close_generation = state.close_generation.checked_add(1).ok_or_else(|| {
@@ -170,6 +195,7 @@ impl SessionOwner {
                             deadline,
                             state.close_generation,
                             state.engines.clone(),
+                            state.pins.clone(),
                             None,
                         );
                     }
@@ -187,6 +213,7 @@ impl SessionOwner {
                             })?;
                         state.shutdown_deadline = Some(deadline);
                         state.phase = SessionPhase::Closing;
+                        signal_operation_cancellation(&mut state);
                         state.close_generation = state.close_generation.checked_add(1).ok_or_else(|| {
                             Error::new(ErrorKind::Internal, "close generation overflow")
                         })?;
@@ -194,6 +221,7 @@ impl SessionOwner {
                             deadline,
                             state.close_generation,
                             state.engines.clone(),
+                            state.pins.clone(),
                             Some(prior_failure),
                         );
                     }
@@ -202,6 +230,11 @@ impl SessionOwner {
         };
 
         let mut failure = None;
+        for pin in pins {
+            if let Err(error) = pin.close() {
+                failure.get_or_insert_with(|| Error::new(ErrorKind::Internal, error.to_string()));
+            }
+        }
         for engine in engines {
             if let Err(error) = engine.close_until(deadline) {
                 failure.get_or_insert_with(|| {
@@ -276,6 +309,93 @@ impl SessionOwner {
 #[derive(Debug)]
 pub(crate) struct SessionOperation {
     owner: Arc<SessionOwner>,
+    cancellation: Arc<OperationCancellation>,
+}
+
+/// A non-cloneable runtime pin whose release belongs to one SDK session.
+pub struct PinnedSession {
+    owner: Arc<SessionOwner>,
+    pin: Option<PinHandle>,
+}
+
+impl PinnedSession {
+    pub(crate) fn new(owner: Arc<SessionOwner>, pin: PinHandle) -> Result<Self> {
+        owner.register_pin(pin.clone())?;
+        Ok(Self {
+            owner,
+            pin: Some(pin),
+        })
+    }
+
+    pub fn identity(&self) -> Option<eltdx_runtime::pin::PinIdentity> {
+        self.pin.as_ref().map(PinHandle::identity)
+    }
+
+    pub fn close(&mut self) -> Result<()> {
+        let Some(pin) = self.pin.as_ref() else {
+            return Ok(());
+        };
+        pin.close().map_err(|error| {
+            Error::new(ErrorKind::Internal, error.to_string())
+        })?;
+        self.owner.unregister_pin(pin.identity());
+        self.pin = None;
+        Ok(())
+    }
+}
+
+impl Drop for PinnedSession {
+    fn drop(&mut self) {
+        if let Some(pin) = self.pin.take() {
+            let identity = pin.identity();
+            let _ = pin.begin_close();
+            self.owner.unregister_pin(identity);
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct OperationCancellation {
+    cancelled: AtomicBool,
+    changed: (Mutex<()>, Condvar),
+}
+
+impl OperationCancellation {
+    fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
+        self.changed.1.notify_all();
+    }
+}
+
+impl SessionOperation {
+    pub(crate) fn is_cancelled(&self) -> bool {
+        self.cancellation.cancelled.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn wait_cancelled(&self, timeout: Duration) -> bool {
+        if self.is_cancelled() {
+            return true;
+        }
+        let Ok(guard) = self.cancellation.changed.0.lock() else {
+            return self.is_cancelled();
+        };
+        if self.is_cancelled() {
+            return true;
+        }
+        let _ = self.cancellation.changed.1.wait_timeout(guard, timeout);
+        self.is_cancelled()
+    }
+}
+
+fn signal_operation_cancellation(state: &mut SessionState) {
+    state.operations.retain(|operation| {
+        if let Some(operation) = operation.upgrade() {
+            operation.cancel();
+            true
+        } else {
+            false
+        }
+    });
 }
 
 impl Drop for SessionOperation {
@@ -325,6 +445,7 @@ mod tests {
         while owner.ensure_open().is_ok() {
             thread::yield_now();
         }
+        assert!(operation.wait_cancelled(Duration::from_millis(10)));
         assert!(matches!(owner.admit(), Err(error) if error.kind() == ErrorKind::Closed));
 
         drop(operation);
@@ -334,10 +455,39 @@ mod tests {
 
     #[test]
     fn concurrent_closers_share_the_terminal_attempt() {
+        use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions};
+        use std::net::{Ipv4Addr, TcpListener};
+
         let owner = Arc::new(SessionOwner::new(
             Duration::from_secs(1),
             Duration::from_secs(1),
         ));
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("loopback bind");
+        let address = listener.local_addr().expect("loopback address");
+        let engine = Engine::new(
+            EngineConfig::new(
+                vec![format!("{}:{}", address.ip(), address.port())],
+                1.0,
+                EngineConfigOptions {
+                    pool_size: 1,
+                    runtime_workers: Some(1),
+                    server_count: 1,
+                    max_connections_per_host: None,
+                    connect_concurrency: None,
+                    connect_concurrency_per_host: None,
+                    global_raw_bytes: None,
+                    global_decoded_bytes: None,
+                    heartbeat_interval: None,
+                    max_pending_requests: 1,
+                    push_queue_size: 1,
+                    push_queue_bytes: 1024,
+                },
+            )
+            .expect("valid loopback engine config"),
+        )
+        .expect("engine constructs lazily");
+        engine.ensure_runtime().expect("runtime resource starts");
+        owner.register_engine(engine).expect("engine is attached to owner");
         let barrier = Arc::new(Barrier::new(3));
         let mut closers = Vec::new();
         for _ in 0..2 {

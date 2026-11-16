@@ -9,6 +9,7 @@ pub mod types;
 
 pub use client::{ClientBuilder, TdxClient};
 pub use config::ClientConfig;
+pub use session::PinnedSession;
 pub use error::{Error, ErrorContext, ErrorKind, Result, TimeoutPhase};
 pub use types::batch::{
     BatchItem, BatchItemState, BatchOutcome, MissingPolicy, MissingReason, SnapshotBatch,
