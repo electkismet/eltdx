@@ -70,6 +70,13 @@ pub trait AttemptAuthorization: std::fmt::Debug + Send + Sync {
         last_failure: Option<&RuntimeError>,
     ) -> Result<Box<dyn ReservedAttempt>, RuntimeError>;
 
+    /// Continue an existing legacy attempt without another logical recovery debit.
+    fn reserve_endpoint_continuation(
+        &self, attempt: u32, last_failure: Option<&RuntimeError>,
+    ) -> Result<Box<dyn ReservedAttempt>, RuntimeError> {
+        self.reserve(attempt, last_failure)
+    }
+
     /// Old runtime endpoint cycling is retained only by the legacy policy.
     fn count_endpoint_failover(&self) -> bool;
 }
@@ -78,6 +85,13 @@ pub trait AttemptAuthorization: std::fmt::Debug + Send + Sync {
 #[doc(hidden)]
 pub trait ReservedAttempt: std::fmt::Debug + Send {
     fn start(self: Box<Self>, now: Instant) -> Result<(), RuntimeError>;
+
+    /// Authorizers with admission locks must recheck this bound after locking.
+    fn start_before(self: Box<Self>, deadline: Instant) -> Result<(), RuntimeError> {
+        let now = Instant::now();
+        Deadline::at(deadline).require_remaining_at(now, crate::error::TimeoutPhase::Retry)?;
+        self.start(now)
+    }
 }
 
 /// An owned protocol frame and the session identity that received it.

@@ -228,7 +228,8 @@ impl OperationContext {
     }
 
     pub(crate) fn check_boundary(&self, phase: TimeoutPhase) -> Result<()> {
-        self.budget.check(Instant::now()).map_err(|error| self.annotate(error, phase, None))
+        self.budget.check(Instant::now())
+            .map_err(|error| self.stop(self.annotate(error, phase, None)))
     }
 
     pub(crate) fn begin_child(&self, purpose: ChildPurpose, recovery: Option<RecoveryLimit>) -> Result<RequestPermit> {
@@ -300,7 +301,7 @@ impl OperationContext {
                 root = root.with_context(key, value);
             }
         }
-        root = root.with_source(diagnostic);
+        if std::error::Error::source(&root).is_none() { root = root.with_source(diagnostic); }
         if let Ok(mut state) = self.budget.state.lock() { state.root = Some(root.clone()); }
         root
     }

@@ -61,13 +61,30 @@ impl OperationBudget {
     /// Owner close, user cancellation, deadline and budget commit share a strict lock order.
     /// The action is bounded arithmetic only; no lock survives return to the scheduler.
     pub(crate) fn gate<T>(&self, now: Instant, action: impl FnOnce(&mut BudgetState) -> Result<T>) -> Result<T> {
+        self.gate_before(now, None, action)
+    }
+
+    fn gate_before<T>(&self, observed: Instant, attempt_deadline: Option<Instant>,
+        action: impl FnOnce(&mut BudgetState) -> Result<T>) -> Result<T> {
+        self.gate_with_clock(observed, attempt_deadline, Instant::now, action)
+    }
+
+    pub(crate) fn gate_with_clock<T>(&self, observed: Instant, attempt_deadline: Option<Instant>,
+        clock: impl FnOnce() -> Instant, action: impl FnOnce(&mut BudgetState) -> Result<T>) -> Result<T> {
         let owner = self.owner.upgrade().ok_or_else(closed)?;
         owner.with_open_admission(|| self.token.with_active(|| {
             let mut state = self.state.lock().map_err(|_| poisoned())?;
             if let Some(root) = &state.root { return Err(root.clone()); }
             if state.finished { return Err(Error::new(ErrorKind::Internal, "operation already completed")); }
+            // Include elapsed lock acquisition time; injected future observations
+            // remain useful for deterministic deadline arithmetic cases.
+            let now = observed.max(clock());
             if self.deadline.is_some_and(|deadline| now >= deadline) {
                 return Err(Error::new(ErrorKind::Timeout, "operation deadline elapsed"));
+            }
+            if attempt_deadline.is_some_and(|deadline| now >= deadline) {
+                return Err(Error::new(ErrorKind::Timeout, "wire attempt deadline elapsed")
+                    .with_context("phase", "retry"));
             }
             action(&mut state)
         }))
@@ -82,7 +99,16 @@ impl OperationBudget {
 
     pub(crate) fn stop(&self, error: Error) -> Error {
         match self.state.lock() {
-            Ok(mut state) => state.root.get_or_insert(error).clone(),
+            Ok(mut state) => {
+                let mut first = state.root.take().unwrap_or_else(|| error.clone());
+                for (key, value) in error.context() {
+                    if !first.context().iter().any(|(existing, _)| existing == key) {
+                        first = first.with_context(key, value);
+                    }
+                }
+                state.root = Some(first.clone());
+                first
+            }
             Err(_) => error,
         }
     }
@@ -144,7 +170,7 @@ impl OperationBudget {
                 counter.configured = limit.maximum;
                 counter.reserved = reserved;
             }
-            Ok(Reservation { budget: Arc::clone(self), extra, recovery, committed: false })
+            Ok(Reservation { budget: Arc::clone(self), extra, recovery, count_wire: true, committed: false })
         })
     }
 }
@@ -154,13 +180,19 @@ pub(crate) struct Reservation {
     budget: Arc<OperationBudget>,
     extra: bool,
     recovery: Option<RecoveryLimit>,
+    count_wire: bool,
     committed: bool,
 }
 
 impl Reservation {
-    fn commit(&mut self, now: Instant) -> Result<()> {
-        self.budget.gate(now, |state| {
-            let wire = checked_add(state.counters.wire_attempts, 1)?;
+    fn commit(&mut self, now: Instant, attempt_deadline: Option<Instant>) -> Result<()> {
+        self.commit_with_clock(now, attempt_deadline, Instant::now)
+    }
+
+    pub(crate) fn commit_with_clock(&mut self, now: Instant, attempt_deadline: Option<Instant>,
+        clock: impl FnOnce() -> Instant) -> Result<()> {
+        self.budget.gate_with_clock(now, attempt_deadline, clock, |state| {
+            let wire = checked_add(state.counters.wire_attempts, usize::from(self.count_wire))?;
             let extra = checked_add(state.counters.extra_started, usize::from(self.extra))?;
             let local_started = match self.recovery {
                 Some(limit) => {
@@ -186,7 +218,11 @@ impl Reservation {
 
 impl ReservedAttempt for Reservation {
     fn start(mut self: Box<Self>, now: Instant) -> std::result::Result<(), RuntimeError> {
-        self.commit(now).map_err(to_runtime)
+        self.commit(now, None).map_err(to_runtime)
+    }
+
+    fn start_before(mut self: Box<Self>, deadline: Instant) -> std::result::Result<(), RuntimeError> {
+        self.commit(Instant::now(), Some(deadline)).map_err(to_runtime)
     }
 }
 
@@ -226,6 +262,15 @@ impl AttemptAuthorization for ChildAuthorization {
     }
 
     fn count_endpoint_failover(&self) -> bool { self.rust_public }
+
+    fn reserve_endpoint_continuation(&self, _: u32, _: Option<&RuntimeError>)
+        -> std::result::Result<Box<dyn ReservedAttempt>, RuntimeError> {
+        self.budget.gate(Instant::now(), |_| Ok(())).map_err(to_runtime)?;
+        Ok(Box::new(Reservation {
+            budget: Arc::clone(&self.budget), extra: false, recovery: None,
+            count_wire: false, committed: false,
+        }))
+    }
 }
 
 pub(crate) fn rust_retry_policy(request: &CommandRequest, maximum: std::num::NonZeroU32) -> RetryPolicy {

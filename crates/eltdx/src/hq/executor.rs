@@ -123,7 +123,7 @@ impl HqExecutor {
         &self, context: &OperationContext, pending: &PendingRawExecution,
         root: Error, command: u16,
     ) -> Error {
-        let root = context.stop(root);
+        let root = context.stop(context.annotate(root, TimeoutPhase::Response, Some(command)));
         let result = (|| {
             context.claim_cleanup()?;
             let confirmation = pending.begin_cancel().map_err(Error::from_runtime)?;
@@ -149,10 +149,14 @@ impl HqExecutor {
                 }
             }
         })();
+        if result.is_err() { let _ = pending.quarantine(); }
+        Self::complete_retirement(context, root, command, result)
+    }
+
+    fn complete_retirement(context: &OperationContext, root: Error, command: u16, result: Result<()>) -> Error {
         match result {
             Ok(()) => root,
             Err(cleanup) => {
-                let _ = pending.quarantine();
                 context.annotate(Error::new(ErrorKind::CancelUnconfirmed, "operation stopped but retirement was not confirmed")
                     .with_context("root_kind", format!("{:?}", root.kind()))
                     .with_source(root).with_cleanup_failure(cleanup),
@@ -160,5 +164,40 @@ impl HqExecutor {
                 )
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod operation_retirement_tests {
+    use std::error::Error as _;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use super::HqExecutor;
+    use crate::client::ClientBuilder;
+    use crate::error::{Error, ErrorKind, TimeoutPhase};
+    use crate::operation::OperationOptions;
+    use crate::session::SessionOwner;
+
+    #[test]
+    fn confirmed_retirement_returns_first_annotated_stop_cause_with_runtime_source() {
+        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+        let config = ClientBuilder::new().build().expect("lazy config").config().clone();
+        let context = HqExecutor::new(Arc::clone(&owner))
+            .begin_context("cancelled_lookup", &config, &OperationOptions::default())
+            .expect("operation");
+        let runtime = eltdx_runtime::RuntimeError::timeout(eltdx_runtime::error::TimeoutPhase::Response)
+            .with_context("attempt", "2").with_context("host", "fixture:7709");
+        let cause = context.annotate(Error::from_runtime(runtime.clone()), TimeoutPhase::Response,
+            Some(0x044e));
+        let cause = context.stop(cause);
+        let returned = HqExecutor::complete_retirement(&context, cause, 0x044e, Ok(()));
+        assert_eq!(returned.kind(), ErrorKind::Timeout);
+        assert_eq!(returned.source().and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>()), Some(&runtime));
+        for key in ["operation", "operation_id", "session_id", "phase", "command", "attempt", "host"] {
+            assert!(returned.context().iter().any(|(actual, _)| actual == key), "missing {key}");
+        }
+        assert_eq!(returned.context().iter().find(|(key, _)| key == "command").map(|(_, value)| value.as_str()), Some("0x044e"));
+        owner.close().expect("no runtime started");
     }
 }

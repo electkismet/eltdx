@@ -204,6 +204,48 @@ fn owner_close_rechecks_at_start_and_refunds_reserved_attempt() {
 }
 
 #[test]
+fn shorter_attempt_deadline_is_rechecked_inside_admission_gate_and_refunds_both_scopes() {
+    let (_owner, operation) = context(2, OperationOptions::default());
+    let authorization = ChildAuthorization {
+        budget: Arc::clone(&operation.budget), purpose: ChildPurpose::EmptyProbe,
+        recovery: Some(RecoveryLimit { name: "short_slice", maximum: 1 }), rust_public: true,
+    };
+    let reservation = authorization.reserve(1, None).expect("atomic local/global reservation");
+    let deadline = Instant::now() + Duration::from_secs(1);
+    let observed = Instant::now();
+    let error = reservation.commit_with_clock(observed, Some(deadline), || deadline)
+        .expect_err("admission-lock wait consumes the shorter attempt window");
+    assert_eq!(error.kind(), ErrorKind::Timeout);
+    drop(reservation);
+    let counters = operation.counters().expect("counters");
+    assert_eq!(counters.extra_reserved, 0);
+    assert_eq!(counters.extra_started, 0);
+    assert_eq!(counters.wire_attempts, 0);
+    authorization.reserve(1, None).expect("both local and global debits were refunded");
+}
+
+#[test]
+fn legacy_endpoint_continuation_does_not_consume_the_logical_recovery_twice() {
+    let legacy_owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+    let operation = OperationContext::python_legacy(Instant::now(), "legacy_probe", legacy_owner,
+        Duration::from_secs(8), Duration::from_secs(1), None, RawPolicy::Omit).expect("legacy");
+    let authorization = ChildAuthorization { budget: Arc::clone(&operation.budget),
+        purpose: ChildPurpose::EmptyProbe,
+        recovery: Some(RecoveryLimit { name: "legacy_probe", maximum: 1 }), rust_public: false };
+    authorization.reserve(1, None).expect("logical recovery on endpoint 1")
+        .start(Instant::now()).expect("start endpoint 1");
+    for _ in 0..4 {
+        authorization.reserve_endpoint_continuation(1, None)
+            .expect("same logical recovery continues across endpoints")
+            .start_before(Instant::now() + Duration::from_secs(2))
+            .expect("endpoint continuation starts");
+    }
+    assert_eq!(operation.counters().expect("counters").wire_attempts, 1);
+    assert!(authorization.reserve(1, None).is_err(), "one logical recovery was consumed exactly once");
+    operation.finish().expect("legacy child completed");
+}
+
+#[test]
 fn close_and_start_share_one_admission_linearization() {
     for _ in 0..16 {
         let (owner, operation) = context(1, OperationOptions::default());

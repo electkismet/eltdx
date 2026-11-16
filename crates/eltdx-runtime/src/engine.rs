@@ -597,7 +597,7 @@ impl<T: Clone> Completion<T> {
 struct ControlState {
     close_requested: bool,
     close_timed_out: bool,
-    cancellations: BTreeMap<RequestId, Arc<Completion<Result<(), RuntimeError>>>>,
+    cancellations: BTreeMap<RequestId, RawCancellation>,
     pin_cancellations: BTreeMap<RequestId, PinCancellation>,
     pin_closes: Vec<PinIdentity>,
 }
@@ -606,6 +606,12 @@ struct ControlState {
 struct PinCancellation {
     confirmation: Arc<Completion<Result<(), RuntimeError>>>,
     result_terminal: Arc<AtomicBool>,
+}
+
+#[derive(Debug)]
+struct RawCancellation {
+    confirmation: Arc<Completion<Result<(), RuntimeError>>>,
+    result_terminal: Option<Arc<AtomicBool>>,
 }
 
 #[derive(Debug)]
@@ -644,11 +650,25 @@ impl ControlCell {
         request_id: RequestId,
         confirmation: Arc<Completion<Result<(), RuntimeError>>>,
     ) -> Result<(), RuntimeError> {
+        self.request_raw_cancel(request_id, None, confirmation)
+    }
+
+    fn request_raw_cancel(
+        &self,
+        request_id: RequestId,
+        result_terminal: Option<Arc<AtomicBool>>,
+        confirmation: Arc<Completion<Result<(), RuntimeError>>>,
+    ) -> Result<(), RuntimeError> {
         let mut state = lock_mutex(&self.state, "runtime control")?;
+        if result_terminal.as_ref().is_some_and(|terminal| terminal.load(Ordering::Acquire)) {
+            drop(state);
+            confirmation.publish(Ok(()));
+            return Ok(());
+        }
         state
             .cancellations
             .entry(request_id)
-            .or_insert(confirmation);
+            .or_insert(RawCancellation { confirmation, result_terminal });
         drop(state);
         self.changed.notify_one();
         Ok(())
@@ -701,7 +721,7 @@ impl ControlCell {
 struct ControlSnapshot {
     close_requested: bool,
     close_timed_out: bool,
-    cancellations: BTreeMap<RequestId, Arc<Completion<Result<(), RuntimeError>>>>,
+    cancellations: BTreeMap<RequestId, RawCancellation>,
     pin_cancellations: BTreeMap<RequestId, PinCancellation>,
     pin_closes: Vec<PinIdentity>,
 }
@@ -724,6 +744,24 @@ struct PinResultSender {
     terminal: Arc<AtomicBool>,
 }
 
+#[derive(Debug)]
+struct RawResultSender {
+    sender: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
+    terminal: Arc<AtomicBool>,
+}
+
+impl RawResultSender {
+    fn mark_terminal(&self) { self.terminal.store(true, Ordering::Release); }
+
+    fn send(&self, result: Result<RawReply, RuntimeError>)
+        -> Result<(), std_mpsc::SendError<Result<RawReply, RuntimeError>>> {
+        // The single runtime reducer has already retired/released this request.
+        // Publish terminal state before handing the value to another thread.
+        self.terminal.store(true, Ordering::Release);
+        self.sender.send(result)
+    }
+}
+
 impl PinResultSender {
     fn send(
         &self,
@@ -742,6 +780,7 @@ pub struct PendingExecution {
 
 #[derive(Debug)]
 pub struct PendingRawExecution {
+    result_terminal: Arc<AtomicBool>,
     created_pid: u32,
     request_id: RequestId,
     control: Arc<ControlCell>,
@@ -938,7 +977,7 @@ impl PendingRawExecution {
             Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => None,
             Err(std_mpsc::TryRecvError::Empty) => {
                 let confirmation = Arc::new(Completion::new());
-                self.control.request_cancel(self.request_id, Arc::clone(&confirmation))?;
+                self.control.request_raw_cancel(self.request_id, Some(Arc::clone(&self.result_terminal)), Arc::clone(&confirmation))?;
                 Some(confirmation)
             }
         }
@@ -957,13 +996,14 @@ impl PendingRawExecution {
 
     pub fn cancel_and_confirm(&self, timeout: Duration) -> Result<(), RuntimeError> {
         check_pid(self.created_pid)?;
+        if self.terminal_received.get() || self.result_terminal.load(Ordering::Acquire) { return Ok(()); }
         match self.result_rx.try_recv() {
             Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => return Ok(()),
             Err(std_mpsc::TryRecvError::Empty) => {}
         }
         let confirmation = Arc::new(Completion::new());
         self.control
-            .request_cancel(self.request_id, Arc::clone(&confirmation))?;
+            .request_raw_cancel(self.request_id, Some(Arc::clone(&self.result_terminal)), Arc::clone(&confirmation))?;
         match confirmation.wait(timeout)? {
             Some(result) => result,
             None => {
@@ -1593,6 +1633,8 @@ impl Engine {
         deadline.require_remaining(TimeoutPhase::Admission)?;
         let (admission_tx, admission_rx) = std_mpsc::sync_channel(1);
         let (result_tx, result_rx) = std_mpsc::sync_channel(1);
+        let result_terminal = Arc::new(AtomicBool::new(false));
+        let result_tx = RawResultSender { sender: result_tx, terminal: Arc::clone(&result_terminal) };
         let command = match pin {
             Some(pin) => RuntimeCommand::ExecutePinned {
                 pin,
@@ -1634,6 +1676,7 @@ impl Engine {
                 }
             })?;
         Ok(PendingRawExecution {
+            result_terminal,
             terminal_received: Cell::new(false),
             created_pid: self.inner.created_pid,
             request_id,
@@ -2404,7 +2447,7 @@ enum RuntimeCommand {
         retry_policy: RetryPolicy,
         authorization: Option<Arc<dyn AttemptAuthorization>>,
         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
-        result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
+        result: RawResultSender,
         ingress: IngressOwnership,
     },
     OpenPin {
@@ -2422,7 +2465,7 @@ enum RuntimeCommand {
         retry_policy: RetryPolicy,
         authorization: Option<Arc<dyn AttemptAuthorization>>,
         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
-        result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
+        result: RawResultSender,
         ingress: IngressOwnership,
     },
     ClosePin {
@@ -2657,7 +2700,7 @@ fn lock_mutex<'a, T>(
 struct PendingRequest {
     request: CommandRequest,
     authorization: Option<Arc<dyn AttemptAuthorization>>,
-    result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
+    result: RawResultSender,
     _ingress: IngressOwnership,
     admission: Admission,
     wire: Option<RequestWireIdentity>,
@@ -3768,10 +3811,14 @@ impl RuntimeCore {
             .ok_or_else(|| RuntimeError::internal("dispatched request is not pending"))?;
         let permit = match self.pending.get(&attempt.request_id)
             .and_then(|pending| pending.authorization.as_ref()) {
-            Some(authorization) => authorization.reserve(
-                attempt.attempt_number,
-                self.supervisor.last_retry_error(attempt.request_id),
-            ).map(Some),
+            Some(authorization) => {
+                let last = self.supervisor.last_retry_error(attempt.request_id);
+                if begin_endpoint_attempt {
+                    authorization.reserve(attempt.attempt_number, last)
+                } else {
+                    authorization.reserve_endpoint_continuation(attempt.attempt_number, last)
+                }.map(Some)
+            }
             None => Ok(None),
         };
         self.send_slot_work(
@@ -4428,6 +4475,9 @@ impl RuntimeCore {
         for notification in notifications {
             let request_id = notification.request_id;
             self.heartbeat_requests.remove(&request_id);
+            if let Some(pending) = self.pending.get(&request_id) {
+                pending.result.mark_terminal();
+            }
             if let Some(reservation) = self.pin_reservations.remove(&request_id) {
                 let error = notification.error.unwrap_or_else(|| {
                     RuntimeError::connection_closed("pin reservation was cancelled")
@@ -4725,8 +4775,8 @@ impl RuntimeCore {
                 }
             }
         }
-        for (request_id, confirmation) in snapshot.cancellations {
-            self.cancel_request(request_id, confirmation).await?;
+        for (request_id, cancellation) in snapshot.cancellations {
+            self.cancel_raw_request(request_id, cancellation).await?;
         }
         for (request_id, cancellation) in snapshot.pin_cancellations {
             self.cancel_pin_request(request_id, cancellation).await?;
@@ -4753,6 +4803,17 @@ impl RuntimeCore {
         }
         self.cancel_request(request_id, cancellation.confirmation)
             .await
+    }
+
+    async fn cancel_raw_request(
+        &mut self, request_id: RequestId, cancellation: RawCancellation,
+    ) -> Result<(), RuntimeError> {
+        if cancellation.result_terminal.as_ref()
+            .is_some_and(|terminal| terminal.load(Ordering::Acquire)) {
+            cancellation.confirmation.publish(Ok(()));
+            return Ok(());
+        }
+        self.cancel_request(request_id, cancellation.confirmation).await
     }
 
     async fn cancel_request(
@@ -5061,6 +5122,18 @@ impl RuntimeCore {
             batch.completion.publish(Err(error));
         }
         Ok(())
+    }
+}
+
+fn start_reserved_attempt(
+    deadline: Deadline,
+    permit: Result<Option<Box<dyn ReservedAttempt>>, RuntimeError>,
+) -> Result<(), RuntimeError> {
+    // Expired queued work drops its unique reservation without committing it.
+    deadline.require_remaining(TimeoutPhase::Retry)?;
+    match permit? {
+        Some(permit) => permit.start_before(deadline.instant()),
+        None => Ok(()),
     }
 }
 
@@ -5553,10 +5626,7 @@ impl SlotWorker {
                 });
             }
         }
-        let started = permit.and_then(|permit| match permit {
-            Some(permit) => permit.start(Instant::now()),
-            None => Ok(()),
-        });
+        let started = start_reserved_attempt(attempt.deadline, permit);
         if let Err(error) = started {
             return Ok(WorkOutcome::UnstartedRejected { attempt, error });
         }
@@ -5657,10 +5727,16 @@ impl SlotWorker {
         if begin_endpoint_attempt {
             self.slot.begin_endpoint_attempt()?;
         }
-        let start = self
-            .slot
-            .start_connect(attempt.request_id, attempt.deadline, Instant::now())?
-            .ok_or_else(|| RuntimeError::timeout(TimeoutPhase::Connect))?;
+        let start = match self.slot.start_connect(attempt.request_id, attempt.deadline, Instant::now()) {
+            Ok(Some(start)) => start,
+            Ok(None) => return Ok(ConnectForRequest::Outcome(WorkOutcome::UnstartedRejected {
+                attempt, error: RuntimeError::timeout(TimeoutPhase::Connect),
+            })),
+            Err(error @ RuntimeError::Timeout { .. }) => return Ok(ConnectForRequest::Outcome(
+                WorkOutcome::UnstartedRejected { attempt, error },
+            )),
+            Err(error) => return Err(error),
+        };
         let wire = request_wire(attempt, start.identity, None);
         if publish_connect_transition
             && self
@@ -6712,7 +6788,7 @@ mod tests {
                     market: eltdx_protocol::unit::Market::Shanghai, client_date: 0,
                 },
             ),
-            authorization: None, result,
+            authorization: None, result: super::RawResultSender { sender: result, terminal: Arc::new(AtomicBool::new(false)) },
             _ingress: super::IngressOwnership { owned: Arc::new(AtomicUsize::new(1)) },
             admission, wire: None, response: None, dispatched: false, pin,
         });
@@ -6962,6 +7038,55 @@ mod tests {
         let snapshot = control.take_snapshot()?;
         assert!(snapshot.close_requested);
         assert!(snapshot.cancellations.contains_key(&request_id));
+        Ok(())
+    }
+
+    #[test]
+    fn cancellation_registered_before_terminal_publish_acknowledges_without_pre_cancel_or_close() -> Result<(), RuntimeError> {
+        let request_id = RequestId::new(73)?;
+        let (mut core, runtime, _receiver) = pin_reservation_runtime(RequestId::new(72)?)?;
+        let control = Arc::clone(&core.control);
+        let terminal = Arc::new(AtomicBool::new(false));
+        let confirmation = Arc::new(super::Completion::new());
+        control.request_raw_cancel(request_id, Some(Arc::clone(&terminal)), Arc::clone(&confirmation))?;
+        let snapshot = control.take_snapshot()?;
+        if !snapshot.cancellations.contains_key(&request_id) {
+            return Err(RuntimeError::internal("registered cancellation is missing"));
+        }
+        let (sender, receiver) = std_mpsc::sync_channel(1);
+        let sender = super::RawResultSender {
+            sender,
+            terminal: Arc::clone(&terminal),
+        };
+        sender.send(Err(RuntimeError::connection_closed("terminal result")))
+            .expect("terminal receiver is present");
+        drop(receiver);
+        assert!(terminal.load(Ordering::Acquire));
+        runtime.block_on(core.cancel_raw_request(request_id, snapshot.cancellations.into_values().next()
+                .ok_or_else(|| RuntimeError::internal("cancellation snapshot is empty"))?))?;
+        assert_eq!(confirmation.wait(Duration::ZERO)?, Some(Ok(())));
+        let remaining = control.take_snapshot()?;
+        assert!(!remaining.close_requested);
+        assert!(remaining.cancellations.is_empty());
+        assert!(core.pre_cancelled_submissions.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn expired_effective_attempt_is_rejected_before_worker_start() -> Result<(), RuntimeError> {
+        #[derive(Debug)]
+        struct CountStart(Arc<AtomicUsize>);
+        impl crate::execution::ReservedAttempt for CountStart {
+            fn start(self: Box<Self>, _: std::time::Instant) -> Result<(), RuntimeError> {
+                self.0.fetch_add(1, Ordering::AcqRel);
+                Ok(())
+            }
+        }
+        let starts = Arc::new(AtomicUsize::new(0));
+        let deadline = crate::deadline::Deadline::at(std::time::Instant::now());
+        let result = super::start_reserved_attempt(deadline, Ok(Some(Box::new(CountStart(Arc::clone(&starts))))));
+        assert!(matches!(result, Err(RuntimeError::Timeout { .. })));
+        assert_eq!(starts.load(Ordering::Acquire), 0);
         Ok(())
     }
 
