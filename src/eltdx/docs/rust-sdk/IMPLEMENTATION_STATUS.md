@@ -134,3 +134,5 @@ T21 第一轮静态审阅指出 `read_custom` 将空 leaf 当作可跳过数据�
 - T04 两轮静态 scoped review 已关闭；`Price` 的 `i64::MIN` 缩放边界没有单独 authored case，最终全分支复审需再次检查。serde schema E06 仍未解决，身份/日期/时间仅保留 Serialize，未暴露不安全 Deserialize。
 
 2026-11-16 M23恢复点：已写TdxClient::pin、借用PinnedQuoteService::refresh、同pin冷元数据加载、空wire轮询和失败激活失效处理；depth/refresh共用投影，元数据分页共用scanner。新增pool1冷元数据/空轮询/超100无额外命令/已关闭pin的合成用例源码，均未执行。T15仍部分完成，接续M24 dispatcher/lease/owner/renewal/resync/真实内存计费/Python受控fanout。任务完成计数仍为15完整源码、5部分、10未开始；没有测试或构建成功证据。
+
+2026-11-16 第四段恢复提交：ab5f8bf（26文件），包含M92–M94及共享上下文/源日期/单位/EOF源码用例。前段profile/cache为14f590c。仍为18项源码完整、4部分、8未开始；goal active，无额度限制，尚无任何执行验证。继续M88–M91/M96–M97及完整Python/native回迁；shortline须额外满足server_datetime/09:25/双stat日期门槛，不能把auction日期fallback当ready证明。
