@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-当前实际进度：T12 quote/code native bridge 实现源码和边界审阅已完成，测试源码覆盖普通返回顺序、恢复/缺项映射、resolver 次序、GIL/中断、错误 cause 与自定义 transport。未运行任何测试、构建或验证。下一步进入 T13；T17/T22/T24/T25 的服务集成仍待完成，T01–T30 实现全部完成前继续禁止验证执行。
+当前实际进度：T12 quote/code native bridge 实现源码和边界审阅已完成，检查点 `684a157`；测试源码覆盖普通返回顺序、恢复/缺项映射、resolver 次序、GIL/中断、错误 cause 与自定义 transport。未运行任何测试、构建或验证。下一步进入 T13；T17/T22/T24/T25 的服务集成仍待完成，T01–T30 实现全部完成前继续禁止验证执行。
 
 2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。
 
@@ -15,6 +15,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
+| 最新检查点 | `684a157` (T12 quote/code bridge compatibility) |
 | 当前阶段 | P2：T11 服务和 T12 bridge 源码审阅完成；T13 是下一任务。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
@@ -112,6 +113,7 @@ T21 第一轮静态审阅指出 `read_custom` 将空 leaf 当作可跳过数据�
 | `73c9365` | T11 fix | category continuation 无法表示下一个 offset 时返回 `RequestedWindow` 并省略 cursor |
 | `f6ff2b3` | T11 tests | public CodeService 保留未知证券分类为 `Unknown` |
 | `c0f005d` | T11 tests | 主快照连接失败仍返回 connection error，不降级成 missing |
+| `684a157` | T12 compatibility fix | 保留 Python 快照服务器顺序与恢复语义；统一验证延期 |
 
 ## 阻塞与风险
 
