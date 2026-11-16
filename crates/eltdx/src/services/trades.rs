@@ -30,6 +30,197 @@ enum ReadMode { Page, Collect, Opening }
 
 struct ReadResult { page: TradePage, opening: Option<TradeTick> }
 
+#[derive(Clone, Copy)]
+enum TradeReadPolicy {
+    Strict { limits: CollectionLimits, single: bool },
+    Legacy { maximum_pages: Option<usize>, single: bool },
+}
+
+/// Both language surfaces advance by actual rows, require an empty terminal
+/// page for collection, and stop as soon as a formal opening match is found.
+struct TradePager {
+    offset: u32,
+    size: usize,
+    progress: PageProgress,
+    seen: HashSet<Bytes>,
+    policy: TradeReadPolicy,
+}
+
+impl TradePager {
+    fn new(start: u32, size: usize, policy: TradeReadPolicy) -> Self {
+        Self { offset: start, size, progress: PageProgress::default(), seen: HashSet::new(), policy }
+    }
+
+    fn prepare(&self, context: &OperationContext) -> Result<(u32, usize, ChildPurpose)> {
+        context.check_boundary(TimeoutPhase::Admission)?;
+        let count = match self.policy {
+            TradeReadPolicy::Strict { limits, .. } => {
+                self.progress.before_request(limits)?;
+                self.size.min(limits.records.unwrap_or(self.size).saturating_sub(self.progress.records()).max(1))
+            }
+            TradeReadPolicy::Legacy { .. } => {
+                if self.offset > u32::from(u16::MAX) {
+                    return Err(Error::new(ErrorKind::InvalidArgument, "start must be between 0 and 65535")
+                        .with_context("name", "start"));
+                }
+                self.size
+            }
+        };
+        Ok((self.offset, count, if self.progress.pages() == 0 { ChildPurpose::Required } else { ChildPurpose::Page }))
+    }
+
+    fn accept(&mut self, context: &OperationContext, count: usize, requested: usize) -> Result<()> {
+        match self.policy {
+            TradeReadPolicy::Strict { limits, .. } => self.progress.accept(count, requested, limits)?,
+            TradeReadPolicy::Legacy { .. } => self.progress.accept_legacy(count)?,
+        }
+        context.record_work(count, 0)
+    }
+
+    fn advance(&mut self, count: usize, evidence: Bytes, found: bool) -> Result<bool> {
+        match self.policy {
+            TradeReadPolicy::Strict { single, .. } => {
+                if count != 0 && !single && !self.seen.insert(evidence) {
+                    return Err(Error::new(ErrorKind::Protocol, "trade pagination repeated a wire page"));
+                }
+                self.offset = advance_offset(self.offset, count)?;
+                if count == 0 || single || found { return Ok(true); }
+                if self.offset > u32::from(u16::MAX) {
+                    return Err(Error::new(ErrorKind::LimitExceeded, "trade continuation exceeds u16 wire range before EOF"));
+                }
+            }
+            TradeReadPolicy::Legacy { maximum_pages, single } => {
+                if count == 0 || single || found { return Ok(true); }
+                if maximum_pages.is_some_and(|maximum| self.progress.pages() >= maximum) {
+                    return Err(Error::new(ErrorKind::LimitExceeded,
+                        "trade pagination reached max_pages before an empty page")
+                        .with_context("python_kind", "RuntimeError"));
+                }
+                self.offset = advance_offset(self.offset, count)?;
+            }
+        }
+        Ok(false)
+    }
+}
+
+/// One wire-page boundary for row, column and legacy consumers. Higher-level
+/// collectors choose their own page limits and projection policies.
+fn fetch_trade_reply(
+    context: &OperationContext, request: CommandRequest, purpose: ChildPurpose,
+    fetch: impl FnOnce(CommandRequest, ChildPurpose) -> Result<crate::hq::decode::DecodedReply>,
+) -> Result<crate::hq::decode::DecodedReply> {
+    let historical = match &request {
+        CommandRequest::TodayTicks(_) => false,
+        CommandRequest::HistoricalTicks(_) => true,
+        _ => return Err(Error::new(ErrorKind::InvalidArgument, "trade service requires today or historical ticks")),
+    };
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let decoded = fetch(request, purpose)?;
+    if !matches!((historical, &decoded.response),
+        (false, CommandResponse::TodayTicks(_)) | (true, CommandResponse::HistoricalTicks(_))) {
+        return Err(Error::new(ErrorKind::Protocol, "trade request returned a different response kind"));
+    }
+    context.check_boundary(TimeoutPhase::Decode)?;
+    Ok(decoded)
+}
+
+pub(crate) fn legacy_trade_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest, ChildPurpose) -> Result<crate::hq::decode::DecodedReply>,
+) -> Result<CommandResponse> {
+    if !context.is_legacy() {
+        return Err(Error::new(ErrorKind::InvalidArgument, "legacy trades require a compatibility operation"));
+    }
+    Ok(fetch_trade_reply(context, request, ChildPurpose::Required, fetch)?.response)
+}
+
+pub(crate) fn legacy_trade_read(
+    context: &OperationContext, request: CommandRequest, collect: bool, opening: bool,
+    maximum_pages: Option<usize>,
+    mut fetch: impl FnMut(CommandRequest, ChildPurpose) -> Result<crate::hq::decode::DecodedReply>,
+) -> Result<crate::__python_compat::LegacyTradeRead> {
+    use crate::__python_compat::LegacyTradeRead;
+    if !context.is_legacy() { return Err(Error::new(ErrorKind::InvalidArgument, "legacy trade read requires compatibility profile")); }
+    let (start, size) = match &request {
+        CommandRequest::TodayTicks(query) => (query.start, query.count),
+        CommandRequest::HistoricalTicks(query) => (query.start, query.count),
+        _ => return Err(Error::new(ErrorKind::InvalidArgument, "trade read requires today or historical ticks")),
+    };
+    let mut pager = TradePager::new(u32::from(start), usize::from(size),
+        TradeReadPolicy::Legacy { maximum_pages, single: !collect && !opening });
+    let mut first = None;
+    let mut pages = Vec::new();
+    let mut page_lengths = Vec::new();
+    loop {
+        let (offset, count, purpose) = pager.prepare(context)?;
+        let mut query = request.clone();
+        match &mut query {
+            CommandRequest::TodayTicks(query) => { query.start = offset as u16; query.count = count as u16; }
+            CommandRequest::HistoricalTicks(query) => { query.start = offset as u16; query.count = count as u16; }
+            _ => unreachable!("trade request validated above"),
+        }
+        let mut decoded = fetch_trade_reply(context, query, purpose, &mut fetch)?;
+        let ticks = match &mut decoded.response {
+            CommandResponse::TodayTicks(page) => std::mem::take(&mut page.ticks),
+            CommandResponse::HistoricalTicks(page) => std::mem::take(&mut page.ticks),
+            _ => return Err(Error::new(ErrorKind::Protocol, "trade page response kind changed")),
+        };
+        pager.accept(context, ticks.len(), count)?;
+        let found = opening.then(|| ticks.iter().find(|row| row.event_kind == WireKind::OpeningMatch).cloned()).flatten();
+        if found.is_some() { return Ok(LegacyTradeRead { response: decoded.response, request_count: count,
+            page_lengths: Vec::new(), opening: found, opening_only: true }); }
+        let done = pager.advance(ticks.len(), Bytes::new(), false)?;
+        // Searching only needs the current page. Do not retain every earlier
+        // tick while waiting for the first formal match or terminal empty page.
+        if opening {
+            if done {
+                return Ok(LegacyTradeRead { response: decoded.response, request_count: count, page_lengths: Vec::new(),
+                    opening: None, opening_only: true });
+            }
+            continue;
+        }
+        pages.try_reserve(1).map_err(allocation_error)?;
+        page_lengths.try_reserve(1).map_err(allocation_error)?;
+        page_lengths.push(ticks.len());
+        pages.push(ticks);
+        if first.is_none() { first = Some(decoded.response); }
+        if done { break; }
+    }
+    let mut response = first.ok_or_else(|| Error::new(ErrorKind::Internal, "trade read has no first response"))?;
+    let (ticks, _) = order_trade_pages(pages, collect)?;
+    if collect { page_lengths.reverse(); }
+    let request_count = if collect { ticks.len() } else { usize::from(size) };
+    match &mut response {
+        CommandResponse::TodayTicks(page) => {
+            page.ticks = ticks;
+            if collect { page.request.start = 0; page.raw_payload = Bytes::new(); }
+        }
+        CommandResponse::HistoricalTicks(page) => {
+            page.ticks = ticks;
+            if collect { page.request.start = 0; page.raw_payload = Bytes::new(); }
+        }
+        _ => return Err(Error::new(ErrorKind::Internal, "trade read has a nontrade first response")),
+    }
+    context.check_boundary(TimeoutPhase::Aggregate)?;
+    Ok(LegacyTradeRead { response, request_count, page_lengths, opening: None, opening_only: opening })
+}
+
+fn order_trade_pages<T>(mut pages: Vec<Vec<T>>, reverse: bool) -> Result<(Vec<T>, Vec<usize>)> {
+    let total = pages.iter().try_fold(0_usize, |total, page| total.checked_add(page.len()))
+        .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "trade aggregate count overflows"))?;
+    let mut ticks = Vec::new(); let mut order = Vec::new();
+    ticks.try_reserve(total).map_err(allocation_error)?; order.try_reserve(total).map_err(allocation_error)?;
+    if reverse { pages.reverse(); }
+    let mut source_row = if reverse { total } else { 0 };
+    for page in pages {
+        if reverse { source_row -= page.len(); }
+        order.extend(source_row..source_row + page.len());
+        if !reverse { source_row += page.len(); }
+        ticks.extend(page);
+    }
+    Ok((ticks, order))
+}
+
 #[derive(Clone, Debug)]
 pub struct TradeService {
     executor: HqExecutor, engine: Engine, config: ClientConfig, namespace: String,
@@ -176,42 +367,38 @@ impl TradeService {
     fn read(&self, context: &OperationContext, engine: &Engine, pin: Option<&PinHandle>, id: &SecurityId,
         query: &TradeQuery, date: TradingDate, metadata: &MetadataSnapshot, mode: ReadMode) -> Result<ReadResult> {
         let size = page_size(query, mode);
-        let mut offset = query.cursor().map_or(u32::from(query.start()), PageCursor::next_offset);
-        let start = offset;
+        let start = query.cursor().map_or(u32::from(query.start()), PageCursor::next_offset);
         let limits = CollectionLimits {
             pages: Some(if mode == ReadMode::Page { 1 } else { query.pages().max_pages() }),
             records: Some(if mode == ReadMode::Page { query.count() } else { query.pages().max_records() }),
         };
-        let mut progress = PageProgress::default();
-        let mut seen = HashSet::<Bytes>::new();
+        let mut pager = TradePager::new(start, size, TradeReadPolicy::Strict { limits, single: mode == ReadMode::Page });
         let mut pages = Vec::<Vec<TradeTick>>::new();
         let mut metas = Vec::<ResultMeta>::new();
         let mut price_base = None;
         loop {
-            context.check_boundary(TimeoutPhase::Admission)?;
-            progress.before_request(limits)?;
-            let remaining = limits.records.unwrap_or(size).saturating_sub(progress.records()).max(1);
-            let count = size.min(remaining);
+            let (offset, count, purpose) = pager.prepare(context)?;
             let request = trade_request(id, query.date(), offset, count)?;
-            let purpose = if progress.pages() == 0 { ChildPurpose::Required } else { ChildPurpose::Page };
-            let raw = match pin {
-                Some(pin) => self.executor.execute_pinned_raw(engine, pin, context, request, purpose, None)?,
-                None => self.executor.execute_raw(engine, context, request, purpose, None)?,
-            };
+            let mut page_bytes = Bytes::new();
+            let decoded = fetch_trade_reply(context, request, purpose, |request, purpose| {
+                let raw = match pin {
+                    Some(pin) => self.executor.execute_pinned_raw(engine, pin, context, request, purpose, None)?,
+                    None => self.executor.execute_raw(engine, context, request, purpose, None)?,
+                };
+                page_bytes = raw.response.data.clone();
+                self.executor.decode_received(context, raw)
+            })?;
             // Diagnostic omission does not erase the private no-progress evidence.
-            let page_bytes = raw.response.data.clone();
-            let decoded = self.executor.decode_received(context, raw)?;
             let (wire_rows, base) = match &decoded.response {
                 CommandResponse::TodayTicks(page) => (&page.ticks, None),
                 CommandResponse::HistoricalTicks(page) => (&page.ticks, page.price_base_raw_f32),
                 _ => return Err(Error::new(ErrorKind::Protocol, "trade request returned a different response kind")),
             };
-            progress.accept(wire_rows.len(), count, limits)?;
-            context.record_work(wire_rows.len(), 0)?;
+            pager.accept(context, wire_rows.len(), count)?;
             if base.is_some_and(|base| !base.is_finite()) {
                 return Err(Error::new(ErrorKind::Protocol, "historical trade price base is not finite"));
             }
-            if progress.pages() == 1 { price_base = base.map(|base| Price::with_value_and_provenance(
+            if pager.progress.pages() == 1 { price_base = base.map(|base| Price::with_value_and_provenance(
                 NumericValue::F32(base), ValueProvenance::WireRule)); }
             let source = ServiceSource::from_reply(&decoded);
             let ranges = wire_rows.iter().map(|row| row.record_range).collect::<Vec<_>>();
@@ -224,13 +411,11 @@ impl TradeService {
                 ticks.iter().find(|tick| tick.kind() == TradeEventKind::OpeningMatch).cloned()
             } else { None };
             let empty = ticks.is_empty();
-            if !empty && mode != ReadMode::Page && !seen.insert(page_bytes) {
-                return Err(Error::new(ErrorKind::Protocol, "trade pagination repeated a wire page"));
-            }
-            let next = advance_offset(offset, ticks.len())?;
+            let done = pager.advance(ticks.len(), page_bytes, found.is_some())?;
+            let next = pager.offset;
             metas.try_reserve(1).map_err(allocation_error)?; metas.push(meta);
             pages.try_reserve(1).map_err(allocation_error)?; pages.push(ticks);
-            if empty || mode == ReadMode::Page || found.is_some() {
+            if done {
                 let end = if empty { EndEvidence::EmptyPage }
                     else if mode != ReadMode::Page || next > u32::from(u16::MAX) { EndEvidence::RequestedWindow }
                     else { EndEvidence::Unknown };
@@ -238,14 +423,10 @@ impl TradeService {
                     fingerprint(id, query.date(), date), context.session_id, Some(source.host), Some(metadata.version()))) }
                     else { None };
                 let page = finish_page(context, id, date, price_base, start, size, cursor, end,
-                    pages, metas, progress.pages(), metadata.version(), mode != ReadMode::Page)?;
+                    pages, metas, pager.progress.pages(), metadata.version(), mode != ReadMode::Page)?;
                 context.check_boundary(TimeoutPhase::Aggregate)?;
                 return Ok(ReadResult { page, opening: found });
             }
-            if next > u32::from(u16::MAX) {
-                return Err(Error::new(ErrorKind::LimitExceeded, "trade continuation exceeds u16 wire range before EOF"));
-            }
-            offset = next;
         }
     }
 
@@ -337,22 +518,69 @@ fn project_tick(row: &WireTick, source: SourceStamp, id: &SecurityId) -> Result<
 
 #[allow(clippy::too_many_arguments)]
 fn finish_page(context: &OperationContext, id: &SecurityId, date: TradingDate, base: Option<Price>,
-    start: u32, size: usize, cursor: Option<PageCursor>, end: EndEvidence, mut pages: Vec<Vec<TradeTick>>,
+    start: u32, size: usize, cursor: Option<PageCursor>, end: EndEvidence, pages: Vec<Vec<TradeTick>>,
     metas: Vec<ResultMeta>, pages_read: usize, version: u64, reverse: bool) -> Result<TradePage> {
-    let total = pages.iter().try_fold(0_usize, |total, page| total.checked_add(page.len()))
-        .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "trade aggregate count overflows"))?;
-    let mut ticks = Vec::new(); let mut order = Vec::new();
-    ticks.try_reserve(total).map_err(allocation_error)?; order.try_reserve(total).map_err(allocation_error)?;
-    if reverse { pages.reverse(); }
-    let mut source_row = if reverse { total } else { 0 };
-    for page in pages {
-        if reverse { source_row -= page.len(); }
-        order.extend(source_row..source_row + page.len());
-        if !reverse { source_row += page.len(); }
-        ticks.extend(page);
-    }
+    let (ticks, order) = order_trade_pages(pages, reverse)?;
     let meta = if metas.len() == 1 { metas.into_iter().next().expect("one trade response") }
         else { aggregate_meta(context, &metas, Some(version))? };
     let meta = meta.with_raw_row_order(&order)?.with_trading_date(date);
     Ok(TradePage::new(id.clone(), Some(date), base, DataPage::new(ticks, u64::from(start), size, cursor, end, meta), pages_read))
+}
+
+#[cfg(test)]
+mod legacy_pager_tests {
+    use super::*;
+
+    #[test]
+    fn page_reversal_preserves_equal_time_wire_rows_and_raw_indices() {
+        let pages = vec![vec!["newer-a", "newer-b"], vec!["older-a", "older-b"], vec![]];
+        let (rows, indices) = order_trade_pages(pages.clone(), true).expect("reverse pages");
+        assert_eq!(rows, ["older-a", "older-b", "newer-a", "newer-b"]);
+        assert_eq!(indices, [2, 3, 0, 1]);
+        let (rows, indices) = order_trade_pages(pages, false).expect("single-page order");
+        assert_eq!(rows, ["newer-a", "newer-b", "older-a", "older-b"]);
+        assert_eq!(indices, [0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn legacy_allows_repeated_pages_and_returns_empty_or_match_before_cap() {
+        let mut pager = TradePager::new(0, 3, TradeReadPolicy::Legacy {
+            maximum_pages: Some(2), single: false,
+        });
+        pager.progress.accept_legacy(1).expect("first short page");
+        assert!(!pager.advance(1, Bytes::from_static(b"same"), false).expect("continue"));
+        pager.progress.accept_legacy(1).expect("second short page");
+        assert!(pager.advance(1, Bytes::from_static(b"same"), true).expect("match wins"));
+
+        let mut empty = TradePager::new(0, 3, TradeReadPolicy::Legacy {
+            maximum_pages: Some(1), single: false,
+        });
+        empty.progress.accept_legacy(0).expect("terminal empty");
+        assert!(empty.advance(0, Bytes::new(), false).expect("EOF wins"));
+
+        let mut repeated = TradePager::new(0, 3, TradeReadPolicy::Legacy {
+            maximum_pages: Some(2), single: false,
+        });
+        repeated.progress.accept_legacy(1).expect("first page");
+        assert!(!repeated.advance(1, Bytes::from_static(b"same"), false).unwrap());
+        repeated.progress.accept_legacy(1).expect("second page");
+        let error = repeated.advance(1, Bytes::from_static(b"same"), false).expect_err("original page cap");
+        assert_eq!(error.message(), "trade pagination reached max_pages before an empty page");
+        assert!(error.context().iter().any(|(key, value)| key == "python_kind" && value == "RuntimeError"));
+    }
+
+    #[test]
+    fn strict_repetition_precedes_opening_match_and_offset_range_is_retained() {
+        let limits = CollectionLimits { pages: Some(4), records: Some(10) };
+        let mut strict = TradePager::new(0, 3, TradeReadPolicy::Strict { limits, single: false });
+        assert!(!strict.advance(1, Bytes::from_static(b"same"), false).unwrap());
+        assert_eq!(strict.advance(1, Bytes::from_static(b"same"), true).expect_err("duplicate evidence").kind(),
+            ErrorKind::Protocol);
+        let mut boundary = TradePager::new(65535, 1, TradeReadPolicy::Strict { limits, single: false });
+        assert_eq!(boundary.advance(1, Bytes::from_static(b"last"), false).expect_err("wire range").kind(),
+            ErrorKind::LimitExceeded);
+        let mut single = TradePager::new(65535, 1, TradeReadPolicy::Strict { limits, single: true });
+        assert!(single.advance(1, Bytes::from_static(b"last"), false).unwrap());
+        assert_eq!(single.offset, 65536);
+    }
 }

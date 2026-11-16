@@ -666,3 +666,50 @@ T18 remains partial and counts remain18 source complete/4 partial/8 unstarted.
 Next: trades/auctions/dailyflow/corporate/equity/calendar/resources/stats/health,
 all helper/remaining subscription migration, complete manifest and installed-wheel
 consumer, then remaining T19–T30/Stage B. Goal active, no quota or subagents.
+
+Thirteenth source stage committed as **d3c1215**. All execution deferred.
+
+## Fourteenth source checkpoint — trade pages, collection and opening matches
+
+- Added shared TradePager and fetch_trade_reply for strict Rust and legacy Python
+  today/historical ticks. Both advance by actual rows and reverse pages without
+  reversing rows within a page. Strict Rust retains response-count/finite-base
+  validation, repeated-page rejection, cursor order and u16 continuation limits;
+  legacy preserves repeated/over-count pages, original max_pages RuntimeError,
+  next-request start-range ValueError and no aggregate deadline or history pin.
+- NativeEngine/LegacyOperation/service and both Python transports expose one-page,
+  collection, historical bulk and opening-match routes. TdxClient enables them
+  only for the already supported exact built-in transports. Intrinsic tick units
+  need no metadata prefetch. Legacy decoder uses the original parser, preserving
+  cent/milli prices, optional record text, raw payload, nonfinite historical base,
+  out-of-day today labels and historical naive datetime validation.
+- Aggregation preserves first-response metadata/base and an independent usize
+  request_count (which may exceed legal per-page counts), clears aggregate raw,
+  and retains each original historical bulk block including the empty terminal
+  block. A private historical_trade_batch DTO keeps equality/materialization
+  behavior without constructing Python TradeTick objects. The existing today
+  bulk rejection is retained. Opening finds the first formal match, skips status8
+  even at09:25, terminates before a page-limit failure and retains only its current
+  page rather than all earlier search rows.
+- Exact builtin code/date/page-size/raw/max-page arguments use the shared native
+  collector. Custom scalar/date objects and instance/class replacements of public
+  page methods keep per-page Python extraction and callbacks. Existing batch
+  normalization/dedup/order/capacity remains. all_history(date=None) still chooses
+  today, while all_history_batch(None) still reaches historical date extraction.
+  Float ceil/NaN/infinity/large max-page semantics remain as in the old loop.
+- Authored14 contract functions,12 local integration/differential functions and
+  3 private Rust cases. Sources cover single/row/bulk routes, custom extraction
+  and method overrides, equal-time/repeated/short/over-count pages, initial base,
+  raw/units/date semantics, aggregate counts/blocks/no Python rows, empty-vs-limit
+  ordering, offset overflow, first opening match, protocol exceptions and request
+  cleanup after KeyboardInterrupt. Four capability records have source-only
+  evidence, retained adapters and exit conditions; no migration status promoted.
+
+No tests, collection, build/check/clippy/doctest, dependency resolution/download,
+network probes, AST/compile/format/diff-check or equivalent validation ran. Source
+reads and ordinary Git diff/status only; these changes have no compile/runtime
+evidence. T18 remains partial; totals18 source complete/4 partial/8 unstarted.
+Resume auctions/dailyflow/corporate/equity/calendar/resources/stats/health and ALL
+helper/remaining subscription migration, complete manifest and installed-wheel
+consumer, then T19–T30/remaining Stage B. Goal active without token cap; no agents
+or publication. Preserve this checkpoint rather than rebuilding prior domains.

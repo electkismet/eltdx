@@ -253,7 +253,7 @@ class TdxClient:
             f10_factory=self._provide_f10_client,
             candidate_hosts=self._dedicated_hosts,
         )
-        self.trades = TradeApi(self.transport)
+        self.trades = TradeApi(self.transport, native_services=native_services)
         self.auctions = AuctionApi(
             self.transport,
             transport_factory=(

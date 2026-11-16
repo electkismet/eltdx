@@ -155,6 +155,15 @@ pub struct LegacyBarSeries {
     pub request_count: usize,
 }
 
+#[derive(Clone, Debug)]
+pub struct LegacyTradeRead {
+    pub response: CommandResponse,
+    pub request_count: usize,
+    pub page_lengths: Vec<usize>,
+    pub opening: Option<eltdx_protocol::commands::trades::TradeTick>,
+    pub opening_only: bool,
+}
+
 impl LegacyOperation {
     /// `None` retains the legacy unlimited-page option; there is no fabricated cap.
     pub fn with_page_limit(mut self, maximum: Option<NonZeroUsize>) -> Result<Self> {
@@ -289,6 +298,25 @@ impl LegacyOperation {
                 request, ChildPurpose::Required, None)?;
             self.executor.executor.decode_unpriced(&self.context, raw)
         })
+    }
+
+    pub fn trades(&self, request: CommandRequest) -> Result<CommandResponse> {
+        crate::services::legacy_trade_reply(&self.context, request, |request, purpose| {
+            let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,
+                request, purpose, None)?;
+            // These wire prices have intrinsic units, independent of catalogs.
+            self.executor.executor.decode_unpriced(&self.context, raw)
+        })
+    }
+
+    pub fn trade_read(&self, request: CommandRequest, collect: bool, opening: bool,
+        maximum_pages: Option<usize>) -> Result<LegacyTradeRead> {
+        crate::services::legacy_trade_read(&self.context, request, collect, opening, maximum_pages,
+            |request, purpose| {
+                let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,
+                    request, purpose, None)?;
+                self.executor.executor.decode_unpriced(&self.context, raw)
+            })
     }
 
     /// No metadata is implicitly loaded here. The binding either prepared the

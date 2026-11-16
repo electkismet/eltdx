@@ -883,6 +883,31 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0fc5",
       "api": "client.trades.today(code, ..., batch_size=None) / client.trades.all_today(code, ..., batch_size=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/trades.rs",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/service.rs", "crates/eltdx-python/src/transport.rs", "crates/eltdx-python/src/response.rs", "src/eltdx/api/trades.py"],
+        "contract_nodes": [
+          "tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_single_page_preserves_arguments_and_result",
+          "tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_collection_and_opening_use_one_shared_call",
+          "tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_today_bulk_retains_existing_rejection",
+          "tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_many_retains_normalization_order_dedup_and_pool_cap"
+        ],
+        "integration_nodes": [
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_single_page_matches_legacy_prices_order_and_raw",
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_collection_preserves_short_repeat_pages_first_base_and_page_order",
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_today_trade_retains_legacy_time_label_outside_one_day",
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_offset_overflow_occurs_before_next_wire_request"
+        ],
+        "fixtures": ["tests/fixtures/7709", "tests/integration/test_native_trade_domain_bridge.py::_payload"],
+        "temporary_adapter": {
+          "scope": "custom transports, API/page overrides and custom parameter objects; built-in today bulk rejection",
+          "reason": "Preserve per-page extraction/callback timing, arbitrary responses, max_pages comparison semantics and existing unsupported bulk behavior.",
+          "contract_nodes": ["tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_custom_arguments_keep_per_page_extraction", "tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_replaced_page_method_keeps_per_page_adapter"],
+          "exit_condition": "Shared callback execution must preserve page methods, Python objects and exception timing; unlocking today bulk needs a separate compatibility decision."
+        },
+        "validation": "Not collected, compiled or executed. Legacy accepts repeated/over-count pages and out-of-day today labels; strict Rust safeguards remain separate."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-当日成交明细.md",
@@ -906,6 +931,34 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0fc6",
       "api": "client.trades.history(code, date, ..., batch_size=None) / client.trades.all_history(code, date, ..., batch_size=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/trades.rs",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/service.rs", "crates/eltdx-python/src/transport.rs", "crates/eltdx-python/src/response.rs", "src/eltdx/api/trades.py", "src/eltdx/_native_models.py"],
+        "contract_nodes": [
+          "tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_bulk_keeps_single_page_and_collection_routes",
+          "tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_collection_preserves_legacy_numeric_page_limits",
+          "tests/contracts/test_sdk_trade_domain_bridge.py::test_trade_history_none_keeps_row_today_and_bulk_history_distinction",
+          "tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_invalid_collection_arguments_fail_before_request"
+        ],
+        "integration_nodes": [
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_collection_preserves_short_repeat_pages_first_base_and_page_order",
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_bulk_collection_exceeds_page_size_without_tick_objects",
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_page_limit_preserves_original_error_and_request_count",
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_historical_trade_keeps_nonfinite_legacy_base",
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_custom_date_attributes_are_evaluated_for_each_page",
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_collection_interrupt_cleans_current_request",
+          "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_protocol_errors_keep_legacy_type_text_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709", "tests/integration/test_native_trade_domain_bridge.py::_payload"],
+        "temporary_adapter": {
+          "scope": "custom transports, API/page overrides and custom parameter objects",
+          "reason": "Retain per-page date/integer/truth extraction and arbitrary responses. Native bulk returns flat fields without constructing Python TradeTick rows.",
+          "contract_nodes": ["tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_custom_arguments_keep_per_page_extraction", "tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_replaced_page_method_keeps_per_page_adapter"],
+          "exit_condition": "A shared callback execution boundary preserves original per-page extraction, model construction and exception timing."
+        },
+        "validation": "Not collected, compiled or executed. First-page metadata/nonfinite base and reverse-page wire order are retained; no aggregate u16 count truncation."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-历史成交明细.md",
@@ -950,6 +1003,21 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0fc5",
       "api": "client.trades.opening_match_today(code, ..., batch_size=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/trades.rs",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/response.rs", "src/eltdx/_native_models.py", "src/eltdx/api/trades.py"],
+        "contract_nodes": ["tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_collection_and_opening_use_one_shared_call", "tests/contracts/test_sdk_trade_domain_bridge.py::test_trade_opening_dto_preserves_single_tick_and_none"],
+        "integration_nodes": ["tests/integration/test_native_trade_domain_bridge.py::test_native_trade_opening_skips_status_eight_and_stops_on_first_match", "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_terminal_empty_page_wins_over_page_limit"],
+        "fixtures": ["tests/integration/test_native_trade_domain_bridge.py::_payload"],
+        "temporary_adapter": {
+          "scope": "custom transports, page method replacements and custom arguments",
+          "reason": "Retain user-supplied opening_matches/count attributes and per-page Python callbacks.",
+          "contract_nodes": ["tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_custom_arguments_keep_per_page_extraction"],
+          "exit_condition": "A shared callback execution boundary supports arbitrary page objects and original evaluation order."
+        },
+        "validation": "Not collected, compiled or executed. Formal match stops early; status8 at 09:25 remains an auction snapshot."
+      },
       "kind": "组合接口",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-当日0925正式撮合.md",
@@ -971,6 +1039,21 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0fc6",
       "api": "client.trades.opening_match_history(code, date, ..., batch_size=None)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/trades.rs",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/response.rs", "src/eltdx/_native_models.py", "src/eltdx/api/trades.py"],
+        "contract_nodes": ["tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_collection_and_opening_use_one_shared_call", "tests/contracts/test_sdk_trade_domain_bridge.py::test_trade_opening_dto_preserves_single_tick_and_none"],
+        "integration_nodes": ["tests/integration/test_native_trade_domain_bridge.py::test_native_trade_opening_skips_status_eight_and_stops_on_first_match", "tests/integration/test_native_trade_domain_bridge.py::test_native_trade_page_limit_preserves_original_error_and_request_count"],
+        "fixtures": ["tests/integration/test_native_trade_domain_bridge.py::_payload"],
+        "temporary_adapter": {
+          "scope": "custom transports, page method replacements and custom arguments",
+          "reason": "Retain user-supplied opening_matches/count attributes and per-page Python date/parameter callbacks.",
+          "contract_nodes": ["tests/contracts/test_sdk_trade_domain_bridge.py::test_native_trade_custom_arguments_keep_per_page_extraction"],
+          "exit_condition": "A shared callback execution boundary supports arbitrary page objects and original evaluation order."
+        },
+        "validation": "Not collected, compiled or executed. Historical tick datetime remains naive and first matching wire row wins."
+      },
       "kind": "组合接口",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-历史0925正式撮合.md",

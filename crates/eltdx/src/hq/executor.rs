@@ -280,6 +280,7 @@ impl HqExecutor {
         if !matches!(&raw.request, CommandRequest::SecurityList(_) | CommandRequest::SecurityCount(_)
             | CommandRequest::Heartbeat(_) | CommandRequest::Handshake(_) | CommandRequest::FileContent(_)
             | CommandRequest::Klines(_) | CommandRequest::DelistedKlines(_)
+            | CommandRequest::TodayTicks(_) | CommandRequest::HistoricalTicks(_)
             | CommandRequest::IntradayAux(_) | CommandRequest::Sparkline(_)
             | CommandRequest::BlockMeta(_) | CommandRequest::CompanyInfoCategory(_) | CommandRequest::CompanyInfoContent(_)) {
             return Err(Error::new(ErrorKind::InvalidArgument, "unpriced decoder requires an unpriced command"));

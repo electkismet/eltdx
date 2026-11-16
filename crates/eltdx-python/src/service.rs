@@ -118,6 +118,27 @@ pub fn directory(py: Python<'_>, executor: LegacyExecutor, request: CommandReque
     unpriced_domain(py, executor, request, "python_directory", LegacyOperation::directory)
 }
 
+pub fn trades(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
+    unpriced_domain(py, executor, request, "python_trades", LegacyOperation::trades)
+}
+
+pub fn trade_read(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
+    collect: bool, opening: bool, maximum_pages: Option<usize>, bulk: bool) -> PyResult<Py<PyAny>> {
+    let include_raw = match &request {
+        CommandRequest::TodayTicks(query) => query.include_raw,
+        CommandRequest::HistoricalTicks(query) => query.include_raw,
+        _ => return Err(pyo3::exceptions::PyValueError::new_err("native trade read requires ticks")),
+    };
+    let value = run_legacy(py, move |token| {
+        let operation = executor.begin_operation("python_trade_read",
+            if include_raw { RawPolicy::RetainPayload } else { RawPolicy::Omit }, Some(token))?;
+        let result = operation.trade_read(request, collect, opening, maximum_pages)?;
+        operation.finish()?;
+        Ok(result)
+    })?;
+    response::legacy_trade_read_to_python(py, &value, bulk)
+}
+
 pub fn quotes(
     py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
     pin: Option<eltdx_runtime::engine::PinHandle>,

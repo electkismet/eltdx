@@ -248,6 +248,27 @@ class SocketTransport:
     def sdk_suspended(self, codes):
         return call_native(self._native().sdk_suspended, {"codes": codes})
 
+    def sdk_trades(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_trades, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_trade_batch(self, command: int, payload: dict[str, Any]):
+        if command != 0x0FC6:
+            raise ValueError("trade batch only supports historical ticks")
+        dto = call_native(self._native().sdk_trades, command, payload)
+        return trade_batch_from_dto(dto)
+
+    def sdk_trade_read(self, command: int, payload: dict[str, Any], *, collect: bool,
+                       opening: bool, max_pages: int | None, bulk: bool = False):
+        if bulk and command != 0x0FC6:
+            raise ValueError("trade batch only supports historical ticks")
+        dto = call_native(self._native().sdk_trade_read, command, payload,
+                          collect=collect, opening=opening, max_pages=max_pages, bulk=bulk)
+        if opening:
+            from eltdx._native_models import trade_opening_from_dto
+            return trade_opening_from_dto(dto)
+        return trade_batch_from_dto(dto) if bulk else response_from_dto(dto)
+
     def sdk_session(self, command: int, payload: dict[str, Any]):
         dto = call_native(self._native().sdk_session, command, payload)
         return response_from_dto(dto)

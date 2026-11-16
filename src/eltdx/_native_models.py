@@ -314,14 +314,28 @@ def trade_batch_from_dto(dto: Any):
     from eltdx.models.trade_batch import TradeBatch
 
     tag, payload = _tuple(dto, "response", 2)
-    if tag != "historical_ticks":
+    if tag not in {"historical_ticks", "historical_trade_batch"}:
         raise TypeError("trade batch requires a historical_ticks response")
     fields = _tuple(payload, "trade page", 9)
-    ticks = _flat_records(fields[5], "trade ticks", _TRADE_TICK_STRIDE)
+    if tag == "historical_trade_batch":
+        blocks = tuple(_flat_records(block, "trade ticks", _TRADE_TICK_STRIDE)
+                       for block in _tuple(fields[5], "trade blocks"))
+    else:
+        blocks = (_flat_records(fields[5], "trade ticks", _TRADE_TICK_STRIDE),)
     return TradeBatch(
-        fields[0], fields[1], fields[2], fields[3], fields[4], (ticks,),
+        fields[0], fields[1], fields[2], fields[3], fields[4], blocks,
         _date(fields[6]), fields[7], fields[8],
     )
+
+
+def trade_opening_from_dto(dto: Any):
+    if dto is None:
+        return None
+    tag, payload = _tuple(dto, "response", 2)
+    if tag != "trade_tick":
+        raise TypeError("trade opening requires a trade_tick response")
+    fields = _tuple(payload, "trade tick", _TRADE_TICK_STRIDE)
+    return _trade_tick_at(fields, 0)
 
 
 def response_from_dto(dto: Any) -> Any:

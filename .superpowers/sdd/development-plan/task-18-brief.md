@@ -43,6 +43,18 @@ integration functions and3 source-only manifest entries; none executed. Resume
 trades/auctions/dailyflow/corporate/equity/calendar/resources/stats/health and ALL
 helper/remaining subscription migration/evidence/installed-wheel consumer.
 
+Fourteenth recovery: quote stage committedd3c1215. Shared strict/legacy trade
+pager and today/history single/collection/bulk/opening native entry points are
+authored. Keep original repeated/over-count pages, first metadata/base, page-only
+reversal, intrinsic units/no prefetch, per-request budgets/no history pin,
+nonfinite base, out-of-day today labels, exact limit/offset errors and current
+today bulk rejection. Historical bulk preserves every block including empty EOF
+without eager Python ticks. Custom objects and instance/class page overrides
+retain per-page Python evaluation. Added14 contract/12 integration/3 private Rust
+functions and4 source-only manifest records; none executed. Continue auctions/
+dailyflow and remaining corporate/equity/calendar/resources/stats/health/helpers/
+subscription/evidence/installed-wheel consumer. Do not repeat authored domains.
+
 ## Exact plan scope
 
 New `src/helpers/{mod,market,boards,shortline,profile}.rs` (split focused files as necessary), all HQ helper DTO/query types, `tests/hq_helpers.rs`, `examples/hq_query.rs`. Migrate Python HQ `api`, `helpers`, `equity.py`, `workday.py`, `stats.py`, native bridge and manifest per completed domain; author domain differential/compatibility source tests. Implement all HQ M79–M97 including pure classify_fund_flow M95. Complete all HQ methods left by prior tasks; no exposed placeholder/Unsupported for documented valid supported HQ behavior.
