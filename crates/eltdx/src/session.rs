@@ -103,6 +103,18 @@ impl SessionOwner {
         }
     }
 
+    // The closure is a bounded counter/terminal-state transaction, never I/O or a wait.
+    // Lock order for operation admission is owner -> business token -> budget.
+    pub(crate) fn with_open_admission<T>(&self, action: impl FnOnce() -> Result<T>) -> Result<T> {
+        let state = self.lock_state()?;
+        if state.phase != SessionPhase::Open { return Err(closed_error()); }
+        action()
+    }
+
+    pub(crate) fn shutdown_deadline(&self) -> Result<Option<Instant>> {
+        Ok(self.lock_state()?.shutdown_deadline)
+    }
+
     pub(crate) fn admit(self: &Arc<Self>) -> Result<SessionOperation> {
         let mut state = self.lock_state()?;
         if state.phase != SessionPhase::Open {

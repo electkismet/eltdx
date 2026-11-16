@@ -772,7 +772,8 @@ pub struct TerminalBatch {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RetryPolicy {
     retry_safe: bool,
-    max_attempts: u8,
+    max_attempts: u32,
+    strict_failures: bool,
 }
 
 impl RetryPolicy {
@@ -780,6 +781,7 @@ impl RetryPolicy {
         Self {
             retry_safe,
             max_attempts: 2,
+            strict_failures: false,
         }
     }
 
@@ -787,14 +789,19 @@ impl RetryPolicy {
         Self {
             retry_safe: false,
             max_attempts: 1,
+            strict_failures: false,
         }
+    }
+
+    pub const fn rust_public(retry_safe: bool, max_attempts: std::num::NonZeroU32) -> Self {
+        Self { retry_safe, max_attempts: max_attempts.get(), strict_failures: true }
     }
 
     pub const fn retry_safe(self) -> bool {
         self.retry_safe
     }
 
-    pub const fn max_attempts(self) -> u8 {
+    pub const fn max_attempts(self) -> u32 {
         self.max_attempts
     }
 }
@@ -811,8 +818,8 @@ pub struct RequestAttempt {
     pub request_id: RequestId,
     pub lease_id: LeaseId,
     pub slot_id: SlotId,
-    pub attempt_number: u8,
-    pub attempts_including_current: u8,
+    pub attempt_number: u32,
+    pub attempts_including_current: u32,
     pub deadline: Deadline,
     pub total_deadline: Deadline,
     pub expected_generation: Option<GenerationId>,
@@ -829,7 +836,7 @@ pub enum RetryStopReason {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RetryRetirement {
     pub wire: RequestWireIdentity,
-    pub failed_attempt: u8,
+    pub failed_attempt: u32,
     pub error: RuntimeError,
 }
 
@@ -855,7 +862,7 @@ enum RetirementIntent {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct AttemptRecord {
     policy: RetryPolicy,
-    attempts_started: u8,
+    attempts_started: u32,
     attempt_deadline: Option<Deadline>,
     business_bytes_sent: bool,
     last_failure: Option<RuntimeError>,
@@ -1073,7 +1080,10 @@ impl RequestTracker {
             return None;
         }
 
-        let reason = if !retryable {
+        let rejected_failure = record.attempt.policy.strict_failures && !matches!(
+            &error, RuntimeError::ConnectionClosed { .. } | RuntimeError::Timeout { .. }
+        );
+        let reason = if !retryable || rejected_failure {
             Some(RetryStopReason::NotRetryable)
         } else if record.attempt.attempts_started >= record.attempt.policy.max_attempts {
             Some(RetryStopReason::AttemptsExhausted)
@@ -1277,7 +1287,7 @@ impl RequestTracker {
         }))
     }
 
-    pub fn attempt_count(&self, request_id: RequestId) -> Option<u8> {
+    pub fn attempt_count(&self, request_id: RequestId) -> Option<u32> {
         self.records
             .get(&request_id)
             .map(|record| record.attempt.attempts_started)
@@ -1603,7 +1613,7 @@ fn start_attempt(
     }
     let deadline = owner.deadline.fair_slice_at(
         now,
-        usize::from(attempts_including_current),
+        usize::try_from(attempts_including_current).map_err(|_| RuntimeError::invalid_argument("OverflowError", "wire attempt count exceeds platform capacity"))?,
         TimeoutPhase::Retry,
     )?;
     let attempt_number = record

@@ -28,7 +28,7 @@ use crate::diagnostics::{
 };
 use crate::endpoint::{Endpoint, EndpointRotation};
 use crate::error::{RuntimeError, TimeoutPhase};
-use crate::execution::{RawReply, SubmissionOptions};
+use crate::execution::{AttemptAuthorization, RawReply, ReservedAttempt, SubmissionOptions};
 use crate::memory::MemoryBudget;
 use crate::pin::PinIdentity;
 use crate::push::PushFrame;
@@ -829,6 +829,34 @@ pub enum PendingPoll<T> {
     Pending,
 }
 
+/// Pollable request retirement. The SDK can tighten cleanup while owner close begins.
+#[derive(Debug)]
+pub struct PendingCancellation {
+    created_pid: u32,
+    control: Arc<ControlCell>,
+    confirmation: Option<Arc<Completion<Result<(), RuntimeError>>>>,
+}
+
+impl PendingCancellation {
+    pub fn wait_timeout(&self, timeout: Duration) -> Result<PendingPoll<()>, RuntimeError> {
+        check_pid(self.created_pid)?;
+        match &self.confirmation {
+            None => Ok(PendingPoll::Ready(())),
+            Some(confirmation) => match confirmation.wait(timeout)? {
+                Some(result) => result.map(|()| PendingPoll::Ready(())),
+                None => Ok(PendingPoll::Pending),
+            },
+        }
+    }
+
+    /// Refuse reuse after retirement cannot be confirmed; control bypasses ingress capacity.
+    pub fn quarantine(&self) -> Result<(), RuntimeError> {
+        check_pid(self.created_pid)?;
+        self.control.mark_close_timeout()?;
+        self.control.request_close()
+    }
+}
+
 impl PendingExecution {
     pub const fn request_id(&self) -> RequestId {
         self.raw.request_id()
@@ -901,6 +929,21 @@ impl PendingRawExecution {
                 PendingPoll::Pending => {}
             }
         }
+    }
+
+    pub fn begin_cancel(&self) -> Result<PendingCancellation, RuntimeError> {
+        check_pid(self.created_pid)?;
+        let confirmation = match self.result_rx.try_recv() {
+            Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => None,
+            Err(std_mpsc::TryRecvError::Empty) => {
+                let confirmation = Arc::new(Completion::new());
+                self.control.request_cancel(self.request_id, Arc::clone(&confirmation))?;
+                Some(confirmation)
+            }
+        };
+        Ok(PendingCancellation {
+            created_pid: self.created_pid, control: Arc::clone(&self.control), confirmation,
+        })
     }
 
     pub fn cancel_and_confirm(&self, timeout: Duration) -> Result<(), RuntimeError> {
@@ -1290,7 +1333,7 @@ impl Engine {
         options: SubmissionOptions,
     ) -> Result<PendingConnect, RuntimeError> {
         self.check_pid()?;
-        let deadline = Deadline::from_instant(options.absolute_deadline());
+        let deadline = options.timing().resolve_after_startup()?;
         deadline.require_remaining(TimeoutPhase::Startup)?;
         self.begin_connect_inner(Some(deadline))
     }
@@ -1441,13 +1484,9 @@ impl Engine {
         options: Option<SubmissionOptions>,
     ) -> Result<PendingPin, RuntimeError> {
         self.check_pid()?;
-        let deadline_policy = options.map_or(
+        let deadline_policy = options.as_ref().map_or(
             RequestDeadlinePolicy::LegacyAfterStartup(self.inner.config.request_timeout),
-            |options| {
-                RequestDeadlinePolicy::Absolute(Deadline::from_instant(
-                    options.absolute_deadline(),
-                ))
-            },
+            SubmissionOptions::timing,
         );
         if let Some(deadline) = deadline_policy.absolute_deadline() {
             deadline.require_remaining(TimeoutPhase::Startup)?;
@@ -1523,19 +1562,19 @@ impl Engine {
         options: Option<SubmissionOptions>,
     ) -> Result<PendingRawExecution, RuntimeError> {
         self.check_pid()?;
-        let deadline_policy = options.map_or(
+        let deadline_policy = options.as_ref().map_or(
             RequestDeadlinePolicy::LegacyAfterStartup(self.inner.config.request_timeout),
-            |options| {
-                RequestDeadlinePolicy::Absolute(Deadline::from_instant(
-                    options.absolute_deadline(),
-                ))
-            },
+            SubmissionOptions::timing,
         );
         if let Some(deadline) = deadline_policy.absolute_deadline() {
             deadline.require_remaining(TimeoutPhase::Startup)?;
         }
-        let (runtime, request_id, ingress) =
-            self.reserve_submission_with_deadline(deadline_policy.absolute_deadline())?;
+        let authorization = options.as_ref().and_then(|options| options.authorization.clone());
+        let retry_policy = options.as_ref().and_then(|options| options.retry)
+            .unwrap_or_else(|| RetryPolicy::ordinary(request.retry_safe()));
+        let (runtime, request_id, ingress) = self.reserve_authorized_submission(
+            deadline_policy.absolute_deadline(), authorization.as_deref(),
+        )?;
         let deadline = deadline_policy.resolve_after_startup()?;
         deadline.require_remaining(TimeoutPhase::Admission)?;
         let (admission_tx, admission_rx) = std_mpsc::sync_channel(1);
@@ -1546,6 +1585,8 @@ impl Engine {
                 request_id,
                 request,
                 deadline,
+                retry_policy,
+                authorization,
                 admission: admission_tx,
                 result: result_tx,
                 ingress,
@@ -1554,6 +1595,8 @@ impl Engine {
                 request_id,
                 request,
                 deadline,
+                retry_policy,
+                authorization,
                 admission: admission_tx,
                 result: result_tx,
                 ingress,
@@ -2102,10 +2145,16 @@ impl Engine {
     }
 
     fn ensure_runtime_with_deadline(
-        &self,
-        deadline: Option<Deadline>,
+        &self, deadline: Option<Deadline>,
+    ) -> Result<RuntimeRef, RuntimeError> {
+        self.ensure_authorized_runtime(deadline, None)
+    }
+
+    fn ensure_authorized_runtime(
+        &self, deadline: Option<Deadline>, authorization: Option<&dyn AttemptAuthorization>,
     ) -> Result<RuntimeRef, RuntimeError> {
         self.check_pid()?;
+        if let Some(authorization) = authorization { authorization.check_boundary(Instant::now())?; }
         if let Some(deadline) = deadline {
             deadline.require_remaining(TimeoutPhase::Startup)?;
         }
@@ -2156,9 +2205,14 @@ impl Engine {
             .map(|deadline| deadline.require_remaining(TimeoutPhase::Startup))
             .transpose()?
             .unwrap_or(self.inner.config.request_timeout);
-        let result = startup
-            .wait(startup_timeout)?
-            .ok_or_else(|| RuntimeError::timeout(TimeoutPhase::Startup))?;
+        let startup_until = Instant::now().checked_add(startup_timeout)
+            .ok_or_else(|| RuntimeError::invalid_argument("OverflowError", "startup timeout overflow"))?;
+        let result = loop {
+            if let Some(authorization) = authorization { authorization.check_boundary(Instant::now())?; }
+            let remaining = startup_until.saturating_duration_since(Instant::now());
+            if remaining.is_zero() { return Err(RuntimeError::timeout(TimeoutPhase::Startup)); }
+            if let Some(result) = startup.wait(remaining.min(SIGNAL_POLL_INTERVAL))? { break result; }
+        };
         if result.is_ok() {
             if let Some(deadline) = deadline {
                 deadline.require_remaining(TimeoutPhase::Startup)?;
@@ -2231,7 +2285,14 @@ impl Engine {
         &self,
         deadline: Option<Deadline>,
     ) -> Result<(RuntimeRef, RequestId, IngressOwnership), RuntimeError> {
-        let runtime = self.ensure_runtime_with_deadline(deadline)?;
+        self.reserve_authorized_submission(deadline, None)
+    }
+
+    fn reserve_authorized_submission(
+        &self, deadline: Option<Deadline>, authorization: Option<&dyn AttemptAuthorization>,
+    ) -> Result<(RuntimeRef, RequestId, IngressOwnership), RuntimeError> {
+        let runtime = self.ensure_authorized_runtime(deadline, authorization)?;
+        if let Some(authorization) = authorization { authorization.check_boundary(Instant::now())?; }
         let mut host = lock_mutex(&self.inner.host, "Engine submit gate")?;
         if let Some(deadline) = deadline {
             deadline.require_remaining(TimeoutPhase::Admission)?;
@@ -2325,6 +2386,8 @@ enum RuntimeCommand {
         request_id: RequestId,
         request: CommandRequest,
         deadline: Deadline,
+        retry_policy: RetryPolicy,
+        authorization: Option<Arc<dyn AttemptAuthorization>>,
         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
         result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
         ingress: IngressOwnership,
@@ -2341,6 +2404,8 @@ enum RuntimeCommand {
         request_id: RequestId,
         request: CommandRequest,
         deadline: Deadline,
+        retry_policy: RetryPolicy,
+        authorization: Option<Arc<dyn AttemptAuthorization>>,
         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
         result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
         ingress: IngressOwnership,
@@ -2576,6 +2641,7 @@ fn lock_mutex<'a, T>(
 #[derive(Debug)]
 struct PendingRequest {
     request: CommandRequest,
+    authorization: Option<Arc<dyn AttemptAuthorization>>,
     result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
     _ingress: IngressOwnership,
     admission: Admission,
@@ -3125,6 +3191,8 @@ impl RuntimeCore {
                 request_id,
                 request,
                 deadline,
+                retry_policy,
+                authorization,
                 admission,
                 result,
                 ingress,
@@ -3133,7 +3201,7 @@ impl RuntimeCore {
                 let accepted = self.supervisor.submit_with_retry_policy(
                     request_id,
                     deadline,
-                    RetryPolicy::ordinary(request.retry_safe()),
+                    retry_policy,
                     now,
                 );
                 match accepted {
@@ -3142,6 +3210,7 @@ impl RuntimeCore {
                             request_id,
                             PendingRequest {
                                 request,
+                                authorization,
                                 result,
                                 _ingress: ingress,
                                 admission: accepted,
@@ -3222,6 +3291,8 @@ impl RuntimeCore {
                 request_id,
                 request,
                 deadline,
+                retry_policy,
+                authorization,
                 admission,
                 result,
                 ingress,
@@ -3230,7 +3301,7 @@ impl RuntimeCore {
                     pin,
                     request_id,
                     deadline,
-                    RetryPolicy::ordinary(request.retry_safe()),
+                    retry_policy,
                     Instant::now(),
                 );
                 match accepted {
@@ -3239,6 +3310,7 @@ impl RuntimeCore {
                             request_id,
                             PendingRequest {
                                 request,
+                                authorization,
                                 result,
                                 _ingress: ingress,
                                 admission: accepted,
@@ -3636,6 +3708,14 @@ impl RuntimeCore {
             .get(&attempt.request_id)
             .map(|pending| pending.request.clone())
             .ok_or_else(|| RuntimeError::internal("dispatched request is not pending"))?;
+        let permit = match self.pending.get(&attempt.request_id)
+            .and_then(|pending| pending.authorization.as_ref()) {
+            Some(authorization) => authorization.reserve(
+                attempt.attempt_number,
+                self.supervisor.last_retry_error(attempt.request_id),
+            ).map(Some),
+            None => Ok(None),
+        };
         self.send_slot_work(
             attempt.slot_id,
             SlotWork::Execute {
@@ -3643,6 +3723,7 @@ impl RuntimeCore {
                 request,
                 begin_endpoint_attempt,
                 publish_connect_transition,
+                permit,
             },
         )?;
         let pending = self
@@ -3822,6 +3903,27 @@ impl RuntimeCore {
                     result
                 }
             }
+            SlotEvent::UnstartedRejected { attempt, error } => {
+                if self.closing { return Ok(()); }
+                let Some(pending) = self.pending.get(&attempt.request_id) else { return Ok(()); };
+                let wire = RequestWireIdentity {
+                    engine_epoch: attempt.engine_epoch, request_id: attempt.request_id,
+                    lease_id: attempt.lease_id, slot_id: attempt.slot_id,
+                    generation: attempt.expected_generation, message: None,
+                };
+                if let Some(pin) = pending.pin {
+                    if let Some(batch) = self.supervisor.terminal_pin(
+                        wire, TerminalKind::Failed, Some(error), Instant::now(),
+                    )? {
+                        self.process_pin_terminal_batch(pin, batch).await?;
+                    }
+                } else if let Some(batch) = self.supervisor.terminal_active(
+                    wire, TerminalKind::Failed, Some(error), Instant::now(),
+                )? {
+                    self.process_terminal_batch(batch).await?;
+                }
+                Ok(())
+            }
             SlotEvent::UnstartedCancelled { request_id } => {
                 let Some(pending) = self.pending.get(&request_id) else {
                     return Ok(());
@@ -3924,7 +4026,9 @@ impl RuntimeCore {
                             )),
                         }
                     }
-                } else if same_attempt_possible {
+                } else if same_attempt_possible && !self.pending.get(&wire.request_id)
+                    .and_then(|pending| pending.authorization.as_ref())
+                    .is_some_and(|authorization| authorization.count_endpoint_failover()) {
                     self.retirements
                         .insert(wire.request_id, RetirementPlan::ContinueEndpoint);
                     Ok(FailureAction::Retire)
@@ -4935,6 +5039,7 @@ enum SlotWork {
         request: CommandRequest,
         begin_endpoint_attempt: bool,
         publish_connect_transition: bool,
+        permit: Result<Option<Box<dyn ReservedAttempt>>, RuntimeError>,
     },
 }
 
@@ -4976,6 +5081,10 @@ enum SlotEvent {
     },
     UnstartedCancelled {
         request_id: RequestId,
+    },
+    UnstartedRejected {
+        attempt: RequestAttempt,
+        error: RuntimeError,
     },
     Failed {
         wire: RequestWireIdentity,
@@ -5025,6 +5134,10 @@ enum WorkOutcome {
     },
     UnstartedCancelled {
         request_id: RequestId,
+    },
+    UnstartedRejected {
+        attempt: RequestAttempt,
+        error: RuntimeError,
     },
     Interrupted {
         wire: RequestWireIdentity,
@@ -5083,12 +5196,14 @@ impl SlotWorker {
                             request,
                             begin_endpoint_attempt,
                             publish_connect_transition,
+                            permit,
                         } => {
                             let outcome = self.execute_work(
                                 attempt,
                                 request,
                                 begin_endpoint_attempt,
                                 publish_connect_transition,
+                                permit,
                             ).await?;
                             self.refresh_snapshot(true)?;
                             self.publish_work_outcome(outcome).await?;
@@ -5185,6 +5300,9 @@ impl SlotWorker {
                     Err(_) => self.retire_wire(wire).await,
                 }
             }
+            WorkOutcome::UnstartedRejected { attempt, error } => self.event_tx
+                .send(SlotEvent::UnstartedRejected { attempt, error }).await
+                .map_err(|_| RuntimeError::internal("runtime event receiver closed")),
             WorkOutcome::UnstartedCancelled { request_id } => self
                 .event_tx
                 .send(SlotEvent::UnstartedCancelled { request_id })
@@ -5353,13 +5471,22 @@ impl SlotWorker {
         request: CommandRequest,
         begin_endpoint_attempt: bool,
         publish_connect_transition: bool,
+        permit: Result<Option<Box<dyn ReservedAttempt>>, RuntimeError>,
     ) -> Result<WorkOutcome, RuntimeError> {
         if let Some(interrupted) = self.current_interrupt(attempt.request_id) {
             if interrupted {
-                return Ok(WorkOutcome::UnstartedCancelled {
-                    request_id: attempt.request_id,
+                return Ok(WorkOutcome::UnstartedRejected {
+                    attempt,
+                    error: RuntimeError::connection_closed("request cancelled before wire start"),
                 });
             }
+        }
+        let started = permit.and_then(|permit| match permit {
+            Some(permit) => permit.start(Instant::now()),
+            None => Ok(()),
+        });
+        if let Err(error) = started {
+            return Ok(WorkOutcome::UnstartedRejected { attempt, error });
         }
         let boundary = if self.slot.state() == SlotState::Idle {
             self.slot.assign_ready(attempt.request_id)?;

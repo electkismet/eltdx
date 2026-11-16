@@ -1144,7 +1144,7 @@ impl Supervisor {
         Ok(true)
     }
 
-    pub fn request_attempt_count(&self, request_id: RequestId) -> Option<u8> {
+    pub fn request_attempt_count(&self, request_id: RequestId) -> Option<u32> {
         self.requests.attempt_count(request_id)
     }
 

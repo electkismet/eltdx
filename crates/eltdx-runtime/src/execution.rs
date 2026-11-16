@@ -1,28 +1,83 @@
-use std::time::Instant;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use eltdx_protocol::frame::ResponseFrame;
 use eltdx_protocol::CommandRequest;
 
 use crate::error::RuntimeError;
-use crate::request::RequestWireIdentity;
+use crate::deadline::Deadline;
+use crate::request::{RequestDeadlinePolicy, RequestWireIdentity, RetryPolicy};
 use crate::slot::{EngineEpoch, GenerationId, RequestId, SlotId};
 
 /// Submission policy for one raw execution using a caller-owned absolute deadline.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct SubmissionOptions {
-    absolute_deadline: Instant,
+    timing: RequestDeadlinePolicy,
+    pub(crate) retry: Option<RetryPolicy>,
+    pub(crate) authorization: Option<Arc<dyn AttemptAuthorization>>,
 }
 
 impl SubmissionOptions {
     /// Creates options with a deadline measured on the same monotonic clock as `Instant::now`.
     pub const fn new(absolute_deadline: Instant) -> Self {
-        Self { absolute_deadline }
+        Self {
+            timing: RequestDeadlinePolicy::Absolute(Deadline::from_instant(absolute_deadline)),
+            retry: None,
+            authorization: None,
+        }
     }
 
     /// Returns the unchanged absolute deadline supplied at construction.
-    pub const fn absolute_deadline(self) -> Instant {
-        self.absolute_deadline
+    pub fn absolute_deadline(&self) -> Option<Instant> {
+        self.timing.absolute_deadline().map(|deadline| deadline.instant())
     }
+
+    /// Internal compatibility boundary: start this request's clock after runtime startup.
+    #[doc(hidden)]
+    pub fn legacy_after_startup(timeout: Duration) -> Self {
+        Self {
+            timing: RequestDeadlinePolicy::LegacyAfterStartup(timeout),
+            retry: None,
+            authorization: None,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn with_attempt_authorization(
+        mut self,
+        retry: RetryPolicy,
+        authorization: Arc<dyn AttemptAuthorization>,
+    ) -> Self {
+        self.retry = Some(retry);
+        self.authorization = Some(authorization);
+        self
+    }
+
+    pub(crate) const fn timing(&self) -> RequestDeadlinePolicy {
+        self.timing
+    }
+}
+
+/// Language-neutral admission hook. Implementations must not retain an engine owner strongly.
+/// No callback is invoked while a runtime lifecycle/state mutex is held.
+#[doc(hidden)]
+pub trait AttemptAuthorization: std::fmt::Debug + Send + Sync {
+    fn check_boundary(&self, now: Instant) -> Result<(), RuntimeError>;
+
+    fn reserve(
+        &self,
+        attempt: u32,
+        last_failure: Option<&RuntimeError>,
+    ) -> Result<Box<dyn ReservedAttempt>, RuntimeError>;
+
+    /// Old runtime endpoint cycling is retained only by the legacy policy.
+    fn count_endpoint_failover(&self) -> bool;
+}
+
+/// Unique reservation, moved to a worker. Dropping before start refunds it exactly once.
+#[doc(hidden)]
+pub trait ReservedAttempt: std::fmt::Debug + Send {
+    fn start(self: Box<Self>, now: Instant) -> Result<(), RuntimeError>;
 }
 
 /// An owned protocol frame and the session identity that received it.
