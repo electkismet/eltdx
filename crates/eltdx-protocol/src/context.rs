@@ -20,6 +20,7 @@ pub enum ParseRawPolicy {
     RetainPayload,
 }
 
+#[derive(Clone, Copy)]
 pub struct ParseOptions<'a> {
     pub price_precision: &'a dyn PricePrecisionSource,
     pub raw: ParseRawPolicy,
@@ -56,7 +57,7 @@ impl RecordRange {
         Ok(match self.encoding {
             RecordEncoding::Payload => record,
             RecordEncoding::RefreshXor93 => {
-                Bytes::from(record.iter().map(|byte| byte ^ 0x93).collect::<Vec<_>>())
+                Bytes::from(record.iter().map(|byte| *byte ^ 0x93).collect::<Vec<_>>())
             }
         })
     }
@@ -158,9 +159,10 @@ impl<'a> ParseContext<'a> {
 
     pub(crate) fn precision(&self, code: &NormalizedCode) -> Result<PricePrecision, ProtocolError> {
         let Some(options) = self.options else {
+            let (divisor, decimal) = crate::unit::legacy_price_precision(code);
             return Ok(PricePrecision {
-                divisor: crate::unit::price_divisor(code),
-                decimal: crate::unit::security_decimal(code),
+                divisor,
+                decimal,
             });
         };
         let decimal = options.price_precision.security_decimal(code).ok_or_else(|| {
@@ -174,15 +176,14 @@ impl<'a> ParseContext<'a> {
             decimal: Some(decimal),
         })
     }
-
 }
 
 fn encode_hex(data: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
     let mut text = String::with_capacity(data.len() * 2);
     for byte in data {
-        text.push(char::from(DIGITS[usize::from(byte >> 4)]));
-        text.push(char::from(DIGITS[usize::from(byte & 0x0f)]));
+        text.push(char::from(DIGITS[usize::from(*byte >> 4)]));
+        text.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
     }
     text
 }

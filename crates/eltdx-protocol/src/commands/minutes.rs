@@ -278,6 +278,7 @@ pub struct MinutePoint {
     pub price: f64,
     pub price_milli: i64,
     pub price_divisor: u16,
+    /// Captured resolver value; provenance is supplied by the SDK snapshot.
     pub metadata_decimal: Option<u8>,
     pub volume: i64,
     pub price_field: Option<i64>,
@@ -337,6 +338,7 @@ pub struct MinuteAuxSeries {
 pub struct SparklinePrice {
     pub value: f32,
     pub raw: [u8; 4],
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -798,7 +800,11 @@ fn parse_sparkline_payload_body(
     let mut offset = 42;
     for _ in 0..price_count {
         let (value, raw) = read_f32(payload, offset, "sparkline price")?;
-        prices.push(SparklinePrice { value, raw });
+        prices.push(SparklinePrice {
+            value,
+            raw,
+            record_range: context.record_range(&payload[offset..offset + 4]),
+        });
         offset += 4;
     }
     Ok(SparklineSeries {

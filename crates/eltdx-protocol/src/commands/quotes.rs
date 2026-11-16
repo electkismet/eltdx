@@ -214,6 +214,8 @@ pub struct QuotePriceRaw {
     pub low: i64,
     pub wire_denominator: u16,
     pub divisor: u16,
+    /// Decimal returned by the captured source, including an audited fallback
+    /// if that source provides one. This does not itself assert verification.
     /// None is possible only for the legacy prefix/default fallback.
     pub metadata_decimal: Option<u8>,
 }
@@ -858,7 +860,7 @@ fn parse_legacy_quote_record(
                 high: checked_add(close_raw, high_diff_raw)?,
                 low: checked_add(close_raw, low_diff_raw)?,
                 wire_denominator: 100,
-                divisor: divisor as u16,
+                divisor,
                 metadata_decimal: precision.decimal,
             },
             market,

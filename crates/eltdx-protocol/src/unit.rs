@@ -559,21 +559,26 @@ pub fn milli_to_float(value: i64) -> f64 {
 }
 
 pub fn price_divisor(code: &NormalizedCode) -> u16 {
+    legacy_price_precision(code).0
+}
+
+pub(crate) fn legacy_price_precision(code: &NormalizedCode) -> (u16, Option<u8>) {
     if let Some(decimal) = security_decimal(code) {
-        return match decimal {
+        let divisor = match decimal {
             0..=2 => 1,
             3 => 10,
             4 => 100,
             _ => 10_u16.saturating_pow(u32::from(decimal - 2)),
         };
+        return (divisor, Some(decimal));
     }
     if PRICING_ETF_PREFIXES
         .iter()
         .any(|prefix| code.number.starts_with(prefix))
     {
-        10
+        (10, None)
     } else {
-        1
+        (1, None)
     }
 }
 

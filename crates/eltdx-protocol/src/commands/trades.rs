@@ -311,6 +311,7 @@ enum TickTailKind {
     Reserved,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_tick_records(
     payload: &[u8],
     mut offset: usize,
@@ -382,14 +383,14 @@ fn parse_tick_records(
             Arc::clone(empty)
         } else {
             match &last_record {
-            Some((previous_record, previous_hex)) if *previous_record == record => {
-                Arc::clone(previous_hex)
-            }
-            _ => {
-                let hex: Arc<str> = Arc::from(encode_hex(record));
-                last_record = Some((record, Arc::clone(&hex)));
-                hex
-            }
+                Some((previous_record, previous_hex)) if *previous_record == record => {
+                    Arc::clone(previous_hex)
+                }
+                _ => {
+                    let hex: Arc<str> = Arc::from(encode_hex(record));
+                    last_record = Some((record, Arc::clone(&hex)));
+                    hex
+                }
             }
         };
         ticks.push(TradeTick {

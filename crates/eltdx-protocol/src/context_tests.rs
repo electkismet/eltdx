@@ -316,6 +316,7 @@ fn context_history_flow_keeps_original_custom_float_words() -> Result<(), Protoc
     let result = CommandResponse::parse_with_context(CommandRequest::Klines(request), payload.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
     let CommandResponse::HistoryFundFlow(series) = result else { panic!("category 22 must route to flow"); };
     assert!(series.raw_payload.is_empty());
+    assert_eq!(series.prefix_raw, Some([0x5a; 9]));
     assert_eq!(series.records[0].amounts_raw, words);
     assert_eq!(series.records[0].record_range.offset, 11);
     assert_eq!(series.records[0].record_range.len, 36);
@@ -329,4 +330,226 @@ fn context_record_ranges_reject_overflow_and_unavailable_payload() {
     assert!(range.bytes(&Bytes::new()).is_err());
     let range = RecordRange { offset: 1, len: 1, encoding: RecordEncoding::RefreshXor93 };
     assert!(range.hex(&Bytes::new()).is_err());
+}
+
+#[test]
+fn context_finance_native_info_is_semantic_and_shared_only_when_retained() -> Result<(), ProtocolError> {
+    let code = NormalizedCode::parse("sh600997")?;
+    let mut record = [0_u8; FINANCE_RECORD_SIZE];
+    record[..7].copy_from_slice(&marker(&code)[..7]);
+    record[7..11].copy_from_slice(&0x7fc0_1234_u32.to_le_bytes());
+    record[11..13].copy_from_slice(&0xabcd_u16.to_le_bytes());
+    record[139..143].copy_from_slice(&0x8000_0000_u32.to_le_bytes());
+    let mut data = vec![1, 0];
+    data.extend_from_slice(&record);
+    let payload = Bytes::from(data);
+    let request = FinanceBatchRequest::new(vec![code])?;
+    let omit = parse_finance_batch_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_finance_batch_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::RetainPayload))?;
+    let legacy = parse_finance_batch_payload(&payload, request)?;
+    assert_eq!(omit.records[0].liu_tong_gu_ben_raw_float.to_bits(), 0x7fc0_1234);
+    assert_eq!(omit.records[0].bao_liu_2_raw_float.to_bits(), 0x8000_0000);
+    assert_eq!(omit.records[0].province_raw, 0xabcd);
+    assert_eq!(omit.records[0].finance_info_raw, retained.records[0].finance_info_raw);
+    assert_eq!(retained.records[0].finance_info_raw.as_ptr(), payload[9..].as_ptr());
+    assert_ne!(omit.records[0].finance_info_raw.as_ptr(), payload[9..].as_ptr());
+    assert!(omit.raw_payload.is_empty() && omit.records[0].record_hex.is_empty());
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    assert_eq!(retained.records[0].record_range.hex(&payload)?, legacy.records[0].record_hex);
+    Ok(())
+}
+
+#[test]
+fn context_klines_and_delisted_keep_integer_prices_and_unknown_suffix() -> Result<(), ProtocolError> {
+    use crate::commands::delisted_bars::*;
+    let code = NormalizedCode::parse("sh600997")?;
+    let request = KlinesRequest::new(code.clone(), KlinePeriod::new(4, 1), 0, 1, AdjustMode::None, 0, KlineKind::Stock)?;
+    let mut data = vec![1, 0];
+    data.extend_from_slice(&20_260_814_u32.to_le_bytes());
+    varints(&mut data, &[125_528, 3, 5, -7]);
+    data.extend_from_slice(&0x1234_5678_u32.to_le_bytes());
+    data.extend_from_slice(&0x8765_4321_u32.to_le_bytes());
+    let payload = Bytes::from(data);
+    let omit = parse_klines_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_klines_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::RetainPayload))?;
+    let legacy = parse_klines_payload(&payload, request)?;
+    assert_eq!(omit.bars[0].open_price_milli, 125_528);
+    assert_eq!(omit.bars[0].time_raw, 20_260_814_u32.to_le_bytes());
+    assert_eq!(omit.bars[0].amount_raw, 0x8765_4321);
+    assert_eq!(omit.bars[0].volume_raw, retained.bars[0].volume_raw);
+    assert!(omit.raw_payload.is_empty() && omit.bars[0].record_hex.is_empty());
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    assert_eq!(retained.bars[0].record_range.hex(&payload)?, legacy.bars[0].record_hex);
+
+    let mut data = vec![1, 0];
+    data.extend_from_slice(&20_260_814_u32.to_le_bytes());
+    varints(&mut data, &[125_528, 3, 5, -7, 1234]);
+    data.extend_from_slice(&0x8765_4321_u32.to_le_bytes());
+    data.extend_from_slice(&[0xde, 0xad, 0xbe, 0xef]);
+    let payload = Bytes::from(data);
+    let request = DelistedKlinesRequest::new(code, 0, 1, false)?;
+    let omit = parse_delisted_klines_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_delisted_klines_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::RetainPayload))?;
+    let legacy = parse_delisted_klines_payload(&payload, request)?;
+    assert_eq!(omit.bars[0].unknown_suffix_raw, Some([0xde, 0xad, 0xbe, 0xef]));
+    assert_eq!(omit.bars[0].unknown_suffix_raw, retained.bars[0].unknown_suffix_raw);
+    assert_eq!(omit.bars[0].volume_raw, 1234);
+    assert!(omit.raw_payload.is_empty() && omit.bars[0].record_hex.is_empty());
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    assert_eq!(retained.bars[0].record_range.hex(&payload)?, legacy.bars[0].record_hex);
+    Ok(())
+}
+
+#[test]
+fn context_auction_and_money_flow_keep_wire_bits_and_unknown_header() -> Result<(), ProtocolError> {
+    use crate::commands::{auctions::*, money_flow::*};
+    let code = NormalizedCode::parse("sh600997")?;
+    let mut data = vec![1, 0];
+    data.extend_from_slice(&571_u16.to_le_bytes());
+    data.extend_from_slice(&0x42fb_0e56_u32.to_le_bytes());
+    data.extend_from_slice(&123_u32.to_le_bytes());
+    data.extend_from_slice(&(-47_i32).to_le_bytes());
+    data.extend_from_slice(&[0x5a, 17]);
+    let payload = Bytes::from(data);
+    let request = AuctionSeriesRequest::with_defaults(code.clone());
+    let omit = parse_auction_series_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_auction_series_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::RetainPayload))?;
+    let legacy = parse_auction_series_payload(&payload, request)?;
+    assert_eq!(omit.points[0].price.to_bits(), 0x42fb_0e56);
+    assert_eq!(omit.points[0].price_raw, retained.points[0].price_raw);
+    assert_eq!(omit.points[0].unmatched_signed_raw, -47);
+    assert_eq!(omit.points[0].reserved_zero_0e, 0x5a);
+    assert_eq!(omit.points[0].second_raw, 17);
+    assert!(omit.raw_payload.is_empty() && omit.points[0].record_hex.is_empty());
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    assert_eq!(retained.points[0].record_range.hex(&payload)?, legacy.points[0].record_hex);
+
+    let mut header = [0x5a; MONEY_FLOW_HEADER_SIZE];
+    header[0] = code.market().id();
+    header[2..8].copy_from_slice(code.number().as_bytes());
+    header[0x26..0x28].copy_from_slice(&1_u16.to_le_bytes());
+    let mut record = [0_u8; MONEY_FLOW_RECORD_SIZE];
+    record[..4].copy_from_slice(&20_260_814_u32.to_le_bytes());
+    record[8..12].copy_from_slice(&0x8000_0000_u32.to_le_bytes());
+    record[84..88].copy_from_slice(&0x7fc0_1234_u32.to_le_bytes());
+    let mut data = header.to_vec();
+    data.extend_from_slice(&record);
+    let payload = Bytes::from(data);
+    let request = MoneyFlowRequest::new(code);
+    let omit = parse_money_flow_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_money_flow_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::RetainPayload))?;
+    let legacy = parse_money_flow_payload(&payload, request)?;
+    assert_eq!(omit.blocks[0].header_raw, header);
+    assert_eq!(omit.blocks[0].records[0].raw, retained.blocks[0].records[0].raw);
+    assert_eq!(omit.blocks[0].records[0].raw[20], 0x7fc0_1234);
+    assert_eq!(omit.blocks[0].records[0].total_amount.to_bits(), 0x8000_0000);
+    assert!(omit.raw_payload.is_empty() && omit.blocks[0].records[0].record_hex.is_empty());
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    assert_eq!(retained.blocks[0].records[0].record_range.hex(&payload)?, legacy.blocks[0].records[0].record_hex);
+    Ok(())
+}
+
+#[test]
+fn context_file_bytes_are_business_data_while_trailing_diagnostics_are_optional() -> Result<(), ProtocolError> {
+    use crate::commands::resources::*;
+    let request = FileContentRequest::new("synthetic.dat", 0, 3)?;
+    let payload = Bytes::from_static(&[3, 0, 0, 0, 0xde, 0xad, 0xbe, 0x5a, 0x5b]);
+    let omit = parse_file_content_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_file_content_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::RetainPayload))?;
+    let legacy = parse_file_content_payload(&payload, request)?;
+    assert_eq!(omit.content, retained.content);
+    assert_eq!(omit.content.as_ref(), &[0xde, 0xad, 0xbe]);
+    assert_ne!(omit.content.as_ptr(), payload[4..].as_ptr());
+    assert_eq!(retained.content.as_ptr(), payload[4..].as_ptr());
+    assert!(omit.raw_payload.is_empty() && omit.trailing_payload.is_empty());
+    assert_eq!(retained.trailing_payload, legacy.trailing_payload);
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    assert_eq!(retained.content_range.bytes(&payload)?, retained.content);
+    Ok(())
+}
+
+#[test]
+fn context_unrepresentable_precision_never_uses_a_saturated_divisor() -> Result<(), ProtocolError> {
+    let code = NormalizedCode::parse("sh600997")?;
+    let result = CommandResponse::parse_with_context(quote_request(code.clone(), 0)?, quote_payload(&code, 0), &options(&Decimal(Some(255)), ParseRawPolicy::Omit));
+    assert!(matches!(result, Err(ProtocolError::InvalidData { context: "price precision", .. })));
+    Ok(())
+}
+
+#[test]
+fn context_native_minute_aux_and_sparkline_fields_keep_their_bits() -> Result<(), ProtocolError> {
+    let code = NormalizedCode::parse("sh600997")?;
+    let payload = Bytes::from_static(&[1, 0, 0x34, 0x12, 0xc0, 0x7f, 0, 0, 0, 0x80]);
+    let request = IntradayAuxRequest::new(code.clone(), IntradayAuxKind::VolumeComparison);
+    let omit = parse_intraday_aux_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_intraday_aux_payload_with_context(payload.clone(), request, &options(&Decimal(None), ParseRawPolicy::RetainPayload))?;
+    let MinuteAuxPoint::VolumeComparison { previous_day_cumulative_volume, current_day_cumulative_volume, previous_day_raw, record_hex, .. } = &omit.points[0] else { panic!("expected volume comparison"); };
+    assert_eq!(previous_day_cumulative_volume.to_bits(), 0x7fc0_1234);
+    assert_eq!(current_day_cumulative_volume.to_bits(), 0x8000_0000);
+    assert_eq!(*previous_day_raw, [0x34, 0x12, 0xc0, 0x7f]);
+    assert!(record_hex.is_empty() && omit.raw_payload.is_empty());
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    assert_eq!(retained.record_ranges[0].bytes(&payload)?.as_ref(), &payload[2..]);
+
+    let mut data = vec![0_u8; 46];
+    data[0] = code.market().id();
+    data[2..8].copy_from_slice(code.number().as_bytes());
+    data[24] = 1;
+    data[26..30].copy_from_slice(&0xdead_beef_u32.to_le_bytes());
+    data[36..40].copy_from_slice(&0x8000_0000_u32.to_le_bytes());
+    data[40..42].copy_from_slice(&1_u16.to_le_bytes());
+    data[42..46].copy_from_slice(&0x7fc0_1234_u32.to_le_bytes());
+    let payload = Bytes::from(data);
+    let request = SparklineRequest::new(code, 1, 20, DEFAULT_SPARKLINE_FIXED_RAW);
+    let omit = parse_sparkline_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_sparkline_payload_with_context(payload.clone(), request, &options(&Decimal(None), ParseRawPolicy::RetainPayload))?;
+    assert_eq!(omit.reserved_param_u32, 0xdead_beef);
+    assert_eq!(omit.base_price.to_bits(), 0x8000_0000);
+    assert_eq!(omit.prices[0].value.to_bits(), 0x7fc0_1234);
+    assert_eq!(omit.prices[0].raw, retained.prices[0].raw);
+    assert!(omit.raw_payload.is_empty());
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    Ok(())
+}
+
+#[test]
+fn context_historical_ticks_keep_native_base_bits_and_reserved_scalar() -> Result<(), ProtocolError> {
+    let mut data = vec![1, 0];
+    data.extend_from_slice(&0x7fc0_1234_u32.to_le_bytes());
+    data.extend_from_slice(&571_u16.to_le_bytes());
+    varints(&mut data, &[125_528, 11, 13, 17, -19]);
+    let payload = Bytes::from(data);
+    let request = HistoricalTicksRequest::new(NormalizedCode::parse("sh118075")?, DateParts::new(2026, 8, 14)?, 0, 1)?;
+    let omit = parse_historical_ticks_payload_with_context(payload.clone(), request.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_historical_ticks_payload_with_context(payload.clone(), request, &options(&Decimal(Some(4)), ParseRawPolicy::RetainPayload))?;
+    assert_eq!(omit.price_base_raw_f32.map(f32::to_bits), Some(0x7fc0_1234));
+    assert_eq!(omit.price_base_raw_bytes, Some([0x34, 0x12, 0xc0, 0x7f]));
+    assert_eq!(omit.ticks[0].reserved_zero, Some(-19));
+    assert_eq!(omit.ticks[0].price_acc_raw, retained.ticks[0].price_acc_raw);
+    assert!(omit.raw_payload.is_empty() && omit.ticks[0].record_hex.is_empty());
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    Ok(())
+}
+
+#[test]
+fn context_handshake_keeps_small_unknown_fields_without_root_payload() -> Result<(), ProtocolError> {
+    use crate::commands::session::*;
+    let mut data = vec![0_u8; HANDSHAKE_PAYLOAD_MIN_SIZE];
+    data[42..46].copy_from_slice(&20_260_814_u32.to_le_bytes());
+    data[46..50].copy_from_slice(&0xdead_beef_u32.to_le_bytes());
+    data[50..54].copy_from_slice(&20_260_814_u32.to_le_bytes());
+    data[58..68].copy_from_slice(&[0x5a; 10]);
+    data[152..160].copy_from_slice(&[0xa5; 8]);
+    let payload = Bytes::from(data);
+    let omit = parse_handshake_payload_with_context(payload.clone(), &options(&Decimal(None), ParseRawPolicy::Omit))?;
+    let retained = parse_handshake_payload_with_context(payload.clone(), &options(&Decimal(None), ParseRawPolicy::RetainPayload))?;
+    let legacy = parse_handshake_payload(&payload)?;
+    assert_eq!(omit.unknown_time_1_raw, 0xdead_beef);
+    assert_eq!(omit.flags_raw, retained.flags_raw);
+    assert_eq!(omit.tail_control_raw, legacy.tail_control_raw);
+    assert_ne!(omit.flags_raw.as_ptr(), payload[58..].as_ptr());
+    assert_eq!(retained.flags_raw.as_ptr(), payload[58..].as_ptr());
+    assert!(omit.raw_payload.is_empty());
+    assert_eq!(retained.raw_payload.as_ptr(), payload.as_ptr());
+    Ok(())
 }
