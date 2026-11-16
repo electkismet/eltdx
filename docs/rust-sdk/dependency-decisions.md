@@ -65,3 +65,34 @@ the same mapping, reject NUL/unrepresentable scalars and enforce encoded byte
 limits. The legacy protocol text constructor retains its original encoding
 policy; the strict SDK passes encoded bytes through a separate checked
 constructor. No second mapping or public caller-injected codec was added.
+
+## F10 JSON, URL and transport — T19 in progress
+
+The optional `f10` feature now declares workspace `serde_json = 1.0.145` and
+`url = 2.5.8`. Neither activates the public model `serde` feature. JSON uses the
+SDK's ordered `JsonValue`/validated numeric lexeme scanner; `serde_json` only
+decodes an individual quoted string, so it cannot collapse duplicate object
+members or coerce large numbers to floating point. Request strings use compact
+UTF-8. New parsing/encoding work is bounded by bytes, 128 nesting levels and
+1,000,000 value nodes; transport callers supply the shared operation boundary.
+
+Local cached `url 2.5.8` metadata declares Rust 1.63 and MIT OR Apache-2.0.
+The workspace serde_json pin is reused as declared; its availability, license,
+transitive graph, lock and actual MSRV have **not** been validated. No Cargo
+resolution, dependency download, compilation or test command ran.
+
+Production transport selection is still open. Local cached source was read
+for hyper 1.12.0 (Rust 1.63, MIT), hyper-util 0.1.21 (Rust 1.85, MIT), rustls
+0.23.46 (Rust 1.71, Apache-2.0 OR ISC OR MIT), and tokio-rustls 0.26.6 (Rust
+1.71, MIT OR Apache-2.0). Hyper's explicit header-size and connection-level
+APIs are candidate mechanisms; reading their source is not verification.
+No HTTP/TLS dependency is selected or enabled in this checkpoint.
+
+Remaining requirements before selecting the transport: a genuinely bounded
+asynchronous DNS resolver (no detached blocking getaddrinfo), system/custom
+root loading at first network use, explicit CONNECT and environment isolation,
+address-family fallback with hostname TLS, streaming compressed/decoded caps,
+and cancellation/close retiring every owned task. It must consume the existing
+`RequestPermit`/`AttemptAuthorization` instead of inventing a second operation
+budget. T19 is incomplete until this path and all required source cases exist;
+final execution evidence remains deferred until all implementation is complete.

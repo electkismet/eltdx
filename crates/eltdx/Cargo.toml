@@ -10,7 +10,7 @@ repository.workspace = true
 default = []
 serde = ["dep:serde"]
 offline = []
-f10 = []
+f10 = ["dep:serde_json", "dep:url"]
 ex = []
 mac = ["ex"]
 full = ["serde", "offline", "f10", "ex", "mac"]
@@ -23,6 +23,8 @@ encoding_rs.workspace = true
 eltdx-protocol = { path = "../eltdx-protocol" }
 eltdx-runtime = { path = "../eltdx-runtime" }
 serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+url = { version = "=2.5.8", optional = true }
 
 [lints]
 workspace = true

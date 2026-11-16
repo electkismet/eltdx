@@ -24,6 +24,8 @@ mod metadata;
 pub mod __python_compat;
 pub mod error;
 pub mod types;
+#[cfg(feature = "f10")]
+pub mod f10;
 #[cfg(feature = "offline")]
 pub mod offline;
 
