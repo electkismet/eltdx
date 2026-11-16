@@ -119,6 +119,8 @@
 ## Execution state
 
 - Recovery 2026-11-16: goal queried and confirmed active without token limit; continuing current T08/T09 agents rather than redispatching. T09 source checkpoint `ae11c2a` contains its22 owned parser/decode files; source cases/report are still in progress. T19/T20 briefs prepared for complete F10 transport/value/endpoint scope; no GO or implementation claim.
+- Preparation: T21/T22 briefs prepared for all local-file functions and complete financial download/ZIP/DAT contracts.
+- Ruling: begin T21 local-file implementation before network phases finish, restricted to new `src/offline/` and its four test files; it has no dependency on HQ request/metadata flight algorithms and cannot alter shared owner/operation/metadata/root/Cargo files. Consume the specified shared Diagnostic schema pending T10 integration, then review integration when that schema exists. — Cost if wrong: local diagnostic construction may require a narrow follow-up after T10; this is preferable to serializing independent codecs behind unrelated runtime work. No readiness/testing claim is made by source authoring.
 
 | Task | Status |
 |---|---|
@@ -142,7 +144,7 @@
 | T18 | Not started |
 | T19 | Not started |
 | T20 | Not started |
-| T21 | Not started |
+| T21 | Implementing isolated offline codecs/read/write/paths; shared type registration waits for T10 and controller integration |
 | T22 | Not started |
 | T23 | Not started |
 | T24 | Not started |
