@@ -9,7 +9,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1：T08 第一轮四项 Important 修复中；T09 静态审阅批准；T10 Stage A 与 T21 独立实施中 |
+| 当前阶段 | P1：T08 原四项 Important 已获静态确认，第二轮只修新增测试类型问题；T10 Stage A 与 T24 Stage A 实施中，T21 静态审阅批准 |
 | 已提交进度 | T01–T07 与 T09 实现及对应静态审阅完成；T08 修复轮从 `b3371c0` 开始；T10 Stage A 仅拥有新 metadata/types/value/clock 和源码用例，暂不接 owner；T21 已提交 `f921d81`，GBK 静态映射数据已按授权生成，源码用例/报告仍在收尾；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
 | 下一步 | 完成 T08 限定修复及复审；完成 T10 Stage A 与 T21 源码/报告审阅；T08 通过后再授权 T10 Stage B；之后推进 T11–T30 并统一验证 |
@@ -19,10 +19,10 @@
 | 阶段 | 任务 | 实现状态 | 测试状态 |
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
-| P1 | T04–T10 SDK基础、runtime、metadata | T04–T07 和 T09 实现及对应静态审阅完成；T08 正修复取消确认/attempt期限/legacy计数/诊断四项问题；T10 Stage A 正实现独立 metadata/types/value/clock 文件，owner 接入待 Stage B | 按用户要求暂不运行 |
+| P1 | T04–T10 SDK基础、runtime、metadata | T04–T07 和 T09 静态审阅完成；T08 原四项修复已确认，新增测试 trait-object 方法调用需 round2；T10 Stage A 正实现，owner 接入待 Stage B | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | 未开始 | 按用户要求暂不运行 |
-| P3 | T19–T23 F10、offline、financial | T21 的 `9734db3` 静态审阅发现空 customer-block leaf 应拒绝却被跳过；原实施者正做限定修复，其他 P3 任务尚未开始 | 按用户要求暂不运行 |
-| P4 | T24–T27 EX、MAC、Python迁移 | 未开始 | 按用户要求暂不运行 |
+| P3 | T19–T23 F10、offline、financial | T21 至 `b6e4beb` 静态审阅批准；其他 P3 任务尚未开始 | 按用户要求暂不运行 |
+| P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A 已获 GO，仅 EX 新目录中的 codecs/models/config 与 wire 用例；共享传输待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
 
 ## 依赖与冲突预审
