@@ -302,17 +302,20 @@ pub struct QuoteUpdate {
     active: u16,
     snapshot: Snapshot,
     status_raw: i64,
+    desynchronized: bool,
 }
 
 impl QuoteUpdate {
     pub(crate) const fn new(id: SecurityId, cursor: u32, active: u16, snapshot: Snapshot, status_raw: i64) -> Self {
-        Self { id, cursor, active, snapshot, status_raw }
+        Self { id, cursor, active, snapshot, status_raw, desynchronized: false }
     }
     pub fn id(&self) -> &SecurityId { &self.id }
     pub const fn cursor(&self) -> u32 { self.cursor }
     pub const fn active(&self) -> u16 { self.active }
     pub fn snapshot(&self) -> &Snapshot { &self.snapshot }
     pub const fn status_raw(&self) -> i64 { self.status_raw }
+    pub const fn desynchronized(&self) -> bool { self.desynchronized }
+    pub(crate) fn mark_desynchronized(&mut self) { self.desynchronized = true; }
 }
 
 #[derive(Clone, Debug, PartialEq)]

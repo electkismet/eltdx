@@ -9,6 +9,7 @@ pub mod provenance;
 pub mod quotes;
 pub mod raw;
 pub mod security;
+pub mod subscription;
 pub mod time;
 pub mod trades;
 
@@ -21,6 +22,7 @@ pub use provenance::{Diagnostic, EnrichmentStatus, RawData, ResultMeta, SourceSt
 pub use quotes::{CategoryQuery, CategoryQuote, LegacyQuote, QuoteCategory, QuoteLevel, QuoteSort, QuoteUpdate, QuoteUpdates, Snapshot};
 pub use raw::RawPolicy;
 pub use security::{HqMarket, SecurityId};
+pub use subscription::{GapPolicy, GapReason, PushEvent, PushGap, RefreshRequest, SubscriptionOptions};
 pub use time::{Clock, EventTime, EventTimeSource, MarketDateChoice, SystemClock, TradingDate};
 pub use trades::{TradeColumnData, TradeColumns, TradeEventKind, TradePage, TradeQuery, TradeSide, TradeTick};
 pub use auctions::{AuctionPoint, AuctionQuery, AuctionSeries};

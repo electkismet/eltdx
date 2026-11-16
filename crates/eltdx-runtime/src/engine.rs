@@ -429,6 +429,56 @@ pub struct PinHandle {
     identity: PinIdentity,
 }
 
+/// Exclusive queue consumer for a controlled dispatcher. This handle is not
+/// Clone; mutable polling serializes consumption through its owner. Ordinary
+/// poll/drain remain available whenever no controlled consumer is claimed.
+#[derive(Debug)]
+pub struct PushConsumer {
+    engine: Engine,
+    identity: u64,
+}
+
+#[derive(Debug, Default)]
+struct PushConsumption {
+    next_identity: u64,
+    controlled: Option<u64>,
+    readers: usize,
+}
+
+struct PushReadGuard { engine: Engine }
+
+impl Drop for PushReadGuard {
+    fn drop(&mut self) {
+        if self.engine.check_pid().is_err() { return; }
+        let mut state = self.engine.inner.push_consumption.lock().unwrap_or_else(|poison| poison.into_inner());
+        state.readers -= 1;
+    }
+}
+
+impl PushConsumer {
+    pub fn poll_push(&mut self, timeout: Duration) -> Result<Option<PushFrame>, RuntimeError> {
+        self.engine.poll_push_as(Some(self.identity), timeout)
+    }
+    pub fn drain_pushes(&mut self) -> Result<Vec<PushFrame>, RuntimeError> {
+        self.engine.drain_pushes_as(Some(self.identity))
+    }
+}
+
+impl Drop for PushConsumer {
+    fn drop(&mut self) {
+        if self.engine.check_pid().is_err() { return; }
+        let mut state = self.engine.inner.push_consumption.lock().unwrap_or_else(|poison| poison.into_inner());
+        if state.controlled == Some(self.identity) { state.controlled = None; }
+    }
+}
+
+fn push_consumer_busy() -> RuntimeError {
+    RuntimeError::PoolBusy {
+        message: "push queue consumption is reserved by another consumer".to_owned(), capacity: 1,
+        context: vec![("resource".to_owned(), "push_consumer".to_owned())],
+    }
+}
+
 #[derive(Debug)]
 struct EngineInner {
     created_pid: u32,
@@ -437,6 +487,7 @@ struct EngineInner {
     ingress_owned: Arc<AtomicUsize>,
     diagnostics: Arc<Mutex<DiagnosticsCache>>,
     sessions: Arc<Mutex<SessionCache>>,
+    push_consumption: Mutex<PushConsumption>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -1393,6 +1444,7 @@ impl Engine {
                 ingress_owned: Arc::new(AtomicUsize::new(0)),
                 diagnostics: Arc::new(Mutex::new(diagnostics)),
                 sessions: Arc::new(Mutex::new(SessionCache::default())),
+                push_consumption: Mutex::new(PushConsumption::default()),
             }),
         })
     }
@@ -1742,7 +1794,40 @@ impl Engine {
         })
     }
 
+    /// Atomically reserves the only reader of this Engine's push queue. A raw
+    /// poll already waiting must finish before a dispatcher can claim it.
+    pub fn claim_push_consumer(&self) -> Result<PushConsumer, RuntimeError> {
+        self.check_pid()?;
+        let mut state = lock_mutex(&self.inner.push_consumption, "push queue consumer")?;
+        if state.controlled.is_some() || state.readers != 0 {
+            return Err(push_consumer_busy());
+        }
+        let identity = state.next_identity.checked_add(1)
+            .ok_or_else(|| RuntimeError::internal("push consumer identity space exhausted"))?;
+        state.next_identity = identity;
+        state.controlled = Some(identity);
+        Ok(PushConsumer { engine: self.clone(), identity })
+    }
+
+    fn begin_push_read(&self, consumer: Option<u64>) -> Result<PushReadGuard, RuntimeError> {
+        self.check_pid()?;
+        let mut state = lock_mutex(&self.inner.push_consumption, "push queue consumer")?;
+        match (state.controlled, consumer) {
+            (None, None) => {}
+            (Some(active), Some(requested)) if active == requested => {}
+            _ => return Err(push_consumer_busy()),
+        }
+        state.readers = state.readers.checked_add(1)
+            .ok_or_else(|| RuntimeError::internal("push reader count overflow"))?;
+        Ok(PushReadGuard { engine: self.clone() })
+    }
+
     pub fn poll_push(&self, timeout: Duration) -> Result<Option<PushFrame>, RuntimeError> {
+        self.poll_push_as(None, timeout)
+    }
+
+    fn poll_push_as(&self, consumer: Option<u64>, timeout: Duration) -> Result<Option<PushFrame>, RuntimeError> {
+        let _reader = self.begin_push_read(consumer)?;
         self.check_pid()?;
         let runtime = self.current_runtime()?;
         let Some(runtime) = runtime else {
@@ -1771,6 +1856,11 @@ impl Engine {
     }
 
     pub fn drain_pushes(&self) -> Result<Vec<PushFrame>, RuntimeError> {
+        self.drain_pushes_as(None)
+    }
+
+    fn drain_pushes_as(&self, consumer: Option<u64>) -> Result<Vec<PushFrame>, RuntimeError> {
+        let _reader = self.begin_push_read(consumer)?;
         self.check_pid()?;
         let runtime = self.current_runtime()?;
         let Some(runtime) = runtime else {
@@ -6738,6 +6828,53 @@ mod tests {
                 push_queue_bytes: 8 * 1024 * 1024,
             },
         )
+    }
+
+    #[test]
+    fn controlled_push_consumer_excludes_raw_poll_drain_and_second_claim_without_startup() -> Result<(), RuntimeError> {
+        let engine = Engine::new(config(1, 8)?)?;
+        let mut consumer = engine.claim_push_consumer()?;
+        assert!(matches!(engine.poll_push(Duration::ZERO), Err(RuntimeError::PoolBusy { .. })));
+        assert!(matches!(engine.drain_pushes(), Err(RuntimeError::PoolBusy { .. })));
+        assert!(matches!(engine.claim_push_consumer(), Err(RuntimeError::PoolBusy { .. })));
+        assert!(consumer.poll_push(Duration::ZERO)?.is_none());
+        assert!(consumer.drain_pushes()?.is_empty());
+        assert_eq!(engine.pool_diagnostics()?.epoch, 0);
+        drop(consumer);
+        assert!(engine.poll_push(Duration::ZERO)?.is_none());
+        assert!(engine.drain_pushes()?.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn pending_raw_reader_prevents_claim_until_its_scope_retires() -> Result<(), RuntimeError> {
+        let engine = Engine::new(config(1, 8)?)?;
+        let reader_engine = engine.clone();
+        let (ready_tx, ready_rx) = std_mpsc::sync_channel(1);
+        let (release_tx, release_rx) = std_mpsc::sync_channel(1);
+        let reader = std::thread::spawn(move || {
+            let guard = reader_engine.begin_push_read(None).unwrap();
+            ready_tx.send(()).unwrap();
+            release_rx.recv().unwrap();
+            drop(guard);
+        });
+        ready_rx.recv().unwrap();
+        assert!(matches!(engine.claim_push_consumer(), Err(RuntimeError::PoolBusy { .. })));
+        release_tx.send(()).unwrap(); reader.join().unwrap();
+        let first = engine.claim_push_consumer()?;
+        let stale = first.identity; drop(first);
+        let _second = engine.claim_push_consumer()?;
+        assert!(matches!(engine.begin_push_read(Some(stale)), Err(RuntimeError::PoolBusy { .. })));
+        Ok(())
+    }
+
+    #[test]
+    fn exhausted_push_consumer_identity_does_not_publish_an_alias() -> Result<(), RuntimeError> {
+        let engine = Engine::new(config(1, 8)?)?;
+        engine.inner.push_consumption.lock().unwrap().next_identity = u64::MAX;
+        assert!(matches!(engine.claim_push_consumer(), Err(RuntimeError::Internal { .. })));
+        assert!(engine.inner.push_consumption.lock().unwrap().controlled.is_none());
+        Ok(())
     }
 
     fn distributed_config(

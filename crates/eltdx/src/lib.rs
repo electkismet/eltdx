@@ -7,6 +7,7 @@ mod hq;
 mod hosts;
 pub mod services;
 mod session;
+mod subscription;
 mod operation;
 mod policy;
 mod metadata;
@@ -21,6 +22,7 @@ pub use client::{ClientBuilder, TdxClient};
 pub use config::ClientConfig;
 pub use operation::{CancellationToken, OperationOptions};
 pub use session::PinnedSession;
+pub use types::subscription::{GapPolicy, PushEvent, PushGap, SubscriptionOptions};
 pub use error::{Error, ErrorContext, ErrorKind, Result, TimeoutPhase};
 pub use types::batch::{
     BatchItem, BatchItemState, BatchOutcome, Collected, DataPage, EndEvidence, MissingPolicy,

@@ -164,8 +164,8 @@
 | T11 | Implementation/source review complete through `c0f005d`; execution verification deferred |
 | T12 | Quote/code Python bridge implementation/source review complete through `684a157`; execution verification deferred |
 | T13 | Implementation/self-review checkpoint `338d99b`: all 18 methods M25-M40/M98-M99, queries/DTOs, date/cursor/raw mapping and synthetic source cases; execution verification deferred |
-| T14 | All13 M41–M52/M100 implementation/self-review sources authored; trades checkpoint992ba98, auction/money-flow/pools/connection bound/atomic probe budgets in accompanying completion commit; no execution verification |
-| T15 | Not started |
+| T14 | All13 M41–M52/M100 implementation/self-review sources committed at992ba98/ce46437; no execution verification |
+| T15 | Partial foundation: options/events/gap/refresh query, exact-source cursor book and bounded typed queue/source cases authored; dispatcher/lease/owner/renewal/actual event accounting/legacy controlled poll integration pending |
 | T16 | Not started |
 | T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
 | T18 | Not started |
@@ -205,3 +205,5 @@
 - T13 implementation saved in `338d99b` with Git hooks/signing disabled; no push/tag/merge/publication. Root progress/spec/plan and package mirrors are updated in the accompanying documentation checkpoint. Resume at T14 without rewriting T01-T13 or running any verification.
 
 - Recovery 2026-11-16 T14: all13 method implementations and source self-review now authored. Trades saved at992ba98; accompanying completion commit adds auction/money-flow/lazy distinct pools/owner connection cap/atomic probe scope budgets and synthetic cases. Exact completion SHA will be recorded next. Next T15; all execution verification still forbidden until T01-T30 implementation is complete. No subagents, push, tag, publication or merge.
+
+- Recovery 2026-11-16 T15 foundation: typed policy/events/gaps/refresh query, immutable-source cursors, count/byte typed queue with separate loss slot, desync state and runtime exclusive PushConsumer claim/read-scope source are authored. Actual dispatcher, lease/owner/renewal/active APIs, memory charge and controlled Python adapter remain pending. Read task-15-report before continuing; no execution verification occurred. T14 complete source checkpoint is ce46437.
