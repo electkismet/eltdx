@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17 第二十六段源码恢复点：profile/每日股本已提交`1989d3c`。短线统计主日期计数/并列取较晚日期、两表校验及缓存发布、前交易日stat2字段换位接入共用Rust/绑定，保留Python错误顺序/格式/原因、原字段对象/二次读取和锁。新增8合同/2Rust函数源码及短线部分source-only证据，全未执行。短线高层source/数值/limit算法尚未回迁完；T18仍部分18/4/8。下一步继续短线及剩余helper/批量/订阅/consumer，active无额度限制。
+
 2026-11-17 第二十五段源码恢复点：排行已提交`73436f2`。profile、证券/财务map缓存与每日股本的Python组合循环迁到Rust绑定；共用80分批、换手率/乘积及来源标签，保留ordered tuple缓存失败/部分结果、原对象/字段/自定义hook、统计主日期和两次属性读取。新增11合同/1Rust函数源码和2项source-only证据，全部未执行。T18部分、18/4/8不变；继续短线/每日限价/market/auction/boards与订阅/批量/consumer。目标active无额度限制。
 
 2026-11-17 第二十四段源码恢复点：full_quotes/资金流helper已提交`2c6d9f4`；排行共用分页循环与Python native投影已写，保留短页EOF/超count整页/连续rank/原记录/每页名称及custom count路径。新增5合同/2Rust源码函数及排行source-only清单，均未执行；总体仍18完整源码/4部分/8未开始，T18仍部分。继续其余helper、批量/订阅和consumer；active无额度限制。
@@ -51,7 +53,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | 排行 `73436f2`；profile/缓存/每日股本共用源码已写；全部执行验证延期 |
+| 最新检查点 | profile/每日股本 `1989d3c`；短线统计日期/缓存/字段对齐源码已写；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

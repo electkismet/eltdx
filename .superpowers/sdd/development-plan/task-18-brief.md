@@ -73,6 +73,13 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Twenty-sixth recovery: profile/daily shares committed1989d3c. Shortline dominant
+dates and stat2 columns shared; legacy dual-date validation and cache publication
+now in binding, preserving error order/text/cause, lock, custom hooks, raw field
+identity and duplicate property reads. Added8 contract/2 Rust source functions
+and partial shortline manifest. Full source/numeric/limit migration remains.
+T18 partial18/4/8; no execution; goal active without cap.
+
 Twenty-fifth recovery: rank committed73436f2. Profile/security-map/finance-cache
 and daily shares legacy loops now in Rust binding; turnover/product/source labels
 and80 chunks shared with strict SDK. Keep Python ordered-tuple failure/partial

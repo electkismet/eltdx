@@ -1009,3 +1009,26 @@ No tests/collection/build/check/dependency/network/AST/format/diff-check ran.
 T18 remains partial18/4/8. Continue shortline/date alignment, daily limits,
 auction/market/boards and remaining subscription/batch/consumer work before
 later T19–T30/Stage B. Goal active without budget cap.
+
+Twenty-fifth source stage committed as **1989d3c**; all execution deferred.
+
+## Twenty-sixth source checkpoint — shortline date/cache and stat2 alignment
+
+- Generic dominant_date shared by Rust typed dates and legacy strings. Missing
+  dates count in the denominator; ties use the latest value. Legacy materializes
+  all rows before reading, preserves two property reads and Python float coverage;
+  strict95-percent integer comparison remains. Both calendars and ordinal parsing
+  stay in their own adapters as before.
+- Python two-file validation/cache state now runs in binding; preserves original
+  missing/different/coverage/date errors and order, format .2%, parser exception
+  cause, hooks and successful-only cache publication. The Python RLock still
+  encloses this operation and a failed refresh retains the prior entry.
+- Shared stat2 column mapping handles same-day vs prior-day amount/seal/open
+  remapping. Python preserves raw field objects, date property reads and dynamic
+  empty-alignment hooks; strict uses typed units and diagnostic state.
+- Added8 contract and2 Rust functions, and explicit partial shortline source-only
+  manifest evidence. Full shortline sources/numeric fields/limit classification
+  remain outstanding and are not claimed migrated. No verification executed.
+
+T18 partial18/4/8. Continue full shortline and remaining HQ helpers/batches/
+subscription/consumer, then T19–T30; goal active without cap.

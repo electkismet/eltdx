@@ -190,17 +190,12 @@ class ShortlineIndicatorService:
         previous: date,
     ) -> tuple[TdxStatsResource, bool]:
         with self._stats_lock:
-            cached = self._stats_cache.get(path)
-            if not refresh and cached is not None and _stats_resource_is_usable(
-                cached,
-                target=target,
-                previous=previous,
-            ):
-                return cached, False
-            resource = self._client.resources.read_stats(path)
-            _validate_stats_resource_dates(resource, target=target, previous=previous)
-            self._stats_cache[path] = resource
-            return resource, True
+            from eltdx.transport.native import native_module
+
+            return native_module().helper_stats_resource(
+                self, path, refresh, target, previous,
+                _stats_resource_is_usable, _validate_stats_resource_dates,
+            )
 
 
 def _resolve_market_date_context(client: TdxClient) -> _MarketDateContext:
@@ -278,42 +273,18 @@ def _validate_stats_resource_dates(
     target: date,
     previous: date,
 ) -> date:
-    stat_date, stat_coverage = _dominant_date_and_coverage(resource.stat.values())
-    stat2_date, stat2_coverage = _dominant_date_and_coverage(resource.stat2.values())
-    if stat_date is None or stat2_date is None:
-        raise ResourceFormatError(
-            "TDX statistics resource has no dominant date in tdxstat.cfg or tdxstat2.cfg"
-        )
-    if stat_date != stat2_date:
-        raise ResourceFormatError(
-            "TDX statistics resource dates disagree: "
-            f"tdxstat.cfg={stat_date}, tdxstat2.cfg={stat2_date}"
-        )
-    if (
-        stat_coverage < MIN_DOMINANT_DATE_COVERAGE
-        or stat2_coverage < MIN_DOMINANT_DATE_COVERAGE
-    ):
-        raise ResourceFormatError(
-            "TDX statistics resource dominant-date coverage is too low: "
-            f"tdxstat.cfg={stat_coverage:.2%}, tdxstat2.cfg={stat2_coverage:.2%}"
-        )
-    parsed = _parse_stats_date(stat_date)
-    if parsed not in {target, previous}:
-        raise TdxStatsDateError(
-            "TDX statistics resource is not usable for the target session: "
-            f"stats_date={parsed.isoformat()}, target={target.isoformat()}, "
-            f"previous={previous.isoformat()}"
-        )
-    return parsed
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_validate_stats(
+        resource, target, previous, _dominant_date_and_coverage, _parse_stats_date,
+        MIN_DOMINANT_DATE_COVERAGE, ResourceFormatError, TdxStatsDateError,
+    )
 
 
 def _dominant_date_and_coverage(rows: Iterable[Any]) -> tuple[str | None, float]:
-    materialized = list(rows)
-    counts = Counter(str(row.stats_date) for row in materialized if row.stats_date)
-    if not counts:
-        return None, 0.0
-    dominant = max(counts, key=lambda value: (counts[value], value))
-    return dominant, counts[dominant] / max(1, len(materialized))
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_dominant_date(rows)
 
 
 def _parse_stats_date(value: str) -> date:
@@ -450,29 +421,9 @@ def _aligned_stat2(
     target: date,
     previous: date,
 ) -> dict[str, Any]:
-    if row is None or not row.stats_date:
-        return _empty_alignment("stats_row_missing")
-    target_text = target.strftime("%Y%m%d")
-    previous_text = previous.strftime("%Y%m%d")
-    if row.stats_date == target_text:
-        return {
-            "status": "same_day",
-            "prev_amount_10k": row.prev_amount_10k,
-            "prev_seal_amount_10k": row.prev_seal_amount_10k,
-            "prev2_seal_amount_10k": row.prev2_seal_amount_10k,
-            "prev_open_volume_hand": row.prev_open_volume_hand,
-            "prev_open_amount_10k": row.prev_open_amount_10k,
-        }
-    if row.stats_date == previous_text:
-        return {
-            "status": "previous_trading_day",
-            "prev_amount_10k": row.amount_10k,
-            "prev_seal_amount_10k": row.seal_amount_10k,
-            "prev2_seal_amount_10k": row.prev_seal_amount_10k,
-            "prev_open_volume_hand": row.open_volume_hand,
-            "prev_open_amount_10k": row.open_amount_10k,
-        }
-    return _empty_alignment("stats_date_unaligned")
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_aligned_stat2(row, target, previous, _empty_alignment)
 
 
 def _empty_alignment(status: str) -> dict[str, Any]:

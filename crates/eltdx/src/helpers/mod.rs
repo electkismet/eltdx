@@ -8,7 +8,7 @@ mod profile;
 mod market_service;
 mod auction;
 mod daily;
-mod stats_alignment;
+pub(crate) mod stats_alignment;
 mod shortline;
 mod board_decode;
 mod boards;

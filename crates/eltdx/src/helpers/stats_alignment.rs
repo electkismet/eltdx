@@ -4,11 +4,53 @@ use std::sync::Arc;
 
 use crate::calendar::CalendarService;
 use crate::operation::OperationContext;
-use crate::services::{allocation_error, ResourceService};
+use crate::services::ResourceService;
 use crate::types::{CalendarQuery, CalendarSnapshot, StatsQuery, StatsResource, TradingDate};
 use crate::{Error, ErrorKind, Result, TimeoutPhase};
 use super::cache::{CachedSource, StatsCacheKey};
 use super::service::HelperService;
+
+/// Count absent dates in the denominator and resolve frequency ties by date.
+/// Python supplies strings; the strict SDK supplies validated TradingDate.
+pub fn dominant_date<T, E>(dates: impl IntoIterator<Item = std::result::Result<Option<T>, E>>,
+    mut boundary: impl FnMut() -> std::result::Result<(), E>, overflow: impl Fn() -> E)
+    -> std::result::Result<(Option<T>, usize, usize), E>
+where T: Eq + std::hash::Hash + Ord {
+    let mut counts = HashMap::<T, usize>::new();
+    let mut total = 0_usize;
+    for date in dates {
+        boundary()?;
+        total = total.checked_add(1).ok_or_else(&overflow)?;
+        if let Some(date) = date? {
+            if !counts.contains_key(&date) { counts.try_reserve(1).map_err(|_| overflow())?; }
+            let count = counts.entry(date).or_default();
+            *count = count.checked_add(1).ok_or_else(&overflow)?;
+        }
+    }
+    let result = counts.into_iter().max_by(|(left, n), (right, m)| n.cmp(m).then_with(|| left.cmp(right)));
+    Ok(match result { Some((date, count)) => (Some(date), count, total), None => (None, 0, total) })
+}
+
+pub fn stat_date_alignment<T: Eq>(date: Option<&T>, target: &T, previous: &T) -> crate::StatsAlignment {
+    match date {
+        None => crate::StatsAlignment::RowMissing,
+        Some(date) if date == target => crate::StatsAlignment::SameDay,
+        Some(date) if date == previous => crate::StatsAlignment::PreviousTradingDay,
+        Some(_) => crate::StatsAlignment::DateUnaligned,
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Stat2Column { Amount, Seal, PreviousAmount, PreviousSeal, Previous2Seal, OpenAmount,
+    OpenVolume, PreviousOpenAmount, PreviousOpenVolume }
+
+/// Output order is prior amount, prior seal, two-days-ago seal, prior open
+/// volume and prior open amount. The previous-day resource remaps current data.
+pub fn stat2_columns(previous: bool) -> [Stat2Column; 5] {
+    use Stat2Column::*;
+    if previous { [Amount, Seal, PreviousSeal, OpenVolume, OpenAmount] }
+    else { [PreviousAmount, PreviousSeal, Previous2Seal, PreviousOpenVolume, PreviousOpenAmount] }
+}
 
 impl HelperService {
     pub(super) fn calendar_in_context(&self, context: &OperationContext) -> Result<Arc<CalendarSnapshot>> {
@@ -67,17 +109,9 @@ pub(super) fn validate_dates(resource: &StatsResource, target: TradingDate, prev
 
 fn main_date(dates: impl Iterator<Item = Option<TradingDate>>, member: &str,
     boundary: &mut impl FnMut() -> Result<()>) -> Result<TradingDate> {
-    let mut counts = HashMap::<TradingDate, usize>::new(); let mut total = 0_usize;
-    for date in dates {
-        boundary()?;
-        total = total.checked_add(1).ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "statistics row count overflows"))?;
-        if let Some(date) = date {
-            if !counts.contains_key(&date) { counts.try_reserve(1).map_err(allocation_error)?; }
-            *counts.entry(date).or_default() += 1;
-        }
-    }
-    let (date, count) = counts.into_iter().max_by_key(|(date, count)| (*count, *date))
-        .ok_or_else(|| format_error("statistics file has no valid dated rows").with_context("member", member))?;
+    let (date, count, total) = dominant_date(dates.map(Ok), &mut *boundary,
+        || Error::new(ErrorKind::LimitExceeded, "statistics row count exceeds available capacity"))?;
+    let date = date.ok_or_else(|| format_error("statistics file has no valid dated rows").with_context("member", member))?;
     // Inclusive 95%, checked with integer arithmetic: invalid/missing dates
     // remain in the denominator rather than artificially improving coverage.
     if (count as u128) * 100 < (total as u128) * 95 {
@@ -93,6 +127,21 @@ fn date_error(message: &str) -> Error { format_error(message).with_context("code
 #[cfg(test)]
 mod source_cases {
     use super::*;
+    #[test]
+    fn dominant_ties_choose_later_and_missing_counts_toward_total() {
+        let values = [Ok::<_, ()>(Some("20240603")), Ok(Some("20240531")), Ok(None)];
+        assert_eq!(dominant_date(values, || Ok(()), || ()).unwrap(), (Some("20240603"), 1, 3));
+    }
+    #[test]
+    fn stat2_field_remap_is_explicit_for_same_and_previous_session() {
+        use Stat2Column::*;
+        assert_eq!(stat2_columns(false), [PreviousAmount, PreviousSeal, Previous2Seal, PreviousOpenVolume, PreviousOpenAmount]);
+        assert_eq!(stat2_columns(true), [Amount, Seal, PreviousSeal, OpenVolume, OpenAmount]);
+        assert_eq!(stat_date_alignment(Some(&3), &3, &2), crate::StatsAlignment::SameDay);
+        assert_eq!(stat_date_alignment(Some(&2), &3, &2), crate::StatsAlignment::PreviousTradingDay);
+        assert_eq!(stat_date_alignment(Some(&1), &3, &2), crate::StatsAlignment::DateUnaligned);
+        assert_eq!(stat_date_alignment(None, &3, &2), crate::StatsAlignment::RowMissing);
+    }
     #[test]
     fn main_date_requires_inclusive_95_percent_in_each_file_and_counts_undated_rows() {
         let day = TradingDate::new(2026, 11, 16).unwrap();

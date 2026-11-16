@@ -219,19 +219,22 @@ struct AlignedStat2 {
     open_amount: Option<Amount>, open_volume: Option<Quantity>,
 }
 fn align_stat2(row: Option<&Stat2Row>, target: TradingDate, previous: TradingDate) -> AlignedStat2 {
-    let status = match row.and_then(Stat2Row::stats_date) {
-        None => StatsAlignment::RowMissing, Some(date) if date == target => StatsAlignment::SameDay,
-        Some(date) if date == previous => StatsAlignment::PreviousTradingDay, Some(_) => StatsAlignment::DateUnaligned,
-    };
+    let status = super::stats_alignment::stat_date_alignment(row.and_then(Stat2Row::stats_date).as_ref(), &target, &previous);
     let empty = AlignedStat2 { alignment: status, amount: None, seal: None, seal2: None, open_amount: None, open_volume: None };
     let Some(row) = row else { return empty; };
-    match status {
-        StatsAlignment::SameDay => AlignedStat2 { alignment: status, amount: row.previous_amount(), seal: row.previous_seal(),
-            seal2: row.previous2_seal(), open_amount: row.previous_open_amount(), open_volume: row.previous_open_volume() },
-        StatsAlignment::PreviousTradingDay => AlignedStat2 { alignment: status, amount: row.amount(), seal: row.seal(),
-            seal2: row.previous_seal(), open_amount: row.open_amount(), open_volume: row.open_volume() },
-        _ => empty,
-    }
+    if !matches!(status, StatsAlignment::SameDay | StatsAlignment::PreviousTradingDay) { return empty; }
+    use super::stats_alignment::Stat2Column;
+    let columns = super::stats_alignment::stat2_columns(status == StatsAlignment::PreviousTradingDay);
+    let amount = |column| match column {
+        Stat2Column::Amount => row.amount(), Stat2Column::Seal => row.seal(),
+        Stat2Column::PreviousAmount => row.previous_amount(), Stat2Column::PreviousSeal => row.previous_seal(),
+        Stat2Column::Previous2Seal => row.previous2_seal(), Stat2Column::OpenAmount => row.open_amount(),
+        Stat2Column::PreviousOpenAmount => row.previous_open_amount(), _ => None,
+    };
+    AlignedStat2 { alignment: status, amount: amount(columns[0]), seal: amount(columns[1]),
+        seal2: amount(columns[2]), open_amount: amount(columns[4]),
+        open_volume: match columns[3] { Stat2Column::OpenVolume => row.open_volume(),
+            Stat2Column::PreviousOpenVolume => row.previous_open_volume(), _ => None } }
 }
 
 fn build_indicator(quote: FullQuote, stat: Option<&StatRow>, stat2: Option<&Stat2Row>, finance: Option<&FinanceRecord>,

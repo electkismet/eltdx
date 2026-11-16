@@ -8,6 +8,7 @@ mod stats;
 mod limits;
 mod helpers;
 mod helper_profile;
+mod helper_shortline;
 mod protocol;
 mod request;
 mod response;
@@ -55,6 +56,10 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helper_profile::helper_turnover, module)?)?;
     module.add_function(wrap_pyfunction!(helper_profile::helper_market_value, module)?)?;
     module.add_function(wrap_pyfunction!(helper_profile::helper_daily_shares, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_dominant_date, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_aligned_stat2, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_validate_stats, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_shortline::helper_stats_resource, module)?)?;
     transport::register(module)?;
     Ok(())
 }

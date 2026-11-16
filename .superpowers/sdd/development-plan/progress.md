@@ -2,6 +2,10 @@
 
 ## Setup
 
+- Latest: profile1989d3c committed; shortline date/cache/stat2 alignment source
+  authored.8 contract/2 Rust cases unexecuted; high-level shortline still pending.
+  T18 partial18/4/8, active/no cap, all verification deferred.
+
 - Latest source continuation: rank73436f2 committed; profile/maps/daily shares
   legacy binding and shared scalar/source functions authored;11 contract/1 Rust
   cases and2 manifest records source-only. All execution still forbidden until

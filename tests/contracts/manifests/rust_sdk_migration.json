@@ -2205,7 +2205,12 @@
     {
       "id": "helper-shortline-indicators",
       "source_files": [
-        "docs/helpers/短线指标.md"
+        "docs/helpers/短线指标.md",
+        "src/eltdx/helpers/shortline.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/helpers/shortline.rs",
+        "crates/eltdx/src/helpers/stats_alignment.rs",
+        "crates/eltdx-python/src/helper_shortline.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2214,6 +2219,28 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x06b9 + 0x054c + 0x0547 + 0x044d + 0x052d",
       "api": "client.helpers.shortline_indicators(codes)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::shortline_indicators",
+        "python_entry": "ShortlineIndicatorService._stats_resource, _validate_stats_resource_dates, _dominant_date_and_coverage and _aligned_stat2 -> native helper_shortline",
+        "shared_algorithm": "dominant_date count/tie/denominator and stat2_columns remapping; full high-level numeric/source migration still in progress",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_dominant_date_counts_missing_rows_in_coverage_and_uses_later_tie",
+          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_dominant_date_materializes_before_reading_and_keeps_double_property_access",
+          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stats_date_error_precedence_and_exact_coverage_message",
+          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stat2_alignment_preserves_field_identity_and_previous_day_remap",
+          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stat2_unaligned_does_not_read_unused_columns_and_keeps_empty_hook",
+          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stats_cache_reuses_valid_value_and_failed_refresh_keeps_old_value",
+          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stats_validation_keeps_parser_cause_and_custom_dominant_hook",
+          "tests/contracts/test_sdk_shortline_alignment_bridge.py::test_stats_usable_only_downgrades_resource_format_subclasses"
+        ],
+        "temporary_adapter": {
+          "scope": "Source orchestration, numeric fields, legacy limit classification and date parsing remain under active migration; Python lock and errors retained",
+          "reason": "Partial checkpoint records only actual shared dates/cache/alignment work and does not claim the whole Python helper is migrated.",
+          "exit_condition": "Finish all remaining shortline source and field algorithms with unchanged custom hooks and legacy policy."
+        },
+        "validation": "Eight Python and two Rust functions authored, not collected/compiled/executed."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/短线指标.md",
