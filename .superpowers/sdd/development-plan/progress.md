@@ -109,7 +109,7 @@
 | T04 | Implementation complete; validated identities/time, lazy configuration, source-aware event time, price conversion; final verification deferred |
 | T05 | Implementation and source cases committed in `3ba3902`; final verification deferred until T01-T30 implementation is complete |
 | T06 | Implementation and scoped review complete (`4bf47d7..561dcf5`); final verification deferred |
-| T07 | In progress: owner lifecycle and close state machine, including runtime remaining-budget entry point |
+| T07 | Implementation checkpoint committed; owner lifecycle, absolute close deadline, cleanup lineage, and lifecycle source cases; scoped review pending |
 | T08 | Not started |
 | T09 | Not started |
 | T10 | Not started |

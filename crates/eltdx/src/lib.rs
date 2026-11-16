@@ -2,6 +2,8 @@
 
 mod client;
 mod config;
+mod hq;
+mod session;
 pub mod error;
 pub mod types;
 

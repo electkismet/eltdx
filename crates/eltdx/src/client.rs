@@ -1,11 +1,12 @@
 use std::net::SocketAddr;
 use std::num::NonZeroU32;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::config::{ClientConfig, ConfigDraft};
 use crate::error::Result;
+use crate::hq::executor::HqExecutor;
+use crate::session::SessionOwner;
 
 #[derive(Clone, Debug)]
 pub struct ClientBuilder {
@@ -61,11 +62,13 @@ impl ClientBuilder {
 
     pub fn build(self) -> Result<TdxClient> {
         let config = self.draft.validate()?;
+        let owner = Arc::new(SessionOwner::new(
+            config.close_timeout,
+            config.cleanup_timeout,
+        ));
         Ok(TdxClient {
             config,
-            owner: Arc::new(ClientOwner {
-                closed: AtomicBool::new(false),
-            }),
+            hq: HqExecutor::new(owner),
         })
     }
 }
@@ -79,12 +82,7 @@ impl Default for ClientBuilder {
 #[derive(Clone, Debug)]
 pub struct TdxClient {
     config: ClientConfig,
-    owner: Arc<ClientOwner>,
-}
-
-#[derive(Debug)]
-struct ClientOwner {
-    closed: AtomicBool,
+    hq: HqExecutor,
 }
 
 impl TdxClient {
@@ -98,7 +96,6 @@ impl TdxClient {
 
     /// Permanently closes this shared, lazily initialized client owner.
     pub fn close(&self) -> Result<()> {
-        self.owner.closed.store(true, Ordering::Release);
-        Ok(())
+        self.hq.close()
     }
 }

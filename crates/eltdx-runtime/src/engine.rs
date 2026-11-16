@@ -1712,11 +1712,24 @@ impl Engine {
         self.begin_close_with_timeout(CLOSE_TIMEOUT)
     }
 
+    pub fn close_until(&self, deadline: Instant) -> Result<(), RuntimeError> {
+        self.begin_close_until(deadline)?.wait()
+    }
+
+    pub fn begin_close_until(&self, deadline: Instant) -> Result<PendingClose, RuntimeError> {
+        self.begin_close_with_deadline(deadline)
+    }
+
     fn begin_close_with_timeout(&self, timeout: Duration) -> Result<PendingClose, RuntimeError> {
         self.check_pid()?;
         let proposed_deadline = Instant::now()
             .checked_add(timeout)
             .ok_or_else(|| RuntimeError::internal("close deadline overflow"))?;
+        self.begin_close_with_deadline(proposed_deadline)
+    }
+
+    fn begin_close_with_deadline(&self, proposed_deadline: Instant) -> Result<PendingClose, RuntimeError> {
+        self.check_pid()?;
         let (attempt, runtime) = {
             let mut host = lock_mutex(&self.inner.host, "Engine host")?;
             let Some(runtime) = host.runtime.as_ref().map(RuntimeRef::from) else {
@@ -1796,7 +1809,7 @@ impl Engine {
         host.failed_close_lineage = true;
         host.close_attempt = None;
         let error = RuntimeError::CloseTimeout {
-            message: "7709 Engine close did not finish within 1.0 seconds".to_owned(),
+            message: "7709 Engine close did not finish before its absolute deadline".to_owned(),
             context: Vec::new(),
         };
         attempt.completion.publish(Err(error));
