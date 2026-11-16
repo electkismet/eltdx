@@ -129,6 +129,21 @@ pub(crate) fn put_u32(bytes: &mut [u8; 32], offset: usize, value: u32) {
 /// permissive scalar projection. No calendar or price guess is made here.
 #[doc(hidden)]
 pub mod python_legacy {
+    /// Keep the original-last threshold fixed throughout a batch. In-batch
+    /// duplicates and the caller's order are preserved in both API profiles.
+    pub fn select_newer<T, E>(rows: impl IntoIterator<Item = std::result::Result<T, E>>,
+        mut include: impl FnMut(&T) -> std::result::Result<bool, E>,
+        boundary: &mut impl FnMut() -> std::result::Result<(), E>) -> std::result::Result<Vec<T>, E>
+    {
+        let mut selected = Vec::new();
+        for row in rows {
+            boundary()?;
+            let row = row?;
+            if include(&row)? { selected.push(row); }
+        }
+        boundary()?;
+        Ok(selected)
+    }
     #[derive(Clone, Copy, Debug)]
     pub enum Layout { Daily, MinuteFloat, MinuteInteger, Extended }
 
@@ -227,8 +242,11 @@ pub(crate) fn append_records<T>(path: &Path, rows: &[T], options: &AppendOptions
     let size = NonZeroUsize::new(32).ok_or_else(|| invalid("record size is zero"))?;
     alignment::ensure_aligned(path, size)?;
     let original = last(path)?;
-    let skipped = encoded.iter().filter(|(key, _)| original.is_some_and(|last| *key <= last)).count();
-    if skipped == encoded.len() {
+    let selected = python_legacy::select_newer(encoded.iter().map(Ok),
+        |(key, _)| Ok(original.is_none_or(|last| *key > last)),
+        &mut || cancelled(options.cancel()))?;
+    let skipped = encoded.len() - selected.len();
+    if selected.is_empty() {
         cancelled(options.cancel())?;
         return Ok(WriteReport::new(0, skipped, 0, original, Durability::FormatDefault));
     }
@@ -246,7 +264,7 @@ pub(crate) fn append_records<T>(path: &Path, rows: &[T], options: &AppendOptions
         return Err(write_context(malformed("opened file has a partial record; append refused")
             .with_context("record_size", "32").with_context("actual_length", context_value(actual_length)), 0, 0, skipped));
     }
-    write_encoded(&mut handle, encoded.iter().filter(|(key, _)| original.is_none_or(|last| *key > last)),
+    write_encoded(&mut handle, selected.into_iter(),
         options, daily_sync, original, skipped)
         .map_err(|error| error.with_context("path", format!("{}", path.display())))
     })();

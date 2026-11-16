@@ -11,6 +11,7 @@ import pytest
 from eltdx.offline import daily_bar, industry, paths
 from eltdx.offline import min_bar
 from eltdx.offline import ex_daily_bar
+from eltdx.offline import alignment, write_daily, write_ex_daily, write_min_bar
 
 
 def test_industry_shared_rows_keep_unicode_length_whitespace_and_last_value():
@@ -331,3 +332,123 @@ def test_minute_reader_uses_live_float_constructor(monkeypatch):
     monkeypatch.setattr(min_bar, "float", lambda value: marker, raising=False)
     row, = min_bar._read_bars(raw, min_bar._LC_MIN_FMT, integer_prices=False)
     assert row.volume is marker
+
+
+def test_append_filters_against_original_last_key_and_keeps_input_order(tmp_path):
+    from eltdx.offline.models import DailyBar
+
+    def bar(day):
+        return DailyBar(2026, 1, day, 1, 1, 1, 1, 1, 1)
+
+    path = tmp_path / "daily.day"
+    assert write_daily.append_daily_bar(path, [bar(5)], 1, 1) == 1
+    assert write_daily.append_daily_bar(path, [bar(7), bar(6), bar(7), bar(4)], 1, 1) == 3
+    assert [value.day for value in daily_bar.read_daily_bar(path)] == [5, 7, 6, 7]
+
+
+def test_append_alignment_precedes_last_key_and_empty_input(tmp_path, monkeypatch):
+    path = tmp_path / "tail.day"
+    path.write_bytes(b"x")
+
+    def unexpected(path):
+        raise AssertionError("last key must not be read for a corrupt file")
+
+    monkeypatch.setattr(write_daily, "get_last_bar_date", unexpected)
+    with pytest.raises(alignment.ResourceFormatError, match="残尾"):
+        write_daily.append_daily_bar(path, [], 1, 1)
+    assert path.read_bytes() == b"x"
+
+
+def test_append_keeps_custom_encoder_last_key_and_sync_hooks(tmp_path, monkeypatch):
+    path = tmp_path / "custom.day"
+    events = []
+    monkeypatch.setattr(write_daily, "get_last_bar_date", lambda path: 5)
+    monkeypatch.setattr(write_daily, "encode_daily_bar", lambda bar, p, v: events.append((bar.date_int, p, v)) or b"x" * 32)
+    monkeypatch.setattr(write_daily.os, "fsync", lambda descriptor: events.append("sync"))
+    rows = [SimpleNamespace(date_int=4), SimpleNamespace(date_int=6), SimpleNamespace(date_int=6)]
+    assert write_daily.append_daily_bar(path, rows, 2, 3) == 2
+    assert events == [(6, 2, 3), (6, 2, 3), "sync"]
+    assert path.read_bytes() == b"x" * 64
+
+
+def test_last_daily_record_aligns_tail_but_returns_raw_invalid_date(tmp_path):
+    path = tmp_path / "daily.day"
+    path.write_bytes(struct.pack("<IIIIIfII", 20269999, 1, 2, 3, 4, 5, 6, 7) + b"tail")
+    assert write_daily.get_last_bar_date(path) == 20269999
+    assert write_ex_daily.get_last_ex_bar_date(path) == 20269999
+
+
+def test_alignment_exact_error_and_nonpositive_size(tmp_path):
+    path = tmp_path / "tail.bin"
+    path.write_bytes(b"x" * 35)
+    with pytest.raises(alignment.ResourceFormatError) as caught:
+        alignment.ensure_aligned_for_append(path, 32, "日线")
+    assert str(caught.value) == (
+        f"日线文件存在残尾记录，拒绝追加: {path} "
+        "(大小 35 字节，模 32 余 3 字节)。"
+        "追加会让此后每条记录错位且不报错。请先把文件截断到 32 字节"
+        "（即最近一条完整记录的结尾）再写入。"
+    )
+    with pytest.raises(ValueError, match="record_size must be positive, got 0"):
+        alignment.ensure_aligned_for_append(object(), 0, "ignored")
+
+
+def test_minute_append_opens_before_custom_encoding_but_daily_does_not(tmp_path, monkeypatch):
+    minute_path = tmp_path / "minute.lc1"
+    daily_path = tmp_path / "daily.day"
+    failure = RuntimeError("custom encoder failed")
+
+    def fail(*args):
+        raise failure
+
+    monkeypatch.setattr(write_min_bar, "encode_min_bar", fail)
+    monkeypatch.setattr(write_daily, "encode_daily_bar", fail)
+    with pytest.raises(RuntimeError) as caught:
+        write_min_bar.append_min_bar(minute_path, [object()])
+    assert caught.value is failure
+    assert minute_path.exists()
+    with pytest.raises(RuntimeError) as caught:
+        write_daily.append_daily_bar(daily_path, [object()], 1, 1)
+    assert caught.value is failure
+    assert not daily_path.exists()
+
+
+def test_minute_last_key_ignores_tail_and_retains_decoder_hooks(tmp_path, monkeypatch):
+    path = tmp_path / "minutes.lc1"
+    path.write_bytes(struct.pack("<HHfffffII", 0, 1501, 1, 2, 3, 4, 5, 6, 7) + b"tail")
+    assert write_min_bar.get_last_min_bar_datetime(path) == (2004, 0, 0, 25, 1)
+    monkeypatch.setattr(write_min_bar, "_decode_tdx_date", lambda value: (3, 2, 1))
+    monkeypatch.setattr(write_min_bar, "_decode_tdx_time", lambda value: (4, 5))
+    assert write_min_bar.get_last_min_bar_datetime(path) == (3, 2, 1, 4, 5)
+
+
+def test_append_dynamic_encoder_lookup_and_error_before_daily_open(tmp_path, monkeypatch):
+    path = tmp_path / "daily.day"
+    calls = []
+
+    def second(bar, price, volume):
+        calls.append("second")
+        return b"b" * 32
+
+    def first(bar, price, volume):
+        calls.append("first")
+        monkeypatch.setattr(write_daily, "encode_daily_bar", second)
+        return b"a" * 32
+
+    monkeypatch.setattr(write_daily, "encode_daily_bar", first)
+    monkeypatch.setattr(write_daily.os, "fsync", lambda descriptor: None)
+    assert write_daily.append_daily_bar(path, [object(), object()], 1, 1) == 2
+    assert calls == ["first", "second"]
+    assert path.read_bytes() == b"a" * 32 + b"b" * 32
+
+
+def test_all_filtered_rows_skip_encoder_and_file_open(tmp_path, monkeypatch):
+    path = tmp_path / "absent.day"
+    monkeypatch.setattr(write_daily, "get_last_bar_date", lambda path: 10)
+
+    def unexpected(*args):
+        raise AssertionError("filtered rows must not be encoded")
+
+    monkeypatch.setattr(write_daily, "encode_daily_bar", unexpected)
+    assert write_daily.append_daily_bar(path, [SimpleNamespace(date_int=9)], 1, 1) == 0
+    assert not path.exists()

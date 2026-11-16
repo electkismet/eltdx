@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from .alignment import ensure_aligned_for_append
@@ -23,18 +24,17 @@ def get_last_bar_date(filepath: str | Path) -> int | None:
         YYYYMMDD 整数；文件为空 / 过短 / 尾部只有不完整记录时返回 ``None``。
     """
 
-    filepath = Path(filepath)
-    if not filepath.is_file():
+    from eltdx._native_abi import load_native
+
+    native = load_native()
+    plan = native.offline_last_record_plan(filepath, _DAILY_FMT, sys.modules[__name__], False)
+    if plan is None:
         return None
-    size = filepath.stat().st_size
-    if size < _DAILY_FMT.size:
-        return None
-    size -= size % _DAILY_FMT.size
+    filepath, offset, size = plan
     with filepath.open("rb") as handle:
-        handle.seek(size - _DAILY_FMT.size)
-        last_record = handle.read(_DAILY_FMT.size)
-    (date_int, *_) = _DAILY_FMT.unpack(last_record)
-    return int(date_int)
+        handle.seek(offset)
+        last_record = handle.read(size)
+    return native.offline_last_record_value(last_record, _DAILY_FMT, sys.modules[__name__], False)
 
 
 def append_daily_bar(
@@ -64,18 +64,19 @@ def append_daily_bar(
     # 校验放在读取末条日期**之前**：残尾文件上 ``get_last_bar_date`` 会按对齐后的
     # 边界读出一条伪末条，其日期可能恰好不小于所有待写 bar，导致 ``new_bars`` 为空
     # 而直接 return 0 —— 那样残尾就被静默留下了，下次写入才爆出来。
-    ensure_aligned_for_append(filepath, _DAILY_FMT.size, "日线")
+    from eltdx._native_abi import load_native
 
-    last_date = get_last_bar_date(filepath)
-    new_bars = (
-        [bar for bar in bars if bar.date_int > last_date]
-        if last_date is not None
-        else list(bars)
+    native = load_native()
+    filepath, new_bars = native.offline_prepare_append(
+        filepath, bars, lambda path: get_last_bar_date(path), _DAILY_FMT.size,
+        "日线", sys.modules[__name__], False
     )
     if not new_bars:
         return 0
 
-    encoded = b"".join(encode_daily_bar(bar, price_coeff, vol_coeff) for bar in new_bars)
+    encoded = native.offline_encode_batch(
+        new_bars, lambda bar: encode_daily_bar(bar, price_coeff, vol_coeff), None
+    )
     with filepath.open("ab") as handle:
         handle.write(encoded)
         handle.flush()

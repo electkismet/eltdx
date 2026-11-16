@@ -166,3 +166,27 @@ codec error behavior. One Rust function covers raw record/encoder ordering and
 date decomposition. All unexecuted. Append, alignment, model properties and
 GBBQ/block remain pending, followed by F10/helpers/manifest and T24–T30.
 Counts21/4/5; active unlimited goal; no tests/build/check/install/network/agents.
+
+## Sixth checkpoint — append selection, alignment and last-record adapters
+
+Base `b28222c`. Shared constant-original-threshold filtering now serves strict
+Rust append and Python row selection; input order and in-batch duplicates are
+preserved. Python alignment uses original arbitrary-number comparisons/modulo
+and exact error text. Shared boundary exposes the original modulo operation;
+strict Rust keeps its validated NonZeroUsize and structured error projection.
+
+New offline_write binding handles alignment, selection, encode batch, last
+record positioning and decoding. Python retains file context managers, direct
+write/flush/fsync calls and their custom hooks. Daily/EX encode before opening;
+minute opens before encoding. No parent creation, extra sync or revalidation is
+introduced in legacy mode. Last-record lookup aligns tails but keeps invalid
+date/time values; custom Struct/decoder hooks remain live. Existing original
+Path conversion still precedes record-size lookup during append preparation.
+
+Nine further Python source functions cover original-last order/duplicates,
+alignment-before-empty filtering, custom encoder/fsync and dynamic lookup,
+last raw date/time, exact errors, open-before-encode differences and fully
+filtered no-write. One Rust selection case authored. All unexecuted.
+Remaining T23 work: offline models, GBBQ/block, full F10/native compatibility,
+cross-source helpers and manifest evidence; then T24–T30 before validation.
+Counts21/4/5, unlimited active goal, no tests/build/check/network or agents.

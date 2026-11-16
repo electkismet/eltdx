@@ -51,6 +51,18 @@ fn shared_bit_records_keep_invalid_dates_tail_and_encoder_order() -> TestResult 
     assert_eq!(codec::pack_bits(Layout::Daily, &fields), Some(bytes));
     Ok(())
 }
+
+#[test]
+fn shared_append_selection_keeps_duplicates_order_and_constant_threshold() -> TestResult {
+    use eltdx::offline::bars::python_legacy::select_newer;
+    let rows = select_newer([7, 6, 7, 4].into_iter().map(Ok),
+        |value| Ok::<_, eltdx::Error>(*value > 5), &mut || Ok(()))?;
+    assert_eq!(rows, [7, 6, 7]);
+    let error = select_newer([Ok(1), Ok(2)], |_| Ok::<_, eltdx::Error>(true),
+        &mut || Err(eltdx::Error::new(ErrorKind::Cancelled, "stop before selection"))).unwrap_err();
+    assert_eq!(error.message(), "stop before selection");
+    Ok(())
+}
 static NEXT: AtomicU64 = AtomicU64::new(1);
 struct Scratch(PathBuf);
 impl Scratch {

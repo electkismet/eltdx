@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 from eltdx.exceptions import ResourceFormatError
 
@@ -38,19 +39,6 @@ def ensure_aligned_for_append(filepath: str | Path, record_size: int, kind: str)
             即末尾有残尾记录。**此时不做任何写入**，避免静默破坏后续记录。
     """
 
-    if record_size <= 0:
-        raise ValueError(f"record_size must be positive, got {record_size}")
+    from eltdx._native_abi import load_native
 
-    path = Path(filepath)
-    if not path.exists():
-        return
-    size = path.stat().st_size
-    remainder = size % record_size
-    if remainder == 0:
-        return
-    raise ResourceFormatError(
-        f"{kind}文件存在残尾记录，拒绝追加: {path} "
-        f"(大小 {size} 字节，模 {record_size} 余 {remainder} 字节)。"
-        f"追加会让此后每条记录错位且不报错。请先把文件截断到 {size - remainder} 字节"
-        f"（即最近一条完整记录的结尾）再写入。"
-    )
+    return load_native().offline_alignment(filepath, record_size, kind, sys.modules[__name__])

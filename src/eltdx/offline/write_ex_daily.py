@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 from .alignment import ensure_aligned_for_append
 from .ex_daily_bar import _EX_DAILY_FMT, encode_ex_daily_bar
@@ -18,18 +19,17 @@ __all__ = [
 def get_last_ex_bar_date(filepath: str | Path) -> int | None:
     """读取扩展市场 ``.day`` 文件最后一条完整记录的日期。"""
 
-    filepath = Path(filepath)
-    if not filepath.is_file():
+    from eltdx._native_abi import load_native
+
+    native = load_native()
+    plan = native.offline_last_record_plan(filepath, _EX_DAILY_FMT, sys.modules[__name__], False)
+    if plan is None:
         return None
-    size = filepath.stat().st_size
-    if size < _EX_DAILY_FMT.size:
-        return None
-    size -= size % _EX_DAILY_FMT.size
+    filepath, offset, size = plan
     with filepath.open("rb") as handle:
-        handle.seek(size - _EX_DAILY_FMT.size)
-        last_record = handle.read(_EX_DAILY_FMT.size)
-    (date_int, *_) = _EX_DAILY_FMT.unpack(last_record)
-    return int(date_int)
+        handle.seek(offset)
+        last_record = handle.read(size)
+    return native.offline_last_record_value(last_record, _EX_DAILY_FMT, sys.modules[__name__], False)
 
 
 def append_ex_daily_bar(filepath: str | Path, bars: list[ExDailyBar]) -> int:
@@ -43,17 +43,16 @@ def append_ex_daily_bar(filepath: str | Path, bars: list[ExDailyBar]) -> int:
     filepath = Path(filepath)
     # 校验先于读末条日期：残尾文件上 ``get_last_ex_bar_date`` 读出的是对齐边界上的
     # 伪末条，若它恰好不小于所有待写 bar，``new_bars`` 会为空而把残尾静默留下。
-    ensure_aligned_for_append(filepath, _EX_DAILY_FMT.size, "扩展市场日线")
+    from eltdx._native_abi import load_native
 
-    last_date = get_last_ex_bar_date(filepath)
-    new_bars = (
-        [bar for bar in bars if bar.date_int > last_date]
-        if last_date is not None
-        else list(bars)
+    native = load_native()
+    filepath, new_bars = native.offline_prepare_append(
+        filepath, bars, lambda path: get_last_ex_bar_date(path), _EX_DAILY_FMT.size,
+        "扩展市场日线", sys.modules[__name__], False
     )
     if not new_bars:
         return 0
-    encoded = b"".join(encode_ex_daily_bar(bar) for bar in new_bars)
+    encoded = native.offline_encode_batch(new_bars, lambda bar: encode_ex_daily_bar(bar), None)
     with filepath.open("ab") as handle:
         handle.write(encoded)
     return len(new_bars)

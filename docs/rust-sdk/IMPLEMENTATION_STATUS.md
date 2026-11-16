@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第五十四段恢复点：K线读写共享已提交`b28222c`。本段新增offline_write绑定，共用原末条门槛过滤，接入对齐检查/末条定位与解码/批量编码；Python保留文件上下文及日线flush+fsync、分钟/EX普通关闭，原空批次和打开前后编码顺序不变。新增9个Python及1个Rust用例源码，全部未执行。T23还需模型/GBBQ/block、F10/helpers/manifest，随后T24–T30；21源码完整/4部分/5未开始，active无额度上限，全部执行验证延期。
+
 2026-11-17第五十三段恢复点：路径/行业已提交`0ff04c4`。新增共用32字节K线原始解码与编码字段顺序，Rust三类codec及Python日线/分钟/EX读写均接入；Python保留无效日期时间、原始字节、残尾、动态系数/模型/float/struct和编码异常。自定义buffer/Struct读取留适配，普通bytes进入共享Rust。新增12个Python及1个Rust用例源码，全部未执行；append/alignment/model/GBBQ/block与F10/helpers/manifest还待做，整体21源码完整/4部分/5未开始。目标active无额度上限，所有执行验证延期。
 
 2026-11-17第五十二段恢复点：ZIP/财报组合已提交`f2aabd0`。本段共享离线路径候选选择、市场映射、证券前缀分类和行业文本行解析；新增offline_paths绑定并接入Python对应入口。保留原环境/平台优先级、Path/codec/动态系数钩子、六Unicode字符代码、重复key首位置末值；行业遍历在无效行也检查中断。新增12个Python合同函数（含参数化）及2个Rust源码函数，全部未执行。剩余离线read/encode/append/alignment/GBBQ/block/model及F10/helpers/manifest仍待完成；21源码完整/4部分/5未开始。目标active无额度限制，全部执行验证延期。
@@ -109,7 +111,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | T23路径/行业 `0ff04c4`；第五十三段接入K线共享原始解码与编码，全部执行验证延期 |
+| 最新检查点 | T23 K线读写 `b28222c`；第五十四段接入追加/对齐/末条记录绑定，全部执行验证延期 |
 | 当前阶段 | T01–T18及T20–T22源码完成；T19/T23/T24/T25部分；21完整源码/4部分/5未开始。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
