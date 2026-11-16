@@ -329,6 +329,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 2026-11-17第十段：K线阶段已提交`b5ed0b5`；today/history/recent/aux/sparkline五类分钟线Python/native接入源码及10个合同、7个本机差分/集成函数源码已写。共用分钟请求/解码边界，保留原scalar/负volume、raw记录、resolver与原输入市场推断、每请求默认日期和批量workers；同时补上一段K线raw hex恢复。五项manifest仅增加source-only证据，不升迁移状态；仍未编译/collection/执行。继续其他HQ native域、全量manifest及installed-wheel consumer，T18仍部分。
 
+2026-11-17第十一段：分钟线已提交`ac99b99`；session握手/心跳、公司目录/内容四入口Python/native源码及7个合同、4个本机差分集成函数源码已写。共用Rust域请求/解码，保留原raw/session快照/日期、显式市场、旧GBK及字节范围规则；本地ping保持不加载native的transport adapter。四项manifest仅增source-only证据，全部验证延期；T18仍部分，继续目录count/list/筛选统计和其余HQ域。
+
 - [ ] 在默认 HQ feature 下实现矩阵中的 full_quotes、每日股本/涨跌停价、排行、board_quotes、limit_ladder、market_stat、shortline 和完整 stock_profile_table。现有 profile 仅依赖 HQ 的 full_quotes、证券目录和 finance_batch，不虚构 F10 依赖。
 - [ ] 按代码关联指数、市场统计及各批量来源；短线验证服务器日期、09:25、双文件主日期、>=95% 覆盖和前交易日对齐门槛，不能按返回位置猜对象。
 - [ ] 主数据链失败返回错误；full_quotes 刷新等已定义的可选补充源失败保留主数据并附诊断，新 Rust 取消/总 deadline 则终止操作。Python 逐请求超时、原可选请求超时降级条件与结果模型按旧样本验收。

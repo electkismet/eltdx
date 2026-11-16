@@ -17,6 +17,14 @@ raw hex, batch workers and default-date behavior retained. Added10 contract and
 All unexecuted. Resume the OTHER HQ native domains/evidence/installed-wheel
 consumer, not minutes; source completeness does not establish compatibility.
 
+Eleventh recovery: session handshake/heartbeat and HQ company category/content
+native source routes now authored with shared strict/legacy boundaries, original
+raw/snapshots/GBK/market/byte-range behavior and7 contract/4 integration source
+functions. Local ping keeps the zero-native-load adapter; runtime epoch reopen
+must not be confused with clearing the Python engine holder. Resume directory
+count/list and filter/statistics, then remaining HQ/evidence/installed-wheel
+consumer. All verification is still deferred and T18 remains partial.
+
 ## Exact plan scope
 
 New `src/helpers/{mod,market,boards,shortline,profile}.rs` (split focused files as necessary), all HQ helper DTO/query types, `tests/hq_helpers.rs`, `examples/hq_query.rs`. Migrate Python HQ `api`, `helpers`, `equity.py`, `workday.py`, `stats.py`, native bridge and manifest per completed domain; author domain differential/compatibility source tests. Implement all HQ M79–M97 including pure classify_fund_flow M95. Complete all HQ methods left by prior tasks; no exposed placeholder/Unsupported for documented valid supported HQ behavior.

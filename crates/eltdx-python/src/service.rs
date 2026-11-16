@@ -1,7 +1,7 @@
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
-use eltdx::__python_compat::{LegacyBarTime, LegacyExecutor};
+use eltdx::__python_compat::{LegacyBarTime, LegacyExecutor, LegacyOperation};
 use eltdx::types::HqMarket;
 use eltdx::{CancellationToken, Error, ErrorKind, RawPolicy};
 use eltdx_protocol::{CommandRequest, CommandResponse};
@@ -108,6 +108,28 @@ pub fn minutes(
             operation.prepare_hq_metadata(&namespace, &markets)?;
         }
         let result = operation.minutes(request)?;
+        operation.finish()?;
+        Ok(result)
+    })?;
+    response::to_python(py, result)
+}
+
+pub fn session(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
+    unpriced_domain(py, executor, request, "python_session", LegacyOperation::session)
+}
+
+pub fn company_info(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
+    unpriced_domain(py, executor, request, "python_company_info", LegacyOperation::company_info)
+}
+
+fn unpriced_domain(
+    py: Python<'_>, executor: LegacyExecutor, request: CommandRequest, name: &'static str,
+    domain: fn(&LegacyOperation, CommandRequest) -> eltdx::Result<CommandResponse>,
+) -> PyResult<Py<PyAny>> {
+    let result = run_legacy(py, move |token| {
+        // Session's original public models retain raw buffers unconditionally.
+        let operation = executor.begin_operation(name, RawPolicy::RetainPayload, Some(token))?;
+        let result = domain(&operation, request)?;
         operation.finish()?;
         Ok(result)
     })?;

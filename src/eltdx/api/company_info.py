@@ -7,6 +7,8 @@ files available for one security together with their byte offsets, and a reader
 
 from __future__ import annotations
 
+from eltdx.protocol.commands import command_code
+
 from .base import ApiBase
 
 
@@ -14,12 +16,12 @@ class CompanyInfoApi(ApiBase):
     def category(self, code: str, market: str):
         """List the 0x02CF company-info files (name, filename, start, length)."""
 
-        return self._execute("company_info_category", code=code, market=market)
+        return self._query("company_info_category", code=code, market=market)
 
     def content(self, code: str, market: str, filename: str, offset: int, length: int):
         """Read one 0x02D0 company-info text section as a GBK-decoded string."""
 
-        return self._execute(
+        return self._query(
             "company_info_content",
             code=code,
             market=market,
@@ -27,3 +29,8 @@ class CompanyInfoApi(ApiBase):
             offset=offset,
             length=length,
         )
+
+    def _query(self, name: str, **payload):
+        if self._native_services:
+            return self._transport.sdk_company_info(command_code(name), payload)
+        return self._execute(name, **payload)

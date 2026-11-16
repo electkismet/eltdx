@@ -4,10 +4,40 @@ use eltdx_protocol::commands::session::{HandshakeRequest, HeartbeatRequest};
 use eltdx_runtime::engine::Engine;
 use crate::config::ClientConfig;
 use crate::hq::executor::HqExecutor;
+use crate::hq::decode::DecodedReply;
 use crate::operation::{ChildPurpose, OperationContext, OperationOptions};
 use crate::types::{EventTime, HandshakeInfo, HeartbeatAck, PingReply, TradingDate};
-use crate::{Error, ErrorKind, Result};
+use crate::{Error, ErrorKind, Result, TimeoutPhase};
 use super::reply_meta;
+
+fn fetch_session_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>,
+) -> Result<DecodedReply> {
+    let handshake = match &request {
+        CommandRequest::Handshake(_) => true,
+        CommandRequest::Heartbeat(_) => false,
+        _ => return Err(Error::new(ErrorKind::InvalidArgument, "session service requires a session command")),
+    };
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let reply = fetch(request)?;
+    if !matches!((handshake, &reply.response),
+        (true, CommandResponse::Handshake(_)) | (false, CommandResponse::Heartbeat(_))) {
+        return Err(unexpected());
+    }
+    context.check_boundary(TimeoutPhase::Decode)?;
+    Ok(reply)
+}
+
+pub(crate) fn legacy_session_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>,
+) -> Result<CommandResponse> {
+    if !context.is_legacy() {
+        return Err(Error::new(ErrorKind::InvalidArgument, "legacy session requires a compatibility operation"));
+    }
+    Ok(fetch_session_reply(context, request, fetch)?.response)
+}
 
 #[derive(Clone, Debug)]
 pub struct SessionService { executor: HqExecutor, engine: Engine, config: ClientConfig }
@@ -24,8 +54,7 @@ impl SessionService {
     }
 
     pub(crate) fn handshake_in_context(&self, context: &OperationContext) -> Result<HandshakeInfo> {
-        let raw = self.executor.execute_raw(&self.engine, context, CommandRequest::Handshake(HandshakeRequest), ChildPurpose::Required, None)?;
-        let reply = self.executor.decode_unpriced(context, raw)?;
+        let reply = self.fetch(context, CommandRequest::Handshake(HandshakeRequest))?;
         let CommandResponse::Handshake(value) = &reply.response else { return Err(unexpected()); };
         let server_datetime = value.server_datetime.and_then(|value| date(value.date)
             .and_then(|date| EventTime::local(date, value.hour, value.minute, value.second).ok()));
@@ -51,13 +80,19 @@ impl SessionService {
     }
 
     pub(crate) fn heartbeat_in_context(&self, context: &OperationContext) -> Result<HeartbeatAck> {
-        let raw = self.executor.execute_raw(&self.engine, context, CommandRequest::Heartbeat(HeartbeatRequest), ChildPurpose::Required, None)?;
-        let reply = self.executor.decode_unpriced(context, raw)?;
+        let reply = self.fetch(context, CommandRequest::Heartbeat(HeartbeatRequest))?;
         let CommandResponse::Heartbeat(value) = &reply.response else { return Err(unexpected()); };
         let server_date = value.server_date.and_then(date);
         let mut meta = reply_meta(context, &self.config, &reply, &[], "session.heartbeat");
         if let Some(date) = server_date { meta = meta.with_trading_date(date); }
         Ok(HeartbeatAck { server_date, server_date_raw: value.server_date_raw, reserved: value.reserved.clone(), meta })
+    }
+
+    fn fetch(&self, context: &OperationContext, request: CommandRequest) -> Result<DecodedReply> {
+        fetch_session_reply(context, request, |request| {
+            let raw = self.executor.execute_raw(&self.engine, context, request, ChildPurpose::Required, None)?;
+            self.executor.decode_unpriced(context, raw)
+        })
     }
 }
 fn date(value: eltdx_protocol::unit::DateParts) -> Option<TradingDate> {

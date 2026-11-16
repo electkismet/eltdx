@@ -227,7 +227,7 @@ class TdxClient:
         # 空数据故障转移的候选主机列表（构造期取值，之后不再刷新）。
         self._prepare_host_rankings()
         native_services = type(self.transport) in (PooledSocketTransport, SocketTransport)
-        self.session = SessionApi(self.transport)
+        self.session = SessionApi(self.transport, native_services=native_services)
         self.codes = CodeApi(
             self.transport,
             metadata_sink=self._cache_security_rows,
@@ -263,7 +263,7 @@ class TdxClient:
             ),
         )
         self.corporate = CorporateApi(self.transport)
-        self.company_info = CompanyInfoApi(self.transport)
+        self.company_info = CompanyInfoApi(self.transport, native_services=native_services)
         self.limits = LimitApi(self.transport)
         self.workdays = WorkdayService(self)
         self.f10 = F10Client(timeout=self.timeout)

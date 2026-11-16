@@ -237,6 +237,20 @@ impl NativeEngine {
         service::minutes(py, self.legacy.clone(), self.namespace.clone(), request, original_code)
     }
 
+    fn sdk_session(
+        &self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::session(py, self.legacy.clone(), request)
+    }
+
+    fn sdk_company_info(
+        &self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::company_info(py, self.legacy.clone(), request)
+    }
+
     fn pin(&self, py: Python<'_>) -> PyResult<NativePin> {
         let mut pending = py
             .detach(|| self.engine.begin_pin())

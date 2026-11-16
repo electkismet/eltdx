@@ -32,7 +32,15 @@
       "id": "7709-handshake",
       "source_files": [
         "docs/methods/7709-握手.md",
-        "src/eltdx/api/session.py"
+        "src/eltdx/api/session.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/socket.py",
+        "src/eltdx/transport/pool.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/session.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -43,6 +51,29 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x000d",
       "api": "client.session.handshake()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::session -> eltdx::services::SessionService::handshake",
+        "python_entry": "SessionApi.handshake -> transport.sdk_session -> NativeEngine.sdk_session -> LegacyOperation.session -> legacy_session_reply",
+        "shared_algorithm": "crates/eltdx/src/services/session.rs::fetch_session_reply; existing raw protocol DTO and session snapshot projection",
+        "contract_nodes": ["tests/contracts/test_sdk_control_bridge.py::test_native_session_routes_keep_unmodified_result"],
+        "differential_nodes": [
+          "tests/integration/test_native_control_bridge.py::test_native_session_matches_original_fields_raw_and_transport_snapshot",
+          "tests/integration/test_native_control_bridge.py::test_native_control_protocol_failures_keep_original_text_and_cause",
+          "tests/integration/test_native_control_bridge.py::test_native_session_preserves_python_close_then_reopen_generation"
+        ],
+        "fixtures": ["tests/fixtures/7709/handshake/normal", "tests/integration/test_native_control_bridge.py::_session_data"],
+        "temporary_adapter": {
+          "scope": "custom transports/subclasses and local session.ping transport request",
+          "reason": "Custom execute/request remain extension points; local ping must work without importing or initializing the native engine, including after close.",
+          "contract_nodes": [
+            "tests/contracts/test_sdk_control_bridge.py::test_transport_subclass_keeps_session_and_company_execute_override",
+            "tests/contracts/test_sdk_control_bridge.py::test_session_ping_does_not_initialize_native_engine_before_or_after_close"
+          ],
+          "exit_condition": "Callback execution and a local diagnostic shim preserve arbitrary custom responses and the original zero-native-load ping behavior."
+        },
+        "validation": "Not collected, compiled or executed. Raw/session snapshot/reopen behavior remains an authored obligation."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-握手.md",
@@ -55,7 +86,16 @@
       "id": "7709-heartbeat",
       "source_files": [
         "docs/methods/7709-心跳.md",
-        "src/eltdx/api/session.py"
+        "src/eltdx/api/session.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/socket.py",
+        "src/eltdx/transport/pool.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/session.rs",
+        "crates/eltdx/src/services/health.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -66,6 +106,26 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0004",
       "api": "client.session.heartbeat()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::session -> eltdx::services::SessionService::heartbeat; HealthService::probe reuses the same session boundary",
+        "python_entry": "SessionApi.heartbeat -> transport.sdk_session -> NativeEngine.sdk_session -> LegacyOperation.session -> legacy_session_reply",
+        "shared_algorithm": "crates/eltdx/src/services/session.rs::fetch_session_reply; original reserved/date/raw parser and runtime snapshot",
+        "contract_nodes": ["tests/contracts/test_sdk_control_bridge.py::test_native_session_routes_keep_unmodified_result"],
+        "differential_nodes": [
+          "tests/integration/test_native_control_bridge.py::test_native_session_matches_original_fields_raw_and_transport_snapshot",
+          "tests/integration/test_native_control_bridge.py::test_native_control_protocol_failures_keep_original_text_and_cause",
+          "tests/integration/test_native_control_bridge.py::test_native_session_preserves_python_close_then_reopen_generation"
+        ],
+        "fixtures": ["tests/fixtures/7709/heartbeat/normal", "tests/integration/test_native_control_bridge.py::_session_data"],
+        "temporary_adapter": {
+          "scope": "custom transports and Socket/Pooled subclasses",
+          "reason": "Preserve arbitrary execute response values and user transport overrides.",
+          "contract_nodes": ["tests/contracts/test_sdk_control_bridge.py::test_custom_control_transport_keeps_untyped_execute_return_values"],
+          "exit_condition": "A callback executor retains arbitrary response objects and original cancellation/error behavior."
+        },
+        "validation": "Unexecuted source only; invalid server-date scalars retain None date rather than acquiring a strict Rust input rule."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-心跳.md",
@@ -1781,7 +1841,15 @@
       "id": "7709-company-info-category",
       "source_files": [
         "docs/methods/0x02cf-公司信息目录接口.md",
-        "src/eltdx/api/company_info.py"
+        "src/eltdx/api/company_info.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/socket.py",
+        "src/eltdx/transport/pool.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/company_info.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -1792,6 +1860,25 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x02cf",
       "api": "client.company_info.category(code, market)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::company_info -> eltdx::services::CompanyInfoService::category",
+        "python_entry": "CompanyInfoApi.category -> transport.sdk_company_info -> NativeEngine.sdk_company_info -> LegacyOperation.company_info -> legacy_company_reply",
+        "shared_algorithm": "crates/eltdx/src/services/company_info.rs::fetch_company_reply; original fixed-record protocol parser with explicit legacy GBK projection",
+        "contract_nodes": ["tests/contracts/test_sdk_control_bridge.py::test_native_company_routes_keep_explicit_market_and_byte_parameters"],
+        "differential_nodes": [
+          "tests/integration/test_native_control_bridge.py::test_native_company_matches_original_gbk_byte_ranges_and_explicit_market",
+          "tests/integration/test_native_control_bridge.py::test_native_control_protocol_failures_keep_original_text_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/company_info_category/normal", "tests/integration/test_native_control_bridge.py::_catalog_data"],
+        "temporary_adapter": {
+          "scope": "custom transports and Socket/Pooled subclasses",
+          "reason": "Preserve explicit market precedence, custom execute results and the public extension point.",
+          "contract_nodes": ["tests/contracts/test_sdk_control_bridge.py::test_transport_subclass_keeps_session_and_company_execute_override"],
+          "exit_condition": "A callback executor supports arbitrary response objects and original request extraction/cancellation boundaries."
+        },
+        "validation": "Not collected, compiled or executed; Python retains ignore/NUL-removal/trim and unchecked catalog range sum, while Rust has separate diagnostic/range assertions."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/0x02cf-公司信息目录接口.md",
@@ -1804,7 +1891,15 @@
       "id": "7709-company-info-content",
       "source_files": [
         "docs/methods/0x02d0-公司信息内容接口.md",
-        "src/eltdx/api/company_info.py"
+        "src/eltdx/api/company_info.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/socket.py",
+        "src/eltdx/transport/pool.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/company_info.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -1815,6 +1910,25 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x02d0",
       "api": "client.company_info.content(code, market, filename, offset, length)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::company_info -> eltdx::services::CompanyInfoService::content",
+        "python_entry": "CompanyInfoApi.content -> transport.sdk_company_info -> NativeEngine.sdk_company_info -> LegacyOperation.company_info -> legacy_company_reply",
+        "shared_algorithm": "crates/eltdx/src/services/company_info.rs::fetch_company_reply; one original length-framed protocol decoder and legacy text projection",
+        "contract_nodes": ["tests/contracts/test_sdk_control_bridge.py::test_native_company_routes_keep_explicit_market_and_byte_parameters"],
+        "differential_nodes": [
+          "tests/integration/test_native_control_bridge.py::test_native_company_matches_original_gbk_byte_ranges_and_explicit_market",
+          "tests/integration/test_native_control_bridge.py::test_native_control_protocol_failures_keep_original_text_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/company_info_content/normal", "tests/integration/test_native_control_bridge.py::_content_data"],
+        "temporary_adapter": {
+          "scope": "custom transports and Socket/Pooled subclasses",
+          "reason": "Preserve arbitrary execute responses and original Python filename/scalar extraction.",
+          "contract_nodes": ["tests/contracts/test_sdk_control_bridge.py::test_custom_control_transport_keeps_untyped_execute_return_values"],
+          "exit_condition": "A callback executor preserves arbitrary results, encoding/scalar extraction and cancellation."
+        },
+        "validation": "Unexecuted source only. New Rust sum-overflow, requested-length and lossy-text checks are not imposed on Python's legacy response."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/0x02d0-公司信息内容接口.md",

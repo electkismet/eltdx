@@ -527,3 +527,46 @@ remaining Stage B. Do not rewrite the already authored19 helper methods, bars,
 minutes or example/consumer sources. Active goal has no token limit.
 
 Tenth source stage committed as **ac99b99** (21 files). All execution deferred.
+
+## Eleventh source checkpoint — session and company information
+
+- Added shared domain request/decode boundaries `fetch_session_reply` and
+  `fetch_company_reply`. Public Rust services and the Python legacy operation
+  use those same functions. Rust health.probe already delegates to session's
+  heartbeat_in_context and therefore also reaches the shared session boundary.
+- Authored LegacyOperation::{session,company_info}, the existing detached-GIL
+  worker shell with retained payloads and unchanged tuple projection, native
+  engine/transport entry points and exact built-in client routing. Neither
+  domain prefetches a security directory, creates another network executor or
+  resets the per-request compatibility timeout to a whole-operation timeout.
+- Session handshake/heartbeat keep raw payload unconditionally, original
+  naive server datetime, control fields, invalid-date None projection and
+  runtime Slot session snapshots. Runtime's normal close/reopen retains the
+  Python NativeEngine holder while creating a new runtime epoch; no adapter
+  assumes transport._engine is cleared or permits a stale pin to revive.
+- Company queries keep explicit market precedence over a conflicting prefixed
+  code, the original filename encoding/extraction and byte offsets. Legacy
+  text keeps malformed-GBK ignore, removal of every NUL and trim, including text
+  after an embedded NUL. The new Rust projection retains its separate lossy
+  diagnostics and range checks; legacy does not acquire sum-overflow or
+  requested-length assertions and still accepts otherwise valid trailing data.
+- Local session.ping deliberately remains the transport.request adapter. It is
+  callable without loading/constructing the native engine, including after
+  close, and user request overrides keep working. This small local diagnostic
+  adapter is recorded explicitly rather than changing Python startup behavior.
+  Custom transports and transport subclasses retain execute and untyped results.
+- Authored7 contract and4 local differential/integration functions covering
+  both built-in transports: routes, result/exception identity, local ping,
+  custom extension points, nonempty handshake/heartbeat raw/control fields,
+  actual session snapshots, invalid dates, company GBK/NUL/byte offsets and
+  conflicting market, exact protocol failure class/text/cause, and Python
+  close/reopen epochs. Added source-only evidence to four capability records;
+  migration states remain unchanged. These sources have not been collected,
+  compiled or executed.
+
+No tests/collection/build/check/clippy/doctest/network/dependency/AST/format/diff
+checks or equivalent verification ran. T18 is still partial and overall counts
+remain18 source complete/4 partial/8 unstarted. Resume directory count/list and
+selection/statistics, then the other HQ/native domains, whole manifest evidence
+and installed-wheel consumer. This checkpoint does not complete health/probe
+ranking migration or the entire Python lifecycle audit. Goal active, no quota.

@@ -1,5 +1,6 @@
 use std::time::Instant;
-use eltdx_protocol::{CommandRequest, RecordRange};
+use bytes::Bytes;
+use eltdx_protocol::{CommandRequest, CommandResponse, RecordRange};
 use eltdx_protocol::commands::corporate::{CompanyInfoCategoryRequest, CompanyInfoContentRequest,
     company_info_content_bytes, COMPANY_INFO_RECORD_SIZE};
 use eltdx_protocol::unit::Market;
@@ -7,10 +8,44 @@ use eltdx_runtime::engine::Engine;
 use crate::config::ClientConfig;
 use crate::encoding::{scan_gbk, InvalidBytePolicy};
 use crate::hq::executor::HqExecutor;
+use crate::hq::decode::DecodedReply;
 use crate::operation::{ChildPurpose, OperationContext, OperationOptions};
 use crate::types::{CompanySection, CompanySectionQuery, CompanyText, Diagnostic, EnrichmentStatus, SecurityId, Table};
 use crate::{Error, ErrorKind, Result, TimeoutPhase};
 use super::{allocation_error, reply_meta};
+
+/// The shared domain boundary keeps the original business bytes available for
+/// Rust's diagnostic text projection even when its raw policy omits buffers.
+fn fetch_company_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<(DecodedReply, Bytes)>,
+) -> Result<(DecodedReply, Bytes)> {
+    let category = match &request {
+        CommandRequest::CompanyInfoCategory(_) => true,
+        CommandRequest::CompanyInfoContent(_) => false,
+        _ => return Err(Error::new(ErrorKind::InvalidArgument, "company info requires a company-domain command")),
+    };
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let (reply, business) = fetch(request)?;
+    if !matches!((category, &reply.response),
+        (true, CommandResponse::CompanyInfoCategory(_)) | (false, CommandResponse::CompanyInfoContent(_))) {
+        return Err(Error::new(ErrorKind::Protocol, "unexpected HQ company info response"));
+    }
+    context.check_boundary(TimeoutPhase::Decode)?;
+    Ok((reply, business))
+}
+
+pub(crate) fn legacy_company_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<(DecodedReply, Bytes)>,
+) -> Result<CommandResponse> {
+    if !context.is_legacy() {
+        return Err(Error::new(ErrorKind::InvalidArgument, "legacy company info requires a compatibility operation"));
+    }
+    // Preserve the original decoder's ignore/NUL/trim policy. New Rust's lossy
+    // diagnostics, range-overflow and requested-length checks are separate.
+    Ok(fetch_company_reply(context, request, fetch)?.0.response)
+}
 
 #[derive(Clone, Debug)]
 pub struct CompanyInfoService { executor: HqExecutor, engine: Engine, config: ClientConfig }
@@ -20,9 +55,7 @@ impl CompanyInfoService {
         let entry = Instant::now();
         let context = self.executor.begin_context_at(entry, "company_info_category", &self.config, options)?;
         let request = CommandRequest::CompanyInfoCategory(CompanyInfoCategoryRequest::new(market(id)?, id.number()).map_err(Error::from_protocol)?);
-        let raw = self.executor.execute_raw(&self.engine, &context, request, ChildPurpose::Required, None)?;
-        let business = raw.response.data.clone();
-        let reply = self.executor.decode_unpriced(&context, raw)?;
+        let (reply, business) = self.fetch(&context, request)?;
         // The shared protocol decoder has validated the count and full fixed
         // record extent. Decode names here with the shared strict GBK scanner
         // so invalid bytes remain visible to Rust callers even under Omit.
@@ -55,9 +88,7 @@ impl CompanyInfoService {
         let filename = crate::encoding::encode_gbk_bounded(query.filename(), 80)?;
         let request = CommandRequest::CompanyInfoContent(CompanyInfoContentRequest::from_encoded_filename(
             market(id)?, id.number(), filename, query.offset(), query.length()).map_err(Error::from_protocol)?);
-        let raw = self.executor.execute_raw(&self.engine, &context, request, ChildPurpose::Required, None)?;
-        let business = raw.response.data.clone();
-        let reply = self.executor.decode_unpriced(&context, raw)?;
+        let (reply, business) = self.fetch(&context, request)?;
         let bytes = company_info_content_bytes(&business).map_err(Error::from_protocol)?;
         if bytes.len() as u64 > u64::from(query.length()) { return Err(Error::new(ErrorKind::Protocol, "company content exceeds requested byte range")); }
         let (text, decoding_had_errors) = text(bytes, false, &context)?;
@@ -66,6 +97,14 @@ impl CompanyInfoService {
         let result = CompanyText { id: id.clone(), filename: query.filename().to_owned(), offset: query.offset(),
             requested_length: query.length(), text, decoding_had_errors, meta };
         context.finish()?; Ok(result)
+    }
+
+    fn fetch(&self, context: &OperationContext, request: CommandRequest) -> Result<(DecodedReply, Bytes)> {
+        fetch_company_reply(context, request, |request| {
+            let raw = self.executor.execute_raw(&self.engine, context, request, ChildPurpose::Required, None)?;
+            let business = raw.response.data.clone();
+            Ok((self.executor.decode_unpriced(context, raw)?, business))
+        })
     }
 }
 

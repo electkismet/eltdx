@@ -281,6 +281,23 @@ impl LegacyOperation {
         })
     }
 
+    pub fn session(&self, request: CommandRequest) -> Result<CommandResponse> {
+        crate::services::legacy_session_reply(&self.context, request, |request| {
+            let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,
+                request, ChildPurpose::Required, None)?;
+            self.executor.executor.decode_unpriced(&self.context, raw)
+        })
+    }
+
+    pub fn company_info(&self, request: CommandRequest) -> Result<CommandResponse> {
+        crate::services::legacy_company_reply(&self.context, request, |request| {
+            let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,
+                request, ChildPurpose::Required, None)?;
+            let business = raw.response.data.clone();
+            Ok((self.executor.executor.decode_unpriced(&self.context, raw)?, business))
+        })
+    }
+
     pub fn remember_recoverable(&self, error: Error) { self.context.remember_recoverable(error); }
     pub fn finish(self) -> Result<()> { self.context.finish() }
 }

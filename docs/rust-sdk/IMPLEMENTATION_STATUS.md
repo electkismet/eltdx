@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17 第十一段源码恢复点：分钟线已提交`ac99b99`，恢复记录`93cab12`；session握手/心跳及HQ公司目录/内容的Python/native接入已写，共用Rust域请求/解码边界，保留原raw/snapshot、日期、GBK、显式市场与字节范围行为。新增7个合同/4个本机差分集成函数源码、四项manifest source-only证据；local ping保留不加载native的adapter。全部未执行，T18仍部分；下一步目录count/list和筛选统计，再推进其余HQ域。总体18源码完成/4部分/8未开始，目标active无额度限制。
+
 2026-11-17 第十段源码恢复点：普通/退市K线已提交`b5ed0b5`；分钟线today/history/recent/aux/sparkline五命令Python/native接入源码已写，共用请求/解码边界并保留原scalar/负volume、raw hex、resolver顺序、原输入市场推断、默认日期和批量workers。补10个合同及7个本机差分/集成函数源码、五项manifest source-only证据，同时修正上一段K线record_hex恢复。全部尚未编译/collection/执行，T18仍部分，统计18源码完成/4部分/8未开始；继续其他HQ native域、manifest全量证据及installed-wheel consumer，再做T19–T30/剩余Stage B。目标active且没有额度限制。
 
 2026-11-17 第九段源码恢复点：Rust例子/consumer已提交`39c8e3e`。普通/退市K线首批Python/native回迁源码已写：共享分页与排序循环、legacy单请求预算、不pin整段历史、首响应metadata/raw/异常/当天回绕、批量归一并发和custom对象adapter；新增合同/本机差分用例源码并在manifest保留source-only证据。尚未编译/collection/执行，不能认定迁移通过；T18仍部分，下一域分钟线及其余HQ业务/manifest总核对/installed-wheel consumer。任务总数仍18源码完成/4部分/8未开始，目标active且无额度限制。
@@ -21,7 +23,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | K线阶段`b5ed0b5`；五类分钟线native源码/原市场推断/raw/异常兼容及未执行合同/差分用例`ac99b99`；全部执行验证延期 |
+| 最新检查点 | 分钟线`ac99b99`/恢复`93cab12`；后续session/company四入口源码和未执行用例已写；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
