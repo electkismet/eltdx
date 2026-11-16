@@ -73,6 +73,12 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Twenty-first recovery: resources committed4b0d38b. Statistics text/GBK/numeric/
+row decoder shared with Rust; Python ZIP codecs/layout/error cause and original
+empty-table/duplicate ordering remain adapters. Big integers remain decimal
+until Python int projection. Added8 contract/2 Rust functions and1 source-only
+manifest entry, all unexecuted. Next special limits/health and remaining T18.
+
 Twentieth recovery: calendar committedb7ae0d1. Resource single requests/metadata
 and standard native downloads share Rust boundary/DownloadCursor. Preserve
 public pin lifecycle including cap0, per-request deadlines, EOF/cap truncation,

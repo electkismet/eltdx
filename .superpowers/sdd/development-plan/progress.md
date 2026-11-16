@@ -78,6 +78,11 @@
 
 ## Task log
 
+2026-11-17 T18 twenty-first checkpoint: resources committed4b0d38b. Statistics
+shared member decoder authored;8 contract/2 Rust source functions,1 manifest
+source-only entry. Python ZIP compatibility retained. All unexecuted18/4/8;
+special limits/health and remaining T18 next, active/no cap/no agents.
+
 2026-11-17 T18 twentieth checkpoint: calendar committedb7ae0d1. Resource request/
 cursor and Python standard download sources authored;8 contract/2 integration/
 1 Rust functions unexecuted,2 manifest source-only entries. Next stats/health

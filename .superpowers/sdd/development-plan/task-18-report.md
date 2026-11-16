@@ -885,3 +885,26 @@ Eighteenth source stage committed as **fc3088e**; all execution deferred.
 No execution verification of any kind. T18 remains partial18/4/8; continue
 resources/stats/health, remaining capital/moneyflow batch, helpers/subscriptions,
 manifest and installed-wheel consumer. Goal active/no cap; no agents/publication.
+
+Twentieth source stage committed as **4b0d38b**; all execution deferred.
+
+## Twenty-first source checkpoint — statistics member decoder
+
+- Extracted parse_stats_members from the existing strict archive path and exposed
+  a language-neutral legacy projection. Both routes share GBK-ignore decoding,
+  line splitting, column widths, Python-compatible float syntax and exact decimal
+  projection of arbitrary-width int(float) values. Legacy preserves duplicate
+  rows and empty tables for the original Python validation order; strict rejects
+  them as before. Python date/source_path strings remain unmodified.
+- Python keeps its original ZIP reader (BZIP2/LZMA and permissive layouts remain
+  supported), limit checks, exception cause, duplicate sample order and public
+  models. Original parser/scalar/decode overrides select the explicit adapter.
+  The complete legacy ZIP behavior cannot be replaced with the stricter SDK
+  archive profile without changing accepted input and error contracts.
+- Authored8 contract functions and2 Rust functions covering ordinary models,
+  negative/huge/Unicode/underscore/nonfinite values, GBK errors, line separators,
+  extra columns, duplicate/empty precedence, ZIP codecs/cause and overrides.
+  One manifest entry gains source-only evidence. No execution verification ran.
+
+Counts18/4/8; T18 partial. Next special limits/health and remaining batching,
+helpers/subscription/evidence/installed-wheel consumer. Goal active/no cap.

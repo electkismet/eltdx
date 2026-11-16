@@ -27,6 +27,7 @@ pub use crate::adjustment::factors::legacy_adjustment_factors;
 pub use crate::calendar::index::{calendar_window, calendar_neighbor, legacy_weekday,
     calendar_days, calendar_contains, legacy_weekday_range, legacy_weekday_neighbor};
 pub use crate::services::resource_legacy::legacy_resource_download;
+pub use crate::stats::{legacy_stats_members, LegacyStatRow, LegacyStat2Row};
 pub use crate::services::corporate_legacy::{legacy_capital_collect, legacy_finance_recover,
     LegacyCapitalCollection, LegacyCapitalPage, LegacyCapitalSource,
     LegacyFinanceCollection, LegacyFinanceError, LegacyFinancePage, LegacyFinanceSource};

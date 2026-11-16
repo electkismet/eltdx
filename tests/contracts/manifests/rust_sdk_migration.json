@@ -2219,6 +2219,26 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": null,
       "api": "client.resources.read_stats(path=..., ...)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/stats.rs::parse_stats_members",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/stats.rs", "src/eltdx/stats.py"],
+        "contract_nodes": [
+          "tests/contracts/test_sdk_stats_bridge.py::test_native_stats_ordinary_rows_match_original_models_and_source_path",
+          "tests/contracts/test_sdk_stats_bridge.py::test_native_stats_scalar_conversion_matches_python_float_and_bigint",
+          "tests/contracts/test_sdk_stats_bridge.py::test_native_stats_line_splitting_gbk_ignore_and_extra_columns_match_original",
+          "tests/contracts/test_sdk_stats_bridge.py::test_native_stats_duplicate_errors_keep_original_message_and_five_key_limit",
+          "tests/contracts/test_sdk_stats_bridge.py::test_native_stats_empty_table_error_precedes_duplicate_errors",
+          "tests/contracts/test_sdk_stats_bridge.py::test_native_stats_keeps_python_zip_codec_compatibility"
+        ],
+        "temporary_adapter": {
+          "scope": "Python ZIP acceptance/errors, duplicate/error ordering, public models and custom parser overrides",
+          "reason": "Original ZipFile permits codecs/layouts outside the stricter standalone SDK ZIP profile; native text/numeric/row decoder is shared without changing archive behavior.",
+          "contract_nodes": ["tests/contracts/test_sdk_stats_bridge.py::test_native_stats_custom_scalar_parser_keeps_original_adapter", "tests/contracts/test_sdk_stats_bridge.py::test_native_stats_invalid_archive_keeps_python_zip_error_cause"],
+          "exit_condition": "Provide equivalent archive codec/metadata/error support before replacing this compatibility adapter."
+        },
+        "validation": "Source only. Not collected, compiled or executed; large integers and Unicode numeric decoding await unified differential verification."
+      },
       "kind": "协议封装",
       "catalog_source": "Helper",
       "catalog_doc": "methods/7709-服务器统计文件解析.md",

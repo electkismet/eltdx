@@ -101,6 +101,11 @@ pub(crate) fn parse_stats_archive(
     if members.len() != 2 || !members.iter().any(|member| member.name == STAT)
         || !members.iter().any(|member| member.name == STAT2)
     { return Err(malformed("statistics ZIP requires unique tdxstat.cfg and tdxstat2.cfg")); }
+    parse_stats_members(members, source_path, true, boundary)
+}
+
+fn parse_stats_members(members: Vec<crate::archive::ArchiveMember>, source_path: &str,
+    reject_duplicates: bool, boundary: &mut impl FnMut() -> Result<()>) -> Result<ParsedStats> {
     let mut result = ParsedStats {
         source_path: source_path.to_owned(), stat: Vec::new(), stat2: Vec::new(),
         diagnostics: Vec::new(), omitted_diagnostics: 0,
@@ -131,7 +136,7 @@ pub(crate) fn parse_stats_archive(
                 if !line.is_empty() { result.diagnostic(member_name, Some(line_no), StatsDiagnosticKind::SkippedRow); }
                 continue;
             };
-            if identities.contains(&key) { return Err(malformed("duplicate statistics security identity")
+            if reject_duplicates && identities.contains(&key) { return Err(malformed("duplicate statistics security identity")
                 .with_context("member", member_name).with_context("line", format!("{line_no}"))); }
             row_count = row_count.checked_add(1).ok_or_else(|| limit("statistics row count"))?;
             if row_count > natural_rows { return Err(malformed("statistics row count exceeds source-byte bound")); }
@@ -163,9 +168,38 @@ pub(crate) fn parse_stats_archive(
             boundary()?;
         }
     }
-    if result.stat.is_empty() || result.stat2.is_empty() { return Err(malformed("statistics table has no usable rows")); }
+    if reject_duplicates && (result.stat.is_empty() || result.stat2.is_empty()) { return Err(malformed("statistics table has no usable rows")); }
     boundary()?;
     Ok(result)
+}
+
+/// Flat, Python-neutral representation: market integer stays an exact decimal
+/// string until the binding constructs the arbitrary-precision Python int.
+pub type LegacyStatRow = (String, String, Option<String>, [Option<f64>; 3], [Option<String>; 4]);
+pub type LegacyStat2Row = (String, String, Option<String>, [Option<f64>; 10]);
+
+pub fn legacy_stats_members(stat: &[u8], stat2: &[u8], boundary: &mut impl FnMut() -> Result<()>)
+    -> Result<(Vec<LegacyStatRow>, Vec<LegacyStat2Row>)> {
+    // ZIP acceptance, source_path and original duplicate/error timing remain
+    // with the Python archive adapter. Parsing is the common source decoder.
+    let parsed = parse_stats_members(vec![
+        crate::archive::ArchiveMember { name: STAT.to_vec(), contents: stat.to_vec() },
+        crate::archive::ArchiveMember { name: STAT2.to_vec(), contents: stat2.to_vec() },
+    ], "", false, boundary)?;
+    let integer = |value: Option<SourceInteger>| value.map(|value| value.0);
+    let rows = parsed.stat.into_iter().map(|row| (
+        row.key.market_id.0, row.key.code, row.stats_date,
+        [row.beta_60d, row.pe_ttm, row.free_float_shares_10k],
+        [integer(row.year_limit_up_days), integer(row.limit_stat_days),
+         integer(row.limit_up_count_in_stat_days), integer(row.limit_up_streak_days)],
+    )).collect();
+    let rows2 = parsed.stat2.into_iter().map(|row| (
+        row.key.market_id.0, row.key.code, row.stats_date,
+        [row.amount_10k, row.seal_amount_10k, row.prev_amount_10k, row.prev_seal_amount_10k,
+         row.prev2_amount_10k, row.prev2_seal_amount_10k, row.open_volume_hand,
+         row.prev_open_volume_hand, row.open_amount_10k, row.prev_open_amount_10k],
+    )).collect();
+    Ok((rows, rows2))
 }
 
 impl ParsedStats {
@@ -330,4 +364,35 @@ fn malformed(message: impl Into<String>) -> Error {
 }
 fn limit(resource: &'static str) -> Error {
     Error::new(ErrorKind::LimitExceeded, "statistics resource limit exceeded").with_context("resource", resource)
+}
+
+#[cfg(test)]
+mod legacy_tests {
+    use super::*;
+
+    fn line(count: usize, market: &str, value: &str) -> String {
+        let mut fields = vec![value; count];
+        fields[0] = market;
+        fields[1] = "600001";
+        fields[if count == 35 { 4 } else { 2 }] = "20260710";
+        fields.join("|")
+    }
+
+    #[test]
+    fn legacy_members_keep_duplicates_and_empty_tables_for_python_error_order() {
+        let row = line(35, "1", "2.5");
+        let (rows, rows2) = legacy_stats_members(format!("{row}\n{row}").as_bytes(), b"short", &mut || Ok(())).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(rows2.is_empty());
+    }
+
+    #[test]
+    fn legacy_members_preserve_large_integer_and_nonfinite_projection() {
+        let (rows, rows2) = legacy_stats_members(line(35, "-2.9", "nan").as_bytes(),
+            line(21, "1e100", "-3.75").as_bytes(), &mut || Ok(())).unwrap();
+        assert_eq!(rows[0].0, "-2");
+        assert_eq!(rows[0].3, [None; 3]);
+        assert!(rows2[0].0.len() > 90);
+        assert_eq!(rows2[0].3, [Some(-3.75); 10]);
+    }
 }
