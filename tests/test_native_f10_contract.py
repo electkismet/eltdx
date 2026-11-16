@@ -422,3 +422,117 @@ def test_f10_fixed_template_keeps_open_section_identity():
     values = client.hk_tips("700", section)
     assert values[0] is section
     assert values[1] == "00700"
+
+
+@pytest.mark.parametrize("method,section,expected", [
+    ("mg_capital", "001", ("001", "AAPL", 1)),
+    ("mg_capital", "002", ("002", "AAPL", "page")),
+    ("mg_shareholders", "006", ("006", "AAPL", 1, 10)),
+    ("mg_shareholders", "custom", ("custom", "AAPL", "page", "size")),
+    ("mg_market", "001", ("001", "AAPL", "page", "size")),
+    ("mg_market", "003", ("003", "AAPL", 0, 0)),
+])
+def test_f10_page_branches_keep_raw_objects_and_fixed_numbers(method, section, expected):
+    client = f10.F10Client()
+    client.params = lambda entry, *values: values
+    options = {"page": "page"}
+    if method != "mg_capital":
+        options["page_size"] = "size"
+    assert getattr(client, method)("AAPL", section, **options) == expected
+
+
+@pytest.mark.parametrize("method,attribute,code,entry", [
+    ("mg_finance_indicator", "_MG_CWZB_SECTIONS", "AAPL", "CWServ.skef10_mg_cwzb"),
+    ("hk_finance_indicator", "_HK_CWZB_SECTIONS", "00700", "CWServ.skef10_hk_cwzb"),
+    ("hk_finance", "_HK_CWFX_SECTIONS", "00700", "CWServ.skef10_hk_cwfx"),
+])
+def test_f10_mapped_sections_use_live_table_and_original_tuple_hook(monkeypatch, method, attribute, code, entry):
+    events = []
+    value = object()
+    table = {"custom": value}
+    original_require = f10._require_section
+
+    def require(section, choices):
+        events.append(("require", section, choices))
+        original_require(section, choices)
+
+    def tuple_hook(selected):
+        events.append(("tuple", selected))
+        # The source resolves _require_section before evaluating tuple(...).
+        monkeypatch.setattr(f10, "_require_section", lambda *args: events.append("replacement"))
+        return tuple(selected)
+
+    monkeypatch.setattr(f10, attribute, table)
+    monkeypatch.setattr(f10, "tuple", tuple_hook, raising=False)
+    monkeypatch.setattr(f10, "_require_section", require)
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    result = getattr(client, method)(code, "custom")
+    assert result == (entry, value, code)
+    assert events == [("tuple", table), ("require", "custom", ("custom",))]
+
+
+def test_f10_mapped_section_reloads_table_after_validation_before_code(monkeypatch):
+    events = []
+    original = {"custom": object()}
+    selected = object()
+    monkeypatch.setattr(f10, "_MG_CWZB_SECTIONS", original)
+
+    def require(section, choices):
+        events.append("require")
+        monkeypatch.setattr(f10, "_MG_CWZB_SECTIONS", {"custom": selected})
+
+    def convert(code):
+        events.append("convert")
+        monkeypatch.setattr(f10, "_MG_CWZB_SECTIONS", {})
+        return code
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            return lambda *args: args
+
+    monkeypatch.setattr(f10, "_require_section", require)
+    monkeypatch.setattr(f10, "_us_code", convert)
+    assert Client().mg_finance_indicator("AAPL", "custom") == ("CWServ.skef10_mg_cwzb", selected, "AAPL")
+    assert events == ["require", "params", "convert"]
+
+
+def test_f10_page_branch_compares_section_before_getting_params():
+    events = []
+
+    class Section:
+        def __eq__(self, other):
+            events.append(("equals", other))
+            return False
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            return lambda entry, *args: args
+
+    section = Section()
+    marker = object()
+    result = Client().mg_shareholders("AAPL", section, page=marker, page_size=marker)
+    assert result[0] is section
+    assert result[2] is marker and result[3] is marker
+    assert events == [("equals", "006"), "params"]
+
+
+def test_f10_page_branch_keeps_equality_failure_and_skips_params():
+    failure = ArithmeticError("selector")
+
+    class Section:
+        def __eq__(self, other):
+            raise failure
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            raise AssertionError("must not access params")
+
+    with pytest.raises(ArithmeticError) as caught:
+        Client().mg_shareholders("AAPL", Section())
+    assert caught.value is failure

@@ -3,7 +3,8 @@
 use std::num::NonZeroU32;
 use std::time::Instant;
 
-use super::SimpleArgument::{Code, Literal, Section};
+use super::SimpleArgument::{Code, Literal, MappedSection, Section};
+use super::SectionMap;
 use crate::types::TradingDate;
 use crate::{OperationOptions, Result};
 use crate::f10::values::{count, date_pair, date_text, j, page, text};
@@ -13,7 +14,7 @@ code_endpoint!(MgNameQuery, mg_name, UsTicker, code, "CWServ.skef10_mg_idreq", w
 section_endpoint!(MgTipsQuery, mg_tips, UsTicker, "zxdt", code, section, "CWServ.skef10_mg_zxdt", wire [Section, Code, Literal("")]);
 code_endpoint!(MgProfileQuery, mg_profile, UsTicker, code, "CWServ.skef10_mg_gsgk", wire [Literal("001"), Code]);
 section_endpoint!(MgFinanceQuery, mg_finance, UsTicker, "zcfzb", code, section, "CWServ.skef10_mg_cwfx", wire [Section, Code]);
-section_endpoint!(MgFinanceIndicatorQuery, mg_finance_indicator, UsTicker, "jbzb", code, section, "CWServ.skef10_mg_cwzb", [j(indicator(section, true)), j(code.as_str())]);
+section_endpoint!(MgFinanceIndicatorQuery, mg_finance_indicator, UsTicker, "jbzb", code, section, "CWServ.skef10_mg_cwzb", wire [MappedSection(SectionMap::UsIndicator), Code]);
 code_endpoint!(MgBusinessQuery, mg_business, UsTicker, code, "CWServ.skef10_mg_jyfx", wire [Code]);
 code_endpoint!(MgIndustryQuery, mg_industry, UsTicker, code, "CWServ.skef10_mg_hyfx", wire [Literal("001"), Code, Literal("4"), Literal("1")]);
 code_endpoint!(MgIndustryCompareQuery, mg_industry_compare, UsTicker, code, "CWServ.skef10_mg_hydb", wire [Literal("001"), Code, Literal(""), Literal("0"), Literal("0")]);
@@ -23,17 +24,6 @@ code_endpoint!(MgAnnouncementsQuery, mg_announcements, UsTicker, code, "CWServ.s
 section_endpoint!(MgRatingQuery, mg_rating, UsTicker, "001", code, section, "CWServ.skef10_mg_gspj", wire [Section, Code]);
 code_endpoint!(MgTopicQuery, mg_topic, UsTicker, code, "CWServ.skef10_mg_rdtc", wire [Literal("001"), Code, Literal(""), Literal("4"), Literal("1")]);
 section_endpoint!(MgDeepAnalysisQuery, mg_deep_analysis, UsTicker, "001", code, section, "CWServ.skef10_mg_sdfx", wire [Section, Code]);
-
-fn indicator(section: &str, us: bool) -> &'static str {
-    match (section, us) {
-        ("jbzb", true) => "001", ("ylnl", true) => "002", ("cznl", true) => "003", ("yynl", true) => "004", ("ccznl", true) => "005",
-        ("jbzb", false) => "1", ("ylnl", false) => "2", ("cznl", false) => "3", ("yynl", false) => "4", ("ccznl", false) => "5",
-        _ => unreachable!("closed indicator registry"),
-    }
-}
-fn hk_statement(section: &str) -> &'static str {
-    match section { "zhsyb" => "1", "zcfzb" => "2", "xjllb" => "3", _ => unreachable!("closed HK statement registry") }
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MgCapitalQuery { code: UsTicker, section: SectionCode, page: u32 }
@@ -45,7 +35,7 @@ impl MgCapitalQuery {
     pub fn with_section(mut self, value: SectionCode) -> Result<Self> { value.checked_for("mg_capital")?; self.section = value; Ok(self) }
     pub fn with_page(mut self, value: u32) -> Result<Self> { self.page = page(value)?; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        super::params("CWServ.skef10_mg_gbjg", vec![j(self.section.as_str()), j(self.code.as_str()), j(u64::from(if self.section.as_str() == "001" { 1 } else { self.page }))])
+        super::template::native_page("mg_capital", &self.code, self.section.as_str(), self.page, 1)
     }
 }
 
@@ -69,14 +59,12 @@ us_page_query!(MgShareholdersQuery, mg_shareholders, "006", 10);
 us_page_query!(MgMarketQuery, mg_market, "001", 20);
 impl MgShareholdersQuery {
     pub fn to_call(&self) -> Result<CallQuery> {
-        let (page, size) = if self.section.as_str() == "006" { (1, 10) } else { (self.page, self.page_size.get()) };
-        super::params("CWServ.skef10_mg_gbgd", vec![j(self.section.as_str()), j(self.code.as_str()), j(u64::from(page)), j(u64::from(size))])
+        super::template::native_page("mg_shareholders", &self.code, self.section.as_str(), self.page, self.page_size.get())
     }
 }
 impl MgMarketQuery {
     pub fn to_call(&self) -> Result<CallQuery> {
-        let (page, size) = if self.section.as_str() == "003" { (0, 0) } else { (self.page, self.page_size.get()) };
-        super::params("CWServ.skef10_mg_schq", vec![j(self.section.as_str()), j(self.code.as_str()), j(u64::from(page)), j(u64::from(size))])
+        super::template::native_page("mg_market", &self.code, self.section.as_str(), self.page, self.page_size.get())
     }
 }
 impl F10Client {
@@ -93,8 +81,8 @@ section_endpoint!(HkRelatedQuery, hk_related, HongKongCode, "6", code, section, 
 section_endpoint!(HkExecutivesQuery, hk_executives, HongKongCode, "1", code, section, "CWServ.skef10_hk_ggzl", wire [Section, Code]);
 section_endpoint!(HkCapitalQuery, hk_capital, HongKongCode, "1", code, section, "CWServ.skef10_hk_gbjg", wire [Section, Code]);
 section_endpoint!(HkShareholdersQuery, hk_shareholders, HongKongCode, "1", code, section, "CWServ.skef10_hk_gdcg", wire [Section, Code, Literal("")]);
-section_endpoint!(HkFinanceQuery, hk_finance, HongKongCode, "zcfzb", code, section, "CWServ.skef10_hk_cwfx", [j(hk_statement(section)), j(code.as_str())]);
-section_endpoint!(HkFinanceIndicatorQuery, hk_finance_indicator, HongKongCode, "jbzb", code, section, "CWServ.skef10_hk_cwzb", [j(indicator(section, false)), j(code.as_str())]);
+section_endpoint!(HkFinanceQuery, hk_finance, HongKongCode, "zcfzb", code, section, "CWServ.skef10_hk_cwfx", wire [MappedSection(SectionMap::HkStatement), Code]);
+section_endpoint!(HkFinanceIndicatorQuery, hk_finance_indicator, HongKongCode, "jbzb", code, section, "CWServ.skef10_hk_cwzb", wire [MappedSection(SectionMap::HkIndicator), Code]);
 section_endpoint!(HkBusinessQuery, hk_business, HongKongCode, "1", code, section, "CWServ.skef10_hk_jyfx", wire [Section, Code]);
 section_endpoint!(HkIndustryCompareQuery, hk_industry_compare, HongKongCode, "1", code, section, "CWServ.skef10_hk_hybj", wire [Section, Code, Literal("0"), Literal("0")]);
 section_endpoint!(HkMarketQuery, hk_market, HongKongCode, "3", code, section, "CWServ.skef10_hk_schq", wire [Section, Code]);

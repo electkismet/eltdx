@@ -613,8 +613,11 @@ class F10Client:
         ``yynl`` 盈利能力 / ``ccznl`` 偿债能力（内部映射到数字 ``001``~``005``）。
         """
 
-        _require_section(section, tuple(_MG_CWZB_SECTIONS))
-        return self.params("CWServ.skef10_mg_cwzb", _MG_CWZB_SECTIONS[section], _us_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_finance_indicator", code, section, _MODULES[__name__]
+        )
 
     def mg_business(self, code: str) -> F10Response:
         """美股经营分析（``skef10_mg_jyfx``）。"""
@@ -661,10 +664,11 @@ class F10Client:
         section: ``001`` 股本结构 / ``002`` 股本变动公告。
         """
 
-        _require_section(section, ("001", "002"))
-        if section == "001":
-            return self.params("CWServ.skef10_mg_gbjg", "001", _us_code(code), 1)
-        return self.params("CWServ.skef10_mg_gbjg", "002", _us_code(code), page)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_page_endpoint(
+            self, "mg_capital", code, section, {"page": page}, _MODULES[__name__]
+        )
 
     def mg_shareholders(
         self,
@@ -680,9 +684,11 @@ class F10Client:
         ``008``/``011``/``014`` 等）；``006`` 为股东权益主表，其余带分页。
         """
 
-        if section == "006":
-            return self.params("CWServ.skef10_mg_gbgd", "006", _us_code(code), 1, 10)
-        return self.params("CWServ.skef10_mg_gbgd", section, _us_code(code), page, page_size)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_page_endpoint(
+            self, "mg_shareholders", code, section, {"page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def mg_directors(self, code: str, section: str = "ds") -> F10Response:
         """美股董事高管（``skef10_mg_dsgg``）。
@@ -709,10 +715,11 @@ class F10Client:
         section: ``001`` 行情 / ``003`` 资金流向。
         """
 
-        _require_section(section, ("001", "003"))
-        if section == "001":
-            return self.params("CWServ.skef10_mg_schq", "001", _us_code(code), page, page_size)
-        return self.params("CWServ.skef10_mg_schq", "003", _us_code(code), 0, 0)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_page_endpoint(
+            self, "mg_market", code, section, {"page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def mg_announcements(self, code: str) -> F10Response:
         """美股公司公告（``skef10_mg_gsbd``）。"""
@@ -833,8 +840,11 @@ class F10Client:
         （内部映射到数字 ``2``/``1``/``3``）。
         """
 
-        _require_section(section, tuple(_HK_CWFX_SECTIONS))
-        return self.params("CWServ.skef10_hk_cwfx", _HK_CWFX_SECTIONS[section], _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_finance", code, section, _MODULES[__name__]
+        )
 
     def hk_finance_indicator(self, code: str, section: str = "jbzb") -> F10Response:
         """港股财务指标（``skef10_hk_cwzb``）。
@@ -843,8 +853,11 @@ class F10Client:
         ``yynl`` 盈利能力 / ``ccznl`` 偿债能力（内部映射到数字 ``1``~``5``）。
         """
 
-        _require_section(section, tuple(_HK_CWZB_SECTIONS))
-        return self.params("CWServ.skef10_hk_cwzb", _HK_CWZB_SECTIONS[section], _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_finance_indicator", code, section, _MODULES[__name__]
+        )
 
     def hk_business(self, code: str, section: str = "1") -> F10Response:
         """港股经营分析（``skef10_hk_jyfx``）。section 为数字子标签。"""

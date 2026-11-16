@@ -1,5 +1,5 @@
 //! Python request/identity compatibility without strict SDK input narrowing.
-use eltdx::f10::{python_legacy as shared, simple_endpoint, Route, SimpleArgument};
+use eltdx::f10::{page_template, python_legacy as shared, simple_endpoint, Route, SimpleArgument, SimpleEndpoint};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 
@@ -138,28 +138,65 @@ pub fn f10_simple_endpoint<'py>(py: Python<'py>, client: Bound<'py, PyAny>, meth
 {
     let definition = simple_endpoint(method).ok_or_else(||
         pyo3::exceptions::PyValueError::new_err(format!("unknown fixed F10 endpoint: {method}")))?;
+    validate_template(&definition, &section, &module)?;
+    call_template(py, &client, definition, &code, &section, &module, None)
+}
+
+fn validate_template<'py>(definition: &SimpleEndpoint, section: &Bound<'py, PyAny>, module: &Bound<'py, PyAny>) -> PyResult<()> {
     if let Some(valid) = definition.valid_sections {
-        // The original methods pass a tuple literal; do not use a replaceable
-        // module `tuple` callable for this literal construction.
-        let valid = PyTuple::new(py, valid.iter().copied())?;
-        module.getattr("_require_section")?.call1((&section, valid))?;
+        let require = module.getattr("_require_section")?;
+        let mapped = definition.arguments.iter().find_map(|argument| match argument {
+            SimpleArgument::MappedSection(map) => Some(*map), _ => None,
+        });
+        let valid = match mapped {
+            // These methods originally called the live tuple builtin on a
+            // live mapping. Both lookups happen again for the value below.
+            Some(map) => builtin(module, "tuple")?.call1((module.getattr(map.python_attribute())?,))?,
+            None => PyTuple::new(module.py(), valid.iter().copied())?.into_any(),
+        };
+        require.call1((section, valid))?;
     }
+    Ok(())
+}
+
+fn call_template<'py>(py: Python<'py>, client: &Bound<'py, PyAny>, definition: SimpleEndpoint,
+    code: &Bound<'py, PyAny>, section: &Bound<'py, PyAny>, module: &Bound<'py, PyAny>,
+    inputs: Option<&Bound<'py, PyDict>>) -> PyResult<Py<PyAny>>
+{
     // Python resolves self.params before evaluating any call arguments. A
     // custom code converter may change that attribute for a subsequent call.
     let params = client.getattr("params")?;
     let values = definition.compose(|argument| -> PyResult<Py<PyAny>> {
         Ok(match argument {
             SimpleArgument::Literal(value) => value.into_pyobject(py)?.into_any().unbind(),
+            SimpleArgument::Integer(value) => value.into_pyobject(py)?.into_any().unbind(),
             SimpleArgument::Code => match definition.code_helper {
-                Some(helper) => module.getattr(helper)?.call1((&code,))?.unbind(),
+                Some(helper) => module.getattr(helper)?.call1((code,))?.unbind(),
                 None => code.clone().unbind(),
             },
             SimpleArgument::Section => section.clone().unbind(),
-            SimpleArgument::Market => module.getattr("_bond_sc")?.call1((&code,))?.unbind(),
+            SimpleArgument::Market => module.getattr("_bond_sc")?.call1((code,))?.unbind(),
+            SimpleArgument::MappedSection(map) => module.getattr(map.python_attribute())?.get_item(section)?.unbind(),
+            SimpleArgument::Input(name) => {
+                let value = match inputs { Some(inputs) => inputs.get_item(name)?, None => None };
+                value.ok_or_else(|| pyo3::exceptions::PyValueError::new_err(format!("missing F10 input: {name}")))?.unbind()
+            }
         })
     })?;
     let mut arguments = Vec::with_capacity(values.len() + 1);
     arguments.push(definition.entry.into_pyobject(py)?.into_any().unbind());
     arguments.extend(values);
     Ok(params.call1(PyTuple::new(py, arguments)?)?.unbind())
+}
+
+#[pyfunction]
+pub fn f10_page_endpoint<'py>(py: Python<'py>, client: Bound<'py, PyAny>, method: &str,
+    code: Bound<'py, PyAny>, section: Bound<'py, PyAny>, inputs: Bound<'py, PyDict>, module: Bound<'py, PyAny>) -> PyResult<Py<PyAny>>
+{
+    let prototype = page_template(method, |_| Ok::<_, PyErr>(false))?.ok_or_else(||
+        pyo3::exceptions::PyValueError::new_err(format!("unknown F10 page endpoint: {method}")))?;
+    validate_template(&prototype, &section, &module)?;
+    let definition = page_template(method, |value| section.eq(value))?.ok_or_else(||
+        pyo3::exceptions::PyValueError::new_err("missing F10 page definition"))?;
+    call_template(py, &client, definition, &code, &section, &module, Some(&inputs))
 }

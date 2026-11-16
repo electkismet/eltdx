@@ -2,6 +2,14 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage59: base437dfed. Mapped US/HK finance and
+  US capital/shareholder/market page branches share request templates.98/157
+  named compositions now have source (95 fixed/mapped +3 page);59 remain.
+  Original live dict/tuple/require lookup order, ignored page branches and raw
+  input/equality semantics preserved. Added5 Python/1 Rust source functions,
+  all unexecuted. Read task-23-report eleventh checkpoint. Next remaining named
+  methods, fields/models, cross-source helpers/evidence thenT24–T30.21/4/5,
+  active unlimited goal; no execution checks, agents or publication.
 - Latest recovery2026-11-17 stage58: base c9d76ae. Added92 shared fixed F10
   endpoint templates and Python dispatcher while keeping public signatures,
   params lookup before conversion, live code/market/section hooks and raw

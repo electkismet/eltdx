@@ -120,7 +120,7 @@ macro_rules! section_endpoint {
 }
 
 mod template;
-pub use template::{SimpleArgument, SimpleEndpoint};
+pub use template::{page_template, SectionMap, SimpleArgument, SimpleEndpoint};
 mod simple_registry;
 pub use simple_registry::simple_endpoint;
 mod international;

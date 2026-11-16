@@ -12,6 +12,7 @@ fn fixed_definition_and_typed_query_share_nondefault_arguments() -> eltdx::Resul
         SimpleArgument::Code => eltdx::f10::JsonValue::from("AAPL"),
         SimpleArgument::Section => eltdx::f10::JsonValue::from("sypl"),
         SimpleArgument::Market => unreachable!(),
+        _ => unreachable!(),
     })).unwrap();
     let query = MgTipsQuery::new(UsTicker::new("AAPL")?)
         .with_section(SectionCode::new("mg_tips", "sypl")?)?.to_call()?;
@@ -50,4 +51,22 @@ fn shared_argument_visitor_stops_at_the_original_error() {
     });
     assert_eq!(result, Err("conversion"));
     assert!(matches!(visited.as_slice(), [SimpleArgument::Section, SimpleArgument::Code]));
+}
+
+#[test]
+fn international_mapped_and_page_templates_keep_wire_types() -> eltdx::Result<()> {
+    use eltdx::f10::{HkFinanceQuery, HongKongCode, MgCapitalQuery, MgFinanceIndicatorQuery, MgMarketQuery, MgShareholdersQuery};
+    let indicator = MgFinanceIndicatorQuery::new(UsTicker::new("AAPL")?)
+        .with_section(SectionCode::new("mg_finance_indicator", "ylnl")?)?.to_call()?;
+    assert_eq!(indicator.payload(), &RequestPayload::Params(vec!["002".into(), "AAPL".into()]));
+    let hk = HkFinanceQuery::new(HongKongCode::new("700")?).to_call()?;
+    assert_eq!(hk.payload(), &RequestPayload::Params(vec!["2".into(), "00700".into()]));
+    let capital = MgCapitalQuery::new(UsTicker::new("AAPL")?).with_page(17)?.to_call()?;
+    assert_eq!(capital.payload(), &RequestPayload::Params(vec!["001".into(), "AAPL".into(), 1_i64.into()]));
+    let owners = MgShareholdersQuery::new(UsTicker::new("AAPL")?).with_page(17)?.to_call()?;
+    assert_eq!(owners.payload(), &RequestPayload::Params(vec!["006".into(), "AAPL".into(), 1_i64.into(), 10_i64.into()]));
+    let market = MgMarketQuery::new(UsTicker::new("AAPL")?)
+        .with_section(SectionCode::new("mg_market", "003")?)?.with_page(17)?.to_call()?;
+    assert_eq!(market.payload(), &RequestPayload::Params(vec!["003".into(), "AAPL".into(), 0_i64.into(), 0_i64.into()]));
+    Ok(())
 }

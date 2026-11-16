@@ -311,3 +311,36 @@ Resume next: complex F10 named request policies and live selector dictionaries,
 all remaining named methods/models/fields, cross-source helpers and migration
 evidence; then T24–T30 before the unified verification gate. Checkpoint58 is
 complete as a source checkpoint, not complete T23.
+## Eleventh checkpoint — mapped selectors and US page branches
+
+Base `437dfed` (stage58). Extended the shared wire arguments with mapped
+selectors, numeric constants and named inputs. The mapped US/HK finance
+queries and US capital/shareholders/market page queries now consume the same
+request definitions from their strict Rust APIs and Python public methods.
+This adds six named methods: total98/157 have shared request composition
+source (95 fixed/mapped templates plus3 conditional page templates).
+
+The three mapped selectors retain the live module dictionary and original
+module-level tuple override. _require_section is captured before tuple(table)
+as Python originally evaluated it; the mapping is looked up again after
+validation and params lookup, before code conversion. Replacement tables and
+arbitrary mapped objects survive unchanged. Strict Rust uses the closed map
+values and its original validation policy.
+
+US page branches keep original Python comparisons and lookup order. Capital
+001 ignores page and sends numeric1; shareholders006 ignores both inputs and
+sends numeric1/10; market003 ignores both and sends numeric0/0. Other accepted
+branches preserve the caller's objects without numeric coercion. The original
+section validation occurs before branch equality and params lookup. An equality
+exception is propagated unchanged. Rust continues checked u32 inputs.
+
+Authored5 Python contract functions (including6 page and3 mapping cases) and
+one Rust function; prior source-only tests now cover the expanded argument enum.
+No validation executed: no tests/collection/build/check/dependencies/network,
+AST/format/diff-whitespace checks. Plain source reads/diff and hook-disabled
+Git checkpoint only. Counts21/4/5, active unlimited goal; T23 remains partial.
+
+Next: remaining59 F10 named method compositions (including dynamic industry/
+futures, report tables/prerequisites, news/cache/valuation and typed result
+collectors), F10 fields/models and cross-source helpers; migration manifest
+accounting; all remaining T24–T30 sources before final unified validation.
