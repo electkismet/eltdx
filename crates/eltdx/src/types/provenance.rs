@@ -148,6 +148,12 @@ impl ResultMeta {
 
     pub(crate) fn with_sources(mut self, sources: Vec<SourceStamp>) -> Self { self.sources = sources; self }
 
+    pub(crate) fn with_trading_date(mut self, date: TradingDate) -> Self {
+        self.source.trading_date = Some(date);
+        for source in &mut self.sources { source.trading_date = Some(date); }
+        self
+    }
+
     /// Reorder only row references after a service orders its result records.
     /// Payloads, frames and source stamps keep their original response order.
     pub(crate) fn with_raw_row_order(mut self, order: &[usize]) -> crate::error::Result<Self> {

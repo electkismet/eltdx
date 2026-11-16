@@ -8,6 +8,7 @@ pub mod quotes;
 pub mod raw;
 pub mod security;
 pub mod time;
+pub mod trades;
 
 pub use batch::{BatchItem, BatchItemState, BatchOutcome, Collected, DataPage, EndEvidence, MissingPolicy, MissingReason, PageCursor, PageOptions, SnapshotBatch};
 pub use codes::{CodeQuery, CodeScanQuery, Security, SecurityBoard, SecurityCategory};
@@ -19,3 +20,4 @@ pub use quotes::{CategoryQuery, CategoryQuote, LegacyQuote, QuoteCategory, Quote
 pub use raw::RawPolicy;
 pub use security::{HqMarket, SecurityId};
 pub use time::{Clock, EventTime, EventTimeSource, MarketDateChoice, SystemClock, TradingDate};
+pub use trades::{TradeColumnData, TradeColumns, TradeEventKind, TradePage, TradeQuery, TradeSide, TradeTick};

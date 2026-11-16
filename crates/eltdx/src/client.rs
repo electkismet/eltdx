@@ -12,7 +12,7 @@ use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::hq::executor::HqExecutor;
 use crate::operation::{ChildPurpose, OperationOptions};
 use crate::session::SessionOwner;
-use crate::services::{CodeService, KlineService, MinuteService, QuoteService};
+use crate::services::{CodeService, KlineService, MinuteService, QuoteService, TradeService};
 
 #[derive(Clone, Debug)]
 pub struct ClientBuilder {
@@ -165,6 +165,10 @@ impl TdxClient {
 
     pub fn minutes(&self) -> MinuteService {
         MinuteService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+    }
+
+    pub fn trades(&self) -> TradeService {
+        TradeService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
     }
 
     /// Permanently closes this shared, lazily initialized client owner.

@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-16 T14部分实现恢复点：逐笔M41–M50十个方法、query/行/列DTO、纯转换、延迟getter及合成测试源码已写入。竞价M51、日资金流M52/M100和专属池/owner总连接限制尚未完成，T14仍为进行中。当前源码未运行任何测试、构建或检查。详见`.superpowers/sdd/development-plan/task-14-report.md`；下一步完成T14余下域，不重写T01–T13。
+
 当前实际进度：T01–T13实现源码已写完，T13源码与自审检查点 `338d99b`。本次新增K线/退市K线/分钟服务的18个Rust公开方法、query/DTO、延迟getter，以及分页/日期/精度/raw映射的测试源码。T21已完成源码与限定静态审阅，T17/T22/T24/T25仍只有部分实现。下一步T14逐笔、竞价、开盘撮合与日资金流，再继续T15–T30和未完成集成。目标保持active且不设置额度限制；未运行测试、构建或等价验证，不声称当前源码可编译或可运行。
 
 2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。

@@ -164,7 +164,7 @@
 | T11 | Implementation/source review complete through `c0f005d`; execution verification deferred |
 | T12 | Quote/code Python bridge implementation/source review complete through `684a157`; execution verification deferred |
 | T13 | Implementation/self-review checkpoint `338d99b`: all 18 methods M25-M40/M98-M99, queries/DTOs, date/cursor/raw mapping and synthetic source cases; execution verification deferred |
-| T14 | Not started |
+| T14 | In progress: M41-M50 trade service, typed rows/columns/opening-match and synthetic sources authored; M51/M52/M100 and dedicated domain pools pending; no execution verification |
 | T15 | Not started |
 | T16 | Not started |
 | T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
