@@ -19,6 +19,16 @@ use crate::{Error, ErrorKind, Result, TimeoutPhase};
 const MARKETS: [HqMarket; 3] = [HqMarket::Shanghai, HqMarket::Shenzhen, HqMarket::Beijing];
 const FULL_QUOTE_CHUNK: usize = 80;
 
+/// The original public helper and the strict SDK use the same snapshot batch
+/// size. Duplicate occurrences and order are retained by slice chunking.
+pub fn full_quote_chunks<T>(values: &[T]) -> std::slice::Chunks<'_, T> {
+    values.chunks(FULL_QUOTE_CHUNK)
+}
+
+pub fn complete_quote_depth(bids: usize, asks: usize) -> bool {
+    bids >= 5 && asks >= 5
+}
+
 /// HQ business operations. Getters and cloning do not start the runtime or
 /// touch the filesystem. Every network composition owns one operation context.
 #[derive(Clone, Debug)]
@@ -66,7 +76,7 @@ impl HelperService {
         let mut metas = Vec::new();
         items.try_reserve(ids.len()).map_err(allocation_error)?;
         metas.try_reserve(ids.len().div_ceil(FULL_QUOTE_CHUNK) * 2).map_err(allocation_error)?;
-        for (chunk_index, chunk) in ids.chunks(FULL_QUOTE_CHUNK).enumerate() {
+        for (chunk_index, chunk) in full_quote_chunks(ids).enumerate() {
             context.check_boundary(TimeoutPhase::Admission)?;
             let primary = quotes.snapshots_in_context(context, chunk, MissingPolicy::Error, FULL_QUOTE_CHUNK)?;
             let (rows, primary_meta) = primary.into_parts();
@@ -246,7 +256,7 @@ impl HelperService {
 fn merge_depth(mut snapshot: Snapshot, depth: Option<&Snapshot>, failure: Option<&Error>) -> Result<FullQuote> {
     let (status, source, diagnostic) = match (failure, depth) {
         (Some(error), _) => (EnrichmentStatus::Failed, None, failed_diagnostic("hq.depth", "full_quotes.depth", error)),
-        (None, Some(depth)) if depth.bids().len() >= 5 && depth.asks().len() >= 5 => {
+        (None, Some(depth)) if complete_quote_depth(depth.bids().len(), depth.asks().len()) => {
             snapshot.replace_depth(depth)?;
             (EnrichmentStatus::Succeeded, Some(depth.meta().source().clone()),
                 Diagnostic::new("hq.depth", "full_quotes.depth", EnrichmentStatus::Succeeded, None, None))

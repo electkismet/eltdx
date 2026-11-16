@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17 第二十三段源码恢复点：special limits已提交`9d75306`。本段把full_quotes的80分组、五档资格与Python合并循环、逐笔资金流档位/累计接入Rust；保留Python重复depth最后项、四字段替换、custom对象/回调、optional Exception降级及原非finite/负值算术。新增10合同函数源码及full_quotes source-only manifest；全部未执行。T18仍部分，18/4/8不变；继续其余helper、批量/订阅及consumer，再推进T19–T30。目标active，无额度限制。
+
 2026-11-17 第二十二段源码恢复点：stats已提交`c2ef123`。special limits单页/扫描共用Rust请求/offset循环及native接入已写，保留每请求期限、未知identity/nonfinite/raw、空页和最后页超目标数、偏移提取错误；custom算术/回调保留adapter。新增6合同/4本机集成/2Rust函数源码，均未执行。health已核对为现有共用session heartbeat及零native-load ping adapter，补两类ping源码用例。总数18/4/8不变；下一步全部HQ helper/订阅/批量调度、manifest和installed-wheel consumer，目标active无额度限制。
 
 2026-11-17 第二十一段源码恢复点：resources已提交`4b0d38b`。stats GBK/文本/数字/行解析接入共用Rust函数，legacy保留任意精度整数、原顺序/重复键/空表错误、Python ZIP codec与异常cause和自定义parser adapter。新增8合同/2Rust函数源码及1项source-only manifest，全未执行。下一步补齐special limits、health边界及剩余批量/helper/订阅/manifest/consumer；T18仍部分，总数18/4/8，active无额度限制。
@@ -45,7 +47,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | stats `c2ef123`；special limits native源码及health边界核对已写；全部执行验证延期 |
+| 最新检查点 | special limits `9d75306`；full_quotes/逐笔资金流helper共用源码已写；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

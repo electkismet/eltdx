@@ -73,6 +73,15 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Twenty-third recovery: special limits committed9d75306. Shared full_quote_chunks,
+complete_quote_depth and generic fund-flow threshold/accumulator now used by
+strict SDK and Python binding. Python full quote/merge loops moved to the binding;
+last duplicate depth, four replaced fields, optional Exception downgrade,
+BaseException propagation, custom getters/merger and original numeric objects
+remain. Added10 contract function sources and full_quotes source-only manifest,
+all unexecuted. Other helpers/batches/subscriptions/consumer remain outstanding;
+T18 partial, totals18/4/8, goal active without cap.
+
 Twenty-second recovery: stats committedc2ef123. Special-limit request/scan native
 source now shares domain/offset traversal, preserving raw/unknown/nonfinite,
 over-target last page, EOF, per-request timeouts and custom arithmetic/hooks.

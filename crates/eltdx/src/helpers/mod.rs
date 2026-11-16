@@ -1,7 +1,7 @@
 //! HQ business compositions and pure calculations. Network helpers share their
 //! caller's operation context; pure calculations require neither Python nor I/O.
-mod market;
-mod service;
+pub(crate) mod market;
+pub(crate) mod service;
 mod cache;
 mod profile;
 mod market_service;

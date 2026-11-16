@@ -928,3 +928,32 @@ Twenty-first source stage committed as **c2ef123**; all execution deferred.
 
 T18 partial;18/4/8. Next full helper/batch/subscription migration, manifest and
 installed-wheel consumer; all later T19–T30/Stage B remain outstanding.
+
+Twenty-second source stage committed as **9d75306**; all execution deferred.
+
+## Twenty-third source checkpoint — full quotes and tick fund flow
+
+- Strict SDK and Python binding share full_quote_chunks (80 occurrences) and
+  complete_quote_depth (both sides at least5). Python orchestration now runs in
+  Rust binding, retaining public getter/merger callbacks, original object identity,
+  scalar early return, per-request limits, final matching duplicate depth, and
+  dataclass replacement of only buy_levels/sell_levels/open_amount_raw/open_amount_yuan.
+  Optional get_depth catches Exception only; parsing/replacement and BaseException
+  still propagate. Strict SDK's occurrence join, raw/source and diagnostics remain.
+- M95 classify_fund_flow and Python classifier share generic threshold selection
+  and accumulation. Strict SDK validates units/finite nonnegative values; legacy
+  uses Python mul/comparison/in-place-add with original objects and preserves
+  negative/NaN/infinity, custom property order, auction/neutral skip and kwargs DTO.
+  Threshold boundaries still fall into the lower bucket. No Python type enters
+  the independent crate; hidden bridge is the only compatibility export.
+- Added10 contract source functions, including threshold/kind, invalid legacy
+  numeric behavior, custom field access, failed full-day fetch, chunks, scalar
+  responses, duplicate depth, incomplete depth and optional error classification.
+  One existing frozen catalog record (7709-quote-depth) gets source-only evidence.
+  The frozen124 records contain no separate M95 classifier; keep module evidence
+  here instead of fabricating a capability. No migration status is promoted.
+
+No tests, collection, builds, dependency resolution, format/AST/compile checks,
+network probes or equivalent verification ran. T18 remains partial18/4/8; other
+HQ helpers, batches/subscription coordination and installed-wheel consumer are
+still outstanding. Goal active/no cap; next stages T19–T30 remain authorized.

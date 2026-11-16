@@ -319,6 +319,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T18：P2 Python 回迁及可用版本验收
 
+2026-11-17第二十三段：special limits已提交`9d75306`；full_quotes的80分批与五档深度资格共用、Python原对象/回调合并及M95逐笔资金流档位累计已接入Rust。Python保留重复depth最后项、四字段替换、Exception降级与BaseException传播、自定义对象/原算术及逐请求时序。新增10合同函数源码和full_quotes source-only manifest，均未运行；其余helper/批量/订阅与consumer仍待做，T18部分、18/4/8不变。
+
 源码首段`e3e768c`已写M95纯classify_fund_flow；第二段`d0f8c2c`增加M79–M85首批HelperService；第三段`14f590c`已写M86 profile/M87共享owner有界缓存/clear。第四段`ab5f8bf`增加M92 auction_data/M93 market_stat/M94 today_fund_flow。第五段`4823fb8`增加M88/M89及共享双stat对齐/缓存/parent collector。第六段`f6a99a8`增加M90短线/M91天梯及未执行用例，覆盖服务端就绪/源日期/单位/可选补扫/UnknownRule天梯诊断。第七段增加M96/M97板块、显式来源/固定HQ下载、内部文本/DBF解析、owner有界缓存、raw/display/excluded及8组公开用例源码。完整Python/native回迁、真实manifest迁移证据及consumer/example仍待完成，T18仍部分；已有M79–M97共19/19方法首批源码不等于完整T18或验证通过。全部执行验证延期，详情task-18-report。
 
 **文件：** 新增 `src/helpers/{mod,market,boards,shortline,profile}.rs` 和 `tests/hq_helpers.rs`；对上述服务及 HQ helpers 逐一修改 `src/eltdx/api`、`helpers`、`equity.py`、`workday.py`、`stats.py` 和 native 桥接；新增域级差分测试与 `crates/eltdx/examples/hq_query.rs`。

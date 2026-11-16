@@ -377,15 +377,9 @@ class HelperApi:
         full_codes = _code_list(codes)
         if not full_codes:
             return []
-        results = []
-        for start in range(0, len(full_codes), 80):
-            batch = full_codes[start : start + 80]
-            page = self._client.quotes.get_snapshots(batch)
-            if isinstance(page, (list, tuple)):
-                results.extend(self._merge_quote_depths(list(page), batch))
-            else:
-                return page
-        return results
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_full_quotes(self, full_codes)
 
     def latest_stock_list(self, market: str | None = None):
         """Return the latest structured A-share code-table rows."""
@@ -690,38 +684,11 @@ class HelperApi:
 
     def _merge_quote_depths(self, snapshots: list[Any], codes: Sequence[str]) -> list[Any]:
         """Merge a 0x0547 refresh page into 0x054c snapshots when five levels exist."""
-        if not snapshots or not all(isinstance(item, QuoteSnapshot) for item in snapshots):
-            return snapshots
-        try:
-            refresh = self._client.quotes.get_depth(codes)
-        except Exception:
-            return snapshots
-        records = getattr(refresh, "records", ())
-        depth_by_code = {
-            record.full_code: record
-            for record in records
-            if isinstance(record, QuoteRefreshRecord)
-            and len(record.buy_levels) >= 5
-            and len(record.sell_levels) >= 5
-        }
-        if not depth_by_code:
-            return snapshots
-        merged: list[Any] = []
-        for snapshot in snapshots:
-            depth = depth_by_code.get(snapshot.full_code)
-            if depth is None:
-                merged.append(snapshot)
-                continue
-            merged.append(
-                replace(
-                    snapshot,
-                    buy_levels=depth.buy_levels,
-                    sell_levels=depth.sell_levels,
-                    open_amount_raw=depth.open_amount_raw,
-                    open_amount_yuan=depth.open_amount_yuan,
-                )
-            )
-        return merged
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_merge_depths(
+            self, snapshots, codes, QuoteSnapshot, QuoteRefreshRecord, replace,
+        )
 
     def shortline_indicators(
         self,

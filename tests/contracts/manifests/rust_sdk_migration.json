@@ -344,7 +344,12 @@
     {
       "id": "7709-quote-depth",
       "source_files": [
-        "docs/helpers/完整行情.md"
+        "docs/helpers/完整行情.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/helpers/service.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/helpers.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -353,6 +358,25 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x054c + 0x0547",
       "api": "client.helpers.full_quotes(codes)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::full_quotes",
+        "python_entry": "HelperApi.full_quotes -> helper_full_quotes -> helper_merge_depths",
+        "shared_algorithm": "full_quote_chunks and complete_quote_depth; Python keeps last duplicate depth while strict SDK consumes identity occurrences",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_helpers_bridge.py::test_full_quotes_chunks_duplicate_occurrences_and_calls_custom_merger",
+          "tests/contracts/test_sdk_helpers_bridge.py::test_full_quotes_custom_scalar_short_circuits_remaining_batches",
+          "tests/contracts/test_sdk_helpers_bridge.py::test_depth_merge_last_duplicate_wins_and_only_four_fields_change",
+          "tests/contracts/test_sdk_helpers_bridge.py::test_depth_merge_incomplete_depth_keeps_original_container",
+          "tests/contracts/test_sdk_helpers_bridge.py::test_depth_request_exception_degrades_but_base_exception_propagates"
+        ],
+        "temporary_adapter": {
+          "scope": "Python public getter/merger callbacks, dataclass replacement, raw objects and per-request timing",
+          "reason": "The public extension points, final duplicate winner and open_amount_raw field behavior differ from strict SDK metadata and occurrence joins.",
+          "exit_condition": "Keep language-object projection at the binding boundary; no compatibility removal is authorized."
+        },
+        "validation": "Source only, not collected/compiled/executed. M95 fund-flow threshold sharing is recorded in the T18 report because the frozen catalog has no separate classifier record."
+      },
       "kind": "协议封装",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/完整行情.md",

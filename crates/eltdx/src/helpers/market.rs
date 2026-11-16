@@ -3,6 +3,21 @@ use crate::{Error, ErrorKind, Result};
 use crate::types::{Amount, AmountUnit, FundFlow, NumericValue, QuantityUnit, ResultMeta, SourceStamp,
     TradeEventKind, TradeSide, TradeTick, ValueProvenance};
 
+/// Shared threshold/accumulation rule. Numeric validation belongs to the
+/// caller: strict SDK amounts are finite CNY, while the legacy bridge retains
+/// Python comparison and addition (including arbitrary-size integers/NaN).
+pub fn accumulate_flow_amount<T, E>(buckets: &mut [T; 8], direction: usize, amount: T,
+    thresholds: [&T; 3], mut greater: impl FnMut(&T, &T) -> std::result::Result<bool, E>,
+    mut add: impl FnMut(&T, &T) -> std::result::Result<T, E>) -> std::result::Result<(), E> {
+    let mut size = 3;
+    for (index, threshold) in thresholds.into_iter().enumerate() {
+        if greater(&amount, threshold)? { size = index; break; }
+    }
+    let bucket = direction + size;
+    buckets[bucket] = add(&buckets[bucket], &amount)?;
+    Ok(())
+}
+
 /// Classify actual Buy/Sell trades using strict source thresholds. Equal
 /// boundaries belong to the smaller bucket. Auction snapshots and other sides
 /// are skipped before inspecting non-trade quote fields. This function is pure.
@@ -32,9 +47,9 @@ pub(crate) fn classify_with_boundary(ticks: &[TradeTick], mut boundary: impl FnM
             return Err(invalid("fund flow requires finite nonnegative trade prices, volumes and CNY amounts")
                 .with_context("tick_index", format!("{index}")));
         }
-        let bucket = if amount > 1_000_000.0 { 0 } else if amount > 200_000.0 { 1 }
-            else if amount > 40_000.0 { 2 } else { 3 };
-        buckets[direction + bucket] = finite(buckets[direction + bucket] + amount)?;
+        accumulate_flow_amount(&mut buckets, direction, amount,
+            [&1_000_000.0, &200_000.0, &40_000.0],
+            |left, right| Ok(*left > *right), |left, right| finite(*left + *right))?;
         classified_count = increment(classified_count)?;
     }
     let main_in = finite(buckets[0] + buckets[1])?; let main_out = finite(buckets[4] + buckets[5])?;

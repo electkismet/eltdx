@@ -29,6 +29,8 @@ pub use crate::calendar::index::{calendar_window, calendar_neighbor, legacy_week
 pub use crate::services::resource_legacy::legacy_resource_download;
 pub use crate::stats::{legacy_stats_members, LegacyStatRow, LegacyStat2Row};
 pub use crate::services::limits::legacy_special_scan;
+pub use crate::helpers::market::accumulate_flow_amount;
+pub use crate::helpers::service::{full_quote_chunks, complete_quote_depth};
 pub use crate::services::corporate_legacy::{legacy_capital_collect, legacy_finance_recover,
     LegacyCapitalCollection, LegacyCapitalPage, LegacyCapitalSource,
     LegacyFinanceCollection, LegacyFinanceError, LegacyFinancePage, LegacyFinanceSource};

@@ -2,6 +2,11 @@
 
 ## Setup
 
+- Latest recovery 2026-11-17:9d75306 special limits committed; following full_quotes
+  and M95 fund-flow shared Rust/binding sources authored,10 contract functions
+  unexecuted. Still18 complete-source/4 partial/8 unstarted, T18 partial, active/no
+  cap. Continue remaining helpers/batch/subscription/consumer before T19–T30.
+
 - Worktree: `C:/Users/ax/.codex/worktrees/rust-sdk-implementation/tdx抓包`
 - Branch: `codex/rust-sdk-implementation`
 - Plan base: `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`)
