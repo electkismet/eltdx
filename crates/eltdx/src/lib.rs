@@ -4,6 +4,8 @@ mod client;
 mod config;
 mod encoding;
 mod hq;
+mod hosts;
+pub mod services;
 mod session;
 mod operation;
 mod policy;
@@ -21,7 +23,13 @@ pub use operation::{CancellationToken, OperationOptions};
 pub use session::PinnedSession;
 pub use error::{Error, ErrorContext, ErrorKind, Result, TimeoutPhase};
 pub use types::batch::{
-    BatchItem, BatchItemState, BatchOutcome, MissingPolicy, MissingReason, SnapshotBatch,
+    BatchItem, BatchItemState, BatchOutcome, Collected, DataPage, EndEvidence, MissingPolicy,
+    MissingReason, PageCursor, PageOptions, SnapshotBatch,
+};
+pub use types::codes::{CodeQuery, CodeScanQuery, Security, SecurityBoard, SecurityCategory};
+pub use types::quotes::{
+    CategoryQuery, CategoryQuote, LegacyQuote, QuoteCategory, QuoteLevel, QuoteSort, QuoteUpdate,
+    QuoteUpdates, Snapshot,
 };
 pub use types::numeric::{
     Amount, AmountUnit, NumericValue, Price, PriceSource, Quantity, QuantityUnit, Ratio,

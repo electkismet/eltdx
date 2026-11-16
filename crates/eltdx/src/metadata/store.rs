@@ -29,6 +29,10 @@ pub(super) struct CatalogLimits {
 impl CatalogLimits {
     const RUST: Self = Self { records: Some(MAX_MARKET_RECORDS), pages: Some(MAX_MARKET_PAGES) };
     const LEGACY: Self = Self { records: None, pages: None };
+
+    fn code_scan(records: usize, pages: usize) -> Self {
+        Self { records: Some(records), pages: Some(pages) }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,6 +57,13 @@ pub(crate) struct MarketCandidate {
 impl MarketCandidate {
     pub(crate) fn new(key: SnapshotKey) -> Result<Self> {
         Self::with_limits(key, CatalogLimits::RUST)
+    }
+
+    pub(crate) fn for_code_scan(key: SnapshotKey, max_records: usize, max_pages: usize) -> Result<Self> {
+        if max_records == 0 || max_pages == 0 {
+            return Err(Error::new(ErrorKind::InvalidArgument, "code scan limits must be positive"));
+        }
+        Self::with_limits(key, CatalogLimits::code_scan(max_records, max_pages))
     }
 
     pub(super) fn with_limits(key: SnapshotKey, limits: CatalogLimits) -> Result<Self> {
@@ -383,11 +394,25 @@ impl MetadataStore {
         if snapshots.len() == 1 && snapshots[0].key().namespace() == namespace {
             return Ok(Arc::clone(&snapshots[0]));
         }
-        let version = if snapshots.is_empty() { 0 } else {
-            self.inner.next_version.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| next.checked_add(1))
-                .map_err(|_| Error::new(ErrorKind::Internal, "metadata capture version exhausted"))?
-        };
+        // Publication versions are monotonic across this store. Refreshing any
+        // included market therefore changes this maximum, while repeated
+        // captures of the same constituent versions remain cursor-compatible.
+        let version = snapshots.iter().map(|snapshot| snapshot.version()).max().unwrap_or(0);
         Ok(Arc::new(MetadataSnapshot::capture(namespace, version, snapshots)?))
+    }
+
+    pub(crate) fn catalog_version(&self, namespace: &str, markets: &[HqMarket]) -> Result<Option<u64>> {
+        let now = self.inner.clock.unix_seconds()?;
+        let state = self.inner.state.lock().map_err(|_| flight_poisoned())?;
+        let mut version = None;
+        for &market in markets {
+            if let Some(snapshot) = state.snapshots.get(&SnapshotKey::hq(namespace, market)) {
+                if snapshot.is_fresh_at(now) {
+                    version = Some(version.unwrap_or(0).max(snapshot.version()));
+                }
+            }
+        }
+        Ok(version)
     }
 
     /// The sole production loader owns only runtime state and cooperatively
@@ -401,6 +426,43 @@ impl MetadataStore {
         self.load_or_refresh(key, sponsor, policy, ttl, refresh, move |control| {
             super::loader::load_market(&engine, market, request_timeout, control)
         })
+    }
+
+    pub(crate) fn publish_code_scans(
+        &self, candidates: Vec<MarketCandidate>, ttl: Duration,
+        context: &crate::operation::OperationContext,
+    ) -> Result<Vec<Arc<MetadataSnapshot>>> {
+        if ttl.is_zero() { return Err(Error::new(ErrorKind::InvalidArgument, "metadata TTL must be positive")); }
+        let fetched_at = self.inner.clock.unix_seconds()?;
+        let ttl_seconds = ttl.as_secs().checked_add(u64::from(ttl.subsec_nanos() != 0))
+            .and_then(|seconds| i64::try_from(seconds).ok())
+            .ok_or_else(|| Error::new(ErrorKind::InvalidArgument, "metadata TTL exceeds epoch range"))?;
+        let expires_at = fetched_at.checked_add(ttl_seconds)
+            .ok_or_else(|| Error::new(ErrorKind::InvalidArgument, "metadata expiry overflows epoch range"))?;
+        let mut snapshots = Vec::new();
+        snapshots.try_reserve(candidates.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded,
+            "unable to reserve completed directory snapshots").with_source(error))?;
+        for candidate in candidates {
+            let (key, _, records) = candidate.into_records()?;
+            let version = self.inner.next_version.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| next.checked_add(1))
+                .map_err(|_| Error::new(ErrorKind::Internal, "metadata snapshot version exhausted"))?;
+            snapshots.push(Arc::new(MetadataSnapshot::new(key, version, fetched_at, Some(expires_at), records)));
+        }
+        // No I/O occurs in this bounded publication transaction. Owner close,
+        // cancellation, deadline and all-market insertion linearize together.
+        context.budget.gate(Instant::now(), |_| {
+            let mut state = self.inner.state.lock().map_err(|_| flight_poisoned())?;
+            if self.inner.sealed.load(Ordering::Acquire) {
+                return Err(Error::new(ErrorKind::Closed, "metadata store is closed"));
+            }
+            state.snapshots.try_reserve(snapshots.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded,
+                "unable to reserve metadata publication entries").with_source(error))?;
+            for snapshot in &snapshots {
+                state.snapshots.insert(snapshot.key().clone(), Arc::clone(snapshot));
+            }
+            Ok(())
+        })?;
+        Ok(snapshots)
     }
 
     #[cfg(test)]
@@ -532,9 +594,11 @@ impl MetadataStore {
     }
 
     pub(crate) fn stop_all(&self) {
-        self.inner.sealed.store(true, Ordering::Release);
         if let Ok(state) = self.inner.state.lock() {
+            self.inner.sealed.store(true, Ordering::Release);
             for flight in state.flights.values() { flight.request_stop(); }
+        } else {
+            self.inner.sealed.store(true, Ordering::Release);
         }
     }
 
@@ -558,9 +622,11 @@ impl MetadataStore {
     }
 
     fn stop_before(&self, deadline: Instant) {
-        self.inner.sealed.store(true, Ordering::Release);
         if let Ok(state) = self.inner.state.lock() {
+            self.inner.sealed.store(true, Ordering::Release);
             for flight in state.flights.values() { flight.stop_before(deadline); }
+        } else {
+            self.inner.sealed.store(true, Ordering::Release);
         }
     }
 }

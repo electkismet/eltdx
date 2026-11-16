@@ -6,6 +6,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type ErrorContext = Vec<(String, String)>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
 pub enum ErrorKind {
     InvalidArgument,
@@ -116,6 +117,16 @@ impl Error {
         let mut mapped = Self::new(kind, error.to_string());
         mapped.context = context;
         mapped.with_source(error)
+    }
+
+    pub(crate) fn from_protocol(error: eltdx_protocol::ProtocolError) -> Self {
+        let kind = match &error {
+            eltdx_protocol::ProtocolError::InvalidArgument { .. } => ErrorKind::InvalidArgument,
+            eltdx_protocol::ProtocolError::LimitExceeded { .. } => ErrorKind::LimitExceeded,
+            eltdx_protocol::ProtocolError::UnsupportedCommand { .. } => ErrorKind::Unsupported,
+            _ => ErrorKind::Protocol,
+        };
+        Self::new(kind, error.to_string()).with_source(error)
     }
 
     pub const fn kind(&self) -> ErrorKind {

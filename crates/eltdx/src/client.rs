@@ -1,12 +1,18 @@
 use std::net::SocketAddr;
 use std::num::NonZeroU32;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+use eltdx_protocol::commands::session::HeartbeatRequest;
+use eltdx_protocol::{CommandRequest, CommandResponse};
+use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions};
 
 use crate::config::{ClientConfig, ConfigDraft};
-use crate::error::Result;
+use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::hq::executor::HqExecutor;
+use crate::operation::{ChildPurpose, OperationOptions};
 use crate::session::SessionOwner;
+use crate::services::{CodeService, QuoteService};
 
 #[derive(Clone, Debug)]
 pub struct ClientBuilder {
@@ -68,6 +74,9 @@ impl ClientBuilder {
 
     pub fn build(self) -> Result<TdxClient> {
         let config = self.draft.validate()?;
+        let hosts = configured_hosts(&config);
+        let namespace = format!("hq:7709:{}", hosts.join(","));
+        let engine = engine_with_hosts(&config, hosts)?;
         let owner = Arc::new(SessionOwner::new_with_clock(
             config.close_timeout,
             config.cleanup_timeout,
@@ -76,8 +85,28 @@ impl ClientBuilder {
         Ok(TdxClient {
             config,
             hq: HqExecutor::new(owner),
+            engine,
+            namespace,
         })
     }
+}
+
+pub(crate) fn engine_with_hosts(config: &ClientConfig, hosts: Vec<String>) -> Result<Engine> {
+        let engine_config = EngineConfig::new(hosts, config.request_timeout().as_secs_f64(), EngineConfigOptions {
+            pool_size: config.pool_size(),
+            runtime_workers: None,
+            server_count: 1,
+            max_connections_per_host: None,
+            connect_concurrency: Some(1),
+            connect_concurrency_per_host: Some(1),
+            global_raw_bytes: None,
+            global_decoded_bytes: None,
+            heartbeat_interval: config.heartbeat_interval().map(|value| value.as_secs_f64()),
+            max_pending_requests: 256,
+            push_queue_size: 1_024,
+            push_queue_bytes: 64 * 1024 * 1024,
+        }).map_err(Error::from_runtime)?;
+        Engine::new(engine_config).map_err(Error::from_runtime)
 }
 
 impl Default for ClientBuilder {
@@ -90,6 +119,8 @@ impl Default for ClientBuilder {
 pub struct TdxClient {
     config: ClientConfig,
     hq: HqExecutor,
+    engine: Engine,
+    namespace: String,
 }
 
 impl TdxClient {
@@ -101,8 +132,40 @@ impl TdxClient {
         &self.config
     }
 
+    /// Starts the lazy HQ runtime and confirms the protocol handshake with a heartbeat.
+    pub fn connect(&self, options: &OperationOptions) -> Result<()> {
+        let entry = Instant::now();
+        let context = self.hq.begin_context_at(entry, "connect", &self.config, options)?;
+        let request = CommandRequest::Heartbeat(HeartbeatRequest);
+        let raw = self.hq.execute_raw(&self.engine, &context, request, ChildPurpose::Required, None)?;
+        match self.hq.decode_received(&context, raw)?.response {
+            CommandResponse::Heartbeat(_) => {
+                context.finish()?;
+                Ok(())
+            }
+            _ => Err(context.annotate(
+                Error::new(ErrorKind::Protocol, "HQ connection returned a non-heartbeat response"),
+                TimeoutPhase::Decode,
+                None,
+            )),
+        }
+    }
+
+    pub fn codes(&self) -> CodeService {
+        CodeService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+    }
+
+    pub fn quotes(&self) -> QuoteService {
+        QuoteService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+    }
+
     /// Permanently closes this shared, lazily initialized client owner.
     pub fn close(&self) -> Result<()> {
         self.hq.close()
     }
+}
+
+pub(crate) fn configured_hosts(config: &ClientConfig) -> Vec<String> {
+    config.endpoints().map(|endpoints| endpoints.iter().map(ToString::to_string).collect())
+        .unwrap_or_else(|| crate::hosts::DEFAULT_7709_HOSTS.iter().map(|host| (*host).to_owned()).collect())
 }

@@ -8,7 +8,7 @@ use eltdx_runtime::execution::RawReply;
 use crate::config::ClientConfig;
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::operation::{ChildPurpose, OperationContext, OperationOptions, RecoveryLimit};
-use crate::session::{SessionOperation, SessionOwner};
+use crate::session::{PinnedSession, SessionOperation, SessionOwner};
 use crate::metadata::{FlightPolicy, MetadataSnapshot, hq_market};
 use crate::types::{HqMarket, SecurityId};
 
@@ -37,6 +37,19 @@ impl HqExecutor {
 
     pub(crate) fn register_engine(&self, engine: Engine) -> Result<()> {
         self.owner.register_engine(engine)
+    }
+
+    pub(crate) fn acquire_pin(&self, engine: &Engine, context: &OperationContext) -> Result<PinnedSession> {
+        self.check_context(context)?;
+        context.check_boundary(TimeoutPhase::Admission)?;
+        self.register_engine(engine.clone())?;
+        let request = CommandRequest::Heartbeat(eltdx_protocol::commands::session::HeartbeatRequest);
+        let permit = context.begin_child(ChildPurpose::Required, None)?;
+        let pin = engine.begin_pin_with_options(permit.into_submission(&request))
+            .map_err(|runtime| context.runtime_error(runtime, request.command_code()))?
+            .wait()
+            .map_err(|runtime| context.runtime_error(runtime, request.command_code()))?;
+        PinnedSession::new(Arc::clone(&self.owner), pin)
     }
 
     pub(crate) fn owner(&self) -> &Arc<SessionOwner> { &self.owner }
@@ -152,6 +165,28 @@ impl HqExecutor {
             };
             context.annotate(Error::new(kind, "HQ response decoding failed").with_source(error), TimeoutPhase::Decode, Some(command))
         })?;
+        context.check_boundary(TimeoutPhase::Decode)?;
+        Ok(decoded)
+    }
+
+    /// Directory rows carry their own decimals. Decoding them must not freeze
+    /// an empty operation snapshot before later quote precision is prepared.
+    pub(crate) fn decode_unpriced(
+        &self, context: &OperationContext, raw: RawReply,
+    ) -> Result<super::decode::DecodedReply> {
+        struct NoPrecision;
+        impl eltdx_protocol::PricePrecisionSource for NoPrecision {
+            fn security_decimal(&self, _: &eltdx_protocol::unit::NormalizedCode) -> Option<u8> { None }
+        }
+        self.check_context(context)?;
+        context.check_boundary(TimeoutPhase::Decode)?;
+        if !matches!(&raw.request, CommandRequest::SecurityList(_) | CommandRequest::SecurityCount(_)
+            | CommandRequest::Heartbeat(_) | CommandRequest::Handshake(_)) {
+            return Err(Error::new(ErrorKind::InvalidArgument, "unpriced decoder requires an unpriced command"));
+        }
+        let command = raw.request.command_code();
+        let decoded = super::decode::decode_reply(raw, context.raw(), &NoPrecision)
+            .map_err(|error| context.annotate(Error::from_protocol(error), TimeoutPhase::Decode, Some(command)))?;
         context.check_boundary(TimeoutPhase::Decode)?;
         Ok(decoded)
     }

@@ -445,10 +445,11 @@ fn parse_snapshots_payload_body(
             ));
         }
     }
-    let records = split_snapshot_records(&payload[4..], &requested_codes[..count])?;
+    let response_codes = scan_snapshot_response_codes(&payload[4..], count, requested_codes)?;
+    let records = split_snapshot_records(&payload[4..], &response_codes)?;
     records
         .iter()
-        .zip(&requested_codes[..count])
+        .zip(&response_codes)
         .map(|(record, code)| parse_snapshot_record(record, code, context))
         .collect()
 }
@@ -1157,6 +1158,80 @@ fn split_snapshot_records<'a>(
         search_from = position + marker.len();
     }
     Ok(slice_at_starts(data, &starts))
+}
+
+fn scan_snapshot_response_codes(
+    data: &[u8],
+    count: usize,
+    requested_codes: &[NormalizedCode],
+) -> Result<Vec<NormalizedCode>, ProtocolError> {
+    if data.is_empty() {
+        let expected = requested_codes.first().map(ToString::to_string).unwrap_or_default();
+        return Err(ProtocolError::invalid_data("snapshot", format!("snapshot record marker not found: {expected}")));
+    }
+    if data.len() < 7 {
+        return Err(ProtocolError::invalid_data("snapshot", "truncated snapshot identity header"));
+    }
+    if find_snapshot_identity(data, 0).map_or(true, |(start, _)| start != 0) {
+        return Err(ProtocolError::invalid_data("snapshot", "invalid snapshot identity header"));
+    }
+
+    let mut remaining = std::collections::HashMap::<NormalizedCode, usize>::new();
+    for code in requested_codes {
+        let count = remaining.entry(code.clone()).or_default();
+        *count = count.checked_add(1).ok_or_else(|| {
+            ProtocolError::invalid_data("snapshot", "requested identity count overflow")
+        })?;
+    }
+
+    let mut codes = Vec::with_capacity(count);
+    let mut search_from = 0_usize;
+    for index in 0..count {
+        let lower_bound = if index == 0 { search_from } else {
+            search_from.checked_add(23).ok_or_else(|| {
+                ProtocolError::invalid_data("snapshot", "record offset overflow")
+            })?
+        };
+        let (start, code) = find_snapshot_identity(data, lower_bound).ok_or_else(|| {
+            let expected = requested_codes.get(index).map(ToString::to_string).unwrap_or_default();
+            ProtocolError::invalid_data("snapshot", format!("snapshot record marker not found: {expected}"))
+        })?;
+        let Some(available) = remaining.get_mut(&code) else {
+            return Err(ProtocolError::invalid_data(
+                "snapshot",
+                format!("unexpected snapshot identity: {code}"),
+            ));
+        };
+        if *available == 0 {
+            return Err(ProtocolError::invalid_data(
+                "snapshot",
+                format!("excess duplicate snapshot identity: {code}"),
+            ));
+        }
+        *available -= 1;
+        search_from = start.checked_add(7).ok_or_else(|| {
+            ProtocolError::invalid_data("snapshot", "record offset overflow")
+        })?;
+        codes.push(code);
+    }
+    Ok(codes)
+}
+
+fn find_snapshot_identity(data: &[u8], from: usize) -> Option<(usize, NormalizedCode)> {
+    let last_start = data.len().checked_sub(7)?;
+    for start in from..=last_start {
+        let market = match data[start] {
+            0 => crate::unit::Market::Shenzhen,
+            1 => crate::unit::Market::Shanghai,
+            2 => crate::unit::Market::Beijing,
+            _ => continue,
+        };
+        let digits = &data[start + 1..start + 7];
+        if !digits.iter().all(u8::is_ascii_digit) { continue; }
+        let number = std::str::from_utf8(digits).ok()?.to_owned();
+        return Some((start, NormalizedCode { market, number }));
+    }
+    None
 }
 
 fn split_refresh_records<'a>(

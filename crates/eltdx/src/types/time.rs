@@ -110,6 +110,7 @@ enum EventTimeKind {
         minute: u8,
         second: u8,
     },
+    UnknownRaw(i64),
 }
 
 impl EventTime {
@@ -132,6 +133,13 @@ impl EventTime {
         Ok(Self(EventTimeKind::TimeOfDay { hour, minute, second }))
     }
 
+    /// Retains an event-time scalar whose wire encoding has not been established.
+    pub const fn unknown_raw(raw: i64) -> Self { Self(EventTimeKind::UnknownRaw(raw)) }
+
+    pub const fn unknown_raw_value(self) -> Option<i64> {
+        match self.0 { EventTimeKind::UnknownRaw(raw) => Some(raw), _ => None }
+    }
+
     /// Adds elapsed minutes while preserving the source's known or unknown zone.
     /// Date-only values and time-of-day values have no unambiguous rollover date.
     pub fn add_minutes(self, minutes: i64) -> Result<Self> {
@@ -140,6 +148,9 @@ impl EventTime {
             EventTimeKind::Local { date, hour, minute, second } => (date, hour, minute, second, false),
             EventTimeKind::TradingDate(_) | EventTimeKind::TimeOfDay { .. } => {
                 return Err(date_error("minute rollover requires a dated local time"));
+            }
+            EventTimeKind::UnknownRaw(_) => {
+                return Err(date_error("unknown raw event time cannot be shifted"));
             }
         };
         let seconds = days_from_civil(date.year, date.month, date.day)
@@ -162,6 +173,7 @@ impl EventTime {
             EventTimeKind::Shanghai { .. } => EventTimeSource::Shanghai,
             EventTimeKind::Local { .. } => EventTimeSource::Local,
             EventTimeKind::TimeOfDay { .. } => EventTimeSource::TimeOfDay,
+            EventTimeKind::UnknownRaw(_) => EventTimeSource::Unknown,
         }
     }
 
@@ -170,7 +182,7 @@ impl EventTime {
             EventTimeKind::TradingDate(date)
             | EventTimeKind::Shanghai { date, .. }
             | EventTimeKind::Local { date, .. } => Some(date),
-            EventTimeKind::TimeOfDay { .. } => None,
+            EventTimeKind::TimeOfDay { .. } | EventTimeKind::UnknownRaw(_) => None,
         }
     }
 
@@ -180,6 +192,7 @@ impl EventTime {
             EventTimeKind::Shanghai { hour, minute, second, .. }
             | EventTimeKind::Local { hour, minute, second, .. }
             | EventTimeKind::TimeOfDay { hour, minute, second } => Some((hour, minute, second)),
+            EventTimeKind::UnknownRaw(_) => None,
         }
     }
 }
@@ -191,6 +204,7 @@ pub enum EventTimeSource {
     Shanghai,
     Local,
     TimeOfDay,
+    Unknown,
 }
 
 fn validate_clock(hour: u8, minute: u8, second: u8) -> Result<()> {

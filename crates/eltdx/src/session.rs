@@ -576,6 +576,10 @@ impl PinnedSession {
         self.pin.as_ref().map(PinHandle::identity)
     }
 
+    pub(crate) fn handle(&self) -> Result<&PinHandle> {
+        self.pin.as_ref().ok_or_else(|| Error::new(ErrorKind::PinLost, "pinned session is closed"))
+    }
+
     pub fn close(&mut self) -> Result<()> {
         let Some(pin) = self.pin.as_ref() else {
             return Ok(());
