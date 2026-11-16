@@ -51,6 +51,9 @@
 | 公开批量输入数 | 最多65535个 occurrence | 重复输入计数；内部按各命令wire上限拆分 |
 | 规范化身份逻辑缓冲 | 2 MiB | HQ每项1字节market+6字节ASCII；其他域按编码长度累计，checked加法；不是总堆内存上限 |
 | 普通池 | 1个连接/1个服务器，连接并发1 | 扩大须验证host/全局连接上限 |
+| HQ owner总连接 | checked `4 × pool_size`；builder可配置 `max_connections` | 至少pool_size，跨普通/竞价/资金流/endpoint池共享物理permit；容量满返回LimitExceeded，不覆盖Python既有Engine限制 |
+| 竞价/资金流地址 | 分别使用独立打包数字地址目录，可分别覆盖 | 普通endpoints不覆盖专属池；同地址仍不同连接，getter/clone复用同域池 |
+| 资金流调度 | 域内操作串行，单wire一个代码，每工作块最多75项 | admission计入总期限；每次备用探测关闭并确认后才复用，不建立75个隐含连接 |
 | heartbeat | 30s | 禁用通过显式None，不能用0模糊表达 |
 | pending请求 | 256 | 配置为0返回InvalidArgument |
 | 订阅队列 | 1024个事件、64MiB | 每订阅预算；与runtime原始帧预算分开 |

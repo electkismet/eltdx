@@ -164,7 +164,7 @@
 | T11 | Implementation/source review complete through `c0f005d`; execution verification deferred |
 | T12 | Quote/code Python bridge implementation/source review complete through `684a157`; execution verification deferred |
 | T13 | Implementation/self-review checkpoint `338d99b`: all 18 methods M25-M40/M98-M99, queries/DTOs, date/cursor/raw mapping and synthetic source cases; execution verification deferred |
-| T14 | In progress: M41-M50 trade service, typed rows/columns/opening-match and synthetic sources authored; M51/M52/M100 and dedicated domain pools pending; no execution verification |
+| T14 | All13 M41–M52/M100 implementation/self-review sources authored; trades checkpoint992ba98, auction/money-flow/pools/connection bound/atomic probe budgets in accompanying completion commit; no execution verification |
 | T15 | Not started |
 | T16 | Not started |
 | T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
@@ -203,3 +203,5 @@
 - Recovery 2026-11-16 (T13 source checkpoint): T13 source implementation and self-review now cover all 18 public service methods, lazy client getters, query/DTO modules and synthetic tests. Fixed raw-omission repeated-page detection, exact minute price/average scale, u16 public starts, original source timestamps, aggregate raw row permutations, frozen operation market date, catalog-version/date/owner/query/page-size cursor invalidation before pin admission, outgoing HQ year bounds, and finite auxiliary-float serialization. Python adapters were not changed. Report: `task-13-report.md`. No tests, collection, builds/checks/clippy/doctests, network probes, AST/compile, formatting or diff-check commands ran. Goal remains active with no token budget. Next is T14, then T15-T30 plus the outstanding Stage B integrations. T13 is not a runtime/compile success claim; source-loss/epoch behavior still requires final unified verification.
 
 - T13 implementation saved in `338d99b` with Git hooks/signing disabled; no push/tag/merge/publication. Root progress/spec/plan and package mirrors are updated in the accompanying documentation checkpoint. Resume at T14 without rewriting T01-T13 or running any verification.
+
+- Recovery 2026-11-16 T14: all13 method implementations and source self-review now authored. Trades saved at992ba98; accompanying completion commit adds auction/money-flow/lazy distinct pools/owner connection cap/atomic probe scope budgets and synthetic cases. Exact completion SHA will be recorded next. Next T15; all execution verification still forbidden until T01-T30 implementation is complete. No subagents, push, tag, publication or merge.

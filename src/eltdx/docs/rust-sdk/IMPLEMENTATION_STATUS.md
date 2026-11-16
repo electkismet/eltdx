@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-2026-11-16 T14部分实现恢复点：逐笔M41–M50十个方法、query/行/列DTO、纯转换、延迟getter及合成测试源码已写入。竞价M51、日资金流M52/M100和专属池/owner总连接限制尚未完成，T14仍为进行中。当前源码未运行任何测试、构建或检查。详见`.superpowers/sdd/development-plan/task-14-report.md`；下一步完成T14余下域，不重写T01–T13。
+2026-11-16 T14实现恢复点：M41–M52/M100全部13方法源码及自审已写完。逐笔/列/开盘撮合检查点992ba98；本次补齐竞价、日资金流、专属惰性池、owner物理连接上限、代码/整批/操作三层原子探测预算和合成测试源码。完整0FFC实测证据仍缺失。当前没有执行任何测试、构建或检查，不能声称可编译或可运行。报告`.superpowers/sdd/development-plan/task-14-report.md`；下一任务T15，不重写T01–T14。
 
-当前实际进度：T01–T13实现源码已写完，T13源码与自审检查点 `338d99b`。本次新增K线/退市K线/分钟服务的18个Rust公开方法、query/DTO、延迟getter，以及分页/日期/精度/raw映射的测试源码。T21已完成源码与限定静态审阅，T17/T22/T24/T25仍只有部分实现。下一步T14逐笔、竞价、开盘撮合与日资金流，再继续T15–T30和未完成集成。目标保持active且不设置额度限制；未运行测试、构建或等价验证，不声称当前源码可编译或可运行。
+当前实际进度：T01–T14实现源码已写完；T21已完成源码与限定静态审阅，T17/T22/T24/T25仍只有部分实现。下一步T15订阅与单消费者分发，再继续剩余任务和未完成集成。目标保持active且不设置额度限制；全部执行验证延期。
 
 2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。
 
@@ -17,11 +17,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | `338d99b` (T13 K-line/minute implementation and self-review) |
-| 当前阶段 | P2：T11/T12源码审阅完成，T13实现与自审源码完成；下一任务T14。 |
+| 最新检查点 | `992ba98` (T14 trade methods)；T14余下源码在本次完成提交保存，确切SHA随后写入恢复记录 |
+| 当前阶段 | P2：T01–T14实现源码完成；下一任务T15。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T14：逐笔、竞价、开盘撮合与日资金流；继续T15–T30和未完成Stage B；全部实现完成后统一验证 |
+| 下一步 | T15：订阅、单消费者分发和gap；继续剩余任务和未完成Stage B；全部实现完成后统一验证 |
 
 ## 阶段进度
 
@@ -29,7 +29,7 @@
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
-| P2 | T11–T18 HQ与Python首批迁移 | T11/T12实现源码与静态审阅完成，T13实现与自审源码检查点338d99b；T14–T18待做，T17 Stage B集成仍待推进 | 按用户要求暂不运行 |
+| P2 | T11–T18 HQ与Python首批迁移 | T11/T12实现源码与静态审阅完成，T13/T14实现与自审源码完成；T15/T16/T18待做，T17 Stage B集成仍待推进 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Unicode修复 `a64a4a6` 通过限定复审，ZIP/资源集成待做 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
@@ -66,7 +66,7 @@
 
 ## 恢复规则
 
-最新恢复点（2026-11-16）：goal模式active，`remainingTokens=null`。T13源码检查点338d99b已提交，18个公开方法均有实现和合成测试源码；已补source_time、逐条raw重排、Omit重复页检测、精确分钟/均价scale、一次解析交易日、metadata/date/owner/query/page-size续读失效与pin前校验。T13只完成源码与自审，没有独立或运行验证。T14是下一任务；T15–T30及T17/T22/T24/T25剩余集成未完成。T18必须保留Python普通/退市raw差异及HQ同日回绕，复用source_time钩子。没有运行测试、collection、构建、检查、格式化、diff检查或网络验证。
+最新恢复点（2026-11-16）：goal模式active，`remainingTokens=null`。T01–T14实现源码完成，T14完整范围见最新task-14-report；下一任务T15。T13 source_time及raw/日期/cursor约束继续有效；T18必须保留普通/退市raw、HQ同日回绕、native今日逐笔列拒绝和Python原计时/次数。T17/T22/T24/T25剩余集成及其他未完成任务继续推进。没有运行测试、collection、构建、检查、格式化、diff检查或网络验证。
 
 T21 于 `9734db3` 完成35个非财报本地 API、模型/格式算法、GBK 静态查表数据及四组测试源码；所有验证延期。仅运行了经授权的一次 Python 3.12.14 标准库 GBK 映射数据生成，脚本、版本和来源已在实现报告记录。任务审阅包以 `230e566` 为基线，仅含 T21 自有文件，scoped source review 进行中。T10 的 `Diagnostic`/`EnrichmentStatus` 共享实现仍待完成；这不是 T21 已验证集成的证据。
 

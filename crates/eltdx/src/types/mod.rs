@@ -1,7 +1,9 @@
 pub mod batch;
+pub mod auctions;
 pub mod codes;
 pub mod klines;
 pub mod minutes;
+pub mod money_flow;
 pub mod numeric;
 pub mod provenance;
 pub mod quotes;
@@ -21,3 +23,5 @@ pub use raw::RawPolicy;
 pub use security::{HqMarket, SecurityId};
 pub use time::{Clock, EventTime, EventTimeSource, MarketDateChoice, SystemClock, TradingDate};
 pub use trades::{TradeColumnData, TradeColumns, TradeEventKind, TradePage, TradeQuery, TradeSide, TradeTick};
+pub use auctions::{AuctionPoint, AuctionQuery, AuctionSeries};
+pub use money_flow::{DailyMoneyFlow, MoneyFlowDay};

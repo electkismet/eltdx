@@ -33,6 +33,7 @@ struct RecoveryCounter {
 pub(crate) struct BudgetState {
     pub counters: WorkCounters,
     recoveries: BTreeMap<&'static str, RecoveryCounter>,
+    probe_scopes: BTreeMap<usize, RecoveryCounter>,
     pub root: Option<Error>,
     pub last_recoverable: Option<Error>,
     pub cleanup_deadline: Option<Instant>,
@@ -125,6 +126,21 @@ impl OperationBudget {
         self: &Arc<Self>, extra: bool, recovery: Option<RecoveryLimit>,
         last_failure: Option<&RuntimeError>,
     ) -> Result<Reservation> {
+        self.reserve_scoped(extra, recovery, None, last_failure)
+    }
+
+    pub(crate) fn recovery_started(&self, name: &'static str) -> Result<usize> {
+        Ok(self.state.lock().map_err(|_| poisoned())?.recoveries.get(name).map_or(0, |counter| counter.started))
+    }
+
+    pub(crate) fn probe_started(&self, scope: usize) -> Result<usize> {
+        Ok(self.state.lock().map_err(|_| poisoned())?.probe_scopes.get(&scope).map_or(0, |counter| counter.started))
+    }
+
+    pub(crate) fn reserve_scoped(
+        self: &Arc<Self>, extra: bool, recovery: Option<RecoveryLimit>, probe_scope: Option<usize>,
+        last_failure: Option<&RuntimeError>,
+    ) -> Result<Reservation> {
         self.gate(Instant::now(), |state| {
             if let Some(failure) = last_failure {
                 state.last_recoverable = Some(Error::from_runtime(failure.clone()));
@@ -164,13 +180,27 @@ impl OperationBudget {
                 }
                 None => None,
             };
+            let probe_reserved = match probe_scope {
+                Some(scope) => {
+                    let counter = state.probe_scopes.get(&scope);
+                    let (reserved, started) = counter.map_or((0, 0), |counter| (counter.reserved, counter.started));
+                    if checked_add(reserved, started)? >= 3 {
+                        return Err(limit_error("money_flow_code_probes", 3, started, state.last_recoverable.as_ref()));
+                    }
+                    Some(checked_add(reserved, 1)?)
+                }
+                None => None,
+            };
             state.counters.extra_reserved = global_reserved;
             if let (Some(limit), Some(reserved)) = (recovery, local_reserved) {
                 let counter = state.recoveries.entry(limit.name).or_default();
                 counter.configured = limit.maximum;
                 counter.reserved = reserved;
             }
-            Ok(Reservation { budget: Arc::clone(self), extra, recovery, count_wire: true, committed: false })
+            if let (Some(scope), Some(reserved)) = (probe_scope, probe_reserved) {
+                state.probe_scopes.entry(scope).or_default().reserved = reserved;
+            }
+            Ok(Reservation { budget: Arc::clone(self), extra, recovery, probe_scope, count_wire: true, committed: false })
         })
     }
 }
@@ -180,6 +210,7 @@ pub(crate) struct Reservation {
     budget: Arc<OperationBudget>,
     extra: bool,
     recovery: Option<RecoveryLimit>,
+    probe_scope: Option<usize>,
     count_wire: bool,
     committed: bool,
 }
@@ -201,11 +232,18 @@ impl Reservation {
                 }
                 None => None,
             };
+            let probe_started = self.probe_scope.map(|scope| state.probe_scopes.get(&scope)
+                .ok_or_else(poisoned).and_then(|counter| checked_add(counter.started, 1))).transpose()?;
             state.counters.wire_attempts = wire;
             state.counters.extra_started = extra;
             if self.extra { state.counters.extra_reserved -= 1; }
             if let (Some(limit), Some(started)) = (self.recovery, local_started) {
                 let counter = state.recoveries.get_mut(limit.name).ok_or_else(poisoned)?;
+                counter.reserved -= 1;
+                counter.started = started;
+            }
+            if let (Some(scope), Some(started)) = (self.probe_scope, probe_started) {
+                let counter = state.probe_scopes.get_mut(&scope).ok_or_else(poisoned)?;
                 counter.reserved -= 1;
                 counter.started = started;
             }
@@ -234,6 +272,9 @@ impl Drop for Reservation {
             if let Some(limit) = self.recovery {
                 if let Some(counter) = state.recoveries.get_mut(limit.name) { counter.reserved -= 1; }
             }
+            if let Some(scope) = self.probe_scope {
+                if let Some(counter) = state.probe_scopes.get_mut(&scope) { counter.reserved -= 1; }
+            }
         }
     }
 }
@@ -243,6 +284,7 @@ pub(crate) struct ChildAuthorization {
     pub budget: Arc<OperationBudget>,
     pub purpose: ChildPurpose,
     pub recovery: Option<RecoveryLimit>,
+    pub probe_scope: Option<usize>,
     pub rust_public: bool,
 }
 
@@ -255,8 +297,9 @@ impl AttemptAuthorization for ChildAuthorization {
         -> std::result::Result<Box<dyn ReservedAttempt>, RuntimeError> {
         // A recovery's first request consumes a global extra, but its wire retry is not
         // a second logical recovery. Each wire retry still consumes another global extra.
-        self.budget.reserve(attempt > 1 || self.purpose.is_extra(),
-            if attempt == 1 { self.recovery } else { None }, last_failure)
+        self.budget.reserve_scoped(attempt > 1 || self.purpose.is_extra(),
+            if attempt == 1 { self.recovery } else { None },
+            if attempt == 1 { self.probe_scope } else { None }, last_failure)
             .map(|reservation| Box::new(reservation) as Box<dyn ReservedAttempt>)
             .map_err(to_runtime)
     }
@@ -268,6 +311,7 @@ impl AttemptAuthorization for ChildAuthorization {
         self.budget.gate(Instant::now(), |_| Ok(())).map_err(to_runtime)?;
         Ok(Box::new(Reservation {
             budget: Arc::clone(&self.budget), extra: false, recovery: None,
+            probe_scope: None,
             count_wire: false, committed: false,
         }))
     }

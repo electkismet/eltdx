@@ -12,7 +12,7 @@ use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::hq::executor::HqExecutor;
 use crate::operation::{ChildPurpose, OperationOptions};
 use crate::session::SessionOwner;
-use crate::services::{CodeService, KlineService, MinuteService, QuoteService, TradeService};
+use crate::services::{AuctionService, CodeService, KlineService, MinuteService, MoneyFlowService, QuoteService, TradeService};
 
 #[derive(Clone, Debug)]
 pub struct ClientBuilder {
@@ -62,6 +62,18 @@ impl ClientBuilder {
         self
     }
 
+    pub fn auction_endpoints(mut self, endpoints: Vec<SocketAddr>) -> Self {
+        self.draft.auction_endpoints = Some(endpoints); self
+    }
+    pub fn money_flow_endpoints(mut self, endpoints: Vec<SocketAddr>) -> Self {
+        self.draft.money_flow_endpoints = Some(endpoints); self
+    }
+    /// Physical connection cap across ordinary, dedicated and continuation pools.
+    /// Defaults to four times pool_size, allowing three domains and a probe pool.
+    pub fn max_connections(mut self, maximum: usize) -> Self {
+        self.draft.max_connections = Some(maximum); self
+    }
+
     pub fn wire_attempt_limit(mut self, attempts: NonZeroU32) -> Self {
         self.draft.wire_attempt_limit = attempts;
         self
@@ -87,6 +99,7 @@ impl ClientBuilder {
             hq: HqExecutor::new(owner),
             engine,
             namespace,
+            domains: Arc::new(crate::hq::domains::DomainPools::default()),
         })
     }
 }
@@ -106,7 +119,7 @@ pub(crate) fn engine_with_hosts(config: &ClientConfig, hosts: Vec<String>) -> Re
             push_queue_size: 1_024,
             push_queue_bytes: 64 * 1024 * 1024,
         }).map_err(Error::from_runtime)?;
-        Engine::new(engine_config).map_err(Error::from_runtime)
+        Engine::new(engine_config.with_connection_limit(config.connection_limit.clone())).map_err(Error::from_runtime)
 }
 
 impl Default for ClientBuilder {
@@ -121,6 +134,7 @@ pub struct TdxClient {
     hq: HqExecutor,
     engine: Engine,
     namespace: String,
+    domains: Arc<crate::hq::domains::DomainPools>,
 }
 
 impl TdxClient {
@@ -169,6 +183,14 @@ impl TdxClient {
 
     pub fn trades(&self) -> TradeService {
         TradeService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+    }
+
+    pub fn auctions(&self) -> AuctionService {
+        AuctionService::new(self.hq.clone(), self.domains.clone(), self.config.clone())
+    }
+
+    pub fn money_flow(&self) -> MoneyFlowService {
+        MoneyFlowService::new(self.hq.clone(), self.domains.clone(), self.config.clone())
     }
 
     /// Permanently closes this shared, lazily initialized client owner.

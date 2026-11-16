@@ -28,6 +28,30 @@ fn request() -> CommandRequest {
 }
 
 #[test]
+fn probe_reservation_refunds_global_batch_and_per_code_limits_before_start() {
+    let (_owner, operation) = context(4, OperationOptions::default());
+    let limit = Some(RecoveryLimit { name: "money_flow_probes", maximum: 4 });
+    let held = operation.budget.reserve_scoped(true, limit, Some(0), None).unwrap();
+    assert_eq!(operation.counters().unwrap().extra_reserved, 1);
+    drop(held);
+    assert_eq!(operation.counters().unwrap().extra_reserved, 0);
+    assert_eq!(operation.budget.recovery_started("money_flow_probes").unwrap(), 0);
+    for _ in 0..3 {
+        let mut permit = operation.budget.reserve_scoped(true, limit, Some(0), None).unwrap();
+        permit.commit_with_clock(Instant::now(), None, Instant::now).unwrap();
+    }
+    assert!(operation.budget.reserve_scoped(true, limit, Some(0), None).is_err());
+    assert_eq!(operation.counters().unwrap().extra_started, 3);
+    let mut other = operation.budget.reserve_scoped(true, limit, Some(1), None).unwrap();
+    other.commit_with_clock(Instant::now(), None, Instant::now).unwrap();
+    assert_eq!(operation.budget.probe_started(0).unwrap(), 3);
+    assert_eq!(operation.budget.probe_started(1).unwrap(), 1);
+    assert_eq!(operation.budget.recovery_started("money_flow_probes").unwrap(), 4);
+    assert!(operation.budget.reserve_scoped(true, limit, Some(2), None).is_err());
+    assert_eq!(operation.counters().unwrap().extra_reserved, 0);
+}
+
+#[test]
 fn duration_starts_at_entry_and_earliest_explicit_limit_wins() {
     let entry = Instant::now();
     let options = OperationOptions::default().with_timeout(Duration::from_secs(8))
@@ -123,14 +147,14 @@ fn required_requests_and_valid_empty_work_succeed_with_zero_extras() {
     operation.record_work(0, 0).expect("legitimate empty results");
     for purpose in [ChildPurpose::Required, ChildPurpose::Page, ChildPurpose::Metadata] {
         let authorization = ChildAuthorization { budget: Arc::clone(&operation.budget), purpose,
-            recovery: None, rust_public: true };
+            recovery: None, probe_scope: None, rust_public: true };
         authorization.reserve(1, None).expect("normal first attempt is free")
             .start(Instant::now()).expect("start");
     }
     assert_eq!(operation.counters().expect("counters").wire_attempts, 3);
     assert_eq!(operation.counters().expect("counters").extra_started, 0);
     let authorization = ChildAuthorization { budget: Arc::clone(&operation.budget), purpose: ChildPurpose::Required,
-        recovery: None, rust_public: true };
+        recovery: None, probe_scope: None, rust_public: true };
     let network = RuntimeError::connection_closed("real network failure").with_context("host", "fixture:7709");
     let error = authorization.reserve(2, Some(&network)).expect_err("no retry budget");
     let error = operation.runtime_error(error, request().command_code());
@@ -145,20 +169,20 @@ fn normal_pages_metadata_recovery_first_attempt_and_retry_are_counted_once_each(
     for _ in 0..3 {
         operation.begin_child(ChildPurpose::Page, None).expect("logical page");
         ChildAuthorization { budget: Arc::clone(&operation.budget), purpose: ChildPurpose::Page,
-            recovery: None, rust_public: true }.reserve(1, None).expect("normal page")
+            recovery: None, probe_scope: None, rust_public: true }.reserve(1, None).expect("normal page")
             .start(Instant::now()).expect("wire");
     }
     let page = ChildAuthorization { budget: Arc::clone(&operation.budget), purpose: ChildPurpose::Page,
-        recovery: None, rust_public: true };
+        recovery: None, probe_scope: None, rust_public: true };
     page.reserve(2, None).expect("page retry").start(Instant::now()).expect("wire");
     let recovery = ChildAuthorization { budget: Arc::clone(&operation.budget), purpose: ChildPurpose::EmptyProbe,
-        recovery: Some(RecoveryLimit { name: "empty_probe", maximum: 1 }), rust_public: true };
+        recovery: Some(RecoveryLimit { name: "empty_probe", maximum: 1 }), probe_scope: None, rust_public: true };
     recovery.reserve(1, None).expect("first probe").start(Instant::now()).expect("wire");
     recovery.reserve(2, None).expect("wire retry does not consume another logical probe")
         .start(Instant::now()).expect("wire");
     assert!(recovery.reserve(1, None).is_err());
     ChildAuthorization { budget: Arc::clone(&operation.budget), purpose: ChildPurpose::Metadata,
-        recovery: None, rust_public: true }.reserve(1, None).expect("required prefetch")
+        recovery: None, probe_scope: None, rust_public: true }.reserve(1, None).expect("required prefetch")
         .start(Instant::now()).expect("wire");
     let counters = operation.counters().expect("counters");
     assert_eq!((counters.pages, counters.wire_attempts, counters.extra_started), (3, 7, 3));
@@ -208,7 +232,7 @@ fn shorter_attempt_deadline_is_rechecked_inside_admission_gate_and_refunds_both_
     let (_owner, operation) = context(2, OperationOptions::default());
     let authorization = ChildAuthorization {
         budget: Arc::clone(&operation.budget), purpose: ChildPurpose::EmptyProbe,
-        recovery: Some(RecoveryLimit { name: "short_slice", maximum: 1 }), rust_public: true,
+        recovery: Some(RecoveryLimit { name: "short_slice", maximum: 1 }), probe_scope: None, rust_public: true,
     };
     let mut reservation = operation.budget.reserve(true, authorization.recovery, None)
         .expect("atomic local/global reservation");
@@ -232,7 +256,7 @@ fn legacy_endpoint_continuation_does_not_consume_the_logical_recovery_twice() {
         Duration::from_secs(8), Duration::from_secs(1), None, RawPolicy::Omit).expect("legacy");
     let authorization = ChildAuthorization { budget: Arc::clone(&operation.budget),
         purpose: ChildPurpose::EmptyProbe,
-        recovery: Some(RecoveryLimit { name: "legacy_probe", maximum: 1 }), rust_public: false };
+        recovery: Some(RecoveryLimit { name: "legacy_probe", maximum: 1 }), probe_scope: None, rust_public: false };
     authorization.reserve(1, None).expect("logical recovery on endpoint 1")
         .start(Instant::now()).expect("start endpoint 1");
     for _ in 0..4 {
@@ -271,7 +295,7 @@ fn legacy_recovery_scope_does_not_gain_a_new_32_attempt_cap() {
     let operation = OperationContext::python_legacy(Instant::now(), "legacy", owner,
         Duration::from_secs(8), Duration::from_secs(1), None, RawPolicy::Omit).expect("legacy");
     let authorization = ChildAuthorization { budget: Arc::clone(&operation.budget),
-        purpose: ChildPurpose::Fallback, recovery: None, rust_public: false };
+        purpose: ChildPurpose::Fallback, recovery: None, probe_scope: None, rust_public: false };
     for _ in 0..64 { authorization.reserve(1, None).expect("no extra global cap").start(Instant::now()).expect("start"); }
     assert_eq!(operation.counters().expect("counters").extra_started, 64);
     assert!(!authorization.count_endpoint_failover());

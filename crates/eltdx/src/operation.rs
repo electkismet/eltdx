@@ -114,6 +114,7 @@ impl OperationSponsor {
         })?;
         Ok(Arc::new(ChildAuthorization {
             budget: Arc::clone(&self.budget), purpose: ChildPurpose::Metadata, recovery: None,
+            probe_scope: None,
             rust_public: matches!(self.profile, ExecutionProfile::RustPublic { .. }),
         }))
     }
@@ -276,6 +277,14 @@ impl OperationContext {
     }
 
     pub(crate) fn begin_child(&self, purpose: ChildPurpose, recovery: Option<RecoveryLimit>) -> Result<RequestPermit> {
+        self.begin_child_scoped(purpose, recovery, None)
+    }
+
+    pub(crate) fn begin_child_scoped(&self, purpose: ChildPurpose, recovery: Option<RecoveryLimit>,
+        probe_scope: Option<usize>) -> Result<RequestPermit> {
+        if probe_scope.is_some() && purpose != ChildPurpose::EmptyProbe {
+            return Err(Error::new(ErrorKind::Internal, "per-code probe scope requires EmptyProbe purpose"));
+        }
         let child_id = self.budget.gate(Instant::now(), |state| {
             let logical = checked_add(state.counters.logical_requests, 1)?;
             let pages = checked_add(state.counters.pages, usize::from(purpose == ChildPurpose::Page))?;
@@ -290,6 +299,7 @@ impl OperationContext {
             operation_id: self.id, child_id, profile: self.profile,
             authorization: Arc::new(ChildAuthorization {
                 budget: Arc::clone(&self.budget), purpose, recovery, rust_public: !self.is_legacy(),
+                probe_scope,
             }),
         })
     }

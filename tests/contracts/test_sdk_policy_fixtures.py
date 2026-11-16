@@ -86,9 +86,9 @@ def test_unit_contracts_keep_raw_values_and_scales_per_field() -> None:
         "unknown_amount",
     } <= set(cases)
     tick = cases["hq_equity_tick"]["rust"]
-    assert tick["price_cny"] == 125.528
+    assert tick["price_cny"] == 1255.28
     assert tick["quantity_shares"] == 2300
-    assert tick["trade_amount_cny"] == 288714.4
+    assert tick["trade_amount_cny"] == 2887144.0
     assert cases["hq_equity_kline"]["rust"]["volume_lots"] == 20
     assert cases["hq_convertible_bond_kline"]["rust"]["volume_lots"] == 2
     assert cases["hk_transaction"]["rust"]["price_hkd"] == 125.528

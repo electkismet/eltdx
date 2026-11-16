@@ -1,32 +1,53 @@
 # T14 implementation recovery report
 
-Status: partial implementation; trade rows/columns/opening-match source authored. Auction and daily money-flow services plus dedicated pools are still pending. No completion, compilation, runtime or independent-review claim.
+Status: all 13 public methods and source self-review authored. Execution and independent review have not occurred. This is an implementation checkpoint, not compilation, runtime or Python compatibility evidence.
 
-Baseline: `2576dca` on `codex/rust-sdk-implementation`.
+Baseline `2576dca`; trade checkpoint `992ba98`. The accompanying completion commit adds auctions, daily money flow, distinct lazy pools, shared physical connection limits, atomic probe accounting, synthetic source cases and public documentation. Next task T15. Goal active without a token budget.
 
-## Authored source
+## Method and file coverage
 
-- `crates/eltdx/src/types/trades.rs`: full TradeQuery, TradeTick, TradePage, TradeColumns, TradeColumnData and semantic enums. Typed columns retain every row field, including raw price accumulator/delta/denominator, reserved tail and per-tick source. Pure checked tick lookup and page reconstruction.
-- `crates/eltdx/src/services/trades.rs`: all ten M41-M50 entry points capture Instant first and share the same internal read loop. Many preserves occurrences and uses one context/date/snapshot/pin; explicit date always selects 0FC6, Current selects 0FC5. No quote metadata I/O or global resolver.
-- Lazy `TdxClient::trades()` and module/type exports.
-- `ResultMeta::with_trading_date` adds the frozen series date to response and aggregate source stamps.
-- `crates/eltdx/tests/trades.rs`: authored synthetic loopback sources for row ordering/raw mapping, today/history columns, convertible milli and ordinary hundredth prices, status8 precedence and first source-order opening match, EOF/cap, repeated page, offset overflow, excessive count, malformed time/trailing data, many duplicates/empty present series, cursor validation, empty no-I/O calls, cancellation and expired entry.
+| Methods | Implementation | Public types and source cases |
+| --- | --- | --- |
+| M41–M50 | `services/trades.rs`: page/collect/columns/collect_columns/opening_match and five many variants | `types/trades.rs`, `tests/trades.rs` |
+| M51 | `services/auctions.rs`: series, 056A selector3/start0/limit500, Current/date dispatch | `types/auctions.rs`, `tests/auctions.rs` |
+| M52/M100 | `services/money_flow.rs`: daily_many/daily, same private per-code algorithm, 0FFC only | `types/money_flow.rs`, `tests/money_flow.rs` |
 
-Collections hold a source pin, reject exact repeated wire pages even when diagnostic raw is omitted, advance checked offsets and only infer EOF from empty pages. Pages reverse at aggregation while row-local index and absolute index survive. Opening-match returns None only at verified EOF, and a found tick retains endpoint/command/date/metadata/owner provenance.
+Paths above are under `crates/eltdx/src/` for implementation/types and `crates/eltdx/` for tests. Additional shared changes: `client.rs`, `config.rs`, `hosts.rs`, `services/mod.rs`, `types/{mod,provenance}.rs`, `hq/{mod,executor,domains}.rs`, `operation.rs`, `operation_tests.rs`, `policy/retries.rs`; runtime physical permit in `crates/eltdx-runtime/src/engine.rs`. Test server connection counters are in `crates/eltdx/tests/support/hq_server.rs`. Fixture clarification is in `tests/fixtures/sdk/policy/units.json` and corresponding contract source.
 
-## Evidence and compatibility
+## Trades and opening match
 
-All new test payloads are synthetic, constructed from source layouts; no new real capture and no independent market-unit oracle is claimed. HQ protocol source explicitly uses /100 for ordinary trade prices and /1000 for convertible-bond ticks. It resets the price accumulator per response page. The SDK retains the exact raw integer and corresponding decimal scale. Quote decimal metadata cannot change this scale.
+Every public entry captures Instant before validation. Single/many/rows/columns share decoded records and a bounded read loop with one frozen date and metadata snapshot; no quote-precision I/O is added. Explicit dates always select historical 0FC6, Current selects 0FC5. Collect/opening/many keep the same source pin. Short pages continue, empty pages prove EOF, exact repeated private wire payloads fail even with Omit, offsets and record indices use checked arithmetic. Aggregation reverses page order and corresponding raw row ranges without sorting rows within a page.
 
-`tests/fixtures/sdk/policy/units.json::hq_equity_tick` currently labels a /1000 convertible-specific arithmetic example as an equity case while citing the convertible test. This evidence mismatch remains to be reconciled in the completed T14 report/spec checkpoint; do not change the parser or invent a production-price oracle from this fixture. Quantity units without sufficient per-instrument evidence remain Unknown.
+Status8 takes AuctionSnapshot precedence, including09:25; other09:25 rows are OpeningMatch. Legitimate post-close observations remain. Opening-match selects the first semantic match in source scan order; None requires EOF and cap exhaustion fails explicitly. A returned tick retains its source command/endpoint/date/metadata/owner stamp. Typed column arrays retain all row fields, integer price accumulator/delta/denominator, reserved fields and source; tick/to_page are pure checked conversions. Opaque cursor containers intentionally do not derive Serialize.
 
-Python facade/binding source is unchanged at this checkpoint. T18 must preserve native today_batch rejection, custom execute-only fallback, original per-request timing and original aggregate raw projection. New Rust today columns are supported by the shared typed path. Public row/column containers intentionally do not serialize opaque continuation tokens.
+Today time remains TimeOfDay; history is source-local naive EventTime::local, without an invented UTC or Shanghai timezone conversion. Ordinary protocol trade prices use raw/100, convertible ticks raw/1000; these scales do not come from quote decimal4 metadata. Unknown mixed-asset quantity units remain Unknown, and status8 auction fields without wire evidence remain None.
 
-## Resume next
+## Auctions and pools
 
-1. Implement lazy owner-shared distinct auction and money-flow pools with authoritative dedicated hosts, configuration injection and a hard owner-wide connection bound; close temporary probe resources deterministically.
-2. Implement AuctionQuery/AuctionPoint/AuctionSeries and M51 (preserve f32 bits, seconds and source sequence, reject invalid time).
-3. Implement MoneyFlowDay/DailyMoneyFlow and M52/M100; strict response identity and finite numeric checks, raw business fields under Omit, per-code three and per-batch min(n,8)*3 probes charged atomically through the existing attempt authorization.
-4. Author corresponding synthetic test sources, inspect all T14 source, reconcile documented precision evidence and save completion/recovery checkpoints.
+Auction preserves source order, seconds, exact f32 bits, signed unmatched raw value/direction and reserved byte. Invalid time/nonfinite price/count beyond500 fail; no fixed morning window or hidden quote adjunct request is added. Quantity units remain Unknown.
 
-No tests, collection, builds, cargo check/clippy/doctests, network probes, AST/compile/formatting, diff checks or equivalent verification have run. The user's all-implementation-before-validation constraint remains in force. No subagents, push, tag, publication or merge.
+Ordinary, auction and money-flow connections remain distinct on the same address. New client clones/getters reuse domain pools. Dedicated numeric endpoints have separate optional builder overrides and a packaged default catalog from `src/eltdx/money_flow_servers.json`; ordinary endpoints do not override them. Build/getters create no network resources. Each actual execution registers the engine with SessionOwner before startup.
+
+The new Rust builder opts all engines, including source-bound endpoint engines, into one ConnectionLimit. Default checked4×pool_size; max_connections must be at least pool_size and within semaphore range. A physical TCP attempt holds a permit, its ManagedStream retains it through use, and failed connect/handshake/drop releases it. Exhaustion is LimitExceeded with owner_connections context. Legacy EngineConfig constructors do not opt in, so existing Python connection policy is unchanged.
+
+Money-flow domain admission serializes operations cooperatively under their original deadline/cancellation; work chunks are≤75, with sequential single-code requests. A probe endpoint engine is cached in the existing owner map but explicitly closed after each probe before admission can be released/reused. Failed retirement remains owner-registered; a later successful close can retire it. Request/stop roots and cleanup failures are retained separately, including begin-close errors. Successful retirement does not prematurely claim cleanup time for recoverable source errors; operation stop switches to the already shared cleanup deadline.
+
+## Daily money flow and budgets
+
+Single daily calls use the same private algorithm directly, not a public one-item batch. Many preserves occurrences and input indices. Each code independently considers its primary response and rotates alternate distinct hosts excluding the responding primary. Duplicate occurrences share a per-code scope. The first physical attempt atomically reserves all three applicable counters: code≤3, batch≤min(n,8)×3, and global extra attempts. Failed/unstarted reservations refund all three together; a wire retry consumes global extra without counting another logical probe. Original legacy paths use no new code scope.
+
+Exactly one requested identity block is required; unknown market, foreign/duplicate identity, corrupt/truncated/trailing payload and nonfinite required amounts/ratios are Protocol. A valid40-byte header with zero records is present-empty. An empty byte payload is corruption, not empty. A primary transport error returns directly. Alternate connection failures may try the next bounded source; absent a later nonempty recovery, the real connection error returns rather than false-empty success. A successful later source carries a diagnostic of prior source failure. Protocol/cancellation/deadline/limit failures stop immediately.
+
+Raw21 words and16 bucket values survive Omit. Total amount retains F32 bits; derived amounts retain F64, unknown source units remain Unknown, ratios use PercentagePoints. Invalid date retains date_raw and a diagnostic rather than inventing a trading date. Historical interval fund flow remains T20/F10; no default-feature stub or category22 stable substitute was added.
+
+## Source cases and evidence
+
+Authored cases cover trade row/page/raw order, ordinary/convertible scale, today/history columns and full-field conversion, mixed09:25/status8/post-close, opening EOF/caps, repeated pages/offset/count/malformed time/trailing, many duplicates/cursor/cancellation; auction sequence/seconds/f32 bits/date layout/count/time/nonfinite/raw; money-flow independent A/B empty recovery, per-code3/batch24/duplicate scopes/global tighter budget, invalid identity/empty bytes/date/nonfinite/truncation/trailing, distinct/reused pools, owner cap and cancelable admission. Operation unit source covers atomic three-scope reservation, commit and refund. All are unexecuted synthetic sources.
+
+The previous units fixture mislabeled a convertible /1000 example as equity. It now cites ordinary parse_tick_records and Python trade_amount_yuan, explicitly uses /100 and supplied hands×100 arithmetic. Its narrow synthetic arithmetic scope is recorded; it is not a production oracle for mixed assets/status8. Full real0FFC capture, external market-unit evidence and execution verification remain missing.
+
+## T18 obligations and limits
+
+Python facade and native binding behavior were not changed. T18 must retain native today_batch ValueError("trade batch only supports historical ticks"), execute-only custom transport fallback, original per-request timing, isolated legacy probe counts and legacy raw projection. Current private SDK loops are Rust-facing; adapter integration still must select legacy policy without leaking new Rust caps. No Python compatibility or throughput claim is made from source inspection.
+
+No tests, collection, builds/check/clippy/doctests, network probes, AST/compile, formatting, diff checks or equivalent execution verification ran. No subagents, push, tag, publication or merge. All T01–T30 implementation must be complete before unified validation.

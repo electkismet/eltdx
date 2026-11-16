@@ -13,6 +13,9 @@ pub struct ClientConfig {
     pub(crate) cleanup_timeout: Duration,
     pub(crate) heartbeat_interval: Option<Duration>,
     pub(crate) endpoints: Option<Vec<SocketAddr>>,
+    pub(crate) auction_endpoints: Option<Vec<SocketAddr>>,
+    pub(crate) money_flow_endpoints: Option<Vec<SocketAddr>>,
+    pub(crate) connection_limit: eltdx_runtime::engine::ConnectionLimit,
     pub(crate) wire_attempt_limit: NonZeroU32,
     pub(crate) extra_attempt_budget: usize,
 }
@@ -43,6 +46,10 @@ impl ClientConfig {
         self.endpoints.as_deref()
     }
 
+    pub fn auction_endpoints(&self) -> Option<&[SocketAddr]> { self.auction_endpoints.as_deref() }
+    pub fn money_flow_endpoints(&self) -> Option<&[SocketAddr]> { self.money_flow_endpoints.as_deref() }
+    pub fn max_connections(&self) -> usize { self.connection_limit.maximum() }
+
     pub fn wire_attempt_limit(&self) -> NonZeroU32 {
         self.wire_attempt_limit
     }
@@ -61,6 +68,9 @@ pub(crate) struct ConfigDraft {
     pub(crate) cleanup_timeout: Duration,
     pub(crate) heartbeat_interval: Option<Duration>,
     pub(crate) endpoints: Option<Vec<SocketAddr>>,
+    pub(crate) auction_endpoints: Option<Vec<SocketAddr>>,
+    pub(crate) money_flow_endpoints: Option<Vec<SocketAddr>>,
+    pub(crate) max_connections: Option<usize>,
     pub(crate) wire_attempt_limit: NonZeroU32,
     pub(crate) extra_attempt_budget: usize,
 }
@@ -75,6 +85,9 @@ impl Default for ConfigDraft {
             cleanup_timeout: Duration::from_secs(1),
             heartbeat_interval: Some(Duration::from_secs(30)),
             endpoints: None,
+            auction_endpoints: None,
+            money_flow_endpoints: None,
+            max_connections: None,
             wire_attempt_limit: NonZeroU32::new(2).unwrap_or(NonZeroU32::MIN),
             extra_attempt_budget: 32,
         }
@@ -101,14 +114,26 @@ impl ConfigDraft {
                 "must be greater than zero when enabled",
             ));
         }
-        if let Some(endpoints) = &self.endpoints {
-            if endpoints.is_empty() {
-                return Err(invalid("endpoints", "must contain at least one socket address"));
-            }
-            if endpoints.iter().any(|endpoint| endpoint.port() == 0) {
-                return Err(invalid("endpoints", "socket ports must be greater than zero"));
+        for (name, endpoints) in [("endpoints", &self.endpoints), ("auction_endpoints", &self.auction_endpoints),
+            ("money_flow_endpoints", &self.money_flow_endpoints)] {
+            if let Some(endpoints) = endpoints {
+                if endpoints.is_empty() {
+                    return Err(invalid(name, "must contain at least one socket address"));
+                }
+                if endpoints.iter().any(|endpoint| endpoint.port() == 0) {
+                    return Err(invalid(name, "socket ports must be greater than zero"));
+                }
             }
         }
+        let maximum = match self.max_connections {
+            Some(maximum) => maximum,
+            None => self.pool_size.checked_mul(4)
+                .ok_or_else(|| invalid("pool_size", "default total connection bound overflows"))?,
+        };
+        if maximum < self.pool_size {
+            return Err(invalid("max_connections", "must hold at least one configured pool"));
+        }
+        let connection_limit = eltdx_runtime::engine::ConnectionLimit::new(maximum).map_err(Error::from_runtime)?;
 
         Ok(ClientConfig {
             clock: self.clock,
@@ -118,6 +143,9 @@ impl ConfigDraft {
             cleanup_timeout: self.cleanup_timeout,
             heartbeat_interval: self.heartbeat_interval,
             endpoints: self.endpoints,
+            auction_endpoints: self.auction_endpoints,
+            money_flow_endpoints: self.money_flow_endpoints,
+            connection_limit,
             wire_attempt_limit: self.wire_attempt_limit,
             extra_attempt_budget: self.extra_attempt_budget,
         })

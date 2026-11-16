@@ -2,7 +2,7 @@
 
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -13,6 +13,7 @@ pub struct Server {
     pub address: SocketAddr,
     stop: Arc<AtomicBool>,
     worker: Option<JoinHandle<io::Result<()>>>,
+    accepted: Arc<AtomicUsize>,
 }
 
 impl Server {
@@ -22,12 +23,15 @@ impl Server {
         let address = listener.local_addr()?;
         let stop = Arc::new(AtomicBool::new(false));
         let worker_stop = Arc::clone(&stop);
+        let accepted = Arc::new(AtomicUsize::new(0));
+        let worker_accepted = Arc::clone(&accepted);
         let handler = Arc::new(handler);
         let worker = thread::spawn(move || {
             let mut connections = Vec::new();
             while !worker_stop.load(Ordering::Acquire) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        worker_accepted.fetch_add(1, Ordering::SeqCst);
                         stream.set_read_timeout(Some(Duration::from_millis(100)))?;
                         stream.set_write_timeout(Some(Duration::from_secs(2)))?;
                         let handler = Arc::clone(&handler);
@@ -59,8 +63,10 @@ impl Server {
             }
             Ok(())
         });
-        Ok(Self { address, stop, worker: Some(worker) })
+        Ok(Self { address, stop, worker: Some(worker), accepted })
     }
+
+    pub fn connection_count(&self) -> usize { self.accepted.load(Ordering::SeqCst) }
 
     pub fn finish(mut self) -> io::Result<()> {
         self.stop.store(true, Ordering::Release);

@@ -257,11 +257,11 @@ Rust以TradeQuery.date显式分派今日/历史，避免十余个仅日期位置
 
 | 类型 | 必需字段与含义 |
 | --- | --- |
-| `TradeTick` | `index:u32, absolute_index:u32, time:EventTime, price:Price, volume:Quantity, order_count:i64, status_raw:i64, side:TradeSide, kind:TradeEventKind, auction_matched:Option<Quantity>, auction_unmatched_signed:Option<i64>, unknown_tail:Option<i64>`；当前mixed parser两个auction专属量可None，不能从status盲算。 |
+| `TradeTick` | `index:u32, absolute_index:u32, time:EventTime, price:Price, volume:Quantity, order_count:i64, status_raw:i64, side:TradeSide, kind:TradeEventKind, auction_matched:Option<Quantity>, auction_unmatched_signed:Option<i64>, unknown_tail:Option<i64>`；另保留price_acc_raw/price_delta_raw/price_denominator/reserved_zero/source getters，即使Omit仍可追溯；当前mixed parser两个auction专属量可None，不能从status盲算。 |
 | `TradePage` | `id, trading_date:Option<TradingDate>, price_base:Option<Price>, ticks:DataPage<TradeTick>, pages_read:usize`。 |
 | `TradeColumns` | `id, trading_date:Option<TradingDate>, start:u32, end:EndEvidence, next_cursor:Option<PageCursor>, len:usize, columns:TradeColumnData, meta`；列长度一致，cursor与对应TradePage同义；`tick(index)->Result<TradeTick>`、`to_page()->TradePage`为纯转换，不联网。 |
-| `TradeColumnData` | 与TradeTick一一对应的列：`indices/absolute_indices:Vec<u32>, times:Vec<EventTime>, prices:Vec<Price>, volumes:Vec<Quantity>, order_counts/statuses:Vec<i64>, sides:Vec<TradeSide>, kinds:Vec<TradeEventKind>, auction_matched:Vec<Option<Quantity>>, auction_unmatched_signed/unknown_tails:Vec<Option<i64>>`；无Any。 |
-| `AuctionPoint` | `index:u32, time:EventTime`（保留秒）、`price:Price, matched:Quantity, unmatched_signed:i64, unmatched:Quantity, direction_raw:i64`；matched amount仅估算，Price×已证实单位换算，不伪装实际成交额。 |
+| `TradeColumnData` | 与TradeTick一一对应的列：`indices/absolute_indices:Vec<u32>, times:Vec<EventTime>, prices:Vec<Price>, volumes:Vec<Quantity>, order_counts/statuses:Vec<i64>, sides:Vec<TradeSide>, kinds:Vec<TradeEventKind>, auction_matched:Vec<Option<Quantity>>, auction_unmatched_signed/unknown_tails:Vec<Option<i64>>`，以及原价/差分/分母/source列；无Any。 |
+| `AuctionPoint` | `index:u32, time:EventTime`（保留秒）、`price:Price, matched:Quantity, unmatched_signed:i64, unmatched:Quantity, direction_raw:i64`，另保留minute_of_day_raw/second_raw/reserved；matched amount仅估算，Price×已证实单位换算，不伪装实际成交额。 |
 | `AuctionSeries` | `id, trading_date:Option<TradingDate>, mode_selector:u32, start:u32, requested:u32, points:Vec<AuctionPoint>, meta`；底层默认selector3/start0/limit500，当前/历史由日期字段决定，不将selector缩到u16。 |
 | `DailyMoneyFlow` | `id, records:Vec<MoneyFlowDay>, meta`；零记录是合法空业务数据，不自动Missing。 |
 | `MoneyFlowDay` | `date:Option<TradingDate>, date_raw:u32, total_amount:Amount, buckets:[u16;16], raw_values:[u32;21], main_net/main_buy_net:Amount, main_ratio/main_buy_ratio:Ratio, main_size_net/main_buy_size_net:[Amount;4]`；数组顺序超大/大/中/小，ratio为百分数；raw_values为未完全命名的业务字段，即使Omit仍保留。 |

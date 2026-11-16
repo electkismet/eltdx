@@ -127,6 +127,9 @@ impl ClientBuilder {
     pub fn cleanup_timeout(self, timeout: Duration) -> Self;
     pub fn heartbeat_interval(self, interval: Option<Duration>) -> Self;
     pub fn endpoints(self, endpoints: Vec<SocketAddr>) -> Self;
+    pub fn auction_endpoints(self, endpoints: Vec<SocketAddr>) -> Self;
+    pub fn money_flow_endpoints(self, endpoints: Vec<SocketAddr>) -> Self;
+    pub fn max_connections(self, maximum: usize) -> Self;
     pub fn wire_attempt_limit(self, attempts: std::num::NonZeroU32) -> Self;
     pub fn extra_attempt_budget(self, attempts: usize) -> Self;
     pub fn build(self) -> Result<TdxClient>;
@@ -137,6 +140,9 @@ impl ClientConfig {
     pub fn request_timeout(&self) -> Duration;
     pub fn close_timeout(&self) -> Duration;
     pub fn cleanup_timeout(&self) -> Duration;
+    pub fn auction_endpoints(&self) -> Option<&[SocketAddr]>;
+    pub fn money_flow_endpoints(&self) -> Option<&[SocketAddr]>;
+    pub fn max_connections(&self) -> usize;
     pub fn wire_attempt_limit(&self) -> std::num::NonZeroU32;
     pub fn extra_attempt_budget(&self) -> usize;
 }
@@ -171,6 +177,10 @@ P0 默认配置数值与现有 Python 入口对齐：pool size 1、server count 
 `wire_attempt_limit` 默认2，包含首次发送；`extra_attempt_budget` 默认32，可显式设0禁用额外重发、缺项诊断与fallback。正常必需页面的首次请求不扣额外预算，子请求的每次重发仍单独扣减；具体计数见[决策表](decision-register.md)。没有剩余恢复预算时返回 `LimitExceeded`，不能将未确认项标成缺失。上述 setter 只配置正常 Rust 策略，不修改绑定内部的 Python legacy 计数。
 
 默认候选服务器是打包资源中的数字地址快照。首次 `connect()` 或网络业务方法才惰性启动。设置显式 `endpoints(Vec<SocketAddr>)` 时顺序稳定，不进行额外探测。全量探测、排序与缓存需显式策略；正常 Rust 公共入口计入总操作预算，Python 兼容入口保留旧发现流程的限制与计时边界。
+
+`auction_endpoints` 和 `money_flow_endpoints` 分别覆盖两个专属池的数字地址目录；普通 `endpoints` 只覆盖普通池。三个池即使地址相同也分别持有连接，getter和clone复用各自惰性池。`max_connections` 默认使用checked `4 × pool_size`，跨普通、竞价、资金流与endpoint续读/探测池共享物理连接permit；必须不小于 `pool_size` 且在底层semaphore支持范围内。permit在TCP连接尝试前取得，随stream及握手失败回收；闲置池仍持有的连接计入上限。无剩余permit时返回 `LimitExceeded` 并标注 `resource=owner_connections`，不等待闲置连接自动释放。Python既有Engine构造不启用该新增上限。
+
+当前资金流按操作串行取得域内admission，每批按最多75项组织且逐代码发请求。等待admission受操作取消/总期限控制；备用endpoint池每次探测后确认关闭，再允许下一次复用。串行方式遵守任意正数连接预算；这不承诺75个并发连接。各代码/整批/操作三层探测扣减在实际尝试授权处原子完成。
 
 ### 3.2 DNS 边界
 

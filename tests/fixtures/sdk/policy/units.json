@@ -10,10 +10,10 @@
   "cases": [
     {
       "case_id": "hq_equity_tick",
-      "input": {"protocol": "HQ", "code": "sh600000", "price_acc_raw": 125528, "price_scale": 1000, "volume_raw": 23, "volume_unit": "hand"},
-      "python_compat": {"price": 125.528, "volume": 23, "trade_amount_yuan_formula": "price * volume * 100"},
-      "rust": {"raw_value_preserved": true, "price_cny": 125.528, "quantity_shares": 2300, "trade_amount_cny": 288714.4, "amount_unit": "CNY"},
-      "evidence": {"level": "source_plus_independent_arithmetic", "sources": ["src/eltdx/models/trade.py::TradeTick.trade_amount_yuan", "tests/test_protocol_unit.py::test_convertible_ticks_keep_milli_precision_wire_volume_and_status"], "independent_oracle": true}
+      "input": {"protocol": "HQ", "code": "sh600000", "price_acc_raw": 125528, "price_scale": 100, "volume_raw": 23, "volume_unit": "hand"},
+      "python_compat": {"price": 1255.28, "volume": 23, "trade_amount_yuan_formula": "price * volume * 100"},
+      "rust": {"raw_value_preserved": true, "price_cny": 1255.28, "quantity_shares": 2300, "trade_amount_cny": 2887144.0, "amount_unit": "CNY"},
+      "evidence": {"level": "source_plus_independent_arithmetic", "sources": ["crates/eltdx-protocol/src/commands/trades.rs::parse_tick_records", "src/eltdx/models/trade.py::TradeTick.trade_amount_yuan"], "independent_oracle": true, "scope": "synthetic ordinary-price scale and explicit 100-shares-per-hand arithmetic; not an oracle for every mixed-asset volume or status8 quantity"}
     },
     {
       "case_id": "hq_equity_kline",

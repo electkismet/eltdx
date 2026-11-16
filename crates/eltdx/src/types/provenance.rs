@@ -148,6 +148,10 @@ impl ResultMeta {
 
     pub(crate) fn with_sources(mut self, sources: Vec<SourceStamp>) -> Self { self.sources = sources; self }
 
+    pub(crate) fn with_diagnostic(mut self, diagnostic: Diagnostic) -> Self {
+        self.diagnostics.push(diagnostic); self
+    }
+
     pub(crate) fn with_trading_date(mut self, date: TradingDate) -> Self {
         self.source.trading_date = Some(date);
         for source in &mut self.sources { source.trading_date = Some(date); }

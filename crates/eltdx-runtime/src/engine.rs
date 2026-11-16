@@ -55,6 +55,25 @@ const DIAGNOSTICS_REFRESH_INTERVAL: Duration = Duration::from_millis(25);
 const DEFAULT_GLOBAL_RAW_MAX_BYTES: usize = 256 * 1024 * 1024;
 const DEFAULT_GLOBAL_DECODED_MAX_BYTES: usize = 2 * 1024 * 1024 * 1024;
 
+/// A physical connection bound shared by independent Engine pools. Cloning
+/// shares the same permits; an established stream retains its permit to Drop.
+#[derive(Clone, Debug)]
+pub struct ConnectionLimit {
+    maximum: usize,
+    permits: Arc<Semaphore>,
+}
+
+impl ConnectionLimit {
+    pub fn new(maximum: usize) -> Result<Self, RuntimeError> {
+        if maximum == 0 || maximum > Semaphore::MAX_PERMITS {
+            return Err(RuntimeError::invalid_argument("ValueError", "connection limit is outside the supported range"));
+        }
+        Ok(Self { maximum, permits: Arc::new(Semaphore::new(maximum)) })
+    }
+    pub const fn maximum(&self) -> usize { self.maximum }
+    pub fn available(&self) -> usize { self.permits.available_permits() }
+}
+
 #[derive(Clone, Debug)]
 pub struct EngineConfigOptions {
     pub pool_size: usize,
@@ -87,6 +106,7 @@ pub struct EngineConfig {
     max_pending_requests: usize,
     push_queue_size: usize,
     push_queue_bytes: usize,
+    connection_limit: Option<ConnectionLimit>,
 }
 
 impl EngineConfig {
@@ -302,7 +322,14 @@ impl EngineConfig {
             max_pending_requests,
             push_queue_size,
             push_queue_bytes,
+            connection_limit: None,
         })
+    }
+
+    /// Adds a bound across pools without changing their protocol or slot ownership.
+    pub fn with_connection_limit(mut self, limit: ConnectionLimit) -> Self {
+        self.connection_limit = Some(limit);
+        self
     }
 
     pub fn endpoints(&self) -> &[Endpoint] {
@@ -2755,6 +2782,7 @@ struct ConnectionLimiter {
     global_connect: Arc<Semaphore>,
     connect_by_host: BTreeMap<String, Arc<Semaphore>>,
     connections_by_host: BTreeMap<String, Arc<Semaphore>>,
+    shared: Option<ConnectionLimit>,
 }
 
 impl ConnectionLimiter {
@@ -2773,6 +2801,7 @@ impl ConnectionLimiter {
             global_connect: Arc::new(Semaphore::new(config.connect_concurrency)),
             connect_by_host,
             connections_by_host,
+            shared: config.connection_limit.clone(),
         }
     }
 
@@ -2822,6 +2851,7 @@ impl ConnectionLimiter {
 #[derive(Debug)]
 struct ConnectionPermits {
     _connection: OwnedSemaphorePermit,
+    _shared_connection: Option<OwnedSemaphorePermit>,
     transient: Option<(OwnedSemaphorePermit, OwnedSemaphorePermit)>,
 }
 
@@ -6074,6 +6104,19 @@ impl SlotWorker {
         address: std::net::SocketAddr,
         deadline: Deadline,
     ) -> Result<ManagedStream, OperationFailure> {
+        // Idle pools can retain connections indefinitely, so exhausted owner
+        // capacity is reported immediately instead of waiting behind them.
+        let shared_connection = match self.connection_limiter.shared.as_ref() {
+            Some(limit) => Some(Arc::clone(&limit.permits).try_acquire_owned().map_err(|_| {
+                OperationFailure::Error(RuntimeError::PoolBusy {
+                    message: "shared physical connection limit reached".to_owned(), capacity: limit.maximum,
+                    context: vec![("sdk_kind".to_owned(), "LimitExceeded".to_owned()),
+                        ("resource".to_owned(), "owner_connections".to_owned()),
+                        ("configured".to_owned(), limit.maximum.to_string())],
+                })
+            })?),
+            None => None,
+        };
         let (host_connect, host_connections) = self
             .connection_limiter
             .host_semaphores(host)
@@ -6122,6 +6165,7 @@ impl SlotWorker {
                             stream,
                             permits: ConnectionPermits {
                                 _connection: connection,
+                                _shared_connection: shared_connection,
                                 transient: Some((global_connect, host_connect)),
                             },
                         })

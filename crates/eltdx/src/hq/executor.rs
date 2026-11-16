@@ -252,7 +252,7 @@ impl HqExecutor {
         &self, engine: &Engine, context: &OperationContext, request: CommandRequest,
         purpose: ChildPurpose, recovery: Option<RecoveryLimit>,
     ) -> Result<RawReply> {
-        self.execute_raw_inner(engine, None, context, request, purpose, recovery)
+        self.execute_raw_inner(engine, None, context, request, purpose, recovery, None)
     }
 
     pub(crate) fn execute_pinned_raw(
@@ -262,12 +262,19 @@ impl HqExecutor {
         if !pin.belongs_to_engine(engine) {
             return Err(Error::new(ErrorKind::InvalidArgument, "pin belongs to a different engine"));
         }
-        self.execute_raw_inner(engine, Some(pin), context, request, purpose, recovery)
+        self.execute_raw_inner(engine, Some(pin), context, request, purpose, recovery, None)
     }
 
+    pub(crate) fn execute_probe_raw(&self, engine: &Engine, context: &OperationContext,
+        request: CommandRequest, batch_maximum: usize, scope: usize) -> Result<RawReply> {
+        self.execute_raw_inner(engine, None, context, request, ChildPurpose::EmptyProbe,
+            Some(RecoveryLimit { name: "money_flow_probes", maximum: batch_maximum }), Some(scope))
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn execute_raw_inner(
         &self, engine: &Engine, pin: Option<&PinHandle>, context: &OperationContext,
-        request: CommandRequest, purpose: ChildPurpose, recovery: Option<RecoveryLimit>,
+        request: CommandRequest, purpose: ChildPurpose, recovery: Option<RecoveryLimit>, probe_scope: Option<usize>,
     ) -> Result<RawReply> {
         if !Arc::ptr_eq(context.owner(), &self.owner) {
             return Err(Error::new(ErrorKind::InvalidArgument, "operation belongs to a different session"));
@@ -275,7 +282,7 @@ impl HqExecutor {
         context.check_boundary(TimeoutPhase::Admission)?;
         self.register_engine(engine.clone())?;
         let command = request.command_code();
-        let permit = context.begin_child(purpose, recovery)?;
+        let permit = context.begin_child_scoped(purpose, recovery, probe_scope)?;
         let child_id = permit.child_id;
         let options = permit.into_submission(&request);
         let pending = match pin {
