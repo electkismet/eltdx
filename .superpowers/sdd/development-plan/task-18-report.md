@@ -134,3 +134,62 @@ Next: M88–M94/M96–M97 (shares/limits/shortline/ladder/auction/market/day-flo
 boards), complete Python HQ/native migration, manifest evidence, independent
 consumer/examples. M95 and M79–M87 must not be reimplemented after recovery.
 No Python facade switch or manifest status upgrade occurred in this checkpoint.
+
+The third source checkpoint above was committed as **14f590c** (22 files).
+
+## Fourth source checkpoint — M92–M94 market/auction compositions
+
+Authored source and source-only self-review; no execution. T18 remains partial
+and global task totals remain18 complete/4 partial/8 unstarted.
+
+- M93 market_stat: new typed MarketStat and lazy public entry. Required
+  sh880005/sh880001/sh880006 rows are associated by identity, with MissingData
+  for a legally absent required index, Protocol for foreign/excess identities.
+  Existing public legacy strict behavior is retained through a common collector
+  with a separate crate-only sparse association mode. Counter prices use
+  decimal nearest-even round(value*10), capitalization*1e10 CNY, remaining
+  count saturates at0; invalid/overflow/nonfinite required numbers are errors.
+  Only the documented pseudo-index amount receives the field-specific CNY
+  interpretation; generic legacy amount remains unchanged/unknown.
+- M94 today_fund_flow: shared TradeService collector keeps its source pin,
+  finite paging, repeated-page detection, cleanup and EOF evidence. Classification
+  happens only after EmptyPage, under the same outer deadline/cancellation;
+  failures never yield partial buckets. Preserve every page's source/raw/date,
+  including empty EOF. Reuses M95; does not duplicate the classifier.
+- T14 integration correction: actual A-share ticks now carry Lots using the
+  existing classified code identity and PrefixFallback provenance. The ordinary
+  A-share hand arithmetic is explicitly documented in the units fixture/Python
+  TradeTick.trade_amount_yuan contract. Bonds/indices/other unknown assets and
+  status8 auction quantities remain Unknown. This does not claim production
+  unit evidence for all asset classes. Unknown actual trade units still cause
+  InvalidArgument in the strict CNY classifier.
+- M92 auction_data: new AuctionDataQuery/DTO/root exports. Current date comes
+  from handshake date maximum, never a local clock substitute. Explicit history
+  has no current-date handshake/quote fetch; reference comes from0FC6 price_base.
+  Explicit pre_close wins, including zero (undefined percentage then None).
+  Opening fields use formal OpeningMatch only, never a nearest09:24 point.
+  Requested source failures terminate; disabled sources and source absence have
+  separate diagnostics. All disabled explicit history has no startup; current
+  still fetches its required source date. Unknown opening units keep raw/price/
+  volume but omit CNY amount with diagnostics.
+- Session handshake and auction series now have internal caller-context seams;
+  TradeService has collect/opening-page variants with a supplied source date.
+  Public wrappers retain their own limits/finish; nested collectors never reset
+  limits or finish the parent. Current quote metadata is prepared before any
+  auction/trade decoding. Helper shares the original DomainPools rather than
+  constructing another owner or dedicated connection pool. Original source
+  stamps are not relabeled to the aggregate target date.
+- Source inspection also corrected CategoryQuote::seal_amount's Quantity
+  access to value().as_f64(), matching the actual Quantity API.
+- Authored synthetic public cases for reordered/missing/excess pseudo-indices,
+  amounts/units/raw, complete/empty/error/cancel/repeated trade pagination,
+  A-share versus unknown units, current dedicated-series+trade+quote composition,
+  server-versus-local dates, historical source isolation, explicit/zero refs,
+  disabled/no-formal-match/invalid/missing-date and failed/cancelled sources.
+  No tests, builds, checks or runtime/network probes have run.
+
+Recovery next: M88–M91 daily shares/limits/shortline/ladder, M96–M97 boards,
+ALL remaining HQ Python/native migration, manifest evidence, independent
+consumer/examples. M79–M87/M92–M95 now have initial source implementations
+(13 of19 HQ helper methods); this is not completed T18 or verified functionality.
+Do not repeat authored methods; continue from their shared context seams.

@@ -229,6 +229,62 @@ pub fn finance_codes(request: &RequestFrame) -> Vec<String> {
     request.data[2..].chunks_exact(7).map(|row| String::from_utf8(row[1..7].to_vec()).unwrap()).collect()
 }
 
+/// Legacy pseudo-index fixtures use wire hundredths for each price. The amount
+/// word is finite zero; volume is23 hands. No production capture is implied.
+pub fn legacy_prices(rows: &[(&str, i64, i64, i64, i64)]) -> Vec<u8> {
+    let mut payload = vec![0, 0];
+    payload.extend_from_slice(&(rows.len() as u16).to_le_bytes());
+    for &(number, last, open, high, low) in rows {
+        payload.push(1); payload.extend_from_slice(number.as_bytes());
+        payload.extend_from_slice(&1_u16.to_le_bytes());
+        for value in [last, 0, open - last, high - last, low - last, 93000, 0, 23, 0] {
+            append_varint(&mut payload, value);
+        }
+        payload.extend_from_slice(&0_u32.to_le_bytes());
+        for _ in 0..24 { append_varint(&mut payload, 0); }
+        payload.extend_from_slice(&0_u16.to_le_bytes());
+        for _ in 0..4 { append_varint(&mut payload, 0); }
+        payload.extend_from_slice(&[0; 4]); // explicit optional long tail.
+    }
+    payload
+}
+
+pub fn trade_offset(request: &RequestFrame) -> u16 {
+    let offset = if request.msg_type == 0x0fc5 { 8 } else { 12 };
+    u16::from_le_bytes(request.data[offset..offset + 2].try_into().unwrap())
+}
+
+/// Ordinary tick fixtures: minute, per-page price delta, hand volume, status.
+pub fn trade_rows(request: &RequestFrame, rows: &[(u16, i64, i64, i64)]) -> Vec<u8> {
+    let mut payload = (rows.len() as u16).to_le_bytes().to_vec();
+    if request.msg_type == 0x0fc6 { payload.extend_from_slice(&10_f32.to_le_bytes()); }
+    for &(minute, delta, volume, status) in rows {
+        payload.extend_from_slice(&minute.to_le_bytes());
+        for value in [delta, volume, 2, status, 0] { append_varint(&mut payload, value); }
+    }
+    payload
+}
+
+pub fn handshake_dates(first: u32, second: u32) -> Vec<u8> {
+    let mut payload = vec![0; 189];
+    payload[1..3].copy_from_slice(&((first / 10000) as u16).to_le_bytes());
+    payload[3] = (first % 100) as u8; payload[4] = (first / 100 % 100) as u8;
+    payload[6] = 10; // source-local10:00:00.
+    payload[42..46].copy_from_slice(&first.to_le_bytes());
+    payload[50..54].copy_from_slice(&second.to_le_bytes());
+    payload
+}
+
+pub fn auction_rows(rows: &[(u16, u8, f32, u32, i32)]) -> Vec<u8> {
+    let mut payload = (rows.len() as u16).to_le_bytes().to_vec();
+    for &(minute, second, price, matched, unmatched) in rows {
+        payload.extend_from_slice(&minute.to_le_bytes()); payload.extend_from_slice(&price.to_le_bytes());
+        payload.extend_from_slice(&matched.to_le_bytes()); payload.extend_from_slice(&unmatched.to_le_bytes());
+        payload.push(0); payload.push(second);
+    }
+    payload
+}
+
 pub fn refresh(rows: &[(&str, u32)]) -> Vec<u8> {
     let mut payload = (rows.len() as u16).to_le_bytes().to_vec();
     for &(number, cursor) in rows {

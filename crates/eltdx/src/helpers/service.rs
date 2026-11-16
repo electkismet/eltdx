@@ -1,4 +1,5 @@
 use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 use std::time::Instant;
 
 use eltdx_runtime::engine::Engine;
@@ -24,14 +25,16 @@ const FULL_QUOTE_CHUNK: usize = 80;
 pub struct HelperService {
     pub(super) executor: HqExecutor, pub(super) engine: Engine,
     pub(super) config: ClientConfig, pub(super) namespace: String,
+    pub(super) pools: Arc<crate::hq::domains::DomainPools>,
 }
 
 impl HelperService {
-    pub(crate) fn new(executor: HqExecutor, engine: Engine, config: ClientConfig, namespace: String) -> Self {
-        Self { executor, engine, config, namespace }
+    pub(crate) fn new(executor: HqExecutor, engine: Engine, config: ClientConfig, namespace: String,
+        pools: Arc<crate::hq::domains::DomainPools>) -> Self {
+        Self { executor, engine, config, namespace, pools }
     }
 
-    fn quotes(&self) -> QuoteService {
+    pub(super) fn quotes(&self) -> QuoteService {
         QuoteService::new(self.executor.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
     }
     pub(super) fn codes(&self) -> CodeService {

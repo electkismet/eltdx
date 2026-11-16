@@ -19,12 +19,17 @@ impl SessionService {
     pub fn handshake(&self, options: &OperationOptions) -> Result<HandshakeInfo> {
         let entry = Instant::now();
         let context = self.executor.begin_context_at(entry, "handshake", &self.config, options)?;
-        let raw = self.executor.execute_raw(&self.engine, &context, CommandRequest::Handshake(HandshakeRequest), ChildPurpose::Required, None)?;
-        let reply = self.executor.decode_unpriced(&context, raw)?;
+        let result = self.handshake_in_context(&context)?;
+        context.finish()?; Ok(result)
+    }
+
+    pub(crate) fn handshake_in_context(&self, context: &OperationContext) -> Result<HandshakeInfo> {
+        let raw = self.executor.execute_raw(&self.engine, context, CommandRequest::Handshake(HandshakeRequest), ChildPurpose::Required, None)?;
+        let reply = self.executor.decode_unpriced(context, raw)?;
         let CommandResponse::Handshake(value) = &reply.response else { return Err(unexpected()); };
         let server_datetime = value.server_datetime.and_then(|value| date(value.date)
             .and_then(|date| EventTime::local(date, value.hour, value.minute, value.second).ok()));
-        let mut meta = reply_meta(&context, &self.config, &reply, &[], "session.handshake");
+        let mut meta = reply_meta(context, &self.config, &reply, &[], "session.handshake");
         if let Some(date) = server_datetime.and_then(|value| value.date()).or_else(|| value.server_date_1.and_then(date)) {
             meta = meta.with_trading_date(date);
         }
@@ -35,7 +40,7 @@ impl SessionService {
             unknown_time1: Some(value.unknown_time_1_raw), unknown_time2: Some(value.unknown_time_2_raw),
             flags: value.flags_raw.clone(), control_tail: value.tail_control_raw.clone(),
             meta };
-        context.finish()?; Ok(result)
+        Ok(result)
     }
 
     pub fn heartbeat(&self, options: &OperationOptions) -> Result<HeartbeatAck> {

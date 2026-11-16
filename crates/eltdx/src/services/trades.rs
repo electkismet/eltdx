@@ -14,7 +14,7 @@ use eltdx_runtime::engine::{Engine, PinHandle};
 use crate::config::ClientConfig;
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::hq::executor::HqExecutor;
-use crate::metadata::{MetadataSnapshot, SnapshotKey};
+use crate::metadata::MetadataSnapshot;
 use crate::operation::{ChildPurpose, OperationContext, OperationOptions, WorkLimits};
 use crate::types::{BatchItem, BatchItemState, BatchOutcome, DataPage, EndEvidence, EventTime,
     MarketDateChoice, NumericValue, PageCursor, Price, Quantity, QuantityUnit, ResultMeta,
@@ -88,22 +88,57 @@ impl TradeService {
         checked_ids(std::slice::from_ref(id))?;
         query.validate()?;
         set_limits(&mut context, query, mode, 1)?;
-        let date = resolve_date(&context, query.date())?;
-        let metadata = self.capture_metadata(&context, std::slice::from_ref(id))?;
+        let value = self.one_in_context(&context, id, query, None, mode, project)?;
+        context.finish()?;
+        Ok(value)
+    }
+
+    /// Caller owns aggregate limits and completion. Collection retains the
+    /// existing source pin, EOF, no-progress and cleanup behavior.
+    pub(crate) fn collect_in_context(&self, context: &OperationContext, id: &SecurityId,
+        query: &TradeQuery) -> Result<TradePage> {
+        self.one_in_context(context, id, query, None, ReadMode::Collect, rows)
+    }
+
+    pub(crate) fn collect_at_date_in_context(&self, context: &OperationContext, id: &SecurityId,
+        query: &TradeQuery, date: TradingDate) -> Result<TradePage> {
+        self.one_in_context(context, id, query, Some(date), ReadMode::Collect, rows)
+    }
+
+    pub(crate) fn opening_page_in_context(&self, context: &OperationContext, id: &SecurityId,
+        query: &TradeQuery, date: TradingDate) -> Result<(TradePage, Option<TradeTick>)> {
+        self.one_in_context(context, id, query, Some(date), ReadMode::Opening,
+            |result| Ok((result.page, result.opening)))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn one_in_context<T>(&self, context: &OperationContext, id: &SecurityId, query: &TradeQuery,
+        source_date: Option<TradingDate>, mode: ReadMode, project: fn(ReadResult) -> Result<T>) -> Result<T> {
+        checked_ids(std::slice::from_ref(id))?;
+        query.validate()?;
+        let date = match source_date { Some(date) => date, None => resolve_date(context, query.date())? };
+        if matches!(query.date(), MarketDateChoice::Date(requested) if requested != date) {
+            return Err(Error::new(ErrorKind::InvalidArgument, "trade composition date differs from its requested historical date"));
+        }
+        let metadata = self.capture_metadata(context, std::slice::from_ref(id))?;
         let size = page_size(query, mode);
-        verify_cursor(query.cursor(), fingerprint(id, query.date(), date), size, &context, Some(metadata.version()))?;
+        verify_cursor(query.cursor(), fingerprint(id, query.date(), date), size, context, Some(metadata.version()))?;
         let engine = endpoint_engine(&self.executor, &self.config, &self.engine,
             query.cursor().and_then(PageCursor::endpoint))?;
         // A cursor is validated before any source pin or wire admission.
         if mode == ReadMode::Page {
-            let value = project(self.read(&context, &engine, None, id, query, date, &metadata, mode)?)?;
-            context.finish()?;
-            return Ok(value);
+            return project(self.read(context, &engine, None, id, query, date, &metadata, mode)?);
         }
-        let mut pin = self.executor.acquire_pin(&engine, &context)?;
-        let result = self.read(&context, &engine, Some(pin.handle()?), id, query, date, &metadata, mode)
+        let mut pin = self.executor.acquire_pin(&engine, context)?;
+        let result = self.read(context, &engine, Some(pin.handle()?), id, query, date, &metadata, mode)
             .and_then(project);
-        self.finish_pinned(&context, &mut pin, result)
+        match result {
+            Ok(value) => { self.executor.release_pin(context, &mut pin, None)?; Ok(value) }
+            Err(root) => match self.executor.release_pin(context, &mut pin, Some(root)) {
+                Err(error) => Err(error),
+                Ok(()) => Err(Error::new(ErrorKind::Internal, "trade pin cleanup lost its failure cause")),
+            },
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -184,7 +219,7 @@ impl TradeService {
                 decoded.wire.as_ref().map(|wire| wire.raw.clone()), &ranges, "trades.page").with_trading_date(date);
             let mut ticks = Vec::new();
             ticks.try_reserve(wire_rows.len()).map_err(allocation_error)?;
-            for row in wire_rows { ticks.push(project_tick(row, meta.source().clone())?); }
+            for row in wire_rows { ticks.push(project_tick(row, meta.source().clone(), id)?); }
             let found = if mode == ReadMode::Opening {
                 ticks.iter().find(|tick| tick.kind() == TradeEventKind::OpeningMatch).cloned()
             } else { None };
@@ -215,17 +250,7 @@ impl TradeService {
     }
 
     fn capture_metadata(&self, context: &OperationContext, ids: &[SecurityId]) -> Result<Arc<MetadataSnapshot>> {
-        let mut markets = Vec::new(); let mut snapshots = Vec::new();
-        for id in ids {
-            if markets.contains(&id.market()) { continue; }
-            markets.push(id.market());
-            if let Some(snapshot) = context.owner().metadata().current(&SnapshotKey::hq(&self.namespace, id.market()))? {
-                snapshots.push(snapshot);
-            }
-        }
-        let snapshot = context.owner().metadata().capture(&self.namespace, &snapshots)?;
-        context.install_metadata(Arc::clone(&snapshot))?;
-        Ok(snapshot)
+        super::capture_existing_metadata(context, &self.namespace, ids)
     }
 
     fn finish_pinned<T>(&self, context: &OperationContext, pin: &mut crate::session::PinnedSession, result: Result<T>) -> Result<T> {
@@ -273,7 +298,7 @@ fn trade_request(id: &SecurityId, date: MarketDateChoice, offset: u32, count: us
         }
     }.map_err(Error::from_protocol)
 }
-fn project_tick(row: &WireTick, source: SourceStamp) -> Result<TradeTick> {
+fn project_tick(row: &WireTick, source: SourceStamp, id: &SecurityId) -> Result<TradeTick> {
     if row.time_minutes >= 1440 { return Err(Error::new(ErrorKind::Protocol, "trade minute is outside a day")); }
     let hour = (row.time_minutes / 60) as u8; let minute = (row.time_minutes % 60) as u8;
     let time = match row.trade_datetime {
@@ -289,9 +314,18 @@ fn project_tick(row: &WireTick, source: SourceStamp) -> Result<TradeTick> {
         _ => return Err(Error::new(ErrorKind::Protocol, "unknown trade price denominator")) };
     let quantity = |value| Quantity::with_provenance(NumericValue::ScaledInteger { value, scale: 0 },
         QuantityUnit::Unknown, ValueProvenance::WireRule);
+    // The ordinary A-share contract explicitly uses hands. It does not prove
+    // units for bonds, indices or the mixed parser's status-8 quote quantities.
+    let code = NormalizedCode::parse(&id.to_string()).map_err(Error::from_protocol)?;
+    let equity = eltdx_protocol::commands::security::classify_security(code.market(), code.number())
+        == eltdx_protocol::commands::security::SecurityCategory::AShare;
+    let volume = if equity && row.event_kind != WireKind::AuctionSnapshot {
+        Quantity::with_provenance(NumericValue::ScaledInteger { value: row.volume, scale: 0 },
+            QuantityUnit::Lots, ValueProvenance::PrefixFallback)
+    } else { quantity(row.volume) };
     Ok(TradeTick { index: u32::from(row.index), absolute_index: row.absolute_index, time,
         price: Price::with_value_and_provenance(NumericValue::ScaledInteger { value: row.price_acc_raw, scale }, ValueProvenance::WireRule),
-        volume: quantity(row.volume), order_count: row.order_count, status_raw: row.status_raw,
+        volume, order_count: row.order_count, status_raw: row.status_raw,
         side: match &row.side { WireSide::Buy => TradeSide::Buy, WireSide::Sell => TradeSide::Sell,
             WireSide::Neutral => TradeSide::Neutral, WireSide::Status(value) => TradeSide::Status(*value) },
         kind: match row.event_kind { WireKind::Trade => TradeEventKind::Trade,

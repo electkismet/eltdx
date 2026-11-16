@@ -4,6 +4,8 @@ mod market;
 mod service;
 mod cache;
 mod profile;
+mod market_service;
+mod auction;
 pub(crate) use cache::HelperCache;
 pub use market::classify_fund_flow;
 pub use service::HelperService;

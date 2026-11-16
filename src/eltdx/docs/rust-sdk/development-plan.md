@@ -319,7 +319,7 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T18：P2 Python 回迁及可用版本验收
 
-源码首段`e3e768c`已写M95纯classify_fund_flow；第二段`d0f8c2c`增加M79–M85首批HelperService与共享上下文/字段保留/排名EOF/取消用例；第三段已写M86 profile、M87共享owner有界缓存/clear及日期/单位/raw/失败/部分失败/在途隔离源码用例。M88–M94/M96–M97、完整Python/native回迁及consumer仍待完成，T18仍部分。全部执行验证延期，详情task-18-report。
+源码首段`e3e768c`已写M95纯classify_fund_flow；第二段`d0f8c2c`增加M79–M85首批HelperService；第三段`14f590c`已写M86 profile/M87共享owner有界缓存/clear。第四段增加M92 auction_data/M93 market_stat/M94 today_fund_flow及共享context、来源日期/identity/单位/EOF/失败取消源码用例。M88–M91/M96–M97、完整Python/native回迁及consumer仍待完成，T18仍部分；已有13/19方法首批源码不等于完整T18或验证通过。全部执行验证延期，详情task-18-report。
 
 **文件：** 新增 `src/helpers/{mod,market,boards,shortline,profile}.rs` 和 `tests/hq_helpers.rs`；对上述服务及 HQ helpers 逐一修改 `src/eltdx/api`、`helpers`、`equity.py`、`workday.py`、`stats.py` 和 native 桥接；新增域级差分测试与 `crates/eltdx/examples/hq_query.rs`。
 

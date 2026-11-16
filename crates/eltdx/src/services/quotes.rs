@@ -194,6 +194,16 @@ impl QuoteService {
 
     pub(crate) fn legacy_in_context(&self, context: &OperationContext, ids: &[SecurityId])
         -> Result<BatchOutcome<LegacyQuote>> {
+        self.legacy_collect_in_context(context, ids, false)
+    }
+
+    pub(crate) fn legacy_sparse_in_context(&self, context: &OperationContext, ids: &[SecurityId])
+        -> Result<BatchOutcome<LegacyQuote>> {
+        self.legacy_collect_in_context(context, ids, true)
+    }
+
+    fn legacy_collect_in_context(&self, context: &OperationContext, ids: &[SecurityId], allow_missing: bool)
+        -> Result<BatchOutcome<LegacyQuote>> {
         let codes = checked_ids(ids)?;
         if ids.is_empty() { return Ok(BatchOutcome::new(Vec::new())); }
         let requests = legacy_requests(&codes)?;
@@ -208,12 +218,19 @@ impl QuoteService {
             let decoded = self.executor.execute_decoded(&self.engine, &context, &self.config, &self.namespace,
                 request, if chunk_index == 0 { ChildPurpose::Required } else { ChildPurpose::Page }, None)?;
             let CommandResponse::LegacyQuotes(rows) = &decoded.response else { return Err(wrong_response("legacy quotes")); };
-            let order = occurrence_order(&ids[start..end], rows.iter().map(|row| identity_from_market(row.market, &row.code)))?;
+            let order = if allow_missing {
+                sparse_occurrence_order(&ids[start..end], rows.iter().map(|row| identity_from_market(row.market, &row.code)))?
+            } else {
+                occurrence_order(&ids[start..end], rows.iter().map(|row| identity_from_market(row.market, &row.code)))?
+                    .into_iter().map(Some).collect()
+            };
             for (position, row_index) in order.into_iter().enumerate() {
-                let row = &rows[row_index];
                 let id = ids[start + position].clone();
-                let quote = project_legacy(row, id.clone(), &context, &self.config, &metadata, &decoded, row.record_range)?;
-                items.push(BatchItem::new(start + position, id, BatchItemState::Present(quote)));
+                let state = if let Some(row_index) = row_index {
+                    let row = &rows[row_index];
+                    BatchItemState::Present(project_legacy(row, id.clone(), context, &self.config, &metadata, &decoded, row.record_range)?)
+                } else { BatchItemState::ConfirmedMissing(MissingReason::NotFound) };
+                items.push(BatchItem::new(start + position, id, state));
             }
             context.record_work(rows.len(), 0)?;
             metas.push(result_meta(&context, &self.config, Some(&metadata), &ServiceSource::from_reply(&decoded),
@@ -225,6 +242,28 @@ impl QuoteService {
     }
 
     /* snapshot projection is shared below with source-bound subscription recovery. */
+}
+
+/// Only explicitly absent occurrences are missing. Foreign identities and
+/// excess occurrences remain corrupt responses even in a sparse composition.
+fn sparse_occurrence_order(ids: &[SecurityId], returned: impl IntoIterator<Item = Result<SecurityId>>)
+    -> Result<Vec<Option<usize>>> {
+    let mut pending = HashMap::<SecurityId, VecDeque<usize>>::new();
+    pending.try_reserve(ids.len()).map_err(allocation_error)?;
+    for (index, id) in ids.iter().enumerate() {
+        let slots = pending.entry(id.clone()).or_default();
+        slots.try_reserve(1).map_err(allocation_error)?; slots.push_back(index);
+    }
+    let mut order = Vec::new(); order.try_reserve(ids.len()).map_err(allocation_error)?;
+    order.resize(ids.len(), None);
+    for (row, id) in returned.into_iter().enumerate() {
+        let id = id?;
+        let input = pending.get_mut(&id).and_then(VecDeque::pop_front).ok_or_else(||
+            Error::new(ErrorKind::Protocol, "legacy response contains a foreign or excess identity")
+                .with_context("security", id.to_string()))?;
+        order[input] = Some(row);
+    }
+    Ok(order)
 }
 
 fn project_snapshot_batch(ids: &[SecurityId], policy: MissingPolicy, context: &OperationContext,

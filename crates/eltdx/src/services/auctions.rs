@@ -8,9 +8,9 @@ use crate::config::ClientConfig;
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::hq::domains::{auction_hosts, DomainPools};
 use crate::hq::executor::HqExecutor;
-use crate::operation::{ChildPurpose, OperationOptions, WorkLimits};
+use crate::operation::{ChildPurpose, OperationContext, OperationOptions, WorkLimits};
 use crate::types::{AuctionPoint, AuctionQuery, AuctionSeries, EventTime, MarketDateChoice,
-    NumericValue, Price, Quantity, QuantityUnit, SecurityId, ValueProvenance};
+    NumericValue, Price, Quantity, QuantityUnit, SecurityId, TradingDate, ValueProvenance};
 use super::{allocation_error, checked_ids, result_meta, ServiceSource};
 
 #[derive(Clone, Debug)]
@@ -27,6 +27,18 @@ impl AuctionService {
         query.validate()?;
         context.set_work_limits(WorkLimits { pages: None, records: Some(DEFAULT_AUCTION_LIMIT as usize), bytes: None })?;
         let date = match query.date() { MarketDateChoice::Current => context.current_market_date()?, MarketDateChoice::Date(date) => date };
+        let series = self.series_in_context(&context, id, query, date)?;
+        context.finish()?;
+        Ok(series)
+    }
+
+    pub(crate) fn series_in_context(&self, context: &OperationContext, id: &SecurityId,
+        query: &AuctionQuery, date: TradingDate) -> Result<AuctionSeries> {
+        checked_ids(std::slice::from_ref(id))?;
+        query.validate()?;
+        if matches!(query.date(), MarketDateChoice::Date(requested) if requested != date) {
+            return Err(Error::new(ErrorKind::InvalidArgument, "auction composition date differs from its historical request"));
+        }
         let wire_date = match query.date() {
             MarketDateChoice::Current => None,
             MarketDateChoice::Date(date) => Some(DateParts::new(i32::from(date.year()), date.month(), date.day()).map_err(Error::from_protocol)?),
@@ -35,8 +47,14 @@ impl AuctionService {
             NormalizedCode::parse(&id.to_string()).map_err(Error::from_protocol)?, wire_date,
             DEFAULT_AUCTION_SELECTOR, DEFAULT_AUCTION_START, DEFAULT_AUCTION_LIMIT, false).map_err(Error::from_protocol)?;
         let namespace = format!("hq:auction:{}", auction_hosts(&self.config).join(","));
-        let snapshot = context.owner().metadata().capture(&namespace, &[])?;
-        context.install_metadata(snapshot.clone())?;
+        let snapshot = match context.metadata()? {
+            Some(snapshot) => snapshot,
+            None => {
+                let snapshot = context.owner().metadata().capture(&namespace, &[])?;
+                context.install_metadata(snapshot.clone())?;
+                snapshot
+            }
+        };
         let engine = self.pools.auction(&self.config)?;
         let raw = self.executor.execute_raw(&engine, &context, CommandRequest::AuctionSeries(request), ChildPurpose::Required, None)?;
         let decoded = self.executor.decode_received(&context, raw)?;
@@ -72,7 +90,6 @@ impl AuctionService {
         context.check_boundary(TimeoutPhase::Aggregate)?;
         let series = AuctionSeries::new(id.clone(), date, DEFAULT_AUCTION_SELECTOR, DEFAULT_AUCTION_START,
             DEFAULT_AUCTION_LIMIT, points, meta);
-        context.finish()?;
         Ok(series)
     }
 }

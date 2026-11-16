@@ -438,6 +438,8 @@ market_stat发legacy报价请求sh880005、sh880001、sh880006；Rust按id关联
 
 fund_flow忽略AuctionSnapshot，包含OpeningMatch与盘后真实成交；side只Buy/Sell参与，其余skip。金额元=price×volume手×100；严格阈值 `>1,000,000` 超大、`>200,000` 大、`>40,000` 中，其余小。空ticks八桶和净额皆0；未知volume单位/非有限或负金额不能强制归小桶，Rust返回InvalidArgument。today_fund_flow必须完整取得当日trades，主分页失败不返回半桶结果；classify是纯函数无options，无I/O。
 
+T18 M92–M94源码补充（未执行）：market_stat按id识别必需三项，合法缺项MissingData，foreign/多余occurrence为Protocol；counter采用decimal nearest-even round(value×10)，仅880005 amount按本节字段合同解释CNY，不改通用legacy amount的Unknown。today_fund_flow复用受控pin分页，只在EmptyPage后分类，并保留空EOF页raw及source。实际A股逐笔的手单位依既有code分类及明确的ordinary-equity手×100合同，provenance为PrefixFallback；债券等未取证资产与status8量保持Unknown。auction_data当前日取握手双日期最大值（双日期均无效才用服务端datetime的日期，仍无效则MetadataUnavailable），显式历史不加载当前行情；显式pre_close优先，0保留但open_change=None。开启的主来源失败终止，关闭/合法空/未找到正式match以diagnostics区分；全部关闭且显式历史不联网，Current仍须服务端日期。聚合保留原source日期，不将握手旧日期重写为target。open_change为PercentagePoints；未知opening单位仅省略派生金额，不伪造股数。这些不是已测试或生产单位已验证声明，Python尚未切换。
+
 ## 14. 板块文件与成员行情（T17、T18）
 
 旧HelperApi可配置board_data_dir/board_definitions_dir；board_quotes(category="概念",refresh=False)，board_member_quotes(board_code,refresh=False)。BoardService先按服务端市场日缓存，数据默认取环境ELTDX_BOARD_DATA_DIR或cwd/downloads，定义还尝试cwd/downloads与固定C盘路径；Python保持这些搜索与磁盘行为。Rust改为BoardQuery显式目录，构造client/query不扫描磁盘。

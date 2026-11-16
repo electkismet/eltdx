@@ -318,7 +318,7 @@ impl CategoryQuote {
     pub fn meta(&self) -> &ResultMeta { &self.meta }
 
     pub fn seal_amount(&self) -> Option<Amount> {
-        let value = self.bid1.price().as_f64() * self.bid1.volume().as_f64() * 100.0;
+        let value = self.bid1.price().as_f64() * self.bid1.volume().value().as_f64() * 100.0;
         value.is_finite().then(|| Amount::with_provenance(
             NumericValue::F64(value), AmountUnit::Cny, ValueProvenance::WireRule))
     }

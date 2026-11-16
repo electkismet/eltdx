@@ -141,6 +141,8 @@ T18组合源码补充（2026-11-16）：Table新增可选end()结束证据，使
 
 T18 profile缓存裁定（2026-11-16）：共享owner维护目录market缓存和finance完整有序occurrence tuple缓存，附加载日/metadata版本/RawPolicy键；完整或确认缺失900秒，失败/部分失败30秒；每源16项及8192行/occurrence权重，超大不保留，clear以generation隔离旧在途发布。缓存保持原状态/错误/来源时间，不将加载日当服务端日；目录按实际发布版本缓存。财务内部collector沿用外层上下文与预算，不能重设已使用limits。clear不清calendar或precision、不删文件。Python旧缓存另走兼容适配，当前尚未迁移；本记录无运行验证含义。
 
+T18市场/竞价组合裁定（2026-11-16）：market_stat对880005/880001/880006按identity强关联，counter以decimal nearest-even还原×10；880005金额的CNY解释严格限此字段。A股实际逐笔按既有code分类及普通A股手×100合同标Lots/PrefixFallback，其他资产及status8保持Unknown，不凭字段名泛化单位。today_fund_flow完整EmptyPage后才分类。auction_data当前日使用握手双日期最大值，均缺才取服务端datetime日期，不能用本机日期补齐；历史昨收只取历史0FC6，显式reference优先且0时百分比None。共享context/DomainPools并在首个decode前准备current quote metadata；保留每个来源原日期，不作聚合重标记。新Rust要求与Python旧位置式market_stat/rounding/逐请求策略分开适配，尚未切换Python或升级manifest；无执行验证。
+
 可以验证：静态快照重新生成一致、所有源码链接对应固定提交、Markdown链接与表格/围栏、MkDocs严格构建、根文档/包内镜像一致、已有文档测试。
 
 不能据此声称：拟议Rust API编译成功、所有业务与Python一致、线上行情正确、性能提高、wheel支持某个平台或已发布。上述结论必须等待实现后的独立验收。

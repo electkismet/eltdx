@@ -4,9 +4,9 @@ use eltdx::{helpers::classify_fund_flow, AmountUnit};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::time::Duration;
-use eltdx::{BatchItemState, CancellationToken, EndEvidence, ErrorKind, OperationOptions,
+use eltdx::{AuctionDataQuery, BatchItemState, CancellationToken, EndEvidence, ErrorKind, OperationOptions,
     Clock, PageOptions, ProfileQuery, QuantityUnit, RankQuery, RatioUnit, RawPolicy, SecurityId, TdxClient};
-use eltdx::types::EnrichmentStatus;
+use eltdx::types::{EnrichmentStatus, MarketDateChoice, TradingDate};
 
 #[test]
 fn pure_fund_flow_is_available_without_optional_features_or_a_python_runtime() {
@@ -387,4 +387,289 @@ fn cancelled_finance_never_degrades_to_a_profile_or_enters_the_cache() {
     let table = client.helpers().stock_profile_table(&ids, &query, &OperationOptions::default()).unwrap();
     assert!(table.rows()[0].finance().is_some()); assert_eq!(calls.load(Ordering::SeqCst), 2);
     client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn market_statistics_join_reordered_pseudo_indices_and_keep_sources_raw_and_units() {
+    let server = hq_server::Server::start(|request| match request.msg_type {
+        0x044d if hq_server::directory_offset(request) == 0 =>
+            hq_server::directory(&[("880005", 2), ("880001", 2), ("880006", 2)]),
+        0x044d => hq_server::directory(&[]),
+        0x053e => hq_server::legacy_prices(&[("880006", 300, 400, 0, 0),
+            ("880005", 1000, 2000, 4000, 500), ("880001", 200, 0, 0, 0)]),
+        _ => panic!("unexpected market-stat command"),
+    }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+    let stats = client.helpers().market_stat(&OperationOptions::default().with_raw(RawPolicy::RetainWire)).unwrap();
+    assert_eq!((stats.up(), stats.down(), stats.neutral(), stats.total()), (100, 200, 50, 400));
+    assert_eq!(stats.suspended_or_unclassified(), 50); assert_eq!((stats.limit_up(), stats.limit_down()), (30, 40));
+    assert_eq!(stats.market_cap().value().as_f64(), 2e10); assert_eq!(stats.market_cap().unit(), AmountUnit::Cny);
+    assert_eq!(stats.total_amount().unit(), AmountUnit::Cny); assert_eq!(stats.total_volume().unit(), QuantityUnit::Lots);
+    assert_eq!(stats.total_volume().value().as_f64(), 23.0);
+    assert!(stats.meta().sources().iter().any(|source| source.command() == Some(0x053e)
+        && source.endpoint() == Some(server.address)));
+    let raw = stats.meta().raw().unwrap(); assert_eq!(raw.row_ranges().len(), 3);
+    assert_eq!(raw.wire_frames().unwrap().len(), 1);
+    client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn market_statistics_missing_middle_is_missing_data_and_foreign_or_excess_rows_are_protocol() {
+    for case in 0..3 {
+        let server = hq_server::Server::start(move |request| match request.msg_type {
+            0x044d if hq_server::directory_offset(request) == 0 =>
+                hq_server::directory(&[("880005", 2), ("880001", 2), ("880006", 2), ("880002", 2)]),
+            0x044d => hq_server::directory(&[]),
+            0x053e => match case {
+                0 => hq_server::legacy_prices(&[("880006", 300, 400, 0, 0), ("880005", 1000, 2000, 4000, 500)]),
+                1 => hq_server::legacy_prices(&[("880005", 1000, 2000, 4000, 500), ("880002", 200, 0, 0, 0)]),
+                _ => hq_server::legacy_prices(&[("880005", 1000, 2000, 4000, 500), ("880005", 1000, 2000, 4000, 500)]),
+            },
+            _ => panic!("unexpected command"),
+        }).unwrap();
+        let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+        let error = client.helpers().market_stat(&OperationOptions::default()).unwrap_err();
+        assert_eq!(error.kind(), if case == 0 { ErrorKind::MissingData } else { ErrorKind::Protocol });
+        if case == 0 { assert!(error.context().iter().any(|(key, value)| key == "security" && value == "sh880001")); }
+        client.close().unwrap(); server.finish().unwrap();
+    }
+}
+
+#[test]
+fn today_fund_flow_waits_for_empty_eof_and_includes_opening_and_postmarket_buy_sell_trades() {
+    let seen = Arc::new(Mutex::new(Vec::new())); let observed = seen.clone();
+    let server = hq_server::Server::start(move |request| {
+        assert_eq!(request.msg_type, 0x0fc5);
+        let offset = hq_server::trade_offset(request); observed.lock().unwrap().push(offset);
+        match offset {
+            0 => hq_server::trade_rows(request, &[(910, 1000, 1001, 0), (911, 0, 200, 1)]),
+            2 => hq_server::trade_rows(request, &[(565, 1000, 40, 0), (564, 0, 2000, 8)]),
+            4 => hq_server::trade_rows(request, &[]), _ => panic!("unexpected page"),
+        }
+    }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).pool_size(1).heartbeat_interval(None).build().unwrap();
+    let flow = client.helpers().today_fund_flow(&"sh600000".parse().unwrap(),
+        &OperationOptions::default().with_raw(RawPolicy::RetainPayload)).unwrap();
+    assert_eq!(flow.super_in().value().as_f64(), 1_001_000.0);
+    assert_eq!(flow.medium_out().value().as_f64(), 200_000.0);
+    assert_eq!(flow.small_in().value().as_f64(), 40_000.0);
+    assert_eq!(flow.total_net().value().as_f64(), 841_000.0);
+    assert_eq!((flow.classified_count(), flow.skipped_count()), (3, 1));
+    assert_eq!(*seen.lock().unwrap(), vec![0, 2, 4]);
+    assert_eq!(server.connection_count(), 1); assert_eq!(flow.meta().raw().unwrap().payloads().len(), 3);
+    assert!(flow.meta().sources().iter().all(|source| source.command() == Some(0x0fc5)));
+    client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn today_fund_flow_never_returns_partial_amounts_after_corruption_no_progress_or_cancellation() {
+    for case in 0..3 {
+        let token = CancellationToken::default(); let cancel = token.clone();
+        let calls = Arc::new(AtomicUsize::new(0)); let observed = calls.clone();
+        let server = hq_server::Server::start(move |request| {
+            assert_eq!(request.msg_type, 0x0fc5); observed.fetch_add(1, Ordering::SeqCst);
+            if hq_server::trade_offset(request) == 0 { return hq_server::trade_rows(request, &[(600, 1000, 1001, 0)]); }
+            match case {
+                0 => vec![1],
+                1 => hq_server::trade_rows(request, &[(600, 1000, 1001, 0)]),
+                _ => { cancel.cancel(); hq_server::trade_rows(request, &[]) }
+            }
+        }).unwrap();
+        let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+        let error = client.helpers().today_fund_flow(&"sh600000".parse().unwrap(),
+            &OperationOptions::default().with_cancellation(token)).unwrap_err();
+        if case == 2 { assert!(matches!(error.kind(), ErrorKind::Cancelled | ErrorKind::CancelUnconfirmed)); }
+        else { assert_eq!(error.kind(), ErrorKind::Protocol); }
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        client.close().unwrap(); server.finish().unwrap();
+    }
+}
+
+#[test]
+fn today_fund_flow_empty_eof_is_zero_and_unknown_asset_units_are_never_assumed_to_be_equity() {
+    for empty in [true, false] {
+        let server = hq_server::Server::start(move |request| {
+            assert_eq!(request.msg_type, 0x0fc5);
+            if empty || hq_server::trade_offset(request) > 0 { hq_server::trade_rows(request, &[]) }
+            else { hq_server::trade_rows(request, &[(600, 1000, 23, 0)]) }
+        }).unwrap();
+        let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+        let result = client.helpers().today_fund_flow(&"sh113692".parse().unwrap(), &OperationOptions::default());
+        if empty { let flow = result.unwrap(); assert_eq!(flow.classified_count(), 0); assert_eq!(flow.total_net().value().as_f64(), 0.0); }
+        else { assert_eq!(result.unwrap_err().kind(), ErrorKind::InvalidArgument); }
+        client.close().unwrap(); server.finish().unwrap();
+    }
+}
+
+#[test]
+fn market_and_flow_rejected_entry_do_not_start_network() {
+    let server = hq_server::Server::start(|_| panic!("rejected entry sent a command")).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+    let token = CancellationToken::default(); token.cancel();
+    assert_eq!(client.helpers().market_stat(&OperationOptions::default().with_cancellation(token)).unwrap_err().kind(), ErrorKind::Cancelled);
+    assert_eq!(client.helpers().today_fund_flow(&"sh600000".parse().unwrap(), &OperationOptions::default().with_timeout(Duration::ZERO))
+        .unwrap_err().kind(), ErrorKind::Timeout);
+    assert_eq!(server.connection_count(), 0); client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn historical_auction_uses_price_base_and_formal_match_without_a_current_quote() {
+    let server = hq_server::Server::start(|request| {
+        assert_eq!(request.msg_type, 0x0fc6, "historical reference must not request a current quote or precision directory");
+        if hq_server::trade_offset(request) == 0 {
+            hq_server::trade_rows(request, &[(565, 1100, 10, 0), (564, -50, 100, 8)])
+        } else { hq_server::trade_rows(request, &[]) }
+    }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+    let date = TradingDate::new(2026, 8, 13).unwrap();
+    let query = AuctionDataQuery::new().with_date(MarketDateChoice::Date(date)).unwrap().with_series(false).unwrap();
+    let data = client.helpers().auction_data(&"sh600000".parse().unwrap(), &query,
+        &OperationOptions::default().with_raw(RawPolicy::RetainPayload)).unwrap();
+    assert_eq!(data.date(), date); assert!(data.series().is_none());
+    assert_eq!(data.pre_close().unwrap().as_f64(), 10.0); assert_eq!(data.open().unwrap().as_f64(), 11.0);
+    assert_eq!(data.opening_match().unwrap().kind(), eltdx::types::TradeEventKind::OpeningMatch);
+    assert_eq!(data.open_volume().unwrap().value().as_f64(), 10.0);
+    assert_eq!(data.open_amount().unwrap().value().as_f64(), 11_000.0);
+    assert_eq!(data.open_change().unwrap().unit(), RatioUnit::PercentagePoints);
+    assert_eq!(data.open_change().unwrap().value().as_f64(), 10.0);
+    assert_eq!(data.meta().raw().unwrap().payloads().len(), 2);
+    assert!(data.meta().sources().iter().all(|source| source.command() == Some(0x0fc6) && source.trading_date() == Some(date)));
+    client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn explicit_auction_reference_and_disabled_sources_avoid_unneeded_history_and_network() {
+    let server = hq_server::Server::start(|_| panic!("disabled auction source was requested")).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+    let date = TradingDate::new(2026, 8, 13).unwrap();
+    let query = AuctionDataQuery::new().with_date(MarketDateChoice::Date(date)).unwrap()
+        .with_series(false).unwrap().with_snapshot(false).unwrap();
+    let explicit = query.clone().with_pre_close(Some(eltdx::Price::scaled_integer(900, 2))).unwrap();
+    let data = client.helpers().auction_data(&"sh600000".parse().unwrap(), &explicit, &OperationOptions::default()).unwrap();
+    assert_eq!(data.pre_close().unwrap().as_f64(), 9.0); assert!(data.opening_match().is_none());
+    assert!(data.meta().diagnostics().iter().any(|item| item.stage() == "auction.reference"
+        && item.message().unwrap_or("").contains("explicit")));
+    let disabled = query.with_quote(false).unwrap();
+    let data = client.helpers().auction_data(&"sh600000".parse().unwrap(), &disabled, &OperationOptions::default()).unwrap();
+    assert_eq!(data.date(), date); assert!(data.pre_close().is_none()); assert!(data.open().is_none());
+    assert!(data.open_amount().is_none()); assert!(data.open_change().is_none());
+    assert!(data.meta().diagnostics().iter().all(|item| item.status() == EnrichmentStatus::NotRequested));
+    assert_eq!(server.connection_count(), 0); client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn current_auction_date_comes_from_server_even_with_all_data_sources_disabled() {
+    let server = hq_server::Server::start_all(|request| match request.msg_type {
+        0x000d => hq_server::handshake_dates(20261113, 20261116),
+        0x0004 => vec![0; 10], _ => panic!("disabled source was requested"),
+    }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None)
+        .clock(Arc::new(HelperClock(AtomicI64::new(0)))).build().unwrap();
+    let query = AuctionDataQuery::new().with_series(false).unwrap().with_snapshot(false).unwrap().with_quote(false).unwrap();
+    let data = client.helpers().auction_data(&"sh600000".parse().unwrap(), &query, &OperationOptions::default()).unwrap();
+    assert_eq!(data.date(), TradingDate::new(2026, 11, 16).unwrap()); assert!(data.open().is_none());
+    assert!(data.meta().sources().iter().any(|source| source.command() == Some(0x000d)
+        && source.trading_date() == Some(TradingDate::new(2026, 11, 13).unwrap())), "original handshake stamp must not be relabeled");
+    client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn current_auction_shares_context_and_metadata_across_dedicated_series_trades_and_quote() {
+    let server = hq_server::Server::start_all(|request| match request.msg_type {
+        0x000d => hq_server::handshake_dates(20261116, 20261116),
+        0x0004 => vec![0; 10],
+        0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&[("600000", 2)]),
+        0x044d => hq_server::directory(&[]),
+        0x054c => hq_server::snapshots(&[("600000", 100_000)]),
+        0x0fc5 => hq_server::trade_rows(request, &[(564, 1050, 100, 8), (565, 50, 10, 0)]),
+        _ => panic!("unexpected current-auction command"),
+    }).unwrap();
+    let auction = hq_server::Server::start(|request| { assert_eq!(request.msg_type, 0x056a);
+        hq_server::auction_rows(&[(564, 59, 10.5, 100, 20)]) }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).auction_endpoints(vec![auction.address])
+        .pool_size(1).heartbeat_interval(None).clock(Arc::new(HelperClock(AtomicI64::new(0)))).build().unwrap();
+    let data = client.helpers().auction_data(&"sh600000".parse().unwrap(), &AuctionDataQuery::new(),
+        &OperationOptions::default().with_raw(RawPolicy::RetainPayload)).unwrap();
+    let date = TradingDate::new(2026, 11, 16).unwrap();
+    assert_eq!(data.date(), date); assert_eq!(data.series().unwrap().points().len(), 1);
+    assert_eq!(data.series().unwrap().trading_date(), Some(date));
+    assert_eq!(data.pre_close().unwrap().as_f64(), 10.0); assert_eq!(data.open().unwrap().as_f64(), 11.0);
+    assert_eq!(data.opening_match().unwrap().source().trading_date(), Some(date));
+    assert_eq!(data.open_amount().unwrap().value().as_f64(), 11_000.0);
+    for command in [0x000d, 0x056a, 0x0fc5, 0x054c] {
+        assert!(data.meta().sources().iter().any(|source| source.command() == Some(command)));
+    }
+    assert_eq!(server.connection_count(), 1); assert_eq!(auction.connection_count(), 1);
+    client.close().unwrap(); server.finish().unwrap(); auction.finish().unwrap();
+}
+
+#[test]
+fn auction_without_a_formal_match_never_uses_the_nearest_0924_snapshot() {
+    let server = hq_server::Server::start(|request| {
+        assert_eq!(request.msg_type, 0x0fc6);
+        if hq_server::trade_offset(request) == 0 { hq_server::trade_rows(request, &[(564, 1100, 1000, 8)]) }
+        else { hq_server::trade_rows(request, &[]) }
+    }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+    let query = AuctionDataQuery::new().with_date(MarketDateChoice::Date(TradingDate::new(2026, 8, 13).unwrap())).unwrap()
+        .with_series(false).unwrap().with_quote(false).unwrap();
+    let data = client.helpers().auction_data(&"sh600000".parse().unwrap(), &query, &OperationOptions::default()).unwrap();
+    assert!(data.opening_match().is_none()); assert!(data.open().is_none()); assert!(data.open_volume().is_none());
+    assert!(data.open_amount().is_none()); assert!(data.open_change().is_none());
+    assert!(data.meta().diagnostics().iter().any(|item| item.stage() == "auction.opening_match" && item.status() == EnrichmentStatus::Unavailable));
+    client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn auction_invalid_reference_date_missing_source_date_and_rejected_entry_do_not_make_up_values() {
+    for value in [f64::NAN, f64::INFINITY, -1.0] {
+        assert_eq!(AuctionDataQuery::new().with_pre_close(Some(eltdx::Price::from_f64(value))).unwrap_err().kind(), ErrorKind::InvalidArgument);
+    }
+    assert!(AuctionDataQuery::new().with_date(MarketDateChoice::Date(TradingDate::new(10_000, 1, 1).unwrap())).is_err());
+    let server = hq_server::Server::start(|_| panic!("no non-session command expected")).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+    let query = AuctionDataQuery::new().with_series(false).unwrap().with_snapshot(false).unwrap().with_quote(false).unwrap();
+    let id = "sh600000".parse().unwrap();
+    assert_eq!(client.helpers().auction_data(&id, &query, &OperationOptions::default().with_timeout(Duration::ZERO))
+        .unwrap_err().kind(), ErrorKind::Timeout); assert_eq!(server.connection_count(), 0);
+    assert_eq!(client.helpers().auction_data(&id, &query, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::MetadataUnavailable);
+    client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn auction_explicit_zero_reference_keeps_match_and_omits_only_the_undefined_percentage() {
+    let server = hq_server::Server::start(|request| {
+        assert_eq!(request.msg_type, 0x0fc6);
+        if hq_server::trade_offset(request) == 0 { hq_server::trade_rows(request, &[(565, 1100, 10, 0)]) }
+        else { hq_server::trade_rows(request, &[]) }
+    }).unwrap();
+    let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+    let query = AuctionDataQuery::new().with_date(MarketDateChoice::Date(TradingDate::new(2026, 8, 13).unwrap())).unwrap()
+        .with_series(false).unwrap().with_pre_close(Some(eltdx::Price::scaled_integer(0, 2))).unwrap();
+    let data = client.helpers().auction_data(&"sh600000".parse().unwrap(), &query, &OperationOptions::default()).unwrap();
+    assert_eq!(data.pre_close().unwrap().as_f64(), 0.0); assert_eq!(data.open().unwrap().as_f64(), 11.0);
+    assert!(data.open_change().is_none()); assert_eq!(data.open_amount().unwrap().value().as_f64(), 11_000.0);
+    assert!(data.meta().diagnostics().iter().any(|item| item.stage() == "auction.open_change"
+        && item.status() == EnrichmentStatus::Unavailable));
+    client.close().unwrap(); server.finish().unwrap();
+}
+
+#[test]
+fn auction_requested_source_failure_or_cancellation_never_returns_a_partial_composition() {
+    for cancelled in [false, true] {
+        let token = CancellationToken::default(); let cancel = token.clone();
+        let server = hq_server::Server::start(move |request| {
+            assert_eq!(request.msg_type, 0x0fc6);
+            if hq_server::trade_offset(request) == 0 { return hq_server::trade_rows(request, &[(565, 1100, 10, 0)]); }
+            if cancelled { cancel.cancel(); hq_server::trade_rows(request, &[]) } else { vec![1] }
+        }).unwrap();
+        let client = TdxClient::builder().endpoints(vec![server.address]).heartbeat_interval(None).build().unwrap();
+        let query = AuctionDataQuery::new().with_date(MarketDateChoice::Date(TradingDate::new(2026, 8, 13).unwrap())).unwrap()
+            .with_series(false).unwrap();
+        let error = client.helpers().auction_data(&"sh600000".parse().unwrap(), &query,
+            &OperationOptions::default().with_cancellation(token)).unwrap_err();
+        if cancelled { assert!(matches!(error.kind(), ErrorKind::Cancelled | ErrorKind::CancelUnconfirmed)); }
+        else { assert_eq!(error.kind(), ErrorKind::Protocol); }
+        client.close().unwrap(); server.finish().unwrap();
+    }
 }

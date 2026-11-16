@@ -1,7 +1,84 @@
 use crate::{Error, ErrorKind, Result};
 use super::{Amount, CategoryQuote, Diagnostic, EnrichmentStatus, PageOptions, Price,
     Quantity, QuoteCategory, QuoteSort, Ratio, ResultMeta, SecurityId, Snapshot, SourceStamp,
-    FinanceRecord, Security, SecurityBoard, SecurityCategory, TradingDate};
+    AuctionQuery, AuctionSeries, FinanceRecord, MarketDateChoice, Security, SecurityBoard,
+    SecurityCategory, TradeTick, TradingDate};
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct AuctionDataQuery {
+    date: MarketDateChoice, include_series: bool, include_snapshot: bool,
+    include_quote: bool, pre_close: Option<Price>,
+}
+impl Default for AuctionDataQuery {
+    fn default() -> Self { Self { date: MarketDateChoice::Current, include_series: true,
+        include_snapshot: true, include_quote: true, pre_close: None } }
+}
+impl AuctionDataQuery {
+    pub fn new() -> Self { Self::default() }
+    pub fn with_date(mut self, date: MarketDateChoice) -> Result<Self> {
+        AuctionQuery::new().with_date(date)?; self.date = date; Ok(self)
+    }
+    pub fn with_series(mut self, value: bool) -> Result<Self> { self.include_series = value; Ok(self) }
+    pub fn with_snapshot(mut self, value: bool) -> Result<Self> { self.include_snapshot = value; Ok(self) }
+    pub fn with_quote(mut self, value: bool) -> Result<Self> { self.include_quote = value; Ok(self) }
+    pub fn with_pre_close(mut self, value: Option<Price>) -> Result<Self> {
+        if value.is_some_and(|value| !value.as_f64().is_finite() || value.as_f64() < 0.0) {
+            return Err(Error::new(ErrorKind::InvalidArgument, "auction reference must be finite and nonnegative"));
+        }
+        self.pre_close = value; Ok(self)
+    }
+    pub const fn date(&self) -> MarketDateChoice { self.date }
+    pub const fn include_series(&self) -> bool { self.include_series }
+    pub const fn include_snapshot(&self) -> bool { self.include_snapshot }
+    pub const fn include_quote(&self) -> bool { self.include_quote }
+    pub const fn pre_close(&self) -> Option<Price> { self.pre_close }
+}
+
+/// Opening amounts come only from formal executed OpeningMatch ticks.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AuctionData {
+    pub(crate) id: SecurityId, pub(crate) date: TradingDate,
+    pub(crate) series: Option<AuctionSeries>, pub(crate) opening_match: Option<TradeTick>,
+    pub(crate) pre_close: Option<Price>, pub(crate) open: Option<Price>,
+    pub(crate) open_volume: Option<Quantity>, pub(crate) open_amount: Option<Amount>,
+    pub(crate) open_change: Option<Ratio>, pub(crate) meta: ResultMeta,
+}
+impl AuctionData {
+    pub fn id(&self) -> &SecurityId { &self.id }
+    pub const fn date(&self) -> TradingDate { self.date }
+    pub fn series(&self) -> Option<&AuctionSeries> { self.series.as_ref() }
+    pub fn opening_match(&self) -> Option<&TradeTick> { self.opening_match.as_ref() }
+    pub const fn pre_close(&self) -> Option<Price> { self.pre_close }
+    pub const fn open(&self) -> Option<Price> { self.open }
+    pub const fn open_volume(&self) -> Option<Quantity> { self.open_volume }
+    pub const fn open_amount(&self) -> Option<Amount> { self.open_amount }
+    /// Percentage points, e.g. 10 for a ten-percent opening change.
+    pub const fn open_change(&self) -> Option<Ratio> { self.open_change }
+    pub fn meta(&self) -> &ResultMeta { &self.meta }
+}
+
+/// Breadth pseudo-indices. The residual count is not confirmed suspensions.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MarketStat {
+    pub(crate) up: u64, pub(crate) down: u64, pub(crate) neutral: u64,
+    pub(crate) suspended_or_unclassified: u64, pub(crate) total: u64,
+    pub(crate) limit_up: u64, pub(crate) limit_down: u64,
+    pub(crate) total_amount: Amount, pub(crate) total_volume: Quantity,
+    pub(crate) market_cap: Amount, pub(crate) meta: ResultMeta,
+}
+impl MarketStat {
+    pub const fn up(&self) -> u64 { self.up }
+    pub const fn down(&self) -> u64 { self.down }
+    pub const fn neutral(&self) -> u64 { self.neutral }
+    pub const fn suspended_or_unclassified(&self) -> u64 { self.suspended_or_unclassified }
+    pub const fn total(&self) -> u64 { self.total }
+    pub const fn limit_up(&self) -> u64 { self.limit_up }
+    pub const fn limit_down(&self) -> u64 { self.limit_down }
+    pub const fn total_amount(&self) -> Amount { self.total_amount }
+    pub const fn total_volume(&self) -> Quantity { self.total_volume }
+    pub const fn market_cap(&self) -> Amount { self.market_cap }
+    pub fn meta(&self) -> &ResultMeta { &self.meta }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ProfileQuery { include_security: bool, include_finance: bool }

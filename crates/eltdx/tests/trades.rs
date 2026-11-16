@@ -68,6 +68,8 @@ fn collect_keeps_page_local_order_absolute_indices_late_trades_and_raw_ranges() 
     assert_eq!(ticks[2].time().clock(), Some((15, 10, 0)));
     assert_eq!(ticks[3].side(), TradeSide::Status(99));
     assert_eq!(ticks[0].auction_matched(), None);
+    assert_eq!(ticks[0].volume().unit(), eltdx::QuantityUnit::Unknown);
+    assert_eq!(ticks[1].volume().unit(), eltdx::QuantityUnit::Lots);
     assert_eq!(ticks[2].unknown_tail(), Some(7));
     assert_eq!(page.ticks().end(), EndEvidence::EmptyPage);
     assert_eq!(page.pages_read(), 3);
@@ -101,6 +103,7 @@ fn today_and_history_columns_reconstruct_every_row_field_without_a_second_reques
         assert_eq!(columns.tick(0)?.unknown_tail(), if index == 0 { Some(17) } else { None });
         assert_eq!(columns.tick(0)?.reserved_zero(), if index == 0 { None } else { Some(17) });
         assert_eq!(columns.columns().price_denominators(), [1000, 1000]);
+        assert!(columns.columns().volumes().iter().all(|volume| volume.unit() == eltdx::QuantityUnit::Unknown));
         assert!(columns.meta().raw().is_none());
     }
     client.close()?; server.finish()?; Ok(())
@@ -113,6 +116,8 @@ fn ordinary_ticks_keep_hundredths_and_ignore_quote_precision_metadata() -> Resul
     let page = client.trades().page(&id(), &TradeQuery::new(), &OperationOptions::default())?;
     assert_eq!(page.ticks().items()[0].price().value(), NumericValue::ScaledInteger { value: 12345, scale: 2 });
     assert_eq!(page.ticks().items()[0].price_acc_raw(), 12345);
+    assert_eq!(page.ticks().items()[0].volume().unit(), eltdx::QuantityUnit::Lots);
+    assert_eq!(page.ticks().items()[0].volume().provenance(), eltdx::types::ValueProvenance::PrefixFallback);
     client.close()?; server.finish()?; Ok(())
 }
 

@@ -139,7 +139,7 @@ pub struct TdxClient {
 
 impl TdxClient {
     pub fn helpers(&self) -> crate::helpers::HelperService {
-        crate::helpers::HelperService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+        crate::helpers::HelperService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone(), self.domains.clone())
     }
     pub fn resources(&self) -> crate::services::ResourceService {
         crate::services::ResourceService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
