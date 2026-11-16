@@ -6,6 +6,7 @@ use crate::error::{Error, ErrorKind, Result};
 
 #[derive(Clone, Debug)]
 pub struct ClientConfig {
+    pub(crate) clock: crate::types::time::ClockHandle,
     pub(crate) pool_size: usize,
     pub(crate) request_timeout: Duration,
     pub(crate) close_timeout: Duration,
@@ -17,6 +18,7 @@ pub struct ClientConfig {
 }
 
 impl ClientConfig {
+    pub fn clock(&self) -> &dyn crate::types::Clock { self.clock.0.as_ref() }
     pub fn pool_size(&self) -> usize {
         self.pool_size
     }
@@ -52,6 +54,7 @@ impl ClientConfig {
 
 #[derive(Clone, Debug)]
 pub(crate) struct ConfigDraft {
+    pub(crate) clock: crate::types::time::ClockHandle,
     pub(crate) pool_size: usize,
     pub(crate) request_timeout: Duration,
     pub(crate) close_timeout: Duration,
@@ -65,6 +68,7 @@ pub(crate) struct ConfigDraft {
 impl Default for ConfigDraft {
     fn default() -> Self {
         Self {
+            clock: crate::types::time::ClockHandle::default(),
             pool_size: 1,
             request_timeout: Duration::from_secs(8),
             close_timeout: Duration::from_secs(1),
@@ -107,6 +111,7 @@ impl ConfigDraft {
         }
 
         Ok(ClientConfig {
+            clock: self.clock,
             pool_size: self.pool_size,
             request_timeout: self.request_timeout,
             close_timeout: self.close_timeout,

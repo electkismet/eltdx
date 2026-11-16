@@ -1,4 +1,5 @@
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::Arc;
 
 use crate::error::{Error, ErrorKind, Result};
 
@@ -10,6 +11,19 @@ pub trait Clock: Send + Sync {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SystemClock;
+
+#[derive(Clone)]
+pub(crate) struct ClockHandle(pub(crate) Arc<dyn Clock>);
+
+impl Default for ClockHandle {
+    fn default() -> Self { Self(Arc::new(SystemClock)) }
+}
+
+impl std::fmt::Debug for ClockHandle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("ClockHandle(..)")
+    }
+}
 
 impl Clock for SystemClock {
     fn unix_seconds(&self) -> Result<i64> {

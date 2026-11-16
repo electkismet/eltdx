@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use eltdx_protocol::CommandRequest;
 use eltdx_runtime::engine::{Engine, PendingPoll, PendingRawExecution, PinHandle, SIGNAL_POLL_INTERVAL};
@@ -9,6 +9,8 @@ use crate::config::ClientConfig;
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::operation::{ChildPurpose, OperationContext, OperationOptions, RecoveryLimit};
 use crate::session::{SessionOperation, SessionOwner};
+use crate::metadata::{FlightPolicy, MetadataSnapshot, hq_market};
+use crate::types::{HqMarket, SecurityId};
 
 /// Owner-bound entry point for HQ operations. It holds no runtime worker itself.
 #[derive(Clone, Debug)]
@@ -51,6 +53,114 @@ impl HqExecutor {
         &self, entry: Instant, operation: &'static str, config: &ClientConfig, options: &OperationOptions,
     ) -> Result<OperationContext> {
         OperationContext::rust_public(entry, operation, Arc::clone(&self.owner), config, options)
+    }
+
+    /// Resolve every required market for the whole operation before its first
+    /// decode. The caller supplies the source/catalog namespace of this Engine.
+    /// Passing all batch chunks here preserves one immutable capture across them.
+    pub(crate) fn prepare_metadata(
+        &self, engine: &Engine, context: &OperationContext, config: &ClientConfig,
+        namespace: &str, requests: &[CommandRequest],
+    ) -> Result<Arc<MetadataSnapshot>> {
+        self.check_context(context)?;
+        context.check_boundary(TimeoutPhase::Admission)?;
+        if namespace.is_empty() {
+            return Err(Error::new(ErrorKind::InvalidArgument, "metadata source namespace must not be empty"));
+        }
+        // Legacy adapters explicitly choose their historical preload scope and
+        // request order; they do not enter normal Rust request inference.
+        if context.is_legacy() {
+            return Err(Error::new(ErrorKind::InvalidArgument, "legacy metadata must use its explicit compatibility preload"));
+        }
+        let markets = required_markets(requests);
+        if let Some(snapshot) = context.metadata()? {
+            if snapshot.key().namespace() != namespace {
+                return Err(Error::new(ErrorKind::InvalidArgument, "operation metadata belongs to a different source"));
+            }
+            validate_request_precision(&snapshot, requests)?;
+            return Ok(snapshot);
+        }
+        let mut snapshots = Vec::with_capacity(markets.len());
+        if !markets.is_empty() { self.register_engine(engine.clone())?; }
+        for market in markets {
+            context.check_boundary(TimeoutPhase::Admission)?;
+            let loaded = self.owner.metadata().load_hq_market(
+                engine.clone(), namespace, market, context.sponsor(),
+                FlightPolicy::rust_source_cap(config.request_timeout(), config.cleanup_timeout()),
+                config.request_timeout(), Duration::from_secs(24 * 60 * 60), false,
+            ).map_err(|error| context.annotate(error, TimeoutPhase::Decode, None))?;
+            snapshots.push(loaded);
+        }
+        let snapshot = self.owner.metadata().capture(namespace, &snapshots)?;
+        validate_request_precision(&snapshot, requests)?;
+        context.install_metadata(Arc::clone(&snapshot))?;
+        Ok(snapshot)
+    }
+
+    /// Compatibility callers pass exactly the historical selected market order.
+    /// No Rust source total cap or market inference is imposed on that path.
+    pub(crate) fn prepare_legacy_metadata(
+        &self, engine: &Engine, context: &OperationContext, namespace: &str,
+        markets: &[HqMarket], request_timeout: Duration, cleanup_timeout: Duration,
+    ) -> Result<Arc<MetadataSnapshot>> {
+        self.check_context(context)?;
+        if !context.is_legacy() || namespace.is_empty() {
+            return Err(Error::new(ErrorKind::InvalidArgument, "explicit legacy metadata policy required"));
+        }
+        if let Some(snapshot) = context.metadata()? {
+            if snapshot.key().namespace() != namespace {
+                return Err(Error::new(ErrorKind::InvalidArgument, "operation metadata belongs to a different source"));
+            }
+            return Ok(snapshot);
+        }
+        let mut snapshots = Vec::with_capacity(markets.len());
+        if !markets.is_empty() { self.register_engine(engine.clone())?; }
+        for &market in markets {
+            context.check_boundary(TimeoutPhase::Admission)?;
+            snapshots.push(self.owner.metadata().load_hq_market(
+                engine.clone(), namespace, market, context.sponsor(),
+                FlightPolicy::legacy_per_request(cleanup_timeout), request_timeout,
+                Duration::from_secs(24 * 60 * 60), false,
+            )?);
+        }
+        let snapshot = self.owner.metadata().capture(namespace, &snapshots)?;
+        context.install_metadata(Arc::clone(&snapshot))?;
+        Ok(snapshot)
+    }
+
+    pub(crate) fn execute_decoded(
+        &self, engine: &Engine, context: &OperationContext, config: &ClientConfig,
+        namespace: &str, request: CommandRequest, purpose: ChildPurpose,
+        recovery: Option<RecoveryLimit>,
+    ) -> Result<super::decode::DecodedReply> {
+        self.prepare_metadata(engine, context, config, namespace, std::slice::from_ref(&request))?;
+        let raw = self.execute_raw(engine, context, request, purpose, recovery)?;
+        self.decode_received(context, raw)
+    }
+
+    pub(crate) fn decode_received(
+        &self, context: &OperationContext, raw: RawReply,
+    ) -> Result<super::decode::DecodedReply> {
+        self.check_context(context)?;
+        let command = raw.request.command_code();
+        let snapshot = context.begin_decode()?;
+        validate_request_precision(&snapshot, std::slice::from_ref(&raw.request))?;
+        let decoded = super::decode::decode_reply(raw, context.raw(), snapshot.as_ref()).map_err(|error| {
+            let kind = match &error {
+                eltdx_protocol::ProtocolError::InvalidData { context: "price precision", .. } => ErrorKind::MetadataUnavailable,
+                _ => ErrorKind::Protocol,
+            };
+            context.annotate(Error::new(kind, "HQ response decoding failed").with_source(error), TimeoutPhase::Decode, Some(command))
+        })?;
+        context.check_boundary(TimeoutPhase::Decode)?;
+        Ok(decoded)
+    }
+
+    fn check_context(&self, context: &OperationContext) -> Result<()> {
+        if !Arc::ptr_eq(context.owner(), &self.owner) {
+            return Err(Error::new(ErrorKind::InvalidArgument, "operation belongs to a different session"));
+        }
+        Ok(())
     }
 
     pub(crate) fn execute_raw(
@@ -167,6 +277,49 @@ impl HqExecutor {
     }
 }
 
+fn requested_securities(request: &CommandRequest) -> Vec<&eltdx_protocol::unit::NormalizedCode> {
+    match request {
+        CommandRequest::Snapshots(request) => request.codes.iter().collect(),
+        CommandRequest::LegacyQuotes(request) => request.codes.iter().collect(),
+        CommandRequest::RefreshStream(request) => request.items.iter().map(|item| &item.code).collect(),
+        CommandRequest::TodayIntraday(request) => vec![&request.code],
+        CommandRequest::HistoricalIntraday(request) => vec![&request.code],
+        CommandRequest::RecentIntraday(request) => vec![&request.code],
+        _ => Vec::new(),
+    }
+}
+
+fn required_markets(requests: &[CommandRequest]) -> Vec<HqMarket> {
+    let mut markets = Vec::new();
+    for request in requests {
+        // Category pages identify securities only in the response. Capture all
+        // possible HQ markets before decoding any row of such a page.
+        if matches!(request, CommandRequest::CategoryQuotes(_)) {
+            return vec![HqMarket::Shenzhen, HqMarket::Shanghai, HqMarket::Beijing];
+        }
+        for code in requested_securities(request) {
+            let market = hq_market(code.market());
+            if !markets.contains(&market) { markets.push(market); }
+        }
+    }
+    markets
+}
+
+fn validate_request_precision(snapshot: &MetadataSnapshot, requests: &[CommandRequest]) -> Result<()> {
+    for market in required_markets(requests) {
+        if !snapshot.covers_market(market) {
+            return Err(Error::new(ErrorKind::MetadataUnavailable, "operation snapshot does not contain the required market")
+                .with_context("market", market.code()));
+        }
+    }
+    for request in requests {
+        for code in requested_securities(request) {
+            snapshot.require_precision(&SecurityId::new(hq_market(code.market()), code.number())?)?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod operation_retirement_tests {
     use std::error::Error as _;
@@ -178,6 +331,41 @@ mod operation_retirement_tests {
     use crate::error::{Error, ErrorKind, TimeoutPhase};
     use crate::operation::OperationOptions;
     use crate::session::SessionOwner;
+
+    #[test]
+    fn irrelevant_command_preparation_leaves_engine_unstarted_and_snapshot_empty() {
+        use eltdx_protocol::commands::security::SecurityCountRequest;
+        use eltdx_protocol::unit::Market;
+        use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions};
+        let config = ClientBuilder::new().build().unwrap().config().clone();
+        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+        let executor = HqExecutor::new(Arc::clone(&owner));
+        let context = executor.begin_context("no-prefetch", &config, &OperationOptions::default()).unwrap();
+        // Port 1 is deliberately never used; prepare only inspects request shape.
+        let engine = Engine::new(EngineConfig::new(vec!["127.0.0.1:1".into()], 1.0, EngineConfigOptions {
+            pool_size: 1, runtime_workers: Some(1), server_count: 1,
+            max_connections_per_host: None, connect_concurrency: None, connect_concurrency_per_host: None,
+            global_raw_bytes: None, global_decoded_bytes: None, heartbeat_interval: None,
+            max_pending_requests: 1, push_queue_size: 1, push_queue_bytes: 1024,
+        }).unwrap()).unwrap();
+        let request = eltdx_protocol::CommandRequest::SecurityCount(SecurityCountRequest { market: Market::Shanghai, client_date: 0 });
+        let snapshot = executor.prepare_metadata(&engine, &context, &config, "no-network", &[request]).unwrap();
+        assert_eq!(snapshot.version(), 0);
+        assert_eq!(context.counters().unwrap().logical_requests, 0);
+        assert!(!snapshot.covers_market(crate::types::HqMarket::Shanghai));
+        drop(context);
+        owner.close().unwrap();
+    }
+
+    #[test]
+    fn strict_request_identity_selects_only_its_market() {
+        use eltdx_protocol::commands::quotes::SnapshotsRequest;
+        use eltdx_protocol::unit::NormalizedCode;
+        let request = eltdx_protocol::CommandRequest::Snapshots(SnapshotsRequest {
+            codes: vec![NormalizedCode::parse("sh510300").unwrap()],
+        });
+        assert_eq!(super::required_markets(&[request]), vec![crate::types::HqMarket::Shanghai]);
+    }
 
     #[test]
     fn confirmed_retirement_returns_first_annotated_stop_cause_with_runtime_source() {

@@ -154,6 +154,7 @@ struct Flight {
     timeout_source: &'static str,
     cleanup_timeout: Duration,
     stop_requested: AtomicBool,
+    cleanup_deadline: Mutex<Option<Instant>>,
     waiters: Mutex<Vec<FlightWaiter>>,
     result: Mutex<FlightResult>,
     changed: Condvar,
@@ -174,6 +175,7 @@ impl Flight {
             timeout_source: policy.timeout_source,
             cleanup_timeout: policy.cleanup_timeout,
             stop_requested: AtomicBool::new(false),
+            cleanup_deadline: Mutex::new(None),
             waiters: Mutex::new(vec![first_waiter]),
             result: Mutex::new(FlightResult::default()),
             changed: Condvar::new(),
@@ -206,12 +208,25 @@ impl Flight {
     }
 
     fn request_stop(&self) {
+        if let Some(deadline) = Instant::now().checked_add(self.cleanup_timeout) {
+            if let Ok(mut bound) = self.cleanup_deadline.lock() {
+                *bound = Some(bound.map_or(deadline, |previous| previous.min(deadline)));
+            }
+        }
         self.stop_requested.store(true, Ordering::Release);
         self.changed.notify_all();
     }
 
+    fn stop_before(&self, deadline: Instant) {
+        if let Ok(mut bound) = self.cleanup_deadline.lock() {
+            *bound = Some(bound.map_or(deadline, |previous| previous.min(deadline)));
+        }
+        self.request_stop();
+    }
+
     fn active_sponsors(&self) -> Result<Vec<FlightWaiter>> {
         let current = self.waiters.lock().map_err(|_| flight_poisoned())?.clone();
+        let sampled_ids: HashSet<u64> = current.iter().map(|waiter| waiter.id).collect();
         let mut active = Vec::with_capacity(current.len());
         let mut invalid_ids = HashSet::with_capacity(current.len());
         for waiter in current {
@@ -224,6 +239,7 @@ impl Flight {
         let mut waiters = self.waiters.lock().map_err(|_| flight_poisoned())?;
         // Do not erase waiters registered after the snapshot above.
         waiters.retain(|waiter| !invalid_ids.contains(&waiter.id));
+        active.extend(waiters.iter().filter(|waiter| !sampled_ids.contains(&waiter.id)).cloned());
         if waiters.is_empty() {
             self.request_stop();
         }
@@ -291,7 +307,6 @@ struct StoreState {
     flights: HashMap<SnapshotKey, Arc<Flight>>,
 }
 
-/// Owner-owned in Stage B; Stage A keeps the store independent for isolated review.
 struct StoreInner {
     state: Mutex<StoreState>,
     next_version: AtomicU64,
@@ -333,7 +348,32 @@ impl MetadataStore {
         Ok(self.inner.state.lock().map_err(|_| flight_poisoned())?.snapshots.get(key).cloned())
     }
 
-    pub(crate) fn get_or_load<F>(
+    pub(crate) fn capture(&self, namespace: &str, snapshots: &[Arc<MetadataSnapshot>]) -> Result<Arc<MetadataSnapshot>> {
+        if snapshots.len() == 1 && snapshots[0].key().namespace() == namespace {
+            return Ok(Arc::clone(&snapshots[0]));
+        }
+        let version = if snapshots.is_empty() { 0 } else {
+            self.inner.next_version.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| next.checked_add(1))
+                .map_err(|_| Error::new(ErrorKind::Internal, "metadata capture version exhausted"))?
+        };
+        Ok(Arc::new(MetadataSnapshot::capture(namespace, version, snapshots)?))
+    }
+
+    /// The sole production loader owns only runtime state and cooperatively
+    /// polls its source/cleanup bounds; arbitrary callbacks are test-only.
+    pub(crate) fn load_hq_market(
+        &self, engine: eltdx_runtime::engine::Engine, namespace: &str, market: HqMarket,
+        sponsor: OperationSponsor, policy: FlightPolicy, request_timeout: Duration,
+        ttl: Duration, refresh: bool,
+    ) -> Result<Arc<MetadataSnapshot>> {
+        let key = SnapshotKey::hq(namespace, market);
+        self.load_or_refresh(key, sponsor, policy, ttl, refresh, move |control| {
+            super::loader::load_market(&engine, market, request_timeout, control)
+        })
+    }
+
+    #[cfg(test)]
+    fn get_or_load<F>(
         &self,
         key: SnapshotKey,
         sponsor: OperationSponsor,
@@ -347,7 +387,8 @@ impl MetadataStore {
         self.load_or_refresh(key, sponsor, policy, ttl, false, load)
     }
 
-    pub(crate) fn refresh<F>(
+    #[cfg(test)]
+    fn refresh<F>(
         &self, key: SnapshotKey, sponsor: OperationSponsor, policy: FlightPolicy, ttl: Duration, load: F,
     ) -> Result<Arc<MetadataSnapshot>>
     where
@@ -378,7 +419,10 @@ impl MetadataStore {
                 return Err(Error::new(ErrorKind::Closed, "metadata store is closed"));
             }
             if let Some(snapshot) = state.snapshots.get(&key).filter(|snapshot| !refresh && snapshot.is_fresh_at(now)) {
-                return Ok(Arc::clone(snapshot));
+                let snapshot = Arc::clone(snapshot);
+                drop(state);
+                sponsor.check_boundary()?;
+                return Ok(snapshot);
             }
             if let Some(flight) = state.flights.get(&key).filter(|flight| !flight.stop_requested.load(Ordering::Acquire)) {
                 let flight = Arc::clone(flight);
@@ -410,17 +454,34 @@ impl MetadataStore {
         &self, key: SnapshotKey, flight: Arc<Flight>, control: FlightControl, ttl: Duration, load: F,
     ) -> Result<()>
     where F: FnOnce(&FlightControl) -> Result<MarketCandidate> + Send + 'static {
+        // Registration and shutdown serialize on this mutex. Once shutdown can
+        // observe an empty worker set, no late worker can appear behind it.
+        let mut workers = self.workers.lock().map_err(|_| flight_poisoned())?;
+        let mut active = Vec::with_capacity(workers.len() + 1);
+        for previous in workers.drain(..) {
+            if previous.is_finished() { let _ = previous.join(); } else { active.push(previous); }
+        }
+        *workers = active;
+        if self.inner.sealed.load(Ordering::Acquire) || workers.len() >= MAX_ACTIVE_FLIGHTS {
+            flight.request_stop();
+            let error = if self.inner.sealed.load(Ordering::Acquire) {
+                Error::new(ErrorKind::Closed, "metadata store is closed")
+            } else {
+                Error::new(ErrorKind::LimitExceeded, "metadata worker capacity reached")
+            };
+            let _ = flight.complete(Err(error.clone()));
+            return Err(error);
+        }
         // The worker owns no strong store/owner reference. Completion always lives in flight.
         let weak_inner = Arc::downgrade(&self.inner);
         let failure_flight = Arc::clone(&flight);
         let worker = thread::Builder::new().name("eltdx-metadata".to_owned()).spawn(move || {
-            let loaded = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| load(&control)))
-                .unwrap_or_else(|_| Err(Error::new(ErrorKind::Internal, "metadata loader panicked")))
-                .and_then(|candidate| {
-                    control.check_active()?;
-                    let inner = weak_inner.upgrade().ok_or_else(|| Error::new(ErrorKind::Closed, "metadata store is closed"))?;
-                    inner.publish(candidate, &key, ttl, &flight)
-                });
+            let loaded = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let candidate = load(&control)?;
+                control.check_active()?;
+                let inner = weak_inner.upgrade().ok_or_else(|| Error::new(ErrorKind::Closed, "metadata store is closed"))?;
+                inner.publish(candidate, &key, ttl, &flight)
+            })).unwrap_or_else(|_| Err(Error::new(ErrorKind::Internal, "metadata loader panicked")));
             let _ = flight.complete(loaded);
             if let Some(inner) = weak_inner.upgrade() {
                 if let Ok(mut state) = inner.state.lock() {
@@ -435,26 +496,20 @@ impl MetadataStore {
             let _ = failure_flight.complete(Err(error.clone()));
             error
         })?;
-        let mut workers = self.workers.lock().map_err(|_| flight_poisoned())?;
-        let mut active = Vec::with_capacity(workers.len() + 1);
-        for previous in workers.drain(..) {
-            if previous.is_finished() { let _ = previous.join(); } else { active.push(previous); }
-        }
-        active.push(worker);
-        *workers = active;
+        workers.push(worker);
         Ok(())
     }
 
     pub(crate) fn stop_all(&self) {
+        self.inner.sealed.store(true, Ordering::Release);
         if let Ok(state) = self.inner.state.lock() {
-            self.inner.sealed.store(true, Ordering::Release);
             for flight in state.flights.values() { flight.request_stop(); }
         }
     }
 
     /// The owner's Stage B shutdown calls this outside its state lock.
     pub(crate) fn close_until(&self, deadline: Instant) -> Result<()> {
-        self.stop_all();
+        self.stop_before(deadline);
         loop {
             let mut workers = self.workers.lock().map_err(|_| flight_poisoned())?;
             let mut active = Vec::with_capacity(workers.len());
@@ -464,10 +519,17 @@ impl MetadataStore {
             *workers = active;
             if workers.is_empty() { return Ok(()); }
             if Instant::now() >= deadline {
-                return Err(Error::new(ErrorKind::CancelUnconfirmed, "metadata workers did not retire before cleanup deadline"));
+                return Err(Error::new(ErrorKind::CloseTimeout, "metadata workers did not retire before owner close deadline"));
             }
             drop(workers);
             thread::sleep(deadline.saturating_duration_since(Instant::now()).min(Duration::from_millis(2)));
+        }
+    }
+
+    fn stop_before(&self, deadline: Instant) {
+        self.inner.sealed.store(true, Ordering::Release);
+        if let Ok(state) = self.inner.state.lock() {
+            for flight in state.flights.values() { flight.stop_before(deadline); }
         }
     }
 }
@@ -491,6 +553,9 @@ impl StoreInner {
             || !state.flights.get(&key).is_some_and(|current| Arc::ptr_eq(current, flight)) {
             return Err(cancelled_error("superseded metadata flight cannot publish"));
         }
+        if flight.source_deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+            return Err(flight.source_timeout_error());
+        }
         let version = self.next_version.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| next.checked_add(1))
             .map_err(|_| Error::new(ErrorKind::Internal, "metadata snapshot version exhausted"))?;
         let snapshot = Arc::new(MetadataSnapshot::new(key.clone(), version, fetched_at, Some(expires_at), records));
@@ -503,6 +568,14 @@ impl Drop for MetadataStore {
     fn drop(&mut self) { self.stop_all(); }
 }
 
+impl crate::session::OwnerTaskGroup for MetadataStore {
+    fn stop(&self) { self.stop_all(); }
+    fn stop_before(&self, deadline: Instant) { MetadataStore::stop_before(self, deadline); }
+    fn close_until(&self, deadline: Instant) -> Result<()> {
+        MetadataStore::close_until(self, deadline)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct FlightControl {
     flight: Arc<Flight>,
@@ -513,6 +586,10 @@ impl FlightControl {
     pub(crate) fn key(&self) -> &SnapshotKey { &self.key }
     pub(crate) fn source_deadline(&self) -> Option<Instant> { self.flight.source_deadline }
     pub(crate) fn cleanup_timeout(&self) -> Duration { self.flight.cleanup_timeout }
+    pub(crate) fn cleanup_deadline(&self, local: Instant) -> Result<Instant> {
+        let bound = *self.flight.cleanup_deadline.lock().map_err(|_| flight_poisoned())?;
+        Ok(bound.map_or(local, |owner| local.min(owner)))
+    }
     pub(crate) fn timeout_source(&self) -> &'static str { self.flight.timeout_source }
 
     pub(crate) fn check_active(&self) -> Result<()> { self.flight.check_source() }
@@ -580,12 +657,18 @@ impl MetadataAttemptState {
         attempt: u32,
         last_failure: Option<&RuntimeError>,
         excluded: &HashSet<u64>,
+        endpoint_continuation: bool,
     ) -> std::result::Result<(u64, Box<dyn ReservedAttempt>), RuntimeError> {
         self.flight.check_source().map_err(to_runtime)?;
         let mut last_error = None;
         for (id, _sponsor, authorizer) in self.authorizers_for_live_sponsors()? {
             if excluded.contains(&id) { continue; }
-            match authorizer.reserve(attempt, last_failure) {
+            let reservation = if endpoint_continuation {
+                authorizer.reserve_endpoint_continuation(attempt, last_failure)
+            } else {
+                authorizer.reserve(attempt, last_failure)
+            };
+            match reservation {
                 Ok(reservation) => return Ok((id, reservation)),
                 Err(error) => last_error = Some(error),
             }
@@ -613,18 +696,33 @@ impl AttemptAuthorization for MetadataAttemptAuthorization {
         attempt: u32,
         last_failure: Option<&RuntimeError>,
     ) -> std::result::Result<Box<dyn ReservedAttempt>, RuntimeError> {
-        let (sponsor_id, reservation) = self.state.reserve_for(attempt, last_failure, &HashSet::new())?;
+        self.reserve_kind(attempt, last_failure, false)
+    }
+
+    fn reserve_endpoint_continuation(
+        &self, attempt: u32, last_failure: Option<&RuntimeError>,
+    ) -> std::result::Result<Box<dyn ReservedAttempt>, RuntimeError> {
+        self.reserve_kind(attempt, last_failure, true)
+    }
+
+    fn count_endpoint_failover(&self) -> bool {
+        self.state.authorizers_for_live_sponsors().ok().and_then(|sponsors| sponsors.first().map(|(_, _, auth)| auth.count_endpoint_failover())).unwrap_or(false)
+    }
+}
+
+impl MetadataAttemptAuthorization {
+    fn reserve_kind(
+        &self, attempt: u32, last_failure: Option<&RuntimeError>, endpoint_continuation: bool,
+    ) -> std::result::Result<Box<dyn ReservedAttempt>, RuntimeError> {
+        let (sponsor_id, reservation) = self.state.reserve_for(attempt, last_failure, &HashSet::new(), endpoint_continuation)?;
         Ok(Box::new(SponsoredReservation {
             state: Arc::clone(&self.state),
             attempt,
             sponsor_id,
             last_failure: last_failure.cloned(),
             reservation: Some(reservation),
+            endpoint_continuation,
         }))
-    }
-
-    fn count_endpoint_failover(&self) -> bool {
-        self.state.authorizers_for_live_sponsors().ok().and_then(|sponsors| sponsors.first().map(|(_, _, auth)| auth.count_endpoint_failover())).unwrap_or(false)
     }
 }
 
@@ -635,10 +733,21 @@ struct SponsoredReservation {
     sponsor_id: u64,
     last_failure: Option<RuntimeError>,
     reservation: Option<Box<dyn ReservedAttempt>>,
+    endpoint_continuation: bool,
 }
 
 impl ReservedAttempt for SponsoredReservation {
-    fn start(mut self: Box<Self>, now: Instant) -> std::result::Result<(), RuntimeError> {
+    fn start(self: Box<Self>, now: Instant) -> std::result::Result<(), RuntimeError> {
+        self.start_with_bound(now, None)
+    }
+
+    fn start_before(self: Box<Self>, deadline: Instant) -> std::result::Result<(), RuntimeError> {
+        self.start_with_bound(Instant::now(), Some(deadline))
+    }
+}
+
+impl SponsoredReservation {
+    fn start_with_bound(mut self: Box<Self>, now: Instant, bound: Option<Instant>) -> std::result::Result<(), RuntimeError> {
         let mut excluded = HashSet::new();
         let mut candidate = Some((self.sponsor_id, self.reservation.take().ok_or_else(|| RuntimeError::internal("metadata reservation was already consumed"))?));
         let last_error = self.last_failure.clone();
@@ -647,7 +756,7 @@ impl ReservedAttempt for SponsoredReservation {
                 Some(candidate) => candidate,
                 None => {
                     let failure = last_error.as_ref();
-                    match self.state.reserve_for(self.attempt, failure, &excluded) {
+                    match self.state.reserve_for(self.attempt, failure, &excluded, self.endpoint_continuation) {
                         Ok((id, reservation)) => (id, reservation),
                         Err(error) => return Err(error),
                     }
@@ -659,7 +768,12 @@ impl ReservedAttempt for SponsoredReservation {
                 drop(reservation);
                 continue;
             }
-            match reservation.start(now.max(Instant::now())) {
+            self.state.flight.check_source().map_err(to_runtime)?;
+            let started = match bound {
+                Some(deadline) => reservation.start_before(deadline),
+                None => reservation.start(now.max(Instant::now())),
+            };
+            match started {
                 Ok(()) => return Ok(()),
                 Err(_) => {}
             }
@@ -673,14 +787,22 @@ fn wait_for_flight(
     control: &FlightControl,
 ) -> Result<Arc<MetadataSnapshot>> {
     loop {
-        waiter.sponsor.check_boundary()?;
+        if let Err(root) = waiter.sponsor.check_boundary() {
+            return Err(retire_waiter(flight, waiter.id, control, root));
+        }
         if let Some(result) = flight.completed()? {
-            waiter.sponsor.check_boundary()?;
+            if let Err(root) = waiter.sponsor.check_boundary() {
+                return Err(retire_waiter(flight, waiter.id, control, root));
+            }
             return result;
         }
-        waiter.flight.check_source_waiter()?;
+        if let Err(root) = flight.check_source() {
+            return Err(retire_waiter(flight, waiter.id, control, root));
+        }
         if let Some(deadline) = control.source_deadline() {
-            if Instant::now() >= deadline { return Err(flight.source_timeout_error()); }
+            if Instant::now() >= deadline {
+                return Err(retire_waiter(flight, waiter.id, control, flight.source_timeout_error()));
+            }
         }
         let guard = flight.result.lock().map_err(|_| flight_poisoned())?;
         let remaining = control.source_deadline().map_or(Duration::from_millis(20), |deadline| {
@@ -690,9 +812,31 @@ fn wait_for_flight(
     }
 }
 
-impl Flight {
-    fn check_source_waiter(&self) -> Result<()> {
-        self.check_source()
+fn retire_waiter(flight: &Arc<Flight>, id: u64, control: &FlightControl, root: Error) -> Error {
+    flight.deregister(id);
+    // A departing sponsor never waits for or cancels surviving sponsors' work.
+    if !flight.stop_requested.load(Ordering::Acquire) { return root; }
+    let local = Instant::now().checked_add(control.cleanup_timeout()).unwrap_or_else(Instant::now);
+    loop {
+        match flight.completed() {
+            Ok(Some(Err(error))) if error.kind() == ErrorKind::CancelUnconfirmed => {
+                let cleanup = error.cleanup_failure().cloned().unwrap_or(error);
+                return Error::new(ErrorKind::CancelUnconfirmed, "metadata waiter stopped but source retirement was not confirmed")
+                    .with_context("root_kind", format!("{:?}", root.kind())).with_source(root).with_cleanup_failure(cleanup);
+            }
+            Ok(Some(_)) => return root,
+            Err(error) => return error,
+            Ok(None) => {}
+        }
+        let deadline = match control.cleanup_deadline(local) { Ok(deadline) => deadline, Err(error) => return error };
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Error::new(ErrorKind::CancelUnconfirmed, "metadata source worker did not retire before cleanup deadline")
+                .with_context("root_kind", format!("{:?}", root.kind())).with_source(root)
+                .with_cleanup_failure(Error::new(ErrorKind::Timeout, "metadata worker cleanup deadline elapsed"));
+        }
+        let guard = match flight.result.lock() { Ok(guard) => guard, Err(_) => return flight_poisoned() };
+        if flight.changed.wait_timeout(guard, remaining.min(Duration::from_millis(20))).is_err() { return flight_poisoned(); }
     }
 }
 
@@ -781,8 +925,8 @@ mod tests {
         let context_b = operation(CancellationToken::default());
         let policy = FlightPolicy::rust_source_cap(Duration::from_secs(8), Duration::from_secs(1));
         let key = SnapshotKey::hq("same-catalog", HqMarket::Shanghai);
-        let store_a = MetadataStore::new(Arc::new(TestClock(AtomicI64::new(0))));
-        let store_b = MetadataStore::new(Arc::new(TestClock(AtomicI64::new(0))));
+        let store_a = context_a.owner().metadata();
+        let store_b = context_b.owner().metadata();
         let a = store_a.get_or_load(key.clone(), context_a.sponsor(), policy, Duration::from_secs(60),
             { let key = key.clone(); move |_| Ok(candidate(key, 2)) }).unwrap();
         let b = store_b.get_or_load(key.clone(), context_b.sponsor(), policy, Duration::from_secs(60),
@@ -790,6 +934,76 @@ mod tests {
         let id = SecurityId::new(HqMarket::Shanghai, "600000").unwrap();
         assert_eq!(a.require_precision(&id).unwrap().decimals(), 2);
         assert_eq!(b.require_precision(&id).unwrap().decimals(), 4);
+    }
+
+    #[test]
+    fn operation_captures_multiple_markets_and_refuses_replacement_after_first_decode() {
+        let context = operation(CancellationToken::default());
+        let store = context.owner().metadata();
+        let policy = FlightPolicy::rust_source_cap(Duration::from_secs(8), Duration::from_secs(1));
+        let sh_key = SnapshotKey::hq("capture", HqMarket::Shanghai);
+        let sh = store.get_or_load(sh_key.clone(), context.sponsor(), policy, Duration::from_secs(60),
+            move |_| Ok(candidate(sh_key, 4))).unwrap();
+        let bj_key = SnapshotKey::hq("capture", HqMarket::Beijing);
+        let bj = store.get_or_load(bj_key.clone(), context.sponsor(), policy, Duration::from_secs(60), move |_| {
+            let mut candidate = MarketCandidate::new(bj_key).unwrap();
+            let record = MetadataRecord::new(SecurityId::new(HqMarket::Beijing, "430047").unwrap(),
+                Some(PrecisionMetadata::new(2, ValueProvenance::SecurityTable).unwrap()), None, None);
+            candidate.push_page(0, vec![record], PageEvidence::More).unwrap();
+            candidate.push_page(1, vec![], PageEvidence::TerminalEmpty).unwrap();
+            Ok(candidate)
+        }).unwrap();
+        let frozen = store.capture("capture", &[sh, bj]).unwrap();
+        assert!(frozen.covers_market(HqMarket::Shanghai));
+        assert!(frozen.covers_market(HqMarket::Beijing));
+        assert!(!frozen.covers_market(HqMarket::Shenzhen));
+        context.install_metadata(Arc::clone(&frozen)).unwrap();
+        assert!(Arc::ptr_eq(&context.begin_decode().unwrap(), &frozen));
+        assert_eq!(context.install_metadata(Arc::new(MetadataSnapshot::empty("replacement"))).unwrap_err().kind(),
+            ErrorKind::InvalidArgument);
+        assert!(Arc::ptr_eq(&context.begin_decode().unwrap(), &frozen));
+    }
+
+    #[test]
+    fn closing_owner_stops_and_joins_its_metadata_worker() {
+        let context = operation(CancellationToken::default());
+        let owner = Arc::clone(context.owner());
+        let store = Arc::clone(owner.metadata());
+        let observed_store = Arc::clone(&store);
+        let (started_tx, started_rx) = mpsc::channel();
+        let worker = thread::spawn(move || {
+            let result = store.get_or_load(SnapshotKey::hq("owner-close", HqMarket::Shanghai),
+                context.sponsor(), FlightPolicy::rust_source_cap(Duration::from_secs(8), Duration::from_secs(1)),
+                Duration::from_secs(60), move |control| {
+                    started_tx.send(()).unwrap();
+                    loop { control.check_active()?; thread::yield_now(); }
+                });
+            assert!(result.is_err());
+        });
+        started_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        owner.close().unwrap();
+        worker.join().unwrap();
+        assert!(observed_store.workers.lock().unwrap().is_empty());
+        assert!(observed_store.inner.sealed.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn last_owner_drop_stops_its_independently_owned_task_group() {
+        #[derive(Debug)]
+        struct Probe(Arc<AtomicBool>, Arc<AtomicBool>);
+        impl crate::session::OwnerTaskGroup for Probe {
+            fn stop(&self) { self.0.store(true, Ordering::Release); }
+            fn close_until(&self, _: Instant) -> Result<()> { self.1.store(true, Ordering::Release); Ok(()) }
+        }
+        let stopped = Arc::new(AtomicBool::new(false));
+        let joined = Arc::new(AtomicBool::new(false));
+        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+        let weak = Arc::downgrade(&owner);
+        owner.register_task_group(Arc::new(Probe(Arc::clone(&stopped), Arc::clone(&joined)))).unwrap();
+        drop(owner);
+        assert!(weak.upgrade().is_none());
+        assert!(stopped.load(Ordering::Acquire));
+        assert!(joined.load(Ordering::Acquire));
     }
 
     #[test]

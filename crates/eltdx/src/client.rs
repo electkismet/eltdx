@@ -25,6 +25,12 @@ impl ClientBuilder {
         self
     }
 
+    /// Supplies an explicit UTC-epoch clock for current Shanghai dates and freshness.
+    pub fn clock(mut self, clock: Arc<dyn crate::types::Clock>) -> Self {
+        self.draft.clock = crate::types::time::ClockHandle(clock);
+        self
+    }
+
     pub fn request_timeout(mut self, timeout: Duration) -> Self {
         self.draft.request_timeout = timeout;
         self
@@ -62,9 +68,10 @@ impl ClientBuilder {
 
     pub fn build(self) -> Result<TdxClient> {
         let config = self.draft.validate()?;
-        let owner = Arc::new(SessionOwner::new(
+        let owner = Arc::new(SessionOwner::new_with_clock(
             config.close_timeout,
             config.cleanup_timeout,
+            config.clock.clone(),
         ));
         Ok(TdxClient {
             config,

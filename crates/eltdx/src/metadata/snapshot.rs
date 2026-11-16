@@ -54,9 +54,38 @@ pub(crate) struct MetadataSnapshot {
     fetched_at_unix_seconds: i64,
     expires_at_unix_seconds: Option<i64>,
     entries: HashMap<SecurityId, MetadataRecord>,
+    markets: Vec<HqMarket>,
 }
 
 impl MetadataSnapshot {
+    pub(crate) fn empty(namespace: impl Into<String>) -> Self {
+        Self::new(SnapshotKey::new(ProtocolFamily::Hq, namespace, MarketScope::Extension("operation".into())),
+            0, 0, None, HashMap::new())
+    }
+
+    pub(super) fn capture(namespace: &str, version: u64, snapshots: &[std::sync::Arc<Self>]) -> Result<Self> {
+        let mut capture = Self::empty(namespace);
+        capture.version = version;
+        capture.fetched_at_unix_seconds = snapshots.iter().map(|snapshot| snapshot.fetched_at_unix_seconds).min().unwrap_or(0);
+        capture.expires_at_unix_seconds = snapshots.iter().filter_map(|snapshot| snapshot.expires_at_unix_seconds).min();
+        for snapshot in snapshots {
+            if snapshot.key.family != ProtocolFamily::Hq || snapshot.key.namespace != namespace {
+                return Err(Error::new(ErrorKind::InvalidArgument, "operation metadata belongs to a different source"));
+            }
+            for &market in &snapshot.markets {
+                if !capture.markets.contains(&market) { capture.markets.push(market); }
+            }
+            for (id, record) in &snapshot.entries {
+                if let Some(previous) = capture.entries.insert(id.clone(), record.clone()) {
+                    if previous != *record {
+                        return Err(Error::new(ErrorKind::MetadataUnavailable, "operation metadata has conflicting identities"));
+                    }
+                }
+            }
+        }
+        Ok(capture)
+    }
+
     pub(crate) fn new(
         key: SnapshotKey,
         version: u64,
@@ -64,11 +93,13 @@ impl MetadataSnapshot {
         expires_at_unix_seconds: Option<i64>,
         entries: HashMap<SecurityId, MetadataRecord>,
     ) -> Self {
-        Self { key, version, fetched_at_unix_seconds, expires_at_unix_seconds, entries }
+        let markets = match &key.market { MarketScope::Hq(market) => vec![*market], _ => Vec::new() };
+        Self { key, version, fetched_at_unix_seconds, expires_at_unix_seconds, entries, markets }
     }
 
     pub(crate) const fn version(&self) -> u64 { self.version }
     pub(crate) fn key(&self) -> &SnapshotKey { &self.key }
+    pub(crate) fn covers_market(&self, market: HqMarket) -> bool { self.markets.contains(&market) }
     pub(crate) const fn fetched_at_unix_seconds(&self) -> i64 { self.fetched_at_unix_seconds }
     pub(crate) const fn expires_at_unix_seconds(&self) -> Option<i64> { self.expires_at_unix_seconds }
     pub(crate) fn is_fresh_at(&self, now_unix_seconds: i64) -> bool {
@@ -93,16 +124,11 @@ impl MetadataSnapshot {
 impl PricePrecisionSource for MetadataSnapshot {
     fn security_decimal(&self, code: &NormalizedCode) -> Option<u8> {
         if self.key.family != ProtocolFamily::Hq { return None; }
-        let market = match &self.key.market {
-            MarketScope::Hq(market) => *market,
-            MarketScope::Extension(_) => return None,
-        };
         let code_market = match code.market() {
             Market::Shenzhen => HqMarket::Shenzhen,
             Market::Shanghai => HqMarket::Shanghai,
             Market::Beijing => HqMarket::Beijing,
         };
-        if code_market != market { return None; }
         let id = SecurityId::new(code_market, code.number()).ok()?;
         self.precision_for(&id).map(PrecisionMetadata::decimals)
     }

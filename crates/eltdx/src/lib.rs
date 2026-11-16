@@ -6,6 +6,7 @@ mod hq;
 mod session;
 mod operation;
 mod policy;
+mod metadata;
 #[doc(hidden)]
 pub mod __python_compat;
 pub mod error;
@@ -28,3 +29,4 @@ pub use types::numeric::{
 pub use types::raw::RawPolicy;
 pub use types::security::{HqMarket, SecurityId};
 pub use types::time::{EventTime, EventTimeSource, TradingDate};
+pub use types::time::{Clock, SystemClock};

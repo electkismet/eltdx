@@ -7,6 +7,16 @@ use eltdx_runtime::engine::{PendingPoll, PinHandle, SIGNAL_POLL_INTERVAL};
 use eltdx_runtime::RuntimeError;
 
 use crate::error::{Error, ErrorKind, Result};
+use crate::metadata::MetadataStore;
+use crate::types::time::ClockHandle;
+
+/// Owner-controlled work uses independent state and never strongly captures its owner.
+/// stop is nonblocking; close_until confirms retirement outside the owner state lock.
+pub(crate) trait OwnerTaskGroup: std::fmt::Debug + Send + Sync {
+    fn stop(&self);
+    fn stop_before(&self, _deadline: Instant) { self.stop(); }
+    fn close_until(&self, deadline: Instant) -> Result<()>;
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SessionPhase {
@@ -61,11 +71,14 @@ struct SessionState {
     operations: Vec<Weak<OperationCancellation>>,
     engines: Vec<Engine>,
     pins: Vec<PinHandle>,
+    tasks: Vec<Arc<dyn OwnerTaskGroup>>,
 }
 
 /// Shared owner for clients, services, operations, pins, and subscriptions.
 #[derive(Debug)]
 pub(crate) struct SessionOwner {
+    metadata: Arc<MetadataStore>,
+    clock: ClockHandle,
     close_timeout: Duration,
     cleanup_timeout: Duration,
     state: Mutex<SessionState>,
@@ -74,7 +87,14 @@ pub(crate) struct SessionOwner {
 
 impl SessionOwner {
     pub(crate) fn new(close_timeout: Duration, cleanup_timeout: Duration) -> Self {
+        Self::new_with_clock(close_timeout, cleanup_timeout, ClockHandle::default())
+    }
+
+    pub(crate) fn new_with_clock(close_timeout: Duration, cleanup_timeout: Duration, clock: ClockHandle) -> Self {
+        let metadata = Arc::new(MetadataStore::new(Arc::clone(&clock.0)));
         Self {
+            metadata: Arc::clone(&metadata),
+            clock,
             close_timeout,
             cleanup_timeout,
             state: Mutex::new(SessionState {
@@ -89,9 +109,23 @@ impl SessionOwner {
                 operations: Vec::new(),
                 engines: Vec::new(),
                 pins: Vec::new(),
+                tasks: vec![metadata as Arc<dyn OwnerTaskGroup>],
             }),
             changed: Condvar::new(),
         }
+    }
+
+    pub(crate) fn metadata(&self) -> &Arc<MetadataStore> { &self.metadata }
+
+    pub(crate) fn current_shanghai_date(&self) -> Result<crate::types::TradingDate> {
+        crate::types::TradingDate::shanghai_today(self.clock.0.as_ref())
+    }
+
+    pub(crate) fn register_task_group(&self, task: Arc<dyn OwnerTaskGroup>) -> Result<()> {
+        let mut state = self.lock_state()?;
+        if state.phase != SessionPhase::Open { return Err(closed_error()); }
+        state.tasks.push(task);
+        Ok(())
     }
 
     pub(crate) fn ensure_open(&self) -> Result<()> {
@@ -228,7 +262,7 @@ impl SessionOwner {
         &self,
         mut close_pin: impl FnMut(&PinHandle, Instant) -> Result<()>,
     ) -> Result<()> {
-        let (deadline, generation, engines, pins, prior_failure) = {
+        let (deadline, generation, engines, pins, tasks, prior_failure) = {
             let mut state = self.lock_state()?;
             loop {
                 match state.phase {
@@ -288,6 +322,7 @@ impl SessionOwner {
                             state.close_generation,
                             state.engines.clone(),
                             state.pins.clone(),
+                            state.tasks.clone(),
                             None,
                         );
                     }
@@ -315,6 +350,7 @@ impl SessionOwner {
                             state.close_generation,
                             state.engines.clone(),
                             state.pins.clone(),
+                            state.tasks.clone(),
                             Some(prior_failure),
                         );
                     }
@@ -323,6 +359,7 @@ impl SessionOwner {
         };
 
         let mut failure = None;
+        for task in &tasks { task.stop_before(deadline); }
         for pin in pins {
             match close_pin(&pin, deadline) {
                 Ok(()) => self.unregister_pin(&pin),
@@ -344,6 +381,14 @@ impl SessionOwner {
             }
         }
 
+        let mut tasks_confirmed = true;
+        for task in tasks {
+            if let Err(error) = task.close_until(deadline) {
+                tasks_confirmed = false;
+                failure.get_or_insert(error);
+            }
+        }
+
         let mut state = self.lock_state()?;
         while state.active_operations != 0 {
             let remaining = deadline.saturating_duration_since(Instant::now());
@@ -362,7 +407,7 @@ impl SessionOwner {
             }
         }
 
-        let cleanup_confirmed = engines_confirmed && state.pins.is_empty() && state.active_operations == 0;
+        let cleanup_confirmed = engines_confirmed && tasks_confirmed && state.pins.is_empty() && state.active_operations == 0;
         let terminal = match (prior_failure, failure) {
             (Some(root), Some(_)) => {
                 state.phase = SessionPhase::FailedClosed;
@@ -398,6 +443,20 @@ impl SessionOwner {
 
     fn lock_state(&self) -> Result<MutexGuard<'_, SessionState>> {
         self.state.lock().map_err(|_| poisoned_state_error())
+    }
+}
+
+impl Drop for SessionOwner {
+    fn drop(&mut self) {
+        // Last owner Drop has no borrower to wait for. Stop first, then retire each
+        // task/engine under the same bounded deadline without a strong owner cycle.
+        let deadline = Instant::now().checked_add(self.cleanup_timeout).unwrap_or_else(Instant::now);
+        let state = self.state.get_mut().unwrap_or_else(|poison| poison.into_inner());
+        state.phase = SessionPhase::Closing;
+        signal_operation_cancellation(state);
+        for task in &state.tasks { task.stop_before(deadline); }
+        for engine in &state.engines { let _ = engine.close_until(deadline); }
+        for task in &state.tasks { let _ = task.close_until(deadline); }
     }
 }
 

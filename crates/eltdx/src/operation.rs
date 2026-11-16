@@ -11,6 +11,7 @@ use crate::config::ClientConfig;
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::policy::retries::{checked_add, limit_error, rust_retry_policy, ChildAuthorization, OperationBudget, WorkCounters};
 use crate::session::{SessionOperation, SessionOwner};
+use crate::metadata::MetadataSnapshot;
 use crate::types::raw::RawPolicy;
 
 static NEXT_OPERATION: AtomicU64 = AtomicU64::new(1);
@@ -146,8 +147,13 @@ impl RequestPermit {
     }
 }
 
-/// One public entry's identity, immutable options and policy. Metadata installation is
-/// added by T10 using its sole snapshot implementation; no mutable precision store lives here.
+#[derive(Debug, Default)]
+struct DecodeMetadata {
+    snapshot: Option<Arc<MetadataSnapshot>>,
+    started: bool,
+}
+
+/// One public entry's identity, immutable options, policy and captured metadata.
 #[derive(Debug)]
 pub(crate) struct OperationContext {
     pub id: u64,
@@ -161,6 +167,7 @@ pub(crate) struct OperationContext {
     pub(crate) budget: Arc<OperationBudget>,
     limits: WorkLimits,
     cleanup_timeout: Duration,
+    metadata: Mutex<DecodeMetadata>,
 }
 
 impl OperationContext {
@@ -206,6 +213,7 @@ impl OperationContext {
         let context = Self {
             id, session_id: Arc::as_ptr(&owner) as usize, entry, name, owner,
             _admission: admission, options, profile, budget, limits: WorkLimits::default(), cleanup_timeout,
+            metadata: Mutex::new(DecodeMetadata::default()),
         };
         context.check_boundary(TimeoutPhase::Admission)?;
         Ok(context)
@@ -218,6 +226,29 @@ impl OperationContext {
     pub(crate) fn owner(&self) -> &Arc<SessionOwner> { &self.owner }
     pub(crate) fn is_legacy(&self) -> bool { matches!(self.profile, ExecutionProfile::PythonLegacy { .. }) }
     pub(crate) fn counters(&self) -> Result<WorkCounters> { self.budget.counters() }
+
+    pub(crate) fn metadata(&self) -> Result<Option<Arc<MetadataSnapshot>>> {
+        Ok(self.metadata.lock().map_err(|_| Error::new(ErrorKind::Internal, "operation metadata state is poisoned"))?
+            .snapshot.clone())
+    }
+
+    pub(crate) fn install_metadata(&self, snapshot: Arc<MetadataSnapshot>) -> Result<()> {
+        self.check_boundary(TimeoutPhase::Decode)?;
+        let mut metadata = self.metadata.lock().map_err(|_| Error::new(ErrorKind::Internal, "operation metadata state is poisoned"))?;
+        if metadata.started {
+            return Err(Error::new(ErrorKind::InvalidArgument, "operation metadata cannot change after parsing begins"));
+        }
+        metadata.snapshot = Some(snapshot);
+        Ok(())
+    }
+
+    pub(crate) fn begin_decode(&self) -> Result<Arc<MetadataSnapshot>> {
+        self.check_boundary(TimeoutPhase::Decode)?;
+        let mut metadata = self.metadata.lock().map_err(|_| Error::new(ErrorKind::Internal, "operation metadata state is poisoned"))?;
+        let snapshot = metadata.snapshot.get_or_insert_with(|| Arc::new(MetadataSnapshot::empty("no-metadata"))).clone();
+        metadata.started = true;
+        Ok(snapshot)
+    }
 
     pub(crate) fn set_work_limits(&mut self, limits: WorkLimits) -> Result<()> {
         if self.counters()?.logical_requests != 0 {
