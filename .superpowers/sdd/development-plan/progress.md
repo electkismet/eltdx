@@ -132,6 +132,7 @@
 - Preparation integration note: current T08 RequestPermit-to-SubmissionOptions is HQ CommandRequest-specific, while AttemptAuthorization is neutral. T19/T24 must coordinate a narrow non-HQ authorization consumption/descriptor extension at physical connect/send, never fake an HQ request or duplicate operation budget/retry loops. Added to both briefs for later work; not a current T08 task blocker.
 - Task 21: source checkpoint `f921d81` authored all35 nonfinancial local functions/model codecs, paths and GBBQ constants. Source cases/self-review/report still in progress, no task approval or execution claim. Review base `230e566`, filter to `crates/eltdx/src/offline/`, four owned test targets and task report; controller registration `7c09816` may be named separately for integration without including other tasks.
 - Preparation: `/root/t19_http_prepare` assigned read-only HTTP/TLS stack assessment (no implementation GO), report `task-19-preparation.md`; no dependency/network execution or shared source edits. Later implementation must still follow task-scoped gate.
+- Task 8: first scoped review Needs fixes with four Important findings retained in `task-08-review.md`: terminal/cancel confirmation race, effective attempt deadline/stale gate time, once-only legacy recovery accounting across endpoint continuation, annotated first stop cause. Fix round1 assigned to original implementer against review head `b3371c0`; T10 GO remains pending. No validation commands ran.
 
 | Task | Status |
 |---|---|
@@ -142,7 +143,7 @@
 | T05 | Implementation and source cases committed in `3ba3902`; final verification deferred until T01-T30 implementation is complete |
 | T06 | Implementation and scoped review complete (`4bf47d7..561dcf5`); final verification deferred |
 | T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
-| T08 | Source/report committed through `b3371c0`; scoped static review in progress, final verification deferred |
+| T08 | Fix round1 for four Important scoped-review findings; review head `b3371c0`, unified verification deferred |
 | T09 | Source and scoped static review complete at `65ef657`; unified verification deferred |
 | T10 | Not started |
 | T11 | Not started |
