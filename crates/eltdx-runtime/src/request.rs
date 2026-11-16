@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::deadline::Deadline;
 use crate::error::{RuntimeError, TimeoutPhase};
@@ -715,6 +715,28 @@ pub struct RequestWireIdentity {
     pub slot_id: SlotId,
     pub generation: Option<GenerationId>,
     pub message: Option<MessageIdentity>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RequestDeadlinePolicy {
+    Absolute(Deadline),
+    LegacyAfterStartup(Duration),
+}
+
+impl RequestDeadlinePolicy {
+    pub(crate) const fn absolute_deadline(self) -> Option<Deadline> {
+        match self {
+            Self::Absolute(deadline) => Some(deadline),
+            Self::LegacyAfterStartup(_) => None,
+        }
+    }
+
+    pub(crate) fn resolve_after_startup(self) -> Result<Deadline, RuntimeError> {
+        match self {
+            Self::Absolute(deadline) => Ok(deadline),
+            Self::LegacyAfterStartup(timeout) => Deadline::after(timeout),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

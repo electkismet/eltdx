@@ -11,6 +11,11 @@ pub struct Deadline {
 
 impl Deadline {
     pub const fn at(at: Instant) -> Self {
+        Self::from_instant(at)
+    }
+
+    /// Creates an absolute deadline from a monotonic clock instant.
+    pub const fn from_instant(at: Instant) -> Self {
         Self { at }
     }
 

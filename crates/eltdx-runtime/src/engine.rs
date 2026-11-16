@@ -28,12 +28,14 @@ use crate::diagnostics::{
 };
 use crate::endpoint::{Endpoint, EndpointRotation};
 use crate::error::{RuntimeError, TimeoutPhase};
+use crate::execution::{RawReply, SubmissionOptions};
 use crate::memory::MemoryBudget;
 use crate::pin::PinIdentity;
 use crate::push::PushFrame;
 use crate::request::{
     ActiveLease, Admission, Promotion, RequestAttempt, RequestState, RequestWireIdentity,
-    RetryDecision, RetryPolicy, TerminalBatch, TerminalKind, TerminalNotification,
+    RequestDeadlinePolicy, RetryDecision, RetryPolicy, TerminalBatch, TerminalKind,
+    TerminalNotification,
 };
 use crate::slot::{
     EngineEpoch, FrameDisposition, GenerationIdentity, HeartbeatCandidate, MessageIdentity,
@@ -716,12 +718,6 @@ impl Drop for IngressOwnership {
 }
 
 #[derive(Debug)]
-struct RawExecution {
-    request: CommandRequest,
-    response: ResponseFrame,
-}
-
-#[derive(Debug)]
 struct PinResultSender {
     sender: std_mpsc::SyncSender<Result<PinDelivery, RuntimeError>>,
     terminal: Arc<AtomicBool>,
@@ -740,12 +736,16 @@ impl PinResultSender {
 
 #[derive(Debug)]
 pub struct PendingExecution {
+    raw: PendingRawExecution,
+}
+
+#[derive(Debug)]
+pub struct PendingRawExecution {
     created_pid: u32,
     request_id: RequestId,
     control: Arc<ControlCell>,
     admission_rx: Option<std_mpsc::Receiver<Result<(), RuntimeError>>>,
-    result_rx: std_mpsc::Receiver<Result<RawExecution, RuntimeError>>,
-    terminal: Option<Result<CommandResponse, RuntimeError>>,
+    result_rx: std_mpsc::Receiver<Result<RawReply, RuntimeError>>,
 }
 
 #[derive(Debug)]
@@ -809,6 +809,7 @@ pub struct PendingConnect {
     created_pid: u32,
     engine: Engine,
     attempt: Arc<HostConnectAttempt>,
+    deadline: Option<Deadline>,
     terminal: Option<Result<(), RuntimeError>>,
 }
 
@@ -829,17 +830,45 @@ pub enum PendingPoll<T> {
 
 impl PendingExecution {
     pub const fn request_id(&self) -> RequestId {
-        self.request_id
+        self.raw.request_id()
     }
 
     pub fn wait_timeout(
         &mut self,
         timeout: Duration,
     ) -> Result<PendingPoll<CommandResponse>, RuntimeError> {
-        check_pid(self.created_pid)?;
-        if let Some(result) = self.terminal.take() {
-            return result.map(PendingPoll::Ready);
+        match self.raw.wait_timeout(timeout)? {
+            PendingPoll::Ready(raw) => CommandResponse::parse(raw.request, &raw.response.data)
+                .map(PendingPoll::Ready)
+                .map_err(RuntimeError::from),
+            PendingPoll::Pending => Ok(PendingPoll::Pending),
         }
+    }
+
+    pub fn wait(mut self) -> Result<CommandResponse, RuntimeError> {
+        loop {
+            match self.wait_timeout(SIGNAL_POLL_INTERVAL)? {
+                PendingPoll::Ready(value) => return Ok(value),
+                PendingPoll::Pending => {}
+            }
+        }
+    }
+
+    pub fn cancel_and_confirm(&self, timeout: Duration) -> Result<(), RuntimeError> {
+        self.raw.cancel_and_confirm(timeout)
+    }
+}
+
+impl PendingRawExecution {
+    pub const fn request_id(&self) -> RequestId {
+        self.request_id
+    }
+
+    pub fn wait_timeout(
+        &mut self,
+        timeout: Duration,
+    ) -> Result<PendingPoll<RawReply>, RuntimeError> {
+        check_pid(self.created_pid)?;
         let started = Instant::now();
         if let Some(admission_rx) = self.admission_rx.as_ref() {
             match receive_std_timeout(admission_rx, timeout) {
@@ -855,11 +884,7 @@ impl PendingExecution {
         }
         let remaining = timeout.saturating_sub(started.elapsed());
         match receive_std_timeout(&self.result_rx, remaining) {
-            Ok(Ok(raw)) => {
-                let parsed = CommandResponse::parse(raw.request, &raw.response.data)
-                    .map_err(RuntimeError::from)?;
-                Ok(PendingPoll::Ready(parsed))
-            }
+            Ok(Ok(reply)) => Ok(PendingPoll::Ready(reply)),
             Ok(Err(error)) => Err(error),
             Err(std_mpsc::RecvTimeoutError::Timeout) => Ok(PendingPoll::Pending),
             Err(std_mpsc::RecvTimeoutError::Disconnected) => Err(RuntimeError::internal(
@@ -868,7 +893,7 @@ impl PendingExecution {
         }
     }
 
-    pub fn wait(mut self) -> Result<CommandResponse, RuntimeError> {
+    pub fn wait(mut self) -> Result<RawReply, RuntimeError> {
         loop {
             match self.wait_timeout(SIGNAL_POLL_INTERVAL)? {
                 PendingPoll::Ready(value) => return Ok(value),
@@ -1027,8 +1052,25 @@ impl PinHandle {
         self.engine.begin_pinned_execute(self.identity, request)
     }
 
+    pub fn begin_execute_raw_with_options(
+        &self,
+        request: CommandRequest,
+        options: SubmissionOptions,
+    ) -> Result<PendingRawExecution, RuntimeError> {
+        self.engine
+            .begin_pinned_execute_raw_with_options(self.identity, request, options)
+    }
+
     pub fn execute(&self, request: CommandRequest) -> Result<CommandResponse, RuntimeError> {
         self.begin_execute(request)?.wait()
+    }
+
+    pub fn execute_raw_with_options(
+        &self,
+        request: CommandRequest,
+        options: SubmissionOptions,
+    ) -> Result<RawReply, RuntimeError> {
+        self.begin_execute_raw_with_options(request, options)?.wait()
     }
 
     pub fn connected_host(&self) -> Result<Option<String>, RuntimeError> {
@@ -1059,7 +1101,19 @@ impl PendingConnect {
     pub fn wait_timeout(&mut self, timeout: Duration) -> Result<PendingPoll<()>, RuntimeError> {
         check_pid(self.created_pid)?;
         if self.terminal.is_none() {
-            match self.attempt.completion.wait(timeout)? {
+            let wait = match self.deadline {
+                Some(deadline) => match deadline.require_remaining(TimeoutPhase::Connect) {
+                    Ok(remaining) => timeout.min(remaining),
+                    Err(error) => {
+                        self.terminal = Some(Err(error.clone()));
+                        self.attempt.completion.publish(Err(error.clone()));
+                        self.engine.abort_connect_attempt(self.attempt.id)?;
+                        return Err(error);
+                    }
+                },
+                None => timeout,
+            };
+            match self.attempt.completion.wait(wait)? {
                 Some(result) => self.terminal = Some(result),
                 None => {
                     let Some(error) = self.engine.connect_runtime_exit(self.attempt.id)? else {
@@ -1179,15 +1233,43 @@ impl Engine {
         self.begin_connect()?.wait()
     }
 
+    pub fn connect_with_options(&self, options: SubmissionOptions) -> Result<(), RuntimeError> {
+        self.begin_connect_with_options(options)?.wait()
+    }
+
     pub fn begin_connect(&self) -> Result<PendingConnect, RuntimeError> {
+        self.begin_connect_inner(None)
+    }
+
+    pub fn begin_connect_with_options(
+        &self,
+        options: SubmissionOptions,
+    ) -> Result<PendingConnect, RuntimeError> {
         self.check_pid()?;
+        let deadline = Deadline::from_instant(options.absolute_deadline());
+        deadline.require_remaining(TimeoutPhase::Startup)?;
+        self.begin_connect_inner(Some(deadline))
+    }
+
+    fn begin_connect_inner(
+        &self,
+        deadline: Option<Deadline>,
+    ) -> Result<PendingConnect, RuntimeError> {
+        self.check_pid()?;
+        if let Some(deadline) = deadline {
+            deadline.require_remaining(TimeoutPhase::Startup)?;
+        }
         let (attempt, runtime) = {
             let mut host = lock_mutex(&self.inner.host, "Engine connect gate")?;
+            if let Some(deadline) = deadline {
+                deadline.require_remaining(TimeoutPhase::Startup)?;
+            }
             if let Some(attempt) = host.connect_attempt.as_ref() {
                 return Ok(PendingConnect {
                     created_pid: self.inner.created_pid,
                     engine: self.clone(),
                     attempt: Arc::clone(attempt),
+                    deadline,
                     terminal: None,
                 });
             }
@@ -1207,6 +1289,7 @@ impl Engine {
                         created_pid: self.inner.created_pid,
                         engine: self.clone(),
                         attempt: Arc::new(HostConnectAttempt { id, completion }),
+                        deadline,
                         terminal: None,
                     });
                 }
@@ -1244,6 +1327,7 @@ impl Engine {
 
         let command = RuntimeCommand::ConnectAll {
             attempt_id: attempt.id,
+            deadline,
             completion: Arc::clone(&attempt.completion),
         };
         if let Err(send_error) = runtime.command_tx.try_send(command) {
@@ -1257,55 +1341,72 @@ impl Engine {
             created_pid: self.inner.created_pid,
             engine: self.clone(),
             attempt,
+            deadline,
             terminal: None,
         })
     }
 
     pub fn begin_execute(&self, request: CommandRequest) -> Result<PendingExecution, RuntimeError> {
-        self.check_pid()?;
-        let (runtime, request_id, ingress) = self.reserve_submission()?;
-        let deadline = Deadline::after(self.inner.config.request_timeout)?;
-        let (admission_tx, admission_rx) = std_mpsc::sync_channel(1);
-        let (result_tx, result_rx) = std_mpsc::sync_channel(1);
-        let command = RuntimeCommand::Execute {
-            request_id,
-            request,
-            deadline,
-            admission: admission_tx,
-            result: result_tx,
-            ingress,
-        };
-        runtime
-            .command_tx
-            .try_send(command)
-            .map_err(|error| match error {
-                mpsc::error::TrySendError::Full(_) => RuntimeError::PoolBusy {
-                    message: "7709 runtime ingress channel is full".to_owned(),
-                    capacity: self.inner.config.total_capacity().unwrap_or(usize::MAX),
-                    context: Vec::new(),
-                },
-                mpsc::error::TrySendError::Closed(_) => {
-                    RuntimeError::connection_closed("7709 runtime command channel is closed")
-                }
-            })?;
         Ok(PendingExecution {
-            created_pid: self.inner.created_pid,
-            request_id,
-            control: runtime.control,
-            admission_rx: Some(admission_rx),
-            result_rx,
-            terminal: None,
+            raw: self.begin_raw_execution(request, None, None)?,
         })
+    }
+
+    pub fn begin_execute_raw_with_options(
+        &self,
+        request: CommandRequest,
+        options: SubmissionOptions,
+    ) -> Result<PendingRawExecution, RuntimeError> {
+        self.begin_raw_execution(request, None, Some(options))
     }
 
     pub fn execute(&self, request: CommandRequest) -> Result<CommandResponse, RuntimeError> {
         self.begin_execute(request)?.wait()
     }
 
+    pub fn execute_raw_with_options(
+        &self,
+        request: CommandRequest,
+        options: SubmissionOptions,
+    ) -> Result<RawReply, RuntimeError> {
+        self.begin_execute_raw_with_options(request, options)?.wait()
+    }
+
     pub fn begin_pin(&self) -> Result<PendingPin, RuntimeError> {
+        self.begin_pin_inner(None)
+    }
+
+    pub fn begin_pin_with_options(
+        &self,
+        options: SubmissionOptions,
+    ) -> Result<PendingPin, RuntimeError> {
+        self.begin_pin_inner(Some(options))
+    }
+
+    pub fn pin_with_options(&self, options: SubmissionOptions) -> Result<PinHandle, RuntimeError> {
+        self.begin_pin_with_options(options)?.wait()
+    }
+
+    fn begin_pin_inner(
+        &self,
+        options: Option<SubmissionOptions>,
+    ) -> Result<PendingPin, RuntimeError> {
         self.check_pid()?;
-        let (runtime, request_id, ingress) = self.reserve_submission()?;
-        let deadline = Deadline::after(self.inner.config.request_timeout)?;
+        let deadline_policy = options.map_or(
+            RequestDeadlinePolicy::LegacyAfterStartup(self.inner.config.request_timeout),
+            |options| {
+                RequestDeadlinePolicy::Absolute(Deadline::from_instant(
+                    options.absolute_deadline(),
+                ))
+            },
+        );
+        if let Some(deadline) = deadline_policy.absolute_deadline() {
+            deadline.require_remaining(TimeoutPhase::Startup)?;
+        }
+        let (runtime, request_id, ingress) =
+            self.reserve_submission_with_deadline(deadline_policy.absolute_deadline())?;
+        let deadline = deadline_policy.resolve_after_startup()?;
+        deadline.require_remaining(TimeoutPhase::Admission)?;
         let (admission_tx, admission_rx) = std_mpsc::sync_channel(1);
         let (result_tx, result_rx) = std_mpsc::sync_channel(1);
         let result_terminal = Arc::new(AtomicBool::new(false));
@@ -1352,14 +1453,46 @@ impl Engine {
         pin: PinIdentity,
         request: CommandRequest,
     ) -> Result<PendingExecution, RuntimeError> {
+        Ok(PendingExecution {
+            raw: self.begin_raw_execution(request, Some(pin), None)?,
+        })
+    }
+
+    fn begin_pinned_execute_raw_with_options(
+        &self,
+        pin: PinIdentity,
+        request: CommandRequest,
+        options: SubmissionOptions,
+    ) -> Result<PendingRawExecution, RuntimeError> {
+        self.begin_raw_execution(request, Some(pin), Some(options))
+    }
+
+    fn begin_raw_execution(
+        &self,
+        request: CommandRequest,
+        pin: Option<PinIdentity>,
+        options: Option<SubmissionOptions>,
+    ) -> Result<PendingRawExecution, RuntimeError> {
         self.check_pid()?;
-        let (runtime, request_id, ingress) = self.reserve_submission()?;
-        let deadline = Deadline::after(self.inner.config.request_timeout)?;
+        let deadline_policy = options.map_or(
+            RequestDeadlinePolicy::LegacyAfterStartup(self.inner.config.request_timeout),
+            |options| {
+                RequestDeadlinePolicy::Absolute(Deadline::from_instant(
+                    options.absolute_deadline(),
+                ))
+            },
+        );
+        if let Some(deadline) = deadline_policy.absolute_deadline() {
+            deadline.require_remaining(TimeoutPhase::Startup)?;
+        }
+        let (runtime, request_id, ingress) =
+            self.reserve_submission_with_deadline(deadline_policy.absolute_deadline())?;
+        let deadline = deadline_policy.resolve_after_startup()?;
+        deadline.require_remaining(TimeoutPhase::Admission)?;
         let (admission_tx, admission_rx) = std_mpsc::sync_channel(1);
         let (result_tx, result_rx) = std_mpsc::sync_channel(1);
-        runtime
-            .command_tx
-            .try_send(RuntimeCommand::ExecutePinned {
+        let command = match pin {
+            Some(pin) => RuntimeCommand::ExecutePinned {
                 pin,
                 request_id,
                 request,
@@ -1367,10 +1500,26 @@ impl Engine {
                 admission: admission_tx,
                 result: result_tx,
                 ingress,
-            })
+            },
+            None => RuntimeCommand::Execute {
+                request_id,
+                request,
+                deadline,
+                admission: admission_tx,
+                result: result_tx,
+                ingress,
+            },
+        };
+        runtime
+            .command_tx
+            .try_send(command)
             .map_err(|error| match error {
                 mpsc::error::TrySendError::Full(_) => RuntimeError::PoolBusy {
-                    message: "7709 runtime pinned ingress channel is full".to_owned(),
+                    message: if pin.is_some() {
+                        "7709 runtime pinned ingress channel is full".to_owned()
+                    } else {
+                        "7709 runtime ingress channel is full".to_owned()
+                    },
                     capacity: self.inner.config.total_capacity().unwrap_or(usize::MAX),
                     context: Vec::new(),
                 },
@@ -1378,13 +1527,12 @@ impl Engine {
                     RuntimeError::connection_closed("7709 runtime command channel is closed")
                 }
             })?;
-        Ok(PendingExecution {
+        Ok(PendingRawExecution {
             created_pid: self.inner.created_pid,
             request_id,
             control: runtime.control,
             admission_rx: Some(admission_rx),
             result_rx,
-            terminal: None,
         })
     }
 
@@ -1790,6 +1938,41 @@ impl Engine {
         Ok(true)
     }
 
+    fn abort_connect_attempt(&self, attempt_id: ConnectAttemptId) -> Result<(), RuntimeError> {
+        let runtime = {
+            let host = lock_mutex(&self.inner.host, "Engine connect timeout")?;
+            if !host
+                .connect_attempt
+                .as_ref()
+                .is_some_and(|attempt| attempt.id == attempt_id)
+            {
+                return Ok(());
+            }
+            host.runtime.as_ref().map(RuntimeRef::from)
+        };
+        let Some(runtime) = runtime else {
+            return Ok(());
+        };
+        runtime.control.request_close()?;
+        let engine = self.clone();
+        let exited = Arc::clone(&runtime.exited);
+        let _ = thread::Builder::new()
+            .name("eltdx-connect-cleanup".to_owned())
+            .spawn(move || {
+                loop {
+                    match exited.wait(CLOSE_TIMEOUT) {
+                        Ok(Some(result)) => {
+                            let _ = engine.finish_connect_attempt(attempt_id, &result);
+                            break;
+                        }
+                        Ok(None) => continue,
+                        Err(_) => break,
+                    }
+                }
+            });
+        Ok(())
+    }
+
     fn connect_runtime_exit(
         &self,
         attempt_id: ConnectAttemptId,
@@ -1825,10 +2008,23 @@ impl Engine {
     }
 
     fn ensure_runtime(&self) -> Result<RuntimeRef, RuntimeError> {
+        self.ensure_runtime_with_deadline(None)
+    }
+
+    fn ensure_runtime_with_deadline(
+        &self,
+        deadline: Option<Deadline>,
+    ) -> Result<RuntimeRef, RuntimeError> {
         self.check_pid()?;
+        if let Some(deadline) = deadline {
+            deadline.require_remaining(TimeoutPhase::Startup)?;
+        }
         let startup =
             {
                 let mut host = lock_mutex(&self.inner.host, "Engine host")?;
+                if let Some(deadline) = deadline {
+                    deadline.require_remaining(TimeoutPhase::Startup)?;
+                }
                 match host.lifecycle {
                     HostLifecycle::Running => {
                         return host.runtime.as_ref().map(RuntimeRef::from).ok_or_else(|| {
@@ -1866,10 +2062,18 @@ impl Engine {
                     }
                 }
             };
-        let startup_timeout = self.inner.config.request_timeout;
+        let startup_timeout = deadline
+            .map(|deadline| deadline.require_remaining(TimeoutPhase::Startup))
+            .transpose()?
+            .unwrap_or(self.inner.config.request_timeout);
         let result = startup
             .wait(startup_timeout)?
             .ok_or_else(|| RuntimeError::timeout(TimeoutPhase::Startup))?;
+        if result.is_ok() {
+            if let Some(deadline) = deadline {
+                deadline.require_remaining(TimeoutPhase::Startup)?;
+            }
+        }
         let mut host = lock_mutex(&self.inner.host, "Engine host")?;
         match result {
             Ok(()) => {
@@ -1933,11 +2137,15 @@ impl Engine {
         }
     }
 
-    fn reserve_submission(
+    fn reserve_submission_with_deadline(
         &self,
+        deadline: Option<Deadline>,
     ) -> Result<(RuntimeRef, RequestId, IngressOwnership), RuntimeError> {
-        let runtime = self.ensure_runtime()?;
+        let runtime = self.ensure_runtime_with_deadline(deadline)?;
         let mut host = lock_mutex(&self.inner.host, "Engine submit gate")?;
+        if let Some(deadline) = deadline {
+            deadline.require_remaining(TimeoutPhase::Admission)?;
+        }
         if host.lifecycle != HostLifecycle::Running {
             return Err(RuntimeError::connection_closed(
                 "7709 Engine close has linearized",
@@ -2020,6 +2228,7 @@ impl From<&RuntimeThread> for RuntimeRef {
 enum RuntimeCommand {
     ConnectAll {
         attempt_id: ConnectAttemptId,
+        deadline: Option<Deadline>,
         completion: Arc<Completion<Result<(), RuntimeError>>>,
     },
     Execute {
@@ -2027,7 +2236,7 @@ enum RuntimeCommand {
         request: CommandRequest,
         deadline: Deadline,
         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
-        result: std_mpsc::SyncSender<Result<RawExecution, RuntimeError>>,
+        result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
         ingress: IngressOwnership,
     },
     OpenPin {
@@ -2043,7 +2252,7 @@ enum RuntimeCommand {
         request: CommandRequest,
         deadline: Deadline,
         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
-        result: std_mpsc::SyncSender<Result<RawExecution, RuntimeError>>,
+        result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
         ingress: IngressOwnership,
     },
     ClosePin {
@@ -2277,11 +2486,11 @@ fn lock_mutex<'a, T>(
 #[derive(Debug)]
 struct PendingRequest {
     request: CommandRequest,
-    result: std_mpsc::SyncSender<Result<RawExecution, RuntimeError>>,
+    result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
     _ingress: IngressOwnership,
     admission: Admission,
     wire: Option<RequestWireIdentity>,
-    response: Option<ResponseFrame>,
+    response: Option<(ResponseFrame, RequestWireIdentity, String)>,
     dispatched: bool,
     pin: Option<PinIdentity>,
 }
@@ -2819,8 +3028,9 @@ impl RuntimeCore {
         match command {
             RuntimeCommand::ConnectAll {
                 attempt_id,
+                deadline,
                 completion,
-            } => self.connect_all(attempt_id, completion).await,
+            } => self.connect_all(attempt_id, deadline, completion).await,
             RuntimeCommand::Execute {
                 request_id,
                 request,
@@ -3072,6 +3282,7 @@ impl RuntimeCore {
     async fn connect_all(
         &mut self,
         attempt_id: ConnectAttemptId,
+        deadline: Option<Deadline>,
         completion: Arc<Completion<Result<(), RuntimeError>>>,
     ) -> Result<(), RuntimeError> {
         if let Some(batch) = self.connect_batch.as_ref() {
@@ -3083,10 +3294,21 @@ impl RuntimeCore {
             )));
             return Ok(());
         }
+        if let Some(deadline) = deadline {
+            if let Err(error) = deadline.require_remaining(TimeoutPhase::Startup) {
+                completion.publish(Err(error));
+                self.begin_close().await?;
+                return Ok(());
+            }
+        }
         let epoch = self
             .supervisor
             .active_epoch()
             .ok_or_else(|| RuntimeError::connection_closed("7709 Engine is not running"))?;
+        let deadline = match deadline {
+            Some(deadline) => deadline,
+            None => Deadline::after(self.config.request_timeout)?,
+        };
         self.connect_batch = Some(ConnectBatch {
             attempt_id,
             completion,
@@ -3095,7 +3317,7 @@ impl RuntimeCore {
             canary_pending: VecDeque::new(),
             canary_remaining: BTreeSet::new(),
             expansion_pending: VecDeque::new(),
-            deadline: Deadline::after(self.config.request_timeout)?,
+            deadline,
             first_error: None,
             rolling_back: false,
         });
@@ -3392,6 +3614,7 @@ impl RuntimeCore {
             SlotEvent::Completed {
                 wire,
                 response,
+                host,
                 reply,
             } => {
                 let request_id = wire.request_id;
@@ -3415,7 +3638,7 @@ impl RuntimeCore {
                     }
                 }
                 let pin = if let Some(pending) = self.pending.get_mut(&request_id) {
-                    pending.response = Some(response);
+                    pending.response = Some((response, wire, host));
                     pending.pin
                 } else {
                     None
@@ -3964,13 +4187,10 @@ impl RuntimeCore {
             if let Some(pending) = pending {
                 let terminal = match notification.kind {
                     TerminalKind::Completed => {
-                        let response = pending.response.ok_or_else(|| {
+                        let (response, wire, host) = pending.response.ok_or_else(|| {
                             RuntimeError::internal("completed terminal has no raw response")
                         })?;
-                        Ok(RawExecution {
-                            request: pending.request,
-                            response,
-                        })
+                        RawReply::from_runtime(pending.request, response, wire, host)
                     }
                     TerminalKind::Cancelled | TerminalKind::TimedOut | TerminalKind::Failed => {
                         Err(notification.error.unwrap_or_else(|| {
@@ -4656,6 +4876,7 @@ enum SlotEvent {
     Completed {
         wire: RequestWireIdentity,
         response: ResponseFrame,
+        host: String,
         reply: oneshot::Sender<Result<(), RuntimeError>>,
     },
     HeartbeatCompleted {
@@ -4817,10 +5038,16 @@ impl SlotWorker {
         match outcome {
             WorkOutcome::Completed { wire, response } => {
                 let (reply, received) = oneshot::channel();
+                let host = self
+                    .slot
+                    .connected_host()
+                    .map(str::to_owned)
+                    .ok_or_else(|| RuntimeError::internal("completed Slot has no endpoint host"))?;
                 self.event_tx
                     .send(SlotEvent::Completed {
                         wire,
                         response,
+                        host,
                         reply,
                     })
                     .await
@@ -6672,12 +6899,14 @@ mod tests {
             created_pid: std::process::id(),
             engine: engine.clone(),
             attempt: Arc::clone(&attempt),
+            deadline: None,
             terminal: None,
         };
         let mut second = PendingConnect {
             created_pid: std::process::id(),
             engine: engine.clone(),
             attempt: Arc::clone(&attempt),
+            deadline: None,
             terminal: None,
         };
         assert_eq!(attempt.completion.wait(Duration::ZERO)?, None);

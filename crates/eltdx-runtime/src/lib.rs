@@ -5,6 +5,7 @@ pub mod diagnostics;
 pub mod endpoint;
 pub mod engine;
 pub mod error;
+pub mod execution;
 pub mod memory;
 pub mod pin;
 pub mod push;
@@ -15,5 +16,6 @@ pub mod supervisor;
 #[cfg(all(test, feature = "loom"))]
 mod loom_tests;
 
-pub use engine::{Engine, EngineConfig, EngineConfigOptions};
+pub use engine::{Engine, EngineConfig, EngineConfigOptions, PendingRawExecution};
 pub use error::RuntimeError;
+pub use execution::{RawReply, SubmissionOptions};
