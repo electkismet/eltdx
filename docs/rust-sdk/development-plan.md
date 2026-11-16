@@ -319,6 +319,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T18：P2 Python 回迁及可用版本验收
 
+2026-11-17第三十三段：批量编排已提交`d49089b`；订阅pin分组/激活/游标/续期/派发/run_once/run循环迁入Rust binding，Python保留异常活动上下文、finally清理和custom hooks，复用T15单一push reader。新增19合同函数源码（含参数化），均未执行。manifest仍source-only，下一步全量证据/installed-wheel consumer及后续全部任务，18/4/8不变。
+
 2026-11-17第三十二段：板块已提交`1b49adc`；资本/复权/资金流/K线/分钟/逐笔批量切片、映射和结果拼装迁入binding，保留Python executor生命周期、容量/custom覆盖、原key/zip、分钟一次map和正常资金流batch退出context后构造。新增15合同函数源码及3项manifest补充，全未执行。下一步subscription/完整manifest/installed-wheel consumer，T18仍部分18/4/8；后续范围及验证延期约定不变。
 
 2026-11-17第三十一段：竞价/市场组合已提交`43028a4`；板块全部业务/缓存/文本和DBF/member/query循环迁入binding，Python保留Path/codec/regex/JSON/hash兼容边界、原写入顺序和错误范围。新增17合同源码，未执行。T18还需批量/订阅/manifest/consumer，18/4/8不变；后续全部范围不缩减。

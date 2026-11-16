@@ -1162,3 +1162,24 @@ Thirty-first source stage committed as **1b49adc**; all execution deferred.
 T18 partial18/4/8. Next subscription, complete manifest and installed-wheel
 consumer, then all remaining T19–T30/Stage B. Goal active without cap; no tests,
 build/check/network/dependency/AST/format/diff-check, agents or publication.
+
+Thirty-second source stage committed as **d49089b**; all execution deferred.
+
+## Thirty-third source checkpoint — subscription orchestration
+
+- Native binding now owns group API traversal, activation page accumulation/
+  combination, cursor updates, refresh request maps, renewal timing, callback
+  dispatch traversal, one poll cycle and blocking run traversal. Existing T15
+  raw reader retains exclusive push consumption; no new runtime or consumer.
+- Preserve Python except/finally frames around callback/poll/renew errors and
+  resource cleanup. Error handlers retain sys.exc_info, KeyboardInterrupt skips
+  on_error, failed refresh still schedules, group lookup fails before finally,
+  merge failures stay outside activation release, and clear precedes stack close.
+  Custom API/transport methods, original object identity, clock replacement,
+  time-of-day cursor rollback, filter/order and initial-duration-zero poll remain.
+- Authored19 contract functions (including parameterized cases); source-only
+  manifest expansion. No tests/collection/build/check/format/AST/network or
+  dependencies executed; code remains uncompiled/unverified.
+
+T18 remains partial18/4/8. Next full manifest evidence and installed-wheel
+consumer, then T19–T30/Stage B without scope reduction. Goal active with no quota.

@@ -469,6 +469,15 @@
         "rust_entry": "eltdx::TdxClient::quotes -> QuoteService::{depth,subscribe}; PinnedQuoteService::refresh",
         "python_entry": "QuoteApi::{refresh,get_depth} -> sdk_quotes -> LegacyOperation.quotes; standard QuoteSubscription group refresh -> PinnedTransportProxy.sdk_quotes -> NativePin.sdk_quotes",
         "shared_algorithm": "crates/eltdx/src/services/quotes.rs::fetch_quote_reply; existing T15 exclusive raw push reader; original XOR/raw/record scalar parser",
+        "orchestration_sources": ["crates/eltdx-python/src/subscription.rs", "src/eltdx/api/subscription.py"],
+        "orchestration_contract_nodes": [
+          "tests/contracts/test_sdk_subscription_orchestration.py::test_dispatch_remembers_all_cursors_before_first_callback_and_allows_next_morning",
+          "tests/contracts/test_sdk_subscription_orchestration.py::test_callback_error_has_active_python_exception_and_increments_before_call",
+          "tests/contracts/test_sdk_subscription_orchestration.py::test_refresh_failure_still_schedules_next_renewal",
+          "tests/contracts/test_sdk_subscription_orchestration.py::test_run_once_renewal_then_push_counts_both_and_keeps_order",
+          "tests/contracts/test_sdk_subscription_orchestration.py::test_run_interrupt_stops_and_clears_state_before_stack_close",
+          "tests/contracts/test_sdk_subscription_orchestration.py::test_group_pins_load_metadata_before_acquisition_and_release_in_reverse"
+        ],
         "contract_nodes": [
           "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_quote_domain_routes_preserve_payload_and_result",
           "tests/contracts/test_sdk_quote_domain_bridge.py::test_native_refresh_keeps_empty_wire_poll_and_copied_cursor_map",
@@ -484,12 +493,12 @@
         ],
         "fixtures": ["tests/fixtures/7709/refresh_stream/normal", "tests/integration/test_native_quote_domain_bridge.py::_refresh_record"],
         "temporary_adapter": {
-          "scope": "custom API/transport subclasses, Python callback dispatch and existing poll/drain projection",
-          "reason": "Custom execute and callbacks remain Python extension points; original resolver runs before pins are reserved. Push delivery still uses the T15 exclusive reader without adding a second consumer.",
+          "scope": "custom API/transport subclasses, Python exception/cleanup boundaries and existing poll/drain projection; traversal/renewal/cursor/dispatch run in native binding",
+          "reason": "Custom execute and callbacks remain Python extension points; original resolver runs before pins are reserved. Python except/finally preserves active exception context and cleanup order. Push delivery uses the T15 exclusive reader without another consumer.",
           "contract_nodes": ["tests/contracts/test_sdk_quote_domain_bridge.py::test_quote_transport_subclasses_retain_execute_extension"],
-          "exit_condition": "Remaining subscription orchestration migration must preserve callbacks, pin lifetime, raw-push semantics and custom extensions with one queue consumer."
+          "exit_condition": "Retain language exception and object hooks; final unified validation must confirm callback, pin lifetime and raw-push semantics with one queue consumer."
         },
-        "validation": "Authored but not collected, compiled or executed; this does not close the complete subscription orchestration migration or lifecycle audit."
+        "validation": "Orchestration and lifecycle contract sources authored but not collected, compiled or executed. No compatibility or migration completion is inferred from source alone."
       },
       "kind": "订阅接口",
       "catalog_source": "7709",

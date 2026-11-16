@@ -1,5 +1,13 @@
 # T18 — 完整 HQ helpers 与 Python 回迁
 
+Latest recovery, stage33: batch stage committedd49089b. Subscription traversal/
+pin-group creation/activation/cursor/renewal/dispatch/run_once/run source is in
+native binding. Keep Python except/finally for active on_error exception context,
+lookup-before-finally, cleanup order and user hooks. Reuse sole T15 push reader.
+Added19 unexecuted contract functions and source-only manifest evidence. Next
+complete manifest evidence/installed-wheel consumer and allT19–T30/StageB.
+Counts18/4/8, unlimited active goal; all execution deferred, no agents/publication.
+
 Latest recovery, stage32: board stage committed1b49adc. Batch slicing/mapping/
 assembly for capital/adjustments/money flow/bars/delisted/minutes/trades authored
 in binding with15 contract functions and3 source-only manifest additions. Keep

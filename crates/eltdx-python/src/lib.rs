@@ -16,6 +16,7 @@ mod helper_daily;
 mod helper_market;
 mod helper_boards;
 mod batch;
+mod subscription;
 mod protocol;
 mod request;
 mod response;
@@ -128,6 +129,16 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(batch::assemble_capital, module)?)?;
     module.add_function(wrap_pyfunction!(batch::map_money_flow, module)?)?;
     module.add_function(wrap_pyfunction!(batch::adjustment_batch, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_group_apis, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_enable_native, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_activation_pages, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_combine, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_remember, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_refresh, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_schedule, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_dispatch, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_run_once, module)?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_run, module)?)?;
     transport::register(module)?;
     Ok(())
 }
