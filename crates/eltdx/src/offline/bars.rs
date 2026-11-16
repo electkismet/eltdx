@@ -5,7 +5,7 @@ use std::num::NonZeroUsize;
 use std::path::Path;
 use crate::error::{Error, ErrorKind, Result};
 use crate::{RawPolicy, TradingDate};
-use super::{alignment, cancelled, diagnostic, invalid, io_error, malformed,
+use super::{alignment, cancelled, context_value, diagnostic, invalid, io_error, malformed,
     AppendOptions, Durability, ReadOptions, ReadResult, RecordKey, TailPolicy, WriteReport};
 
 pub(crate) struct ByteBudget { remaining: u64 }
@@ -46,8 +46,8 @@ pub(crate) fn load_with_budget(path: &Path, options: &ReadOptions, budget: &mut 
 
 fn byte_limit(path: &Path, limit: u64) -> Error {
     Error::new(ErrorKind::LimitExceeded, "local input exceeds byte limit")
-        .with_context("domain", "offline").with_context("max_bytes", limit.to_string())
-        .with_context("path", path.display().to_string())
+        .with_context("domain", "offline").with_context("max_bytes", context_value(limit))
+        .with_context("path", format!("{}", path.display()))
 }
 
 pub(crate) fn read_records<T>(path: &Path, options: &ReadOptions,
@@ -57,7 +57,7 @@ pub(crate) fn read_records<T>(path: &Path, options: &ReadOptions,
     let tail = data.len() % 32;
     if tail != 0 && options.tail() == TailPolicy::Reject {
         return Err(malformed("bar file has a partial trailing record")
-            .with_context("record_size", "32").with_context("actual_length", data.len().to_string()));
+            .with_context("record_size", "32").with_context("actual_length", context_value(data.len())));
     }
     let retain = options.raw() != RawPolicy::Omit;
     let mut rows = Vec::new();
@@ -65,7 +65,7 @@ pub(crate) fn read_records<T>(path: &Path, options: &ReadOptions,
         cancelled(options.cancel())?;
         let mut bytes = [0_u8; 32];
         bytes.copy_from_slice(record);
-        rows.push(decode(&bytes, retain).map_err(|error| error.with_context("record_index", index.to_string()))?);
+        rows.push(decode(&bytes, retain).map_err(|error| error.with_context("record_index", context_value(index)))?);
     }
     cancelled(options.cancel())?;
     let diagnostics = if tail == 0 { Vec::new() } else {
@@ -129,6 +129,7 @@ pub(crate) fn append_records<T>(path: &Path, rows: &[T], options: &AppendOptions
     daily_sync: bool, mut encode: impl FnMut(&T) -> Result<[u8; 32]>,
     key: impl Fn(&T) -> RecordKey, last: impl FnOnce(&Path) -> Result<Option<RecordKey>>,
 ) -> Result<WriteReport> {
+    let outcome = (|| {
     // Validate even records that will later be filtered out; no file mutation occurs here.
     rows.len().checked_mul(32).filter(|length| *length <= isize::MAX as usize)
         .ok_or_else(|| invalid("encoded batch length overflows"))?;
@@ -158,16 +159,22 @@ pub(crate) fn append_records<T>(path: &Path, rows: &[T], options: &AppendOptions
     let actual_length = handle.metadata().map_err(|error| write_context(io_error("metadata", path, error), 0, 0, skipped))?.len();
     if actual_length % 32 != 0 {
         return Err(write_context(malformed("opened file has a partial record; append refused")
-            .with_context("record_size", "32").with_context("actual_length", actual_length.to_string()), 0, 0, skipped));
+            .with_context("record_size", "32").with_context("actual_length", context_value(actual_length)), 0, 0, skipped));
     }
     write_encoded(&mut handle, encoded.iter().filter(|(key, _)| original.is_none_or(|last| *key > last)),
         options, daily_sync, original, skipped)
-        .map_err(|error| error.with_context("path", path.display().to_string()))
+        .map_err(|error| error.with_context("path", format!("{}", path.display())))
+    })();
+    outcome.map_err(|error| {
+        if error.context().iter().any(|(key, _)| key == "bytes_written") { error }
+        else { write_context(error, 0, 0, 0) }
+    })
 }
 
 fn write_context(error: Error, bytes: u64, accepted: usize, skipped: usize) -> Error {
-    error.with_context("bytes_written", bytes.to_string()).with_context("accepted", accepted.to_string())
-        .with_context("skipped", skipped.to_string())
+    error.with_context("domain", "offline").with_context("operation", "append")
+        .with_context("bytes_written", context_value(bytes)).with_context("accepted", context_value(accepted))
+        .with_context("skipped", context_value(skipped))
 }
 
 /// The writer seam permits deterministic partial-write, flush and sync failure cases.
@@ -209,4 +216,87 @@ pub(crate) fn write_encoded<'a>(handle: &mut impl LocalWriter,
         handle.sync_all().map_err(|error| write_context(Error::new(ErrorKind::Io, "local sync_all failed").with_source(error), bytes, accepted, skipped))?;
     }
     Ok(WriteReport::new(accepted, skipped, bytes, final_key, achieved))
+}
+
+#[cfg(test)]
+mod authored_writer_cases {
+    use super::*;
+    use crate::CancellationToken;
+
+    #[derive(Default)]
+    struct InjectedWriter {
+        output: Vec<u8>, limit: Option<usize>, fail_flush: bool, fail_sync: bool,
+        flushes: usize, syncs: usize, cancel_after_record: Option<CancellationToken>,
+    }
+    impl Write for InjectedWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            let remaining = self.limit.map(|limit| limit.saturating_sub(self.output.len())).unwrap_or(bytes.len());
+            if remaining == 0 { return Err(std::io::Error::other("injected partial write failure")); }
+            let count = bytes.len().min(remaining);
+            self.output.extend_from_slice(&bytes[..count]);
+            if self.output.len() >= 32 {
+                if let Some(token) = &self.cancel_after_record { token.cancel(); }
+            }
+            Ok(count)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.flushes += 1;
+            if self.fail_flush { Err(std::io::Error::other("injected flush failure")) } else { Ok(()) }
+        }
+    }
+    impl LocalWriter for InjectedWriter {
+        fn sync_all(&mut self) -> std::io::Result<()> {
+            self.syncs += 1;
+            if self.fail_sync { Err(std::io::Error::other("injected sync failure")) } else { Ok(()) }
+        }
+    }
+    fn records() -> Result<[(RecordKey, [u8; 32]); 2]> {
+        Ok([(RecordKey::Date(TradingDate::new(2026, 11, 16)?), [0x11; 32]),
+            (RecordKey::Date(TradingDate::new(2026, 11, 17)?), [0x22; 32])])
+    }
+
+    #[test]
+    fn actual_partial_bytes_and_record_boundary_cancel_are_error_context() -> Result<()> {
+        let records = records()?;
+        let mut writer = InjectedWriter { limit: Some(45), ..Default::default() };
+        let error = match write_encoded(&mut writer, records.iter(), &AppendOptions::default(), false, None, 3) {
+            Err(error) => error, Ok(_) => return Err(invalid("expected injected write failure")),
+        };
+        assert_eq!(writer.output.len(), 45);
+        assert_eq!(error.kind(), ErrorKind::Io);
+        assert!(error.context().iter().any(|(key, value)| key == "bytes_written" && value == "45"));
+        assert!(error.context().iter().any(|(key, value)| key == "accepted" && value == "1"));
+        let token = CancellationToken::default();
+        let mut writer = InjectedWriter { cancel_after_record: Some(token.clone()), ..Default::default() };
+        let result = write_encoded(&mut writer, records.iter(), &AppendOptions::default().with_cancel(Some(token)), false, None, 0);
+        assert_eq!(result.err().map(|error| error.kind()), Some(ErrorKind::Cancelled));
+        assert_eq!(writer.output.len(), 32);
+        assert_eq!(writer.flushes, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn durability_grades_and_failure_never_claim_sync_success() -> Result<()> {
+        let records = records()?;
+        for (daily, request, flushes, syncs, achieved) in [
+            (true, Durability::FormatDefault, 1, 1, Durability::SyncAll),
+            (false, Durability::FormatDefault, 0, 0, Durability::FormatDefault),
+            (false, Durability::Flush, 1, 0, Durability::Flush),
+            (false, Durability::SyncAll, 1, 1, Durability::SyncAll),
+        ] {
+            let mut writer = InjectedWriter::default();
+            let report = write_encoded(&mut writer, records[..1].iter(), &AppendOptions::default().with_durability(request), daily, None, 0)?;
+            assert_eq!((writer.flushes, writer.syncs, report.durability()), (flushes, syncs, achieved));
+        }
+        for flush_failure in [false, true] {
+            let mut writer = InjectedWriter { fail_flush: flush_failure, fail_sync: !flush_failure, ..Default::default() };
+            let error = match write_encoded(&mut writer, records[..1].iter(), &AppendOptions::default().with_durability(Durability::SyncAll), false, None, 0) {
+                Err(error) => error, Ok(_) => return Err(invalid("expected injected durability failure")),
+            };
+            assert_eq!(error.kind(), ErrorKind::Io);
+            assert!(error.context().iter().any(|(key, value)| key == "bytes_written" && value == "32"));
+            assert_eq!(writer.output.len(), 32);
+        }
+        Ok(())
+    }
 }

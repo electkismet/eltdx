@@ -2,14 +2,14 @@ use std::collections::VecDeque;
 use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
 use crate::error::Result;
-use super::{ascii_replace, bars, cancelled, decode_gbk, diagnostic, io_error, malformed,
+use super::{ascii_replace, bars, cancelled, context_value, decode_gbk, diagnostic, io_error, malformed,
     source_lines, source_trim, BlockInfo, CustomerBlock, ReadOptions, ReadResult};
 
 pub fn read(path: &Path, options: &ReadOptions) -> Result<ReadResult<BlockInfo>> {
     let bytes = bars::load(path, options)?;
     if bytes.len() < 386 { return Err(malformed("block header needs 384 bytes and a u16 count")); }
     let count = usize::from(bars::u16_at(&bytes, 384));
-    let name = path.file_name().unwrap_or(path.as_os_str()).to_string_lossy().to_lowercase();
+    let name = path.file_name().unwrap_or(path.as_os_str()).to_str().unwrap_or("").to_lowercase();
     let category = if name.contains("gn") { 2 } else if name.contains("fg") { 3 }
         else if name.contains("dy") { 1 } else { 0 };
     let mut rows = Vec::new();
@@ -17,7 +17,7 @@ pub fn read(path: &Path, options: &ReadOptions) -> Result<ReadResult<BlockInfo>>
         cancelled(options.cancel())?;
         let start = 386 + index * 2813;
         let record = bytes.get(start..start + 2813).ok_or_else(|| malformed("declared block record is truncated")
-            .with_context("record_index", index.to_string()).with_context("declared_count", count.to_string()))?;
+            .with_context("record_index", context_value(index)).with_context("declared_count", context_value(count)))?;
         let name = decode_gbk(&record[..9]).trim_matches('\0').to_owned();
         let declared_count = bars::u16_at(record, 9);
         let reserved = bars::u16_at(record, 11);
@@ -94,7 +94,7 @@ fn contained(root: &Path, candidate: &Path) -> Result<PathBuf> {
     let resolved = resolve_allow_missing(candidate)?;
     if !resolved.starts_with(root) {
         return Err(malformed("customer block resolved path escapes the requested directory")
-            .with_context("path", candidate.display().to_string()));
+            .with_context("path", format!("{}", candidate.display())));
     }
     Ok(resolved)
 }
@@ -121,7 +121,7 @@ pub fn read_custom(dir: &Path, options: &ReadOptions) -> Result<ReadResult<Custo
         }
         if !safe_leaf(&leaf) {
             return Err(malformed("customer block filename must be a safe leaf name")
-                .with_context("record_index", index.to_string()));
+                .with_context("record_index", context_value(index)));
         }
         let path = contained(&root, &root.join(format!("{leaf}.blk")))?;
         let present = match std::fs::metadata(&path) {

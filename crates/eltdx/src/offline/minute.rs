@@ -60,7 +60,11 @@ fn encode(bar: &MinBar, integer: bool) -> Result<[u8; 32]> {
     };
     for (index, value) in values.into_iter().enumerate() { bars::put_u32(&mut bytes, 4 + index * 4, value); }
     bars::put_u32(&mut bytes, 20, bar.amount().bits());
-    bars::put_u32(&mut bytes, 24, bars::round_u32(bar.volume(), "volume")?);
+    let volume = match bar.source_volume() {
+        Some(integer) => integer,
+        None => bars::round_u32(bar.volume(), "volume")?,
+    };
+    bars::put_u32(&mut bytes, 24, volume);
     bars::put_u32(&mut bytes, 28, bar.reserved());
     Ok(bytes)
 }

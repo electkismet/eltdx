@@ -7,7 +7,7 @@ use super::{bars, diagnostic, AppendOptions, CoefficientDecision, Coefficients, 
     Evidence, ReadOptions, ReadResult, RecordKey, SecurityType, WireFloat, WriteReport};
 
 pub fn detect_security_type(filename: &OsStr) -> SecurityType {
-    let name = Path::new(filename).file_name().unwrap_or(filename).to_string_lossy().to_lowercase();
+    let name = Path::new(filename).file_name().unwrap_or(filename).to_str().unwrap_or("").to_lowercase();
     let bytes = name.as_bytes();
     if bytes.len() < 4 { return SecurityType::Unknown; }
     match (&bytes[..2], &bytes[2..4]) {

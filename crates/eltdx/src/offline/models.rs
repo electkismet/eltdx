@@ -128,20 +128,21 @@ pub(crate) enum MinutePrices { Floats([WireFloat; 4]), Integers([u32; 4]), Value
 #[derive(Clone, Debug)]
 pub struct MinBar {
     key: MinuteKey, pub(crate) prices: MinutePrices, volume: f64,
+    volume_integer: Option<u32>,
     amount: WireFloat, reserved: u32, raw: Option<[u8; 32]>,
 }
 impl MinBar {
     pub fn new(key: MinuteKey, prices: [f64; 4], volume: f64, amount: WireFloat, reserved: u32) -> Result<Self> {
         if !volume.is_finite() || volume < 0.0 { return Err(invalid("minute volume must be finite and nonnegative")); }
         if prices.iter().any(|value| !value.is_finite()) { return Err(invalid("use from_floats for nonfinite float32 bit patterns")); }
-        Ok(Self { key, prices: MinutePrices::Values(prices), volume, amount, reserved, raw: None })
+        Ok(Self { key, prices: MinutePrices::Values(prices), volume, volume_integer: None, amount, reserved, raw: None })
     }
     pub fn from_floats(key: MinuteKey, prices: [WireFloat; 4], volume: u32, amount: WireFloat, reserved: u32) -> Self {
-        Self { key, prices: MinutePrices::Floats(prices), volume: volume as f64, amount, reserved, raw: None }
+        Self { key, prices: MinutePrices::Floats(prices), volume: volume as f64, volume_integer: Some(volume), amount, reserved, raw: None }
     }
     pub(crate) fn decoded(key: MinuteKey, prices: MinutePrices, volume: u32,
         amount: WireFloat, reserved: u32, raw: Option<[u8; 32]>) -> Self
-    { Self { key, prices, volume: volume as f64, amount, reserved, raw } }
+    { Self { key, prices, volume: volume as f64, volume_integer: Some(volume), amount, reserved, raw } }
     pub const fn key(&self) -> MinuteKey { self.key }
     pub fn prices(&self) -> [f64; 4] {
         match &self.prices {
@@ -155,6 +156,7 @@ impl MinBar {
     pub fn low(&self) -> f64 { self.prices()[2] }
     pub fn close(&self) -> f64 { self.prices()[3] }
     pub const fn volume(&self) -> f64 { self.volume }
+    pub const fn source_volume(&self) -> Option<u32> { self.volume_integer }
     pub const fn amount(&self) -> WireFloat { self.amount }
     pub const fn reserved(&self) -> u32 { self.reserved }
     pub fn float_prices(&self) -> Option<&[WireFloat; 4]> { match &self.prices { MinutePrices::Floats(values) => Some(values), _ => None } }

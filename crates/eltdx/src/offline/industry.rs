@@ -11,7 +11,7 @@ pub fn parse(content: &[u8]) -> Result<IndustryMap> { parse_with_options(content
 fn parse_with_options(content: &[u8], options: Option<&ReadOptions>) -> Result<IndustryMap> {
     let text = decode_gbk(content);
     let mut entries: Vec<(String, IndustryCodes)> = Vec::new();
-    let mut positions = HashMap::new();
+    let mut positions: HashMap<String, usize> = HashMap::new();
     for line in source_lines(&text) {
         cancelled(options.and_then(ReadOptions::cancel))?;
         let parts: Vec<&str> = source_trim(line).split('|').collect();

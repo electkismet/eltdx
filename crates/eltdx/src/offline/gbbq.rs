@@ -2,7 +2,7 @@
 use std::path::Path;
 use crate::error::Result;
 use crate::RawPolicy;
-use super::{bars, cancelled, malformed, ReadOptions, ReadResult, WireFloat};
+use super::{bars, cancelled, context_value, malformed, ReadOptions, ReadResult, WireFloat};
 
 #[path = "gbbq_keys.rs"]
 mod keys;
@@ -35,7 +35,8 @@ fn key(offset: usize) -> u32 { bars::u32_at(keys::KEYS, offset) }
 fn decrypt_block(input: &[u8], output: &mut [u8]) {
     let mut num = key(0x44) ^ bars::u32_at(input, 0);
     let mut old = bars::u32_at(input, 4);
-    for index in (4..=0x40).step_by(4).rev() {
+    for round in (1..=16).rev() {
+        let index = round * 4;
         let mut eax = key((((num & 0xff0000) >> 16) * 4) as usize + 0x448);
         eax = eax.wrapping_add(key(((num >> 24) * 4) as usize + 0x48));
         eax ^= key((((num & 0xff00) >> 8) * 4) as usize + 0x848);
@@ -58,8 +59,8 @@ pub fn read(path: &Path, options: &ReadOptions) -> Result<ReadResult<GbbqRecord>
     let complete = (content.len() - 4) / 29;
     if count > complete as u64 {
         return Err(malformed("declared GBBQ record is incomplete")
-            .with_context("record_index", complete.to_string())
-            .with_context("declared_count", count.to_string())
+            .with_context("record_index", context_value(complete))
+            .with_context("declared_count", context_value(count))
             .with_context("record_size", "29"));
     }
     let mut rows = Vec::new();
@@ -75,7 +76,7 @@ pub fn read(path: &Path, options: &ReadOptions) -> Result<ReadResult<GbbqRecord>
         let mut code_end = 8;
         while code_end > 1 && clear[code_end - 1] == 0 { code_end -= 1; }
         let code = std::str::from_utf8(&clear[1..code_end]).map_err(|error|
-            malformed("GBBQ code is not UTF-8").with_context("record_index", index.to_string()).with_source(error))?.to_owned();
+            malformed("GBBQ code is not UTF-8").with_context("record_index", context_value(index)).with_source(error))?.to_owned();
         let values = [13, 17, 21, 25].map(|start| WireFloat::from_bits(bars::u32_at(&clear, start)));
         let raw = if options.raw() == RawPolicy::Omit { None } else {
             let mut bytes = [0_u8; 29];

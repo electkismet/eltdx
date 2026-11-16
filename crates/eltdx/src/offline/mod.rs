@@ -15,6 +15,7 @@ pub mod minute;
 pub mod paths;
 mod models;
 mod options;
+mod gbk_pairs;
 
 pub use models::{BlockInfo, CoefficientDecision, Coefficients, CustomerBlock, DailyBar,
     Evidence, ExDailyBar, Exchange, IndustryCodes, IndustryMap, LocalCode, MinBar,
@@ -48,8 +49,10 @@ pub(crate) fn cancelled(token: Option<&crate::CancellationToken>) -> Result<()> 
 pub(crate) fn io_error(operation: &str, path: &std::path::Path, error: std::io::Error) -> Error {
     Error::new(ErrorKind::Io, format!("local {operation} failed"))
         .with_context("domain", "offline").with_context("operation", operation)
-        .with_context("path", path.display().to_string()).with_source(error)
+        .with_context("path", format!("{}", path.display())).with_source(error)
 }
+
+pub(crate) fn context_value(value: impl std::fmt::Display) -> String { format!("{value}") }
 
 /// Python's GBK decoder replaces one invalid input byte, then resumes decoding.
 /// Decode pairs separately so a bad pair does not swallow its ASCII second byte.
@@ -64,15 +67,20 @@ pub(crate) fn decode_gbk(bytes: &[u8]) -> String {
         } else if (0x81..=0xfe).contains(&first) && offset + 1 < bytes.len()
             && (0x40..=0xfe).contains(&bytes[offset + 1]) && bytes[offset + 1] != 0x7f
         {
-            let (text, errors) = encoding_rs::GBK.decode_without_bom_handling(&bytes[offset..offset + 2]);
-            if errors {
+            let trail = bytes[offset + 1];
+            let index = usize::from(first - 0x81) * 190 + usize::from(trail - 0x40)
+                - usize::from(trail > 0x7f);
+            let scalar = gbk_pairs::GBK_PAIRS[index];
+            if scalar == 0 {
                 output.push('\u{fffd}');
                 offset += 1;
             } else {
-                output.push_str(&text);
+                // The table is generated from strict Python GBK Unicode scalar mappings.
+                output.push(char::from_u32(scalar).unwrap_or('\u{fffd}'));
                 offset += 2;
             }
         } else {
+            // In particular, Python GBK rejects the standalone byte 0x80 (not euro).
             output.push('\u{fffd}');
             offset += 1;
         }
