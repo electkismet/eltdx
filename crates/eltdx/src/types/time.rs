@@ -3,6 +3,15 @@ use std::sync::Arc;
 
 use crate::error::{Error, ErrorKind, Result};
 
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[non_exhaustive]
+pub enum MarketDateChoice {
+    #[default]
+    Current,
+    Date(TradingDate),
+}
+
 /// UTC epoch seconds are converted with the protocol's known Shanghai offset.
 /// Implementations are deterministic injection points for tests and client policy.
 pub trait Clock: Send + Sync {

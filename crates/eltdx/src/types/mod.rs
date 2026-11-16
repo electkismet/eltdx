@@ -1,5 +1,7 @@
 pub mod batch;
 pub mod codes;
+pub mod klines;
+pub mod minutes;
 pub mod numeric;
 pub mod provenance;
 pub mod quotes;
@@ -9,9 +11,11 @@ pub mod time;
 
 pub use batch::{BatchItem, BatchItemState, BatchOutcome, Collected, DataPage, EndEvidence, MissingPolicy, MissingReason, PageCursor, PageOptions, SnapshotBatch};
 pub use codes::{CodeQuery, CodeScanQuery, Security, SecurityBoard, SecurityCategory};
+pub use klines::{AdjustMode, BarTime, DelistedQuery, KlineBar, KlineKind, KlinePeriod, KlineQuery, KlineSeries};
+pub use minutes::{AuxKind, AuxValues, MinuteAuxPoint, MinuteAuxSeries, MinutePoint, MinuteQuery, MinuteSeries, SparklineQuery, SparklineSeries};
 pub use numeric::{Amount, AmountUnit, NumericValue, Price, PriceSource, Quantity, QuantityUnit, Ratio, RatioUnit, RoundingMode};
 pub use provenance::{Diagnostic, EnrichmentStatus, RawData, ResultMeta, SourceStamp, ValueProvenance};
 pub use quotes::{CategoryQuery, CategoryQuote, LegacyQuote, QuoteCategory, QuoteLevel, QuoteSort, QuoteUpdate, QuoteUpdates, Snapshot};
 pub use raw::RawPolicy;
 pub use security::{HqMarket, SecurityId};
-pub use time::{Clock, EventTime, EventTimeSource, SystemClock, TradingDate};
+pub use time::{Clock, EventTime, EventTimeSource, MarketDateChoice, SystemClock, TradingDate};

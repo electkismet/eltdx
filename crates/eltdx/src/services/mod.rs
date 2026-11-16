@@ -1,9 +1,13 @@
 mod codes;
+mod klines;
+mod minutes;
 mod quotes;
 pub(crate) mod pagination;
 
 pub use codes::CodeService;
 pub(crate) use codes::{legacy_directory_pages, publish_legacy_directory_metadata};
+pub use klines::KlineService;
+pub use minutes::MinuteService;
 pub use quotes::QuoteService;
 pub(crate) use quotes::{legacy_snapshot_rows, RawSnapshotBatch, RawSnapshotSlot};
 

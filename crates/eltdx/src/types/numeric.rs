@@ -406,7 +406,7 @@ fn finite_result(value: NumericValue) -> crate::error::Result<NumericValue> {
 }
 
 #[cfg(feature = "serde")]
-fn serialize_finite_f32<S: serde::Serializer>(value: &f32, serializer: S) -> Result<S::Ok, S::Error> {
+pub(crate) fn serialize_finite_f32<S: serde::Serializer>(value: &f32, serializer: S) -> Result<S::Ok, S::Error> {
     if !value.is_finite() {
         return Err(serde::ser::Error::custom("non-finite wire f32 requires explicit raw-bit diagnostics"));
     }

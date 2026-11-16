@@ -147,6 +147,34 @@ impl ResultMeta {
     pub fn raw(&self) -> Option<&RawData> { self.raw.as_ref() }
 
     pub(crate) fn with_sources(mut self, sources: Vec<SourceStamp>) -> Self { self.sources = sources; self }
+
+    /// Reorder only row references after a service orders its result records.
+    /// Payloads, frames and source stamps keep their original response order.
+    pub(crate) fn with_raw_row_order(mut self, order: &[usize]) -> crate::error::Result<Self> {
+        if let Some(raw) = self.raw.as_mut() {
+            if order.len() != raw.row_ranges.len() {
+                return Err(crate::error::Error::new(ErrorKind::Internal,
+                    "result row order differs from retained raw row count"));
+            }
+            let mut ranges = Vec::new();
+            let mut encodings = Vec::new();
+            ranges.try_reserve(order.len()).map_err(raw_allocation_error)?;
+            encodings.try_reserve(order.len()).map_err(raw_allocation_error)?;
+            for &index in order {
+                ranges.push(*raw.row_ranges.get(index).ok_or_else(|| crate::error::Error::new(
+                    ErrorKind::Internal, "result row order contains an invalid source index"))?);
+                encodings.push(raw.row_requires_xor93(index).unwrap_or(false));
+            }
+            raw.row_ranges = ranges;
+            raw.xor93_rows = encodings;
+        }
+        Ok(self)
+    }
+}
+
+fn raw_allocation_error(error: std::collections::TryReserveError) -> crate::error::Error {
+    crate::error::Error::new(ErrorKind::LimitExceeded, "unable to reserve raw row mapping storage")
+        .with_source(error)
 }
 
 impl Default for ResultMeta {

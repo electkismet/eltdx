@@ -168,6 +168,7 @@ pub(crate) struct OperationContext {
     limits: WorkLimits,
     cleanup_timeout: Duration,
     metadata: Mutex<DecodeMetadata>,
+    market_date: Mutex<Option<crate::types::TradingDate>>,
 }
 
 impl OperationContext {
@@ -214,6 +215,7 @@ impl OperationContext {
             id, session_id: owner.generation(), entry, name, owner,
             _admission: admission, options, profile, budget, limits: WorkLimits::default(), cleanup_timeout,
             metadata: Mutex::new(DecodeMetadata::default()),
+            market_date: Mutex::new(None),
         };
         context.check_boundary(TimeoutPhase::Admission)?;
         Ok(context)
@@ -224,6 +226,16 @@ impl OperationContext {
         OperationSponsor { budget: Arc::clone(&self.budget), profile: self.profile }
     }
     pub(crate) fn owner(&self) -> &Arc<SessionOwner> { &self.owner }
+    /// Freeze the injected-clock Shanghai date once for this logical operation.
+    pub(crate) fn current_market_date(&self) -> Result<crate::types::TradingDate> {
+        self.check_boundary(TimeoutPhase::Admission)?;
+        let mut date = self.market_date.lock().map_err(|_| Error::new(
+            ErrorKind::Internal, "operation market date state is poisoned"))?;
+        if let Some(date) = *date { return Ok(date); }
+        let resolved = self.owner.current_shanghai_date()?;
+        *date = Some(resolved);
+        Ok(resolved)
+    }
     pub(crate) fn is_legacy(&self) -> bool { matches!(self.profile, ExecutionProfile::PythonLegacy { .. }) }
     pub(crate) fn counters(&self) -> Result<WorkCounters> { self.budget.counters() }
 
