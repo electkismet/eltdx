@@ -183,3 +183,21 @@ fn request_metadata(
 ) -> Result<std::sync::Arc<MetadataSnapshot>> {
     executor.prepare_metadata(engine, context, config, namespace, requests)
 }
+
+/// Domains with intrinsic wire precision can freeze only already-published
+/// catalogs. Reuse an outer operation's capture instead of replacing it after
+/// another child has decoded or starting an unnecessary metadata request.
+fn capture_existing_metadata(context: &OperationContext, namespace: &str, ids: &[SecurityId])
+    -> Result<std::sync::Arc<MetadataSnapshot>> {
+    if let Some(snapshot) = context.metadata()? { return Ok(snapshot); }
+    let mut markets = Vec::new(); let mut snapshots = Vec::new();
+    for id in ids {
+        if markets.contains(&id.market()) { continue; }
+        markets.push(id.market());
+        if let Some(snapshot) = context.owner().metadata().current(&crate::metadata::SnapshotKey::hq(namespace, id.market()))? {
+            snapshots.push(snapshot);
+        }
+    }
+    let snapshot = context.owner().metadata().capture(namespace, &snapshots)?;
+    context.install_metadata(snapshot.clone())?; Ok(snapshot)
+}

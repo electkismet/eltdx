@@ -14,7 +14,7 @@ use crate::config::ClientConfig;
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::hq::decode::DecodedReply;
 use crate::hq::executor::HqExecutor;
-use crate::metadata::{MetadataSnapshot, SnapshotKey};
+use crate::metadata::MetadataSnapshot;
 use crate::operation::{ChildPurpose, OperationContext, OperationOptions, WorkLimits};
 use crate::types::klines::{validate_page_options, AdjustMode, BarTime, DelistedQuery, KlineBar,
     KlineKind, KlinePeriod, KlineQuery, KlineSeries};
@@ -437,18 +437,7 @@ impl KlineService {
     // any already published catalogs to bind continuation to their versions.
     fn capture_metadata(&self, context: &OperationContext, ids: &[SecurityId]) -> Result<Arc<MetadataSnapshot>> {
         context.current_market_date()?;
-        let mut markets = Vec::new();
-        let mut snapshots = Vec::new();
-        for id in ids {
-            if markets.contains(&id.market()) { continue; }
-            markets.push(id.market());
-            if let Some(snapshot) = context.owner().metadata().current(&SnapshotKey::hq(&self.namespace, id.market()))? {
-                snapshots.push(snapshot);
-            }
-        }
-        let snapshot = context.owner().metadata().capture(&self.namespace, &snapshots)?;
-        context.install_metadata(Arc::clone(&snapshot))?;
-        Ok(snapshot)
+        super::capture_existing_metadata(context, &self.namespace, ids)
     }
 
     fn execute(&self, context: &OperationContext, engine: &Engine, pin: Option<&eltdx_runtime::engine::PinHandle>,

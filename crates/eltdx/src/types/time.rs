@@ -59,6 +59,12 @@ pub struct TradingDate {
     day: u8,
 }
 
+impl std::fmt::Display for TradingDate {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
+    }
+}
+
 impl TradingDate {
     pub fn new(year: u16, month: u8, day: u8) -> Result<Self> {
         if year == 0 || !(1..=12).contains(&month) || day == 0 || day > month_days(year, month) {

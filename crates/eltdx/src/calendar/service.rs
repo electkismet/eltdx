@@ -9,7 +9,7 @@ use crate::types::{AdjustMode, CalendarQuery, CalendarSnapshot, EndEvidence, Kli
 use crate::{Error, ErrorKind, Result, SecurityId, TimeoutPhase, TradingDate};
 
 #[derive(Debug, Default)]
-struct CacheState { generation: u64, entries: Vec<Arc<CalendarSnapshot>> }
+struct CacheState { generation: u64, disabled: bool, entries: Vec<Arc<CalendarSnapshot>> }
 /// Owner-local immutable snapshots. A clear or newer refresh prevents an older
 /// in-flight build from publishing. Cache cardinality is bounded independently.
 #[derive(Debug, Default)]
@@ -26,7 +26,7 @@ impl CalendarCache {
     }
     fn publish(&self, generation: u64, snapshot: Arc<CalendarSnapshot>) -> Result<()> {
         let mut state = self.state.lock().map_err(|_| poisoned())?;
-        if state.generation != generation { return Ok(()); }
+        if state.disabled || state.generation != generation { return Ok(()); }
         state.entries.retain(|entry| entry.benchmark() != snapshot.benchmark() && entry.loaded_on() == snapshot.loaded_on());
         if state.entries.len() == 16 { state.entries.remove(0); }
         state.entries.try_reserve(1).map_err(crate::services::allocation_error)?;
@@ -36,6 +36,7 @@ impl CalendarCache {
         let mut state = self.state.lock().unwrap_or_else(|poison| poison.into_inner());
         // Exhaustion permanently disables publication rather than wrapping into
         // the identity of a build invalidated by this clear.
+        if state.generation == u64::MAX { state.disabled = true; }
         state.generation = state.generation.saturating_add(1); state.entries.clear();
     }
 }
@@ -100,3 +101,25 @@ impl CalendarService {
     }
 }
 fn poisoned() -> Error { Error::new(ErrorKind::Internal, "calendar cache is poisoned") }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn snapshot() -> Arc<CalendarSnapshot> {
+        let date = TradingDate::new(2026, 1, 2).unwrap();
+        Arc::new(CalendarSnapshot::new("sh000001".parse().unwrap(), vec![date], date, crate::types::ResultMeta::default()))
+    }
+    #[test]
+    fn clear_and_newer_refresh_prevent_stale_publication_including_generation_exhaustion() {
+        let cache = CalendarCache::default(); let snapshot = snapshot();
+        let old = cache.begin().unwrap(); cache.clear(); cache.publish(old, snapshot.clone()).unwrap();
+        assert!(cache.get(snapshot.benchmark(), snapshot.loaded_on()).unwrap().is_none());
+        let old = cache.begin().unwrap(); let newer = cache.begin().unwrap();
+        cache.publish(newer, snapshot.clone()).unwrap(); cache.publish(old, snapshot.clone()).unwrap();
+        assert!(Arc::ptr_eq(&cache.get(snapshot.benchmark(), snapshot.loaded_on()).unwrap().unwrap(), &snapshot));
+        cache.state.lock().unwrap().generation = u64::MAX - 1;
+        let last = cache.begin().unwrap(); cache.clear(); cache.publish(last, snapshot.clone()).unwrap();
+        assert!(cache.get(snapshot.benchmark(), snapshot.loaded_on()).unwrap().is_none());
+        assert_eq!(cache.begin().unwrap_err().kind(), ErrorKind::LimitExceeded);
+    }
+}

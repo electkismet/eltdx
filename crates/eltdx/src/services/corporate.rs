@@ -38,7 +38,8 @@ impl CorporateService {
         for item in changes.items() {
             context.check_boundary(TimeoutPhase::Aggregate)?;
             let state = match item.state() {
-                BatchItemState::Present(block) => BatchItemState::Present(crate::equity::build_adjustment_factors(block, query)?),
+                BatchItemState::Present(block) => BatchItemState::Present(crate::adjustment::build_with_boundary(block, query,
+                    || context.check_boundary(TimeoutPhase::Aggregate))?),
                 BatchItemState::ConfirmedMissing(reason) => BatchItemState::ConfirmedMissing(reason.clone()),
             };
             items.push(BatchItem::new(item.input_index(), item.security().clone(), state));
@@ -77,7 +78,7 @@ impl CorporateService {
         context.set_work_limits(WorkLimits { pages: std::num::NonZeroUsize::new(ids.len()), records: Some(ids.len()), bytes: None })?;
         // This wire domain needs no security-table precision. Freeze the
         // operation's existing metadata instead of introducing catalog I/O.
-        let _ = &self.namespace;
+        super::capture_existing_metadata(context, &self.namespace, ids)?;
         let mut items = Vec::new(); items.try_reserve(ids.len()).map_err(allocation_error)?;
         let mut metas = Vec::new(); let mut page_index = 0;
         for chunk in codes.chunks(query.batch_size()) {
@@ -122,6 +123,7 @@ impl CorporateService {
         let codes = checked_ids(ids)?;
         if codes.is_empty() { return Ok(BatchOutcome::new(Vec::new())); }
         context.set_work_limits(WorkLimits { pages: std::num::NonZeroUsize::new(ids.len().div_ceil(FINANCE_CHUNK)), records: Some(ids.len()), bytes: None })?;
+        super::capture_existing_metadata(context, &self.namespace, ids)?;
         let mut first = true; let mut slots = Vec::new(); let mut metas = Vec::new();
         slots.try_reserve(ids.len()).map_err(allocation_error)?;
         let mut execute = |part: &[NormalizedCode], recovery: bool| {
@@ -146,7 +148,9 @@ impl CorporateService {
             let state = match slot {
                 Some((row, reply)) => {
                     let meta = self.meta(context, &reply, &[row.record_range], "corporate.finance")?;
-                    BatchItemState::Present(project_finance(&row, id.clone(), meta)?)
+                    let projected = project_finance(&row, id.clone(), meta).map_err(|error|
+                        error.with_context("endpoint", reply.source.host.clone()).with_context("security", format!("{id}")))?;
+                    BatchItemState::Present(projected)
                 }
                 None => { missing.push(index); BatchItemState::ConfirmedMissing(MissingReason::NotFound) }
             };
@@ -234,7 +238,8 @@ fn project_finance(row: &WireFinance, id: SecurityId, meta: ResultMeta) -> Resul
         };
         values.push((field, projected));
     }
-    let date = |parts: eltdx_protocol::unit::DateParts| crate::TradingDate::new(parts.year, parts.month, parts.day);
+    let date = |parts: eltdx_protocol::unit::DateParts| crate::TradingDate::new(
+        u16::try_from(parts.year).map_err(|_| wrong("finance date year"))?, parts.month, parts.day);
     Ok(FinanceRecord::new(id, row.province_raw, row.industry_raw, row.updated_date_raw, row.ipo_date_raw,
         row.updated_date.map(date).transpose()?, row.ipo_date.map(date).transpose()?, values, meta))
 }

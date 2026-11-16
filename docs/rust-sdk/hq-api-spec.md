@@ -306,7 +306,7 @@ special扫描空页结束，真实记录数到cap仍未EOF为LimitExceeded，不
 
 | ID | 拟议签名 |
 | --- | --- |
-| M60 | `CalendarService::today(&self) -> TradingDate` |
+| M60 | `CalendarService::today(&self) -> Result<TradingDate>` |
 | M61 | `CalendarService::refresh(&self, query: &CalendarQuery, options: &OperationOptions) -> Result<CalendarSnapshot>` |
 | M62 | `CalendarService::is_workday(&self, date: TradingDate, query: &CalendarQuery, options: &OperationOptions) -> Result<bool>` |
 | M63 | `CalendarService::range(&self, start: TradingDate, end: TradingDate, descending: bool, query: &CalendarQuery, options: &OperationOptions) -> Result<Vec<TradingDate>>` |
@@ -318,7 +318,7 @@ special扫描空页结束，真实记录数到cap仍未EOF为LimitExceeded，不
 | --- | --- |
 | `CalendarSnapshot` | `benchmark:SecurityId, days:Vec<TradingDate>, coverage_start/coverage_end:Option<TradingDate>, complete:bool, meta`；空calendar不能声称所有日期休市，调用is_workday需有效覆盖。 |
 
-today为注入时钟的Shanghai日历日，不表示一定开市。TradingDate构造/Display/相等比较代替Python normalize/text/same_day，不接受任意Python对象。range含两端，start>end交换再按descending排序。查询覆盖外日期不能简单false；返回MetadataUnavailable并携带覆盖范围。next/previous在有效快照内无后继/前驱返回None并保留快照边界语义，不预测未来开市。无client的weekday近似如后续需要应另立纯函数，不能作为网络calendar自动fallback。
+today为注入时钟的Shanghai日历日，不表示一定开市。T16实施修正其返回为Result以传播既有Clock trait的错误和日期溢出，不panic或伪造日期；这不改变旧Python签名。TradingDate构造/Display/相等比较代替Python normalize/text/same_day，不接受任意Python对象。range含两端，start>end交换再按descending排序。查询覆盖外日期不能简单false；返回MetadataUnavailable并携带覆盖范围。next/previous在有效快照内无后继/前驱返回None并保留快照边界语义，不预测未来开市。无client的weekday近似如后续需要应另立纯函数，不能作为网络calendar自动fallback。
 
 ## 10. 资源、公司资料、session 与health（T17）
 
