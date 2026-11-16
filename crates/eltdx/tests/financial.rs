@@ -224,6 +224,10 @@ fn date_precedence_header_archive_and_explicit() -> TestResult {
     assert_eq!(result.date_source(), ReportDateSource::Explicit);
     assert!(financial::filename_report_date("20240230.zip").is_none());
     assert!(financial::filename_report_date("parent20240101/no_date.zip").is_none());
+    assert_eq!(financial::filename_report_date("tdxfin/\u{ff12}\u{ff10}\u{ff12}\u{ff14}\u{ff10}\u{ff13}\u{ff13}\u{ff11}.zip"),
+        Some(TradingDate::new(2024, 3, 31)?));
+    assert_eq!(financial::filename_report_date("tdxfin/\u{0662}\u{0660}\u{0662}\u{0664}\u{0660}\u{0662}\u{0663}\u{0660}_\u{0662}\u{0660}\u{0662}\u{0664}\u{0661}\u{0662}\u{0663}\u{0661}.zip"),
+        Some(TradingDate::new(2024, 12, 31)?));
     Ok(())
 }
 
@@ -245,6 +249,7 @@ fn invalid_header_remains_visible_even_with_valid_override() -> TestResult {
 fn python_date_override_keeps_first_unvalidated_eight_digit_text() -> TestResult {
     let filename = "tdxfin/a20240230_20241231.zip";
     assert_eq!(python_legacy::first_filename_date(filename), 20240230);
+    assert_eq!(python_legacy::first_filename_date("tdxfin/\u{0662}\u{0660}\u{0662}\u{0664}\u{0660}\u{0662}\u{0663}\u{0660}_\u{0662}\u{0660}\u{0662}\u{0664}\u{0661}\u{0662}\u{0663}\u{0661}.zip"), 20240230);
     assert_eq!(python_legacy::first_filename_date("none"), 0);
     let result = python_legacy::parse_dat(&sample(), python_legacy::first_filename_date(filename))?;
     assert_eq!(result.rows()[0].report_date_raw(), 20240230);

@@ -278,22 +278,44 @@ fn date_parts(raw: u32) -> Option<TradingDate> {
 fn date_integer(value: TradingDate) -> u32 {
     u32::from(value.year()) * 10000 + u32::from(value.month()) * 100 + u32::from(value.day())
 }
+fn decimal_digit(value: char) -> Option<u8> {
+    // Python's legacy `\d` matches Unicode decimal digits (Nd), not only ASCII.
+    const ZEROES: &[u32] = &[
+        0x30, 0x660, 0x6f0, 0x7c0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6,
+        0xc66, 0xce6, 0xd66, 0xde6, 0xe50, 0xed0, 0xf20, 0x1040, 0x1090, 0x17e0,
+        0x1810, 0x1946, 0x19d0, 0x1a80, 0x1a90, 0x1b50, 0x1bb0, 0x1c40, 0x1c50,
+        0xa620, 0xa8d0, 0xa900, 0xa9d0, 0xa9f0, 0xaa50, 0xabf0, 0xff10, 0x104a0,
+        0x10d30, 0x11066, 0x110f0, 0x11136, 0x111d0, 0x112f0, 0x11450, 0x114d0,
+        0x11650, 0x116c0, 0x11730, 0x118e0, 0x11950, 0x11c50, 0x11d50, 0x11da0,
+        0x16a60, 0x16ac0, 0x16b50, 0x1d7ce, 0x1d7d8, 0x1d7e2, 0x1d7ec, 0x1d7f6,
+        0x1e140, 0x1e2f0, 0x1e950, 0x1fbf0,
+    ];
+    let value = value as u32;
+    ZEROES.iter().find_map(|start| {
+        value.checked_sub(*start).filter(|digit| *digit < 10).map(|digit| digit as u8)
+    })
+}
 /// Dates are found in the leaf name, in non-overlapping eight-digit runs, matching
-/// the legacy first-match shape while Rust additionally requires a valid date.
+/// the legacy first-match shape, including Unicode decimal digits, while Rust
+/// additionally requires a valid date.
 pub fn filename_report_date(filename: &str) -> Option<TradingDate> {
     filename_dates(filename).find_map(date_parts)
 }
 fn filename_dates(filename: &str) -> impl Iterator<Item = u32> + '_ {
     let leaf = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
-    let mut at = 0;
+    let mut characters = leaf.chars();
     std::iter::from_fn(move || {
-        while at + 8 <= leaf.len() {
-            let chunk = &leaf.as_bytes()[at..at + 8];
-            if chunk.iter().all(u8::is_ascii_digit) {
-                at += 8;
-                return Some(chunk.iter().fold(0, |value, digit| value * 10 + u32::from(*digit - b'0')));
+        let mut count = 0;
+        let mut value = 0_u32;
+        for character in characters.by_ref() {
+            if let Some(digit) = decimal_digit(character) {
+                count += 1;
+                value = value * 10 + u32::from(digit);
+                if count == 8 { return Some(value); }
+            } else {
+                count = 0;
+                value = 0;
             }
-            at += 1;
         }
         None
     })
