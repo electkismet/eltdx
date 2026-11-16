@@ -24,6 +24,7 @@ pub struct OperationOptions {
     deadline: Option<Instant>,
     cancellation: Option<CancellationToken>,
     raw: RawPolicy,
+    raw_explicit: bool,
 }
 
 impl OperationOptions {
@@ -31,7 +32,14 @@ impl OperationOptions {
     pub fn with_timeout(mut self, timeout: Duration) -> Self { self.timeout = Some(timeout); self }
     pub fn with_deadline(mut self, at: Instant) -> Self { self.deadline = Some(at); self }
     pub fn with_cancellation(mut self, token: CancellationToken) -> Self { self.cancellation = Some(token); self }
-    pub fn with_raw(mut self, raw: RawPolicy) -> Self { self.raw = raw; self }
+    pub fn with_raw(mut self, raw: RawPolicy) -> Self { self.raw = raw; self.raw_explicit = true; self }
+
+    #[cfg(feature = "ex")]
+    pub(crate) fn inheriting_raw(&self, default: RawPolicy) -> Self {
+        let mut options = self.clone();
+        if !options.raw_explicit { options.raw = default; }
+        options
+    }
 
     fn resolve_deadline(&self, entry: Instant, inherited: Duration) -> Result<Instant> {
         let duration = self.timeout.or_else(|| self.deadline.is_none().then_some(inherited));
@@ -106,7 +114,7 @@ impl OperationSponsor {
 
     /// Charge a worker's streamed bytes against its parent's existing budget.
     /// No second counter or separately renewed deadline is introduced.
-    #[cfg(feature = "f10")]
+    #[cfg(any(feature = "f10", feature = "ex"))]
     pub(crate) fn record_bytes(&self, bytes: usize) -> Result<()> {
         self.budget.gate(Instant::now(), |state| {
             let next = checked_add(state.counters.bytes, bytes)?;

@@ -1,7 +1,10 @@
-//! Pure EX identities, query validation and wire codecs.
-//!
-//! This module contains no socket, owner, automatic configuration loading or
-//! retries. Registration and operation-aware transport belong to T24 Stage B.
+//! Independent EX client, checked identities and bounded wire codecs.
+mod client;
+mod control;
+mod probe;
+mod session;
+mod transport;
+mod worker;
 pub mod commands;
 pub mod config;
 pub mod frame;
@@ -11,6 +14,8 @@ pub mod query;
 pub mod time;
 
 pub use models::*;
+pub use client::{ExClient, ExClientBuilder};
+pub use config::ExConfig;
 pub use query::*;
 pub use time::TimeOfDay;
 

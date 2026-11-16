@@ -26,6 +26,8 @@ pub mod error;
 pub mod types;
 #[cfg(feature = "f10")]
 pub mod f10;
+#[cfg(feature = "ex")]
+pub mod ex;
 #[cfg(feature = "offline")]
 pub mod offline;
 #[cfg(feature = "offline")]

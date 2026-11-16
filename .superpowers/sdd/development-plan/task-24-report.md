@@ -1,5 +1,53 @@
 # T24 Stage A source checkpoint report
 
+## Stage B first checkpoint — 2026-11-17, base c648799
+
+The user's existing all-T01–T30 execution authorization supersedes the old
+Stage A controller-GO wording below. T24 remains partial. This checkpoint
+contains uncompiled implementation source, not accepted runtime evidence.
+
+- Added `ex/client.rs`: lazy independent `ExClientBuilder`/`ExClient`, immutable
+  configuration, shared irreversible close, connect/ensure/disconnect, all11
+  typed business methods, diagnostics/host snapshots, explicit probe/discover/
+  refresh/ping/best-host entry points. No implicit file/environment read,
+  resolver, scan, probe, Python interpreter or HQ connection at build.
+- Added `ex/session.rs`, `control.rs`, `worker.rs`, `transport.rs`: reuse the
+  existing SessionOwner and OperationContext/AttemptAuthorization, with one
+  owner-local full request/reply gate and registered owner-free jobs. No
+  synthetic HQ CommandRequest or separate operation budget is introduced.
+  Workers perform bounded async connect and exact remaining-frame reads, then
+  convert a successfully completed socket to nonblocking std I/O before their
+  runtime is dropped. Strict command decode precedes publishing that socket.
+  A failed attempt owns and destroys the old socket before another reserve/
+  start, protocol/decode failures never host-hunt, range sequences are held
+  through the complete response or socket destruction. Already pending idle
+  unsolicited bytes retire the connection as Protocol, with association
+  capture rules still explicitly unverified rather than guessed.
+- Added `ex/probe.rs`: one registered runtime owns a JoinSet bounded to1..8
+  probe sockets. All children inherit the original sponsor/attempt accounting,
+  and a child timeout is min(parent deadline, explicit per-host probe timeout).
+  DataReady performs full setup+markets+strict decode. TcpOnly results carry
+  their own mode and cannot populate data health or data ranking. Parent
+  cancellation/deadline/limit errors terminate the whole discovery.
+- EX is registered under its existing optional feature, activating the shared
+  optional Tokio/flate2/serde_json dependencies without F10/HTTP/Python. No
+  dependency resolution, download or Cargo.lock rewrite was attempted.
+- Added `PageCompletion::Unknown`, source-count offset advancement, true socket
+  generation provenance and association-unverified diagnostics. Single-page
+  short/empty responses do not assert EOF. Raw defaults distinguish an omitted
+  per-call raw option from an explicit Omit through a narrow OperationOptions
+  presence bit; existing default/legacy behavior remains as authored.
+
+Pending before T24 source completion: author actual public-client lifecycle/
+loopback source cases, review new code against specification and Stage A
+seams, finalize management/config/method handoff and document any remaining
+capture limits. T25 must extend the explicit profile seam for MAC/MAC-EX
+handshakes; it must not invoke the EX setup on MAC-EX. T26 owns collections and
+catalog composition. T27 owns the Python EX legacy adapter. None is claimed
+complete by this checkpoint. Global counts stay22 complete-source/3 partial/5
+unstarted. No tests, collection, build/check/clippy/doctest, dependency/network,
+compiler/AST/formatter/diff-check, agents, pushes or publication occurred.
+
 Status: **partial T24; Stage A authored, Stage B pending explicit controller GO.** This is not a completed T24, public-client implementation, successful build, or verified network implementation.
 
 Review base: controller-authorized `b6e4beb`. The shared worktree advanced while other authorized tasks wrote their own files; this task did not reset the branch or include their edits. Stage A code commit: `1220bf22da0171a1eff097a6e29b58a6e78e2a3f` (`feat(ex): author Stage A pure wire codecs and checked models`). Hooks were disabled for the exact-path commit.

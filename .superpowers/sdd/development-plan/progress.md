@@ -2,6 +2,22 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage74: basec648799. T24 Stage B first source
+  checkpoint adds independent lazy ExClient/Builder and all11 native method
+  routes, irreversible shared owner close, one full-exchange gate, registered
+  owner-free cancellable workers and reusable nonblocking persistent sockets.
+  Complete92B setup/full16B header/body/decompression precedes Ready; strict
+  decode occurs before socket publication, transport-only authorized retry
+  retires old sockets first, range leases are per owner. Explicit bounded8-way
+  DataReady/TcpOnly discovery, refresh and from_best_host share parent deadline/
+  byte/attempt budgets. Added Unknown single-page completion and raw-default
+  override presence. EX optional dependencies/root module are registered.
+  T24 remains PARTIAL pending source cases, source self-review and full handoff;
+  T25/T26–T30 remain.22/3/5 source counts unchanged. No test/build/check/
+  dependency/network/AST/format/diff-check execution; no agents/publication.
+  Goal remains active, remainingTokens=null. Read task-24-report Stage B first
+  checkpoint and current ex/{client,session,worker,transport,probe,control}.rs.
+
 - Latest recovery2026-11-17 stage73: based59a51c. T23 source scope complete:
   added source-only evidence for25 F10 catalog records and3 topic helper
   records; supplemental international/bond/sector, fields/models, collection

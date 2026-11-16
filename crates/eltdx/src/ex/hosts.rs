@@ -6,6 +6,8 @@ use crate::Result;
 use super::invalid;
 
 pub const DEFAULT_EX_PORT: u16 = 7727;
+/// Numeric socket endpoint; builders never resolve hostnames implicitly.
+pub type Endpoint = std::net::SocketAddr;
 pub const EX_HOSTS_ENV: &str = "ELTDX_EX_HOSTS";
 pub const EX_SERVER_FILE: &str = "ex_servers.json";
 pub const KNOWN_EX_HOSTS: &[&str] = &[
@@ -79,33 +81,38 @@ impl DiscoveryOptions {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProbeStatus { Ready, Failed }
 #[derive(Clone, Debug)]
-pub struct HostProbe { endpoint: SocketAddr, latency: Option<Duration>, status: ProbeStatus, error_kind: Option<crate::ErrorKind> }
+pub struct HostProbe { endpoint: SocketAddr, latency: Option<Duration>, status: ProbeStatus, error_kind: Option<crate::ErrorKind>, mode: ProbeMode }
 impl HostProbe {
     /// A successful DataReady result may be constructed only after the selected
     /// profile handshake and markets response complete in Stage B.
     pub(crate) fn new(endpoint: SocketAddr, latency: Option<Duration>, status: ProbeStatus, error_kind: Option<crate::ErrorKind>) -> Self {
-        Self { endpoint, latency, status, error_kind }
+        Self { endpoint, latency, status, error_kind, mode: ProbeMode::DataReady }
     }
     pub const fn endpoint(&self) -> SocketAddr { self.endpoint }
     pub const fn latency(&self) -> Option<Duration> { self.latency }
     pub const fn status(&self) -> ProbeStatus { self.status }
     pub const fn error_kind(&self) -> Option<crate::ErrorKind> { self.error_kind }
+    pub const fn mode(&self) -> ProbeMode { self.mode }
+    pub const fn data_ready(&self) -> bool { matches!(self.mode, ProbeMode::DataReady) && matches!(self.status, ProbeStatus::Ready) }
+    pub(crate) fn with_mode(mut self, mode: ProbeMode) -> Self { self.mode = mode; self }
 }
 #[derive(Clone, Debug)]
-pub struct DiagnosticSnapshot { active_endpoint: Option<SocketAddr>, candidates: Vec<SocketAddr>, probes: Vec<HostProbe> }
+pub struct DiagnosticSnapshot { active_endpoint: Option<SocketAddr>, candidates: Vec<SocketAddr>, probes: Vec<HostProbe>, latest_meta: Option<crate::types::ResultMeta> }
 impl DiagnosticSnapshot {
     pub(crate) fn new(active_endpoint: Option<SocketAddr>, candidates: Vec<SocketAddr>, probes: Vec<HostProbe>) -> Self {
-        Self { active_endpoint, candidates, probes }
+        Self { active_endpoint, candidates, probes, latest_meta: None }
     }
     pub const fn active_endpoint(&self) -> Option<SocketAddr> { self.active_endpoint }
     pub fn candidates(&self) -> &[SocketAddr] { &self.candidates }
     pub fn probes(&self) -> &[HostProbe] { &self.probes }
+    pub fn latest_meta(&self) -> Option<&crate::types::ResultMeta> { self.latest_meta.as_ref() }
+    pub(crate) fn with_latest_meta(mut self, meta: Option<crate::types::ResultMeta>) -> Self { self.latest_meta = meta; self }
 }
 /// Stable latency ordering; failed/unprobed candidates remain in original order.
 /// This is pure ranking and cannot promote unprobed endpoints to Ready.
 pub fn rank_endpoints(candidates: &[SocketAddr], probes: &[HostProbe]) -> Vec<SocketAddr> {
     let mut ready: Vec<&HostProbe> = probes.iter().filter(|probe|
-        probe.status == ProbeStatus::Ready && probe.latency.is_some() && candidates.contains(&probe.endpoint)).collect();
+        probe.data_ready() && probe.latency.is_some() && candidates.contains(&probe.endpoint)).collect();
     ready.sort_by_key(|probe| probe.latency);
     let mut result = Vec::with_capacity(candidates.len());
     for probe in ready { if !result.contains(&probe.endpoint) { result.push(probe.endpoint); } }

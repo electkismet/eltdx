@@ -11,7 +11,7 @@ default = []
 serde = ["dep:serde"]
 offline = []
 f10 = ["dep:serde_json", "dep:url", "dep:tokio", "dep:hyper", "dep:hyper-util", "dep:http-body-util", "dep:tokio-rustls", "dep:rustls", "dep:rustls-native-certs", "dep:hickory-resolver", "dep:flate2", "dep:chrono"]
-ex = []
+ex = ["dep:serde_json", "dep:tokio", "dep:flate2"]
 mac = ["ex"]
 full = ["serde", "offline", "f10", "ex", "mac"]
 

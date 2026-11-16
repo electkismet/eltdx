@@ -197,7 +197,7 @@ impl<T> Decoded<T> {
     }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PageCompletion { EndOfData, RequestedCount, MoreAvailable, Incomplete }
+pub enum PageCompletion { EndOfData, RequestedCount, MoreAvailable, Unknown, Incomplete }
 #[derive(Clone, Debug)]
 pub struct PageResult<T> { rows: Vec<T>, server_total: Option<u64>, next_offset: Option<u32>, completion: PageCompletion, meta: ExtensionMeta }
 impl<T> PageResult<T> {
