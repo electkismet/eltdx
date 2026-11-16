@@ -14,6 +14,7 @@ mod helper_indicator;
 mod helper_limits;
 mod helper_daily;
 mod helper_market;
+mod helper_boards;
 mod protocol;
 mod request;
 mod response;
@@ -100,6 +101,27 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helper_market::helper_market_stat, module)?)?;
     module.add_function(wrap_pyfunction!(helper_market::helper_today_flow, module)?)?;
     module.add_function(wrap_pyfunction!(helper_market::helper_latest_suspended, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_quotes, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_member_quotes, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_prepare, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_download, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_security, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_quote_row, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_date, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_definition_paths, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_cache_ready, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_market, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_matches, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_infoharbor, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_parse, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_members, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_read_text, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_read_json, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_read_security, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_write_security, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_dbf_members, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_full_code, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_snapshot_batches, module)?)?;
     transport::register(module)?;
     Ok(())
 }

@@ -319,6 +319,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T18：P2 Python 回迁及可用版本验收
 
+2026-11-17第三十一段：竞价/市场组合已提交`43028a4`；板块全部业务/缓存/文本和DBF/member/query循环迁入binding，Python保留Path/codec/regex/JSON/hash兼容边界、原写入顺序和错误范围。新增17合同源码，未执行。T18还需批量/订阅/manifest/consumer，18/4/8不变；后续全部范围不缩减。
+
 2026-11-17第三十段：daily limits已提交`eaecc51`；竞价/市场统计/当日flow组合和停牌helper、取数小入口接入Rust binding，共用percentage/product。Python旧positional统计与所有原flags/对象/round3/round2保持；新增13 Python/1 Rust合同源码，全未执行。板块/批量/订阅/consumer等继续，T18部分18/4/8。
 
 2026-11-17第二十九段：短线limit/日期/天梯已提交`0725189`。每日涨跌停高层/规则/IPO/除权/事件/前收盘价绑定已写，保留Python旧策略/末条合格K线/异常范围/原顺序，并与strict共用inverse affine；线程调度仍为Python adapter。新增13 Python/1 Rust合同函数源码，均未运行。T18仍部分18/4/8，继续其余HQ迁移和后续所有任务。

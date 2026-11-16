@@ -1118,3 +1118,24 @@ Twenty-ninth source stage committed as **eaecc51**; all execution deferred.
 T18 partial18/4/8, no tests/collection/build/check/network/dependency/AST/format/
 diff-check, no agents/publication. Continue boards, batch/subscription, complete
 manifest and installed-wheel consumer, then T19–T30/Stage B. Goal active no cap.
+
+Thirtieth source stage committed as **43028a4**; all execution deferred.
+
+## Thirty-first source checkpoint — board composition, files and caches
+
+- Every board business loop now lives in the Rust binding: query/member rows,
+  prepare/publish/disk reuse, fixed downloads, directory precedence, definition
+  first occurrence, infoharbor headers/members, industry and DBF parsing,
+  security table/file I/O, snapshot batching and quote-row construction.
+- Python Path, regex Unicode semantics, GB18030/GBK/UTF-8, struct exceptions,
+  JSON/hash, clocks and custom hook calls remain language compatibility adapters.
+  Retained final-header expected-count behavior, exact member cache identity,
+  raw/display/excluded order, publication before metadata write and permissive
+  local fallback. Strict SDK still uses bounded explicit sources and validated
+  sections, with no new implicit file discovery.
+- Authored17 contract functions plus source-only evidence for two capabilities;
+  not collected, executed or compiled. No dependency/network/AST/format/check.
+
+T18 partial18/4/8. Next remaining batch/subscription orchestration, manifest audit
+and installed-wheel consumer, then T19–T30/Stage B. Goal active without cap, no
+subagents or publication. Read helper_boards.rs and source cases on recovery.

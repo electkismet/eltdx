@@ -2081,7 +2081,11 @@
     {
       "id": "helper-board-quotes",
       "source_files": [
-        "docs/helpers/板块行情.md"
+        "docs/helpers/板块行情.md",
+        "src/eltdx/helpers/boards.py",
+        "crates/eltdx/src/helpers/boards.rs",
+        "crates/eltdx/src/helpers/board_decode.rs",
+        "crates/eltdx-python/src/helper_boards.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2090,6 +2094,30 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x06b9 + 0x044d + 0x054c",
       "api": "client.helpers.board_quotes(category=\"概念\", refresh=False)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::board_quotes",
+        "python_entry": "BoardService.board_quotes and preparation/parsing/cache helpers -> helper_boards",
+        "shared_algorithm": "Rust query composition, first-source definition precedence and current-universe membership; legacy regex/Path/JSON and publication semantics remain explicit in binding",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_quote_composition_preserves_selection_order_duplicate_last_and_hooks",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_invalid_category_and_code_fail_before_preparation",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_prepare_memory_hit_skips_disk_and_sources",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_prepare_disk_hit_reuses_empty_security_and_skips_download",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_prepare_keeps_memory_publication_before_failed_metadata_write",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_download_only_downgrades_request_failures",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_definitions_keep_first_occurrence_and_infoharbor_fallback",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_text_and_security_json_keep_read_fallbacks",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_snapshot_batches_preserves_overridden_size",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_date_fallback_keeps_exception_boundary"
+        ],
+        "temporary_adapter": {
+          "scope": "Path discovery/GB18030 and regex codecs/JSON/hash/clock use Python objects; strict Rust keeps bounded explicit sources",
+          "reason": "Legacy ambient paths, permissive decoders, monkeypatches and cache write ordering must remain observable.",
+          "exit_condition": "Language-specific I/O/codecs stay adapters; all orchestration and parse loops now authored in Rust binding, execution evidence pending."
+        },
+        "validation": "Source only; no tests or build executed."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/板块行情.md",
@@ -2101,7 +2129,10 @@
     {
       "id": "helper-board-member-quotes",
       "source_files": [
-        "docs/helpers/板块成分股行情.md"
+        "docs/helpers/板块成分股行情.md",
+        "src/eltdx/helpers/boards.py",
+        "crates/eltdx/src/helpers/boards.rs",
+        "crates/eltdx-python/src/helper_boards.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -2110,6 +2141,26 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x06b9 + 0x044d + 0x054c",
       "api": "client.helpers.board_member_quotes(board_code, refresh=False)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::board_member_quotes",
+        "python_entry": "BoardService.board_member_quotes/_members_for/_read_dbf_members -> helper_boards",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_member_composition_keeps_raw_display_excluded_objects",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_members_deduplicate_filter_and_keep_cache_object",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_members_preserve_last_header_validation_behavior",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_industry_members_keep_prefix_and_source_order",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_security_load_keeps_per_market_failure_and_original_row",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_dbf_members_parse_region_filter_and_ignore_deleted",
+          "tests/contracts/test_sdk_board_helpers_bridge.py::test_board_quote_and_full_code_keep_zero_and_unknown_market_fields"
+        ],
+        "temporary_adapter": {
+          "scope": "Permissive Python regex/DBF and membership cache projection, original row objects and numeric operators",
+          "reason": "Strict SDK validates every section and bound; legacy final-header count and file-date/cache behavior must not change silently.",
+          "exit_condition": "Adapters remain documented until an explicit compatibility change; execution verification is still pending."
+        },
+        "validation": "Source only; no tests or build executed."
+      },
       "kind": "组合能力",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/板块成分股行情.md",
