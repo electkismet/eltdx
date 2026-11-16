@@ -362,6 +362,7 @@ struct OperationCancellation {
 
 impl OperationCancellation {
     fn cancel(&self) {
+        let _guard = self.changed.0.lock().ok();
         self.cancelled.store(true, Ordering::Release);
         self.changed.1.notify_all();
     }
