@@ -48,6 +48,8 @@ pub use types::corporate::{AdjustmentFactor, AdjustmentFactors, CapitalChangeBlo
 pub use types::limits::{LimitDecision, LimitRule, LimitStatus, SpecialLimit, SpecialLimitQuery};
 pub use types::calendar::{CalendarQuery, CalendarSnapshot};
 pub use helpers::HelperService;
+#[cfg(feature = "f10")]
+pub use helpers::{StockTopic, StockTopics, StockTopicsQuery, TopicSource, TopicStock, TopicStockTable, TopicStocksQuery};
 pub use types::helpers::{AuctionData, AuctionDataQuery, DailyLimitsQuery, DailyPriceLimit, DailyShareCapital,
     DailySharesQuery, FullQuote, FundFlow, MarketStat, ProfileQuery, RankQuery, RealtimeRankRow, SecuritySelection, StockProfile};
 pub use types::shortline::{LadderQuery, ShortlineIndicator, ShortlineQuery, ShortlineTable, StatsAlignment};

@@ -581,3 +581,36 @@ projection/resolution functions, full migration/consumer evidence, then all
 T24–T30 source work. Counts remain21 source complete/4 partial/5 unstarted.
 Goal active with no token budget. No tests/collection/build/check/dependency/
 network/AST/format/diff-check, agents, push, tags or publication.
+
+## Twenty-first checkpoint — stock topics and topic constituents
+
+Base52355bb. Added feature-gated StockTopicsQuery/TopicStocksQuery and owned
+StockTopic/StockTopics/TopicStock/TopicStockTable types, exported at the SDK
+root. The two-source topic composition shares one F10 operation, byte cap and
+input-record budget; both sources are required. First discovery order is
+retained, later rows overwrite per-source raw and hot fields even with null.
+Business response codes remain available through responses()/ok(); required
+source transport/decode/owner errors never become successful empty data.
+Raw dates/category values borrow the retained original row rather than cloning
+whole arbitrary JSON trees. TopicCompare explicit-id queries use one source;
+named/explicit-first queries resolve id before name and preserve physical
+source responses, metadata and original comparison-row order. Resolution of
+business-error prerequisites fails with MissingData rather than selecting an
+unproven topic. Invalid identities remain raw and add diagnostics. All new
+methods exist only with the f10 feature; HQ-only helpers remain unchanged.
+
+Python stock_topics/topic_stocks, resolver and topic/scalar/row projections
+now delegate to native. The SDK and binding share source traversal, ordered
+field definitions and selector priority. Python retains eager materialization
+of both sources, live normalizer/converter/model/helper overrides, first
+present None, source union/raw copies, arbitrary precision/nonfinite scalar
+values, original f-string object semantics and standard frozen dataclasses.
+Lazy native iterators retain tuple override consumption and convert model
+StopIteration to RuntimeError with cause. Converter lookup occurs before the
+live _pick callback, matching Python expression evaluation order. Ten Python
+and five Rust public source-test functions authored; none run or collected.
+
+T23 still needs theme_strength_rank/native aggregation, full manifest and
+installed-consumer evidence. T24–T30 remain afterwards.21 complete-source/
+4 partial/5 unstarted, goalactive without token budget. All build/test/check/
+dependency/network/AST/format/diff-check execution remains deferred.

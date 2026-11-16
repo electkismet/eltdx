@@ -134,3 +134,73 @@ fn required_f10_protocol_failure_is_not_downgraded_to_empty_or_hq() -> TestResul
     worker.join().map_err(|_| "helper fixture panicked")??;
     Ok(())
 }
+
+#[test]
+fn stock_topics_merge_both_sources_in_discovery_order_with_last_source_raw() -> TestResult {
+    let (address, worker) = server(vec![
+        r#"{"ErrorCode":0,"ResultSets":[{"ColName":["t001","t002"],"Content":[["1","old"],["2","keep"],["1","last"]]}]}"#,
+        r#"{"ErrorCode":0,"ResultSets":[{"ColName":["id","ztmc","gld","sslb"],"Content":[[1,null,3,{"unknown":true}],[3,"third",null,17]]}]}"#,
+    ])?;
+    let client = TdxClient::builder().f10(routed(address)).build()?;
+    let result = client.helpers().stock_topics(&eltdx::StockTopicsQuery::new(code()?), &OperationOptions::default())?;
+    assert_eq!(result.count(), 3); assert!(result.ok()); assert_eq!(result.responses().len(), 2);
+    assert_eq!(result.topics().iter().map(|topic| topic.topic_id()).collect::<Vec<_>>(), vec![Some("1"), Some("2"), Some("3")]);
+    let first = &result.topics()[0]; assert_eq!(first.topic_name(), None); assert_eq!(first.relation_level(), Some(3.0));
+    assert_eq!(first.sources().collect::<Vec<_>>(), vec![eltdx::TopicSource::TopicIds, eltdx::TopicSource::HotTopics]);
+    assert_eq!(first.raw()[0].1.cells()[1].value().as_str(), Some("last"));
+    assert!(first.category_raw().and_then(|value| value.get("unknown")).is_some());
+    assert_eq!(result.meta().sources().len(), 2);
+    client.close()?; worker.join().map_err(|_| "topic fixture panicked")??; Ok(())
+}
+
+#[test]
+fn explicit_topic_id_needs_only_compare_and_retains_nonempty_row_order() -> TestResult {
+    let (address, worker) = server(vec![
+        r#"{"ErrorCode":0,"ResultSets":[{"ColName":["pm","zqdm","zqjc","sc","zdf"],"Content":[[2,"300975","second",0,19.97],[1,"600000","first",1,2]]}]}"#,
+    ])?;
+    let client = TdxClient::builder().f10(routed(address)).build()?;
+    let query = eltdx::TopicStocksQuery::new(code()?, "42")?;
+    let result = client.helpers().topic_stocks(&query, &OperationOptions::default())?;
+    assert_eq!(result.topic_id(), "42"); assert_eq!(result.count(), 2);
+    assert_eq!(result.rows().iter().map(|row| row.rank()).collect::<Vec<_>>(), vec![Some(2), Some(1)]);
+    assert_eq!(result.rows()[0].id(), Some(&"sz300975".parse()?));
+    assert_eq!(result.rows()[0].change_pct(), Some(19.97));
+    assert_eq!(client.f10().diagnostics()?.completed_requests(), 1);
+    client.close()?; worker.join().map_err(|_| "compare fixture panicked")??; Ok(())
+}
+
+#[test]
+fn named_topic_resolves_before_compare_and_retains_all_sources() -> TestResult {
+    let (address, worker) = server(vec![
+        r#"{"ErrorCode":0,"ResultSets":[{"ColName":["t001","t002"],"Content":[["1","one"],["2","two"]]}]}"#,
+        r#"{"ErrorCode":0,"ResultSets":[]}"#,
+        r#"{"ErrorCode":0,"ResultSets":[{"ColName":["pm","zqdm","sc"],"Content":[[1,"600000",1]]}]}"#,
+    ])?;
+    let client = TdxClient::builder().f10(routed(address)).build()?;
+    let result = client.helpers().topic_stocks(&eltdx::TopicStocksQuery::named(code()?, "two")?, &OperationOptions::default())?;
+    assert_eq!(result.topic_id(), "2"); assert_eq!(result.topic_name(), Some("two"));
+    assert_eq!(result.responses().len(), 3); assert_eq!(result.meta().sources().len(), 3);
+    client.close()?; worker.join().map_err(|_| "named topic fixture panicked")??; Ok(())
+}
+
+#[test]
+fn required_hot_topic_failure_propagates_and_does_not_return_partial_topics() -> TestResult {
+    let (address, worker) = server(vec![
+        r#"{"ErrorCode":0,"ResultSets":[{"ColName":["t001","t002"],"Content":[["1","one"]]}]}"#, "invalid",
+    ])?;
+    let client = TdxClient::builder().f10(routed(address)).build()?;
+    assert_eq!(client.helpers().stock_topics(&eltdx::StockTopicsQuery::new(code()?), &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Protocol);
+    client.close()?; worker.join().map_err(|_| "required topic fixture panicked")??; Ok(())
+}
+
+#[test]
+fn topic_source_record_cap_applies_to_input_rows_before_deduplication() -> TestResult {
+    let (address, worker) = server(vec![
+        r#"{"ErrorCode":0,"ResultSets":[{"ColName":["t001","t002"],"Content":[["1","one"],["1","one"]]}]}"#,
+        r#"{"ErrorCode":0,"ResultSets":[]}"#,
+    ])?;
+    let client = TdxClient::builder().f10(routed(address)).build()?;
+    let query = eltdx::StockTopicsQuery::new(code()?).with_max_records(std::num::NonZeroUsize::MIN);
+    assert_eq!(client.helpers().stock_topics(&query, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::LimitExceeded);
+    client.close()?; worker.join().map_err(|_| "topic cap fixture panicked")??; Ok(())
+}

@@ -644,49 +644,9 @@ class HelperApi:
 
     def stock_topics(self, code: str) -> StockTopics:
         """Return all topics for one stock, merging topic IDs and details."""
+        from eltdx.transport.native import native_module
 
-        full_code = normalize_code(code)
-        topic_rows = list(getattr(self._client.f10.topic_ids(full_code), "rows", ()))
-        hot_rows = list(getattr(self._client.f10.hot_topics(full_code), "rows", ()))
-
-        merged: dict[str, dict[str, Any]] = {}
-        order: list[str] = []
-
-        for row in topic_rows:
-            topic_id = _text(_pick(row, "t001", "id", "topic_id"))
-            topic_name = _text(_pick(row, "t002", "ztmc", "topic_name"))
-            key = _topic_key(topic_id, topic_name)
-            if key not in merged:
-                merged[key] = {"source": set(), "raw": {}}
-                order.append(key)
-            merged[key].update({"topic_id": topic_id, "topic_name": topic_name})
-            merged[key]["source"].add("topic_ids")
-            merged[key]["raw"]["topic_ids"] = dict(row)
-
-        for row in hot_rows:
-            topic_id = _text(_pick(row, "id", "t001", "topic_id"))
-            topic_name = _text(_pick(row, "ztmc", "t002", "topic_name"))
-            key = _topic_key(topic_id, topic_name)
-            if key not in merged:
-                merged[key] = {"source": set(), "raw": {}}
-                order.append(key)
-            merged[key].update(
-                {
-                    "topic_id": topic_id,
-                    "topic_name": topic_name,
-                    "relation_level": _float(_pick(row, "gld", "relation_level")),
-                    "selected_date": _pick(row, "rxsj", "selected_date"),
-                    "topic_date": _pick(row, "ztrq", "topic_date"),
-                    "reason": _text(_pick(row, "ztnr", "reason")),
-                    "detail_id": _text(_pick(row, "arec", "detail_id")),
-                    "category_raw": _pick(row, "sslb", "category_raw"),
-                }
-            )
-            merged[key]["source"].add("hot_topics")
-            merged[key]["raw"]["hot_topics"] = dict(row)
-
-        topics = tuple(_build_stock_topic(merged[key]) for key in order)
-        return StockTopics(code=full_code, topics=topics)
+        return native_module().helper_stock_topics(self, code, globals())
 
     def topic_stocks(
         self,
@@ -698,25 +658,10 @@ class HelperApi:
         section: str = "gndbzfsj",
     ) -> TopicStockTable:
         """Return stocks inside a topic using a seed stock and topic ID/name."""
+        from eltdx.transport.native import native_module
 
-        full_seed = normalize_code(seed_code)
-        resolved_id = None if topic_id is None else str(topic_id)
-        resolved_name = topic_name
-        if resolved_id is None or topic_name is not None:
-            matched = self._resolve_topic(full_seed, resolved_id, resolved_name)
-            resolved_id = resolved_id or matched.topic_id
-            resolved_name = resolved_name or matched.topic_name
-        if resolved_id is None:
-            raise ValueError("topic_id or topic_name is required when the seed stock has no topic id")
-
-        response = self._client.f10.topic_compare(full_seed, resolved_id, section=section, sort_by=sort_by)
-        rows = tuple(_build_topic_stock(row) for row in getattr(response, "rows", ()))
-        return TopicStockTable(
-            seed_code=full_seed,
-            topic_id=resolved_id,
-            topic_name=resolved_name,
-            sort_by=sort_by,
-            rows=rows,
+        return native_module().helper_topic_stocks(
+            self, seed_code, topic_id, topic_name, sort_by, section, globals(),
         )
 
     def auction_data(
@@ -801,18 +746,9 @@ class HelperApi:
         return native_module().helper_capital_events(self, full_codes, trade_date)
 
     def _resolve_topic(self, full_seed: str, topic_id: str | None, topic_name: str | None) -> StockTopic:
-        topics = self.stock_topics(full_seed).topics
-        if topic_id is not None:
-            for item in topics:
-                if item.topic_id == topic_id:
-                    return item
-        if topic_name is not None:
-            for item in topics:
-                if item.topic_name == topic_name:
-                    return item
-        if topics and topic_id is None and topic_name is None:
-            return topics[0]
-        raise ValueError(f"topic not found for {full_seed}: {topic_id or topic_name!r}")
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_resolve_topic(self, full_seed, topic_id, topic_name, globals())
 
 
 def _code_list(codes: str | Sequence[str]) -> list[str]:
@@ -848,89 +784,45 @@ def _market_value(price: float | None, shares: float | None) -> float | None:
 
 
 def _build_stock_topic(data: dict[str, Any]) -> StockTopic:
-    return StockTopic(
-        topic_id=data.get("topic_id"),
-        topic_name=data.get("topic_name"),
-        relation_level=data.get("relation_level"),
-        selected_date=data.get("selected_date"),
-        topic_date=data.get("topic_date"),
-        reason=data.get("reason"),
-        detail_id=data.get("detail_id"),
-        category_raw=data.get("category_raw"),
-        source="+".join(sorted(data.get("source", ()))),
-        raw=dict(data.get("raw", {})),
-    )
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_build_stock_topic(data, globals())
 
 
 def _build_topic_stock(row: Mapping[str, Any]) -> TopicStock:
-    market_id = _int(_pick(row, "sc", "market_id"))
-    exchange = ID_TO_MARKET.get(market_id) if market_id is not None else None
-    code = _text(_pick(row, "zqdm", "code"))
-    full_code = f"{exchange}{code}" if exchange and code else None
-    if full_code is None and code:
-        try:
-            full_code = normalize_code(code)
-            exchange = full_code[:2]
-            market_id = {"sz": 0, "sh": 1, "bj": 2}.get(exchange)
-        except Exception:
-            full_code = None
+    from eltdx.transport.native import native_module
 
-    return TopicStock(
-        rank=_int(_pick(row, "pm", "rank")),
-        full_code=full_code,
-        exchange=exchange,
-        market_id=market_id,
-        code=code,
-        name=_text(_pick(row, "zqjc", "name")),
-        change_pct=_float(_pick(row, "zdf", "change_pct")),
-        change_pct_3d=_float(_pick(row, "zdf_3d", "change_pct_3d")),
-        change_pct_5d=_float(_pick(row, "zdf_5d", "change_pct_5d")),
-        change_pct_20d=_float(_pick(row, "zdf_20d", "change_pct_20d")),
-        change_pct_60d=_float(_pick(row, "zdf_60d", "change_pct_60d")),
-        change_pct_ytd=_float(_pick(row, "zdf_ys", "change_pct_ytd")),
-        trading_date=_pick(row, "tjdate", "trading_date"),
-        raw=dict(row),
-    )
+    return native_module().helper_build_topic_stock(row, globals())
 
 
 def _topic_key(topic_id: str | None, topic_name: str | None) -> str:
-    if topic_id:
-        return f"id:{topic_id}"
-    if topic_name:
-        return f"name:{topic_name}"
-    return "unknown"
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_topic_key(topic_id, topic_name)
 
 
 def _pick(row: Mapping[str, Any], *names: str) -> Any | None:
-    for name in names:
-        if name in row:
-            return row[name]
-    return None
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_topic_pick(row, names)
 
 
 def _text(value: Any | None) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_topic_scalar(value, "text", globals())
 
 
 def _int(value: Any | None) -> int | None:
-    if value is None or value == "":
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_topic_scalar(value, "int", globals())
 
 
 def _float(value: Any | None) -> float | None:
-    if value is None or value == "":
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_topic_scalar(value, "float", globals())
 
 
 def _pct(price: float | None, base: float | None) -> float | None:

@@ -5,7 +5,7 @@ use pyo3::types::PyDict;
 
 // Python LOAD_GLOBAL resolves the supplied module dictionary before builtins.
 // Actual helper callbacks deliberately keep their stricter module lookup.
-fn builtin<'py>(scope: &Bound<'py, PyDict>, name: &str) -> PyResult<Bound<'py, PyAny>> {
+pub(super) fn builtin<'py>(scope: &Bound<'py, PyDict>, name: &str) -> PyResult<Bound<'py, PyAny>> {
     if let Some(value) = scope.get_item(name)? { return Ok(value); }
     if let Some(builtins) = scope.get_item("__builtins__")? {
         if let Ok(values) = builtins.downcast::<PyDict>() {
