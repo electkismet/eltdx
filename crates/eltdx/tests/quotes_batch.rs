@@ -1,6 +1,7 @@
 #[path = "support/hq_server.rs"]
 mod hq_server;
 
+use std::net::TcpListener;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -106,6 +107,19 @@ fn foreign_singleton_and_corrupted_scalar_are_protocol_without_recovery() -> Res
         client.close()?;
         server.finish()?;
     }
+    Ok(())
+}
+
+#[test]
+fn primary_snapshot_connection_failure_is_not_reported_as_missing() -> Result<(), Box<dyn std::error::Error>> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let endpoint = listener.local_addr()?;
+    drop(listener);
+    let client = TdxClient::builder().endpoints(vec![endpoint]).heartbeat_interval(None).build()?;
+    let error = client.quotes().snapshots_with_policy(&ids(&["sh600000"]), MissingPolicy::AllowPartial,
+        &OperationOptions::default()).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Connection);
+    client.close()?;
     Ok(())
 }
 
