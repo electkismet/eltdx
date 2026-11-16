@@ -252,11 +252,13 @@ T04–T12 的跨 crate 类型与执行顺序按 [内部实施规格](execution-a
 
 **接口：** 稳定 query/options + page/complete结果；raw多页按页映射；周期与跨日按协议保留。
 
-- [ ] 测试短页/空页/重复页、max_pages、无进展、start偏移及总deadline。
-- [ ] 测试周/月/季/年、category8、HQ/EX/MAC时间差异的HQ部分。
-- [ ] 退市结果raw与普通聚合的差异先按矩阵决定，不强行统一。
-- [ ] 无效日期、畸形计数、尾部数据按照协议parser契约处理。
+- [x] 已编写短页/空页/重复页、max_pages、无进展、start偏移及总deadline的测试源码；执行延期。
+- [x] 已编写周/月/季/年、category8、HQ/EX/MAC时间差异HQ部分的测试源码；结束标签真实跨日并保存source_time。
+- [x] 退市结果raw保留首页，普通聚合legacy raw清空；Rust逐页payload/wire保留响应顺序，逐条range对应输出顺序。
+- [x] 无效日期、畸形计数、尾部数据按照协议parser契约处理；已编写边界测试源码，执行延期。
 - [ ] `cargo test -p eltdx --test klines --test minutes --locked`。
+
+T13实现源码与自审已写完，尚未编译或运行；待T01–T30全部实现代码完成后统一验证。M25–M40及M98–M99已接入公开Rust服务，Python迁移仍由T18完成。
 
 ### T14：逐笔、竞价、开盘撮合与金额流
 

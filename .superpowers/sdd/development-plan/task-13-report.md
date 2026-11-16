@@ -2,6 +2,8 @@
 
 ## Scope
 
+Source implementation checkpoint: `338d99b`, based on `7037e643`.
+
 T13 adds the Rust HQ service surface for M25–M40 and M98–M99 while leaving the
 existing Python API and compatibility policy unchanged. `TdxClient` exposes
 owned lazy `klines()` and `minutes()` services. Query and DTO types live under

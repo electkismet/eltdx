@@ -220,7 +220,7 @@ Rust新增默认不是对旧Python边界值合法性的追认：例如旧categor
 
 | 类型 | 必需字段与含义 |
 | --- | --- |
-| `KlineBar` | `time:EventTime, open/close/high/low:Price, last_close:Option<Price>, volume:Quantity, amount:Amount, index_up/index_down:Option<u32>`；保留原integer/f32位及尺度来源。index counts仅指数有，None不是0。 |
+| `KlineBar` | `time:EventTime, source_time:EventTime, open/close/high/low:Price, last_close:Option<Price>, volume:Quantity, amount:Amount, index_up/index_down:Option<u32>`；source_time保留结束标签平移前的原始交易所时刻，供Python旧同日回绕投影使用；保留原integer/f32位及尺度来源。index counts仅指数有，None不是0。 |
 | `KlineSeries` | `id, period:KlinePeriod, kind:KlineKind, adjust:AdjustMode, anchor_date:Option<TradingDate>, time_label:BarTime, bars:DataPage<KlineBar>, pages_read:usize`；page与collect同类型，但后者end必须完整。 |
 | `MinutePoint` | `index:u32, time:EventTime, price:Price, volume:Quantity, average:Option<Price>`；今天/历史/最近格式未提供平均价时None，time不把未有日期的点伪装成带UTC日期。 |
 | `MinuteSeries` | `id, trading_date:Option<TradingDate>, previous_close:Option<Price>, open:Option<Price>, points:Vec<MinutePoint>, meta`；完整单响应；旧volume_sum保留为同单位Quantity求和。 |

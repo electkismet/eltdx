@@ -76,6 +76,9 @@ P3 与 P4 可由不同人员并行；公共类型、owner 和 operation 的修�
 - [ ] 清单对每条能力记录 `id/source_files/feature/stage/status/fixtures/compatibility`，wire code 独立字段；money_flow 缺 registry 不是通过改数字掩盖。
 - [ ] 校验静态快照的签名、默认表达式、导出、属性及模型字段；补真实 import/继承/decorator/dataclass/enum 反射记录，不能把候选定义计数当稳定接口数。
 - [ ] 新增 registry 集合差异断言：显式记录允许的差异及原因，不硬编码“所有集合都相等”。
+- [ ] `migrated` 记录的 `sdk_evidence` 必须指向 `crates/eltdx/src/lib.rs::PublicSymbol`，并解析为 crate 根的公开声明或单符号 `pub use` 重导出；不得用私有父模块中的声明、注释或字符串文本充当证据，且 `lib.rs` 必须列在该记录 `source_files`。协议层 wire 支持不能充当 SDK 实现证据。
+- [ ] `compatibility` 必须是 pytest 默认文件规则（`test_*.py` 或 `*_test.py`）可收集的精确节点，节点路径匹配模块级 `test_*` 函数或一个顶层 `Test*` 类中的 `test_*` 方法；不接受嵌套测试类。排除定义了 `__init__` 或 `__new__`、设置 `__test__ = False` 的测试类，以及被标记为 fixture 或设置 `__test__ = False` 的函数，不得仅凭 AST 中任意同名节点通过。
+- [ ] Python 模块覆盖按来源分别校验：`frozen_static_baseline` 必须映射到冻结快照模块；`migration_manifest` 必须以 `record_id` 绑定具有合法迁移状态的记录且模块路径出现在该记录 `source_files`；`compatibility_contract` 的精确 pytest 节点或测试模块级导入必须显式导入对应 `eltdx` Python 模块，其他测试函数的局部导入不得代替。
 - [ ] 运行 `python -m pytest -q tests/contracts/test_unified_test_plan.py tests/contracts/test_command_registry_consistency.py`；输出必须列真实收集数，无网络。
 
 ### T02：补充独立样本与差分基线
@@ -86,26 +89,28 @@ P3 与 P4 可由不同人员并行；公共类型、owner 和 operation 的修�
 
 先把 [COMP 兼容案例](compatibility-cases.md) 中本域案例落到这里的 fixture 目录；每例同时保存新 Rust 与旧/新 Python 的预期，不能只比较两个都调用同一新 Rust 函数的输出。
 
-- [ ] 先检查现有 25 normal +12 extra 生成样本与提交样本的映射，列出 money_flow、非空 category22、EX/MAC/F10 的实际缺口。
-- [ ] 为批量重复/乱序/缺失、短页后还有数据、日期跨日、ETF/债券精度、无效压缩、ZIP/DAT、重复 F10 列和未知 MAC bit 建立具体样本。
-- [ ] 期望值来自已冻结旧行为、协议手算或独立参考；当前 Rust→Python 生成的期望只算回归基线，不标为独立 oracle。
-- [ ] category22 没有非空实测响应时标为实验能力，不伪造“已实测”记录，也不阻止稳定 F10 历史资金流路径。
+- [x] 先检查现有 25 normal +12 extra 生成样本与提交样本的映射，列出 money_flow、非空 category22、EX/MAC/F10 的实际缺口；逐样本来源和 SHA-256 见 `tests/fixtures/sdk/inventory.json`。
+- [x] 为批量重复/乱序/缺失、短页后还有数据、日期跨日、ETF/债券精度、无效压缩、ZIP/DAT、重复 F10 列和未知 MAC bit 建立具体样本，位于 `tests/fixtures/sdk/cases/`。
+- [x] 期望值来源与独立性逐例记录；既有 Python 生成的期望只标为回归基线，不标为独立 oracle。
+- [x] category22 没有非空实测响应时标为实验能力，不伪造“已实测”记录，也不阻止稳定 `0x0FFC` 日资金流和 F10 历史资金流路径。
 - [ ] 运行 `python -m pytest -q tests/contracts/test_sdk_fixture_inventory.py tests/native/test_differential.py`；原生命令测试需要先按项目既有方式安装当前绑定。
+
+实现与测试源码已完成；上述测试执行按用户要求推迟到 T01–T30 全部实现代码完成后统一进行。当前库存导出脚本只生成来源/哈希清单，不调用协议解析器。
 
 ### T03：冻结差异决策、单位和代码规范化
 
-**文件：** 维护本目录 `public-api.md`、`capability-matrix.md`；新增 `tests/fixtures/sdk/policy/price_limits.json`、`normalization.json`、`units.json`、`dates.json`。
+**文件：** 维护本目录 `public-api.md`、`capability-matrix.md`；新增 `tests/fixtures/sdk/policy/{price_limits,normalization,units,dates,legacy_boundaries}.json` 和 `tests/contracts/test_sdk_policy_fixtures.py`。
 
 **产物：** 每项冲突有明确新 Rust 行为、Python 兼容方式、证据和变更条件。
 
-- [ ] 涨跌停规则逐一记录主板 ST、注册制 ST、北交所首日、指数、退市整理等案例；引用有效日期的可靠规则来源后才批准当前规则 profile。
-- [ ] 有争议且无法证明的场景返回 `Unknown`/明确错误；不默认选一份现有实现当权威。
-- [ ] 将 today_batch 不支持、裸代码推断遗漏、不同名多 DAT 选择、按位置关联指数、吞错缓存空值分别建立回归样本。
-- [ ] 为每个已知缺陷注明“新 Rust 可修正”与“Python 仍兼容/另行批准修复”，不能因共享实现就自动改变 Python 行为。
-- [ ] 明确 Rust `SecurityId` 的严格构造与 Python lenient alias/默认值转换；定义价格/量/金额/比例和时区来源。
-- [ ] 冻结 Python 每请求 timeout、startup 计时起点、预取/分页/补查的独立尝试限制，以及 `max_pages=None`；新 Rust 总期限另立规则，不能混用预期。
-- [ ] 按 [决策清单](decision-register.md) 审核默认值和E类待证据项；每个开始实现的域具备签名、字段、单位、错误、至少一个非空与一个失败案例。
-- [ ] 审阅所有样本是否能由不看实现的人判断期望；完成后再进入依赖这些规则的任务。
+- [x] 涨跌停规则逐一记录主板 ST、注册制 ST、北交所上市阶段、指数、退市整理等案例；当前没有有效日期的权威来源，故不批准任何争议 profile，Rust 返回 `UnknownRule`。
+- [x] 有争议且无法证明的场景返回 `Unknown`/明确错误；不默认选一份现有实现当权威。
+- [x] 将 today_batch 不支持、裸代码推断遗漏、不同名多 DAT 选择、按位置关联指数、吞错缓存空值分别建立回归样本。
+- [x] 为每个已知缺陷注明“新 Rust 可修正”与“Python 仍兼容/另行批准修复”，不能因共享实现就自动改变 Python 行为。
+- [x] 明确 Rust `SecurityId` 的严格构造与 Python lenient alias/默认值转换；定义价格/量/金额/比例和时区来源。
+- [x] 冻结 Python 每请求 timeout、startup 计时起点、预取/分页/补查的独立尝试限制，以及 `max_pages=None`；新 Rust 总期限另立规则，不能混用预期。
+- [x] 按 [决策清单](decision-register.md) 审核默认值和E类待证据项；尚无开始实现的业务域，T03 已列出无证据时的明确限制。
+- [x] 审阅所有样本是否能由不看实现的人判断期望；完成后再进入依赖这些规则的任务。最终执行验证按用户要求延期。
 
 ## 3. P1：独立 SDK 基础与运行时契约
 
@@ -140,10 +145,10 @@ fn build_and_close_without_network() -> eltdx::Result<()> {
 
 **接口：** 现有公开 typed 方法保持；内部未交付 pin 必须退还；取消确认和正常完成共享唯一终态。
 
-- [ ] 用 barrier/channel 精确暂停在 pin 分配前、成功发送前、receiver 丢弃后；禁止用短 sleep 作为竞态证明。
-- [ ] 覆盖“先成功后取消”“先取消后成功”“成功发送失败”“PendingPin 未 wait 就 drop”四条路径。
-- [ ] 成功交付时断言仅一个活跃 grant，交付的 guard 释放后 active leases=0；取消/未交付路径直接归零。各路径后续新 pin 可取得、无双重 release。
-- [ ] 为 pending request 丢弃提供非阻塞取消登记；取消确认超时走现有受控 fail-closed，不把成功结果误认为仍在执行。
+- [x] 用 barrier/channel 固定 pending drop 和“pin 已打开、结果尚未发送”的取消顺序；源码也覆盖失败结果发布前已排队的取消，公开回环以 channel 协调，不使用短 sleep。
+- [x] 为“先成功后取消”“先取消后成功”“成功发送失败”“PendingPin 未 wait 就 drop”及失败结果交付竞态编写源码用例。
+- [x] 源码断言成功 grant 只有一个所有者，释放后 active leases=0；取消/未交付后归零，后续 pin 可重新取得且重复 release 无效。
+- [x] 为 pending request 丢弃添加非阻塞取消登记；源码覆盖取消确认超时触发现有 fail-closed 路径，并避免把成功结果误认为仍在执行。
 - [ ] 运行 `cargo test -p eltdx-runtime pin --locked` 和完整 runtime 测试；评审不得破坏原 FIFO/fencing。
 
 ### T06：增加原始回复与绝对执行期限
@@ -247,11 +252,13 @@ T04–T12 的跨 crate 类型与执行顺序按 [内部实施规格](execution-a
 
 **接口：** 稳定 query/options + page/complete结果；raw多页按页映射；周期与跨日按协议保留。
 
-- [ ] 测试短页/空页/重复页、max_pages、无进展、start偏移及总deadline。
-- [ ] 测试周/月/季/年、category8、HQ/EX/MAC时间差异的HQ部分。
-- [ ] 退市结果raw与普通聚合的差异先按矩阵决定，不强行统一。
-- [ ] 无效日期、畸形计数、尾部数据按照协议parser契约处理。
+- [x] 已编写短页/空页/重复页、max_pages、无进展、start偏移及总deadline的测试源码；执行延期。
+- [x] 已编写周/月/季/年、category8、HQ/EX/MAC时间差异HQ部分的测试源码；结束标签真实跨日并保存source_time。
+- [x] 退市结果raw保留首页，普通聚合legacy raw清空；Rust逐页payload/wire保留响应顺序，逐条range对应输出顺序。
+- [x] 无效日期、畸形计数、尾部数据按照协议parser契约处理；已编写边界测试源码，执行延期。
 - [ ] `cargo test -p eltdx --test klines --test minutes --locked`。
+
+T13实现源码与自审已写完，尚未编译或运行；待T01–T30全部实现代码完成后统一验证。M25–M40及M98–M99已接入公开Rust服务，Python迁移仍由T18完成。
 
 ### T14：逐笔、竞价、开盘撮合与金额流
 
