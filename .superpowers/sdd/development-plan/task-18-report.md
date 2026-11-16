@@ -385,3 +385,30 @@ ALL HQ Python/native domain adapters, compatibility/differential source cases,
 truthful migration manifest evidence, independent consumer and HQ example. Do
 not repeat the19 authored helper methods or mark T18 complete before these
 remaining requirements and the later unified verification are satisfied.
+
+Seventh source stage committed as **1bb3c1a** (18 files). All execution deferred.
+
+## Eighth source checkpoint — initial pure Rust example and consumer
+
+- Authored crates/eltdx/examples/hq_query.rs. Explicit server/security arguments,
+  default HQ only, finite whole-operation timeout, full-quote diagnostics/typed
+  units and explicit close on success/failure. The primary business error stays
+  primary when cleanup also fails. No server is contacted while authoring.
+- Added tests/consumers/rust-sdk with an independent Cargo workspace and one
+  direct dependency, eltdx. A std-only local server authors its own framing and
+  fixed expected prices without importing protocol/runtime or repository test
+  helpers. The consumer covers lazy build/getters/double-close plus actual
+  nonempty 0/1/2 directory pages, reversed snapshot rows with repeated input,
+  identity/price/source/raw preservation, single connection and service rejection
+  after close. It closes the owner and stops/joins the fixture on business failure.
+- Consumer README distinguishes a standalone manifest inside the repository from
+  actual external/package/registry consumption. The latter, dependency-graph
+  inspection, feature/MSRV/platform matrix and installed-wheel consumer evidence
+  remain outstanding. No lockfile or dependencies have been resolved, no example
+  or consumer has been compiled, executed or used as passing evidence.
+
+Resume with full HQ Python/native domain migrations, authored compatibility
+cases and truthful manifest evidence, then installed-wheel consumer source.
+Do not count the new Rust consumer as completion of T28. Task totals remain18
+source-complete/4 partial/8 unstarted, goal active without quota; all execution
+validation remains forbidden until all T01–T30 implementation sources are done.

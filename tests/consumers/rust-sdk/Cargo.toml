@@ -1,0 +1,23 @@
+[package]
+name = "eltdx-independent-consumer"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.89"
+publish = false
+
+# Deliberately its own workspace: the consumer has one production dependency,
+# the public SDK. No protocol/runtime crate or Python binding is imported.
+[workspace]
+
+[features]
+default = ["sdk-default"]
+sdk-default = ["eltdx/default"]
+sdk-serde = ["eltdx/serde"]
+sdk-offline = ["eltdx/offline"]
+sdk-f10 = ["eltdx/f10"]
+sdk-ex = ["eltdx/ex"]
+sdk-mac = ["eltdx/mac"]
+sdk-full = ["eltdx/full"]
+
+[dependencies]
+eltdx = { path = "../../../crates/eltdx", default-features = false }

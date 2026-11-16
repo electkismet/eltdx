@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-2026-11-17 最新恢复点：M90/M91已提交f6a99a8；此后新增T18 M96/M97板块行情/成分股行情、默认HQ内部文本/DBF解析、显式目录/内存来源、固定HQ双文件下载、owner有界缓存和8组公开用例源码。M79–M97共19/19 helper方法均已有首批源码；T18仍部分，全部HQ Python/native回迁、真实manifest迁移证据、独立consumer与example仍待完成。板块保留raw/display/excluded事实和来源日期未知诊断，Region缺真实base.dbf报ResourceFormat，行情80一批按id关联，可选失败不吞取消/总期限。当前18项源码完整、4项部分、8项未开始；没有运行任何测试、构建或执行检查。
+2026-11-17 最新恢复点：M90/M91已提交f6a99a8；M96/M97板块及默认HQ内部文本/DBF解析、显式来源/固定HQ下载、owner缓存和8组公开用例源码已提交1bb3c1a。M79–M97共19/19 helper方法均已有首批源码。随后新增hq_query例子和tests/consumers/rust-sdk独立manifest、仅std/eltdx的非空回环/分页/关闭consumer源码。T18仍部分，全部HQ Python/native回迁、真实manifest迁移证据及安装wheel consumer仍待完成；外部复制/依赖图/编译运行证据也尚无。当前18项源码完整、4项部分、8项未开始；没有运行任何测试、构建或执行检查。
 
-当前实际进度：T01–T17及T21实现源码已写完；T18/T22/T24/T25为部分实现（18完整源码/4部分/8未开始）。恢复先读task-18-report第七段和brief，继续HQ Python/native逐域回迁及consumer。M79–M97已有首批源码（19/19 HQ helper方法），不重复实现；其源码完整度不代表T18完成或已通过编译/测试。目标保持active且不设置额度限制；全部执行验证延期。
+当前实际进度：T01–T17及T21实现源码已写完；T18/T22/T24/T25为部分实现（18完整源码/4部分/8未开始）。恢复先读task-18-report第七/八段和brief，继续HQ Python/native逐域回迁、真实manifest证据和installed-wheel consumer。M79–M97及Rust首批例子/consumer源码已写，不重复实现；其源码完整度不代表T18完成或已通过编译/测试。目标保持active且不设置额度限制；全部执行验证延期。
 
 2026-11-16 第二轮 T12 检查点已提交 `1e25507`：新增 NativeEngine loopback 成功链、协议异常 `__cause__`、KeyboardInterrupt 清理的集成测试源码；`from_sdk` 保持旧 Python native 异常无额外 cause；Rust 与 Python legacy directory 共用分页循环但分开应用严格响应校验，保留 Python 旧行集语义。实现和测试源码均未运行；T12 尚未完成。
 
@@ -17,11 +17,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | M90/M91`f6a99a8`后新增M96/M97板块源码/用例；M88/M89`4823fb8`，M92–M94`ab5f8bf`；全部执行验证延期 |
+| 最新检查点 | M96/M97`1bb3c1a`后新增hq_query及独立Rust consumer源码；M90/M91`f6a99a8`；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T18：全部HQ Python/native逐域回迁、manifest真实证据及consumer/example源码；已有实现待最终统一验证 |
+| 下一步 | T18：全部HQ Python/native逐域回迁、manifest真实证据及installed-wheel consumer源码；已有Rust例子/consumer待最终统一验证 |
 
 ## 阶段进度
 
