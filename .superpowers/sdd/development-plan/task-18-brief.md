@@ -73,6 +73,13 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Twenty-fourth recovery: full_quotes/fund-flow committed2c6d9f4. Rank helper now
+uses common count/offset traversal and binding projection; retain Python short
+page EOF, over-target final page, per-page name lookup, continuous rank and
+custom count/scalar functions. Strict keeps empty EOF and bounded admission.
+Added5 contract/2 Rust source functions and rank source-only manifest, unexecuted.
+Other HQ helpers/batches/subscriptions/consumer remain;18/4/8 unchanged.
+
 Twenty-third recovery: special limits committed9d75306. Shared full_quote_chunks,
 complete_quote_depth and generic fund-flow threshold/accumulator now used by
 strict SDK and Python binding. Python full quote/merge loops moved to the binding;

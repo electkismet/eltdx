@@ -957,3 +957,27 @@ No tests, collection, builds, dependency resolution, format/AST/compile checks,
 network probes or equivalent verification ran. T18 remains partial18/4/8; other
 HQ helpers, batches/subscription coordination and installed-wheel consumer are
 still outstanding. Goal active/no cap; next stages T19–T30 remain authorized.
+
+Twenty-third source stage committed as **2c6d9f4**; all execution deferred.
+
+## Twenty-fourth source checkpoint — rank traversal and legacy projection
+
+- Extracted collect_rank_pages shared by strict HelperService and binding.
+  Count/window, actual offset, continuous source order and failure handling share
+  one loop. Python short-page EOF is explicit; strict remains empty-EOF-only.
+  Strict preserves prior request limits and endpoint checks; both project each
+  page before admitting the next. Added fallible aggregate reservation.
+- Python native route keeps original numeric conversion callbacks, per-page
+  _security_map, row constructor kwargs, raw identity, duplicate/over-target
+  records, count=None and input validation order. Noninteger/custom and very
+  large count preserve their original arithmetic loop. Source callbacks keep
+  the existing per-request budgets; no whole-operation timeout is imposed.
+- Added5 Python contract functions and2 Rust source functions for short vs empty
+  EOF, exact offsets/count/rank, raw/order, overfull pages, empty enrichment,
+  invalid count before owner access, scalar hooks and page failures. Existing
+  frozen rank capability gets source-only evidence, no migration promotion.
+
+No test/collection/build/check/dependency/AST/format/network verification ran.
+T18 remains partial;18 complete-source/4 partial/8 unstarted. Next remaining
+profile/daily/shortline/market/board helpers, capital/moneyflow batching,
+subscription composition and installed-wheel consumer, then T19–T30/Stage B.

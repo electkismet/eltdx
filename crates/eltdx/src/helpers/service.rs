@@ -9,7 +9,7 @@ use crate::hq::executor::HqExecutor;
 use crate::operation::{ChildPurpose, OperationContext, OperationOptions, WorkLimits};
 use crate::services::{aggregate_meta, allocation_error, checked_ids, is_a_share, is_st_name,
     CodeService, MinuteService, QuoteService};
-use crate::services::pagination::{advance_offset, CollectionLimits, PageProgress};
+use crate::services::pagination::{CollectionLimits, PageProgress};
 use crate::types::{AuxKind, BatchItem, BatchItemState, BatchOutcome, CategoryQuery, CodeScanQuery,
     Collected, Diagnostic, EndEvidence, EnrichmentStatus, FullQuote, HqMarket, MinuteAuxSeries,
     MissingPolicy, RankQuery, RealtimeRankRow, Security, SecurityId, Snapshot,
@@ -27,6 +27,32 @@ pub fn full_quote_chunks<T>(values: &[T]) -> std::slice::Chunks<'_, T> {
 
 pub fn complete_quote_depth(bids: usize, asks: usize) -> bool {
     bids >= 5 && asks >= 5
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RankCollectionEnd { Requested, Empty, Short }
+
+/// Shared rank page traversal. The strict service requires an empty page as
+/// EOF; Python's original rank helper also accepts a short page. Projection is
+/// deliberately in the callback, before the next page is admitted.
+pub fn collect_rank_pages<T, E>(target: Option<usize>, page_size: usize, short_page_eof: bool,
+    mut page: impl FnMut(u64, usize, usize) -> std::result::Result<Vec<T>, E>,
+    overflow: impl Fn() -> E) -> std::result::Result<(Vec<T>, RankCollectionEnd), E> {
+    let mut rows = Vec::new();
+    let mut offset = 0_u64;
+    loop {
+        if target.is_some_and(|target| rows.len() >= target) {
+            return Ok((rows, RankCollectionEnd::Requested));
+        }
+        let requested = target.map_or(page_size, |target| page_size.min(target - rows.len()));
+        let values = page(offset, requested, rows.len())?;
+        let count = values.len();
+        if count == 0 { return Ok((rows, RankCollectionEnd::Empty)); }
+        offset = offset.checked_add(u64::try_from(count).map_err(|_| overflow())?).ok_or_else(&overflow)?;
+        rows.try_reserve(count).map_err(|_| overflow())?;
+        rows.extend(values);
+        if short_page_eof && count < requested { return Ok((rows, RankCollectionEnd::Short)); }
+    }
 }
 
 /// HQ business operations. Getters and cloning do not start the runtime or
@@ -209,16 +235,11 @@ impl HelperService {
         }
         let mut progress = PageProgress::default();
         let limits = CollectionLimits { pages: Some(query.pages().max_pages()), records: Some(query.pages().max_records()) };
-        let mut rows = Vec::new();
-        let mut offset = 0_u32;
         let mut endpoint = None;
         let quotes = self.quotes();
-        let end = loop {
+        let (rows, end) = collect_rank_pages(query.count(), query.pages().page_size(), false, |offset, count, base| {
             context.check_boundary(TimeoutPhase::Admission)?;
-            if query.count().is_some_and(|count| rows.len() >= count) { break EndEvidence::RequestedWindow; }
             progress.before_request(limits)?;
-            let count = query.count().map_or(query.pages().page_size(), |target|
-                query.pages().page_size().min(target - rows.len()));
             let start = u16::try_from(offset).map_err(|_| helper_overflow())?;
             let page_query = CategoryQuery::new().with_category(query.category())?.with_sort(query.sort())?
                 .with_ascending(query.ascending())?.with_start(start)?.with_count(count)?;
@@ -234,16 +255,20 @@ impl HelperService {
             endpoint = Some(host);
             metas.try_reserve(1).map_err(allocation_error)?;
             metas.push(page.meta().clone());
-            if page.items().is_empty() { break EndEvidence::EmptyPage; }
-            offset = advance_offset(offset, page.items().len())?;
-            rows.try_reserve(page.items().len()).map_err(allocation_error)?;
-            for quote in page.into_items() {
+            let mut projected = Vec::new();
+            projected.try_reserve(page.items().len()).map_err(allocation_error)?;
+            for (index, quote) in page.into_items().into_iter().enumerate() {
                 let name = name_map.get(quote.snapshot().id()).cloned();
                 let seal_amount = quote.seal_amount().ok_or_else(|| Error::new(ErrorKind::Protocol,
                     "rank seal amount exceeds finite CNY range"))?;
-                rows.push(RealtimeRankRow { rank: rows.len().checked_add(1).ok_or_else(helper_overflow)?, name, quote, seal_amount });
+                let rank = base.checked_add(index).and_then(|index| index.checked_add(1)).ok_or_else(helper_overflow)?;
+                projected.push(RealtimeRankRow { rank, name, quote, seal_amount });
             }
-            // No identity deduplication, sorting or short-page EOF assumption.
+            Ok(projected)
+        }, helper_overflow)?;
+        let end = match end {
+            RankCollectionEnd::Requested => EndEvidence::RequestedWindow,
+            RankCollectionEnd::Empty | RankCollectionEnd::Short => EndEvidence::EmptyPage,
         };
         let version = context.metadata()?.map(|snapshot| snapshot.version());
         let mut meta = aggregate_meta(&context, &metas, version)?;
@@ -286,6 +311,35 @@ mod source_cases {
     use super::*;
     use crate::types::{Amount, AmountUnit, EventTime, NumericValue, Price, Quantity, QuantityUnit,
         QuoteLevel, RawData, ResultMeta, SourceStamp};
+
+    #[test]
+    fn rank_short_page_is_legacy_eof_but_strict_waits_for_empty() {
+        for legacy in [false, true] {
+            let mut calls = Vec::new();
+            let (rows, end) = collect_rank_pages(None, 80, legacy, |offset, count, base| {
+                calls.push((offset, count, base));
+                Ok::<_, &str>(if offset == 0 { vec!["first", "second"] } else { Vec::new() })
+            }, || "overflow").unwrap();
+            assert_eq!(rows, ["first", "second"]);
+            assert_eq!(end, if legacy { RankCollectionEnd::Short } else { RankCollectionEnd::Empty });
+            assert_eq!(calls.len(), if legacy { 1 } else { 2 });
+            if !legacy { assert_eq!(calls[1], (2, 80, 2)); }
+        }
+    }
+
+    #[test]
+    fn rank_requested_count_keeps_legacy_overfull_page_and_callback_failure() {
+        let mut calls = 0;
+        let (rows, end) = collect_rank_pages(Some(3), 80, true, |offset, requested, base| {
+            calls += 1;
+            assert_eq!((offset, requested, base), (0, 3, 0));
+            Ok::<_, &str>(vec![1, 1, 2, 2])
+        }, || "overflow").unwrap();
+        assert_eq!(rows, [1, 1, 2, 2]);
+        assert_eq!(end, RankCollectionEnd::Requested);
+        assert_eq!(calls, 1);
+        assert_eq!(collect_rank_pages::<u8, _>(None, 80, false, |_, _, _| Err("page"), || "overflow").unwrap_err(), "page");
+    }
 
     fn snapshot(number: &str, value: i64, bids: usize, asks: usize, command: u16) -> Snapshot {
         let id = SecurityId::new(HqMarket::Shanghai, number).unwrap();

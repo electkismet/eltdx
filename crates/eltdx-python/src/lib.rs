@@ -45,6 +45,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helpers::helper_fund_flow, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_full_quotes, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_merge_depths, module)?)?;
+    module.add_function(wrap_pyfunction!(helpers::helper_rank, module)?)?;
     transport::register(module)?;
     Ok(())
 }

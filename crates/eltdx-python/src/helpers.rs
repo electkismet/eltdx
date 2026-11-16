@@ -5,6 +5,57 @@ use pyo3::exceptions::PyException;
 use pyo3::types::{PyDict, PyFloat, PyList, PyTuple};
 
 #[pyfunction]
+#[pyo3(signature = (helper, category, sort_by, count, ascending, row_type, as_float, as_int))]
+#[allow(clippy::too_many_arguments)]
+pub fn helper_rank(py: Python<'_>, helper: Bound<'_, PyAny>, category: Bound<'_, PyAny>,
+    sort_by: Bound<'_, PyAny>, count: Option<usize>, ascending: Bound<'_, PyAny>,
+    row_type: Bound<'_, PyAny>, as_float: Bound<'_, PyAny>, as_int: Bound<'_, PyAny>)
+    -> PyResult<Py<PyAny>> {
+    let builtins = py.import("builtins")?;
+    let getattr = builtins.getattr("getattr")?;
+    let tuple_type = builtins.getattr("tuple")?;
+    let (rows, _) = eltdx::__python_compat::collect_rank_pages(count, 80, true, |offset, requested, base| {
+        py.check_signals()?;
+        let kwargs = PyDict::new(py);
+        kwargs.set_item("sort_by", &sort_by)?;
+        kwargs.set_item("start", offset)?;
+        kwargs.set_item("count", requested)?;
+        kwargs.set_item("ascending", &ascending)?;
+        let page = helper.getattr("_client")?.getattr("quotes")?
+            .call_method("list_by_category", (&category,), Some(&kwargs))?;
+        let raw = getattr.call1((page, "records", PyTuple::empty(py)))?;
+        let records = if raw.is_truthy()? { tuple_type.call1((raw,))? }
+            else { PyTuple::empty(py).into_any() };
+        if records.len()? == 0 { return Ok(Vec::new()); }
+        let codes = PyList::empty(py);
+        for item in records.try_iter()? { codes.append(item?.getattr("full_code")?.str()?)?; }
+        let security = helper.call_method1("_security_map", (codes,))?;
+        let mut rows = Vec::new();
+        for (index, item) in records.try_iter()?.enumerate() {
+            let item = item?;
+            let code = item.getattr("full_code")?.str()?;
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("rank", base + index + 1)?;
+            kwargs.set_item("full_code", &code)?;
+            let named = security.call_method1("get", (&code,))?;
+            kwargs.set_item("name", getattr.call1((named, "name", py.None()))?)?;
+            for (field, attr) in [("last_price", "last_price"), ("pre_close", "pre_close_price"),
+                ("change_pct", "change_pct"), ("amount", "amount")] {
+                kwargs.set_item(field, as_float.call1((getattr.call1((&item, attr, py.None()))?,))?)?;
+            }
+            kwargs.set_item("volume_hand", as_int.call1((getattr.call1((&item, "total_hand", py.None()))?,))?)?;
+            for (field, attr) in [("opening_rush", "opening_rush"), ("seal_amount", "locked_amount")] {
+                kwargs.set_item(field, as_float.call1((getattr.call1((&item, attr, py.None()))?,))?)?;
+            }
+            kwargs.set_item("raw", item)?;
+            rows.push(row_type.call((), Some(&kwargs))?.unbind());
+        }
+        Ok(rows)
+    }, || pyo3::exceptions::PyOverflowError::new_err("rank offset overflow"))?;
+    Ok(PyTuple::new(py, rows)?.into_any().unbind())
+}
+
+#[pyfunction]
 pub fn helper_full_quotes(py: Python<'_>, helper: Bound<'_, PyAny>, codes: Bound<'_, PyList>)
     -> PyResult<Py<PyAny>> {
     let results = PyList::empty(py);

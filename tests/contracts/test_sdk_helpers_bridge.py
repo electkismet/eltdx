@@ -155,3 +155,73 @@ def test_depth_request_exception_degrades_but_base_exception_propagates():
     client.quotes.get_depth = interrupt
     with pytest.raises(KeyboardInterrupt):
         helper._merge_quote_depths(source, [CODE])
+
+
+def test_rank_preserves_server_order_short_page_and_raw_identity():
+    records = [SimpleNamespace(full_code=CODE, last_price="12", total_hand="5"),
+               SimpleNamespace(full_code="sh600002", last_price="bad", total_hand=None)]
+    calls = []
+
+    def page(category, **kwargs):
+        calls.append((category, kwargs))
+        return SimpleNamespace(records=iter(records))
+
+    client = _Client(quotes=SimpleNamespace(list_by_category=page))
+    helper = HelperApi(client)
+    helper._security_map = lambda codes: {CODE: SimpleNamespace(name="first")}
+    result = helper.realtime_rank(category=7, sort_by=4, count=None, ascending=True)
+    assert [row.rank for row in result.rows] == [1, 2]
+    assert result.rows[0].raw is records[0] and result.rows[1].raw is records[1]
+    assert result.rows[0].name == "first" and result.rows[1].name is None
+    assert result.rows[0].last_price == 12.0 and result.rows[0].volume_hand == 5
+    assert result.rows[1].last_price is None
+    assert calls == [(7, dict(sort_by=4, start=0, count=80, ascending=True))]
+
+
+def test_rank_continuous_numbers_and_actual_offset_for_two_pages():
+    calls = []
+
+    def page(category, **kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(records=tuple(SimpleNamespace(full_code=CODE)
+                                              for _ in range(kwargs["count"])))
+
+    client = _Client(quotes=SimpleNamespace(list_by_category=page))
+    helper = HelperApi(client)
+    helper._security_map = lambda codes: {}
+    result = helper.realtime_rank(count=81)
+    assert [row.rank for row in result.rows] == list(range(1, 82))
+    assert [(call["start"], call["count"]) for call in calls] == [(0, 80), (80, 1)]
+
+
+def test_rank_keeps_overfull_final_page_and_empty_page_skips_name_lookup():
+    client = _Client(quotes=SimpleNamespace(list_by_category=lambda *args, **kwargs:
+        SimpleNamespace(records=[SimpleNamespace(full_code=CODE)] * 3)))
+    helper = HelperApi(client)
+    helper._security_map = lambda codes: {}
+    assert helper.realtime_rank(count=1).count == 3
+    client.quotes.list_by_category = lambda *args, **kwargs: object()
+    helper._security_map = lambda codes: pytest.fail("empty page must skip name lookup")
+    assert helper.realtime_rank(count=None).rows == ()
+
+
+def test_rank_invalid_count_is_rejected_before_client_access():
+    client = _Client()
+    helper = HelperApi(client)
+    for count in [0, -1]:
+        with pytest.raises(ValueError, match="count must be positive or None"):
+            helper.realtime_rank(count=count)
+
+
+def test_rank_custom_count_arithmetic_and_numeric_projection_hooks(monkeypatch):
+    from eltdx.helpers import core
+
+    seen = []
+    client = _Client(quotes=SimpleNamespace(list_by_category=lambda *args, **kwargs:
+        seen.append(kwargs["count"]) or SimpleNamespace(records=[SimpleNamespace(full_code=CODE, last_price=3)])))
+    helper = HelperApi(client)
+    helper._security_map = lambda codes: {}
+    monkeypatch.setattr(core, "_float", lambda value: ("converted", value))
+    assert helper.realtime_rank(count=1.5).rows[0].last_price == ("converted", 3)
+    assert seen == [1.5]
+    assert helper.realtime_rank(count=1).rows[0].last_price == ("converted", 3)

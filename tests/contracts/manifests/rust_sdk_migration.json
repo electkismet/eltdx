@@ -1972,7 +1972,12 @@
     {
       "id": "helper-realtime-rank",
       "source_files": [
-        "docs/helpers/实时榜单.md"
+        "docs/helpers/实时榜单.md",
+        "src/eltdx/helpers/core.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/helpers/service.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx-python/src/helpers.rs"
       ],
       "feature": "helper",
       "stage": "P2",
@@ -1981,6 +1986,25 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x054b",
       "api": "client.helpers.realtime_rank(sort_by=\"涨幅\")",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::HelperService::realtime_rank",
+        "python_entry": "HelperApi.realtime_rank -> helper_rank -> collect_rank_pages",
+        "shared_algorithm": "count/actual offset/page traversal with explicit short-page EOF profile; per-page original object projection and continuous rank",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_helpers_bridge.py::test_rank_preserves_server_order_short_page_and_raw_identity",
+          "tests/contracts/test_sdk_helpers_bridge.py::test_rank_continuous_numbers_and_actual_offset_for_two_pages",
+          "tests/contracts/test_sdk_helpers_bridge.py::test_rank_keeps_overfull_final_page_and_empty_page_skips_name_lookup",
+          "tests/contracts/test_sdk_helpers_bridge.py::test_rank_invalid_count_is_rejected_before_client_access",
+          "tests/contracts/test_sdk_helpers_bridge.py::test_rank_custom_count_arithmetic_and_numeric_projection_hooks"
+        ],
+        "temporary_adapter": {
+          "scope": "custom/noninteger/oversized count arithmetic retains Python loop; names, numeric functions, public row DTO and per-request timing stay at the boundary",
+          "reason": "Arbitrary Python arithmetic and short-page EOF differ from bounded strict SDK validation and complete collection.",
+          "exit_condition": "Do not remove dynamic Python behavior without a separately approved compatibility change."
+        },
+        "validation": "Source only; five Python and two private Rust functions authored, none collected/compiled/executed."
+      },
       "kind": "业务封装",
       "catalog_source": "Helper",
       "catalog_doc": "helpers/实时榜单.md",

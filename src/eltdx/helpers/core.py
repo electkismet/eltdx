@@ -417,6 +417,14 @@ class HelperApi:
         """Return a standardized realtime ranking built from native 0x054b pages."""
         if count is not None and count <= 0:
             raise ValueError("count must be positive or None")
+        if count is None or (type(count) is int and count <= 2**63 - 1):
+            from eltdx.transport.native import native_module
+
+            rows = native_module().helper_rank(
+                self, category, sort_by, count, ascending, RealtimeRankRow, _float, _int,
+            )
+            return RealtimeRankTable(category=category, sort_by=sort_by, rows=rows)
+        # Retain custom count arithmetic and arbitrary-width integer behavior.
         rows: list[RealtimeRankRow] = []
         start = 0
         while count is None or len(rows) < count:

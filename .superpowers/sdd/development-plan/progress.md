@@ -2,6 +2,10 @@
 
 ## Setup
 
+- Latest source continuation: full_quotes/fund-flow checkpoint2c6d9f4 committed;
+  shared rank traversal/legacy projection authored with5 contract/2 Rust source
+  functions and manifest evidence. No execution; T18 partial18/4/8 active/no cap.
+
 - Latest recovery 2026-11-17:9d75306 special limits committed; following full_quotes
   and M95 fund-flow shared Rust/binding sources authored,10 contract functions
   unexecuted. Still18 complete-source/4 partial/8 unstarted, T18 partial, active/no
