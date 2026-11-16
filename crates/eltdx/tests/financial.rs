@@ -228,6 +228,10 @@ fn date_precedence_header_archive_and_explicit() -> TestResult {
         Some(TradingDate::new(2024, 3, 31)?));
     assert_eq!(financial::filename_report_date("tdxfin/\u{0662}\u{0660}\u{0662}\u{0664}\u{0660}\u{0662}\u{0663}\u{0660}_\u{0662}\u{0660}\u{0662}\u{0664}\u{0661}\u{0662}\u{0663}\u{0661}.zip"),
         Some(TradingDate::new(2024, 12, 31)?));
+    assert_eq!(financial::filename_report_date("\u{11f52}\u{11f50}\u{11f52}\u{11f54}\u{11f50}\u{11f53}\u{11f53}\u{11f51}.zip"),
+        Some(TradingDate::new(2024, 3, 31)?));
+    assert_eq!(financial::filename_report_date("\u{1e4f2}\u{1e4f0}\u{1e4f2}\u{1e4f4}\u{1e4f0}\u{1e4f3}\u{1e4f3}\u{1e4f1}.zip"),
+        Some(TradingDate::new(2024, 3, 31)?));
     Ok(())
 }
 

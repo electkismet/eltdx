@@ -955,7 +955,7 @@ pub enum DatSelector { RequireSingle, Named(String) }
 
 20B头 `<hIHIII>`，max_count为u16；每索引11B `<6s1cI>`，data按绝对offset读取 `report_size/4` 个f32。新Rust直接DAT输入也受256MiB限制；旧Python直接parse_dat和read_history_financial(.dat)没有此总长度检查，256MiB仅ZIP选中DAT解压路径已有，不能迁移时反套。report_size=0返回空；非4倍数、每行>4096floats、累计>4*1024*1024floats报ResourceFormat。code ASCII replace+去尾NUL，market raw u8不强制0/1，空code或offset0跳过；偏移加长度用checked算术。重复有效offset报ResourceFormat避免数据放大；truncated索引/越界offset旧break/skip，Rust默认带diagnostic的ReadResult，strict mode可拒绝；不得把未解析记录报告成已完整。
 
-报告期优先级：新Rust显式query.report_date > archive filename第一个8位合法日期 > DAT header；本地read默认DAT header，除非显式override。Python parse_dat非0override优先，否则header；Python download_records从filename第一个8位字符串override（即使业务日期未核实）保持。无有效日期Rust保留raw header并诊断，不用今天补齐。字段向量按位置保持，包括NaN/Inf/负零bits；含义和单位未有字段字典证据，不公开虚假的named financial指标。
+报告期优先级：新Rust显式query.report_date > archive filename第一个Unicode 15.0.0 Nd八位有效日期 > DAT header；本地read默认DAT header，除非显式override。Python parse_dat非0override优先，否则header；Python download_records从运行时 `re` 的第一个 `\d{8}` 字符串override（即使业务日期未核实）保持，T23桥接不得用固定Unicode版本的Rust扫描替代。无有效日期Rust保留raw header并诊断，不用今天补齐。字段向量按位置保持，包括NaN/Inf/负零bits；含义和单位未有字段字典证据，不公开虚假的named financial指标。
 
 ## 8. fixture、case ID 与 T19–T27 交付映射
 
