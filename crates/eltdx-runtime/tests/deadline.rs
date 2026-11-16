@@ -111,6 +111,56 @@ fn elapsed_deadline_does_not_start_or_connect_the_engine() -> Result<(), Runtime
 }
 
 #[test]
+fn coalesced_connect_waiters_have_independent_deadlines() -> Result<(), RuntimeError> {
+    let listener = TcpListener::bind("127.0.0.1:0").map_err(runtime_io_error)?;
+    let address = listener.local_addr().map_err(runtime_io_error)?.to_string();
+    let (accepted_tx, accepted_rx) = mpsc::sync_channel(1);
+    let server = thread::spawn(move || -> io::Result<()> {
+        let (mut stream, _) = listener.accept()?;
+        let handshake = read_request(&mut stream)?;
+        accepted_tx.send(()).map_err(|_| {
+            io::Error::new(io::ErrorKind::BrokenPipe, "test stopped observing connect")
+        })?;
+        thread::sleep(Duration::from_millis(200));
+        stream.write_all(&response(handshake.msg_id, handshake.msg_type, &[0; 189]))
+    });
+
+    let engine = Engine::new(engine_config(address, 2)?)?;
+    let long_deadline = Instant::now() + Duration::from_secs(2);
+    let long = engine.begin_connect_with_options(SubmissionOptions::new(long_deadline))?;
+    accepted_rx
+        .recv_timeout(Duration::from_secs(2))
+        .map_err(|_| RuntimeError::internal("connect handshake did not reach the server"))?;
+
+    let short_deadline = Instant::now() + Duration::from_millis(50);
+    let short = engine.begin_connect_with_options(SubmissionOptions::new(short_deadline))?;
+    let short_waiter = thread::spawn(move || short.wait());
+
+    long.wait()?;
+    let short_result = short_waiter
+        .join()
+        .map_err(|_| RuntimeError::internal("short connect waiter thread panicked"))?;
+    let short_error = short_result
+        .err()
+        .ok_or_else(|| RuntimeError::internal("short connect waiter unexpectedly succeeded"))?;
+    assert!(matches!(
+        short_error,
+        RuntimeError::Timeout {
+            phase: eltdx_runtime::error::TimeoutPhase::Connect,
+            ..
+        }
+    ));
+
+    assert_eq!(engine.pool_diagnostics()?.state.as_str(), "RUNNING");
+    engine.connect_with_options(SubmissionOptions::new(
+        Instant::now() + Duration::from_secs(1),
+    ))?;
+    engine.close()?;
+    join_server(server)?;
+    Ok(())
+}
+
+#[test]
 fn raw_execution_returns_frame_and_wire_context_without_typed_parsing(
 ) -> Result<(), RuntimeError> {
     let listener = TcpListener::bind("127.0.0.1:0").map_err(runtime_io_error)?;

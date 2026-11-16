@@ -517,6 +517,7 @@ impl ConnectAttemptId {
 struct HostConnectAttempt {
     id: ConnectAttemptId,
     completion: Arc<Completion<Result<(), RuntimeError>>>,
+    cleanup_watcher_started: AtomicBool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1105,9 +1106,8 @@ impl PendingConnect {
                 Some(deadline) => match deadline.require_remaining(TimeoutPhase::Connect) {
                     Ok(remaining) => timeout.min(remaining),
                     Err(error) => {
-                        self.terminal = Some(Err(error.clone()));
-                        self.attempt.completion.publish(Err(error.clone()));
-                        self.engine.abort_connect_attempt(self.attempt.id)?;
+                        self.engine
+                            .schedule_connect_cleanup(Arc::clone(&self.attempt))?;
                         return Err(error);
                     }
                 },
@@ -1116,6 +1116,13 @@ impl PendingConnect {
             match self.attempt.completion.wait(wait)? {
                 Some(result) => self.terminal = Some(result),
                 None => {
+                    if let Some(deadline) = self.deadline {
+                        if let Err(error) = deadline.require_remaining(TimeoutPhase::Connect) {
+                            self.engine
+                                .schedule_connect_cleanup(Arc::clone(&self.attempt))?;
+                            return Err(error);
+                        }
+                    }
                     let Some(error) = self.engine.connect_runtime_exit(self.attempt.id)? else {
                         return Ok(PendingPoll::Pending);
                     };
@@ -1288,7 +1295,11 @@ impl Engine {
                     return Ok(PendingConnect {
                         created_pid: self.inner.created_pid,
                         engine: self.clone(),
-                        attempt: Arc::new(HostConnectAttempt { id, completion }),
+                        attempt: Arc::new(HostConnectAttempt {
+                            id,
+                            completion,
+                            cleanup_watcher_started: AtomicBool::new(false),
+                        }),
                         deadline,
                         terminal: None,
                     });
@@ -1314,6 +1325,7 @@ impl Engine {
             let attempt = Arc::new(HostConnectAttempt {
                 id,
                 completion: Arc::new(Completion::new()),
+                cleanup_watcher_started: AtomicBool::new(false),
             });
             host.connect_attempt = Some(Arc::clone(&attempt));
             host.lifecycle = HostLifecycle::Starting;
@@ -1938,13 +1950,16 @@ impl Engine {
         Ok(true)
     }
 
-    fn abort_connect_attempt(&self, attempt_id: ConnectAttemptId) -> Result<(), RuntimeError> {
+    fn schedule_connect_cleanup(
+        &self,
+        attempt: Arc<HostConnectAttempt>,
+    ) -> Result<(), RuntimeError> {
         let runtime = {
             let host = lock_mutex(&self.inner.host, "Engine connect timeout")?;
             if !host
                 .connect_attempt
                 .as_ref()
-                .is_some_and(|attempt| attempt.id == attempt_id)
+                .is_some_and(|current| Arc::ptr_eq(current, &attempt))
             {
                 return Ok(());
             }
@@ -1953,19 +1968,44 @@ impl Engine {
         let Some(runtime) = runtime else {
             return Ok(());
         };
-        runtime.control.request_close()?;
+        if attempt
+            .cleanup_watcher_started
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return Ok(());
+        }
         let engine = self.clone();
         let exited = Arc::clone(&runtime.exited);
+        let completion = Arc::clone(&attempt.completion);
+        let attempt_id = attempt.id;
         let _ = thread::Builder::new()
             .name("eltdx-connect-cleanup".to_owned())
             .spawn(move || {
                 loop {
-                    match exited.wait(CLOSE_TIMEOUT) {
+                    match completion.wait(CLOSE_TIMEOUT) {
                         Ok(Some(result)) => {
-                            let _ = engine.finish_connect_attempt(attempt_id, &result);
-                            break;
+                            if engine
+                                .finish_connect_attempt(attempt_id, &result)
+                                .unwrap_or(false)
+                            {
+                                break;
+                            }
+                            if let Ok(Some(runtime_result)) = exited.wait(CLOSE_TIMEOUT) {
+                                let _ = engine.finish_connect_attempt(attempt_id, &runtime_result);
+                                break;
+                            }
                         }
-                        Ok(None) => continue,
+                        Ok(None) => {
+                            if let Ok(Some(runtime_result)) = exited.wait(Duration::ZERO) {
+                                let error = runtime_result.clone().err().unwrap_or_else(|| {
+                                    RuntimeError::internal(
+                                        "runtime exited without publishing the explicit-connect terminal",
+                                    )
+                                });
+                                completion.publish(Err(error));
+                            }
+                        }
                         Err(_) => break,
                     }
                 }
@@ -6884,6 +6924,7 @@ mod tests {
         let attempt = Arc::new(HostConnectAttempt {
             id: ConnectAttemptId::next(0)?,
             completion: Arc::new(super::Completion::new()),
+            cleanup_watcher_started: AtomicBool::new(false),
         });
         {
             let mut host = super::lock_mutex(&engine.inner.host, "test connect gate")?;
