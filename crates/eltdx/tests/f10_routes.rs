@@ -81,3 +81,17 @@ fn historical_money_flow_windows_are_strings_and_slicing_is_local() -> eltdx::Re
     assert!(MoneyFlowHistoryQuery::new(ashare()?).with_count(std::num::NonZeroU32::new(801)).is_err());
     Ok(())
 }
+
+#[test]
+fn topic_identity_and_fund_window_are_validated_by_builders() -> eltdx::Result<()> {
+    for invalid in ["", "   ", "id\n"] { assert!(TopicCompareQuery::new(ashare()?, invalid).is_err()); }
+    assert_call(TopicCompareQuery::new(ashare()?, "001")?.to_call()?,
+        "CWServ.tdxf10_gg_rdtc_gndb", br#"{"Params":["gndbzfsj","600000","001","zdf"]}"#)?;
+    assert!(TopicCompareQuery::new(ashare()?, "001")?.with_topic_id("").is_err());
+    let dated = FundReportQuery::new(ashare()?).with_section(SectionCode::new("fund_report", "etf")?)?
+        .with_date(Some(DateOrWindow::Window(FundWindow::three_months())))?;
+    assert!(dated.clone().with_section(SectionCode::new("fund_report", "industry_allocation")?).is_err());
+    assert_call(dated.with_section(SectionCode::new("fund_report", "margin")?)?.to_call()?,
+        "CWServ.skef10_jj_etfzj", br#"{"Params":["etfrzrq","600000","3M"]}"#)?;
+    Ok(())
+}

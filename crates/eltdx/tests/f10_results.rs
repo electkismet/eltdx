@@ -296,3 +296,43 @@ fn invalid_history_days_do_not_connect_and_owned_service_observes_shared_close()
     assert_eq!(listener.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
     Ok(())
 }
+
+#[test]
+fn topic_compare_first_skips_unusable_ids_and_preserves_both_sources() -> TestResult {
+    let first = br#"{"ResultSets":[{"ColName":["t001"],"Content":[[null],[""],["   "],[true],["001"]]}]}"#;
+    let second = br#"{"ErrorCode":0,"ResultSets":[{"Content":[[42]]}]}"#;
+    let (url, worker) = fixture(vec![
+        ("CWServ.tdxf10_gg_comreq".to_owned(), br#"{"Params":["rdtcgn","600000"]}"#.to_vec(), first.to_vec()),
+        ("CWServ.tdxf10_gg_rdtc_gndb".to_owned(), br#"{"Params":["gndbzfsj","600000","001","zdf"]}"#.to_vec(), second.to_vec()),
+    ])?;
+    let client = F10Client::builder().with_base_url(url).build()?;
+    let result = client.topic_compare_first(&TopicCompareFirstQuery::new(
+        AshareCode::new(F10MarketCode::new(1), "600000")?), &OperationOptions::default().with_raw(RawPolicy::RetainPayload))?;
+    assert_eq!(result.meta().sources().len(), 2);
+    let raw = result.meta().raw().ok_or("missing topic raw")?;
+    assert_eq!(raw.payloads()[0].as_ref(), first);
+    assert_eq!(raw.payloads()[1].as_ref(), second);
+    assert_eq!(client.diagnostics()?.completed_requests(), 2);
+    client.close()?;
+    worker.join().map_err(|_| "fixture panicked")??;
+    Ok(())
+}
+
+#[test]
+fn topic_compare_first_stops_on_absent_or_failed_prerequisite() -> TestResult {
+    for first in [
+        &br#"{"ErrorCode":17,"ResultSets":[{"ColName":["t001"],"Content":[["001"]]}]}"#[..],
+        &br#"{"ErrorCode":0,"ResultSets":[{"ColName":["t001"],"Content":[[null],[false],[""]]}]}"#[..],
+    ] {
+        let (url, worker) = fixture(vec![("CWServ.tdxf10_gg_comreq".to_owned(),
+            br#"{"Params":["rdtcgn","600000"]}"#.to_vec(), first.to_vec())])?;
+        let client = F10Client::builder().with_base_url(url).build()?;
+        let result = client.topic_compare_first(&TopicCompareFirstQuery::new(
+            AshareCode::new(F10MarketCode::new(1), "600000")?), &OperationOptions::default());
+        assert_eq!(result.unwrap_err().kind(), eltdx::ErrorKind::MetadataUnavailable);
+        assert_eq!(client.diagnostics()?.completed_requests(), 1);
+        client.close()?;
+        worker.join().map_err(|_| "fixture panicked")??;
+    }
+    Ok(())
+}

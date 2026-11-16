@@ -168,3 +168,26 @@ zero-request invalid days/shared close. None has been compiled or executed.
 Next: full157 endpoint/branch inventory, closed selectors/topic prerequisite
 and remaining typed result details, then T22–T30. Counts19/5/6 unchanged;
 active unlimited goal, no execution verification/agents/publication.
+
+## Sixth checkpoint — literal route inventory and checked prerequisites
+
+Historical flow committed `da1953f`. Authored f10_route_inventory.rs by reading
+the Python endpoint families and frozen specification, without executing them.
+It contains literal requests for US17/HK20/SB13/bond31/industry13/futures8,
+A-share defaults and shareholder/capital/business/industry/trading branches,
+all30 fund sections, all26 market sections/aliases, cache/digest/home tabs and
+the independent84-id channel inventory, theme/stage/valuation request variants.
+These are source contracts, not measured executed coverage or157 completion.
+Open selector families and all remaining typed/pagination details still need
+source review and later execution evidence.
+
+TopicCompareQuery now requires a valid topic id at construction and updates.
+topic_compare_first skips unusable ids, stops on failed prerequisites, and
+copies the selected arbitrary-length id with cancellation/aggregate charging.
+First-id strict behavior is intentionally distinct from Python's original
+first-row _first_value conversion, which T23 must preserve. FundReportQuery
+checks a stored DateOrWindow on both date and section setters, eliminating
+the setter-order bypass. Added success/two-source/failure source cases.
+
+Counts19/5/6; goal active unlimited. No tests/collection/build/check/AST/format/
+diff-check/dependency/network validation, agents or publication occurred.

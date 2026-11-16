@@ -172,17 +172,26 @@ impl TradingReportQuery {
     }
 }
 
-section_base!(FundReportQuery, "fund_report", "basic", {
-    arg: String = String::new(), date: Option<DateOrWindow> = None, page: u32 = 1, page_size: NonZeroU32 = twenty()
-});
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FundReportQuery {
+    code: AshareCode, section: SectionCode, arg: String, date: Option<DateOrWindow>, page: u32, page_size: NonZeroU32,
+}
 string_field!(FundReportQuery, arg, with_arg);
 page_fields!(FundReportQuery);
 impl FundReportQuery {
+    pub fn new(code: AshareCode) -> Self {
+        Self { code, section: SectionCode::default_for("fund_report", "basic"), arg: String::new(), date: None, page: 1, page_size: twenty() }
+    }
+    pub fn code(&self) -> &AshareCode { &self.code }
+    pub fn section(&self) -> &SectionCode { &self.section }
+    pub fn with_section(mut self, value: SectionCode) -> Result<Self> {
+        value.checked_for("fund_report")?;
+        valid_fund_date(value.as_str(), self.date.as_ref())?;
+        self.section = value; Ok(self)
+    }
     pub fn date(&self) -> Option<&DateOrWindow> { self.date.as_ref() }
     pub fn with_date(mut self, value: Option<DateOrWindow>) -> Result<Self> {
-        if matches!(&value, Some(DateOrWindow::Window(_))) && !matches!(self.section.as_str(), "etf" | "margin" | "scale_history") {
-            return Err(crate::f10::values::invalid("this fund section requires a date, not a window"));
-        }
+        valid_fund_date(self.section.as_str(), value.as_ref())?;
         self.date = value; Ok(self)
     }
     pub(crate) fn prerequisite(&self) -> Result<Option<CallQuery>> {
@@ -193,9 +202,7 @@ impl FundReportQuery {
     pub fn to_call(&self) -> Result<CallQuery> { self.resolved(self.date.as_ref().map(DateOrWindow::wire).as_deref()) }
     fn resolved(&self, date: Option<&str>) -> Result<CallQuery> {
         let section = self.section.as_str();
-        if matches!(&self.date, Some(DateOrWindow::Window(_))) && !matches!(section, "etf" | "margin" | "scale_history") {
-            return Err(crate::f10::values::invalid("this fund section requires a date, not a window"));
-        }
+        valid_fund_date(section, self.date.as_ref())?;
         if date.is_none() && self.prerequisite()?.is_some() {
             return Err(Error::new(ErrorKind::MetadataUnavailable, "fund report requires a report-period prerequisite"));
         }
@@ -230,6 +237,13 @@ impl FundReportQuery {
         };
         super::params(&format!("CWServ.skef10_jj_{suffix}"), params)
     }
+}
+
+fn valid_fund_date(section: &str, date: Option<&DateOrWindow>) -> Result<()> {
+    if matches!(date, Some(DateOrWindow::Window(_))) && !matches!(section, "etf" | "margin" | "scale_history") {
+        return Err(crate::f10::values::invalid("this fund section requires a date, not a window"));
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

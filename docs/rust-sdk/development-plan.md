@@ -409,6 +409,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T20：F10 动态结果、端点与历史资金流
 
+2026-11-17第五段源码：历史资金流已提交`da1953f`。新增独立字面量请求清单`f10_route_inventory.rs`，覆盖US/HK/SB/bond/industry/futures默认请求、A股分支、30个基金分区、26个market/alias、缓存/全部84频道与8首页tab及估值ReqId分支；仅源码，不宣称执行覆盖率。TopicCompare构造必填有效ID，first查询跳过不可用ID并拒绝失败前置，FundReport分区/date双向立即校验；补用例。尚需完整分支/typed结果细节收尾，T20仍部分，19/5/6不变，全部执行验证延期。
+
 2026-11-17第四段源码：字段字典已提交`e8392a5`。新增独立F10 `MoneyFlowHistoryService`、query/window及保留原始列的`FundFlowRangeSeries`，`history/range`共用单HTTP请求/原owner预算。按COMP-050先反转源行再start/count截取，不排序；修正本任务原“升序”误写。无HQ fallback，保留业务码/附加表/raw，非法日期/有限数字给诊断、未知金额单位保留。新增COMP-050等五组用例源码，未执行。19/5/6不变，下一步逐项核对157入口/全部分支及typed结果，再继续T22–T30。
 
 2026-11-17第三段源码：在`2a9e05d`基础上完成fields/data字面量首版迁移、显式Entry/scope/nhytype/reporttype解析器和全部模板/notes/通配映射；新增字段语义测试源码，未运行。未知单位及银行现金流T088保持未知。历史资金流、157入口全部分支证据/结果收尾尚待完成，T20仍部分，19/5/6不变。

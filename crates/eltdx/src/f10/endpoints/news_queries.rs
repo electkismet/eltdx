@@ -19,13 +19,35 @@ macro_rules! stock_section_strings {
         }
     };
 }
-stock_section_strings!(TopicCompareQuery, "topic_compare", "gndbzfsj", { topic_id / with_topic_id = "", sort_by / with_sort_by = "zdf" });
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TopicCompareQuery { code: AshareCode, section: SectionCode, topic_id: String, sort_by: String }
 impl TopicCompareQuery {
-    pub fn with_topic(code: AshareCode, topic_id: impl Into<String>) -> Result<Self> { Self::new(code).with_topic_id(topic_id) }
+    pub fn new(code: AshareCode, topic_id: impl Into<String>) -> Result<Self> {
+        let topic_id = topic_id.into(); valid_topic(&topic_id)?;
+        Ok(Self { code, section: SectionCode::default_for("topic_compare", "gndbzfsj"), topic_id, sort_by: "zdf".to_owned() })
+    }
+    pub fn with_topic(code: AshareCode, topic_id: impl Into<String>) -> Result<Self> { Self::new(code, topic_id) }
+    pub fn code(&self) -> &AshareCode { &self.code }
+    pub fn section(&self) -> &SectionCode { &self.section }
+    pub fn topic_id(&self) -> &str { &self.topic_id }
+    pub fn sort_by(&self) -> &str { &self.sort_by }
+    pub fn with_section(mut self, value: SectionCode) -> Result<Self> {
+        value.checked_for("topic_compare")?; self.section = value; Ok(self)
+    }
+    pub fn with_topic_id(mut self, value: impl Into<String>) -> Result<Self> {
+        let value = value.into(); valid_topic(&value)?; self.topic_id = value; Ok(self)
+    }
+    pub fn with_sort_by(mut self, value: impl Into<String>) -> Result<Self> {
+        let value = value.into(); text(&value, true)?; self.sort_by = value; Ok(self)
+    }
     pub fn to_call(&self) -> Result<CallQuery> {
-        text(&self.topic_id, false)?;
         super::params("CWServ.tdxf10_gg_rdtc_gndb", vec![j(self.section.as_str()), j(self.code.as_str()), j(self.topic_id.as_str()), j(self.sort_by.as_str())])
     }
+}
+fn valid_topic(value: &str) -> Result<()> {
+    text(value, false)?;
+    if value.trim().is_empty() { return Err(crate::f10::values::invalid("topic id must not be blank")); }
+    Ok(())
 }
 stock_section_strings!(TopicCompareFirstQuery, "topic_compare_first", "gndbzfsj", { sort_by / with_sort_by = "zdf" });
 
@@ -161,13 +183,28 @@ impl F10Client {
         let context = self.context(Instant::now(), "f10.topic_compare_first", options)?;
         let first = self.endpoint_call(&super::reports::TopicIdsQuery::new(query.code.clone()).to_call()?, &context)?;
         let mut topic = None;
-        if let Some(table) = first.first_table() { for row in table.rows() {
+        if first.ok() { if let Some(table) = first.first_table() { for row in table.rows() {
             context.check_boundary(TimeoutPhase::Decode)?;
             if let Some(cell) = row.get_all("t001").next() {
-                topic = match cell.value() { JsonValue::String(value) if !value.is_empty() => Some(value.clone()), JsonValue::Number(value) => Some(value.lexeme().to_owned()), _ => None };
-                break;
+                let candidate = match cell.value() {
+                    JsonValue::String(value) => Some(value.as_str()),
+                    JsonValue::Number(value) => Some(value.lexeme()), _ => None,
+                };
+                if let Some(value) = candidate.filter(|value| valid_topic(value).is_ok()) {
+                    context.record_work(0, value.len())?;
+                    let mut bytes = Vec::new();
+                    for chunk in value.as_bytes().chunks(4096) {
+                        context.check_boundary(TimeoutPhase::Decode)?;
+                        bytes.try_reserve(chunk.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded,
+                            "cannot reserve topic id").with_source(error))?;
+                        bytes.extend_from_slice(chunk);
+                    }
+                    topic = Some(String::from_utf8(bytes).map_err(|error| Error::new(ErrorKind::Internal,
+                        "invalid copied topic id").with_source(error))?);
+                    break;
+                }
             }
-        } }
+        } } }
         let topic = topic.ok_or_else(|| Error::new(ErrorKind::MetadataUnavailable, "no topic id for topic comparison")
             .with_context("server_error_code", first.error_code().map_or_else(|| "absent".to_owned(), |value| value.to_string())))?;
         let call = super::params("CWServ.tdxf10_gg_rdtc_gndb", vec![j(query.section.as_str()), j(query.code.as_str()), j(topic), j(query.sort_by.as_str())])?;
