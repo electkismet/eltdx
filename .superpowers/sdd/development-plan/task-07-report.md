@@ -35,6 +35,17 @@ No business service or Engine creation path exists in `eltdx` yet. `SessionOwner
 
 Static source inspection only was used in this round. No tests, collections, builds, checks, clippy, doctests, network validation, diff checks, or equivalent execution was performed. Runtime and compilation behavior remain unverified until the final T01–T30 validation phase.
 
+## Review follow-up, round 3
+
+- Added the narrow `PinHandle::belongs_to_engine` identity predicate using `Arc::ptr_eq`. It exposes no Engine reference and makes no inference from stopped/starting lifecycle states. Following a successful `Engine::close_until`, the owner removes only the pins issued by that exact Engine and wakes its existing condition variable.
+- Added `PinHandle::same_reservation` to compare both Engine owner identity and `PinIdentity`; all owner pin-registration lookups and individual unregister operations use that predicate. Separate pools can safely reuse local counters. Two additional real-loopback source cases create two independent Engines with equal local pin identities and cover individual pin release and full Engine reconciliation without deleting the other Engine's pin; both runtimes are subsequently closed.
+- The SDK pin-close helper recognizes an absent owner registration as already confirmed. When beginning or waiting for runtime pin close fails, it rechecks the registration under the owner lock before deciding whether to return success; a `ConnectionClosed` error alone is never treated as release confirmation. Explicit close of a guard after owner-confirmed shutdown is therefore idempotent without sending a new request to the stopped runtime.
+- Resource confirmation is now independent of the outward first-error lineage: `cleanup_confirmed` requires all Engine closes in the attempt to succeed, no remaining registered pins, and zero active operations. A failed pin receipt remains the reported root error even if subsequent full Engine shutdown confirms retirement. Once cleanup is confirmed, repeated owner close returns the original structured failure without starting unnecessary cleanup generations.
+- Kept the existing pin vector and owner lifecycle state machine. A private `close_with_pin_closer` seam lets source cases withhold a pin confirmation receipt while using the real remaining owner close implementation; no public testing API or production shutdown policy was added.
+- Added source cases using a real loopback Engine and pin: a real pin-close command with a deliberately withheld receipt times out, the actual Engine close/join reconciles pins and confirms cleanup, later owner close preserves kind/context/runtime source, and explicit guard close succeeds. Additional source cases cover ordinary explicit close after confirmed owner shutdown and retained registration after a stopped Engine error, plus a runtime identity-predicate case distinguishing two otherwise equal Engine configurations.
+
+This round used read-only source inspection and source edits only. No test/build/check/collection/doctest/clippy/network/diff validation or equivalent execution was performed; all new cases remain unexecuted until T01–T30 implementation is complete.
+
 ## Verification
 
 Per the user instruction, no tests, test collection, cargo build/check/clippy/doctest, network validation, diff checks, or equivalent verification commands were run. Test source was authored only. No compilation or runtime success is claimed.

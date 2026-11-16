@@ -129,22 +129,46 @@ impl SessionOwner {
         Ok(())
     }
 
-    fn unregister_pin(&self, identity: eltdx_runtime::pin::PinIdentity) {
+    fn unregister_pin(&self, pin: &PinHandle) {
         if let Ok(mut state) = self.state.lock() {
-            state.pins.retain(|pin| pin.identity() != identity);
+            state.pins.retain(|registered| !registered.same_reservation(pin));
         }
+    }
+
+    fn pin_registered(&self, pin: &PinHandle) -> Result<bool> {
+        Ok(self.lock_state()?.pins.iter().any(|registered| registered.same_reservation(pin)))
+    }
+
+    fn reconcile_engine_pins(&self, engine: &Engine) -> Result<()> {
+        let mut state = self.lock_state()?;
+        state.pins.retain(|pin| !pin.belongs_to_engine(engine));
+        self.changed.notify_all();
+        Ok(())
     }
 
     // Share the owner deadline even when a pin close began while the owner was open.
     // Never hold the owner state lock while awaiting runtime retirement.
     fn close_pin(&self, pin: &PinHandle, deadline: Option<Instant>) -> Result<()> {
+        if !self.pin_registered(pin)? {
+            return Ok(());
+        }
         let local_deadline = match deadline {
             Some(deadline) => deadline,
             None => Instant::now().checked_add(self.close_timeout)
                 .ok_or_else(|| Error::new(ErrorKind::Internal, "pin close deadline overflow"))?,
         };
-        let mut pending = pin.begin_close().map_err(map_close_error)?;
-        self.wait_pin_close(local_deadline, || pending.wait_timeout(Duration::ZERO))
+        let mut pending = match pin.begin_close() {
+            Ok(pending) => pending,
+            Err(error) => {
+                return if !self.pin_registered(pin)? { Ok(()) } else { Err(map_close_error(error)) };
+            }
+        };
+        match self.wait_pin_close(local_deadline, || pending.wait_timeout(Duration::ZERO)) {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                if !self.pin_registered(pin)? { Ok(()) } else { Err(error) }
+            }
+        }
     }
 
     fn wait_pin_close(
@@ -183,6 +207,13 @@ impl SessionOwner {
     }
 
     pub(crate) fn close(&self) -> Result<()> {
+        self.close_with_pin_closer(|pin, deadline| self.close_pin(pin, Some(deadline)))
+    }
+
+    fn close_with_pin_closer(
+        &self,
+        mut close_pin: impl FnMut(&PinHandle, Instant) -> Result<()>,
+    ) -> Result<()> {
         let (deadline, generation, engines, pins, prior_failure) = {
             let mut state = self.lock_state()?;
             loop {
@@ -279,14 +310,23 @@ impl SessionOwner {
 
         let mut failure = None;
         for pin in pins {
-            match self.close_pin(&pin, Some(deadline)) {
-                Ok(()) => self.unregister_pin(pin.identity()),
+            match close_pin(&pin, deadline) {
+                Ok(()) => self.unregister_pin(&pin),
                 Err(error) => { failure.get_or_insert(error); }
             }
         }
+        let mut engines_confirmed = true;
         for engine in engines {
-            if let Err(error) = engine.close_until(deadline) {
-                failure.get_or_insert_with(|| map_close_error(error));
+            match engine.close_until(deadline) {
+                Ok(()) => {
+                    // Only full, confirmed shutdown of this Engine proves its
+                    // remaining pins have retired. Other pools stay registered.
+                    self.reconcile_engine_pins(&engine)?;
+                }
+                Err(error) => {
+                    engines_confirmed = false;
+                    failure.get_or_insert_with(|| map_close_error(error));
+                }
             }
         }
 
@@ -308,22 +348,23 @@ impl SessionOwner {
             }
         }
 
+        let cleanup_confirmed = engines_confirmed && state.pins.is_empty() && state.active_operations == 0;
         let terminal = match (prior_failure, failure) {
             (Some(root), Some(_)) => {
                 state.phase = SessionPhase::FailedClosed;
-                state.cleanup_confirmed = false;
+                state.cleanup_confirmed = cleanup_confirmed;
                 state.last_result = Some(Err(root.clone()));
                 Err(root.into_error())
             }
             (Some(root), None) => {
                 state.phase = SessionPhase::FailedClosed;
-                state.cleanup_confirmed = true;
+                state.cleanup_confirmed = cleanup_confirmed;
                 state.last_result = Some(Err(root.clone()));
                 Err(root.into_error())
             }
             (None, Some(error)) => {
                 state.phase = SessionPhase::FailedClosed;
-                state.cleanup_confirmed = false;
+                state.cleanup_confirmed = cleanup_confirmed;
                 let root = CloseFailure::from_error(error);
                 state.close_failure = Some(root.clone());
                 state.last_result = Some(Err(root.clone()));
@@ -376,7 +417,7 @@ impl PinnedSession {
             return Ok(());
         };
         self.owner.close_pin(pin, None)?;
-        self.owner.unregister_pin(pin.identity());
+        self.owner.unregister_pin(pin);
         self.pin = None;
         Ok(())
     }
@@ -553,6 +594,10 @@ mod tests {
     }
 
     fn loopback_pin() -> (Arc<SessionOwner>, super::PinnedSession, thread::JoinHandle<()>) {
+        loopback_pin_for_owner(None)
+    }
+
+    fn loopback_pin_for_owner(existing_owner: Option<Arc<SessionOwner>>) -> (Arc<SessionOwner>, super::PinnedSession, thread::JoinHandle<()>) {
         use eltdx_protocol::frame::{RequestFrame, RESPONSE_PREFIX};
         use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions};
         use std::io::{Read, Write};
@@ -591,7 +636,7 @@ mod tests {
                 max_pending_requests: 8, push_queue_size: 1, push_queue_bytes: 1024,
             },
         ).expect("valid config")).expect("lazy engine");
-        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+        let owner = existing_owner.unwrap_or_else(|| Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1))));
         owner.register_engine(engine.clone()).expect("owner open");
         let pin = super::PinnedSession::new(Arc::clone(&owner), engine.pin().expect("pin handshake"))
             .expect("pin registered");
@@ -607,6 +652,111 @@ mod tests {
         owner.close().expect("owner confirms release and engine join");
         assert!(owner.state.lock().expect("state").pins.is_empty());
         server.join().expect("server observed socket shutdown");
+    }
+
+    #[test]
+    fn engine_join_confirms_timed_out_pin_without_losing_root_failure() {
+        let (owner, mut pin, server) = loopback_pin();
+        let original = owner.close_with_pin_closer(|runtime_pin, _owner_deadline| {
+            // Issue a real runtime close, but deliberately withhold its receipt
+            // from this wait. Engine shutdown below must supply actual join proof.
+            let _pending = runtime_pin.begin_close().expect("runtime accepts close");
+            owner.wait_pin_close(Instant::now(), || {
+                Ok(eltdx_runtime::engine::PendingPoll::Pending)
+            })
+        }).expect_err("first pin confirmation wait expired");
+        assert_eq!(original.kind(), ErrorKind::CloseTimeout);
+        let original_source = std::error::Error::source(&original)
+            .and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>())
+            .expect("original timeout source remains structured").clone();
+        let generation = {
+            let state = owner.state.lock().expect("state");
+            assert!(state.pins.is_empty(), "confirmed Engine join retires its remaining pins");
+            assert!(state.cleanup_confirmed);
+            assert_eq!(state.phase, super::SessionPhase::FailedClosed);
+            state.close_generation
+        };
+
+        let subsequent = owner.close().expect_err("cleanup confirmation preserves first error");
+        assert_eq!(subsequent.kind(), original.kind());
+        assert_eq!(subsequent.message(), original.message());
+        assert_eq!(subsequent.context(), original.context());
+        assert_eq!(std::error::Error::source(&subsequent)
+            .and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>()), Some(&original_source));
+        assert_eq!(owner.state.lock().expect("state").close_generation, generation,
+            "confirmed cleanup does not open another attempt");
+
+        pin.close().expect("owner-confirmed pin close is idempotent even after runtime stopped");
+        assert!(pin.identity().is_none());
+        pin.close().expect("explicit repeated close is idempotent");
+        server.join().expect("actual socket shutdown observed");
+    }
+
+    #[test]
+    fn explicit_pin_close_after_successful_owner_shutdown_is_idempotent() {
+        let (owner, mut pin, server) = loopback_pin();
+        owner.close().expect("owner confirms pin and Engine shutdown");
+        assert!(owner.state.lock().expect("state").cleanup_confirmed);
+        pin.close().expect("no fresh request is sent to a stopped Engine");
+        assert!(pin.identity().is_none());
+        server.join().expect("actual socket shutdown observed");
+    }
+
+    #[test]
+    fn stopped_engine_error_alone_does_not_unregister_retained_pin() {
+        let (owner, mut pin, server) = loopback_pin();
+        let engine = owner.state.lock().expect("state").engines[0].clone();
+        engine.close_until(Instant::now() + Duration::from_secs(1)).expect("external Engine shutdown joins");
+        let error = pin.close().expect_err("owner has not reconciled its retained registration");
+        assert_eq!(error.kind(), ErrorKind::Closed);
+        assert!(pin.identity().is_some());
+        assert_eq!(owner.state.lock().expect("state").pins.len(), 1);
+
+        let original = owner.close().expect_err("pin begin-close error remains first failure");
+        assert_eq!(original.kind(), ErrorKind::Closed);
+        {
+            let state = owner.state.lock().expect("state");
+            assert!(state.pins.is_empty());
+            assert!(state.cleanup_confirmed);
+        }
+        let repeated = owner.close().expect_err("confirmed cleanup retains original failure");
+        assert_eq!(repeated.kind(), original.kind());
+        assert_eq!(repeated.message(), original.message());
+        pin.close().expect("reconciliation now proves this guard is retired");
+        server.join().expect("actual socket shutdown observed");
+    }
+
+    #[test]
+    fn closing_one_of_two_colliding_local_pin_ids_preserves_the_other_registration() {
+        let (owner, mut first, first_server) = loopback_pin();
+        let (_, mut second, second_server) = loopback_pin_for_owner(Some(Arc::clone(&owner)));
+        assert_eq!(first.identity(), second.identity(), "fresh independent engines reuse local counters");
+        assert!(!first.pin.as_ref().expect("first pin").same_reservation(second.pin.as_ref().expect("second pin")));
+        first.close().expect("first reservation releases");
+        assert!(owner.pin_registered(second.pin.as_ref().expect("second guard stays live")).expect("state"));
+        assert_eq!(owner.state.lock().expect("state").pins.len(), 1);
+        owner.close().expect("both actual runtimes join");
+        second.close().expect("second confirmed by its own Engine shutdown");
+        first_server.join().expect("first socket closed");
+        second_server.join().expect("second socket closed");
+    }
+
+    #[test]
+    fn reconciling_one_engine_keeps_colliding_pin_from_the_other_engine() {
+        let (owner, mut first, first_server) = loopback_pin();
+        let (_, mut second, second_server) = loopback_pin_for_owner(Some(Arc::clone(&owner)));
+        assert_eq!(first.identity(), second.identity());
+        let first_engine = owner.state.lock().expect("state").engines[0].clone();
+        first_engine.close_until(Instant::now() + Duration::from_secs(1)).expect("first actual Engine joins");
+        owner.reconcile_engine_pins(&first_engine).expect("join evidence reconciled");
+        assert!(!owner.pin_registered(first.pin.as_ref().expect("first guard")).expect("state"));
+        assert!(owner.pin_registered(second.pin.as_ref().expect("second guard")).expect("state"));
+        assert_eq!(owner.state.lock().expect("state").pins.len(), 1);
+        first.close().expect("first confirmed retired");
+        owner.close().expect("remaining actual Engine joins");
+        second.close().expect("second confirmed retired");
+        first_server.join().expect("first socket closed");
+        second_server.join().expect("second socket closed");
     }
 
     #[test]

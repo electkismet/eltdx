@@ -1070,6 +1070,17 @@ impl PinHandle {
         self.identity
     }
 
+    /// Whether this pin was issued by this exact Engine owner.
+    /// This does not infer retirement from the Engine's current lifecycle state.
+    pub fn belongs_to_engine(&self, engine: &Engine) -> bool {
+        Arc::ptr_eq(&self.engine.inner, &engine.inner)
+    }
+
+    /// Compare a reservation without assuming identities are global across Engines.
+    pub fn same_reservation(&self, other: &Self) -> bool {
+        self.identity == other.identity && Arc::ptr_eq(&self.engine.inner, &other.engine.inner)
+    }
+
     pub fn begin_execute(&self, request: CommandRequest) -> Result<PendingExecution, RuntimeError> {
         self.engine.begin_pinned_execute(self.identity, request)
     }
@@ -7092,6 +7103,29 @@ mod tests {
             terminal: None,
         };
         assert_eq!(pending.wait_until(std::time::Instant::now()), Err(expected));
+    }
+
+    #[test]
+    fn pin_engine_membership_uses_owner_identity_not_equal_config_or_pin_ids() -> Result<(), RuntimeError> {
+        let engine = Engine::new(config(1, 1)?)?;
+        let other = Engine::new(config(1, 1)?)?;
+        let pin = super::PinHandle {
+            engine: engine.clone(),
+            identity: crate::pin::PinIdentity {
+                engine_epoch: crate::slot::EngineEpoch::new(1)?,
+                pin_id: crate::pin::PinId::new(1)?,
+                lease_id: crate::request::LeaseId::from_raw(1),
+                slot_id: crate::slot::SlotId::new(0),
+                reservation_request_id: RequestId::new(1)?,
+            },
+        };
+        assert!(pin.belongs_to_engine(&engine));
+        assert!(pin.belongs_to_engine(&engine.clone()));
+        assert!(!pin.belongs_to_engine(&other));
+        let other_pin = super::PinHandle { engine: other, identity: pin.identity };
+        assert!(pin.same_reservation(&pin.clone()));
+        assert!(!pin.same_reservation(&other_pin));
+        Ok(())
     }
 
     #[test]
