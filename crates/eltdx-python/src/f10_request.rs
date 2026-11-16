@@ -5,7 +5,7 @@ use eltdx::f10::{input_template, page_template, position_arguments, position_pre
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 
-fn builtin<'py>(module: &Bound<'py, PyAny>, name: &str) -> PyResult<Bound<'py, PyAny>> {
+pub(super) fn builtin<'py>(module: &Bound<'py, PyAny>, name: &str) -> PyResult<Bound<'py, PyAny>> {
     let builtins = module.py().import("builtins")?;
     builtins.getattr("getattr")?.call1((module, name, builtins.getattr(name)?))
 }

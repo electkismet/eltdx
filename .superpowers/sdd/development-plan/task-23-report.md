@@ -408,3 +408,31 @@ none executed. No compile/build/check/collection/dependency/network/AST/
 format/diff-whitespace checks, no agents or publication. Counts21/4/5,
 active unlimited goal. Remaining29 named methods plus F10 fields/models,
 cross-source helpers and manifest; then T24–T30 and unified validation.
+## Fourteenth checkpoint — eager report tables and prerequisites
+
+Base `c75fb89`. Added shared report_templates.rs for shareholders,
+capital_structure, business_report, industry_analysis, trading_report,
+fund_report and market_report. Both strict query composition and the Python
+bridge consume the same ordered entries/arguments/default slots. Migrated
+these seven public methods plus business_composition and shareholder_change_plans:
+137/157 named methods now have shared composition source,20 remain.
+
+The Python bridge constructs every original table row before selecting it.
+Repeated arg/date truth tests remain separate, including unused branches;
+page and size conversion precedes date defaulting and selector checks.
+Market aliases/codeless membership remain live. Capital detail stays outside
+the eager table and validates section before date truthiness, then captures
+params before calling the live _date_text. Fund report captures the live
+_latest_report_period before self.params and rereads the live period map;
+legacy empty/invalid prerequisite values are not subjected to strict Rust
+metadata/date validation. Selected entry/params unpack before params lookup,
+then star arguments expand afterwards. Public alias/business method overrides
+and original objects are retained.
+
+Eleven new Python contract functions (ten literal route cases in the first)
+and one Rust nondefault wire function authored; none executed. Source review
+compared retained old report tables to new shared definitions; no build,
+check, test, collection, dependency/network, AST/format/diff-whitespace runs.
+No manifest promotion.21 source-complete/4partial/5unstarted, active unlimited.
+Next20 named F10 methods/collectors, fields/models/cross-source helpers and
+manifest, then allT24–T30 sources before unified verification.

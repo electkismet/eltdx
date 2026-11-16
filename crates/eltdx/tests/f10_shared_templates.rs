@@ -128,3 +128,28 @@ fn news_and_cache_definitions_keep_payload_shapes() -> eltdx::Result<()> {
     ])));
     Ok(())
 }
+
+#[test]
+fn shared_report_layouts_preserve_nondefault_requests() -> eltdx::Result<()> {
+    use eltdx::f10::*;
+    let code = AshareCode::new(F10MarketCode::new(1), "600000")?;
+    let holders = ShareholdersQuery::new(code.clone())
+        .with_section(SectionCode::new("shareholders", "institution_holdings")?)?
+        .with_kind("custom")?.with_page(3)?.to_call()?;
+    assert_eq!(holders.entry().as_str(), "CWServ.tdxf10_gg_gdyj_jgcgmx");
+    assert_eq!(holders.payload(), &RequestPayload::Params(vec!["600000".into(), "custom".into(), "".into(), "99".into(), "3".into(), "3".into(), "20".into()]));
+    let business = BusinessReportQuery::new(code.clone())
+        .with_section(SectionCode::new("business_report", "composition")?)?.to_call()?;
+    assert_eq!(business.payload(), &RequestPayload::Params(vec!["600000".into(), "zygc".into(), "".into()]));
+    let industry = IndustryAnalysisQuery::new(code.clone())
+        .with_section(SectionCode::new("industry_analysis", "comparable")?)?.to_call()?;
+    assert_eq!(industry.payload(), &RequestPayload::Params(vec!["1".into(), "600000".into()]));
+    let fund = FundReportQuery::new(code.clone())
+        .with_section(SectionCode::new("fund_report", "finance")?)?.to_call()?;
+    assert_eq!(fund.payload(), &RequestPayload::Params(vec!["zcfzb".into(), "600000".into()]));
+    let market = MarketReportQuery::new(Some(code))
+        .with_section(SectionCode::new("market_report", "index_members")?)?.to_call()?;
+    assert_eq!(market.entry().as_str(), "CWServ.skef10_zs_cfgsj_cfgjcsj");
+    assert_eq!(market.payload(), &RequestPayload::Params(vec!["001".into(), "600000".into(), "1".into(), "20".into()]));
+    Ok(())
+}

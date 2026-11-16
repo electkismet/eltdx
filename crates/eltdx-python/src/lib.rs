@@ -13,6 +13,7 @@ mod offline_gbbq;
 mod offline_blocks;
 mod f10_response;
 mod f10_request;
+mod f10_report;
 mod limits;
 mod helpers;
 mod helper_profile;
@@ -112,6 +113,9 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(f10_request::f10_cache_list, module)?)?;
     module.add_function(wrap_pyfunction!(f10_request::f10_cache_alias, module)?)?;
     module.add_function(wrap_pyfunction!(f10_request::f10_news_channels, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_report::f10_report, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_report::f10_shareholder_plans, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_report::f10_business_composition, module)?)?;
     module.add_function(wrap_pyfunction!(limits::scan_special, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_fund_flow, module)?)?;
     module.add_function(wrap_pyfunction!(helpers::helper_full_quotes, module)?)?;

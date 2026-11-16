@@ -232,11 +232,9 @@ class F10Client:
     def business_composition(self, code: str, report_date: str | None = None) -> F10Response:
         """主营构成。report_date 不传时先取服务端给出的最新报告期。"""
 
-        code6 = _code6(code)
-        selected_date = report_date or _first_value(self.business_periods(code6), "T002")
-        if selected_date is None:
-            raise ProtocolError(f"no business composition report date for {code6}")
-        return self.business_report(code, "composition", report_date=str(selected_date))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_business_composition(self, code, report_date, _MODULES[__name__])
 
     def shareholders(
         self,
@@ -265,29 +263,13 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        page_text = str(page)
-        size_text = str(page_size)
-        date_text = report_date or ""
-        gdyj = "CWServ.tdxf10_gg_gdyj"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "count": (gdyj, (code6, "gdrs", filter1, filter2, page_text, page_text, size_text)),
-            "ranking": (gdyj, (code6, "thygdrs", filter1, filter2, page_text, page_text, size_text)),
-            "controller": (gdyj, (code6, "kggd", filter1, filter2, page_text, page_text, size_text)),
-            "top_circulating": (gdyj, (code6, "ltgd", filter1, filter2, page_text, page_text, size_text)),
-            "top": (gdyj, (code6, "sdgdbgq", filter1, filter2, page_text, page_text, size_text)),
-            "bonds": (gdyj, (code6, "sdzqcyr", filter1, filter2, page_text, page_text, size_text)),
-            "changes": (gdyj, (code6, "cgbd", filter1, filter2, page_text, page_text, size_text)),
-            "institutions": (gdyj, (code6, "jgcg", filter1, filter2, page_text, page_text, size_text)),
-            "institution_types": (gdyj, (code6, "jgcgz", filter1, date_text, page_text, page_text, size_text)),
-            "institution_holdings": (
-                "CWServ.tdxf10_gg_gdyj_jgcgmx",
-                (code6, kind, date_text, "99", page_text, page_text, size_text),
-            ),
-            "plan": (gdyj, (code6, "gdzjcjh", filter1, filter2, page_text, page_text, size_text)),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "shareholders", code, section,
+            {"report_date": report_date, "kind": kind, "filter1": filter1, "filter2": filter2,
+             "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def shareholder_change_plans(
         self,
@@ -300,13 +282,10 @@ class F10Client:
     ) -> F10Response:
         """股东增减持计划。"""
 
-        return self.shareholders(
-            code,
-            "plan",
-            page=page,
-            page_size=page_size,
-            filter1=filter1,
-            filter2=filter2,
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_shareholder_plans(
+            self, code, {"page": page, "page_size": page_size, "filter1": filter1, "filter2": filter2}
         )
 
     def capital_structure(
@@ -328,23 +307,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        gbjg = "CWServ.tdxf10_gg_gbjg"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "structure": (gbjg, (code6, "gbjg")),
-            "changes": (gbjg, (code6, "gbbd")),
-            "buyback": (gbjg, (code6, "gphg")),
-            "restricted": (gbjg, (code6, "xslt")),
-        }
-        _require_section(section, (*table, "restricted_detail"))
-        if section == "restricted_detail":
-            if not date:
-                raise ValueError(
-                    "capital_structure section 'restricted_detail' requires date (YYYYMMDD)"
-                )
-            return self.params("CWServ.tdxf10_gg_gbjg_xsjjmx", code6, _date_text(date))
-        entry, params = table[section]
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "capital_structure", code, section, {"date": date}, _MODULES[__name__]
+        )
 
     def business_report(
         self,
@@ -367,19 +334,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        date_text = "" if report_date is None else str(report_date)
-        jyfx = "CWServ.tdxf10_gg_jyfx"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "business": (jyfx, (code6, "zyyw", "")),
-            "composition": (jyfx, (code6, "zygc", date_text)),
-            "customers": (jyfx, (code6, "qwm", date_text)),
-            "suppliers": (jyfx, (code6, "qwmgys", date_text)),
-            "price": (jyfx, (code6, "cpjg", "")),
-            "changes": (jyfx, (code6, "0", date_text)),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "business_report", code, section, {"report_date": report_date}, _MODULES[__name__]
+        )
 
     def industry_analysis(
         self,
@@ -406,23 +365,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        hyfx = "CWServ.tdxf10_gg_hyfx"
-        kbgs = "CWServ.tdxf10_gg_kbgs"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "peers": (hyfx, ("cwgz", code6, arg or "000")),
-            "dividend_rank": (hyfx, ("fhrzb", code6, arg or "100")),
-            "scale": (hyfx, ("gsgm", code6, arg or "000")),
-            "valuation": (hyfx, ("gzsp", code6, arg or "011")),
-            "news": (hyfx, ("hyxw", code6, arg or "")),
-            "reports": (hyfx, ("hyyb", code6, arg or "")),
-            "market_share": (hyfx, ("scbx", code6, arg or "000")),
-            "summary": (hyfx, ("tot", code6, arg or "")),
-            "comparable": (kbgs, ("1", code6)),
-            "comparable_profile": (kbgs, ("0", code6)),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "industry_analysis", code, section, {"arg": arg}, _MODULES[__name__]
+        )
 
     def trading_report(
         self,
@@ -456,23 +403,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        jyds = "CWServ.tdxf10_gg_jyds"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "margin": (jyds, (code6, "rzrq", "")),
-            "margin_history": ("CWServ.tdxf10_gg_sj", ("rzrq_sj", code6, "0", code6)),
-            "block_trades": (jyds, (code6, "dzjy", "")),
-            "dragon_board": (jyds, (code6, "lgt", arg or "2")),
-            "northbound": (jyds, (code6, "islgt", "")),
-            "limit_down": (jyds, (code6, "dtfx", "")),
-            "limit_up": (jyds, (code6, "ztfx", "")),
-            "bonds": (jyds, (code6, "zrq", "")),
-            "main_force": (jyds, (code6, "zlpskcj", "")),
-            "reports": (jyds, (code6, "yxsbxx", "")),
-            "kcb": (jyds, (code6, "checkkcb", "")),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "trading_report", code, section, {"arg": arg}, _MODULES[__name__]
+        )
 
     def fund_report(
         self,
@@ -508,56 +443,12 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        page_text = str(page)
-        size_text = str(page_size)
-        date_text = date or ""
-        jj = "CWServ.skef10_jj_"
-        jjzl = f"{jj}jjzl"
-        gmfe = f"{jj}gmfe"
-        jzhb = f"{jj}jzhb"
-        tzzh = f"{jj}tzzh"
-        cgqk = f"{jj}cgqk"
-        xsxx = f"{jj}xsxx"
-        etfzj = f"{jj}etfzj"
-        if not date_text and section in _FUND_REPORT_PERIOD_ENTRIES:
-            date_text = _latest_report_period(
-                self.params(tzzh, _FUND_REPORT_PERIOD_ENTRIES[section], code6, "")
-            )
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "name": (f"{jj}idreq", ("name", code6)),
-            "managers": (jjzl, ("1", code6, "", page_text, page_text, size_text)),
-            "company": (jjzl, ("2", code6, "", page_text, page_text, size_text)),
-            "basic": (jjzl, ("4", code6, "", page_text, page_text, size_text)),
-            "seats": (jjzl, ("5", code6, arg, page_text, page_text, size_text)),
-            "scale": (gmfe, ("0", code6, "", "")),
-            "scale_history": (gmfe, (arg or "0", code6, "", date_text)),
-            "nav": (jzhb, ("0", code6, "0", "")),
-            "nav_period": (jzhb, ("1", code6, "0", "")),
-            "nav_rank": (jzhb, ("3", code6, "0", "")),
-            "dividends": (jzhb, ("5", code6, "0", "")),
-            "asset_allocation": (tzzh, ("zcpz", code6, "")),
-            "industry_allocation": (tzzh, ("hyfb", code6, date_text)),
-            "holdings_compare": (tzzh, ("cgjzd", code6, "")),
-            "holdings_rank": (tzzh, ("zjpz", code6, "")),
-            "holding_summary": (tzzh, ("jjxtzzh", code6, "")),
-            "bond_allocation": (tzzh, ("zczq", code6, date_text)),
-            "futures_allocation": (tzzh, ("ccqhmx", code6, date_text)),
-            "holdings": (cgqk, ("cgqkbgq", code6, "", "", "1", "1", "1")),
-            "holdings_detail": (cgqk, ("cgmxbgq", code6, "", "", "1", "1", "1")),
-            "holdings_changes": (cgqk, ("cyjjmxbgq", code6, "", "", "1", "1", "1")),
-            "fund_of_funds": (cgqk, ("sxjjzcbgq", code6, "", "", "1", "1", "1")),
-            "finance": (f"{jj}cwzk", (arg or "zcfzb", code6)),
-            "sales_info": (xsxx, ("0", code6)),
-            "sales_announcements": (xsxx, ("4", code6)),
-            "sales_news": (xsxx, ("5", code6)),
-            "etf": (etfzj, ("etfzjlx", code6, date_text or "3M")),
-            "margin": (etfzj, ("etfrzrq", code6, date_text or "3M")),
-            "ratings": (f"{jj}jjpj", (arg or "001", code6)),
-            "categories": (f"{jj}fxsy", (arg or "bgqzf", code6, "")),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "fund_report", code, section,
+            {"arg": arg, "date": date, "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------
     # 美股 mgf10 家族（Entry: CWServ.skef10_mg_*，网关 page2）
@@ -1780,41 +1671,12 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        section = _MARKET_REPORT_SECTION_ALIASES.get(section, section)
-        code_less = section in _MARKET_REPORT_CODELESS_SECTIONS
-        code6 = _code6(code) if (code or not code_less) else ""
-        page_text = str(page)
-        size_text = str(page_size)
-        bk = "CWServ.skef10_bk_"
-        zs = "CWServ.skef10_zs_"
-        dpzx = "CWServ.skef10_dpzx_"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "board_info": (f"{bk}getinfo", (code6,)),
-            "board_basics": (f"{bk}cpbd_jczl", ("001", code6, "")),
-            "board_description": (f"{bk}cpbd_jczl", ("002", code6, "")),
-            "board_trading": (f"{bk}cpbd_jczl", ("004", code6, "")),
-            "board_flow": (f"{bk}zjlx", (arg or "001_1", code6, "")),
-            "board_members": (f"{bk}scgl", (arg or "001", code6, page_text, size_text)),
-            "board_analysis": (f"{bk}sdfx", ("001", code6, "")),
-            "board_finance_compare": (f"{bk}ggdb_cwdb", (code6,)),
-            "board_candidates": (f"{bk}cfgsj", (arg or "001", code6)),
-            "board_trend": (f"{bk}ydfx", (code6,)),
-            "index_info": (f"{zs}getinfo", (code6,)),
-            "index_profile": (f"{zs}jbxx_zsgk", (code6,)),
-            "index_valuation": (f"{zs}jbxx_gzxx", ("001", code6, "", "")),
-            "index_tracking": (f"{zs}jbxx_gzbd", (code6, page_text, size_text)),
-            "index_flow": (f"{zs}zjdx", (arg or "004_1", code6, "", "", page_text, size_text)),
-            "index_flow_members": (f"{zs}cfgsj_cfgjcsj", (arg or "001", code6, page_text, size_text)),
-            "index_notices": (f"{zs}jrts", (arg or "001", code6, page_text, size_text)),
-            "market_basic": (f"{dpzx}jbxx", ("002", code6)),
-            "market_margin": (f"{dpzx}rzrq", ("001", code6)),
-            "market_margin_summary": (f"{dpzx}rzrq", ("002", code6)),
-            "market_margin_investors": (f"{dpzx}rzrq", ("003", arg or "1m")),
-            "market_new_shares": (f"{dpzx}xgfx", ("002",)),
-            "market_capital": (f"{dpzx}scgl", (arg or "004",)),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "market_report", code, section,
+            {"arg": arg, "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def index_members(
         self,

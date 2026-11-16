@@ -187,6 +187,8 @@ mod sector_templates;
 pub use sector_templates::{position_arguments, position_prefix, sector_choices, sector_dynamic, sector_selection, sector_weights_without_date};
 mod request_shapes;
 pub use request_shapes::{cache_alias, cache_payload, CacheValue, CACHE_ENTRY, CACHE_KINDS};
+mod report_templates;
+pub use report_templates::{report_table, fund_period_section, market_section, ReportArgument, ReportEntry, SHAREHOLDER_PLAN_SECTION};
 mod simple_registry;
 pub use simple_registry::simple_endpoint;
 mod international;

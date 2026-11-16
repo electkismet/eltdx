@@ -876,3 +876,202 @@ def test_f10_news_channels_keeps_live_registry_and_sorted_hook(monkeypatch):
     assert f10.F10Client().news_channels() == [(1, "one"), (9, "nine")]
     monkeypatch.setattr(f10, "sorted", lambda values: list(values), raising=False)
     assert f10.F10Client().news_channels() == [(9, "nine"), (1, "one")]
+
+
+@pytest.mark.parametrize("method,section,kwargs,expected", [
+    ("shareholders", "institution_holdings", {"report_date": 123, "kind": "custom", "page": -2, "page_size": 0},
+     ("CWServ.tdxf10_gg_gdyj_jgcgmx", "600000", "custom", 123, "99", "-2", "-2", "0")),
+    ("shareholders", "institution_types", {"report_date": 123, "filter1": "f1", "filter2": "unused"},
+     ("CWServ.tdxf10_gg_gdyj", "600000", "jgcgz", "f1", 123, "1", "1", "20")),
+    ("capital_structure", "restricted_detail", {"date": "2026-03-04"},
+     ("CWServ.tdxf10_gg_gbjg_xsjjmx", "600000", "20260304")),
+    ("business_report", "changes", {"report_date": 123},
+     ("CWServ.tdxf10_gg_jyfx", "600000", "0", "123")),
+    ("industry_analysis", "comparable_profile", {}, ("CWServ.tdxf10_gg_kbgs", "0", "600000")),
+    ("trading_report", "dragon_board", {}, ("CWServ.tdxf10_gg_jyds", "600000", "lgt", "2")),
+    ("trading_report", "margin_history", {}, ("CWServ.tdxf10_gg_sj", "rzrq_sj", "600000", "0", "600000")),
+    ("fund_report", "seats", {"arg": "seat", "page": -2, "page_size": 0},
+     ("CWServ.skef10_jj_jjzl", "5", "600000", "seat", "-2", "-2", "0")),
+    ("fund_report", "finance", {}, ("CWServ.skef10_jj_cwzk", "zcfzb", "600000")),
+    ("market_report", "index_members", {}, ("CWServ.skef10_zs_cfgsj_cfgjcsj", "001", "600000", "1", "20")),
+])
+def test_f10_report_tables_keep_original_wire_values(method, section, kwargs, expected):
+    client = f10.F10Client()
+    client.params = lambda *args: args
+    assert getattr(client, method)("sh600000", section, **kwargs) == expected
+
+
+def test_f10_industry_eagerly_evaluates_unused_branches(monkeypatch):
+    events = []
+
+    class Argument:
+        def __bool__(self):
+            events.append("arg")
+            return False
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            return lambda *args: args
+
+    monkeypatch.setattr(f10, "_code6", lambda code: events.append("code") or code)
+    result = Client().industry_analysis("raw", "comparable", arg=Argument())
+    assert result == ("CWServ.tdxf10_gg_kbgs", "1", "raw")
+    assert events == ["code"] + ["arg"] * 8 + ["params"]
+
+
+def test_f10_report_keeps_eager_string_conversion_before_invalid_selector(monkeypatch):
+    events = []
+
+    class Date:
+        def __str__(self):
+            events.append("date")
+            return "custom"
+
+    def select(section, table):
+        events.append(("select", section, tuple(table)))
+        raise LookupError("selected")
+
+    monkeypatch.setattr(f10, "_code6", lambda code: events.append("code") or code)
+    monkeypatch.setattr(f10, "_section_request", select)
+    with pytest.raises(LookupError, match="selected"):
+        f10.F10Client().business_report("raw", "invalid", report_date=Date())
+    assert events[:2] == ["code", "date"]
+    assert events[2] == ("select", "invalid", ("business", "composition", "customers", "suppliers", "price", "changes"))
+
+
+def test_f10_report_selected_iterable_expands_after_params_lookup(monkeypatch):
+    events = []
+    marker = object()
+
+    def args():
+        events.append("expand")
+        yield marker
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            return lambda *values: values
+
+    monkeypatch.setattr(f10, "_section_request", lambda *args_: ("custom", args()))
+    assert Client().trading_report("sh600000") == ("custom", marker)
+    assert events == ["params", "expand"]
+
+
+def test_f10_trading_ignores_date_and_page_but_evaluates_unused_arg():
+    events = []
+
+    class Ignored:
+        def __str__(self):
+            raise AssertionError("unused value converted")
+
+    class Arg:
+        def __bool__(self):
+            events.append("arg")
+            return False
+
+    client = f10.F10Client()
+    client.params = lambda *values: values
+    assert client.trading_report("sh600000", "margin", arg=Arg(), date=Ignored(),
+                                 page=Ignored(), page_size=Ignored()) == (
+        "CWServ.tdxf10_gg_jyds", "600000", "rzrq", "")
+    assert events == ["arg"]
+
+
+def test_f10_capital_detail_captures_params_before_date_conversion(monkeypatch):
+    events = []
+
+    class Client(f10.F10Client):
+        @property
+        def params(self):
+            events.append("params")
+            return lambda *values: values
+
+    marker = object()
+    monkeypatch.setattr(f10, "_date_text", lambda date: events.append("date") or marker)
+    result = Client().capital_structure("sh600000", "restricted_detail", date=marker)
+    assert result == ("CWServ.tdxf10_gg_gbjg_xsjjmx", "600000", marker)
+    assert events == ["params", "date"]
+
+
+def test_f10_fund_period_uses_live_map_and_captures_latest_before_request(monkeypatch):
+    events = []
+    marker = object()
+    monkeypatch.setattr(f10, "_FUND_REPORT_PERIOD_ENTRIES", {"industry_allocation": "custom_period"})
+
+    def latest(response):
+        events.append(("latest", response))
+        return marker
+
+    monkeypatch.setattr(f10, "_latest_report_period", latest)
+
+    class Client(f10.F10Client):
+        def params(self, *values):
+            events.append(values)
+            if values[1] == "custom_period":
+                monkeypatch.setattr(f10, "_latest_report_period", lambda response: pytest.fail("late lookup"))
+                return "period-response"
+            return values
+
+    assert Client().fund_report("sh600000", "industry_allocation") == (
+        "CWServ.skef10_jj_tzzh", "hyfb", "600000", marker)
+    assert events[:2] == [("CWServ.skef10_jj_tzzh", "custom_period", "600000", ""), ("latest", "period-response")]
+
+
+def test_f10_fund_keeps_all_eager_truthiness_evaluations():
+    events = []
+
+    class Value:
+        def __init__(self, label):
+            self.label = label
+
+        def __bool__(self):
+            events.append(self.label)
+            return True
+
+    arg, date = Value("arg"), Value("date")
+    client = f10.F10Client()
+    client.params = lambda *values: values
+    assert client.fund_report("sh600000", "name", arg=arg, date=date) == (
+        "CWServ.skef10_jj_idreq", "name", "600000")
+    assert events == ["date", "date", "arg", "arg", "date", "date", "arg", "arg"]
+
+
+def test_f10_market_keeps_live_alias_and_codeless_tables(monkeypatch):
+    events = []
+    monkeypatch.setattr(f10, "_MARKET_REPORT_SECTION_ALIASES", {"custom": "market_new_shares"})
+    monkeypatch.setattr(f10, "_MARKET_REPORT_CODELESS_SECTIONS", {"market_new_shares"})
+    monkeypatch.setattr(f10, "_code6", lambda code: pytest.fail("codeless request must not normalize code"))
+
+    class Arg:
+        def __bool__(self):
+            events.append("arg")
+            return False
+
+    client = f10.F10Client()
+    client.params = lambda *values: values
+    assert client.market_report("", "custom", arg=Arg()) == ("CWServ.skef10_dpzx_xgfx", "002")
+    assert events == ["arg"] * 8
+
+
+def test_f10_shareholder_alias_preserves_public_override_and_raw_inputs():
+    marker = object()
+    client = f10.F10Client()
+    client.shareholders = lambda *args, **kwargs: (args, kwargs)
+    assert client.shareholder_change_plans(marker, page=marker, filter2=marker) == (
+        (marker, "plan"), {"page": marker, "page_size": 20, "filter1": "", "filter2": marker})
+
+
+def test_f10_business_composition_keeps_first_value_and_original_code(monkeypatch):
+    events = []
+    code, date = object(), object()
+    monkeypatch.setattr(f10, "_code6", lambda raw: events.append(("normalize", raw)) or "normalized")
+    monkeypatch.setattr(f10, "_first_value", lambda response, field: events.append(("first", response, field)) or date)
+    monkeypatch.setattr(f10, "str", lambda value: events.append(("str", value)) or "selected", raising=False)
+    client = f10.F10Client()
+    client.business_periods = lambda value: events.append(("periods", value)) or "response"
+    client.business_report = lambda *args, **kwargs: (args, kwargs)
+    assert client.business_composition(code) == ((code, "composition"), {"report_date": "selected"})
+    assert events == [("normalize", code), ("periods", "normalized"), ("first", "response", "T002"), ("str", date)]

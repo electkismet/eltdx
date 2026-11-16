@@ -25,36 +25,13 @@ impl MarketReportQuery {
     pub fn with_page(mut self, value: u32) -> Result<Self> { self.page = page(value)?; Ok(self) }
     pub fn with_page_size(mut self, value: NonZeroU32) -> Result<Self> { self.page_size = count(value)?; Ok(self) }
     pub fn to_call(&self) -> Result<CallQuery> {
-        let section = match self.section.as_str() { "index_members" => "index_flow_members", "index_etfs" => "index_tracking", "ipo_calendar" => "market_new_shares", value => value };
+        let section = super::market_section(self.section.as_str());
         let code = if matches!(section, "market_new_shares" | "market_capital") { self.code.as_ref().map_or("", AshareCode::as_str) }
             else { self.code.as_ref().ok_or_else(|| crate::f10::values::invalid("market report section requires code"))?.as_str() };
-        let p = self.page.to_string(); let n = self.page_size.get().to_string(); let arg = self.arg.as_str();
-        let default_arg = |default: &str| if arg.is_empty() { default.to_owned() } else { arg.to_owned() };
-        let (entry, params) = match section {
-            "board_info" => ("CWServ.skef10_bk_getinfo", vec![j(code)]),
-            "board_basics" | "board_description" | "board_trading" => ("CWServ.skef10_bk_cpbd_jczl", vec![j(match section { "board_basics" => "001", "board_description" => "002", _ => "004" }), j(code), j("")]),
-            "board_flow" => ("CWServ.skef10_bk_zjlx", vec![j(default_arg("001_1")), j(code), j("")]),
-            "board_members" => ("CWServ.skef10_bk_scgl", vec![j(default_arg("001")), j(code), j(p), j(n)]),
-            "board_analysis" => ("CWServ.skef10_bk_sdfx", vec![j("001"), j(code), j("")]),
-            "board_finance_compare" => ("CWServ.skef10_bk_ggdb_cwdb", vec![j(code)]),
-            "board_candidates" => ("CWServ.skef10_bk_cfgsj", vec![j(default_arg("001")), j(code)]),
-            "board_trend" => ("CWServ.skef10_bk_ydfx", vec![j(code)]),
-            "index_info" => ("CWServ.skef10_zs_getinfo", vec![j(code)]),
-            "index_profile" => ("CWServ.skef10_zs_jbxx_zsgk", vec![j(code)]),
-            "index_valuation" => ("CWServ.skef10_zs_jbxx_gzxx", vec![j("001"), j(code), j(""), j("")]),
-            "index_tracking" => ("CWServ.skef10_zs_jbxx_gzbd", vec![j(code), j(p), j(n)]),
-            "index_flow" => ("CWServ.skef10_zs_zjdx", vec![j(default_arg("004_1")), j(code), j(""), j(""), j(p), j(n)]),
-            "index_flow_members" => ("CWServ.skef10_zs_cfgsj_cfgjcsj", vec![j(default_arg("001")), j(code), j(p), j(n)]),
-            "index_notices" => ("CWServ.skef10_zs_jrts", vec![j(default_arg("001")), j(code), j(p), j(n)]),
-            "market_basic" => ("CWServ.skef10_dpzx_jbxx", vec![j("002"), j(code)]),
-            "market_margin" => ("CWServ.skef10_dpzx_rzrq", vec![j("001"), j(code)]),
-            "market_margin_summary" => ("CWServ.skef10_dpzx_rzrq", vec![j("002"), j(code)]),
-            "market_margin_investors" => ("CWServ.skef10_dpzx_rzrq", vec![j("003"), j(default_arg("1m"))]),
-            "market_new_shares" => ("CWServ.skef10_dpzx_xgfx", vec![j("002")]),
-            "market_capital" => ("CWServ.skef10_dpzx_scgl", vec![j(default_arg("004"))]),
-            _ => unreachable!("closed market report registry"),
-        };
-        super::params(entry, params)
+        super::report_templates::native_report("market_report", code, section, |name| Ok(match name {
+            "arg" => j(self.arg.as_str()), "page" => j(format!("{}", self.page)),
+            "page_size" => j(format!("{}", self.page_size.get())), _ => unreachable!("built-in market input"),
+        }))
     }
 }
 fn nz(value: u32) -> NonZeroU32 { NonZeroU32::new(value).unwrap_or(NonZeroU32::MIN) }

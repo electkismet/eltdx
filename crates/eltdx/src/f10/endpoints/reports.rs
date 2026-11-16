@@ -58,7 +58,6 @@ macro_rules! date_field {
     };
 }
 fn twenty() -> NonZeroU32 { NonZeroU32::new(20).unwrap_or(NonZeroU32::MIN) }
-fn nonempty<'a>(value: &'a str, default: &'a str) -> &'a str { if value.is_empty() { default } else { value } }
 
 section_base!(ShareholdersQuery, "shareholders", "count", {
     report_date: Option<TradingDate> = None, kind: String = "000".to_owned(),
@@ -71,18 +70,12 @@ string_field!(ShareholdersQuery, filter2, with_filter2);
 page_fields!(ShareholdersQuery);
 impl ShareholdersQuery {
     pub fn to_call(&self) -> Result<CallQuery> {
-        let section = self.section.as_str();
-        let code = self.code.as_str(); let p = self.page.to_string(); let n = self.page_size.get().to_string();
-        if section == "institution_holdings" {
-            return super::params("CWServ.tdxf10_gg_gdyj_jgcgmx", vec![j(code), j(self.kind.as_str()), j(date_text(self.report_date)), j("99"), j(p.clone()), j(p), j(n)]);
-        }
-        let wire = match section {
-            "count" => "gdrs", "ranking" => "thygdrs", "controller" => "kggd", "top_circulating" => "ltgd",
-            "top" => "sdgdbgq", "bonds" => "sdzqcyr", "changes" => "cgbd", "institutions" => "jgcg",
-            "institution_types" => "jgcgz", "plan" => "gdzjcjh", _ => unreachable!("closed shareholder registry"),
-        };
-        let filter2 = if section == "institution_types" { date_text(self.report_date) } else { self.filter2.clone() };
-        super::params("CWServ.tdxf10_gg_gdyj", vec![j(code), j(wire), j(self.filter1.as_str()), j(filter2), j(p.clone()), j(p), j(n)])
+        super::report_templates::native_report("shareholders", self.code.as_str(), self.section.as_str(), |name| Ok(match name {
+            "filter1" => j(self.filter1.as_str()), "filter2" => j(self.filter2.as_str()),
+            "kind" => j(self.kind.as_str()), "date" => j(date_text(self.report_date)),
+            "page" => j(format!("{}", self.page)), "page_size" => j(format!("{}", self.page_size.get())),
+            _ => unreachable!("built-in shareholder input"),
+        }))
     }
 }
 
@@ -90,7 +83,7 @@ impl ShareholdersQuery {
 pub struct ShareholderChangePlansQuery { inner: ShareholdersQuery }
 impl ShareholderChangePlansQuery {
     pub fn new(code: AshareCode) -> Self {
-        let mut inner = ShareholdersQuery::new(code); inner.section = SectionCode::default_for("shareholders", "plan"); Self { inner }
+        let mut inner = ShareholdersQuery::new(code); inner.section = SectionCode::default_for("shareholders", super::SHAREHOLDER_PLAN_SECTION); Self { inner }
     }
     pub fn code(&self) -> &AshareCode { self.inner.code() }
     pub fn page(&self) -> u32 { self.inner.page() }
@@ -108,23 +101,19 @@ section_base!(CapitalStructureQuery, "capital_structure", "structure", { date: O
 date_field!(CapitalStructureQuery, date, with_date);
 impl CapitalStructureQuery {
     pub fn to_call(&self) -> Result<CallQuery> {
-        if self.section.as_str() == "restricted_detail" {
-            let date = self.date.ok_or_else(|| crate::f10::values::invalid("restricted_detail requires date"))?;
-            return super::params("CWServ.tdxf10_gg_gbjg_xsjjmx", vec![j(self.code.as_str()), j(date_text(Some(date)))]);
+        if self.section.as_str() == "restricted_detail" && self.date.is_none() {
+            return Err(crate::f10::values::invalid("restricted_detail requires date"));
         }
-        let section = match self.section.as_str() { "structure" => "gbjg", "changes" => "gbbd", "buyback" => "gphg", "restricted" => "xslt", _ => unreachable!("closed capital registry") };
-        super::params("CWServ.tdxf10_gg_gbjg", vec![j(self.code.as_str()), j(section)])
+        super::report_templates::native_report("capital_structure", self.code.as_str(), self.section.as_str(),
+            |_| Ok(j(date_text(self.date))))
     }
 }
 section_base!(BusinessReportQuery, "business_report", "business", { report_date: Option<TradingDate> = None });
 date_field!(BusinessReportQuery, report_date, with_report_date);
 impl BusinessReportQuery {
     pub fn to_call(&self) -> Result<CallQuery> {
-        let (section, use_date) = match self.section.as_str() {
-            "business" => ("zyyw", false), "composition" => ("zygc", true), "customers" => ("qwm", true),
-            "suppliers" => ("qwmgys", true), "price" => ("cpjg", false), "changes" => ("0", true), _ => unreachable!("closed business registry"),
-        };
-        super::params("CWServ.tdxf10_gg_jyfx", vec![j(self.code.as_str()), j(section), j(if use_date { date_text(self.report_date) } else { String::new() })])
+        super::report_templates::native_report("business_report", self.code.as_str(), self.section.as_str(),
+            |_| Ok(j(date_text(self.report_date))))
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -140,16 +129,8 @@ section_base!(IndustryAnalysisQuery, "industry_analysis", "peers", { arg: String
 string_field!(IndustryAnalysisQuery, arg, with_arg);
 impl IndustryAnalysisQuery {
     pub fn to_call(&self) -> Result<CallQuery> {
-        let section = self.section.as_str(); let code = self.code.as_str();
-        if matches!(section, "comparable" | "comparable_profile") {
-            return super::params("CWServ.tdxf10_gg_kbgs", vec![j(if section == "comparable" { "1" } else { "0" }), j(code)]);
-        }
-        let (wire, default) = match section {
-            "peers" => ("cwgz", "000"), "dividend_rank" => ("fhrzb", "100"), "scale" => ("gsgm", "000"),
-            "valuation" => ("gzsp", "011"), "news" => ("hyxw", ""), "reports" => ("hyyb", ""),
-            "market_share" => ("scbx", "000"), "summary" => ("tot", ""), _ => unreachable!("closed industry registry"),
-        };
-        super::params("CWServ.tdxf10_gg_hyfx", vec![j(wire), j(code), j(nonempty(&self.arg, default))])
+        super::report_templates::native_report("industry_analysis", self.code.as_str(), self.section.as_str(),
+            |_| Ok(j(self.arg.as_str())))
     }
 }
 section_base!(TradingReportQuery, "trading_report", "margin", {
@@ -162,14 +143,8 @@ impl TradingReportQuery {
     /// Date/page/page_size are retained as compatibility inputs; the source
     /// endpoint does not support those filters and no fabricated fields emit.
     pub fn to_call(&self) -> Result<CallQuery> {
-        let code = self.code.as_str(); let section = self.section.as_str();
-        if section == "margin_history" { return super::params("CWServ.tdxf10_gg_sj", vec![j("rzrq_sj"), j(code), j("0"), j(code)]); }
-        let wire = match section {
-            "margin" => "rzrq", "block_trades" => "dzjy", "dragon_board" => "lgt", "northbound" => "islgt",
-            "limit_down" => "dtfx", "limit_up" => "ztfx", "bonds" => "zrq", "main_force" => "zlpskcj", "reports" => "yxsbxx", "kcb" => "checkkcb",
-            _ => unreachable!("closed trading registry"),
-        };
-        super::params("CWServ.tdxf10_gg_jyds", vec![j(code), j(wire), j(if section == "dragon_board" { nonempty(&self.arg, "2") } else { "" })])
+        super::report_templates::native_report("trading_report", self.code.as_str(), self.section.as_str(),
+            |_| Ok(j(self.arg.as_str())))
     }
 }
 
@@ -197,7 +172,7 @@ impl FundReportQuery {
     }
     pub(crate) fn prerequisite(&self) -> Result<Option<CallQuery>> {
         if self.date.is_some() { return Ok(None); }
-        let section = match self.section.as_str() { "industry_allocation" => "hyfbbgq", "bond_allocation" => "zczqbgq", "futures_allocation" => "ccqhmxbgq", _ => return Ok(None) };
+        let Some(section) = super::fund_period_section(self.section.as_str()) else { return Ok(None); };
         Ok(Some(super::params("CWServ.skef10_jj_tzzh", vec![j(section), j(self.code.as_str()), j("")])?))
     }
     pub fn to_call(&self) -> Result<CallQuery> { self.resolved(self.date.as_ref().map(DateOrWindow::wire).as_deref()) }
@@ -207,36 +182,12 @@ impl FundReportQuery {
         if date.is_none() && self.prerequisite()?.is_some() {
             return Err(Error::new(ErrorKind::MetadataUnavailable, "fund report requires a report-period prerequisite"));
         }
-        let date = date.unwrap_or(""); let code = self.code.as_str(); let arg = self.arg.as_str();
-        let p = self.page.to_string(); let n = self.page_size.get().to_string();
-        let (suffix, params) = match section {
-            "name" => ("idreq", vec![j("name"), j(code)]),
-            "managers" | "company" | "basic" | "seats" => {
-                let tag = match section { "managers" => "1", "company" => "2", "basic" => "4", _ => "5" };
-                ("jjzl", vec![j(tag), j(code), j(if section == "seats" { arg } else { "" }), j(p.clone()), j(p), j(n)])
-            }
-            "scale" => ("gmfe", vec![j("0"), j(code), j(""), j("")]),
-            "scale_history" => ("gmfe", vec![j(nonempty(arg, "0")), j(code), j(""), j(date)]),
-            "nav" | "nav_period" | "nav_rank" | "dividends" => {
-                let tag = match section { "nav" => "0", "nav_period" => "1", "nav_rank" => "3", _ => "5" };
-                ("jzhb", vec![j(tag), j(code), j("0"), j("")])
-            }
-            "asset_allocation" | "industry_allocation" | "holdings_compare" | "holdings_rank" | "holding_summary" | "bond_allocation" | "futures_allocation" => {
-                let tag = match section { "asset_allocation" => "zcpz", "industry_allocation" => "hyfb", "holdings_compare" => "cgjzd", "holdings_rank" => "zjpz", "holding_summary" => "jjxtzzh", "bond_allocation" => "zczq", _ => "ccqhmx" };
-                ("tzzh", vec![j(tag), j(code), j(if matches!(section, "industry_allocation" | "bond_allocation" | "futures_allocation") { date } else { "" })])
-            }
-            "holdings" | "holdings_detail" | "holdings_changes" | "fund_of_funds" => {
-                let tag = match section { "holdings" => "cgqkbgq", "holdings_detail" => "cgmxbgq", "holdings_changes" => "cyjjmxbgq", _ => "sxjjzcbgq" };
-                ("cgqk", vec![j(tag), j(code), j(""), j(""), j("1"), j("1"), j("1")])
-            }
-            "finance" => ("cwzk", vec![j(nonempty(arg, "zcfzb")), j(code)]),
-            "sales_info" | "sales_announcements" | "sales_news" => ("xsxx", vec![j(match section { "sales_info" => "0", "sales_announcements" => "4", _ => "5" }), j(code)]),
-            "etf" | "margin" => ("etfzj", vec![j(if section == "etf" { "etfzjlx" } else { "etfrzrq" }), j(code), j(nonempty(date, "3M"))]),
-            "ratings" => ("jjpj", vec![j(nonempty(arg, "001")), j(code)]),
-            "categories" => ("fxsy", vec![j(nonempty(arg, "bgqzf")), j(code), j("")]),
-            _ => unreachable!("closed fund report registry"),
-        };
-        super::params(&format!("CWServ.skef10_jj_{suffix}"), params)
+        let date = date.unwrap_or("");
+        super::report_templates::native_report("fund_report", self.code.as_str(), section, |name| Ok(match name {
+            "arg" => j(self.arg.as_str()), "date" => j(date),
+            "page" => j(format!("{}", self.page)), "page_size" => j(format!("{}", self.page_size.get())),
+            _ => unreachable!("built-in fund input"),
+        }))
     }
 }
 
@@ -325,7 +276,7 @@ impl F10Client {
                 .ok_or_else(|| missing_metadata(&response, "no valid business composition report period"))?;
             (date, Some(response))
         };
-        let call = super::params("CWServ.tdxf10_gg_jyfx", vec![j(query.code.as_str()), j("zygc"), j(date)])?;
+        let call = super::report_templates::native_report("business_report", query.code.as_str(), "composition", |_| Ok(j(date.as_str())))?;
         let mut response = self.endpoint_call(&call, &context)?;
         if let Some(prerequisite) = prerequisite { response = response.with_prerequisite(&prerequisite, &context)?; }
         context.finish()?; Ok(response)
