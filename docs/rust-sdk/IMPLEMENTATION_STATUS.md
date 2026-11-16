@@ -10,7 +10,7 @@
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
 | 当前阶段 | P2：T11 CodeService/QuoteService 源码实现进行中；P1 的 T10 `7a85f5c`/fix `151489f` 静态审阅已完成；T17 Stage A/A2 已批、Stage B 待服务集成；T22 Unicode修复 `a64a4a6` 已通过限定复审，ZIP/资源服务待集成；T24 Stage A 已批；T25 Stage A 已提交 |
-| 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
+| 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
 | 下一步 | 完成 T11 源码自审与 T12/T13 handoff，再进入 T12；并行推进其余未完成 Stage B 与 T12–T30；全部实现完成后统一验证 |
 
@@ -57,7 +57,7 @@
 
 ## 恢复规则
 
-最新恢复点（2026-11-16）：goal 模式 active，`remainingTokens=null`。当前工作区位于 `a38dc32` 之后的 T11 续写；T11 服务源码已存在并正在完成自审，测试源码尚未执行。T01–T10 与 T21 实现已完成；T17/T22/T24/T25 的服务集成仍有后续工作；T12–T30 按 brief 继续。没有运行测试、collection、构建、检查、格式化、diff 检查或网络验证。
+最新恢复点（2026-11-16）：goal 模式 active，`remainingTokens=null`。T11 quote 边界源码测试提交于 `ddb5e89`；category continuation offset 修复与测试提交于 `73c9365`。T11 服务源码自审和 T12/T13 handoff 仍待完成；新增源码用例未执行。T01–T10 与 T21 实现已完成；T17/T22/T24/T25 的服务集成仍有后续工作；T12–T30 按 brief 继续。没有运行测试、collection、构建、检查、格式化、diff 检查或网络验证。
 
 T21 于 `9734db3` 完成35个非财报本地 API、模型/格式算法、GBK 静态查表数据及四组测试源码；所有验证延期。仅运行了经授权的一次 Python 3.12.14 标准库 GBK 映射数据生成，脚本、版本和来源已在实现报告记录。任务审阅包以 `230e566` 为基线，仅含 T21 自有文件，scoped source review 进行中。T10 的 `Diagnostic`/`EnrichmentStatus` 共享实现仍待完成；这不是 T21 已验证集成的证据。
 
@@ -102,6 +102,8 @@ T21 第一轮静态审阅指出 `read_custom` 将空 leaf 当作可跳过数据�
 | `6f5fadb` | T11 checkpoint | QuoteService/CodeService 初始实现与进度恢复记录 |
 | `de9e74f` | T11 checkpoint | 恢复路径、服务实现与严格身份处理 |
 | `a38dc32` | T11 checkpoint | Python legacy metadata 预取顺序与初始快照请求兼容 |
+| `ddb5e89` | T11 tests/checkpoint | 第二 chunk 取消、恢复超时、category 非有限必需值源码用例；同步状态文档 |
+| `73c9365` | T11 fix | category continuation 无法表示下一个 offset 时返回 `RequestedWindow` 并省略 cursor |
 
 ## 阻塞与风险
 
