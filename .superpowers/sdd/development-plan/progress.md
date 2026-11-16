@@ -121,6 +121,10 @@
 - Recovery 2026-11-16: goal queried and confirmed active without token limit; continuing current T08/T09 agents rather than redispatching. T09 source checkpoint `ae11c2a` contains its22 owned parser/decode files; source cases/report are still in progress. T19/T20 briefs prepared for complete F10 transport/value/endpoint scope; no GO or implementation claim.
 - Preparation: T21/T22 briefs prepared for all local-file functions and complete financial download/ZIP/DAT contracts.
 - Ruling: begin T21 local-file implementation before network phases finish, restricted to new `src/offline/` and its four test files; it has no dependency on HQ request/metadata flight algorithms and cannot alter shared owner/operation/metadata/root/Cargo files. Consume the specified shared Diagnostic schema pending T10 integration, then review integration when that schema exists. — Cost if wrong: local diagnostic construction may require a narrow follow-up after T10; this is preferable to serializing independent codecs behind unrelated runtime work. No readiness/testing claim is made by source authoring.
+- Task 9: final implementation/report checkpoint `65ef657` after `ae11c2a`; task-scoped static review dispatched with `task-09-review-65ef657.diff`, base `98e8558`, filtered to owned parser/context/SDK decode paths. No execution occurred. T10 snapshot injection and T11 identity/occurrence selection remain later dependencies.
+- Task 8: final source work includes request-local initial/retry deadline expiry and exact unstarted pinned terminal reconciliation (matching lease identity/sequence); pin.rs is an approved narrow addition to owned review scope. Do not reset/reimplement earlier pin design. Final report/commit pending.
+- Preparation: T23–T30 briefs are now saved, covering full remaining Python migration, EX/MAC composites, independent consumers/package metadata, and final stress/docs/evidence source. They are not GO or implementation-complete claims.
+- Interface freeze for T10/T21: `crate::types::{Diagnostic, EnrichmentStatus}`; `Diagnostic::new(source: impl Into<String>, stage: impl Into<String>, status: EnrichmentStatus, error_kind: Option<ErrorKind>, message: Option<String>) -> Self`, with readonly getters for five fields. T10 owns implementation/reexport; T21 consumes it. T10 message queued while all execution slots busy; repeat in its GO handoff.
 
 | Task | Status |
 |---|---|
@@ -132,7 +136,7 @@
 | T06 | Implementation and scoped review complete (`4bf47d7..561dcf5`); final verification deferred |
 | T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
 | T08 | Implementing operation context, total budget, cancellation, structured errors and Python legacy bridge; source only |
-| T09 | Implementing explicit parser context, raw retention and pre-projection scalar preservation; source only |
+| T09 | Implementation/source cases committed `ae11c2a` and `65ef657`; scoped static review in progress, final verification deferred |
 | T10 | Not started |
 | T11 | Not started |
 | T12 | Not started |
