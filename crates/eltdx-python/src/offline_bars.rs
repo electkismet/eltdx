@@ -11,6 +11,21 @@ fn layout(value: &str) -> PyResult<Layout> {
     }
 }
 
+#[pyfunction]
+pub fn offline_model_date(py: Python<'_>, model: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let operator = py.import("operator")?;
+    let value = codec::date_integer_with(|field| model.getattr(field),
+        |left, right| operator.getattr("mul")?.call1((left, right)),
+        |left, right| operator.getattr("add")?.call1((left, right)))?;
+    Ok(value.unbind())
+}
+
+#[pyfunction]
+pub fn offline_model_datetime(py: Python<'_>, model: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let fields = codec::datetime_fields(|field| model.getattr(field))?;
+    Ok(PyTuple::new(py, fields)?.into_any().unbind())
+}
+
 fn project(py: Python<'_>, row: Record, layout: Layout, module: &Bound<'_, PyAny>,
     coefficients: Option<&Bound<'_, PyAny>>) -> PyResult<Py<PyAny>>
 {

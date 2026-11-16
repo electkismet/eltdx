@@ -2,6 +2,16 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage55: base dcf2f3f. Authored shared GBBQ
+  cipher adapter, block/config/code-line layouts and model date/key properties;
+  offline_gbbq/offline_blocks bindings preserve Python scalar/Struct/Path/codec
+  hooks, source exceptions/order and strict-vs-legacy differences. Added16 Python
+  and3 Rust test functions, all unexecuted; offline-migration-index records
+ 38 functions/8models and intentional custom adapters. Read task-23-report
+  seventh checkpoint; next all157 F10 methods/fields, cross-source helpers,
+  manifest, thenT24–T30. Counts21/4/5; active unlimited goal. No tests/build/
+  checks/collection/dependency/network/AST/format validation, agents/publication.
+
 - Latest recovery2026-11-17 stage41: after2a9e05d/fba8a77 authored full
   fields/data Rust dictionaries and scope/template/note resolver. PowerShell
   literal-only authoring generator ran; no Python import/AST or code validation

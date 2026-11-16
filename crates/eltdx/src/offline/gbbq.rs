@@ -30,23 +30,62 @@ impl GbbqRecord {
     pub fn raw(&self) -> Option<&[u8; 29]> { self.raw.as_ref() }
 }
 
-fn key(offset: usize) -> u32 { bars::u32_at(keys::KEYS, offset) }
+/// One cipher traversal for checked Rust words and the Python object/Struct
+/// adapter. The adapter controls scalar operations, never the round order.
+#[doc(hidden)]
+pub mod python_legacy {
+    pub trait Cipher {
+        type Word;
+        type Error;
+        fn key(&mut self, offset: usize) -> Result<Self::Word, Self::Error>;
+        fn input(&mut self, offset: usize) -> Result<Self::Word, Self::Error>;
+        fn table(&mut self, word: &Self::Word, mask: Option<u32>, shift: u32,
+            base: usize) -> Result<Self::Word, Self::Error>;
+        fn xor_mask(&mut self, left: &Self::Word, right: &Self::Word) -> Result<Self::Word, Self::Error>;
+        fn add_mask(&mut self, left: &Self::Word, right: &Self::Word) -> Result<Self::Word, Self::Error>;
+    }
+
+    pub fn decrypt_block<C: Cipher>(cipher: &mut C, offset: usize) -> Result<(C::Word, C::Word), C::Error> {
+        let initial = cipher.key(0x44)?;
+        let input = cipher.input(offset)?;
+        let mut num = cipher.xor_mask(&initial, &input)?;
+        let mut old = cipher.input(offset + 4)?;
+        for round in (1..=16).rev() {
+            let mut eax = cipher.table(&num, Some(0xff0000), 16, 0x448)?;
+            let add = cipher.table(&num, None, 24, 0x48)?;
+            eax = cipher.add_mask(&eax, &add)?;
+            let xor = cipher.table(&num, Some(0xff00), 8, 0x848)?;
+            eax = cipher.xor_mask(&eax, &xor)?;
+            let add = cipher.table(&num, Some(0xff), 0, 0xc48)?;
+            eax = cipher.add_mask(&eax, &add)?;
+            let xor = cipher.key(round * 4)?;
+            eax = cipher.xor_mask(&eax, &xor)?;
+            let previous = num;
+            num = cipher.xor_mask(&old, &eax)?;
+            old = previous;
+        }
+        let last = cipher.key(0)?;
+        old = cipher.xor_mask(&old, &last)?;
+        Ok((old, num))
+    }
+}
+
+struct NativeCipher<'a> { input: &'a [u8] }
+impl python_legacy::Cipher for NativeCipher<'_> {
+    type Word = u32;
+    type Error = std::convert::Infallible;
+    fn key(&mut self, offset: usize) -> std::result::Result<u32, Self::Error> { Ok(bars::u32_at(keys::KEYS, offset)) }
+    fn input(&mut self, offset: usize) -> std::result::Result<u32, Self::Error> { Ok(bars::u32_at(self.input, offset)) }
+    fn table(&mut self, word: &u32, mask: Option<u32>, shift: u32, base: usize) -> std::result::Result<u32, Self::Error> {
+        self.key((((word & mask.unwrap_or(u32::MAX)) >> shift) * 4) as usize + base)
+    }
+    fn xor_mask(&mut self, left: &u32, right: &u32) -> std::result::Result<u32, Self::Error> { Ok(left ^ right) }
+    fn add_mask(&mut self, left: &u32, right: &u32) -> std::result::Result<u32, Self::Error> { Ok(left.wrapping_add(*right)) }
+}
 
 fn decrypt_block(input: &[u8], output: &mut [u8]) {
-    let mut num = key(0x44) ^ bars::u32_at(input, 0);
-    let mut old = bars::u32_at(input, 4);
-    for round in (1..=16).rev() {
-        let index = round * 4;
-        let mut eax = key((((num & 0xff0000) >> 16) * 4) as usize + 0x448);
-        eax = eax.wrapping_add(key(((num >> 24) * 4) as usize + 0x48));
-        eax ^= key((((num & 0xff00) >> 8) * 4) as usize + 0x848);
-        eax = eax.wrapping_add(key(((num & 0xff) * 4) as usize + 0xc48));
-        eax ^= key(index);
-        let previous = num;
-        num = old ^ eax;
-        old = previous;
-    }
-    old ^= key(0);
+    let result = python_legacy::decrypt_block(&mut NativeCipher { input }, 0);
+    let (old, num) = match result { Ok(words) => words, Err(impossible) => match impossible {} };
     output[..4].copy_from_slice(&old.to_le_bytes());
     output[4..8].copy_from_slice(&num.to_le_bytes());
 }

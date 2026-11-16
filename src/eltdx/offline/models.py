@@ -29,7 +29,9 @@ class DailyBar:
     def date_int(self) -> int:
         """YYYYMMDD 形式的整数日期。"""
 
-        return self.year * 10000 + self.month * 100 + self.day
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_model_date(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,7 +56,9 @@ class MinBar:
     def datetime_key(self) -> tuple[int, int, int, int, int]:
         """用于去重/排序的 (年, 月, 日, 时, 分) 元组。"""
 
-        return (self.year, self.month, self.day, self.hour, self.minute)
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_model_datetime(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,7 +93,9 @@ class ExDailyBar:
     def date_int(self) -> int:
         """YYYYMMDD 形式的整数日期。"""
 
-        return self.year * 10000 + self.month * 100 + self.day
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_model_date(self)
 
 
 @dataclass(frozen=True, slots=True)

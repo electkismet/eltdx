@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from sys import modules as _MODULES
 
 from eltdx.exceptions import ResourceFormatError
 
@@ -15,19 +16,28 @@ _BLOCK_NAME_SIZE = 9
 _BLOCK_CODE_SIZE = 7
 _BLOCK_CODES_SIZE = 2800
 _MAX_BLOCK_CODES = _BLOCK_CODES_SIZE // _BLOCK_CODE_SIZE
+_SOURCE_INT = int
+_SOURCE_RANGE = range
+_SOURCE_MIN = min
+_SOURCE_TUPLE = tuple
 
 
 def _infer_category(filename: str) -> int:
     """从文件名推断板块分类（0=行业, 1=地域, 2=概念, 3=风格）。"""
 
-    name = filename.lower()
-    if "gn" in name:
-        return 2
-    if "fg" in name:
-        return 3
-    if "dy" in name:
-        return 1
-    return 0
+    if type(filename) is not str:
+        name = filename.lower()
+        if "gn" in name:
+            return 2
+        if "fg" in name:
+            return 3
+        if "dy" in name:
+            return 1
+        return 0
+
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_block_category(filename)
 
 
 def _is_safe_block_type(value: str) -> bool:
@@ -38,6 +48,11 @@ def _is_safe_block_type(value: str) -> bool:
     覆盖前缀），形成越界读取。这里只接受不含任何路径成分的叶子名。
     """
 
+    if type(value) is str:
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_block_safe_leaf(value)
+    # Preserve membership/equality hooks for explicitly supplied custom values.
     if not value or value in {".", ".."}:
         return False
     return not any(ch in value for ch in ("/", "\\", ":"))
@@ -67,6 +82,18 @@ def read_block(filepath: str | Path) -> list[BlockInfo]:
     data = filepath.read_bytes()
     if len(data) < _BLOCK_HEADER_SIZE + 2:
         raise ResourceFormatError(f"板块文件头不完整: {filepath}")
+
+    if (
+        type(data) is bytes
+        and (_BLOCK_HEADER_SIZE, _BLOCK_RECORD_SIZE, _BLOCK_NAME_SIZE,
+             _BLOCK_CODE_SIZE, _MAX_BLOCK_CODES) == (384, 2813, 9, 7, 400)
+        and (int, range, min, tuple) == (_SOURCE_INT, _SOURCE_RANGE, _SOURCE_MIN, _SOURCE_TUPLE)
+    ):
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_block(data, filepath, _MODULES[__name__])
+
+    # Nonstandard buffers or replaced layout constants keep the object adapter.
 
     pos = _BLOCK_HEADER_SIZE
     count = int.from_bytes(data[pos : pos + 2], "little")
@@ -129,6 +156,12 @@ def read_customer_block(block_dir: str | Path) -> list[CustomerBlock]:
         raise FileNotFoundError(f"板块配置文件不存在: {cfg_path}")
 
     cfg_data = cfg_path.read_bytes()
+    if type(cfg_data) is bytes and tuple is _SOURCE_TUPLE:
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_customer_blocks(cfg_data, block_dir, _MODULES[__name__])
+
+    # A custom Path may provide a non-bytes, sliceable configuration object.
     results: list[CustomerBlock] = []
     pos = 0
     while pos + 120 <= len(cfg_data):

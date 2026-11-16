@@ -118,3 +118,34 @@ fn missing_limit_cancel_and_invalid_utf8_code_are_explicit() -> TestResult {
     assert_eq!(gbbq::read(&path, &ReadOptions::default().with_cancel(Some(token))).err().map(|e| e.kind()), Some(ErrorKind::Cancelled));
     Ok(())
 }
+
+#[test]
+fn shared_cipher_preserves_read_order_and_returns_callback_errors() -> TestResult {
+    use gbbq::python_legacy::{Cipher, decrypt_block};
+    struct Words { reads: Vec<usize>, fail: bool }
+    impl Cipher for Words {
+        type Word = u32;
+        type Error = &'static str;
+        fn key(&mut self, offset: usize) -> Result<u32, Self::Error> {
+            self.reads.push(offset);
+            if self.fail && offset == 64 { Err("key callback") } else { Ok(0) }
+        }
+        fn input(&mut self, offset: usize) -> Result<u32, Self::Error> {
+            self.reads.push(0x10000 + offset);
+            Ok(if offset == 12 { 10 } else { 20 })
+        }
+        fn table(&mut self, _: &u32, _: Option<u32>, _: u32, base: usize) -> Result<u32, Self::Error> {
+            self.key(base)
+        }
+        fn xor_mask(&mut self, left: &u32, right: &u32) -> Result<u32, Self::Error> { Ok(left ^ right) }
+        fn add_mask(&mut self, left: &u32, right: &u32) -> Result<u32, Self::Error> { Ok(left.wrapping_add(*right)) }
+    }
+    let mut words = Words { reads: Vec::new(), fail: false };
+    assert_eq!(decrypt_block(&mut words, 12), Ok((20, 10)));
+    assert_eq!(&words.reads[..8], &[0x44, 0x1000c, 0x10010, 0x448, 0x48, 0x848, 0xc48, 64]);
+    assert_eq!(words.reads.last(), Some(&0));
+    let mut words = Words { reads: Vec::new(), fail: true };
+    assert_eq!(decrypt_block(&mut words, 12), Err("key callback"));
+    assert_eq!(words.reads.last(), Some(&64));
+    Ok(())
+}

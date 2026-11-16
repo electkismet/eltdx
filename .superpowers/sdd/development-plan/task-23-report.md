@@ -167,6 +167,40 @@ date decomposition. All unexecuted. Append, alignment, model properties and
 GBBQ/block remain pending, followed by F10/helpers/manifest and T24–T30.
 Counts21/4/5; active unlimited goal; no tests/build/check/install/network/agents.
 
+## Seventh checkpoint — GBBQ, block formats and model properties
+
+Base `dcf2f3f`. The sole GBBQ descending cipher now accepts a scalar/word adapter;
+strict Rust uses native u32 and Python uses live Struct/key/mask arithmetic.
+Python records remain sequential, so truncated input raises the original
+Struct error before later records and invalid code retains UnicodeDecodeError.
+GBBQ retains original model lookup and original7-byte code trimming semantics.
+
+Block DAT layout/count/code slots, filename category, custom config layout,
+safe-leaf rules and Unicode code-line traversal are shared. Python preserves
+GBK/ASCII replacement, first-NUL config names, both-end DAT NUL stripping,
+declared count above400, order/duplicates, exact Chinese errors and original
+Path resolve/containment ordering. Empty custom leaves still skip on Python;
+strict Rust still rejects. Custom buffer/layout/global-builtin branches remain
+explicit adapters, not native-migration acceptance evidence. Custom read_text
+objects retain their repeated strip calls; normal strings share the Rust loop.
+
+Daily/EX date arithmetic and minute model keys now use shared ordered helpers.
+Python dataclasses remain frozen/slots with original constructors/defaults/raw
+comparison; arbitrary numeric/field objects are not narrowed. Rust MinuteKey
+adds a matching field tuple view. No public Python model is replaced.
+
+Sources added offline_gbbq.rs/offline_blocks.rs and offline-migration-index.md;
+updated shared offline sources, binding registration, Python model/GBBQ/block
+facades. Authored16 Python test functions (including parameterized cases) and
+three Rust source cases, all unexecuted. The inverse-cipher fixture is separate
+from the production decryptor. Source review only; no compilation or runtime
+acceptance claim, no manifest status promotion.
+
+Next: all157 F10 compatibility routes/fields/models and cross-source helpers,
+remaining T23 evidence and adapter accounting, thenT24–T30. Counts remain21
+source-complete/4partial/5unstarted; goal active without cap. No test, collection,
+build, check, dependency/network, format/AST validation, agents or publication.
+
 ## Sixth checkpoint — append selection, alignment and last-record adapters
 
 Base `b28222c`. Shared constant-original-threshold filtering now serves strict

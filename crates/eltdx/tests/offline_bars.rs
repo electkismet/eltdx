@@ -310,3 +310,19 @@ fn explicit_limits_cancellation_paths_and_batch_prevalidation() -> TestResult {
     assert!(minute::encode_5(&invalid_year).is_err());
     Ok(())
 }
+
+#[test]
+fn model_fields_share_order_without_calendar_coercion() -> TestResult {
+    use eltdx::offline::bars::python_legacy;
+    let mut fields = Vec::new();
+    let date = python_legacy::date_integer_with(|field| {
+        fields.push(field.to_owned());
+        Ok::<_, &'static str>(match field { "year" => 2026_i64, "month" => 99, _ => -1 })
+    }, |left, right| Ok(left * i64::from(right)), |left, right| Ok(left + right))?;
+    assert_eq!(date, 20269899);
+    assert_eq!(fields, ["year", "month", "day"]);
+    let fields = python_legacy::datetime_fields(|field| Ok::<_, &'static str>(field.to_owned()))?;
+    assert_eq!(fields, ["year", "month", "day", "hour", "minute"]);
+    assert_eq!(key(16)?.datetime_key(), (2026, 11, 16, 9, 31));
+    Ok(())
+}

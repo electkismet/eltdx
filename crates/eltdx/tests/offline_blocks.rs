@@ -115,6 +115,29 @@ fn customer_rejects_nonleaf_names_and_cancelled_reads() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn shared_block_layout_and_code_lines_keep_source_boundaries() -> TestResult {
+    use block::python_legacy as shared;
+    let bytes = dat(401);
+    assert_eq!(shared::dat_count(&bytes), Some(1));
+    let row = shared::dat_record(&bytes, 386).ok_or("missing row")?;
+    assert_eq!(row.count, 401);
+    assert_eq!(row.reserved, 0xbeef);
+    assert_eq!(row.codes().count(), 400);
+    assert!(shared::dat_record(&bytes[..bytes.len() - 1], 386).is_none());
+    assert_eq!(shared::category("gnfgdy"), 2);
+    assert!(shared::safe_leaf("..name"));
+    assert!(!shared::safe_leaf("x:y"));
+    let mut codes = Vec::new();
+    shared::visit_codes(" 市中文 \r\n0\u{1c}000001\n", |code| {
+        codes.push(code.to_owned()); Ok::<_, &'static str>(())
+    }, &mut || Ok(()))?;
+    assert_eq!(codes, ["中文", "00001"]);
+    let result = shared::visit_codes("\n", |_| Ok(()), &mut || Err("cancelled"));
+    assert_eq!(result, Err("cancelled"));
+    Ok(())
+}
+
 #[cfg(any(unix, windows))]
 fn link(target: &Path, path: &Path) -> std::io::Result<()> {
     #[cfg(unix)] { std::os::unix::fs::symlink(target, path) }

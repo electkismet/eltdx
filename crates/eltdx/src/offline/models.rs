@@ -84,6 +84,18 @@ impl MinuteKey {
     }
     pub const fn date(self) -> TradingDate { self.date }
     pub const fn time(self) -> TimeOfDay { self.time }
+    /// Calendar fields in the same order as the Python offline model key.
+    pub fn datetime_key(self) -> (u16, u16, u16, u16, u16) {
+        let values = super::bars::python_legacy::datetime_fields(|field| {
+            Ok::<_, std::convert::Infallible>(match field {
+                "year" => self.date.year(), "month" => u16::from(self.date.month()),
+                "day" => u16::from(self.date.day()), "hour" => u16::from(self.time.hour()),
+                _ => u16::from(self.time.minute()),
+            })
+        });
+        let [year, month, day, hour, minute] = match values { Ok(values) => values, Err(impossible) => match impossible {} };
+        (year, month, day, hour, minute)
+    }
 }
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum RecordKey { Date(TradingDate), Minute(MinuteKey) }

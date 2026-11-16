@@ -90,7 +90,11 @@ pub(crate) fn last_record(path: &Path) -> Result<Option<[u8; 32]>> {
 }
 
 pub(crate) fn date_integer(date: TradingDate) -> u32 {
-    u32::from(date.year()) * 10000 + u32::from(date.month()) * 100 + u32::from(date.day())
+    let result = python_legacy::date_integer_with(
+        |field| Ok::<_, std::convert::Infallible>(match field {
+            "year" => u32::from(date.year()), "month" => u32::from(date.month()), _ => u32::from(date.day()),
+        }), |left, right| Ok(left * right), |left, right| Ok(left + right));
+    match result { Ok(value) => value, Err(impossible) => match impossible {} }
 }
 
 pub(crate) fn decode_date(integer: u32) -> Result<TradingDate> {
@@ -129,6 +133,22 @@ pub(crate) fn put_u32(bytes: &mut [u8; 32], offset: usize, value: u32) {
 /// permissive scalar projection. No calendar or price guess is made here.
 #[doc(hidden)]
 pub mod python_legacy {
+    /// Evaluate each field at its original arithmetic position, so Python
+    /// numeric objects and descriptors keep their lookup/operation order.
+    pub fn date_integer_with<T, E>(mut field: impl FnMut(&str) -> Result<T, E>,
+        mut multiply: impl FnMut(T, u32) -> Result<T, E>,
+        mut add: impl FnMut(T, T) -> Result<T, E>) -> Result<T, E>
+    {
+        let year = multiply(field("year")?, 10000)?;
+        let month = multiply(field("month")?, 100)?;
+        let partial = add(year, month)?;
+        add(partial, field("day")?)
+    }
+
+    pub fn datetime_fields<T, E>(mut field: impl FnMut(&str) -> Result<T, E>) -> Result<[T; 5], E> {
+        Ok([field("year")?, field("month")?, field("day")?, field("hour")?, field("minute")?])
+    }
+
     /// Keep the original-last threshold fixed throughout a batch. In-batch
     /// duplicates and the caller's order are preserved in both API profiles.
     pub fn select_newer<T, E>(rows: impl IntoIterator<Item = std::result::Result<T, E>>,
