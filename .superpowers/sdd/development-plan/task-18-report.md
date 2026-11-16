@@ -744,3 +744,7 @@ state/diffs were used. T18 remains partial; totals18 source complete/4 partial/
 8 unstarted. Next daily money flow recovery/routing, remaining corporate/equity/
 calendar/resources/stats/health/helpers/subscription/native manifest/consumer,
 then T19–T30/Stage B. Goal active, no token cap, subagents or publication.
+
+Fifteenth source stage committed as **fa7e07d** after trade checkpoint6544772.
+Working tree was clean immediately after that commit. All execution deferred;
+next task remains daily money flow/native recovery and the remaining T18 scope.
