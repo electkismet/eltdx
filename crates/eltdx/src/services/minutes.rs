@@ -24,6 +24,86 @@ use super::{aggregate_meta, allocation_error, checked_ids, request_metadata, res
 
 const MAX_OPERATION_RECORDS: usize = 65_535;
 
+/// Per-domain command facts shared by both service profiles. Auxiliary and
+/// sparkline floats are intrinsic wire values and do not require a directory.
+pub(crate) fn minute_command(request: &CommandRequest) -> Result<(bool, bool)> {
+    Ok(match request {
+        CommandRequest::TodayIntraday(request) => (true, request.include_raw),
+        CommandRequest::HistoricalIntraday(request) => (true, request.include_raw),
+        CommandRequest::RecentIntraday(request) => (true, request.include_raw),
+        CommandRequest::IntradayAux(request) => (false, request.include_raw),
+        CommandRequest::Sparkline(request) => (false, request.include_raw),
+        _ => return Err(Error::new(ErrorKind::InvalidArgument, "minute service requires a minute-domain command")),
+    })
+}
+
+/// One domain request/decode boundary. Transport and timeout policy are supplied
+/// by the operation; model projection and strict-only checks remain separate.
+fn fetch_minute_reply(
+    context: &OperationContext, request: CommandRequest, purpose: ChildPurpose,
+    mut fetch: impl FnMut(CommandRequest, ChildPurpose) -> Result<DecodedReply>,
+) -> Result<DecodedReply> {
+    minute_command(&request)?;
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let expected = request.command_code();
+    let decoded = fetch(request, purpose)?;
+    let matching = matches!((expected, &decoded.response),
+        (0x0537, CommandResponse::TodayIntraday(_))
+        | (0x0fb4, CommandResponse::HistoricalIntraday(_))
+        | (0x0feb, CommandResponse::RecentIntraday(_))
+        | (0x051b, CommandResponse::IntradayAux(_))
+        | (0x0fd1, CommandResponse::Sparkline(_)));
+    if !matching { return Err(wrong_response("minute domain")); }
+    context.check_boundary(TimeoutPhase::Decode)?;
+    Ok(decoded)
+}
+
+pub(crate) fn legacy_minute_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnMut(CommandRequest, ChildPurpose) -> Result<DecodedReply>,
+) -> Result<CommandResponse> {
+    if !context.is_legacy() {
+        return Err(Error::new(ErrorKind::InvalidArgument, "legacy minutes require a compatibility operation"));
+    }
+    let (_, include_raw) = minute_command(&request)?;
+    let mut decoded = fetch_minute_reply(context, request, ChildPurpose::Required, fetch)?;
+    if include_raw {
+        match &mut decoded.response {
+            CommandResponse::TodayIntraday(series) => hydrate_minute_hex(context, &mut series.points, &decoded.payload)?,
+            CommandResponse::HistoricalIntraday(series) => hydrate_minute_hex(context, &mut series.points, &decoded.payload)?,
+            CommandResponse::RecentIntraday(series) => hydrate_minute_hex(context, &mut series.points, &decoded.payload)?,
+            CommandResponse::IntradayAux(series) => {
+                if series.points.len() != series.record_ranges.len() { return Err(wrong_response("minute raw ranges")); }
+                for (index, (point, range)) in series.points.iter_mut().zip(&series.record_ranges).enumerate() {
+                    if index % 256 == 0 { context.check_boundary(TimeoutPhase::Aggregate)?; }
+                    let text = range.hex(&decoded.payload).map_err(Error::from_protocol)?;
+                    match point {
+                        eltdx_protocol::commands::minutes::MinuteAuxPoint::BuySellStrength { record_hex, .. }
+                        | eltdx_protocol::commands::minutes::MinuteAuxPoint::VolumeComparison { record_hex, .. } => *record_hex = text,
+                    }
+                }
+            }
+            // Sparkline has raw f32 bytes and a page payload, no row hex field.
+            CommandResponse::Sparkline(_) => {},
+            _ => return Err(wrong_response("legacy minute raw projection")),
+        }
+    }
+    // Legacy protocol output accepts negative volumes and mismatched sparkline
+    // echoes. Do not impose the public Rust projection's stronger assertions.
+    context.check_boundary(TimeoutPhase::Aggregate)?;
+    Ok(decoded.response)
+}
+
+fn hydrate_minute_hex(context: &OperationContext,
+    points: &mut [eltdx_protocol::commands::minutes::MinutePoint], payload: &bytes::Bytes,
+) -> Result<()> {
+    for (index, point) in points.iter_mut().enumerate() {
+        if index % 256 == 0 { context.check_boundary(TimeoutPhase::Aggregate)?; }
+        point.record_hex = point.record_range.hex(payload).map_err(Error::from_protocol)?;
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy)]
 enum MinuteMode { Today(TradingDate), History(TradingDate), Recent(TradingDate) }
 
@@ -206,9 +286,10 @@ impl MinuteService {
     }
 
     fn fetch(&self, context: &OperationContext, request: CommandRequest, purpose: ChildPurpose) -> Result<DecodedReply> {
-        context.check_boundary(TimeoutPhase::Admission)?;
-        let raw = self.executor.execute_raw(&self.engine, context, request, purpose, None)?;
-        self.executor.decode_received(context, raw)
+        fetch_minute_reply(context, request, purpose, |request, purpose| {
+            let raw = self.executor.execute_raw(&self.engine, context, request, purpose, None)?;
+            self.executor.decode_received(context, raw)
+        })
     }
 }
 

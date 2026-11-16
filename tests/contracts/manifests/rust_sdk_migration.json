@@ -347,7 +347,17 @@
       "id": "7709-minute-today",
       "source_files": [
         "docs/methods/7709-当日分时.md",
-        "src/eltdx/api/minutes.py"
+        "src/eltdx/api/minutes.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/pool.py",
+        "src/eltdx/transport/socket.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/minutes.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx/src/hq/executor.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs",
+        "crates/eltdx-python/src/response.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -358,6 +368,34 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0537",
       "api": "client.minutes.today(code)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::minutes -> eltdx::services::MinuteService::{today,today_many}",
+        "python_entry": "MinuteApi.today -> transport.sdk_minutes -> NativeEngine.sdk_minutes -> LegacyOperation.minutes -> legacy_minute_reply",
+        "shared_algorithm": "crates/eltdx/src/services/minutes.rs::fetch_minute_reply; original protocol scalar parser and tuple projection with legacy raw hydration",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_minute_routes_preserve_payload_and_result",
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_minute_keeps_resolver_order_and_projection",
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_minute_explicit_batch_size_retains_original_worker_count"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_minute_bridge.py::test_native_minutes_match_old_parser_prices_negative_volume_and_raw",
+          "tests/integration/test_native_minute_bridge.py::test_native_minute_protocol_failure_keeps_original_text_class_and_cause",
+          "tests/integration/test_native_minute_bridge.py::test_native_minute_precision_market_inference_precedes_code_normalization",
+          "tests/integration/test_native_minute_bridge.py::test_native_minute_keyboard_interrupt_waits_for_request_cancellation"
+        ],
+        "fixtures": ["tests/fixtures/7709/today_intraday/normal", "tests/integration/test_native_minute_bridge.py::_minute_payload"],
+        "temporary_adapter": {
+          "scope": "custom transports and Socket/Pooled transport subclasses",
+          "reason": "Preserve the public execute extension point and arbitrary untyped response objects; stable input normalization and Python concurrency remain facade adapters.",
+          "contract_nodes": [
+            "tests/contracts/test_sdk_minute_bridge.py::test_custom_minute_transport_keeps_original_execute_extension",
+            "tests/contracts/test_sdk_minute_bridge.py::test_socket_subclass_keeps_custom_minute_execute"
+          ],
+          "exit_condition": "A callback executor preserves custom execute objects, resolver timing, reentrancy and cancellation before replacing this extension adapter."
+        },
+        "validation": "Source only: not collected, compiled or executed. Negative volume and per-wire timeout remain legacy behavior; migration status is not promoted."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-当日分时.md",
@@ -370,7 +408,17 @@
       "id": "7709-minute-history",
       "source_files": [
         "docs/methods/7709-指定日期历史分时.md",
-        "src/eltdx/api/minutes.py"
+        "src/eltdx/api/minutes.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/pool.py",
+        "src/eltdx/transport/socket.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/minutes.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx/src/hq/executor.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs",
+        "crates/eltdx-python/src/response.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -381,6 +429,28 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0fb4",
       "api": "client.minutes.history(code, date)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::minutes -> eltdx::services::MinuteService::{history,history_many}",
+        "python_entry": "MinuteApi.history -> transport.sdk_minutes -> NativeEngine.sdk_minutes -> LegacyOperation.minutes -> legacy_minute_reply",
+        "shared_algorithm": "crates/eltdx/src/services/minutes.rs::fetch_minute_reply; original dated delta-price parser and tuple projection",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_minute_routes_preserve_payload_and_result",
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_single_minute_ignores_unused_batch_size"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_minute_bridge.py::test_native_minutes_match_old_parser_prices_negative_volume_and_raw",
+          "tests/integration/test_native_minute_bridge.py::test_native_minute_protocol_failure_keeps_original_text_class_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/historical_intraday/normal", "tests/integration/test_native_minute_bridge.py::_minute_payload"],
+        "temporary_adapter": {
+          "scope": "custom transports and Socket/Pooled transport subclasses",
+          "reason": "Retain arbitrary execute return values and the existing resolver and batch evaluation boundaries.",
+          "contract_nodes": ["tests/contracts/test_sdk_minute_bridge.py::test_custom_minute_transport_keeps_original_execute_extension"],
+          "exit_condition": "A compatible callback executor supports arbitrary custom responses, resolver timing and cancellation."
+        },
+        "validation": "Not collected, compiled or executed; original previous-close f32, dated time, negative volumes and raw strings are authored differential obligations."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-指定日期历史分时.md",
@@ -393,7 +463,17 @@
       "id": "7709-minute-recent",
       "source_files": [
         "docs/methods/7709-近期历史分时.md",
-        "src/eltdx/api/minutes.py"
+        "src/eltdx/api/minutes.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/pool.py",
+        "src/eltdx/transport/socket.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/minutes.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx/src/hq/executor.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs",
+        "crates/eltdx-python/src/response.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -404,6 +484,29 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0feb",
       "api": "client.minutes.recent()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::minutes -> eltdx::services::MinuteService::{recent,recent_many}",
+        "python_entry": "MinuteApi.recent -> transport.sdk_minutes -> NativeEngine.sdk_minutes -> LegacyOperation.minutes -> legacy_minute_reply",
+        "shared_algorithm": "crates/eltdx/src/services/minutes.rs::fetch_minute_reply; original base-relative parser and binding current_date extractor",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_minute_routes_preserve_payload_and_result",
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_minute_keeps_resolver_order_and_projection"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_minute_bridge.py::test_native_minutes_match_old_parser_prices_negative_volume_and_raw",
+          "tests/integration/test_native_minute_bridge.py::test_native_recent_default_date_uses_original_binding_date_selector",
+          "tests/integration/test_native_minute_bridge.py::test_native_minute_protocol_failure_keeps_original_text_class_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/recent_intraday/normal", "tests/fixtures/7709/recent_intraday/include_raw_false"],
+        "temporary_adapter": {
+          "scope": "custom transports and Socket/Pooled transport subclasses",
+          "reason": "Retain custom execute results, old resolver timing and original per-security default-date evaluation.",
+          "contract_nodes": ["tests/contracts/test_sdk_minute_bridge.py::test_custom_minute_transport_keeps_original_execute_extension"],
+          "exit_condition": "A callback executor preserves arbitrary results and per-request default-date, resolver and signal evaluation."
+        },
+        "validation": "Not collected, compiled or executed; default date remains resolved by the original binding, independently for each request."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-近期历史分时.md",
@@ -416,7 +519,17 @@
       "id": "7709-minute-aux",
       "source_files": [
         "docs/methods/7709-分时副图.md",
-        "src/eltdx/api/minutes.py"
+        "src/eltdx/api/minutes.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/pool.py",
+        "src/eltdx/transport/socket.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/minutes.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx/src/hq/executor.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs",
+        "crates/eltdx-python/src/response.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -427,6 +540,28 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x051b",
       "api": "client.minutes.aux()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::minutes -> eltdx::services::MinuteService::{aux,buy_sell_strength,volume_comparison}",
+        "python_entry": "MinuteApi.{aux,buy_sell_strength,volume_comparison} -> transport.sdk_minutes -> NativeEngine.sdk_minutes -> LegacyOperation.minutes -> legacy_minute_reply",
+        "shared_algorithm": "crates/eltdx/src/services/minutes.rs::fetch_minute_reply; intrinsic wire values decoded without a precision directory",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_auxiliary_minutes_do_not_resolve_prices",
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_minute_aliases_keep_selectors"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_minute_bridge.py::test_native_minute_aux_keeps_both_layouts_unknown_selector_and_raw",
+          "tests/integration/test_native_minute_bridge.py::test_native_minute_protocol_failure_keeps_original_text_class_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/intraday_aux/normal", "tests/integration/test_native_minute_bridge.py::test_native_minute_aux_keeps_both_layouts_unknown_selector_and_raw"],
+        "temporary_adapter": {
+          "scope": "custom transports and Socket/Pooled transport subclasses",
+          "reason": "Retain the public execute extension point and arbitrary custom response types.",
+          "contract_nodes": ["tests/contracts/test_sdk_minute_bridge.py::test_socket_subclass_keeps_custom_minute_execute"],
+          "exit_condition": "A callback executor preserves the existing arbitrary object and cancellation contract."
+        },
+        "validation": "Source only; both wire layouts, unknown selectors and row raw hydration are authored, with no execution evidence."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-分时副图.md",
@@ -439,7 +574,17 @@
       "id": "7709-sparkline",
       "source_files": [
         "docs/methods/7709-小走势图.md",
-        "src/eltdx/api/minutes.py"
+        "src/eltdx/api/minutes.py",
+        "src/eltdx/client.py",
+        "src/eltdx/transport/pool.py",
+        "src/eltdx/transport/socket.py",
+        "crates/eltdx/src/lib.rs",
+        "crates/eltdx/src/services/minutes.rs",
+        "crates/eltdx/src/__python_compat.rs",
+        "crates/eltdx/src/hq/executor.rs",
+        "crates/eltdx-python/src/service.rs",
+        "crates/eltdx-python/src/transport.rs",
+        "crates/eltdx-python/src/response.rs"
       ],
       "feature": "7709",
       "stage": "P2",
@@ -450,6 +595,28 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0fd1",
       "api": "client.minutes.sparkline()",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "rust_entry": "eltdx::TdxClient::minutes -> eltdx::services::MinuteService::sparkline",
+        "python_entry": "MinuteApi.sparkline -> transport.sdk_minutes -> NativeEngine.sdk_minutes -> LegacyOperation.minutes -> legacy_minute_reply",
+        "shared_algorithm": "crates/eltdx/src/services/minutes.rs::fetch_minute_reply; original wire-f32 parser without imposing strict Rust echo/window validation on Python",
+        "contract_nodes": [
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_minute_routes_preserve_payload_and_result",
+          "tests/contracts/test_sdk_minute_bridge.py::test_native_auxiliary_minutes_do_not_resolve_prices"
+        ],
+        "differential_nodes": [
+          "tests/integration/test_native_minute_bridge.py::test_native_sparkline_keeps_legacy_mismatched_identity_echo_and_window",
+          "tests/integration/test_native_minute_bridge.py::test_native_minute_protocol_failure_keeps_original_text_class_and_cause"
+        ],
+        "fixtures": ["tests/fixtures/7709/sparkline/normal", "tests/integration/test_native_minute_bridge.py::_sparkline_payload"],
+        "temporary_adapter": {
+          "scope": "custom transports and Socket/Pooled transport subclasses",
+          "reason": "Preserve custom execute responses and scalar extraction at the original native request boundary.",
+          "contract_nodes": ["tests/contracts/test_sdk_minute_bridge.py::test_socket_subclass_keeps_custom_minute_execute"],
+          "exit_condition": "A callback executor supports arbitrary response objects, original scalar extraction and cancellation."
+        },
+        "validation": "Not collected, compiled or executed; stricter Rust identity/selector/window checks are intentionally excluded from legacy Python projection."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-小走势图.md",

@@ -523,6 +523,7 @@ pub(crate) fn legacy_bar_series(
     };
     if !collect {
         let mut reply = fetch(request, ChildPurpose::Required)?;
+        hydrate_legacy_bar_hex(&mut reply)?;
         align_legacy_bars(&mut reply.response, &bar_time)?;
         context.check_boundary(TimeoutPhase::Aggregate)?;
         return Ok(LegacyBarSeries { response: reply.response, request_count: usize::from(count) });
@@ -539,6 +540,7 @@ pub(crate) fn legacy_bar_series(
                 _ => return Err(wrong_response("legacy bars request")),
             }
             let mut reply = fetch(page_request, purpose)?;
+            hydrate_legacy_bar_hex(&mut reply)?;
             align_legacy_bars(&mut reply.response, &bar_time)?;
             let actual = match &reply.response {
                 CommandResponse::Klines(response) => response.bars.len(),
@@ -572,6 +574,20 @@ pub(crate) fn legacy_bar_series(
     }
     context.check_boundary(TimeoutPhase::Aggregate)?;
     Ok(LegacyBarSeries { response, request_count })
+}
+
+fn hydrate_legacy_bar_hex(reply: &mut DecodedReply) -> Result<()> {
+    let (include_raw, bars) = match &mut reply.response {
+        CommandResponse::Klines(response) => (response.request.include_raw, &mut response.bars),
+        CommandResponse::DelistedKlines(response) => (response.request.include_raw, &mut response.bars),
+        _ => return Err(wrong_response("legacy bars")),
+    };
+    if include_raw {
+        for bar in bars {
+            bar.record_hex = bar.record_range.hex(&reply.payload).map_err(Error::from_protocol)?;
+        }
+    }
+    Ok(())
 }
 
 fn align_legacy_bars(response: &mut CommandResponse, bar_time: &LegacyBarTime) -> Result<()> {

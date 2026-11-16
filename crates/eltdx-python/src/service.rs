@@ -86,6 +86,34 @@ pub fn bars(
     response::legacy_bar_series_to_python(py, &series)
 }
 
+pub fn minutes(
+    py: Python<'_>, executor: LegacyExecutor, namespace: String, request: CommandRequest,
+    original_code: String,
+) -> PyResult<Py<PyAny>> {
+    let (include_raw, priced) = match &request {
+        CommandRequest::TodayIntraday(request) => (request.include_raw, true),
+        CommandRequest::HistoricalIntraday(request) => (request.include_raw, true),
+        CommandRequest::RecentIntraday(request) => (request.include_raw, true),
+        CommandRequest::IntradayAux(request) => (request.include_raw, false),
+        CommandRequest::Sparkline(request) => (request.include_raw, false),
+        _ => return Err(pyo3::exceptions::PyValueError::new_err("native minutes require a minute-domain command")),
+    };
+    // The original resolver inferred markets before normalization. For example,
+    // bare019xxx scans sz even though the request extractor normalizes it to sh.
+    let markets = precision_markets(&[original_code]);
+    let result = run_legacy(py, move |token| {
+        let operation = executor.begin_operation("python_minutes",
+            if include_raw { RawPolicy::RetainPayload } else { RawPolicy::Omit }, Some(token))?;
+        if priced {
+            operation.prepare_hq_metadata(&namespace, &markets)?;
+        }
+        let result = operation.minutes(request)?;
+        operation.finish()?;
+        Ok(result)
+    })?;
+    response::to_python(py, result)
+}
+
 fn hq_market(market: Market) -> eltdx::Result<HqMarket> {
     Ok(match market {
         Market::Shenzhen => HqMarket::Shenzhen,

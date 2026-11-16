@@ -9,6 +9,14 @@ contract/differential sources now authored. Resume minutes/ALL remaining HQ nati
 migrations and evidence/installed-wheel consumer. T18 remains partial; do not rerun
 or rewrite completed sources, and do not execute any verification until T01–T30.
 
+Tenth recovery update: ordinary/delisted bars committed b5ed0b5. All five minute
+native routes now authored, sharing request/decode boundary and original scalar
+projection; original-input market inference, resolver order, negative volume,
+raw hex, batch workers and default-date behavior retained. Added10 contract and
+7 differential/integration functions plus five source-only manifest entries.
+All unexecuted. Resume the OTHER HQ native domains/evidence/installed-wheel
+consumer, not minutes; source completeness does not establish compatibility.
+
 ## Exact plan scope
 
 New `src/helpers/{mod,market,boards,shortline,profile}.rs` (split focused files as necessary), all HQ helper DTO/query types, `tests/hq_helpers.rs`, `examples/hq_query.rs`. Migrate Python HQ `api`, `helpers`, `equity.py`, `workday.py`, `stats.py`, native bridge and manifest per completed domain; author domain differential/compatibility source tests. Implement all HQ M79–M97 including pure classify_fund_flow M95. Complete all HQ methods left by prior tasks; no exposed placeholder/Unsupported for documented valid supported HQ behavior.

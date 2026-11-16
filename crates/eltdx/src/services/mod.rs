@@ -29,6 +29,7 @@ pub(crate) use codes::{legacy_directory_pages, publish_legacy_directory_metadata
 pub use klines::KlineService;
 pub(crate) use klines::legacy_bar_series;
 pub use minutes::MinuteService;
+pub(crate) use minutes::{legacy_minute_reply, minute_command};
 pub use money_flow::MoneyFlowService;
 pub use quotes::{PinnedQuoteService, QuoteService};
 pub use trades::TradeService;

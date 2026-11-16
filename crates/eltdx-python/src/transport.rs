@@ -227,6 +227,16 @@ impl NativeEngine {
         service::bars(py, self.legacy.clone(), request, collect, max_pages, alignment)
     }
 
+    fn sdk_minutes(
+        &self, py: Python<'_>, command: u16, payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        let original_code = payload.get_item("code")?
+            .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("minute code is required"))?
+            .extract::<String>()?;
+        service::minutes(py, self.legacy.clone(), self.namespace.clone(), request, original_code)
+    }
+
     fn pin(&self, py: Python<'_>) -> PyResult<NativePin> {
         let mut pending = py
             .detach(|| self.engine.begin_pin())

@@ -269,6 +269,18 @@ impl LegacyOperation {
             })
     }
 
+    /// Single minute-domain query with the original protocol DTO projection.
+    /// Caller explicitly prepares legacy metadata for precision-based commands.
+    pub fn minutes(&self, request: CommandRequest) -> Result<CommandResponse> {
+        let (priced, _) = crate::services::minute_command(&request)?;
+        crate::services::legacy_minute_reply(&self.context, request, |request, purpose| {
+            let raw = self.executor.executor.execute_raw(&self.executor.engine,
+                &self.context, request, purpose, None)?;
+            if priced { self.executor.executor.decode_received(&self.context, raw) }
+            else { self.executor.executor.decode_unpriced(&self.context, raw) }
+        })
+    }
+
     pub fn remember_recoverable(&self, error: Error) { self.context.remember_recoverable(error); }
     pub fn finish(self) -> Result<()> { self.context.finish() }
 }

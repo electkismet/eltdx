@@ -230,6 +230,10 @@ class SocketTransport:
                           max_pages=max_pages, bar_time=bar_time)
         return response_from_dto(dto)
 
+    def sdk_minutes(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_minutes, command, payload)
+        return response_from_dto(dto)
+
     def execute_trade_batch(self, command: int, payload: dict[str, Any] | None = None):
         if command != 0x0FC6:
             raise ValueError("trade batch only supports historical ticks")

@@ -253,6 +253,9 @@ impl HqExecutor {
         let snapshot = context.begin_decode()?;
         if !context.is_legacy() { validate_request_precision(&snapshot, std::slice::from_ref(&raw.request))?; }
         let decoded = super::decode::decode_reply_profile(raw, context.raw(), snapshot.as_ref(), context.is_legacy()).map_err(|error| {
+            if context.is_legacy() {
+                return context.annotate(Error::from_runtime(error.into()), TimeoutPhase::Decode, Some(command));
+            }
             let kind = match &error {
                 eltdx_protocol::ProtocolError::InvalidData { context: "price precision", .. } => ErrorKind::MetadataUnavailable,
                 _ => ErrorKind::Protocol,
@@ -277,12 +280,15 @@ impl HqExecutor {
         if !matches!(&raw.request, CommandRequest::SecurityList(_) | CommandRequest::SecurityCount(_)
             | CommandRequest::Heartbeat(_) | CommandRequest::Handshake(_) | CommandRequest::FileContent(_)
             | CommandRequest::Klines(_) | CommandRequest::DelistedKlines(_)
+            | CommandRequest::IntradayAux(_) | CommandRequest::Sparkline(_)
             | CommandRequest::BlockMeta(_) | CommandRequest::CompanyInfoCategory(_) | CommandRequest::CompanyInfoContent(_)) {
             return Err(Error::new(ErrorKind::InvalidArgument, "unpriced decoder requires an unpriced command"));
         }
         let command = raw.request.command_code();
-        let decoded = super::decode::decode_reply(raw, context.raw(), &NoPrecision)
-            .map_err(|error| context.annotate(Error::from_protocol(error), TimeoutPhase::Decode, Some(command)))?;
+        let decoded = super::decode::decode_reply_profile(raw, context.raw(), &NoPrecision, context.is_legacy())
+            .map_err(|error| context.annotate(if context.is_legacy() {
+                Error::from_runtime(error.into())
+            } else { Error::from_protocol(error) }, TimeoutPhase::Decode, Some(command)))?;
         context.check_boundary(TimeoutPhase::Decode)?;
         Ok(decoded)
     }

@@ -463,3 +463,65 @@ success or verified compatibility. T18 remains partial; totals18 complete
 source/4 partial/8 unstarted. Next: minutes and all remaining HQ native domains,
 the full truthful migration evidence pass and installed-wheel consumer sources,
 then T19–T30 and remaining Stage B work. Goal active without a token quota.
+
+Ninth source stage committed as **b5ed0b5**. All execution deferred.
+
+## Tenth source checkpoint — Python/native minute domain
+
+- Added shared `fetch_minute_reply` in `services/minutes.rs`. Both public Rust
+  MinuteService and the legacy operation use one domain admission/request/decode
+  boundary and response-variant check for today/history/recent/aux/sparkline.
+  Strict Rust identity, selector, count and nonnegative-volume assertions stay
+  in its typed projection. Legacy retains original protocol scalars, f32
+  previous-close/open/base/prices and negative volumes; it does not acquire
+  those new assertions or an aggregate whole-query timeout.
+- `LegacyOperation::minutes`, `NativeEngine.sdk_minutes`, the detached-GIL
+  service worker and Socket/Pooled transport adapters now connect all five
+  ordinary native MinuteApi entry points. The original request extractor and
+  tuple/model projection are reused; no Python dataclass field was added.
+  Recent's omitted date is still resolved by the original binding on each
+  request, including each batch member.
+- Price resolvers retain pre-request and post-result invocation, the original
+  input string and their return projection. Metadata preparation uses market
+  inference on that original input, not the normalized request identity. Bare
+  019xxx still selects sz for metadata while its wire identity is sh; no extra
+  sh scan is introduced. Completed CodeApi metadata publication is reused.
+  Aux and sparkline do not prepare metadata or invoke the price resolver.
+- Sequence normalization, first-occurrence dedup, ordered dict output and
+  Python worker selection stay adapters. Explicit batch_size is not capped to
+  pool capacity; omitted batch_size uses original capacity. Single-security
+  methods continue to ignore this parameter. Custom transports and transport
+  subclasses retain their execute extension and arbitrary response escape.
+- Explicit parse contexts preserve row ranges without eagerly generating hex.
+  The legacy minute seam now hydrates minute points and both auxiliary layouts
+  from retained payload ranges when include_raw=True. The same missing raw
+  hydration was identified in the preceding ordinary/delisted Kline seam and
+  corrected before alignment/page aggregation, retaining first-page raw rules.
+- Legacy HQ decode errors now carry the original RuntimeError conversion so
+  Python receives the existing protocol text, class, context and empty cause;
+  public Rust continues its strict structured decoding error path. Existing
+  run_legacy signal cancellation and cleanup are reused rather than starting
+  a second execution or signal lifecycle.
+- Authored10 contract functions in test_sdk_minute_bridge.py, including all
+  routes, resolver order/projection/failure, unpriced aliases, first-occurrence
+  keys, explicit/default workers, ignored single batch_size and custom execute.
+  Authored7 local differential/integration functions in
+  test_native_minute_bridge.py: both transport types and raw policies; all three
+  priced wire families at decimal2/3; negative volume; both auxiliary layouts
+  and unknown selector; mismatched sparkline identity/echo/window; exact protocol
+  exceptions; default-date selector; original bare-bond inference; and signal
+  cancellation with confirmed cleanup. These are unexecuted source obligations.
+- Added truthful source-only authored_evidence for the five minute capability
+  records, with actual Rust/Python seams, fixture paths, exact authored pytest
+  nodes and temporary custom-adapter exit conditions. Migration statuses remain
+  planned/unimplemented until the complete evidence pass, not falsely verified.
+
+No tests, collection, builds/checks/clippy/doctests, dependency resolution or
+downloads, network probes, compilation/AST, formatting, whitespace diff checks
+or equivalent execution ran. T18 remains partial; totals18 complete source/
+4 partial/8 unstarted. Resume the remaining HQ native domains (other quotes and
+codes, trades, auction/money flow, corporate/equity/calendar, resources/stats/
+company/session/health, helpers and remaining subscription integration), the
+manifest-wide evidence pass and installed-wheel consumer before T19–T30 and
+remaining Stage B. Do not rewrite the already authored19 helper methods, bars,
+minutes or example/consumer sources. Active goal has no token limit.
