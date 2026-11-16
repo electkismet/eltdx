@@ -97,6 +97,8 @@ pub trait ReservedAttempt: std::fmt::Debug + Send {
 /// An owned protocol frame and the session identity that received it.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RawReply {
+    /// Receive order within this exact TCP generation, shared with push frames.
+    pub receive_sequence: u64,
     /// The request used to produce this reply.
     pub request: CommandRequest,
     /// The decoded response frame, including both payload and original wire bytes.
@@ -119,6 +121,7 @@ impl RawReply {
         response: ResponseFrame,
         wire: RequestWireIdentity,
         host: String,
+        receive_sequence: u64,
     ) -> Result<Self, RuntimeError> {
         let generation = wire
             .generation
@@ -135,6 +138,7 @@ impl RawReply {
             return Err(RuntimeError::internal("raw reply has no endpoint host"));
         }
         Ok(Self {
+            receive_sequence,
             request,
             response,
             request_id: wire.request_id,

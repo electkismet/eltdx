@@ -682,6 +682,11 @@ impl Supervisor {
         self.pins.len()
     }
 
+    pub(crate) fn pin_is_open(&self, pin: PinIdentity) -> bool {
+        self.state == EngineState::Running && self.active_epoch == Some(pin.engine_epoch)
+            && self.pins.state(pin) == Some(crate::pin::PinState::Open)
+    }
+
     pub fn claim_heartbeat(
         &mut self,
         request_id: RequestId,
@@ -2170,6 +2175,7 @@ mod tests {
         raw[12..14].copy_from_slice(&1_u16.to_le_bytes());
         raw[14..16].copy_from_slice(&1_u16.to_le_bytes());
         Ok(PushFrame {
+            receive_sequence: 1,
             engine_epoch: epoch,
             slot_id: SlotId::new(0),
             generation: GenerationId::new(1)?,

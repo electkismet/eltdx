@@ -14,7 +14,8 @@ use crate::RawPolicy;
 /// Reply identity remains available even when diagnostic buffers are omitted.
 #[derive(Clone, Debug)]
 pub(crate) struct DecodeSource {
-    pub(crate) request_id: RequestId,
+    pub(crate) receive_sequence: u64,
+    pub(crate) request_id: Option<RequestId>,
     pub(crate) engine_epoch: EngineEpoch,
     pub(crate) slot_id: SlotId,
     pub(crate) generation: GenerationId,
@@ -55,6 +56,25 @@ pub(crate) fn decode_reply(
 pub(crate) fn decode_reply_profile(
     reply: RawReply, raw: RawPolicy, precision: &dyn PricePrecisionSource, legacy: bool,
 ) -> Result<DecodedReply, ProtocolError> {
+    let RawReply { request, response, request_id, engine_epoch, slot_id, generation, host, receive_sequence } = reply;
+    decode_frame_profile(request, response, DecodeSource { request_id: Some(request_id),
+        engine_epoch, slot_id, generation, host, receive_sequence }, raw, precision, legacy)
+}
+
+pub(crate) fn decode_push(
+    frame: &eltdx_runtime::push::PushFrame, activation: CommandRequest,
+    raw: RawPolicy, precision: &dyn PricePrecisionSource,
+) -> Result<DecodedReply, ProtocolError> {
+    decode_frame_profile(activation, frame.response.clone(), DecodeSource { request_id: None,
+        receive_sequence: frame.receive_sequence,
+        engine_epoch: frame.engine_epoch, slot_id: frame.slot_id, generation: frame.generation,
+        host: frame.connected_host.to_string() }, raw, precision, false)
+}
+
+fn decode_frame_profile(
+    request: CommandRequest, mut response: ResponseFrame, source: DecodeSource,
+    raw: RawPolicy, precision: &dyn PricePrecisionSource, legacy: bool,
+) -> Result<DecodedReply, ProtocolError> {
     struct QuoteLayout<'a> { precision: &'a dyn PricePrecisionSource, legacy: bool }
     impl PricePrecisionSource for QuoteLayout<'_> {
         fn security_decimal(&self, code: &eltdx_protocol::unit::NormalizedCode) -> Option<u8> {
@@ -63,15 +83,6 @@ pub(crate) fn decode_reply_profile(
         fn legacy_quote_layout(&self) -> bool { self.legacy }
     }
     let layout = QuoteLayout { precision, legacy };
-    let RawReply {
-        request,
-        mut response,
-        request_id,
-        engine_epoch,
-        slot_id,
-        generation,
-        host,
-    } = reply;
     let parse_raw = match raw {
         RawPolicy::Omit => ParseRawPolicy::Omit,
         RawPolicy::RetainPayload | RawPolicy::RetainWire => ParseRawPolicy::RetainPayload,
@@ -96,13 +107,7 @@ pub(crate) fn decode_reply_profile(
     Ok(DecodedReply {
         request,
         response: parsed,
-        source: DecodeSource {
-            request_id,
-            engine_epoch,
-            slot_id,
-            generation,
-            host,
-        },
+        source,
         payload,
         wire: if raw == RawPolicy::RetainWire { Some(response) } else { None },
     })
@@ -122,6 +127,7 @@ mod tests {
     // Synthetic framing: tests retention and identity, not live-server provenance.
     fn heartbeat() -> Result<RawReply, eltdx_runtime::RuntimeError> {
         Ok(RawReply {
+            receive_sequence: 1,
             request: CommandRequest::Heartbeat(HeartbeatRequest),
             response: ResponseFrame {
                 control: 1,
@@ -148,7 +154,7 @@ mod tests {
         let wire = original.response.raw.clone();
         for raw in [RawPolicy::Omit, RawPolicy::RetainPayload, RawPolicy::RetainWire] {
             let decoded = decode_reply(original.clone(), raw, &NoPrecision)?;
-            assert_eq!(decoded.source.request_id.get(), 1);
+            assert_eq!(decoded.source.request_id.expect("requested reply identity").get(), 1);
             assert_eq!(decoded.source.host, "synthetic.invalid:7709");
             let CommandResponse::Heartbeat(ack) = decoded.response else {
                 panic!("expected heartbeat");
@@ -159,12 +165,14 @@ mod tests {
                 assert!(decoded.payload.is_empty());
                 assert!(ack.raw_payload.is_empty());
             } else {
-                assert_eq!(decoded.payload.as_ptr(), payload.as_ptr());
-                assert_eq!(ack.raw_payload.as_ptr(), payload.as_ptr());
+                assert_eq!(decoded.payload, payload);
+                assert_ne!(decoded.payload.as_ptr(), payload.as_ptr());
+                assert_eq!(ack.raw_payload.as_ptr(), decoded.payload.as_ptr());
             }
             assert_eq!(decoded.wire.is_some(), raw == RawPolicy::RetainWire);
             if let Some(frame) = decoded.wire {
-                assert_eq!(frame.raw.as_ptr(), wire.as_ptr());
+                assert_eq!(frame.raw, wire);
+                assert_ne!(frame.raw.as_ptr(), wire.as_ptr());
                 assert_eq!(frame.msg_id, 7);
             }
         }

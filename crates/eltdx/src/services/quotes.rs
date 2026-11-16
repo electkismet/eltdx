@@ -28,6 +28,7 @@ use super::{aggregate_meta, allocation_error, checked_ids, endpoint_engine, iden
 const SNAPSHOT_CHUNK_SIZE: usize = 300;
 const LEGACY_CHUNK_SIZE: usize = 300;
 const SNAPSHOT_RECOVERY: RecoveryLimit = RecoveryLimit { name: "snapshot_missing", maximum: 32 };
+pub(crate) const SNAPSHOT_RECOVERY_REQUESTS: usize = SNAPSHOT_RECOVERY.maximum;
 
 #[derive(Clone, Debug)]
 pub struct QuoteService {
@@ -126,26 +127,16 @@ impl QuoteService {
         let requests = snapshot_requests(&normalized, SNAPSHOT_CHUNK_SIZE)?;
         let metadata = request_metadata(&self.executor, &self.engine, &context, &self.config, &self.namespace, &requests)?;
         let raw = self.snapshot_rows_in_context(&context, &normalized, SNAPSHOT_CHUNK_SIZE)?;
-        let mut items = Vec::new();
-        items.try_reserve(ids.len()).map_err(allocation_error)?;
-        let mut missing = Vec::new();
-        for (index, (id, slot)) in ids.iter().zip(raw.slots).enumerate() {
-            let state = match slot {
-                RawSnapshotSlot::Present { row, reply } => BatchItemState::Present(project_snapshot(
-                    &row, id.clone(), &context, &self.config, &metadata, &reply, row.record_range)?),
-                RawSnapshotSlot::Missing => {
-                    missing.try_reserve(1).map_err(allocation_error)?;
-                    missing.push((index, id.clone(), MissingReason::NotFound));
-                    BatchItemState::ConfirmedMissing(MissingReason::NotFound)
-                }
-            };
-            items.push(BatchItem::new(index, id.clone(), state));
-        }
-        missing_policy_error(&missing, policy)?;
-        let metas = raw.replies.iter().map(|reply| snapshot_page_meta(&context, &self.config, &metadata, reply)).collect::<Vec<_>>();
-        let meta = aggregate_meta(&context, &metas, Some(metadata.version()))?;
+        let result = project_snapshot_batch(ids, policy, &context, &self.config, &metadata, raw)?;
         context.finish()?;
-        Ok(BatchOutcome::with_meta(items, meta))
+        Ok(result)
+    }
+
+    pub fn subscribe(&self, ids: &[SecurityId], subscription: &crate::SubscriptionOptions,
+        options: &OperationOptions) -> Result<crate::Subscription> {
+        let entry = Instant::now();
+        crate::subscription::establish(entry, self.executor.clone(), self.engine.clone(),
+            self.config.clone(), &self.namespace, ids, subscription, options)
     }
 
     /// Language-neutral retrieval. T12 passes a Python-profile context and the
@@ -207,6 +198,56 @@ impl QuoteService {
         Ok(BatchOutcome::with_meta(items, meta))
     }
 
+    /* snapshot projection is shared below with source-bound subscription recovery. */
+}
+
+fn project_snapshot_batch(ids: &[SecurityId], policy: MissingPolicy, context: &OperationContext,
+    config: &ClientConfig, metadata: &MetadataSnapshot, raw: RawSnapshotBatch) -> Result<SnapshotBatch> {
+        let mut items = Vec::new();
+        items.try_reserve(ids.len()).map_err(allocation_error)?;
+        let mut missing = Vec::new();
+        for (index, (id, slot)) in ids.iter().zip(raw.slots).enumerate() {
+            let state = match slot {
+                RawSnapshotSlot::Present { row, reply } => BatchItemState::Present(project_snapshot(
+                    &row, id.clone(), context, config, metadata, &reply, row.record_range)?),
+                RawSnapshotSlot::Missing => {
+                    missing.try_reserve(1).map_err(allocation_error)?;
+                    missing.push((index, id.clone(), MissingReason::NotFound));
+                    BatchItemState::ConfirmedMissing(MissingReason::NotFound)
+                }
+            };
+            items.push(BatchItem::new(index, id.clone(), state));
+        }
+        missing_policy_error(&missing, policy)?;
+        let metas = raw.replies.iter().map(|reply| snapshot_page_meta(context, config, metadata, reply)).collect::<Vec<_>>();
+        let meta = aggregate_meta(context, &metas, Some(metadata.version()))?;
+        Ok(BatchOutcome::with_meta(items, meta))
+}
+
+pub(crate) fn pinned_snapshot_batch(
+    executor: &HqExecutor, engine: &Engine, pin: &eltdx_runtime::engine::PinHandle,
+    context: &OperationContext, config: &ClientConfig, metadata: &MetadataSnapshot,
+    ids: &[SecurityId], source: eltdx_runtime::slot::GenerationIdentity,
+) -> Result<(SnapshotBatch, Vec<(SecurityId, u64)>)> {
+    let codes = checked_ids(ids)?;
+    let raw = retrieve_snapshot_rows(context, &codes, 100, |part, purpose, recovery| {
+        let request = CommandRequest::Snapshots(SnapshotsRequest::new(part.to_vec()).map_err(Error::from_protocol)?);
+        let reply = executor.execute_pinned_raw(engine, pin, context, request, purpose, recovery)?;
+        if reply.engine_epoch != source.engine_epoch || reply.slot_id != source.slot_id || reply.generation != source.generation {
+            return Err(Error::new(ErrorKind::PinLost, "snapshot source changed after subscription activation"));
+        }
+        executor.decode_received(context, reply)
+    })?;
+    // Recovery may return each security on a different response. A global
+    // maximum would hide a push received after an earlier security's snapshot.
+    let mut floors = Vec::new(); floors.try_reserve(raw.slots.len()).map_err(allocation_error)?;
+    for (id, slot) in ids.iter().zip(&raw.slots) {
+        if let RawSnapshotSlot::Present { reply, .. } = slot { floors.push((id.clone(), reply.source.receive_sequence)); }
+    }
+    Ok((project_snapshot_batch(ids, MissingPolicy::AllowPartial, context, config, metadata, raw)?, floors))
+}
+
+impl QuoteService {
     pub fn category(&self, query: &CategoryQuery, options: &OperationOptions) -> Result<DataPage<CategoryQuote>> {
         let entry = Instant::now();
         let mut context = self.executor.begin_context_at(entry, "quotes_category", &self.config, options)?;

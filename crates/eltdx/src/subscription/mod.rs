@@ -1,8 +1,13 @@
 //! Shared dispatcher, exact-source cursors and independently budgeted queues.
-//! Active subscription lease/renewal integration is still under implementation.
+//! Owned active subscription leases, finite renewal and same-source recovery.
 mod cursor;
 pub(crate) mod dispatcher;
+mod lease;
+mod memory;
 mod queue;
+
+pub use lease::Subscription;
+pub(crate) use lease::establish;
 
 #[cfg(test)]
 mod source_cases {

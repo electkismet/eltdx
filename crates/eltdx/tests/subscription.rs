@@ -4,8 +4,9 @@ use std::time::Duration;
 use eltdx::{GapPolicy, SubscriptionOptions};
 use eltdx::types::RefreshRequest;
 
-mod support;
-use support::hq_server::{self, Server};
+#[path = "support/hq_server.rs"]
+mod hq_server;
+use hq_server::Server;
 
 #[test]
 fn subscription_policy_is_independent_of_setup_deadlines_and_has_frozen_defaults() {

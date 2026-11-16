@@ -67,6 +67,19 @@ impl<T> BatchOutcome<T> {
 pub type SnapshotBatch = BatchOutcome<Snapshot>;
 
 impl BatchOutcome<Snapshot> {
+    pub(crate) fn canonical_heap(&mut self) {
+        super::memory::canonical_vec(&mut self.items);
+        for item in &mut self.items {
+            item.security.canonical_heap();
+            match &mut item.state {
+                BatchItemState::Present(snapshot) => snapshot.canonical_heap(),
+                BatchItemState::ConfirmedMissing(MissingReason::Other(reason)) => super::memory::canonical_string(reason),
+                BatchItemState::ConfirmedMissing(_) => {}
+            }
+        }
+        self.meta.canonical_heap();
+    }
+    pub(crate) fn into_parts(self) -> (Vec<BatchItem<Snapshot>>, ResultMeta) { (self.items, self.meta) }
     pub(crate) fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
         charge.array::<BatchItem<Snapshot>>(self.items.capacity())?;
         for item in &self.items {

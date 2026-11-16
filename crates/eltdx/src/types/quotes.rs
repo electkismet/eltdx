@@ -161,6 +161,12 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
+    pub(crate) fn canonical_heap(&mut self) {
+        self.id.canonical_heap();
+        super::memory::canonical_vec(&mut self.bids);
+        super::memory::canonical_vec(&mut self.asks);
+        self.meta.canonical_heap();
+    }
     pub(crate) fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> Result<()> {
         self.id.charge_heap(charge)?;
         charge.array::<QuoteLevel>(self.bids.capacity())?;
@@ -312,6 +318,9 @@ pub struct QuoteUpdate {
 }
 
 impl QuoteUpdate {
+    pub(crate) fn canonical_heap(&mut self) {
+        self.id.canonical_heap(); self.snapshot.canonical_heap();
+    }
     pub(crate) fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> Result<()> {
         self.id.charge_heap(charge)?;
         self.snapshot.charge_heap(charge)

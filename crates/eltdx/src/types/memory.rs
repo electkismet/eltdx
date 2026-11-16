@@ -5,6 +5,15 @@ use std::mem::size_of;
 
 use crate::error::{Error, ErrorKind, Result};
 
+pub(crate) const BUFFER_CONTROL_BYTES: usize = 4 * size_of::<usize>();
+
+pub(crate) fn canonical_vec<T>(values: &mut Vec<T>) {
+    *values = std::mem::take(values).into_boxed_slice().into_vec();
+}
+pub(crate) fn canonical_string(value: &mut String) {
+    *value = std::mem::take(value).into_boxed_str().into_string();
+}
+
 #[derive(Default)]
 pub(crate) struct MemoryCharge {
     bytes: usize,
@@ -31,7 +40,7 @@ impl MemoryCharge {
                 "unable to account retained push buffers").with_source(error))?;
             self.buffers.insert(key);
             self.add(buffer.len())?;
-            self.add(4 * size_of::<usize>())?;
+            self.add(BUFFER_CONTROL_BYTES)?;
         }
         Ok(())
     }

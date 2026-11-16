@@ -165,7 +165,7 @@
 | T12 | Quote/code Python bridge implementation/source review complete through `684a157`; execution verification deferred |
 | T13 | Implementation/self-review checkpoint `338d99b`: all 18 methods M25-M40/M98-M99, queries/DTOs, date/cursor/raw mapping and synthetic source cases; execution verification deferred |
 | T14 | All13 M41–M52/M100 implementation/self-review sources committed at992ba98/ce46437; no execution verification |
-| T15 | Partial foundation committed9bbafde: options/events/gap/refresh query, exact-source cursors, bounded typed queue and runtime exclusive PushConsumer/source cases; dispatcher/lease/owner/renewal/actual event accounting/legacy fanout integration pending |
+| T15 | Partial source: foundation9bbafde, M2361672fe, dispatcher/accountinga964437; active M24 lease/read/renewal/retirement/resync/receive-order/max-capacity source authored in the next checkpoint; controlled Python raw adapter and full integration source cases remain pending |
 | T16 | Not started |
 | T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
 | T18 | Not started |
@@ -211,3 +211,5 @@
 - Recovery 2026-11-16 M23: authored public pin/borrowed refresh, shared pinned/flight metadata pagination and shared quote projection, empty-poll parser activation hints and failed activation invalidation; added synthetic loopback source cases. No execution verification. T15 still partial; resume active dispatcher/lease/owner/renewal/resync/actual memory accounting and controlled raw fanout. No subagents. Goal active without a token budget.
 
 - Recovery 2026-11-16 T15 dispatcher/memory: after M23 commit61672fe, authored exact-source weak fanout with one PushConsumer, per-Engine owner cache and pre-start task registration, stop/join, pause/early-push routing and delta loss; actual-capacity DTO/shared-buffer accounting and fixed-slot ring storage replace caller-supplied production charges. Tests were authored only. Active Subscription/M24, lease/read/renewal/resync, supported-max prevalidation and Python raw adapter remain missing. Read task-15-report latest section. Implementation-complete count stays15/30 with5 partial and10 unstarted; no runtime/compile evidence.
+
+- Recovery 2026-11-16 M24: active subscribe/lease/read/renewal/retirement/resync/max-event source is now authored after a964437. Added exact-connection receive sequence and per-ID snapshot fences, dispatcher active-delivery pause barrier, runtime control-only pin inspection, startup cleanup ownership and owner reaper lock-order correction. Added source cases and fixed the existing subscription fixture import/decoder retention assertions. Controlled Python raw adapter and full active integration case matrix remain pending. Count stays15 complete source/5 partial/10 unstarted. No validation ran; goal active without a token budget. Read task-15-report latest section before continuing.

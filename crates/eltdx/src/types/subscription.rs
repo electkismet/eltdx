@@ -128,6 +128,13 @@ pub enum PushEvent {
 }
 
 impl PushEvent {
+    pub(crate) fn canonical_heap(&mut self) {
+        match self {
+            Self::Initial(batch) | Self::Resynchronized(batch) => batch.canonical_heap(),
+            Self::Update(update) => update.canonical_heap(),
+            Self::Gap(_) => {}
+        }
+    }
     pub(crate) fn retained_bytes(&self) -> Result<usize> {
         let mut charge = super::memory::MemoryCharge::default();
         charge.add(std::mem::size_of::<Self>())?;

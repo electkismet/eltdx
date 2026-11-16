@@ -20,6 +20,7 @@ pub(crate) trait OwnerTaskGroup: std::fmt::Debug + Send + Sync {
     fn stop(&self);
     fn stop_before(&self, _deadline: Instant) { self.stop(); }
     fn close_until(&self, deadline: Instant) -> Result<()>;
+    fn completed(&self) -> bool { false }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -211,10 +212,36 @@ impl SessionOwner {
     }
 
     pub(crate) fn register_task_group(&self, task: Arc<dyn OwnerTaskGroup>) -> Result<()> {
+        self.reap_completed_tasks();
         let mut state = self.lock_state()?;
         if state.phase != SessionPhase::Open { return Err(closed_error()); }
         self.cleanup.ensure_started()?;
         state.tasks.push(task);
+        Ok(())
+    }
+
+    fn reap_completed_tasks(&self) {
+        let tasks = match self.state.lock() {
+            Ok(state) => state.tasks.clone(),
+            Err(_) => return,
+        };
+        // A task's completion check may lock its own state and consult its
+        // owner. Call every task method after releasing the owner state lock.
+        // Retain any unconfirmed cleanup for explicit close.
+        for task in tasks {
+            if task.completed() && task.close_until(Instant::now()).is_ok() {
+                self.unregister_task_group(&task);
+            }
+        }
+    }
+
+    pub(crate) fn unregister_task_group(&self, task: &Arc<dyn OwnerTaskGroup>) {
+        if let Ok(mut state) = self.state.lock() { state.tasks.retain(|registered| !Arc::ptr_eq(registered, task)); }
+    }
+
+    pub(crate) fn retire_registered_pin(&self, pin: &PinHandle, deadline: Instant) -> Result<()> {
+        self.close_pin(pin, Some(deadline))?;
+        self.unregister_pin(pin);
         Ok(())
     }
 
@@ -664,6 +691,12 @@ impl PinnedSession {
         if let Some(pin) = self.pin.take() { self.owner.unregister_pin(&pin); }
     }
 
+    /// Transfer cleanup to an owner-registered task without unregistering the
+    /// reservation. The receiving task must already own a cloned handle.
+    pub(crate) fn transfer_to_task(mut self) -> Result<PinHandle> {
+        self.pin.take().ok_or_else(|| Error::new(ErrorKind::PinLost, "pinned session is closed"))
+    }
+
     pub fn close(&mut self) -> Result<()> {
         let Some(pin) = self.pin.as_ref() else {
             return Ok(());
@@ -781,6 +814,29 @@ mod tests {
     use super::SessionOwner;
     use crate::error::ErrorKind;
     use crate::hq::executor::HqExecutor;
+
+    #[test]
+    fn task_methods_run_without_the_owner_state_lock() {
+        #[derive(Debug)]
+        struct CompletedTask { owner: std::sync::Weak<SessionOwner> }
+        impl super::OwnerTaskGroup for CompletedTask {
+            fn stop(&self) {}
+            fn completed(&self) -> bool {
+                let owner = self.owner.upgrade().expect("live source-case owner");
+                assert!(owner.state.try_lock().is_ok(), "completion inspection must not hold the owner lock");
+                true
+            }
+            fn close_until(&self, _: Instant) -> crate::Result<()> {
+                self.owner.upgrade().expect("live source-case owner").ensure_open()
+            }
+        }
+        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+        let task: Arc<dyn super::OwnerTaskGroup> = Arc::new(CompletedTask { owner: Arc::downgrade(&owner) });
+        owner.register_task_group(task.clone()).unwrap();
+        owner.reap_completed_tasks();
+        assert!(!owner.state.lock().unwrap().tasks.iter().any(|registered| Arc::ptr_eq(registered, &task)));
+        owner.close().unwrap();
+    }
 
     #[test]
     fn pin_wait_is_capped_by_the_supplied_deadline() {

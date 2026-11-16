@@ -30,6 +30,7 @@ pub struct SecurityId {
 }
 
 impl SecurityId {
+    pub(crate) fn canonical_heap(&mut self) { super::memory::canonical_string(&mut self.number); }
     pub fn new(market: HqMarket, number: &str) -> Result<Self> {
         if number.len() != 6 || !number.is_ascii() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
             return Err(invalid_code(number));

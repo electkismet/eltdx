@@ -26,6 +26,11 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
+    fn canonical_heap(&mut self) {
+        super::memory::canonical_string(&mut self.source);
+        super::memory::canonical_string(&mut self.stage);
+        if let Some(message) = &mut self.message { super::memory::canonical_string(message); }
+    }
     fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
         charge.string(&self.source)?;
         charge.string(&self.stage)?;
@@ -71,6 +76,7 @@ pub struct SourceStamp {
 }
 
 impl SourceStamp {
+    fn canonical_heap(&mut self) { super::memory::canonical_string(&mut self.session_id); }
     fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
         charge.string(&self.session_id)
     }
@@ -103,6 +109,12 @@ pub struct RawData {
 }
 
 impl RawData {
+    fn canonical_heap(&mut self) {
+        super::memory::canonical_vec(&mut self.payloads);
+        if let Some(frames) = &mut self.wire_frames { super::memory::canonical_vec(frames); }
+        super::memory::canonical_vec(&mut self.row_ranges);
+        super::memory::canonical_vec(&mut self.xor93_rows);
+    }
     fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
         charge.array::<Bytes>(self.payloads.capacity())?;
         for payload in &self.payloads { charge.buffer(payload)?; }
@@ -157,6 +169,14 @@ fn serialize_wire_frames<S: serde::Serializer>(values: &Option<Vec<Bytes>>, seri
 }
 
 impl ResultMeta {
+    pub(crate) fn canonical_heap(&mut self) {
+        self.source.canonical_heap();
+        super::memory::canonical_vec(&mut self.sources);
+        for source in &mut self.sources { source.canonical_heap(); }
+        super::memory::canonical_vec(&mut self.diagnostics);
+        for diagnostic in &mut self.diagnostics { diagnostic.canonical_heap(); }
+        if let Some(raw) = &mut self.raw { raw.canonical_heap(); }
+    }
     pub(crate) fn charge_heap(&self, charge: &mut super::memory::MemoryCharge) -> crate::Result<()> {
         self.source.charge_heap(charge)?;
         charge.array::<SourceStamp>(self.sources.capacity())?;

@@ -16,7 +16,7 @@ pub use money_flow::MoneyFlowService;
 pub use quotes::{PinnedQuoteService, QuoteService};
 pub use trades::TradeService;
 pub(crate) use quotes::{legacy_snapshot_rows, RawSnapshotBatch, RawSnapshotSlot};
-pub(crate) use quotes::{project_refresh_updates, refresh_command};
+pub(crate) use quotes::{pinned_snapshot_batch, project_refresh_updates, refresh_command, SNAPSHOT_RECOVERY_REQUESTS};
 
 use std::hash::{Hash, Hasher};
 use std::net::SocketAddr;
@@ -68,7 +68,7 @@ fn result_meta(
 }
 
 /// Preserve each response's origin and one shared backing payload per page.
-fn aggregate_meta(context: &OperationContext, pages: &[ResultMeta], version: Option<u64>) -> Result<ResultMeta> {
+pub(crate) fn aggregate_meta(context: &OperationContext, pages: &[ResultMeta], version: Option<u64>) -> Result<ResultMeta> {
     let mut sources = Vec::new();
     let mut diagnostics = Vec::new();
     let mut payloads = Vec::new();
@@ -107,7 +107,7 @@ fn allocation_error(error: std::collections::TryReserveError) -> Error {
     Error::new(ErrorKind::LimitExceeded, "unable to reserve bounded service result storage").with_source(error)
 }
 
-fn checked_ids(ids: &[SecurityId]) -> Result<Vec<eltdx_protocol::unit::NormalizedCode>> {
+pub(crate) fn checked_ids(ids: &[SecurityId]) -> Result<Vec<eltdx_protocol::unit::NormalizedCode>> {
     validate_batch_len(ids.len())?;
     normalize_ids(ids)
 }

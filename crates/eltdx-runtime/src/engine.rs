@@ -1285,6 +1285,26 @@ impl PinHandle {
             .and_then(|actor| actor.connected_host))
     }
 
+    /// Inspect the live reservation and actor snapshot on the runtime control
+    /// loop, without sending a wire request or relying on cached diagnostics.
+    /// None means only that this finite inspection wait elapsed. A late reply
+    /// owns no resource and may be discarded safely.
+    pub fn source_identity(&self, timeout: Duration) -> Result<Option<GenerationIdentity>, RuntimeError> {
+        self.engine.check_pid()?;
+        let runtime = self.engine.current_runtime()?.ok_or_else(|| RuntimeError::connection_closed("pin runtime is stopped"))?;
+        let (reply, receiver) = std_mpsc::sync_channel(1);
+        runtime.command_tx.try_send(RuntimeCommand::InspectPin { pin: self.identity, reply })
+            .map_err(|error| match error {
+                mpsc::error::TrySendError::Full(_) => push_consumer_busy(),
+                mpsc::error::TrySendError::Closed(_) => RuntimeError::connection_closed("pin runtime is closed"),
+            })?;
+        match receiver.recv_timeout(timeout) {
+            Ok(result) => result.map(Some),
+            Err(std_mpsc::RecvTimeoutError::Timeout) => Ok(None),
+            Err(std_mpsc::RecvTimeoutError::Disconnected) => Err(RuntimeError::connection_closed("runtime stopped during pin inspection")),
+        }
+    }
+
     pub fn session_snapshot(
         &self,
     ) -> Result<(Option<HandshakeInfo>, Option<HeartbeatAck>), RuntimeError> {
@@ -2589,6 +2609,10 @@ enum RuntimeCommand {
         pin: PinIdentity,
         reply: std_mpsc::SyncSender<Result<(), RuntimeError>>,
     },
+    InspectPin {
+        pin: PinIdentity,
+        reply: std_mpsc::SyncSender<Result<GenerationIdentity, RuntimeError>>,
+    },
     PollPush {
         deadline: Deadline,
         reply: std_mpsc::SyncSender<Result<Option<PushFrame>, RuntimeError>>,
@@ -2606,6 +2630,7 @@ impl RuntimeCommand {
             | Self::ExecutePinned { request_id, .. } => Some(*request_id),
             Self::ConnectAll { .. }
             | Self::ClosePin { .. }
+            | Self::InspectPin { .. }
             | Self::PollPush { .. }
             | Self::DrainPushes { .. } => None,
         }
@@ -2821,7 +2846,7 @@ struct PendingRequest {
     _ingress: IngressOwnership,
     admission: Admission,
     wire: Option<RequestWireIdentity>,
-    response: Option<(ResponseFrame, RequestWireIdentity, String)>,
+    response: Option<(ResponseFrame, RequestWireIdentity, String, u64)>,
     dispatched: bool,
     pin: Option<PinIdentity>,
 }
@@ -3309,6 +3334,7 @@ impl RuntimeCore {
                 RuntimeCommand::ClosePin { reply, .. } => {
                     let _ = reply.send(Err(error.clone()));
                 }
+                RuntimeCommand::InspectPin { reply, .. } => { let _ = reply.send(Err(error.clone())); }
                 RuntimeCommand::PollPush { reply, .. } => {
                     let _ = reply.send(Err(error.clone()));
                 }
@@ -3511,6 +3537,24 @@ impl RuntimeCore {
                 Ok(())
             }
             RuntimeCommand::ClosePin { pin, reply } => self.close_pin(pin, reply).await,
+            RuntimeCommand::InspectPin { pin, reply } => {
+                let result = (|| {
+                    if !self.supervisor.pin_is_open(pin) {
+                        return Err(RuntimeError::connection_closed("pinned reservation is no longer open"));
+                    }
+                    let handle = self.slots.get(pin.slot_id.get()).and_then(Option::as_ref)
+                        .ok_or_else(|| RuntimeError::connection_closed("pinned actor is no longer present"))?;
+                    let snapshot = lock_mutex(&handle.snapshot, "pinned source snapshot")?;
+                    if snapshot.engine_epoch != pin.engine_epoch || !snapshot.actor_alive
+                        || snapshot.tcp_state != crate::diagnostics::TcpState::Ready {
+                        return Err(RuntimeError::connection_closed("pinned source connection is no longer ready"));
+                    }
+                    Ok(GenerationIdentity { engine_epoch: snapshot.engine_epoch, slot_id: snapshot.slot_id,
+                        generation: crate::slot::GenerationId::new(snapshot.tcp_generation)? })
+                })();
+                let _ = reply.send(result);
+                Ok(())
+            }
             RuntimeCommand::PollPush { deadline, reply } => {
                 match self.supervisor.poll_push() {
                     Ok(Some(frame)) => {
@@ -3570,6 +3614,7 @@ impl RuntimeCore {
             RuntimeCommand::ClosePin { reply, .. } => {
                 let _ = reply.send(Ok(()));
             }
+            RuntimeCommand::InspectPin { reply, .. } => { let _ = reply.send(Err(error)); }
             RuntimeCommand::PollPush { reply, .. } => {
                 let _ = reply.send(self.supervisor.poll_push());
             }
@@ -4010,6 +4055,7 @@ impl RuntimeCore {
             SlotEvent::Completed {
                 wire,
                 response,
+                receive_sequence,
                 host,
                 reply,
             } => {
@@ -4034,7 +4080,7 @@ impl RuntimeCore {
                     }
                 }
                 let pin = if let Some(pending) = self.pending.get_mut(&request_id) {
-                    pending.response = Some((response, wire, host));
+                    pending.response = Some((response, wire, host, receive_sequence));
                     pending.pin
                 } else {
                     None
@@ -4612,10 +4658,10 @@ impl RuntimeCore {
             if let Some(pending) = pending {
                 let terminal = match notification.kind {
                     TerminalKind::Completed => {
-                        let (response, wire, host) = pending.response.ok_or_else(|| {
+                        let (response, wire, host, receive_sequence) = pending.response.ok_or_else(|| {
                             RuntimeError::internal("completed terminal has no raw response")
                         })?;
-                        RawReply::from_runtime(pending.request, response, wire, host)
+                        RawReply::from_runtime(pending.request, response, wire, host, receive_sequence)
                     }
                     TerminalKind::Cancelled | TerminalKind::TimedOut | TerminalKind::Failed => {
                         Err(notification.error.unwrap_or_else(|| {
@@ -5325,6 +5371,7 @@ enum SlotEvent {
     Completed {
         wire: RequestWireIdentity,
         response: ResponseFrame,
+        receive_sequence: u64,
         host: String,
         reply: oneshot::Sender<Result<(), RuntimeError>>,
     },
@@ -5381,6 +5428,7 @@ enum WorkOutcome {
     Completed {
         wire: RequestWireIdentity,
         response: ResponseFrame,
+        receive_sequence: u64,
     },
     HeartbeatCompleted {
         wire: RequestWireIdentity,
@@ -5495,7 +5543,7 @@ impl SlotWorker {
 
     async fn publish_work_outcome(&mut self, outcome: WorkOutcome) -> Result<(), RuntimeError> {
         match outcome {
-            WorkOutcome::Completed { wire, response } => {
+            WorkOutcome::Completed { wire, response, receive_sequence } => {
                 let (reply, received) = oneshot::channel();
                 let host = self
                     .slot
@@ -5506,6 +5554,7 @@ impl SlotWorker {
                     .send(SlotEvent::Completed {
                         wire,
                         response,
+                        receive_sequence,
                         host,
                         reply,
                     })
@@ -5821,6 +5870,7 @@ impl SlotWorker {
         {
             Ok(routed) => Ok(WorkOutcome::Completed {
                 wire,
+                receive_sequence: routed.frame.receive_sequence,
                 response: routed.response,
             }),
             Err(OperationFailure::Interrupted) => Ok(WorkOutcome::Interrupted { wire }),
@@ -6479,7 +6529,7 @@ impl SlotWorker {
                     }
                     matched = Some(routed);
                 }
-                FrameDisposition::Push => self.publish_push(generation, routed.response),
+                FrameDisposition::Push => self.publish_push(generation, routed.response, routed.frame.receive_sequence),
                 FrameDisposition::Stale => {}
             }
         }
@@ -6555,7 +6605,7 @@ impl SlotWorker {
         };
         for routed in routed {
             match routed.disposition {
-                FrameDisposition::Push => self.publish_push(generation, routed.response),
+                FrameDisposition::Push => self.publish_push(generation, routed.response, routed.frame.receive_sequence),
                 FrameDisposition::Matched(_) => {
                     return Err(RuntimeError::internal(
                         "idle Slot matched a response without an exchange",
@@ -6581,12 +6631,13 @@ impl SlotWorker {
         Ok(())
     }
 
-    fn publish_push(&self, generation: GenerationIdentity, response: ResponseFrame) {
+    fn publish_push(&self, generation: GenerationIdentity, response: ResponseFrame, receive_sequence: u64) {
         let Some(host) = self.slot.connected_host() else {
             self.push_dropped.fetch_add(1, Ordering::AcqRel);
             return;
         };
         let frame = PushFrame {
+            receive_sequence,
             engine_epoch: generation.engine_epoch,
             slot_id: generation.slot_id,
             generation: generation.generation,

@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-2026-11-16 最新恢复点：T14全部13方法源码已提交`ce46437`。T15基础检查点`9bbafde`；M23固定连接refresh及同pin冷元数据已提交`61672fe`。随后补写独占dispatcher、按精确Engine缓存和owner stop/join钩子、按实际DTO容量/共享缓冲区计费、固定ring存储及相关合成用例源码。M24活动订阅/lease/renewal/resync、最大事件预校验和Python受控raw适配仍未完成，T15不能标完成。没有运行任何测试、构建或执行检查；下一步继续T15。
+2026-11-16 最新恢复点：T14全部13方法源码已提交`ce46437`。T15基础检查点`9bbafde`；M23固定连接refresh及同pin冷元数据`61672fe`；独占dispatcher、owner stop/join、实际内存计费和固定ring已提交`a964437`。后续M24源码已写入当前检查点：活动订阅入口、分组激活/回滚、独立读取取消、后台续订/回收、同源resync、每证券接收顺序边界、pin源状态查询和最大事件容量预校验。已按源码修正任务回收锁顺序、启动失败清理责任及旧测试模块/缓冲区断言。Python受控raw适配及完整订阅集成用例源码尚待补齐，T15仍不能标完成。没有运行任何测试、构建或执行检查；下一步继续T15。
 
 当前实际进度：T01–T14实现源码已写完；T21已完成源码与限定静态审阅，T15/T17/T22/T24/T25为部分实现。继续T15订阅与单消费者分发，再继续剩余任务和未完成集成。目标保持active且不设置额度限制；全部执行验证延期。
 
@@ -17,7 +17,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | `61672fe` (T15 M23源码；dispatcher/内存计费后续检查点见Git和task-15-report，T15仍部分完成) |
+| 最新检查点 | `a964437`之后的M24源码检查点（见Git和task-15-report；T15仍部分完成） |
 | 当前阶段 | P2：T01–T14实现源码完成；T15进行中。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
@@ -66,7 +66,7 @@
 
 ## 恢复规则
 
-最新恢复点（2026-11-16）：goal模式active，`remainingTokens=null`。T14完整源码提交ce46437，范围见task-14-report；T15基础源码已开始但无活动订阅入口，恢复先读task-15-report并继续dispatcher/lease/owner/refresh/renewal/内存计费。T13 source_time及raw/日期/cursor约束继续有效；T18必须保留普通/退市raw、HQ同日回绕、native今日逐笔列拒绝和Python原计时/次数。其余未完成集成仍需继续。没有运行测试、collection、构建、检查、格式化、diff检查或网络验证。
+最新恢复点（2026-11-16）：goal模式active，`remainingTokens=null`。T14完整源码提交ce46437，范围见task-14-report；T15 M24入口及lease/renewal/resync源码已写，恢复先读task-15-report最新章节，继续Python受控raw适配、完整集成用例源码和限定源码审阅。T13 source_time及raw/日期/cursor约束继续有效；T18必须保留普通/退市raw、HQ同日回绕、native今日逐笔列拒绝和Python原计时/次数。其余未完成集成仍需继续。没有运行测试、collection、构建、检查、格式化、diff检查或网络验证。
 
 T21 于 `9734db3` 完成35个非财报本地 API、模型/格式算法、GBK 静态查表数据及四组测试源码；所有验证延期。仅运行了经授权的一次 Python 3.12.14 标准库 GBK 映射数据生成，脚本、版本和来源已在实现报告记录。任务审阅包以 `230e566` 为基线，仅含 T21 自有文件，scoped source review 进行中。T10 的 `Diagnostic`/`EnrichmentStatus` 共享实现仍待完成；这不是 T21 已验证集成的证据。
 

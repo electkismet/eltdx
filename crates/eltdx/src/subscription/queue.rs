@@ -49,7 +49,8 @@ impl EventQueue {
             gap: None, desynchronized: false, recovery_requested: false, terminal: None, ended: false })
     }
 
-    pub(super) fn publish(&mut self, event: PushEvent) -> Result<QueueAction> {
+    pub(super) fn publish(&mut self, mut event: PushEvent) -> Result<QueueAction> {
+        event.canonical_heap();
         let bytes = event.retained_bytes()?;
         self.offer(event, bytes)
     }
@@ -147,9 +148,11 @@ impl EventQueue {
         if self.terminal.is_none() { self.terminal = Some(error); }
     }
     pub(super) fn ended(&self) -> bool { self.ended }
+    pub(super) fn ready(&self) -> bool { self.gap.is_some() || self.len != 0 || self.terminal.is_some() }
     pub(super) fn recovery_requested(&self) -> bool { self.recovery_requested }
     pub(super) fn restore_event(&mut self, batch: crate::types::SnapshotBatch) -> Result<QueueAction> {
-        let event = PushEvent::Resynchronized(batch);
+        let mut event = PushEvent::Resynchronized(batch);
+        event.canonical_heap();
         let bytes = event.retained_bytes()?;
         let PushEvent::Resynchronized(batch) = event else { unreachable!() };
         self.restore(batch, bytes)

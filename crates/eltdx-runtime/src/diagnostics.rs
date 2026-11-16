@@ -443,6 +443,7 @@ mod tests {
         raw[12..14].copy_from_slice(&1_u16.to_le_bytes());
         raw[14..16].copy_from_slice(&1_u16.to_le_bytes());
         Ok(PushFrame {
+            receive_sequence: 1,
             engine_epoch: epoch,
             slot_id: SlotId::new(0),
             generation: GenerationId::new(1)?,

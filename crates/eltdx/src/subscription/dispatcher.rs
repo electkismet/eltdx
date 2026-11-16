@@ -26,7 +26,7 @@ pub(crate) trait PushSink: std::fmt::Debug + Send + Sync {
 struct Route { identity: u64, source: GenerationIdentity, sink: Weak<dyn PushSink> }
 
 #[derive(Debug, Default)]
-struct Routes { next_identity: u64, paused: usize, routes: Vec<Route> }
+struct Routes { next_identity: u64, paused: usize, active_deliveries: usize, routes: Vec<Route> }
 
 #[derive(Debug)]
 struct Worker {
@@ -87,6 +87,12 @@ impl Dispatcher {
         context.check_boundary(TimeoutPhase::Admission)?;
         routes.paused = routes.paused.checked_add(1).ok_or_else(||
             Error::new(ErrorKind::LimitExceeded, "push routing pause counter overflow"))?;
+        while routes.active_deliveries != 0 {
+            if let Err(error) = context.check_boundary(TimeoutPhase::Queue) {
+                routes.paused -= 1; self.routing_changed.notify_all(); return Err(error);
+            }
+            routes = self.routing_changed.wait_timeout(routes, SIGNAL_POLL_INTERVAL).map_err(|_| poisoned())?.0;
+        }
         Ok(DispatchPause { dispatcher: Arc::clone(self) })
     }
 
@@ -103,13 +109,13 @@ impl Dispatcher {
         Ok(RouteLease { dispatcher: Arc::downgrade(self), identity })
     }
 
-    fn sinks(&self, source: Option<GenerationIdentity>) -> Result<Vec<Arc<dyn PushSink>>> {
+    fn targets(&self, source: Option<GenerationIdentity>) -> Result<(Delivery<'_>, Vec<Arc<dyn PushSink>>)> {
         let mut routes = self.routes.lock().map_err(|_| poisoned())?;
         while routes.paused != 0 && !self.stopped.load(Ordering::Acquire) {
             routes = self.routing_changed.wait_timeout(routes, SIGNAL_POLL_INTERVAL)
                 .map_err(|_| poisoned())?.0;
         }
-        if self.stopped.load(Ordering::Acquire) { return Ok(Vec::new()); }
+        if self.stopped.load(Ordering::Acquire) { return Ok((Delivery { dispatcher: self, counted: false }, Vec::new())); }
         routes.routes.retain(|route| route.sink.strong_count() != 0);
         let mut sinks = Vec::new();
         sinks.try_reserve(routes.routes.len()).map_err(|error| Error::new(ErrorKind::LimitExceeded,
@@ -122,13 +128,22 @@ impl Dispatcher {
                 if !sinks.iter().any(|existing| Arc::ptr_eq(existing, &sink)) { sinks.push(sink); }
             }
         }
+        routes.active_deliveries = routes.active_deliveries.checked_add(1).ok_or_else(||
+            Error::new(ErrorKind::LimitExceeded, "push dispatch delivery counter overflow"))?;
+        Ok((Delivery { dispatcher: self, counted: true }, sinks))
+    }
+
+    #[cfg(test)]
+    fn sinks(&self, source: Option<GenerationIdentity>) -> Result<Vec<Arc<dyn PushSink>>> {
+        let (_delivery, sinks) = self.targets(source)?;
         Ok(sinks)
     }
 
     fn dispatch(&self, frame: &PushFrame) -> Result<()> {
         let source = GenerationIdentity { engine_epoch: frame.engine_epoch, slot_id: frame.slot_id,
             generation: frame.generation };
-        for sink in self.sinks(Some(source))? {
+        let (_delivery, sinks) = self.targets(Some(source))?;
+        for sink in sinks {
             if let Err(error) = sink.frame(frame) { sink.failed(error); }
         }
         Ok(())
@@ -138,13 +153,15 @@ impl Dispatcher {
         let result = (|| {
             let mut reported_dropped = 0_u64;
             while !self.stopped.load(Ordering::Acquire) {
+                let poll_entry = Instant::now();
                 match consumer.poll_push(SIGNAL_POLL_INTERVAL) {
                     Ok(Some(frame)) => self.dispatch(&frame)?,
-                    Ok(None) => {}
+                    Ok(None) => thread::park_timeout(SIGNAL_POLL_INTERVAL.saturating_sub(poll_entry.elapsed())),
                     Err(RuntimeError::PushOverflow { dropped_total, .. }) => {
                         let dropped = dropped_total.saturating_sub(reported_dropped);
                         reported_dropped = dropped_total;
-                        for sink in self.sinks(None)? { sink.gap(dropped, dropped_total); }
+                        let (_delivery, sinks) = self.targets(None)?;
+                        for sink in sinks { sink.gap(dropped, dropped_total); }
                     }
                     Err(_) if self.stopped.load(Ordering::Acquire) => break,
                     Err(error) => return Err(Error::from_runtime(error)),
@@ -217,6 +234,16 @@ impl Drop for RouteLease {
 
 pub(crate) struct DispatchPause { dispatcher: Arc<Dispatcher> }
 
+struct Delivery<'a> { dispatcher: &'a Dispatcher, counted: bool }
+impl Drop for Delivery<'_> {
+    fn drop(&mut self) {
+        if !self.counted { return; }
+        let mut routes = self.dispatcher.routes.lock().unwrap_or_else(|poison| poison.into_inner());
+        routes.active_deliveries -= 1;
+        self.dispatcher.routing_changed.notify_all();
+    }
+}
+
 impl Drop for DispatchPause {
     fn drop(&mut self) {
         let mut routes = self.dispatcher.routes.lock().unwrap_or_else(|poison| poison.into_inner());
@@ -250,7 +277,7 @@ mod tests {
     }
 
     fn frame(source: GenerationIdentity, message: u32) -> PushFrame {
-        PushFrame { engine_epoch: source.engine_epoch, slot_id: source.slot_id,
+        PushFrame { receive_sequence: u64::from(message), engine_epoch: source.engine_epoch, slot_id: source.slot_id,
             generation: source.generation, connected_host: Arc::from("127.0.0.1:7709"),
             response: eltdx_protocol::frame::ResponseFrame { control: 1, msg_id: message,
                 msg_type: 0x0547, zip_length: 2, length: 2,

@@ -22,6 +22,7 @@ pub use client::{ClientBuilder, TdxClient};
 pub use config::ClientConfig;
 pub use operation::{CancellationToken, OperationOptions};
 pub use session::PinnedSession;
+pub use subscription::Subscription;
 pub use types::subscription::{GapPolicy, PushEvent, PushGap, SubscriptionOptions};
 pub use error::{Error, ErrorContext, ErrorKind, Result, TimeoutPhase};
 pub use types::batch::{
