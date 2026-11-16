@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第五十七段恢复点：F10响应基础已提交`c3fbe18`。本段接入共享惰性网关选择、Python请求准备/call/params、代码规范化和section检查；保留BRK.B→B、HK六位及Unicode、动态split_code/Request/JSON/_post钩子，HTTP上下文/逐请求计时/异常链未替换。新增8个Python函数（含参数化）及1个Rust路由用例源码未执行。157具名方法共享参数/路由编排仍待写，fields/model/helpers/manifest与T24–T30待完成；21/4/5，active无额度上限，全部执行验证延期。
+
 2026-11-17第五十六段恢复点：GBBQ/block/model已提交`eb9487a`。F10响应基础接入共享表/单元格遍历、列名选择和重复列冲突投影；Python保留原模型/解析钩子、falsey空值策略、原对象和任意精度ErrorCode，strict Rust保留限额与验证。新增10个Python及1个Rust源码用例均未执行。157入口参数/业务迁移、fields、F10模型业务和跨来源helpers仍待做，不提升manifest。整体21源码完整/4部分/5未开始；active无额度上限，全部执行验证延期。
 
 2026-11-17第五十五段恢复点：基础为`dcf2f3f`。GBBQ解密轮次、板块DAT/config布局与代码行规则、模型日期/key属性已接入共享Rust；Python保留顺序Struct异常、UTF-8异常、动态密钥/模型/Path与codec钩子，空自定义文件名跳过和原路径检查顺序。新增16个Python与3个Rust用例函数源码，全部未执行；新增offline-migration-index记录38函数/8模型及显式adapter范围。T23仍需全部F10、跨来源helpers和manifest，随后T24–T30；仍21源码完整/4部分/5未开始，active无额度上限，所有执行验证延期。

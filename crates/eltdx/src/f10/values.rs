@@ -232,7 +232,11 @@ fn digits(value: &str, size: usize) -> Result<()> {
     if value.len() != size || !value.bytes().all(|byte| byte.is_ascii_digit()) { return Err(invalid("F10 code has invalid ASCII digits or length")); } Ok(())
 }
 fn symbol(value: &str) -> Result<()> {
-    if !value.bytes().any(|byte| byte.is_ascii_alphanumeric()) || !value.bytes().all(|byte| byte.is_ascii_alphanumeric() || b".-_".contains(&byte)) {
+    let allowed = super::python_legacy::allowed_symbols(value.bytes().map(Ok),
+        |byte| Ok::<_, std::convert::Infallible>(byte.is_ascii_alphanumeric()),
+        |byte| Ok(b".-_".contains(byte)));
+    let allowed = match allowed { Ok(value) => value, Err(impossible) => match impossible {} };
+    if !value.bytes().any(|byte| byte.is_ascii_alphanumeric()) || !allowed {
         return Err(invalid("invalid F10 symbol"));
     } Ok(())
 }

@@ -1,6 +1,24 @@
 //! Shared F10 table traversal and projection policy. Python adapters retain
 //! dynamic object operations; native callers keep lossless typed cells.
 
+pub fn route_with<E>(ladder: impl FnOnce() -> Result<bool, E>,
+    international: impl FnOnce() -> Result<bool, E>, futures: impl FnOnce() -> Result<bool, E>) -> Result<super::Route, E>
+{
+    if ladder()? { Ok(super::Route::Ladder) }
+    else if international()? || futures()? { Ok(super::Route::International) }
+    else { Ok(super::Route::Static) }
+}
+
+pub fn allowed_symbols<T, E>(symbols: impl IntoIterator<Item = Result<T, E>>,
+    mut alphanumeric: impl FnMut(&T) -> Result<bool, E>, mut allowed: impl FnMut(&T) -> Result<bool, E>) -> Result<bool, E>
+{
+    for symbol in symbols {
+        let symbol = symbol?;
+        if !alphanumeric(&symbol)? && !allowed(&symbol)? { return Ok(false); }
+    }
+    Ok(true)
+}
+
 pub fn column_name(columns: &[String], index: usize) -> String {
     let value = column_name_with(|| Ok::<_, std::convert::Infallible>(index < columns.len()),
         || Ok(columns[index].clone()), |value| Ok(!value.is_empty()), || Ok(format!("col_{index}")));

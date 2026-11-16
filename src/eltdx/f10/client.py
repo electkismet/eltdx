@@ -128,15 +128,16 @@ class F10Client:
         encoded as ``{"Params": [...]}``, matching the CWServ convention.
         """
 
-        if body is not None and params is not None:
-            raise ValueError("pass either body or params, not both")
-        request_body = {"Params": list(params)} if params is not None else (body if body is not None else {})
-        return self._post(entry, request_body)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_call(self, entry, body, params, _MODULES[__name__])
 
     def params(self, entry: str, *params: Any) -> F10Response:
         """Call a CWServ Entry with a Params array."""
 
-        return self.call(entry, params=params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_params(self, entry, params)
 
     def limit_up_down_list(
         self,
@@ -2163,15 +2164,9 @@ class F10Client:
         return self.call("HQServ.hq_nlp_gpsj", [payload])
 
     def _post(self, entry: str, body: Any) -> F10Response:
-        if entry == LIMIT_BOARD_LADDER_ENTRY:
-            base_url = self.limit_board_ladder_base_url
-        elif entry.startswith(_MG_HK_ENTRY_PREFIXES) or entry.startswith(_QH_ENTRY_PREFIXES):
-            base_url = self.mg_hk_base_url
-        else:
-            base_url = self.base_url
-        url = f"{base_url}?{urlencode({'Entry': entry})}"
-        data = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        request = Request(url, data=data, headers=self.headers, method="POST")
+        from eltdx._native_abi import load_native
+
+        request = load_native().f10_prepare_request(self, entry, body, _MODULES[__name__])
         try:
             if self.prefer_ipv4:
                 with open_ipv4_first(request, timeout=self.timeout) as response:
@@ -2234,7 +2229,9 @@ def _row_dict(cells: Sequence[F10Cell]) -> dict[str, Any]:
 
 
 def _code6(code: str) -> str:
-    return split_code(code)[2]
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_code6(_MODULES[__name__], code)
 
 
 def _us_code(code: str) -> str:
@@ -2244,16 +2241,9 @@ def _us_code(code: str) -> str:
     美股代码含字母，可能带 ``-`` / ``.``（如 ``BRK-B``），不做长度强制。
     """
 
-    text = str(code).strip()
-    if "." in text:
-        text = text.split(".")[-1]
-    text = text.upper()
-    # 至少一个字母或数字（拒绝 "-" / "--" 这类纯符号），其余字符限字母数字与连字符
-    if not text or not any(c.isalnum() for c in text):
-        raise ProtocolError(f"invalid US code: {code!r}")
-    if not all(c.isalnum() or c == "-" for c in text):
-        raise ProtocolError(f"invalid US code: {code!r}")
-    return text
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_normalize_code(code, "us", _MODULES[__name__])
 
 
 def _hk_code(code: str) -> str:
@@ -2263,13 +2253,9 @@ def _hk_code(code: str) -> str:
     前导补零到 5 位。
     """
 
-    text = str(code).strip()
-    if "." in text:
-        text = text.split(".")[-1]
-    # 去前缀后必须全是数字（拒绝 "00700A" 这类混入字母的输入）
-    if not text.isdigit():
-        raise ProtocolError(f"invalid HK code: {code!r}")
-    return text.zfill(5)
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_normalize_code(code, "hk", _MODULES[__name__])
 
 
 def _bond_code(code: str) -> str:
@@ -2279,12 +2265,9 @@ def _bond_code(code: str) -> str:
     代码段高度重叠，如 ``110``/``113`` 沪深都有），仅取 6 位数字。
     """
 
-    text = str(code).strip()
-    if len(text) == 8 and text[:2] in MARKET_TO_ID:
-        text = text[2:]
-    if len(text) != 6 or not text.isdigit():
-        raise ProtocolError(f"invalid bond code: {code!r}")
-    return text
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_normalize_code(code, "bond", _MODULES[__name__])
 
 
 def _bond_sc(code: str) -> str:
@@ -2295,19 +2278,17 @@ def _bond_sc(code: str) -> str:
     前缀优先。
     """
 
-    text = str(code).strip().lower()
-    if len(text) == 8 and text[:2] in MARKET_TO_ID:
-        return "1" if text[:2] == "sh" else "0"
-    # 沪深重叠段（110/113/120/122/124 等）无法纯代码推断，默认沪市。
-    return "1"
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_normalize_code(code, "bond_market", _MODULES[__name__])
 
 
 def _require_section(section: str, valid: Sequence[str]) -> None:
     """Raise ``ValueError`` listing the valid ``section`` values."""
 
-    if section not in valid:
-        names = ", ".join(sorted(valid))
-        raise ValueError(f"unknown section: {section!r}; expected one of: {names}")
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_require_section(section, valid, _MODULES[__name__])
 
 
 def _section_request(
@@ -2316,8 +2297,9 @@ def _section_request(
 ) -> tuple[str, tuple[Any, ...]]:
     """Return the ``(entry, params)`` pair registered for ``section``."""
 
-    _require_section(section, tuple(table))
-    return table[section]
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_section_request(section, table, _MODULES[__name__])
 
 
 def _first_value(response: F10Response, field_name: str) -> Any | None:

@@ -229,6 +229,30 @@ extension hooks, not every monkeypatched Python builtin.
 Counts21/4/5; unlimited active goal. No tests, collection, builds, checks,
 dependency/network execution, format/AST validation, agents or publication.
 
+## Ninth checkpoint — F10 request preparation and identity adapters
+
+Base `c3fbe18`. Shared lazy route selection is used by Rust F10Config and
+Python request preparation; both prioritize ladder, then international, then
+futures prefixes. Python retains live prefix/constants/config/Request/JSON/
+urlencode hooks, original user-agent/header merge, UTF-8 compact body, custom
+call/_post dispatch and unchanged HTTP context managers. Request construction
+still precedes the HTTP exception block; wire timeout/HTTP/URL exception cause
+mapping and per-request timing remain Python's original behavior.
+
+Native identity adapters keep the actual Python str/Unicode operations,
+BRK.B→B legacy behavior, HK arbitrary digit lengths/zfill, case-sensitive bond
+number prefixes versus lowercase bond-market detection and live split_code.
+Only the symbol-allowance loop is shared with strict Rust; strict Rust identity
+types remain separately validated. Native section selection retains sorted
+error choices, table mapping hooks and the original exception type.
+
+Authored eight Python functions (several parameterized over identity/errors/
+routes) and one Rust lazy routing case; all unexecuted. This finishes request
+foundation only: named157 methods still need their actual shared route/argument
+composition and source-specific differences. Fields/model properties, helpers,
+manifest accounting and T24–T30 remain. Counts21/4/5, unlimited active goal;
+no tests/build/check/dependency/network/format/AST execution, agents/publication.
+
 ## Sixth checkpoint — append selection, alignment and last-record adapters
 
 Base `b28222c`. Shared constant-original-threshold filtering now serves strict

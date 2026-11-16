@@ -171,3 +171,117 @@ def test_f10_custom_mapping_access_and_raw_copy_stay_visible():
     assert response.raw == {"ResultSets": [], "ErrorCode": None}
     assert events[:2] == [("item", "ResultSets"), ("item", "ErrorCode")]
     assert "iter" in events
+
+
+def test_f10_call_and_params_keep_instance_overrides_and_original_body(monkeypatch):
+    client = f10.F10Client()
+    marker = object()
+    calls = []
+    monkeypatch.setattr(client, "_post", lambda entry, body: calls.append((entry, body)) or marker)
+    body = []
+    assert client.call("Example", body) is marker
+    assert calls[-1][1] is body
+    assert client.call("Example", params=(value for value in [1, 2])) is marker
+    assert calls[-1] == ("Example", {"Params": [1, 2]})
+    assert client.params("Example", 3, 4) is marker
+    assert calls[-1] == ("Example", {"Params": [3, 4]})
+    with pytest.raises(ValueError, match="pass either body or params, not both"):
+        client.call("Example", {}, params=[])
+    override = object()
+    monkeypatch.setattr(client, "call", lambda entry, *, params: calls.append((entry, params)) or override)
+    assert client.params("Other", 5) is override
+    assert calls[-1] == ("Other", (5,))
+
+
+@pytest.mark.parametrize("method,value,expected", [
+    ("_us_code", "BRK.B", "B"), ("_us_code", "us.brk-b", "BRK-B"),
+    ("_us_code", "74.中一", "中一"), ("_us_code", "ß", "SS"),
+    ("_hk_code", "hk.700", "00700"), ("_hk_code", "123456", "123456"),
+    ("_hk_code", "²", "0000²"), ("_bond_code", "bj123456", "123456"),
+    ("_bond_sc", "BJ123456", "0"), ("_bond_sc", "", "1"),
+])
+def test_f10_code_profiles_keep_python_unicode_and_legacy_rules(method, value, expected):
+    assert getattr(f10, method)(value) == expected
+
+
+@pytest.mark.parametrize("method,value,label", [
+    ("_us_code", "--", "US"), ("_us_code", "BRK B", "US"),
+    ("_hk_code", "hk.", "HK"), ("_bond_code", "SH123456", "bond"),
+])
+def test_f10_code_errors_keep_exact_original_repr(method, value, label):
+    with pytest.raises(f10.ProtocolError) as caught:
+        getattr(f10, method)(value)
+    assert str(caught.value) == f"invalid {label} code: {value!r}"
+
+
+def test_f10_code6_keeps_live_split_code_hook(monkeypatch):
+    marker = object()
+    monkeypatch.setattr(f10, "split_code", lambda code: (1, "sh", marker))
+    assert f10._code6("ignored") is marker
+
+
+def test_f10_section_error_sorted_choices_and_custom_selector_hook(monkeypatch):
+    with pytest.raises(ValueError) as caught:
+        f10._require_section("missing", ("b", "a"))
+    assert str(caught.value) == "unknown section: 'missing'; expected one of: a, b"
+    f10._require_section("a", ("b", "a"))
+    calls = []
+    marker = object()
+    table = {"custom": marker}
+    monkeypatch.setattr(f10, "_require_section", lambda section, valid: calls.append((section, valid)))
+    assert f10._section_request("custom", table) is marker
+    assert calls == [("custom", ("custom",))]
+
+
+@pytest.mark.parametrize("entry,target", [
+    ("CWServ.cfg_fx_lbtt", "ladder"), ("CWServ.skef10_mg_idreq", "international"),
+    ("CWServ.skef10_bond_zjzx", "international"), ("CWServ.qhf9_sp_kcbg_kcbg", "international"),
+    ("CWServ.test 中文", "ordinary"),
+])
+def test_f10_prepare_request_preserves_routes_json_and_http_timeout(monkeypatch, entry, target):
+    from io import BytesIO
+    from urllib.parse import urlencode
+
+    calls = []
+
+    def opener(request, *, timeout):
+        calls.append((request, timeout))
+        return BytesIO(b'{"ErrorCode":0,"ResultSets":[]}')
+
+    client = f10.F10Client(base_url="http://ordinary.test/TQLEX", limit_board_ladder_base_url="http://ladder.test/TQLEX",
+                           mg_hk_base_url="http://international.test/TQLEX", timeout=0.75)
+    monkeypatch.setattr(f10, "open_ipv4_first", opener)
+    result = client.call(entry, {"Params": ["中文", -1]})
+    request, timeout = calls[0]
+    assert request.full_url == f"http://{target}.test/TQLEX?{urlencode({'Entry': entry})}"
+    assert request.data == '{"Params":["中文",-1]}'.encode()
+    assert request.method == "POST"
+    assert timeout == 0.75
+    assert result.ok
+
+
+def test_f10_custom_request_builder_exception_is_not_http_wrapped(monkeypatch):
+    client = f10.F10Client()
+    failure = TimeoutError("builder")
+
+    def request(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr(f10, "Request", request)
+    with pytest.raises(TimeoutError) as caught:
+        client.params("Example")
+    assert caught.value is failure
+
+
+def test_f10_legacy_network_timeout_keeps_transport_error_cause(monkeypatch):
+    client = f10.F10Client()
+    failure = TimeoutError("wire")
+
+    def open_request(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr(f10, "open_ipv4_first", open_request)
+    with pytest.raises(f10.TransportError) as caught:
+        client.params("Example")
+    assert str(caught.value) == "TQLEX request timed out for Example"
+    assert caught.value.__cause__ is failure

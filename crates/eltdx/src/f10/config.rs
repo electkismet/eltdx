@@ -14,11 +14,12 @@ pub enum Route { Static, Ladder, International }
 impl Route {
     pub fn for_entry(entry: &EntryName) -> Self {
         let entry = entry.as_str();
-        if entry == "CWServ.cfg_fx_lbtt" { return Self::Ladder; }
-        if ["CWServ.skef10_mg_", "CWServ.skef10_hk_", "CWServ.skef10_sb_",
-            "CWServ.skef10_bond_", "CWServ.skef10_hy_", "CWServ.qhf9_"]
-            .iter().any(|prefix| entry.starts_with(prefix)) { return Self::International; }
-        Self::Static
+        let route = super::python_legacy::route_with(
+            || Ok::<_, std::convert::Infallible>(entry == "CWServ.cfg_fx_lbtt"),
+            || Ok(["CWServ.skef10_mg_", "CWServ.skef10_hk_", "CWServ.skef10_sb_",
+                "CWServ.skef10_bond_", "CWServ.skef10_hy_"].iter().any(|prefix| entry.starts_with(prefix))),
+            || Ok(entry.starts_with("CWServ.qhf9_")));
+        match route { Ok(route) => route, Err(impossible) => match impossible {} }
     }
     pub fn name(self) -> &'static str { match self { Self::Static => "static", Self::Ladder => "ladder", Self::International => "international" } }
 }
@@ -154,6 +155,19 @@ mod tests {
         assert_eq!(parameters.len(), 1);
         assert_eq!(parameters[0].0, "Entry");
         assert_eq!(parameters[0].1, "name with +&中文");
+        Ok(())
+    }
+
+    #[test]
+    fn shared_route_priority_is_lazy() -> Result<()> {
+        let value = super::super::python_legacy::route_with(|| Ok::<_, Error>(true),
+            || panic!("ladder must not inspect international prefixes"),
+            || panic!("ladder must not inspect futures prefixes"))?;
+        assert_eq!(value, Route::Ladder);
+        let value = super::super::python_legacy::route_with(|| Ok::<_, Error>(false),
+            || Ok(true), || panic!("international must not inspect futures prefixes"))?;
+        assert_eq!(value, Route::International);
+        assert_eq!(Route::for_entry(&EntryName::new("CWServ.qhf9_example")?), Route::International);
         Ok(())
     }
 }
