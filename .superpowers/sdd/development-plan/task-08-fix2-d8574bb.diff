@@ -1,0 +1,35 @@
+T08 fix round 2; base fc90734; head d8574bb; one source-case correction only.
+--- Commits ---
+d8574bb fix(sdk): use concrete reservation in clock regression source
+--- Stat ---
+ crates/eltdx/src/operation_tests.rs | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+--- Diff ---
+diff --git a/crates/eltdx/src/operation_tests.rs b/crates/eltdx/src/operation_tests.rs
+index 40fee9c..342e98b 100644
+--- a/crates/eltdx/src/operation_tests.rs
++++ b/crates/eltdx/src/operation_tests.rs
+@@ -203,21 +203,22 @@ fn owner_close_rechecks_at_start_and_refunds_reserved_attempt() {
+     closer.join().expect("closer").expect("confirmed owner close");
+ }
+ 
+ #[test]
+ fn shorter_attempt_deadline_is_rechecked_inside_admission_gate_and_refunds_both_scopes() {
+     let (_owner, operation) = context(2, OperationOptions::default());
+     let authorization = ChildAuthorization {
+         budget: Arc::clone(&operation.budget), purpose: ChildPurpose::EmptyProbe,
+         recovery: Some(RecoveryLimit { name: "short_slice", maximum: 1 }), rust_public: true,
+     };
+-    let reservation = authorization.reserve(1, None).expect("atomic local/global reservation");
++    let mut reservation = operation.budget.reserve(true, authorization.recovery, None)
++        .expect("atomic local/global reservation");
+     let deadline = Instant::now() + Duration::from_secs(1);
+     let observed = Instant::now();
+     let error = reservation.commit_with_clock(observed, Some(deadline), || deadline)
+         .expect_err("admission-lock wait consumes the shorter attempt window");
+     assert_eq!(error.kind(), ErrorKind::Timeout);
+     drop(reservation);
+     let counters = operation.counters().expect("counters");
+     assert_eq!(counters.extra_reserved, 0);
+     assert_eq!(counters.extra_started, 0);
+     assert_eq!(counters.wire_attempts, 0);

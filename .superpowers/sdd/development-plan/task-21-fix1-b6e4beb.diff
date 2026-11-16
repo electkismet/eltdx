@@ -1,0 +1,87 @@
+T21 fix round 1; base 9734db3; head b6e4beb; owned paths only.
+--- Commits ---
+b6e4beb fix(offline): reject empty customer block leaf names
+--- Stat ---
+ crates/eltdx/src/offline/block.rs    |  4 ++--
+ crates/eltdx/tests/offline_blocks.rs | 11 +++++++++--
+ 2 files changed, 11 insertions(+), 4 deletions(-)
+--- Diff ---
+diff --git a/crates/eltdx/src/offline/block.rs b/crates/eltdx/src/offline/block.rs
+index ab2aeb7..9782042 100644
+--- a/crates/eltdx/src/offline/block.rs
++++ b/crates/eltdx/src/offline/block.rs
+@@ -109,22 +109,22 @@ pub fn read_custom(dir: &Path, options: &ReadOptions) -> Result<ReadResult<Custo
+     let cfg = contained(&root, &root.join("blocknew.cfg"))?;
+     let mut budget = bars::ByteBudget::new(options);
+     let bytes = bars::load_with_budget(&cfg, options, &mut budget)?;
+     let mut rows = Vec::new();
+     let mut diagnostics = Vec::new();
+     for (index, record) in bytes.chunks_exact(120).enumerate() {
+         cancelled(options.cancel())?;
+         let name = decode_gbk(&record[..50]).split('\0').next().unwrap_or("").to_owned();
+         let leaf = decode_gbk(&record[50..]).split('\0').next().unwrap_or("").to_owned();
+         if leaf.is_empty() {
+-            diagnostics.push(diagnostic("customer_block", format!("row {index}: skipped empty block filename")));
+-            continue;
++            return Err(malformed("customer block filename must not be empty")
++                .with_context("record_index", context_value(index)));
+         }
+         if !safe_leaf(&leaf) {
+             return Err(malformed("customer block filename must be a safe leaf name")
+                 .with_context("record_index", context_value(index)));
+         }
+         let path = contained(&root, &root.join(format!("{leaf}.blk")))?;
+         let present = match std::fs::metadata(&path) {
+             Ok(metadata) => metadata.is_file(),
+             Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+             Err(error) => return Err(io_error("metadata", &path, error)),
+diff --git a/crates/eltdx/tests/offline_blocks.rs b/crates/eltdx/tests/offline_blocks.rs
+index cbd3b18..b78b303 100644
+--- a/crates/eltdx/tests/offline_blocks.rs
++++ b/crates/eltdx/tests/offline_blocks.rs
+@@ -69,36 +69,43 @@ fn incomplete_header_and_declared_record_are_errors_with_index() -> TestResult {
+     assert!(error.context().iter().any(|(key, value)| key == "record_index" && value == "1"));
+     Ok(())
+ }
+ 
+ #[test]
+ fn customer_gbk_utf8_lines_skips_and_total_byte_cap() -> TestResult {
+     let scratch = Scratch::new()?;
+     let mut config = cfg(&[0xd6, 0xd0, 0xce, 0xc4], b"first").to_vec();
+     config.extend_from_slice(&cfg(b"", b"second"));
+     config.extend_from_slice(&cfg(b"Missing", b"missing"));
+-    config.extend_from_slice(&cfg(b"Empty filename", b""));
+     config.extend_from_slice(&[1, 2]);
+     std::fs::write(scratch.0.join("blocknew.cfg"), &config)?;
+     let content = b" 0000001 \r\n1600000\n0\n\n0\xff\x1c 1abcdef \n";
+     std::fs::write(scratch.0.join("first.blk"), content)?;
+     std::fs::write(scratch.0.join("second.blk"), b"0000002")?;
+     let result = block::read_custom(&scratch.0, &ReadOptions::default())?;
+     assert_eq!(result.rows().len(), 1);
+     assert_eq!(result.rows()[0].blockname(), "中文");
+     assert_eq!(result.rows()[0].block_type(), "first");
+     assert_eq!(result.rows()[0].codes(), ["000001", "600000", "\u{fffd}", "abcdef"]);
+     assert_eq!(result.ignored_tail_bytes(), 2);
+-    assert_eq!(result.diagnostics().len(), 4);
++    assert_eq!(result.diagnostics().len(), 3);
+     let limit = config.len() as u64 + content.len() as u64;
+     assert!(block::read_custom(&scratch.0, &ReadOptions::default().with_max_bytes(limit)?).is_ok());
+     assert_eq!(block::read_custom(&scratch.0, &ReadOptions::default().with_max_bytes(limit - 1)?).err().map(|e| e.kind()), Some(ErrorKind::LimitExceeded));
++    let empty_leaf = scratch.0.join("blocknew.cfg");
++    std::fs::write(&empty_leaf, cfg(b"Empty filename", b""))?;
++    let error = match block::read_custom(&scratch.0, &ReadOptions::default()) {
++        Err(error) => error,
++        Ok(_) => return Err("expected empty customer-block filename rejection".into()),
++    };
++    assert_eq!(error.kind(), ErrorKind::ResourceFormat);
++    assert!(error.context().iter().any(|(key, value)| key == "record_index" && value == "0"));
+     Ok(())
+ }
+ 
+ #[test]
+ fn customer_rejects_nonleaf_names_and_cancelled_reads() -> TestResult {
+     let scratch = Scratch::new()?;
+     for leaf in [b".".as_slice(), b"..", b"../escape", b"sub/file", b"sub\\file", b"C:escape"] {
+         std::fs::write(scratch.0.join("blocknew.cfg"), cfg(b"Name", leaf))?;
+         assert_eq!(block::read_custom(&scratch.0, &ReadOptions::default()).err().map(|e| e.kind()), Some(ErrorKind::ResourceFormat));
+     }

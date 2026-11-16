@@ -1,0 +1,1816 @@
+Review base: b6e4beb Review head: 83540ec
+83540ec docs(ex): record T24 Stage A source checkpoint and integration seams
+1220bf2 feat(ex): author Stage A pure wire codecs and checked models
+ .../sdd/development-plan/task-24-report.md         | 110 ++++++
+ crates/eltdx/src/ex/commands.rs                    | 249 +++++++++++++
+ crates/eltdx/src/ex/config.rs                      | 132 +++++++
+ crates/eltdx/src/ex/frame.rs                       | 191 ++++++++++
+ crates/eltdx/src/ex/hosts.rs                       | 130 +++++++
+ crates/eltdx/src/ex/mod.rs                         |  24 ++
+ crates/eltdx/src/ex/models.rs                      | 239 ++++++++++++
+ crates/eltdx/src/ex/query.rs                       | 214 +++++++++++
+ crates/eltdx/src/ex/time.rs                        |  53 +++
+ crates/eltdx/tests/ex_wire.rs                      | 400 +++++++++++++++++++++
+ 10 files changed, 1742 insertions(+)
+diff --git a/.superpowers/sdd/development-plan/task-24-report.md b/.superpowers/sdd/development-plan/task-24-report.md
+new file mode 100644
+index 0000000..741a3b1
+--- /dev/null
++++ b/.superpowers/sdd/development-plan/task-24-report.md
+@@ -0,0 +1,110 @@
++# T24 Stage A source checkpoint report
++
++Status: **partial T24; Stage A authored, Stage B pending explicit controller GO.** This is not a completed T24, public-client implementation, successful build, or verified network implementation.
++
++Review base: controller-authorized `b6e4beb`. The shared worktree advanced while other authorized tasks wrote their own files; this task did not reset the branch or include their edits. Stage A code commit: `1220bf22da0171a1eff097a6e29b58a6e78e2a3f` (`feat(ex): author Stage A pure wire codecs and checked models`). Hooks were disabled for the exact-path commit.
++
++## Scope and files
++
++Only new owned code paths were authored:
++
++- `crates/eltdx/src/ex/mod.rs`: pure module organization and EX error context helpers; no owner/session facade.
++- `crates/eltdx/src/ex/query.rs`: checked market/code/identity/period/category and command-specific query values.
++- `crates/eltdx/src/ex/models.rs`: immutable raw/native DTOs, shared ResultMeta alias, raw projection, page result integration seam.
++- `crates/eltdx/src/ex/time.rs`: Gregorian/packed-minute/daily decoding, dated rollover, synthetic close provenance, TimeOfDay.
++- `crates/eltdx/src/ex/frame.rs`: fixed setup, 16-byte header, bounded exact zlib decode, incremental one-frame accumulator, association inputs, pure session sequence lease, explicit EX/MAC-EX profile choice.
++- `crates/eltdx/src/ex/commands.rs`: all eleven request encoders and response decoders.
++- `crates/eltdx/src/ex/hosts.rs`: numeric candidates, strict host parsing, probe/discovery values, immutable snapshots, pure ranking.
++- `crates/eltdx/src/ex/config.rs`: explicit config sources/load/save and immutable EX configuration.
++- `crates/eltdx/tests/ex_wire.rs`: unexecuted source cases.
++
++This report is the only additional task-owned documentation path. No Cargo manifest/lock, root lib, shared types, owner, operation, runtime, metadata, Python, controller progress, or status file was edited by this task. No session.rs or ex_session.rs was added because that would imply the Stage B transport surface.
++
++## Authority read
++
++Read task-24-brief first, `docs/rust-sdk/development-plan.md` T24, `extension-api-spec.md` sections 1 and 3, public owner/error contracts, existing operation admission and shared metadata/time/raw types. Read Python EX client, frame, hosts, datetime, enums, models, binary helpers, transport/sync, all eleven command classes, and `_bar_time.py`. Referenced existing protocol frame zlib checks as implementation evidence. No network evidence was acquired.
++
++The local skills instruction explicitly says dispatched subagents ignore using-superpowers. The task-specific no-execution and no-subagents instructions were followed. No subordinate agent was spawned.
++
++## Eleven-method source map
++
++The following are **codec functions**, not implemented ExClient network methods. Each uses immutable checked query inputs and outputs `Decoded<T>` for owner-supplied provenance.
++
++| Promised method | Query/default | Request / response source implementation | Response layout |
++| --- | --- | --- | --- |
++| markets | none | markets_request / decode_markets, 0x23f4 | u16 count + 64-byte rows; category+market zero padding skipped; wire count retained |
++| instrument_count | none | instrument_count_request / decode_instrument_count, 0x23f0 | u32 at byte 19; minimum 23 bytes |
++| instruments | start required, count 100 | instruments_request / decode_instruments, 0x23f5 | returned u32 offset+u16 count; 64-byte rows |
++| quote | id | quote_request / decode_quote, 0x23fa | 10-byte UTF-8 identity+4 unknown+136 known; strict minimum 150 |
++| quote_list | market, category HK/Futures, start 0, count 80 | quote_list_request / decode_quote_list, 0x2400 | u16 count+300-byte slots; category controls independent field schema, not request bytes |
++| bars | id, period, start 0, count 700, Start | bars_request / decode_bars, 0x23ff | 18 bytes+u16 count+32-byte rows |
++| bars_range | id, ascending start/end dates, Start only | bars_range_request / decode_bars_range, 0x240d | per-session 1..255 leased sequence; 12 bytes+u16 count+32-byte packed-minute rows |
++| minutes | id | minutes_request / decode_minutes, 0x240b | 10-byte identity+u16 count+18-byte rows |
++| history_minutes | id, date | history_minutes_request / decode_history_minutes, 0x240c | date precedes id in request; 18 bytes+u16 count+18-byte rows |
++| transactions | id, start 0, count 1800 | transactions_request / decode_transactions, 0x23fc | 14 bytes+u16 count+16-byte rows |
++| history_transactions | id, date, start 0, count 1800 | history_transactions_request / decode_history_transactions, 0x2406 | date precedes id; response same 16-byte header and record schema |
++
++All count setters reject zero and values above 65535 before encoding. Quote-list start is checked u16; transaction starts are checked against i32::MAX. Code is nonempty UTF-8, maximum nine **encoded bytes**, with NUL rejected; no `9s` truncation. Date constructors validate Gregorian values and the four-digit YYYYMMDD range. Known periods 0..11 are explicit; other u16 codes require Wire. Unknown periods have no derived End duration and decoding records a diagnostic for source-compatible date interpretation.
++
++## Management/config map and remaining implementation
++
++| Contract | Stage A | Stage B |
++| --- | --- | --- |
++| builder/build/config | ExConfig contains default 8s, raw Omit, candidates, auto_failover, frame limits, checked setters; construction is pure | ExClientBuilder and ExClient ownership, immutable config getter, lazy build |
++| connect/ensure_connected | fixed EX setup+pure response accumulator available | admission, connect, full setup response validation before Ready, idempotence |
++| close/disconnect | no replacement lifecycle state machine created | confirmed close, cancellation, cloned owned services, no reopen |
++| diagnostics/host/hosts/healthy/unhealthy | immutable DTOs and candidate ranking | owner snapshots; never present TCP success as DataReady |
++| from_best_host/discover | DiscoveryOptions max_workers<=8, probe default5s/DataReady | bounded concurrent probing+setup+markets sharing caller operation |
++| ping_all/probe_endpoints | ProbeOptions, HostProbe types | actual networking and limits under owner/operation |
++| refresh_hosts/refresh_endpoints | configuration/ranking helpers | owner-scoped candidate/exclusion refresh and cancellation |
++| config::server_file_path | explicit data directory joined with ex_servers.json | caller selects explicit directory; no hidden platform scan |
++| config::load_hosts | explicit > explicit environment snapshot/process opt-in > explicitly provided file > defaults | builder must never call automatically |
++| config::save_hosts | explicit file mutation only, unique sibling create_new+sync_all+rename, cleanup owned temporary | integration only; no automatic save |
++
++Configured empty/invalid host sources fail instead of falling back; an absent env or nonexistent optional file permits the next source. Config endpoints are numeric standard socket addresses (no DNS); a bounded resolver is a separate future seam if hostname support is required. Legacy file uses `hosts` bare addresses, schema_version=1; save rejects non-7727 addresses rather than lose port information. JSON source parsing is explicit. IPv6 is bracketed in saved bare-host strings. Snapshot names `PROBE_VERIFIED_EX_HOSTS` and defaults are historical candidates, not current health evidence.
++
++## Frame, profile and association evidence
++
++- Exactly 92 setup bytes copied from Python `_EX_SETUP_PKG`; explicit WireProfile::Ex chooses setup, WireProfile::MacEx does not. Nothing infers the profile from port.
++- Response header is exactly `<IIIHH>` (magic/sequence/method/u16 encoded/u16 decoded), and no parser reuses HQ header layout.
++- Length limits checked before body acquisition/allocation; local positive limits <=65535 may be smaller. Decompression allocates declared output+one detection byte, max65536. Equal lengths are the source-defined uncompressed case. Compressed case requires StreamEnd, all input consumed, exact declared output. Invalid zlib, trailing garbage, truncation and length bombs fail.
++- FrameAccumulator accepts only the current header/body and reports input bytes consumed; a coalesced next frame remains with its caller. It becomes unusable after push failure. Finish on an incomplete frame fails. This is pure source reasoning, not a socket test.
++- `ENCODED_MAGIC=7654321` is Python encode_header evidence only. Python production receive does not validate header association. Production magic/method/sequence rules and exceptions still require captures. Association accepts explicit expected fields and reports whether all were supplied; Stage B must derive them from evidence and issue unknown-rule diagnostics. Synthetic tests exercise mismatches but are **not production capture proof**.
++- RangeSequence is per-instance, atomic and excludes a second in-flight range lease, wraps255->1. The lease must be held until complete response or socket retirement. It does not serialize other command types or own retries/budgets; Stage B must keep one full request/reply gate for every command.
++
++## Native/raw/time preservation
++
++WireFloat stores exact u32 bits including NaN, infinities and negative zero; f32/f64 are views. No global /100, /1000 or lot conversion. Native prices/counts/quantity/amount slots retain Unknown unit/evidence until a market-specific source proves more.
++
++Instrument and market rows retain every one of64 bytes under Omit. Quote-list rows retain all300 bytes, including10-byte identity,140 named/unnamed payload bytes, and150-byte unused tail. Futures/HK schemas remain distinct. Five-level quote preserves all unknown slots and any extra tail even under Omit. Required scalars survive Omit; optional full row bytes for bars/minutes/transactions are Bytes slices under retention. project_raw reuses shared Bytes and row offsets in the existing RawData, validates ranges, and accepts caller remaining byte allowance without creating another budget or metadata type.
++
++Ordinary bar position u32 and amount-f32 are two views of the same bits; final slot remains uninterpreted. Range final slot is settlement with explicit RangeSettlement source; its position is not promoted into a fictitious amount. Packed date/year/minutes follow source; daily15:00 carries SyntheticClose provenance. End changes only known intraday durations, including actual date rollover, while preserving source_time. Range End is rejected. Minute/history-minute timestamps intentionally have no guessed date. Transaction second is direction%10000 and nature direction/10000; illegal seconds fail Protocol, keeping Python's legacy coercion-to-zero separate for T27.
++
++PageResult uses the shared ExtensionMeta alias and an internal checked construction seam. No codec chooses EndOfData or MoreAvailable from a short/empty row count. Decoded exposes actual wire_row_count and returned instrument offset for the owner's eventual page semantics, and filtered padding does not change consumed wire count. **The four-state page contract lacks an explicit Unknown/SinglePage completion value; controller must resolve representation of a successful short ordinary EX page without invented EOF or invented more-data evidence in Stage B.** Incomplete requires diagnostics and cannot silently become ordinary partial success.
++
++## Source cases authored; none executed
++
++`tests/ex_wire.rs` includes independent literal request goldens for all11 commands/defaults and nondefault boundary payloads; setup golden; every split position of header/body and two coalesced frames; strict association mismatches; invalid/truncated/trailing zlib/declared-length/cap cases; per-session range wrap and in-flight isolation; all command declared-row truncation and valid zero-count forms; quote unknown absence boundary; GBK+UTF8 replacement diagnostics; 64/300-byte retention and all futures/HK named slot offsets/native types; five levels; NaN/negative-zero; ordinary dual slot versus range settlement; daily/packed/Gregorian/bad minute/bad second/datetime rollover; raw sharing and caller allowance; host default/options/preference/invalid JSON/empty sources/explicit file roundtrip and overwrite source cases. hosts.rs also has an unexecuted pure ranking case.
++
++These are authored Rust source, not collected/compiled tests or actual fixtures captured from servers. No claim is made that tests pass. Real transport fragmented response, stale response after failure, transport-only failover, close/cancel during handshake/request, owner clone and no-reopen cases belong to Stage B/ex_session and were not authored against a nonexistent transport.
++
++## Self-review concerns and exact Stage B seams
++
++1. Add feature-gated root registration for ex and optional workspace-pinned **flate2 1.1.2** and **serde_json 1.0.145** direct dependencies (ex feature). Existing bytes and encoding_rs are already direct dependencies. Cargo/root files intentionally untouched. No compilation performed.
++2. Current RequestPermit::into_submission accepts HQ CommandRequest. Introduce/consume the coordinated T19 domain-neutral request descriptor or extraction hook, carrying EX command/profile/idempotence metadata, preserving shared AttemptAuthorization begin/start/refund exactly once per physical attempt. Do not synthesize HQ requests. OperationContext must carry one remaining deadline through connect/setup/send/receive/decode and owner cleanup. This task did not create another authorization/accounting design.
++3. Stage B owns independent lazy ExClient/Builder/service handles and SessionOwner-compatible lifecycle, full request/reply gate, socket retirement before retry, transport-only failover, endpoint exclusions, bounded discovery and cancellation/join. Parser errors must not trigger host hunting.
++4. Frame accumulator methods need to be driven with exact remaining-byte reads. Only mark Ready after setup finish validates the complete response. Hold SequenceLease across full range reply or confirmed retirement. Attach source/endpoint/session ID and association-unverified diagnostics through Decoded::with_meta.
++5. Public page completion evidence remains unresolved as above. Quote has no captured absence marker; decode_quote returns Some for a complete quote and Protocol for all currently unproved short forms. Add None only for an explicit independently supported absence response.
++6. Python futures tuple assignment has34 names for a35-slot140-byte format. Source-known fields are placed at sequential named offsets; unnamed slot34 and other unknown slots survive in slot_raw. A captured futures response and T27 compatibility decision are needed; do not claim old Python parser successful behavior for the inconsistent assignment.
++7. Config save uses Rust sync_all/rename; cross-platform replacement/failure behavior and file ACL equivalence have not been exercised. The source-only roundtrip case is intentionally unexecuted. Numeric-host-only Rust config and explicit data-directory API are intentional conservative boundaries, with hostname resolver behavior remaining an integration decision.
++8. Advanced codecs are pure; owner-controlled advanced exposure and visibility audit remain Stage B/T28. Root module is not registered, so these source paths currently do not expose a runnable public client.
++
++## Handoffs
++
++- T25: reuse EX Frame/FrameAccumulator/limits with explicit WireProfile::MacEx; perform MAC-EX login/auth in its own profile; no EX setup for MAC-EX. Share NativeUnit/WireFloat only where ownership and API decision support it, preserve independent market/identity semantics. MAC period8 differs from EX period8. No duplicate EX owner or budget.
++- T26: wire counts/ranges and returned offsets are available; apply explicit PageOptions and shared deadline for aggregates; do not treat ordinary short pages as EOF or sort/deduplicate them. Do not apply HQ units to EX. Confirm catalog and range metadata before changing semantics.
++- T27: separate legacy policy adapter needed for prefix parsers, absent short-quote behavior, invalid-second coercion, UTF8 request/GBK response specifics, historical15s timing, and legacy env/host defaults. No Python edits made.
++
++## No-execution statement
++
++No tests, test collection, cargo build/check/clippy, doctest, network probe, compilation, AST parsing, formatter, diff-check or equivalent validation ran. Only source reading/writing, ordinary source review, Git status/rev-parse, normal diff/stat viewing, exact staging and hooks-disabled commits occurred. Python was used only for literal source text edits, not importing/parsing/executing project code. This remains an uncompiled, unvalidated source checkpoint until the all-T01–T30 gate opens.
+diff --git a/crates/eltdx/src/ex/commands.rs b/crates/eltdx/src/ex/commands.rs
+new file mode 100644
+index 0000000..5170c88
+--- /dev/null
++++ b/crates/eltdx/src/ex/commands.rs
+@@ -0,0 +1,249 @@
++//! Eleven EX request/response codecs. No I/O, retries or implicit pagination.
++//! Layout authority: src/eltdx/ex/commands at the T24 review baseline.
++use bytes::Bytes;
++use encoding_rs::GBK;
++use crate::{Result, RawPolicy};
++use crate::types::{Diagnostic, EnrichmentStatus};
++use super::{models::*, query::*, protocol, time};
++
++#[derive(Clone, Debug)]
++pub struct Request { command: u16, wire: Bytes }
++impl Request {
++    pub const fn command(&self) -> u16 { self.command }
++    pub fn wire(&self) -> &Bytes { &self.wire }
++}
++fn request(header: [u8; 12], data: &[u8]) -> Request {
++    let command = u16::from_le_bytes([header[10], header[11]]);
++    let mut wire = Vec::with_capacity(12 + data.len());
++    wire.extend_from_slice(&header); wire.extend_from_slice(data);
++    Request { command, wire: wire.into() }
++}
++fn identity(id: &ExInstrumentId) -> Vec<u8> {
++    let mut body = Vec::with_capacity(10);
++    body.push(id.market().get()); body.extend_from_slice(&id.code().wire_bytes()); body
++}
++pub fn markets_request() -> Request { request([1,2,0x48,0x69,0,1,2,0,2,0,0xf4,0x23], &[]) }
++pub fn instrument_count_request() -> Request { request([1,3,0x48,0x66,0,1,2,0,2,0,0xf0,0x23], &[]) }
++pub fn instruments_request(query: &InstrumentsQuery) -> Request {
++    let mut body = query.start().to_le_bytes().to_vec(); body.extend_from_slice(&query.count().get().to_le_bytes());
++    request([1,4,0x48,0x67,0,1,8,0,8,0,0xf5,0x23], &body)
++}
++pub fn quote_request(query: &QuoteQuery) -> Request {
++    request([1,1,8,2,2,1,12,0,12,0,0xfa,0x23], &identity(query.id()))
++}
++pub fn quote_list_request(query: &QuoteListQuery) -> Request {
++    // Category affects response interpretation, not the source request layout.
++    let mut body = vec![query.market().get(), 0, 0];
++    body.extend_from_slice(&query.start().to_le_bytes()); body.extend_from_slice(&query.count().get().to_le_bytes());
++    body.extend_from_slice(&1_u16.to_le_bytes());
++    request([1,0xc1,6,0x0b,0,2,11,0,11,0,0,0x24], &body)
++}
++pub fn bars_request(query: &BarsQuery) -> Request {
++    let mut body = identity(query.id()); body.extend_from_slice(&query.period().wire().to_le_bytes());
++    body.extend_from_slice(&1_u16.to_le_bytes()); body.extend_from_slice(&query.start().to_le_bytes());
++    body.extend_from_slice(&query.count().get().to_le_bytes());
++    request([1,1,8,0x6a,1,1,22,0,22,0,0xff,0x23], &body)
++}
++pub fn bars_range_request(query: &BarsRangeQuery, sequence: &super::frame::SequenceLease<'_>) -> Request {
++    let mut body = identity(query.id()); body.extend_from_slice(&7_u16.to_le_bytes());
++    body.extend_from_slice(&encode_date(query.start_date()).to_le_bytes()); body.extend_from_slice(&encode_date(query.end_date()).to_le_bytes());
++    request([1,sequence.sequence(),0x38,0x92,0,1,22,0,22,0,0x0d,0x24], &body)
++}
++pub fn minutes_request(query: &MinutesQuery) -> Request {
++    request([1,7,8,0,1,1,12,0,12,0,0x0b,0x24], &identity(query.id()))
++}
++pub fn history_minutes_request(query: &HistoryMinutesQuery) -> Request {
++    let mut body = encode_date(query.date()).to_le_bytes().to_vec(); body.extend_from_slice(&identity(query.id()));
++    request([1,1,0x30,0,1,1,16,0,16,0,0x0c,0x24], &body)
++}
++pub fn transactions_request(query: &TransactionsQuery) -> Request {
++    let mut body = identity(query.id()); body.extend_from_slice(&query.start().to_le_bytes()); body.extend_from_slice(&query.count().get().to_le_bytes());
++    request([1,1,8,0,3,1,18,0,18,0,0xfc,0x23], &body)
++}
++pub fn history_transactions_request(query: &HistoryTransactionsQuery) -> Request {
++    let mut body = encode_date(query.date()).to_le_bytes().to_vec(); body.extend_from_slice(&identity(query.id()));
++    body.extend_from_slice(&query.start().to_le_bytes()); body.extend_from_slice(&query.count().get().to_le_bytes());
++    request([1,1,0x30,0,2,1,22,0,22,0,6,0x24], &body)
++}
++
++fn slice(data: &[u8], offset: usize, len: usize) -> Result<&[u8]> {
++    if data.len() > super::frame::WIRE_BODY_LIMIT {
++        return Err(crate::Error::new(crate::ErrorKind::LimitExceeded, "EX payload exceeds u16 wire limit").with_context("domain", "ex"));
++    }
++    data.get(offset..offset.checked_add(len).ok_or_else(|| protocol("EX offset overflow"))?)
++        .ok_or_else(|| protocol("truncated EX payload").with_context("offset", format!("{offset}")))
++}
++fn u16_at(data: &[u8], offset: usize) -> Result<u16> { let b = slice(data, offset, 2)?; Ok(u16::from_le_bytes([b[0], b[1]])) }
++fn u32_at(data: &[u8], offset: usize) -> Result<u32> { let b = slice(data, offset, 4)?; Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]])) }
++fn float_at(data: &[u8], offset: usize) -> Result<WireFloat> { Ok(WireFloat::from_bits(u32_at(data, offset)?)) }
++fn array<const N: usize>(data: &[u8], offset: usize) -> Result<[u8; N]> {
++    slice(data, offset, N)?.try_into().map_err(|_| protocol("EX fixed record length mismatch"))
++}
++fn counted(data: &[u8], header: usize, count_offset: usize, width: usize) -> Result<(u16, usize)> {
++    slice(data, 0, header)?;
++    let count = u16_at(data, count_offset)?;
++    let end = header.checked_add(usize::from(count).checked_mul(width).ok_or_else(|| protocol("EX row count overflow"))?)
++        .ok_or_else(|| protocol("EX row count overflow"))?;
++    slice(data, header, end - header)?;
++    Ok((count, end))
++}
++fn diagnostic(message: &str) -> Diagnostic {
++    Diagnostic::new("ex", "decode", EnrichmentStatus::Unavailable, None, Some(message.to_owned()))
++}
++fn text(raw: &[u8], gbk: bool, trim_leading: bool, diagnostics: &mut Vec<Diagnostic>) -> String {
++    let mut bytes = raw;
++    while bytes.last() == Some(&0) { bytes = &bytes[..bytes.len() - 1]; }
++    if trim_leading { while bytes.first() == Some(&0) { bytes = &bytes[1..]; } }
++    let (value, replaced) = if gbk {
++        let (value, _, replaced) = GBK.decode(bytes); (value.into_owned(), replaced)
++    } else {
++        let value = String::from_utf8_lossy(bytes);
++        let replaced = matches!(&value, std::borrow::Cow::Owned(_)); (value.into_owned(), replaced)
++    };
++    if replaced { diagnostics.push(diagnostic(if gbk { "GBK replacement decoding" } else { "UTF-8 replacement decoding" })); }
++    value
++}
++fn response_id(raw: [u8; 10], gbk: bool, trim_leading: bool, diagnostics: &mut Vec<Diagnostic>) -> ResponseIdentity {
++    ResponseIdentity { market: ExMarketId::from_wire(raw[0]), code: text(&raw[1..], gbk, trim_leading, diagnostics), raw }
++}
++fn finish<T>(value: T, mut diagnostics: Vec<Diagnostic>, ranges: Vec<(usize, usize)>, end: usize, len: usize) -> Decoded<T> {
++    if end < len { diagnostics.push(diagnostic("uninterpreted EX response trailer retained by payload policy")); }
++    Decoded { value, diagnostics, ranges, wire_row_count: None, response_offset: None }
++}
++pub fn decode_markets(body: Bytes) -> Result<Decoded<Vec<MarketInfo>>> {
++    let (count, end) = counted(&body, 2, 0, 64)?;
++    let mut rows = Vec::with_capacity(usize::from(count)); let mut diagnostics = Vec::new(); let mut ranges = Vec::new();
++    for index in 0..usize::from(count) {
++        let offset = 2 + index * 64; let raw: [u8; 64] = array(&body, offset)?;
++        // Source explicitly treats zero category + zero market as padding.
++        if raw[0] == 0 && raw[33] == 0 { continue; }
++        rows.push(MarketInfo { category: raw[0], market: ExMarketId::from_wire(raw[33]),
++            name: text(&raw[1..33], true, false, &mut diagnostics), short_name: text(&raw[34..36], true, false, &mut diagnostics), record_raw: raw });
++        ranges.push((offset, offset + 64));
++    }
++    Ok(finish(rows, diagnostics, ranges, end, body.len()).with_wire_page(count, None))
++}
++pub fn decode_instrument_count(body: Bytes) -> Result<Decoded<u32>> {
++    let value = u32_at(&body, 19)?;
++    Ok(finish(value, Vec::new(), Vec::new(), 23, body.len()))
++}
++pub fn decode_instruments(body: Bytes) -> Result<Decoded<Vec<InstrumentInfo>>> {
++    let (count, end) = counted(&body, 6, 4, 64)?;
++    let mut rows = Vec::with_capacity(usize::from(count)); let mut diagnostics = Vec::new(); let mut ranges = Vec::new();
++    for index in 0..usize::from(count) {
++        let offset = 6 + index * 64; let raw: [u8; 64] = array(&body, offset)?;
++        let mut id = [0; 10]; id[0] = raw[1]; id[1..].copy_from_slice(&raw[5..14]);
++        rows.push(InstrumentInfo { category: raw[0], id: response_id(id, true, false, &mut diagnostics),
++            name: text(&raw[14..31], true, false, &mut diagnostics), desc: text(&raw[31..40], true, false, &mut diagnostics), record_raw: raw });
++        ranges.push((offset, offset + 64));
++    }
++    Ok(finish(rows, diagnostics, ranges, end, body.len()).with_wire_page(count, Some(u32_at(&body, 0)?)))
++}
++pub fn decode_quote(body: Bytes, policy: RawPolicy) -> Result<Decoded<Option<Quote>>> {
++    // No captured absence marker exists. Even an empty body is not evidence of
++    // a missing instrument; keep it a strict protocol error until established.
++    slice(&body, 0, 150)?;
++    let mut diagnostics = Vec::new(); let id = response_id(array(&body, 0)?, false, false, &mut diagnostics);
++    let float = |slot: usize| -> Result<NativeNumber<WireFloat>> { Ok(NativeNumber::unknown(float_at(&body, 14 + slot * 4)?)) };
++    let integer = |slot: usize| -> Result<NativeNumber<u32>> { Ok(NativeNumber::unknown(u32_at(&body, 14 + slot * 4)?)) };
++    let level = |p: usize, v: usize| -> Result<BookLevel> { Ok(BookLevel { price: float(p)?, volume: integer(v)? }) };
++    let mut opaque = vec![Bytes::copy_from_slice(&body[10..14])];
++    for slot in [6, 9, 12] { opaque.push(Bytes::copy_from_slice(&body[14 + slot * 4..18 + slot * 4])); }
++    if body.len() > 150 { opaque.push(Bytes::copy_from_slice(&body[150..])); }
++    let quote = Quote { id, pre_close: float(0)?, open: float(1)?, high: float(2)?, low: float(3)?, price: float(4)?,
++        kaicang: integer(5)?, zongliang: integer(7)?, xianliang: integer(8)?, neipan: integer(10)?, waipan: integer(11)?, chicang: integer(13)?,
++        bid: [level(14,19)?,level(15,20)?,level(16,21)?,level(17,22)?,level(18,23)?],
++        ask: [level(24,29)?,level(25,30)?,level(26,31)?,level(27,32)?,level(28,33)?], opaque,
++        record_raw: optional_raw(&body, 0, body.len(), policy) };
++    Ok(finish(Some(quote), diagnostics, vec![(0,body.len())], body.len(), body.len()))
++}
++// (source name, 4-byte slot index, float interpretation). The Python futures
++// parser's unpack target has 34 names for a 35-slot format. Preserve the known
++// offsets without executing that inconsistent tuple assignment; slot 34 remains
++// opaque together with the other unnamed slots. All other slots are
++// still available byte-for-byte in QuoteListRow::slot_raw.
++const FUTURES: &[(&str, u8, bool)] = &[
++    ("BiShu",0,false),("ZuoJie",1,true),("JinKai",2,true),("ZuiGao",3,true),("ZuiDi",4,true),("MaiChu",5,true),
++    ("KaiCang",6,false),("ZongLiang",8,false),("XianLiang",9,false),("ZongJinE",10,true),
++    ("NeiPan",11,false),("WaiPan",12,false),("ChiCangLiang",14,false),("MaiRuJia",15,true),
++    ("MaiRuLiang",20,false),("MaiChuJia",25,true),("MaiChuLiang",30,false),
++];
++const HONG_KONG: &[(&str, u8, bool)] = &[
++    ("HuoYueDu",0,false),("ZuoShou",1,true),("JinKai",2,true),("ZuiGao",3,true),("ZuiDi",4,true),("XianJia",5,true),
++    ("MaiRuJia",7,true),("ZongLiang",8,false),("XianLiang",9,false),("ZongJinE",10,true),("Nei",13,false),("Wai",14,false),
++    ("MaiRuJia1",15,true),("MaiRuJia2",16,true),("MaiRuJia3",17,true),("MaiRuJia4",18,true),("MaiRuJia5",19,true),
++    ("MaiRuLiang1",20,false),("MaiRuLiang2",21,false),("MaiRuLiang3",22,false),("MaiRuLiang4",23,false),("MaiRuLiang5",24,false),
++    ("MaiChuJia1",25,true),("MaiChuJia2",26,true),("MaiChuJia3",27,true),("MaiChuJia4",28,true),("MaiChuJia5",29,true),
++    ("MaiChuLiang1",30,false),("MaiChuLiang2",31,false),("MaiChuLiang3",32,false),("MaiChuLiang4",33,false),("MaiChuLiang5",34,false),
++];
++pub fn decode_quote_list(body: Bytes, category: QuoteCategory) -> Result<Decoded<Vec<QuoteListRow>>> {
++    let (count, end) = counted(&body, 2, 0, 300)?;
++    let mut rows = Vec::with_capacity(usize::from(count)); let mut diagnostics = Vec::new(); let mut ranges = Vec::new();
++    let schema = match category { QuoteCategory::HongKong => HONG_KONG, QuoteCategory::Futures => FUTURES };
++    for index in 0..usize::from(count) {
++        let offset = 2 + index * 300; let raw: [u8; 300] = array(&body, offset)?;
++        let id = response_id(array(&raw, 0)?, true, true, &mut diagnostics);
++        let mut fields = Vec::with_capacity(schema.len());
++        for &(name, slot, is_float) in schema {
++            let bits = u32_at(&raw, 10 + usize::from(slot) * 4)?;
++            fields.push(NamedNativeField { name, slot, value: if is_float { NativeValue::Float(WireFloat::from_bits(bits)) } else { NativeValue::Unsigned(bits) }, meaning: FieldMeaning::unknown() });
++        }
++        rows.push(QuoteListRow { id, category, fields, slot_raw: raw }); ranges.push((offset,offset + 300));
++    }
++    Ok(finish(rows, diagnostics, ranges, end, body.len()).with_wire_page(count, None))
++}
++pub fn decode_bars(body: Bytes, query: &BarsQuery, policy: RawPolicy) -> Result<Decoded<Vec<Bar>>> {
++    decode_bar_records(body, 20, 18, query.period(), query.bar_time(), false, policy)
++}
++pub fn decode_bars_range(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Bar>>> {
++    decode_bar_records(body, 14, 12, ExPeriod::Minute1, BarTime::Start, true, policy)
++}
++fn decode_bar_records(body: Bytes, header: usize, count_offset: usize, period: ExPeriod, alignment: BarTime, range: bool, policy: RawPolicy) -> Result<Decoded<Vec<Bar>>> {
++    let (count, end) = counted(&body, header, count_offset, 32)?;
++    let mut rows = Vec::with_capacity(usize::from(count)); let mut ranges = Vec::new();
++    for index in 0..usize::from(count) {
++        let offset = header + index * 32;
++        let (clock, source_time, time_source) = time::bar_time(array(&body, offset)?, period, alignment)?;
++        rows.push(Bar { time: clock, source_time, time_source,
++            open: NativeNumber::unknown(float_at(&body,offset + 4)?), high: NativeNumber::unknown(float_at(&body,offset + 8)?),
++            low: NativeNumber::unknown(float_at(&body,offset + 12)?), close: NativeNumber::unknown(float_at(&body,offset + 16)?),
++            position_bits: u32_at(&body,offset + 20)?, trade: NativeNumber::unknown(u32_at(&body,offset + 24)?),
++            last_slot: float_at(&body,offset + 28)?, last_slot_source: if range { BarLastSlotSource::RangeSettlement } else { BarLastSlotSource::OrdinaryUninterpreted },
++            record_raw: optional_raw(&body,offset,offset + 32,policy) });
++        ranges.push((offset,offset + 32));
++    }
++    let diagnostics = if period.has_known_calendar_semantics() { Vec::new() } else {
++        vec![diagnostic("unknown explicit wire period: date layout follows the source decoder; time semantics remain unverified")]
++    };
++    Ok(finish(rows, diagnostics, ranges, end, body.len()).with_wire_page(count, None))
++}
++pub fn decode_minutes(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Minute>>> { decode_minute_records(body,12,10,policy) }
++pub fn decode_history_minutes(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Minute>>> { decode_minute_records(body,20,18,policy) }
++fn decode_minute_records(body: Bytes, header: usize, count_offset: usize, policy: RawPolicy) -> Result<Decoded<Vec<Minute>>> {
++    let (count,end) = counted(&body,header,count_offset,18)?;
++    let mut rows = Vec::with_capacity(usize::from(count)); let mut ranges = Vec::new();
++    for index in 0..usize::from(count) {
++        let offset = header + index * 18; let raw_time = u16_at(&body,offset)?;
++        rows.push(Minute { time: time::time_of_day(raw_time,0)?, raw_time,
++            price: NativeNumber::unknown(float_at(&body,offset + 2)?), avg_price: NativeNumber::unknown(float_at(&body,offset + 6)?),
++            volume: NativeNumber::unknown(u32_at(&body,offset + 10)?), open_interest: NativeNumber::unknown(u32_at(&body,offset + 14)?),
++            record_raw: optional_raw(&body,offset,offset + 18,policy) }); ranges.push((offset,offset + 18));
++    }
++    Ok(finish(rows, Vec::new(), ranges, end, body.len()).with_wire_page(count, None))
++}
++pub fn decode_transactions(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Transaction>>> { decode_transaction_records(body,policy) }
++pub fn decode_history_transactions(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Transaction>>> { decode_transaction_records(body,policy) }
++fn decode_transaction_records(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Transaction>>> {
++    let (count,end) = counted(&body,16,14,16)?;
++    let mut rows = Vec::with_capacity(usize::from(count)); let mut ranges = Vec::new();
++    for index in 0..usize::from(count) {
++        let offset = 16 + index * 16; let raw_time = u16_at(&body,offset)?; let direction = u16_at(&body,offset + 14)?;
++        // Rust rejects an invalid second instead of Python's legacy coercion to 0.
++        let clock = time::time_of_day(raw_time,direction % 10000)?;
++        rows.push(Transaction { time: clock, raw_time, direction_raw: direction,
++            price_raw: NativeNumber::unknown(u32_at(&body,offset + 2)?), volume: NativeNumber::unknown(u32_at(&body,offset + 6)?),
++            zengcang: NativeNumber::unknown(i32::from_le_bytes(array(&body,offset + 10)?)), nature: direction / 10000,
++            record_raw: optional_raw(&body,offset,offset + 16,policy) }); ranges.push((offset,offset + 16));
++    }
++    Ok(finish(rows,Vec::new(),ranges,end,body.len()).with_wire_page(count, None))
++}
+diff --git a/crates/eltdx/src/ex/config.rs b/crates/eltdx/src/ex/config.rs
+new file mode 100644
+index 0000000..ef21e19
+--- /dev/null
++++ b/crates/eltdx/src/ex/config.rs
+@@ -0,0 +1,132 @@
++//! Explicit local configuration loading. Construction never touches environment,
++//! disk, DNS or the network. Calling load_hosts is the explicit read boundary.
++use std::net::SocketAddr;
++use std::path::{Path, PathBuf};
++use std::time::Duration;
++use std::fs::{self, OpenOptions};
++use std::io::Write;
++use std::sync::atomic::{AtomicU64, Ordering};
++use crate::{Error, ErrorKind, RawPolicy, Result};
++use super::{hosts::{self, DEFAULT_EX_PORT, EX_HOSTS_ENV}, frame::FrameLimits, invalid};
++
++#[derive(Clone, Debug)]
++pub struct ExConfig { endpoints: Vec<SocketAddr>, timeout: Duration, raw: RawPolicy, auto_failover: bool, frame_limits: FrameLimits }
++impl Default for ExConfig {
++    fn default() -> Self { Self { endpoints: hosts::default_endpoints(), timeout: Duration::from_secs(8), raw: RawPolicy::Omit, auto_failover: true, frame_limits: FrameLimits::default() } }
++}
++impl ExConfig {
++    pub fn endpoints(&self) -> &[SocketAddr] { &self.endpoints }
++    pub const fn timeout(&self) -> Duration { self.timeout }
++    pub const fn raw(&self) -> RawPolicy { self.raw }
++    pub const fn auto_failover(&self) -> bool { self.auto_failover }
++    pub const fn frame_limits(&self) -> FrameLimits { self.frame_limits }
++    pub fn with_endpoints(mut self, value: Vec<SocketAddr>) -> Result<Self> { self.endpoints = validate_endpoints(value)?; Ok(self) }
++    pub fn with_timeout(mut self, value: Duration) -> Result<Self> {
++        if value.is_zero() { return Err(invalid("EX timeout must be positive")); } self.timeout = value; Ok(self)
++    }
++    pub fn with_raw(mut self, value: RawPolicy) -> Self { self.raw = value; self }
++    pub fn with_auto_failover(mut self, value: bool) -> Self { self.auto_failover = value; self }
++    pub fn with_frame_limits(mut self, value: FrameLimits) -> Self { self.frame_limits = value; self }
++}
++#[derive(Clone, Debug)]
++pub enum EnvironmentSource {
++    /// Do not read process environment.
++    Disabled,
++    /// Caller supplied snapshot, including absence.
++    Value(Option<String>),
++    /// Explicit opt-in to reading ELTDX_EX_HOSTS at load_hosts call time.
++    Process,
++}
++#[derive(Clone, Debug)]
++pub struct HostConfigSource { explicit: Option<Vec<SocketAddr>>, environment: EnvironmentSource, file: Option<PathBuf>, port: u16 }
++impl Default for HostConfigSource {
++    fn default() -> Self { Self { explicit: None, environment: EnvironmentSource::Disabled, file: None, port: DEFAULT_EX_PORT } }
++}
++impl HostConfigSource {
++    pub fn explicit(&self) -> Option<&[SocketAddr]> { self.explicit.as_deref() }
++    pub fn environment(&self) -> &EnvironmentSource { &self.environment }
++    pub fn file(&self) -> Option<&Path> { self.file.as_deref() }
++    pub const fn port(&self) -> u16 { self.port }
++    pub fn with_explicit(mut self, value: Vec<SocketAddr>) -> Result<Self> { self.explicit = Some(validate_endpoints(value)?); Ok(self) }
++    pub fn with_environment(mut self, value: EnvironmentSource) -> Self { self.environment = value; self }
++    pub fn with_file(mut self, value: impl Into<PathBuf>) -> Self { self.file = Some(value.into()); self }
++    pub fn with_port(mut self, value: u16) -> Result<Self> {
++        if value == 0 { return Err(invalid("EX port must be nonzero")); } self.port = value; Ok(self)
++    }
++}
++pub fn server_file_path(data_directory: impl AsRef<Path>) -> PathBuf { data_directory.as_ref().join(hosts::EX_SERVER_FILE) }
++fn validate_endpoints(values: Vec<SocketAddr>) -> Result<Vec<SocketAddr>> {
++    if values.is_empty() || values.iter().any(|value| value.port() == 0) { return Err(invalid("EX endpoints must be nonempty with nonzero ports")); }
++    let mut endpoints = Vec::with_capacity(values.len());
++    for endpoint in values { if !endpoints.contains(&endpoint) { endpoints.push(endpoint); } }
++    Ok(endpoints)
++}
++fn io_error(error: std::io::Error) -> Error { Error::new(ErrorKind::Io, "EX config I/O failed").with_context("domain", "ex").with_source(error) }
++fn config_error(message: &str) -> Error { Error::new(ErrorKind::InvalidArgument, message).with_context("domain", "ex").with_context("stage", "config") }
++pub fn parse_hosts_json(text: &str, port: u16) -> Result<Vec<SocketAddr>> {
++    let value: serde_json::Value = serde_json::from_str(text).map_err(|error| config_error("invalid EX config JSON").with_source(error))?;
++    let object = value.as_object().ok_or_else(|| config_error("EX config must be an object"))?;
++    let values = object.get("hosts").and_then(serde_json::Value::as_array).ok_or_else(|| config_error("EX config requires hosts array"))?;
++    let strings: Vec<&str> = values.iter().map(|value| value.as_str().ok_or_else(|| config_error("EX host must be a string"))).collect::<Result<_>>()?;
++    hosts::parse_hosts(strings, port)
++}
++pub fn load_hosts(source: &HostConfigSource) -> Result<Vec<SocketAddr>> {
++    if let Some(values) = &source.explicit { return validate_endpoints(values.clone()); }
++    let process = if matches!(&source.environment, EnvironmentSource::Process) {
++        match std::env::var(EX_HOSTS_ENV) {
++            Ok(value) => Some(value), Err(std::env::VarError::NotPresent) => None,
++            Err(error) => return Err(config_error("EX environment value is not Unicode").with_source(error)),
++        }
++    } else { None };
++    let value = match &source.environment {
++        EnvironmentSource::Disabled => None,
++        EnvironmentSource::Value(value) => value.as_deref(),
++        EnvironmentSource::Process => process.as_deref(),
++    };
++    if let Some(value) = value {
++        // A present but empty configured source is invalid, not a request to
++        // silently fall through to a lower-priority source.
++        return hosts::parse_hosts(value.split(|ch: char| ch == ',' || ch == ';' || ch.is_whitespace()).filter(|part| !part.is_empty()), source.port);
++    }
++    if let Some(path) = &source.file {
++        match fs::read_to_string(path) {
++            Ok(text) => return parse_hosts_json(&text, source.port),
++            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
++            Err(error) => return Err(io_error(error)),
++        }
++    }
++    hosts::parse_hosts(hosts::DEFAULT_EX_HOSTS.iter().copied(), source.port)
++}
++static SAVE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
++/// Explicit atomic replacement using a unique sibling file. Parent creation and
++/// mutation happen only here; source loading never writes. No shell is used.
++pub fn save_hosts(path: &Path, endpoints: &[SocketAddr]) -> Result<()> {
++    let endpoints = validate_endpoints(endpoints.to_vec())?;
++    let port = endpoints[0].port();
++    if port != DEFAULT_EX_PORT || endpoints.iter().any(|endpoint| endpoint.port() != DEFAULT_EX_PORT) {
++        return Err(invalid("legacy EX hosts file stores bare hosts only; saving requires port 7727"));
++    }
++    // Legacy file stores bare hosts, so the caller must load with the same port.
++    let values: Vec<String> = endpoints.iter().map(|endpoint| match endpoint.ip() {
++        std::net::IpAddr::V4(ip) => format!("{ip}"), std::net::IpAddr::V6(ip) => format!("[{ip}]"),
++    }).collect();
++    let mut bytes = serde_json::to_vec_pretty(&serde_json::json!({"schema_version": 1, "hosts": values}))
++        .map_err(|error| config_error("cannot encode EX hosts JSON").with_source(error))?;
++    bytes.push(b'\n');
++    let parent = path.parent().filter(|value| !value.as_os_str().is_empty()).unwrap_or_else(|| Path::new("."));
++    let name = path.file_name().ok_or_else(|| invalid("EX config path requires a file name"))?;
++    fs::create_dir_all(parent).map_err(io_error)?;
++    let suffix = SAVE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
++    let temporary = parent.join(format!(".{}.{}.{}.tmp", name.to_str().unwrap_or("ex-servers"), std::process::id(), suffix));
++    let mut created = false;
++    let result = (|| {
++        let mut output = OpenOptions::new().write(true).create_new(true).open(&temporary).map_err(io_error)?;
++        created = true;
++        output.write_all(&bytes).map_err(io_error)?; output.sync_all().map_err(io_error)?; drop(output);
++        fs::rename(&temporary, path).map_err(io_error)
++    })();
++    // Only remove the file this invocation created; create_new failure must not
++    // delete another writer's sibling temporary file.
++    if result.is_err() && created { let _ = fs::remove_file(&temporary); }
++    result
++}
+diff --git a/crates/eltdx/src/ex/frame.rs b/crates/eltdx/src/ex/frame.rs
+new file mode 100644
+index 0000000..5fbbc85
+--- /dev/null
++++ b/crates/eltdx/src/ex/frame.rs
+@@ -0,0 +1,191 @@
++//! EX framing without I/O. Caller must serialize the full request/reply and
++//! retire the connection after any framing failure before another operation.
++use std::sync::atomic::{AtomicU8, Ordering};
++use bytes::Bytes;
++use flate2::{Decompress, FlushDecompress, Status};
++use crate::{Error, ErrorKind, Result};
++use super::{invalid, protocol};
++
++pub const HEADER_SIZE: usize = 16;
++pub const WIRE_BODY_LIMIT: usize = u16::MAX as usize;
++/// Python's frame encoder constant. Production response acceptance is explicitly
++/// profile-selected; no response association capture is bundled in Stage A.
++pub const ENCODED_MAGIC: u32 = 7_654_321;
++pub const SETUP_REQUEST: [u8; 92] = [
++    0x01,0x01,0x48,0x65,0x00,0x01,0x52,0x00,0x52,0x00,0x54,0x24,
++    0x1f,0x32,0xc6,0xe5,0xd5,0x3d,0xfb,0x41,0x1f,0x32,0xc6,0xe5,0xd5,0x3d,0xfb,0x41,
++    0x1f,0x32,0xc6,0xe5,0xd5,0x3d,0xfb,0x41,0x1f,0x32,0xc6,0xe5,0xd5,0x3d,0xfb,0x41,
++    0x1f,0x32,0xc6,0xe5,0xd5,0x3d,0xfb,0x41,0x1f,0x32,0xc6,0xe5,0xd5,0x3d,0xfb,0x41,
++    0x1f,0x32,0xc6,0xe5,0xd5,0x3d,0xfb,0x41,0x1f,0x32,0xc6,0xe5,0xd5,0x3d,0xfb,0x41,
++    0xcc,0xe1,0x6d,0xff,0xd5,0xba,0x3f,0xb8,0xcb,0xc5,0x7a,0x05,0x4f,0x77,0x48,0xea,
++];
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub struct FrameHeader { magic: u32, sequence: u32, method: u32, compressed_len: u16, decoded_len: u16 }
++impl FrameHeader {
++    pub const fn new(magic: u32, sequence: u32, method: u32, compressed_len: u16, decoded_len: u16) -> Self {
++        Self { magic, sequence, method, compressed_len, decoded_len }
++    }
++    pub fn parse(raw: &[u8]) -> Result<Self> {
++        if raw.len() != HEADER_SIZE { return Err(protocol("EX header must contain exactly 16 bytes")); }
++        Ok(Self {
++            magic: u32::from_le_bytes([raw[0],raw[1],raw[2],raw[3]]),
++            sequence: u32::from_le_bytes([raw[4],raw[5],raw[6],raw[7]]),
++            method: u32::from_le_bytes([raw[8],raw[9],raw[10],raw[11]]),
++            compressed_len: u16::from_le_bytes([raw[12],raw[13]]), decoded_len: u16::from_le_bytes([raw[14],raw[15]]),
++        })
++    }
++    pub fn encode(self) -> [u8; HEADER_SIZE] {
++        let mut output = [0; HEADER_SIZE];
++        output[0..4].copy_from_slice(&self.magic.to_le_bytes());
++        output[4..8].copy_from_slice(&self.sequence.to_le_bytes());
++        output[8..12].copy_from_slice(&self.method.to_le_bytes());
++        output[12..14].copy_from_slice(&self.compressed_len.to_le_bytes());
++        output[14..16].copy_from_slice(&self.decoded_len.to_le_bytes()); output
++    }
++    pub const fn magic(self) -> u32 { self.magic }
++    pub const fn sequence(self) -> u32 { self.sequence }
++    pub const fn method(self) -> u32 { self.method }
++    pub const fn compressed_len(self) -> u16 { self.compressed_len }
++    pub const fn decoded_len(self) -> u16 { self.decoded_len }
++    pub fn frame_len(self) -> usize { HEADER_SIZE + usize::from(self.compressed_len) }
++}
++#[derive(Clone, Copy, Debug)]
++pub struct FrameLimits { max_encoded: u16, max_decoded: u16 }
++impl Default for FrameLimits { fn default() -> Self { Self { max_encoded: u16::MAX, max_decoded: u16::MAX } } }
++impl FrameLimits {
++    pub fn new(max_encoded: usize, max_decoded: usize) -> Result<Self> {
++        if max_encoded == 0 || max_decoded == 0 { return Err(invalid("EX frame limits must be positive")); }
++        Ok(Self { max_encoded: u16::try_from(max_encoded).map_err(|_| invalid("EX encoded cap exceeds wire limit"))?,
++            max_decoded: u16::try_from(max_decoded).map_err(|_| invalid("EX decoded cap exceeds wire limit"))? })
++    }
++    pub const fn max_encoded(self) -> u16 { self.max_encoded }
++    pub const fn max_decoded(self) -> u16 { self.max_decoded }
++    pub fn validate(self, header: FrameHeader) -> Result<()> {
++        if header.compressed_len > self.max_encoded || header.decoded_len > self.max_decoded {
++            return Err(Error::new(ErrorKind::LimitExceeded, "EX frame exceeds configured cap").with_context("domain", "ex"));
++        }
++        Ok(())
++    }
++}
++/// Caller-selected, evidence-backed association expectations. None records an
++/// unverified rule; it is never silently advertised as verified response matching.
++#[derive(Clone, Copy, Debug, Default)]
++pub struct Association { magic: Option<u32>, sequence: Option<u32>, method: Option<u32> }
++impl Association {
++    pub const fn new(magic: Option<u32>, sequence: Option<u32>, method: Option<u32>) -> Self { Self { magic, sequence, method } }
++    pub const fn magic(self) -> Option<u32> { self.magic }
++    pub const fn sequence(self) -> Option<u32> { self.sequence }
++    pub const fn method(self) -> Option<u32> { self.method }
++    pub const fn is_fully_verified(self) -> bool { self.magic.is_some() && self.sequence.is_some() && self.method.is_some() }
++    pub fn validate(self, header: FrameHeader) -> Result<()> {
++        if self.magic.is_some_and(|value| value != header.magic)
++            || self.sequence.is_some_and(|value| value != header.sequence)
++            || self.method.is_some_and(|value| value != header.method) {
++            return Err(protocol("EX response association mismatch"));
++        }
++        Ok(())
++    }
++}
++#[derive(Clone, Debug)]
++pub struct Frame { header: FrameHeader, payload: Bytes, wire: Bytes, association_verified: bool }
++impl Frame {
++    pub const fn header(&self) -> FrameHeader { self.header }
++    pub fn payload(&self) -> &Bytes { &self.payload }
++    pub fn wire(&self) -> &Bytes { &self.wire }
++    pub const fn association_verified(&self) -> bool { self.association_verified }
++    pub fn decode(wire: Bytes, limits: FrameLimits, association: Association) -> Result<Self> {
++        if wire.len() < HEADER_SIZE { return Err(protocol("truncated EX header")); }
++        let header = FrameHeader::parse(&wire[..HEADER_SIZE])?;
++        limits.validate(header)?; association.validate(header)?;
++        if wire.len() != header.frame_len() { return Err(protocol("EX frame body length mismatch")); }
++        let payload = decode_body(header, wire.slice(HEADER_SIZE..), limits)?;
++        Ok(Self { header, payload, wire, association_verified: association.is_fully_verified() })
++    }
++}
++pub fn decode_body(header: FrameHeader, encoded: Bytes, limits: FrameLimits) -> Result<Bytes> {
++    limits.validate(header)?;
++    if encoded.len() != usize::from(header.compressed_len) { return Err(protocol("EX encoded body length mismatch")); }
++    let size = usize::from(header.decoded_len);
++    if header.compressed_len == header.decoded_len { return Ok(encoded); }
++    // One spare byte detects a stream that produces more than its declared size.
++    // Allocation is bounded by 65536, including that detection byte.
++    let mut output = vec![0; size + 1];
++    let mut decoder = Decompress::new(true);
++    let status = decoder.decompress(&encoded, &mut output, FlushDecompress::Finish)
++        .map_err(|error| protocol("invalid EX zlib body").with_source(error))?;
++    if status != Status::StreamEnd || decoder.total_in() != encoded.len() as u64 || decoder.total_out() != size as u64 {
++        return Err(protocol("EX zlib stream EOF, trailing data or declared length mismatch"));
++    }
++    output.truncate(size); Ok(Bytes::from(output))
++}
++/// Incremental one-frame accumulator. push consumes only bytes belonging to this
++/// frame and reports that count, so coalesced next-frame bytes stay with caller.
++#[derive(Debug)]
++pub struct FrameAccumulator { raw: Vec<u8>, header: Option<FrameHeader>, limits: FrameLimits, association: Association, failed: bool }
++impl FrameAccumulator {
++    pub fn new(limits: FrameLimits, association: Association) -> Self {
++        Self { raw: Vec::with_capacity(HEADER_SIZE), header: None, limits, association, failed: false }
++    }
++    pub fn push(&mut self, input: &[u8]) -> Result<usize> {
++        if self.failed { return Err(protocol("EX accumulator is retired after failure")); }
++        let result = self.push_inner(input);
++        if result.is_err() { self.failed = true; }
++        result
++    }
++    fn push_inner(&mut self, input: &[u8]) -> Result<usize> {
++        let mut used = 0;
++        if self.header.is_none() {
++            used = input.len().min(HEADER_SIZE - self.raw.len());
++            self.raw.extend_from_slice(&input[..used]);
++            if self.raw.len() < HEADER_SIZE { return Ok(used); }
++            let header = FrameHeader::parse(&self.raw)?;
++            self.limits.validate(header)?; self.association.validate(header)?;
++            self.header = Some(header);
++        }
++        if let Some(header) = self.header {
++            let count = (input.len() - used).min(header.frame_len() - self.raw.len());
++            self.raw.extend_from_slice(&input[used..used + count]); used += count;
++        }
++        Ok(used)
++    }
++    pub fn remaining(&self) -> usize {
++        self.header.map_or(HEADER_SIZE, FrameHeader::frame_len).saturating_sub(self.raw.len())
++    }
++    /// EOF before completion is a protocol failure. A successful finish validates
++    /// compressed setup responses exactly like business responses.
++    pub fn finish(self) -> Result<Frame> {
++        if self.failed { return Err(protocol("EX accumulator is retired after failure")); }
++        Frame::decode(Bytes::from(self.raw), self.limits, self.association)
++    }
++}
++/// One atomic counter per owner session. Holding a lease prevents a second range
++/// request from allocating a sequence while one is in flight; transport still
++/// owns the single full-execution gate for all commands.
++#[derive(Debug)]
++pub struct RangeSequence { next: AtomicU8, in_flight: std::sync::atomic::AtomicBool }
++impl Default for RangeSequence {
++    fn default() -> Self { Self { next: AtomicU8::new(1), in_flight: std::sync::atomic::AtomicBool::new(false) } }
++}
++impl RangeSequence {
++    pub fn acquire(&self) -> Result<SequenceLease<'_>> {
++        self.in_flight.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
++            .map_err(|_| Error::new(ErrorKind::PoolBusy, "EX range sequence already in flight").with_context("domain", "ex"))?;
++        let sequence = self.next.load(Ordering::Relaxed);
++        self.next.store(if sequence == 255 { 1 } else { sequence + 1 }, Ordering::Relaxed);
++        Ok(SequenceLease { owner: self, sequence })
++    }
++}
++#[derive(Debug)]
++pub struct SequenceLease<'a> { owner: &'a RangeSequence, sequence: u8 }
++impl SequenceLease<'_> { pub const fn sequence(&self) -> u8 { self.sequence } }
++impl Drop for SequenceLease<'_> { fn drop(&mut self) { self.owner.in_flight.store(false, Ordering::Release); } }
++
++/// A protocol choice is supplied by the owner, never inferred from endpoint
++/// port 7727. MAC-EX owns its login/body rules in T25; it may reuse EX framing.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum WireProfile { Ex, MacEx }
++impl WireProfile {
++    pub const fn setup_request(self) -> Option<&'static [u8]> {
++        match self { Self::Ex => Some(&SETUP_REQUEST), Self::MacEx => None }
++    }
++}
+diff --git a/crates/eltdx/src/ex/hosts.rs b/crates/eltdx/src/ex/hosts.rs
+new file mode 100644
+index 0000000..ae1b504
+--- /dev/null
++++ b/crates/eltdx/src/ex/hosts.rs
+@@ -0,0 +1,130 @@
++//! Source snapshots, not live health evidence. No network work in this module.
++use std::net::{IpAddr, SocketAddr};
++use std::time::Duration;
++use std::num::NonZeroUsize;
++use crate::Result;
++use super::invalid;
++
++pub const DEFAULT_EX_PORT: u16 = 7727;
++pub const EX_HOSTS_ENV: &str = "ELTDX_EX_HOSTS";
++pub const EX_SERVER_FILE: &str = "ex_servers.json";
++pub const KNOWN_EX_HOSTS: &[&str] = &[
++    "112.74.214.43","120.25.218.6","43.139.173.246","159.75.90.107",
++    "106.52.170.195","139.9.191.175","175.24.47.69","150.158.9.199",
++    "150.158.20.127","49.235.119.116","49.234.13.160","116.205.143.214",
++    "124.71.223.19","113.45.175.47","123.60.173.210","118.89.69.202",
++];
++pub const PROBE_VERIFIED_EX_HOSTS: &[&str] = &["150.158.20.127"];
++pub const DEFAULT_EX_HOSTS: &[&str] = &[
++    "150.158.20.127","112.74.214.43","120.25.218.6","43.139.173.246",
++    "159.75.90.107","106.52.170.195","139.9.191.175","175.24.47.69",
++    "150.158.9.199","49.235.119.116","49.234.13.160","116.205.143.214",
++    "124.71.223.19","113.45.175.47","123.60.173.210","118.89.69.202",
++];
++pub const MAC_EX_HOSTS: &[&str] = &["116.205.135.205","121.37.232.167"];
++
++pub fn default_endpoints() -> Vec<SocketAddr> {
++    // Numeric bytes mirror DEFAULT_EX_HOSTS in order; no parser, DNS or silent
++    // filter can remove a configured default candidate.
++    [
++        [150,158,20,127],[112,74,214,43],[120,25,218,6],[43,139,173,246],
++        [159,75,90,107],[106,52,170,195],[139,9,191,175],[175,24,47,69],
++        [150,158,9,199],[49,235,119,116],[49,234,13,160],[116,205,143,214],
++        [124,71,223,19],[113,45,175,47],[123,60,173,210],[118,89,69,202],
++    ].into_iter().map(|address| SocketAddr::from((address, DEFAULT_EX_PORT))).collect()
++}
++/// Config hosts are bare numeric addresses; port is supplied separately. Unlike
++/// the legacy Python hostname path, Rust has no implicit unbounded resolver.
++pub fn parse_hosts<'a>(values: impl IntoIterator<Item = &'a str>, port: u16) -> Result<Vec<SocketAddr>> {
++    if port == 0 { return Err(invalid("EX port must be nonzero")); }
++    let mut endpoints = Vec::new();
++    for value in values {
++        let host = value.trim();
++        let address = if host.starts_with('[') && host.ends_with(']') {
++            host[1..host.len()-1].parse::<IpAddr>()
++        } else { host.parse::<IpAddr>() }.map_err(|_| invalid("EX host must be a bare numeric IP; configure a bounded resolver separately"))?;
++        let endpoint = SocketAddr::new(address, port);
++        if !endpoints.contains(&endpoint) { endpoints.push(endpoint); }
++    }
++    if endpoints.is_empty() { return Err(invalid("configured EX host list is empty")); }
++    Ok(endpoints)
++}
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum ProbeMode { TcpOnly, DataReady }
++#[derive(Clone, Copy, Debug)]
++pub struct ProbeOptions { timeout: Duration, mode: ProbeMode }
++impl Default for ProbeOptions { fn default() -> Self { Self { timeout: Duration::from_secs(5), mode: ProbeMode::DataReady } } }
++impl ProbeOptions {
++    pub const fn timeout(self) -> Duration { self.timeout }
++    pub const fn mode(self) -> ProbeMode { self.mode }
++    pub fn with_timeout(mut self, value: Duration) -> Result<Self> {
++        if value.is_zero() { return Err(invalid("EX probe timeout must be positive")); } self.timeout = value; Ok(self)
++    }
++    pub fn with_mode(mut self, value: ProbeMode) -> Self { self.mode = value; self }
++}
++#[derive(Clone, Copy, Debug)]
++pub struct DiscoveryOptions { max_workers: NonZeroUsize, probe: ProbeOptions }
++impl Default for DiscoveryOptions {
++    fn default() -> Self { Self { max_workers: NonZeroUsize::new(8).unwrap_or(NonZeroUsize::MIN), probe: ProbeOptions::default() } }
++}
++impl DiscoveryOptions {
++    pub const fn max_workers(self) -> NonZeroUsize { self.max_workers }
++    pub const fn probe(self) -> ProbeOptions { self.probe }
++    pub fn with_max_workers(mut self, value: NonZeroUsize) -> Result<Self> {
++        if value.get() > 8 { return Err(invalid("EX discovery max_workers exceeds 8")); } self.max_workers = value; Ok(self)
++    }
++    pub fn with_probe(mut self, value: ProbeOptions) -> Self { self.probe = value; self }
++}
++
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum ProbeStatus { Ready, Failed }
++#[derive(Clone, Debug)]
++pub struct HostProbe { endpoint: SocketAddr, latency: Option<Duration>, status: ProbeStatus, error_kind: Option<crate::ErrorKind> }
++impl HostProbe {
++    /// A successful DataReady result may be constructed only after the selected
++    /// profile handshake and markets response complete in Stage B.
++    pub(crate) fn new(endpoint: SocketAddr, latency: Option<Duration>, status: ProbeStatus, error_kind: Option<crate::ErrorKind>) -> Self {
++        Self { endpoint, latency, status, error_kind }
++    }
++    pub const fn endpoint(&self) -> SocketAddr { self.endpoint }
++    pub const fn latency(&self) -> Option<Duration> { self.latency }
++    pub const fn status(&self) -> ProbeStatus { self.status }
++    pub const fn error_kind(&self) -> Option<crate::ErrorKind> { self.error_kind }
++}
++#[derive(Clone, Debug)]
++pub struct DiagnosticSnapshot { active_endpoint: Option<SocketAddr>, candidates: Vec<SocketAddr>, probes: Vec<HostProbe> }
++impl DiagnosticSnapshot {
++    pub(crate) fn new(active_endpoint: Option<SocketAddr>, candidates: Vec<SocketAddr>, probes: Vec<HostProbe>) -> Self {
++        Self { active_endpoint, candidates, probes }
++    }
++    pub const fn active_endpoint(&self) -> Option<SocketAddr> { self.active_endpoint }
++    pub fn candidates(&self) -> &[SocketAddr] { &self.candidates }
++    pub fn probes(&self) -> &[HostProbe] { &self.probes }
++}
++/// Stable latency ordering; failed/unprobed candidates remain in original order.
++/// This is pure ranking and cannot promote unprobed endpoints to Ready.
++pub fn rank_endpoints(candidates: &[SocketAddr], probes: &[HostProbe]) -> Vec<SocketAddr> {
++    let mut ready: Vec<&HostProbe> = probes.iter().filter(|probe|
++        probe.status == ProbeStatus::Ready && probe.latency.is_some() && candidates.contains(&probe.endpoint)).collect();
++    ready.sort_by_key(|probe| probe.latency);
++    let mut result = Vec::with_capacity(candidates.len());
++    for probe in ready { if !result.contains(&probe.endpoint) { result.push(probe.endpoint); } }
++    for &endpoint in candidates { if !result.contains(&endpoint) { result.push(endpoint); } }
++    result
++}
++
++#[cfg(test)]
++mod source_cases {
++    use super::*;
++    #[test]
++    fn ranking_is_stable_and_does_not_promote_failed_or_unprobed_candidates() -> Result<()> {
++        let candidates = parse_hosts(["127.0.0.1","127.0.0.2","127.0.0.3","127.0.0.4"],7727)?;
++        let probes = vec![
++            HostProbe::new(candidates[1],Some(Duration::from_millis(9)),ProbeStatus::Ready,None),
++            HostProbe::new(candidates[2],Some(Duration::from_millis(9)),ProbeStatus::Ready,None),
++            HostProbe::new(candidates[0],None,ProbeStatus::Failed,Some(crate::ErrorKind::Connection)),
++        ];
++        assert_eq!(rank_endpoints(&candidates,&probes),vec![candidates[1],candidates[2],candidates[0],candidates[3]]);
++        Ok(())
++    }
++}
+diff --git a/crates/eltdx/src/ex/mod.rs b/crates/eltdx/src/ex/mod.rs
+new file mode 100644
+index 0000000..839d6ea
+--- /dev/null
++++ b/crates/eltdx/src/ex/mod.rs
+@@ -0,0 +1,24 @@
++//! Pure EX identities, query validation and wire codecs.
++//!
++//! This module contains no socket, owner, automatic configuration loading or
++//! retries. Registration and operation-aware transport belong to T24 Stage B.
++pub mod commands;
++pub mod config;
++pub mod frame;
++pub mod hosts;
++pub mod models;
++pub mod query;
++pub mod time;
++
++pub use models::*;
++pub use query::*;
++pub use time::TimeOfDay;
++
++use crate::{Error, ErrorKind};
++
++pub(crate) fn invalid(message: impl Into<String>) -> Error {
++    Error::new(ErrorKind::InvalidArgument, message).with_context("domain", "ex")
++}
++pub(crate) fn protocol(message: impl Into<String>) -> Error {
++    Error::new(ErrorKind::Protocol, message).with_context("domain", "ex")
++}
+diff --git a/crates/eltdx/src/ex/models.rs b/crates/eltdx/src/ex/models.rs
+new file mode 100644
+index 0000000..614c485
+--- /dev/null
++++ b/crates/eltdx/src/ex/models.rs
+@@ -0,0 +1,239 @@
++//! Loss-preserving response values. Required opaque bytes survive RawPolicy::Omit.
++use bytes::Bytes;
++use crate::types::{Diagnostic, RawData, RawPolicy, ResultMeta, SourceStamp};
++use crate::EventTime;
++use super::query::{ExMarketId, QuoteCategory};
++
++pub type ExtensionMeta = ResultMeta;
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub struct WireFloat { bits: u32 }
++impl WireFloat {
++    pub const fn from_bits(bits: u32) -> Self { Self { bits } }
++    pub const fn bits(self) -> u32 { self.bits }
++    pub fn as_f32(self) -> f32 { f32::from_bits(self.bits) }
++    pub fn as_f64(self) -> f64 { f64::from(self.as_f32()) }
++}
++#[derive(Clone, Debug, Eq, PartialEq)]
++pub enum NativeUnit { Currency(String), Shares, Lots, Contracts, Percent, Ratio, IndexPoints, Count, Unknown }
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum Evidence { WireDefined, SourceDocumented, Inferred, Unknown }
++#[derive(Clone, Debug, Eq, PartialEq)]
++pub struct FieldMeaning { unit: NativeUnit, evidence: Evidence }
++impl FieldMeaning {
++    pub fn unknown() -> Self { Self { unit: NativeUnit::Unknown, evidence: Evidence::Unknown } }
++    pub fn unit(&self) -> &NativeUnit { &self.unit }
++    pub const fn evidence(&self) -> Evidence { self.evidence }
++}
++#[derive(Clone, Debug, Eq, PartialEq)]
++pub struct NativeNumber<T> { value: T, meaning: FieldMeaning }
++impl<T> NativeNumber<T> {
++    pub(crate) fn unknown(value: T) -> Self { Self { value, meaning: FieldMeaning::unknown() } }
++    pub fn value(&self) -> &T { &self.value }
++    pub fn meaning(&self) -> &FieldMeaning { &self.meaning }
++}
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum NativeValue { Unsigned(u32), Float(WireFloat) }
++#[derive(Clone, Debug)]
++pub struct NamedNativeField { pub(crate) name: &'static str, pub(crate) slot: u8, pub(crate) value: NativeValue, pub(crate) meaning: FieldMeaning }
++impl NamedNativeField {
++    pub fn name(&self) -> &str { self.name }
++    pub const fn slot(&self) -> u8 { self.slot }
++    pub const fn value(&self) -> NativeValue { self.value }
++    pub fn meaning(&self) -> &FieldMeaning { &self.meaning }
++}
++#[derive(Clone, Debug)]
++pub struct ResponseIdentity { pub(crate) market: ExMarketId, pub(crate) code: String, pub(crate) raw: [u8; 10] }
++impl ResponseIdentity {
++    pub const fn market(&self) -> ExMarketId { self.market }
++    pub fn code(&self) -> &str { &self.code }
++    pub const fn raw(&self) -> &[u8; 10] { &self.raw }
++}
++macro_rules! getters {
++    ($($name:ident : $ty:ty),* $(,)?) => { $(pub fn $name(&self) -> &$ty { &self.$name })* };
++}
++#[derive(Clone, Debug)]
++pub struct MarketInfo { pub(crate) market: ExMarketId, pub(crate) category: u8, pub(crate) name: String, pub(crate) short_name: String, pub(crate) record_raw: [u8; 64] }
++impl MarketInfo {
++    pub const fn market(&self) -> ExMarketId { self.market }
++    pub const fn category(&self) -> u8 { self.category }
++    pub fn name(&self) -> &str { &self.name }
++    pub fn short_name(&self) -> &str { &self.short_name }
++    pub const fn record_raw(&self) -> &[u8; 64] { &self.record_raw }
++}
++#[derive(Clone, Debug)]
++pub struct InstrumentInfo { pub(crate) category: u8, pub(crate) id: ResponseIdentity, pub(crate) name: String, pub(crate) desc: String, pub(crate) record_raw: [u8; 64] }
++impl InstrumentInfo {
++    pub const fn category(&self) -> u8 { self.category }
++    getters!(id: ResponseIdentity);
++    pub fn name(&self) -> &str { &self.name }
++    pub fn desc(&self) -> &str { &self.desc }
++    pub const fn record_raw(&self) -> &[u8; 64] { &self.record_raw }
++}
++#[derive(Clone, Debug)]
++pub struct BookLevel { pub(crate) price: NativeNumber<WireFloat>, pub(crate) volume: NativeNumber<u32> }
++impl BookLevel { getters!(price: NativeNumber<WireFloat>, volume: NativeNumber<u32>); }
++#[derive(Clone, Debug)]
++pub struct Quote {
++    pub(crate) id: ResponseIdentity,
++    pub(crate) pre_close: NativeNumber<WireFloat>, pub(crate) open: NativeNumber<WireFloat>,
++    pub(crate) high: NativeNumber<WireFloat>, pub(crate) low: NativeNumber<WireFloat>, pub(crate) price: NativeNumber<WireFloat>,
++    pub(crate) kaicang: NativeNumber<u32>, pub(crate) zongliang: NativeNumber<u32>, pub(crate) xianliang: NativeNumber<u32>,
++    pub(crate) neipan: NativeNumber<u32>, pub(crate) waipan: NativeNumber<u32>, pub(crate) chicang: NativeNumber<u32>,
++    pub(crate) bid: [BookLevel; 5], pub(crate) ask: [BookLevel; 5],
++    pub(crate) opaque: Vec<Bytes>, pub(crate) record_raw: Option<Bytes>,
++}
++impl Quote {
++    getters!(id: ResponseIdentity, pre_close: NativeNumber<WireFloat>, open: NativeNumber<WireFloat>,
++        high: NativeNumber<WireFloat>, low: NativeNumber<WireFloat>, price: NativeNumber<WireFloat>,
++        kaicang: NativeNumber<u32>, zongliang: NativeNumber<u32>, xianliang: NativeNumber<u32>,
++        neipan: NativeNumber<u32>, waipan: NativeNumber<u32>, chicang: NativeNumber<u32>);
++    pub fn bid(&self) -> &[BookLevel; 5] { &self.bid }
++    pub fn ask(&self) -> &[BookLevel; 5] { &self.ask }
++    pub fn opaque(&self) -> &[Bytes] { &self.opaque }
++    pub fn record_raw(&self) -> Option<&Bytes> { self.record_raw.as_ref() }
++}
++#[derive(Clone, Debug)]
++pub struct QuoteListRow {
++    pub(crate) id: ResponseIdentity, pub(crate) category: QuoteCategory,
++    pub(crate) fields: Vec<NamedNativeField>, pub(crate) slot_raw: [u8; 300],
++}
++impl QuoteListRow {
++    getters!(id: ResponseIdentity);
++    pub const fn category(&self) -> QuoteCategory { self.category }
++    pub fn fields(&self) -> &[NamedNativeField] { &self.fields }
++    pub fn field(&self, name: &str) -> Option<&NamedNativeField> { self.fields.iter().find(|field| field.name == name) }
++    pub const fn slot_raw(&self) -> &[u8; 300] { &self.slot_raw }
++    pub fn unused_tail(&self) -> &[u8] { &self.slot_raw[150..] }
++    pub fn hong_kong(&self) -> Option<QuoteListView<'_>> {
++        (self.category == QuoteCategory::HongKong).then_some(QuoteListView { row: self })
++    }
++    pub fn futures(&self) -> Option<QuoteListView<'_>> {
++        (self.category == QuoteCategory::Futures).then_some(QuoteListView { row: self })
++    }
++}
++/// Category-scoped view; the source names and native types are authoritative.
++#[derive(Clone, Copy, Debug)]
++pub struct QuoteListView<'a> { row: &'a QuoteListRow }
++impl<'a> QuoteListView<'a> {
++    pub fn field(self, name: &str) -> Option<&'a NamedNativeField> { self.row.field(name) }
++    pub fn fields(self) -> &'a [NamedNativeField] { self.row.fields() }
++}
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum BarTimeSource { PackedMinute, SyntheticClose }
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum BarLastSlotSource { OrdinaryUninterpreted, RangeSettlement }
++#[derive(Clone, Debug)]
++pub struct Bar {
++    pub(crate) time: EventTime, pub(crate) source_time: EventTime, pub(crate) time_source: BarTimeSource,
++    pub(crate) open: NativeNumber<WireFloat>, pub(crate) high: NativeNumber<WireFloat>,
++    pub(crate) low: NativeNumber<WireFloat>, pub(crate) close: NativeNumber<WireFloat>,
++    pub(crate) position_bits: u32, pub(crate) trade: NativeNumber<u32>,
++    pub(crate) last_slot: WireFloat, pub(crate) last_slot_source: BarLastSlotSource,
++    pub(crate) record_raw: Option<Bytes>,
++}
++impl Bar {
++    pub const fn time(&self) -> EventTime { self.time }
++    pub const fn source_time(&self) -> EventTime { self.source_time }
++    pub const fn time_source(&self) -> BarTimeSource { self.time_source }
++    getters!(open: NativeNumber<WireFloat>, high: NativeNumber<WireFloat>, low: NativeNumber<WireFloat>, close: NativeNumber<WireFloat>, trade: NativeNumber<u32>);
++    pub const fn position_bits(&self) -> u32 { self.position_bits }
++    pub fn position(&self) -> NativeNumber<u32> { NativeNumber::unknown(self.position_bits) }
++    /// A reinterpretation of the position slot, not another economic observation.
++    pub fn amount_view(&self) -> Option<NativeNumber<WireFloat>> {
++        (self.last_slot_source == BarLastSlotSource::OrdinaryUninterpreted)
++            .then(|| NativeNumber::unknown(WireFloat::from_bits(self.position_bits)))
++    }
++    pub const fn last_slot(&self) -> WireFloat { self.last_slot }
++    pub const fn last_slot_source(&self) -> BarLastSlotSource { self.last_slot_source }
++    pub fn settlement(&self) -> Option<NativeNumber<WireFloat>> {
++        (self.last_slot_source == BarLastSlotSource::RangeSettlement).then(|| NativeNumber::unknown(self.last_slot))
++    }
++    pub fn record_raw(&self) -> Option<&Bytes> { self.record_raw.as_ref() }
++}
++#[derive(Clone, Debug)]
++pub struct Minute { pub(crate) time: EventTime, pub(crate) raw_time: u16,
++    pub(crate) price: NativeNumber<WireFloat>, pub(crate) avg_price: NativeNumber<WireFloat>,
++    pub(crate) volume: NativeNumber<u32>, pub(crate) open_interest: NativeNumber<u32>, pub(crate) record_raw: Option<Bytes> }
++impl Minute {
++    pub const fn time(&self) -> EventTime { self.time }
++    pub const fn raw_time(&self) -> u16 { self.raw_time }
++    getters!(price: NativeNumber<WireFloat>, avg_price: NativeNumber<WireFloat>, volume: NativeNumber<u32>, open_interest: NativeNumber<u32>);
++    pub fn record_raw(&self) -> Option<&Bytes> { self.record_raw.as_ref() }
++}
++#[derive(Clone, Debug)]
++pub struct Transaction { pub(crate) time: EventTime, pub(crate) raw_time: u16, pub(crate) direction_raw: u16,
++    pub(crate) price_raw: NativeNumber<u32>, pub(crate) volume: NativeNumber<u32>, pub(crate) zengcang: NativeNumber<i32>,
++    pub(crate) nature: u16, pub(crate) record_raw: Option<Bytes> }
++impl Transaction {
++    pub const fn time(&self) -> EventTime { self.time }
++    pub const fn raw_time(&self) -> u16 { self.raw_time }
++    pub const fn direction_raw(&self) -> u16 { self.direction_raw }
++    pub const fn nature(&self) -> u16 { self.nature }
++    getters!(price_raw: NativeNumber<u32>, volume: NativeNumber<u32>, zengcang: NativeNumber<i32>);
++    pub fn record_raw(&self) -> Option<&Bytes> { self.record_raw.as_ref() }
++}
++
++/// Pure decoder output. The owner supplies SourceStamp and its operation byte
++/// budget; no fabricated session ID or second metadata definition is created here.
++#[derive(Clone, Debug)]
++pub struct Decoded<T> {
++    pub(crate) value: T, pub(crate) diagnostics: Vec<Diagnostic>, pub(crate) ranges: Vec<(usize, usize)>,
++    pub(crate) wire_row_count: Option<u16>, pub(crate) response_offset: Option<u32>,
++}
++impl<T> Decoded<T> {
++    pub fn value(&self) -> &T { &self.value }
++    pub fn into_value(self) -> T { self.value }
++    pub fn diagnostics(&self) -> &[Diagnostic] { &self.diagnostics }
++    pub fn row_ranges(&self) -> &[(usize, usize)] { &self.ranges }
++    pub const fn wire_row_count(&self) -> Option<u16> { self.wire_row_count }
++    pub const fn response_offset(&self) -> Option<u32> { self.response_offset }
++    pub(crate) fn with_wire_page(mut self, count: u16, offset: Option<u32>) -> Self {
++        self.wire_row_count = Some(count); self.response_offset = offset; self
++    }
++    pub fn with_meta(self, source: SourceStamp, raw: Option<RawData>) -> (T, ExtensionMeta) {
++        (self.value, ResultMeta::new(source, self.diagnostics, raw))
++    }
++}
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum PageCompletion { EndOfData, RequestedCount, MoreAvailable, Incomplete }
++#[derive(Clone, Debug)]
++pub struct PageResult<T> { rows: Vec<T>, server_total: Option<u64>, next_offset: Option<u32>, completion: PageCompletion, meta: ExtensionMeta }
++impl<T> PageResult<T> {
++    pub fn rows(&self) -> &[T] { &self.rows }
++    pub const fn server_total(&self) -> Option<u64> { self.server_total }
++    pub const fn next_offset(&self) -> Option<u32> { self.next_offset }
++    pub const fn completion(&self) -> PageCompletion { self.completion }
++    pub fn meta(&self) -> &ExtensionMeta { &self.meta }
++    // Stage B must supply command-specific completion evidence. Decoders never
++    // construct a page from row count alone: neither short nor empty replies
++    // prove EOF, and an unfilled request does not prove more data exists.
++    pub(crate) fn new(rows: Vec<T>, server_total: Option<u64>, next_offset: Option<u32>, completion: PageCompletion, meta: ExtensionMeta) -> crate::Result<Self> {
++        if completion == PageCompletion::Incomplete && meta.diagnostics().is_empty() {
++            return Err(super::invalid("incomplete EX page requires a diagnostic"));
++        }
++        Ok(Self { rows, server_total, next_offset, completion, meta })
++    }
++}
++/// Project one response into the shared raw container. The caller supplies the
++/// remaining operation byte allowance; this helper owns no separate budget.
++/// Bytes and row ranges refer to the same allocation, including RetainWire.
++pub fn project_raw(payload: Bytes, wire: Option<Bytes>, ranges: &[(usize, usize)], policy: RawPolicy, remaining_bytes: usize) -> crate::Result<Option<RawData>> {
++    if policy == RawPolicy::Omit { return Ok(None); }
++    for &(start, end) in ranges {
++        if start > end || end > payload.len() { return Err(super::protocol("invalid EX raw row range")); }
++    }
++    let frames = if policy == RawPolicy::RetainWire {
++        Some(vec![wire.ok_or_else(|| super::protocol("RetainWire requires the complete EX wire frame"))?])
++    } else { None };
++    let wire_bytes = frames.as_ref().map_or(0, |items| items[0].len());
++    let retained_bytes = payload.len().checked_add(wire_bytes).ok_or_else(|| super::protocol("EX raw byte count overflow"))?;
++    if retained_bytes > remaining_bytes {
++        return Err(crate::Error::new(crate::ErrorKind::LimitExceeded, "EX raw response exceeds remaining byte allowance").with_context("domain", "ex"));
++    }
++    let row_ranges = ranges.iter().map(|&(start, end)| (0, start, end)).collect();
++    Ok(Some(RawData::new(vec![payload], frames, row_ranges)))
++}
++
++pub(crate) fn optional_raw(body: &Bytes, start: usize, end: usize, policy: RawPolicy) -> Option<Bytes> {
++    if policy == RawPolicy::Omit { None } else { Some(body.slice(start..end)) }
++}
+diff --git a/crates/eltdx/src/ex/query.rs b/crates/eltdx/src/ex/query.rs
+new file mode 100644
+index 0000000..02b3b5a
+--- /dev/null
++++ b/crates/eltdx/src/ex/query.rs
+@@ -0,0 +1,214 @@
++//! Checked values for requests. Response text stays separate from request IDs:
++//! replacement-decoded wire text need not be a valid request identity.
++use std::num::NonZeroU16;
++use crate::{Result, TradingDate};
++use super::invalid;
++
++#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
++pub struct ExMarketId(u8);
++impl ExMarketId {
++    pub fn new(value: u32) -> Result<Self> {
++        u8::try_from(value).map(Self).map_err(|_| invalid("EX market exceeds u8"))
++    }
++    pub const fn from_wire(value: u8) -> Self { Self(value) }
++    pub const fn get(self) -> u8 { self.0 }
++}
++
++#[derive(Clone, Debug, Eq, Hash, PartialEq)]
++pub struct ExCode(String);
++impl ExCode {
++    /// EX request commands encode UTF-8, even where their responses use GBK.
++    pub fn new(value: impl Into<String>) -> Result<Self> {
++        let value = value.into();
++        if value.is_empty() || value.len() > 9 || value.contains('\0') {
++            return Err(invalid("EX request code must be nonempty UTF-8, at most 9 bytes, without NUL"));
++        }
++        Ok(Self(value))
++    }
++    pub fn as_str(&self) -> &str { &self.0 }
++    pub fn wire_bytes(&self) -> [u8; 9] {
++        let mut bytes = [0; 9];
++        bytes[..self.0.len()].copy_from_slice(self.0.as_bytes());
++        bytes
++    }
++}
++#[derive(Clone, Debug, Eq, Hash, PartialEq)]
++pub struct ExInstrumentId { market: ExMarketId, code: ExCode }
++impl ExInstrumentId {
++    pub fn new(market: ExMarketId, code: ExCode) -> Self { Self { market, code } }
++    pub const fn market(&self) -> ExMarketId { self.market }
++    pub fn code(&self) -> &ExCode { &self.code }
++}
++
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum ExPeriod {
++    Minute5, Minute15, Minute30, Minute60, Day, Week, Month,
++    Minute1, Minute3, Days, Quarter, Year,
++    /// Explicit passthrough: no duration or semantic claim for unknown values.
++    Wire(u16),
++}
++impl ExPeriod {
++    pub fn known(value: u16) -> Result<Self> {
++        Ok(match value {
++            0 => Self::Minute5, 1 => Self::Minute15, 2 => Self::Minute30,
++            3 => Self::Minute60, 4 => Self::Day, 5 => Self::Week,
++            6 => Self::Month, 7 => Self::Minute1, 8 => Self::Minute3,
++            9 => Self::Days, 10 => Self::Quarter, 11 => Self::Year,
++            _ => return Err(invalid("unknown EX period: use explicit ExPeriod::Wire")),
++        })
++    }
++    pub const fn wire(self) -> u16 {
++        match self { Self::Minute5 => 0, Self::Minute15 => 1, Self::Minute30 => 2,
++            Self::Minute60 => 3, Self::Day => 4, Self::Week => 5, Self::Month => 6,
++            Self::Minute1 => 7, Self::Minute3 => 8, Self::Days => 9,
++            Self::Quarter => 10, Self::Year => 11, Self::Wire(value) => value }
++    }
++    pub const fn duration_minutes(self) -> Option<u16> {
++        // Exact EX source registry; MAC code 8 has a different meaning.
++        match self.wire() { 0 => Some(5), 1 => Some(15), 2 => Some(30),
++            3 => Some(60), 7 => Some(1), 8 => Some(3), _ => None }
++    }
++    pub const fn is_intraday(self) -> bool { matches!(self.wire(), 0..=3 | 7 | 8) }
++    pub const fn has_known_calendar_semantics(self) -> bool { self.wire() <= 11 }
++}
++#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++pub enum BarTime { #[default] Start, End }
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum QuoteCategory { HongKong, Futures }
++impl QuoteCategory {
++    pub const fn wire(self) -> u16 { match self { Self::HongKong => 2, Self::Futures => 3 } }
++    pub fn new(value: u16) -> Result<Self> {
++        match value { 2 => Ok(Self::HongKong), 3 => Ok(Self::Futures), _ => Err(invalid("EX quote category must be 2 or 3")) }
++    }
++}
++fn count(value: u32) -> Result<NonZeroU16> {
++    u16::try_from(value).ok().and_then(NonZeroU16::new)
++        .ok_or_else(|| invalid("EX count must be in 1..=65535"))
++}
++fn date_wire(date: TradingDate) -> Result<u32> {
++    if date.year() > 9999 { return Err(invalid("EX date exceeds YYYYMMDD range")); }
++    Ok(u32::from(date.year()) * 10000 + u32::from(date.month()) * 100 + u32::from(date.day()))
++}
++pub(crate) fn encode_date(date: TradingDate) -> u32 {
++    // All dated query construction validates the YYYYMMDD range.
++    u32::from(date.year()) * 10000 + u32::from(date.month()) * 100 + u32::from(date.day())
++}
++
++#[derive(Clone, Debug)]
++pub struct InstrumentsQuery { start: u32, count: NonZeroU16 }
++impl InstrumentsQuery {
++    pub fn new(start: u32) -> Self { Self { start, count: NonZeroU16::new(100).unwrap_or(NonZeroU16::MIN) } }
++    pub const fn start(&self) -> u32 { self.start }
++    pub const fn count(&self) -> NonZeroU16 { self.count }
++    pub fn with_start(mut self, start: u32) -> Self { self.start = start; self }
++    pub fn with_count(mut self, value: u32) -> Result<Self> { self.count = count(value)?; Ok(self) }
++}
++#[derive(Clone, Debug)]
++pub struct QuoteQuery { id: ExInstrumentId }
++impl QuoteQuery {
++    pub fn new(id: ExInstrumentId) -> Self { Self { id } }
++    pub fn id(&self) -> &ExInstrumentId { &self.id }
++    pub fn with_id(mut self, id: ExInstrumentId) -> Self { self.id = id; self }
++}
++#[derive(Clone, Debug)]
++pub struct MinutesQuery { id: ExInstrumentId }
++impl MinutesQuery {
++    pub fn new(id: ExInstrumentId) -> Self { Self { id } }
++    pub fn id(&self) -> &ExInstrumentId { &self.id }
++    pub fn with_id(mut self, id: ExInstrumentId) -> Self { self.id = id; self }
++}
++#[derive(Clone, Debug)]
++pub struct QuoteListQuery { market: ExMarketId, category: QuoteCategory, start: u16, count: NonZeroU16 }
++impl QuoteListQuery {
++    pub fn new(market: ExMarketId, category: QuoteCategory) -> Self {
++        Self { market, category, start: 0, count: NonZeroU16::new(80).unwrap_or(NonZeroU16::MIN) }
++    }
++    pub const fn market(&self) -> ExMarketId { self.market }
++    pub const fn category(&self) -> QuoteCategory { self.category }
++    pub const fn start(&self) -> u16 { self.start }
++    pub const fn count(&self) -> NonZeroU16 { self.count }
++    pub fn with_market(mut self, value: ExMarketId) -> Self { self.market = value; self }
++    pub fn with_category(mut self, value: QuoteCategory) -> Self { self.category = value; self }
++    pub fn with_start(mut self, value: u32) -> Result<Self> {
++        self.start = u16::try_from(value).map_err(|_| invalid("EX quote start exceeds u16"))?; Ok(self)
++    }
++    pub fn with_count(mut self, value: u32) -> Result<Self> { self.count = count(value)?; Ok(self) }
++}
++#[derive(Clone, Debug)]
++pub struct BarsQuery { id: ExInstrumentId, period: ExPeriod, start: u32, count: NonZeroU16, bar_time: BarTime }
++impl BarsQuery {
++    pub fn new(id: ExInstrumentId, period: ExPeriod) -> Self {
++        Self { id, period, start: 0, count: NonZeroU16::new(700).unwrap_or(NonZeroU16::MIN), bar_time: BarTime::Start }
++    }
++    pub fn id(&self) -> &ExInstrumentId { &self.id }
++    pub const fn period(&self) -> ExPeriod { self.period }
++    pub const fn start(&self) -> u32 { self.start }
++    pub const fn count(&self) -> NonZeroU16 { self.count }
++    pub const fn bar_time(&self) -> BarTime { self.bar_time }
++    pub fn with_id(mut self, value: ExInstrumentId) -> Self { self.id = value; self }
++    pub fn with_start(mut self, value: u32) -> Self { self.start = value; self }
++    pub fn with_count(mut self, value: u32) -> Result<Self> { self.count = count(value)?; Ok(self) }
++    pub fn with_period(mut self, value: ExPeriod) -> Result<Self> {
++        if self.bar_time == BarTime::End && !value.has_known_calendar_semantics() { return Err(invalid("unknown period cannot align bar end")); }
++        self.period = value; Ok(self)
++    }
++    pub fn with_bar_time(mut self, value: BarTime) -> Result<Self> {
++        if value == BarTime::End && !self.period.has_known_calendar_semantics() { return Err(invalid("unknown period cannot align bar end")); }
++        self.bar_time = value; Ok(self)
++    }
++}
++#[derive(Clone, Debug)]
++pub struct BarsRangeQuery { id: ExInstrumentId, start_date: TradingDate, end_date: TradingDate }
++impl BarsRangeQuery {
++    pub fn new(id: ExInstrumentId, start_date: TradingDate, end_date: TradingDate) -> Result<Self> {
++        date_wire(start_date)?; date_wire(end_date)?;
++        if start_date > end_date { return Err(invalid("EX range dates are reversed")); }
++        Ok(Self { id, start_date, end_date })
++    }
++    pub fn id(&self) -> &ExInstrumentId { &self.id }
++    pub const fn start_date(&self) -> TradingDate { self.start_date }
++    pub const fn end_date(&self) -> TradingDate { self.end_date }
++    pub const fn bar_time(&self) -> BarTime { BarTime::Start }
++    pub fn with_id(mut self, value: ExInstrumentId) -> Self { self.id = value; self }
++    pub fn with_start_date(self, value: TradingDate) -> Result<Self> { Self::new(self.id, value, self.end_date) }
++    pub fn with_end_date(self, value: TradingDate) -> Result<Self> { Self::new(self.id, self.start_date, value) }
++    pub fn with_bar_time(self, value: BarTime) -> Result<Self> {
++        if value == BarTime::End { Err(invalid("EX bars_range has no period metadata for End")) } else { Ok(self) }
++    }
++}
++#[derive(Clone, Debug)]
++pub struct HistoryMinutesQuery { id: ExInstrumentId, date: TradingDate }
++impl HistoryMinutesQuery {
++    pub fn new(id: ExInstrumentId, date: TradingDate) -> Result<Self> { date_wire(date)?; Ok(Self { id, date }) }
++    pub fn id(&self) -> &ExInstrumentId { &self.id }
++    pub const fn date(&self) -> TradingDate { self.date }
++    pub fn with_id(mut self, value: ExInstrumentId) -> Self { self.id = value; self }
++    pub fn with_date(self, value: TradingDate) -> Result<Self> { Self::new(self.id, value) }
++}
++#[derive(Clone, Debug)]
++pub struct TransactionsQuery { id: ExInstrumentId, start: u32, count: NonZeroU16 }
++impl TransactionsQuery {
++    pub fn new(id: ExInstrumentId) -> Self { Self { id, start: 0, count: NonZeroU16::new(1800).unwrap_or(NonZeroU16::MIN) } }
++    pub fn id(&self) -> &ExInstrumentId { &self.id }
++    pub const fn start(&self) -> u32 { self.start }
++    pub const fn count(&self) -> NonZeroU16 { self.count }
++    pub fn with_id(mut self, value: ExInstrumentId) -> Self { self.id = value; self }
++    pub fn with_start(mut self, value: u32) -> Result<Self> {
++        if value > i32::MAX as u32 { return Err(invalid("EX transaction start exceeds i32::MAX")); }
++        self.start = value; Ok(self)
++    }
++    pub fn with_count(mut self, value: u32) -> Result<Self> { self.count = count(value)?; Ok(self) }
++}
++#[derive(Clone, Debug)]
++pub struct HistoryTransactionsQuery { page: TransactionsQuery, date: TradingDate }
++impl HistoryTransactionsQuery {
++    pub fn new(id: ExInstrumentId, date: TradingDate) -> Result<Self> { date_wire(date)?; Ok(Self { page: TransactionsQuery::new(id), date }) }
++    pub fn id(&self) -> &ExInstrumentId { self.page.id() }
++    pub const fn date(&self) -> TradingDate { self.date }
++    pub const fn start(&self) -> u32 { self.page.start() }
++    pub const fn count(&self) -> NonZeroU16 { self.page.count() }
++    pub fn with_id(mut self, value: ExInstrumentId) -> Self { self.page = self.page.with_id(value); self }
++    pub fn with_date(mut self, value: TradingDate) -> Result<Self> { date_wire(value)?; self.date = value; Ok(self) }
++    pub fn with_start(mut self, value: u32) -> Result<Self> { self.page = self.page.with_start(value)?; Ok(self) }
++    pub fn with_count(mut self, value: u32) -> Result<Self> { self.page = self.page.with_count(value)?; Ok(self) }
++}
+diff --git a/crates/eltdx/src/ex/time.rs b/crates/eltdx/src/ex/time.rs
+new file mode 100644
+index 0000000..3fe23f4
+--- /dev/null
++++ b/crates/eltdx/src/ex/time.rs
+@@ -0,0 +1,53 @@
++//! Source-backed clock decoding; no host clock, timezone or trading calendar.
++use crate::{EventTime, Result, TradingDate};
++use super::{protocol, models::BarTimeSource, query::{BarTime, ExPeriod}};
++
++pub fn time_of_day(minutes: u16, second: u16) -> Result<EventTime> {
++    if minutes >= 24 * 60 || second > 59 { return Err(protocol("invalid EX minute/second field")); }
++    EventTime::time_of_day((minutes / 60) as u8, (minutes % 60) as u8, second as u8)
++        .map_err(|_| protocol("invalid EX clock"))
++}
++pub fn packed_date(raw: u16) -> Result<TradingDate> {
++    let year = (raw >> 11) + 2004;
++    let rest = raw % 2048;
++    TradingDate::new(year, (rest / 100) as u8, (rest % 100) as u8)
++        .map_err(|_| protocol("invalid EX packed Gregorian date").with_context("raw_date", format!("{raw}")))
++}
++pub fn day_date(raw: u32) -> Result<TradingDate> {
++    let year = u16::try_from(raw / 10000).map_err(|_| protocol("EX year overflow"))?;
++    TradingDate::new(year, ((raw % 10000) / 100) as u8, (raw % 100) as u8)
++        .map_err(|_| protocol("invalid EX YYYYMMDD date").with_context("raw_date", format!("{raw}")))
++}
++pub fn bar_time(raw: [u8; 4], period: ExPeriod, alignment: BarTime) -> Result<(EventTime, EventTime, BarTimeSource)> {
++    let (source, provenance) = if period.is_intraday() {
++        let date = packed_date(u16::from_le_bytes([raw[0], raw[1]]))?;
++        let minutes = u16::from_le_bytes([raw[2], raw[3]]);
++        time_of_day(minutes, 0)?;
++        (EventTime::local(date, (minutes / 60) as u8, (minutes % 60) as u8, 0)
++            .map_err(|_| protocol("invalid EX bar clock"))?, BarTimeSource::PackedMinute)
++    } else {
++        (EventTime::local(day_date(u32::from_le_bytes(raw))?, 15, 0, 0)
++            .map_err(|_| protocol("invalid EX daily bar clock"))?, BarTimeSource::SyntheticClose)
++    };
++    let aligned = match (alignment, period.duration_minutes()) {
++        (BarTime::End, Some(delta)) => source.add_minutes(i64::from(delta)).map_err(|_| protocol("EX bar end overflow"))?,
++        _ => source,
++    };
++    Ok((aligned, source, provenance))
++}
++
++
++/// EX clock value, independent of date and timezone. Construction is checked;
++/// seconds are retained for transaction records.
++#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
++pub struct TimeOfDay { hour: u8, minute: u8, second: u8 }
++impl TimeOfDay {
++    pub fn new(hour: u8, minute: u8, second: u8) -> Result<Self> {
++        if hour > 23 || minute > 59 || second > 59 { return Err(super::invalid("invalid EX time of day")); }
++        Ok(Self { hour, minute, second })
++    }
++    pub const fn hour(self) -> u8 { self.hour }
++    pub const fn minute(self) -> u8 { self.minute }
++    pub const fn second(self) -> u8 { self.second }
++    pub fn as_event_time(self) -> Result<EventTime> { EventTime::time_of_day(self.hour,self.minute,self.second) }
++}
+diff --git a/crates/eltdx/tests/ex_wire.rs b/crates/eltdx/tests/ex_wire.rs
+new file mode 100644
+index 0000000..65bc9db
+--- /dev/null
++++ b/crates/eltdx/tests/ex_wire.rs
+@@ -0,0 +1,400 @@
++//! Authored T24 Stage A cases. Deliberately not executed or collected until the
++//! controller permits validation after T01–T30 implementation is complete.
++#![cfg(feature = "ex")]
++use bytes::Bytes;
++use eltdx::{ErrorKind, RawPolicy, TradingDate};
++use eltdx::ex::{commands::*, config::*, frame::*, hosts::*, *};
++
++type TestResult = Result<(), Box<dyn std::error::Error>>;
++fn id() -> Result<ExInstrumentId, eltdx::Error> { Ok(ExInstrumentId::new(ExMarketId::new(31)?, ExCode::new("00700")?)) }
++fn date() -> Result<TradingDate, eltdx::Error> { TradingDate::new(2024,1,2) }
++fn hex(text: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
++    text.split_whitespace().map(|byte| u8::from_str_radix(byte,16).map_err(Into::into)).collect()
++}
++fn response(header: usize, count_offset: usize, width: usize, count: u16) -> Vec<u8> {
++    let mut bytes = vec![0; header + width * usize::from(count)];
++    bytes[count_offset..count_offset+2].copy_from_slice(&count.to_le_bytes()); bytes
++}
++fn put_u32(bytes: &mut [u8], offset: usize, value: u32) { bytes[offset..offset+4].copy_from_slice(&value.to_le_bytes()); }
++fn plain_frame(body: &[u8], sequence: u32, method: u32) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
++    let len = u16::try_from(body.len())?;
++    let mut wire = FrameHeader::new(ENCODED_MAGIC,sequence,method,len,len).encode().to_vec();
++    wire.extend_from_slice(body); Ok(wire)
++}
++
++#[test]
++fn eleven_request_goldens_and_native_defaults() -> TestResult {
++    assert_eq!(markets_request().wire().as_ref(), hex("01 02 48 69 00 01 02 00 02 00 f4 23")?);
++    assert_eq!(instrument_count_request().wire().as_ref(), hex("01 03 48 66 00 01 02 00 02 00 f0 23")?);
++    assert_eq!(instruments_request(&InstrumentsQuery::new(0x12345678)).wire().as_ref(), hex("01 04 48 67 00 01 08 00 08 00 f5 23 78 56 34 12 64 00")?);
++    assert_eq!(quote_request(&QuoteQuery::new(id()?)).wire().as_ref(), hex("01 01 08 02 02 01 0c 00 0c 00 fa 23 1f 30 30 37 30 30 00 00 00 00")?);
++    let ql = QuoteListQuery::new(ExMarketId::new(31)?,QuoteCategory::HongKong);
++    assert_eq!(quote_list_request(&ql).wire().as_ref(),hex("01 c1 06 0b 00 02 0b 00 0b 00 00 24 1f 00 00 00 00 50 00 01 00")?);
++    assert_eq!(quote_list_request(&ql).wire(),quote_list_request(&ql.clone().with_category(QuoteCategory::Futures)).wire());
++    assert_eq!(bars_request(&BarsQuery::new(id()?,ExPeriod::Minute5)).wire().as_ref(),hex("01 01 08 6a 01 01 16 00 16 00 ff 23 1f 30 30 37 30 30 00 00 00 00 00 00 01 00 00 00 00 00 bc 02")?);
++    let sequence = RangeSequence::default(); let lease = sequence.acquire()?;
++    assert_eq!(bars_range_request(&BarsRangeQuery::new(id()?,date()?,date()?)?,&lease).wire().as_ref(),hex("01 01 38 92 00 01 16 00 16 00 0d 24 1f 30 30 37 30 30 00 00 00 00 07 00 e6 d6 34 01 e6 d6 34 01")?);
++    assert_eq!(minutes_request(&MinutesQuery::new(id()?)).wire().as_ref(),hex("01 07 08 00 01 01 0c 00 0c 00 0b 24 1f 30 30 37 30 30 00 00 00 00")?);
++    assert_eq!(history_minutes_request(&HistoryMinutesQuery::new(id()?,date()?)?).wire().as_ref(),hex("01 01 30 00 01 01 10 00 10 00 0c 24 e6 d6 34 01 1f 30 30 37 30 30 00 00 00 00")?);
++    assert_eq!(transactions_request(&TransactionsQuery::new(id()?)).wire().as_ref(),hex("01 01 08 00 03 01 12 00 12 00 fc 23 1f 30 30 37 30 30 00 00 00 00 00 00 00 00 08 07")?);
++    assert_eq!(history_transactions_request(&HistoryTransactionsQuery::new(id()?,date()?)?).wire().as_ref(),hex("01 01 30 00 02 01 16 00 16 00 06 24 e6 d6 34 01 1f 30 30 37 30 30 00 00 00 00 00 00 00 00 08 07")?);
++    Ok(())
++}
++#[test]
++fn request_boundaries_are_checked_without_truncation() -> TestResult {
++    assert!(ExCode::new("").is_err()); assert!(ExCode::new("1234567890").is_err()); assert!(ExCode::new("a\0b").is_err());
++    assert_eq!(ExCode::new("中国中")?.wire_bytes(),[0xe4,0xb8,0xad,0xe5,0x9b,0xbd,0xe4,0xb8,0xad]);
++    assert!(ExCode::new("中国中国").is_err()); assert!(ExMarketId::new(256).is_err());
++    assert_eq!(ExMarketId::new(255)?.get(),255); assert!(QuoteCategory::new(1).is_err());
++    assert!(InstrumentsQuery::new(0).with_count(0).is_err()); assert!(InstrumentsQuery::new(0).with_count(65536).is_err());
++    assert_eq!(InstrumentsQuery::new(u32::MAX).with_count(65535)?.count().get(),65535);
++    assert!(QuoteListQuery::new(ExMarketId::new(255)?,QuoteCategory::Futures).with_start(65536).is_err());
++    assert!(BarsQuery::new(id()?,ExPeriod::Minute5).with_count(0).is_err());
++    assert!(TransactionsQuery::new(id()?).with_count(65536).is_err());
++    assert!(TransactionsQuery::new(id()?).with_start(0x80000000).is_err());
++    assert_eq!(&transactions_request(&TransactionsQuery::new(id()?).with_start(i32::MAX as u32)?).wire()[22..26],&[255,255,255,127]);
++    assert!(HistoryTransactionsQuery::new(id()?,date()?)?.with_start(0x80000000).is_err());
++    assert!(TradingDate::new(2023,2,29).is_err());
++    assert!(BarsRangeQuery::new(id()?,TradingDate::new(2024,1,3)?,date()?).is_err());
++    assert!(BarsRangeQuery::new(id()?,date()?,date()?)?.with_bar_time(BarTime::End).is_err());
++    assert!(ExPeriod::known(12).is_err()); assert_eq!(ExPeriod::Wire(u16::MAX).wire(),u16::MAX);
++    assert!(BarsQuery::new(id()?,ExPeriod::Wire(12)).with_bar_time(BarTime::End).is_err());
++    Ok(())
++}
++#[test]
++fn setup_and_fragmented_frames_never_consume_the_next_frame() -> TestResult {
++    let expected = hex(concat!("01 01 48 65 00 01 52 00 52 00 54 24 ",
++        "1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 ",
++        "1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 1f 32 c6 e5 d5 3d fb 41 ",
++        "cc e1 6d ff d5 ba 3f b8 cb c5 7a 05 4f 77 48 ea"))?;
++    assert_eq!(SETUP_REQUEST.as_slice(),expected);
++    let first = plain_frame(&[1,2,3],7,0x2454)?; let second = plain_frame(&[4,5],8,0x23f4)?;
++    for split in 0..first.len() {
++        let mut accumulator = FrameAccumulator::new(FrameLimits::default(),Association::new(Some(ENCODED_MAGIC),Some(7),Some(0x2454)));
++        assert_eq!(accumulator.push(&first[..split])?,split);
++        let mut joined = first[split..].to_vec(); joined.extend_from_slice(&second);
++        assert_eq!(accumulator.push(&joined)?,first.len()-split);
++        assert_eq!(accumulator.remaining(),0);
++        let frame = accumulator.finish()?; assert_eq!(frame.payload().as_ref(),&[1,2,3]); assert!(frame.association_verified());
++    }
++    let mut truncated = FrameAccumulator::new(FrameLimits::default(),Association::default());
++    truncated.push(&first[..first.len()-1])?; assert_eq!(truncated.finish().err().map(|e| e.kind()),Some(ErrorKind::Protocol));
++    for association in [Association::new(Some(0),None,None),Association::new(None,Some(8),None),Association::new(None,None,Some(0))] {
++        assert_eq!(Frame::decode(Bytes::from(first.clone()),FrameLimits::default(),association).err().map(|e| e.kind()),Some(ErrorKind::Protocol));
++    }
++    assert!(!Frame::decode(Bytes::from(first),FrameLimits::default(),Association::default())?.association_verified());
++    Ok(())
++}
++#[test]
++fn compressed_frames_require_exact_end_and_bounded_output() -> TestResult {
++    // Independently specified zlib stream for ASCII "hello" (Adler32 062c0215).
++    let compressed = hex("78 9c cb 48 cd c9 c9 07 00 06 2c 02 15")?;
++    let header = FrameHeader::new(ENCODED_MAGIC,1,0x23f4,13,5);
++    assert_eq!(decode_body(header,Bytes::from(compressed.clone()),FrameLimits::default())?.as_ref(),b"hello");
++    for decoded in [0,4,6,65535] {
++        assert!(decode_body(FrameHeader::new(ENCODED_MAGIC,1,0x23f4,13,decoded),Bytes::from(compressed.clone()),FrameLimits::default()).is_err());
++    }
++    let mut trailing = compressed.clone(); trailing.push(0);
++    assert!(decode_body(FrameHeader::new(0,0,0,14,5),Bytes::from(trailing),FrameLimits::default()).is_err());
++    assert!(decode_body(header,Bytes::from(compressed[..12].to_vec()),FrameLimits::default()).is_err());
++    assert!(decode_body(header,Bytes::from(vec![0;13]),FrameLimits::default()).is_err());
++    assert_eq!(decode_body(header,Bytes::from(compressed),FrameLimits::new(12,5)?).err().map(|e|e.kind()),Some(ErrorKind::LimitExceeded));
++    assert!(FrameLimits::new(65536,1).is_err()); assert!(FrameLimits::new(1,0).is_err());
++    let mut accumulator = FrameAccumulator::new(FrameLimits::new(1,1)?,Association::default());
++    assert!(accumulator.push(&header.encode()).is_err()); assert!(accumulator.push(&[]).is_err());
++    Ok(())
++}
++#[test]
++fn sequence_wrap_and_independent_session_leases() -> TestResult {
++    let first = RangeSequence::default(); let second = RangeSequence::default();
++    for expected in 1..=255 {
++        let lease = first.acquire()?; assert_eq!(lease.sequence(),expected);
++        assert!(first.acquire().is_err());
++        if expected == 1 { assert_eq!(second.acquire()?.sequence(),1); }
++    }
++    assert_eq!(first.acquire()?.sequence(),1); assert_eq!(second.acquire()?.sequence(),2);
++    Ok(())
++}
++#[test]
++fn markets_and_instruments_preserve_unknown_values_gbk_and_all_bytes() -> TestResult {
++    let mut markets = response(2,0,64,2);
++    markets[2]=9; markets[35]=255; markets[3..5].copy_from_slice(&[0xd6,0xd0]); markets[38..66].fill(0xaa);
++    let decoded = decode_markets(markets.into())?;
++    assert_eq!(decoded.value().len(),1); assert_eq!(decoded.value()[0].market().get(),255);
++    assert_eq!(decoded.value()[0].name(),"中"); assert_eq!(decoded.value()[0].record_raw()[63],0xaa);
++    assert_eq!(decoded.row_ranges(),&[(2,66)]);
++    let mut instruments = response(6,4,64,1);
++    instruments[6]=252; instruments[7]=255; instruments[11]=b'A';
++    instruments[20..22].copy_from_slice(&[0xd6,0xd0]); instruments[46..70].fill(0xbb);
++    let decoded = decode_instruments(instruments.into())?;
++    assert_eq!(decoded.value()[0].id().code(),"A"); assert_eq!(decoded.value()[0].name(),"中");
++    assert_eq!(decoded.value()[0].category(),252); assert_eq!(decoded.value()[0].record_raw()[63],0xbb);
++    let mut bad = response(6,4,64,1); bad[20]=0xff;
++    assert!(!decode_instruments(bad.into())?.diagnostics().is_empty());
++    let mut count = vec![0;23]; put_u32(&mut count,19,u32::MAX);
++    assert_eq!(*decode_instrument_count(count.into())?.value(),u32::MAX);
++    Ok(())
++}
++#[test]
++fn quote_keeps_native_bits_five_levels_and_unknown_slots_under_omit() -> TestResult {
++    let mut raw = vec![0;150]; raw[0]=31; raw[1..6].copy_from_slice(b"00700");
++    raw[10..14].fill(0xaa);
++    for slot in 0..34 { put_u32(&mut raw,14+slot*4,slot as u32); }
++    put_u32(&mut raw,14,0x80000000); put_u32(&mut raw,18,0x7fc01234);
++    let decoded = decode_quote(raw.clone().into(),RawPolicy::Omit)?;
++    let quote = decoded.value().as_ref().ok_or("missing quote")?;
++    assert_eq!(quote.pre_close().value().bits(),0x80000000); assert_eq!(quote.open().value().bits(),0x7fc01234);
++    assert_eq!(*quote.kaicang().value(),5); assert_eq!(*quote.chicang().value(),13);
++    assert_eq!(quote.bid()[4].price().value().bits(),18); assert_eq!(*quote.ask()[4].volume().value(),33);
++    assert_eq!(quote.opaque()[0].as_ref(),&[0xaa;4]); assert!(quote.record_raw().is_none());
++    assert_eq!(quote.pre_close().meaning().unit(),&NativeUnit::Unknown);
++    let retained = decode_quote(raw.clone().into(),RawPolicy::RetainPayload)?;
++    assert_eq!(retained.value().as_ref().ok_or("missing quote")?.record_raw().ok_or("missing raw")?.as_ref(),raw);
++    assert!(decode_quote(Bytes::new(),RawPolicy::Omit).is_err());
++    Ok(())
++}
++#[test]
++fn quote_list_slot_layout_categories_and_150_byte_tail() -> TestResult {
++    let mut raw = response(2,0,300,1); raw[2]=255; raw[3]=b'X';
++    for slot in 0..35 { put_u32(&mut raw,12+slot*4,slot as u32); }
++    raw[152..302].fill(0xaa);
++    let future = decode_quote_list(raw.clone().into(),QuoteCategory::Futures)?;
++    let row = &future.value()[0]; assert_eq!(row.slot_raw().len(),300); assert_eq!(row.unused_tail(),&[0xaa;150]);
++    assert_eq!(row.field("ChiCangLiang").ok_or("field")?.value(),NativeValue::Unsigned(14));
++    assert_eq!(row.field("ZongJinE").ok_or("field")?.value(),NativeValue::Float(WireFloat::from_bits(10)));
++    assert!(row.futures().is_some()); assert!(row.hong_kong().is_none());
++    let hk = decode_quote_list(raw.into(),QuoteCategory::HongKong)?;
++    assert_eq!(hk.value()[0].fields().len(),32);
++    assert_eq!(hk.value()[0].field("MaiRuJia").ok_or("field")?.slot(),7);
++    assert_eq!(hk.value()[0].field("MaiChuLiang5").ok_or("field")?.value(),NativeValue::Unsigned(34));
++    Ok(())
++}
++fn bar_payload(header: usize,count_offset: usize) -> Vec<u8> {
++    let mut bytes = response(header,count_offset,32,1);
++    bytes[header..header+4].copy_from_slice(&[102,0,58,2]); // 2004-01-02 09:30
++    put_u32(&mut bytes,header+4,0x80000000); put_u32(&mut bytes,header+8,0x7fc01234);
++    put_u32(&mut bytes,header+20,0x4996b43c); put_u32(&mut bytes,header+24,u32::MAX);
++    put_u32(&mut bytes,header+28,0x3fc00000); bytes
++}
++#[test]
++fn bars_preserve_dual_slot_range_settlement_and_time_sources() -> TestResult {
++    let query = BarsQuery::new(id()?,ExPeriod::Minute5).with_bar_time(BarTime::End)?;
++    let decoded = decode_bars(bar_payload(20,18).into(),&query,RawPolicy::Omit)?;
++    let row = &decoded.value()[0]; assert_eq!(row.source_time().clock(),Some((9,30,0))); assert_eq!(row.time().clock(),Some((9,35,0)));
++    assert_eq!(row.position_bits(),0x4996b43c); assert_eq!(row.amount_view().ok_or("amount view")?.value().bits(),row.position_bits());
++    assert_eq!(row.open().value().bits(),0x80000000); assert_eq!(row.high().value().bits(),0x7fc01234);
++    assert!(row.settlement().is_none()); assert_eq!(row.last_slot().bits(),0x3fc00000);
++    let range = decode_bars_range(bar_payload(14,12).into(),RawPolicy::RetainPayload)?;
++    assert_eq!(range.value()[0].settlement().ok_or("settlement")?.value().bits(),0x3fc00000);
++    assert_eq!(range.value()[0].record_raw().ok_or("raw")?.len(),32);
++    assert!(range.value()[0].amount_view().is_none());
++    let mut daily = bar_payload(20,18); put_u32(&mut daily,20,20240102);
++    let decoded = decode_bars(daily.into(),&BarsQuery::new(id()?,ExPeriod::Day).with_bar_time(BarTime::End)?,RawPolicy::Omit)?;
++    assert_eq!(decoded.value()[0].time().clock(),Some((15,0,0))); assert_eq!(decoded.value()[0].time_source(),BarTimeSource::SyntheticClose);
++    assert!(eltdx::ex::time::packed_date(0).is_err()); assert!(eltdx::ex::time::day_date(20230229).is_err());
++    assert!(eltdx::ex::time::time_of_day(1440,0).is_err());
++    Ok(())
++}
++#[test]
++fn minutes_have_no_fabricated_date_transactions_keep_seconds_and_signed_delta() -> TestResult {
++    for (header,offset,historical) in [(12,10,false),(20,18,true)] {
++        let mut raw = response(header,offset,18,1); raw[header..header+2].copy_from_slice(&570_u16.to_le_bytes());
++        put_u32(&mut raw,header+2,0x80000000); put_u32(&mut raw,header+6,0x7fc01234);
++        put_u32(&mut raw,header+10,u32::MAX); put_u32(&mut raw,header+14,987);
++        let decoded = if historical { decode_history_minutes(raw.into(),RawPolicy::Omit)? } else { decode_minutes(raw.into(),RawPolicy::Omit)? };
++        assert_eq!(decoded.value()[0].time().date(),None); assert_eq!(decoded.value()[0].time().clock(),Some((9,30,0)));
++        assert_eq!(decoded.value()[0].avg_price().value().bits(),0x7fc01234);
++    }
++    let mut raw = response(16,14,16,1); raw[16..18].copy_from_slice(&601_u16.to_le_bytes());
++    put_u32(&mut raw,18,12345); put_u32(&mut raw,22,u32::MAX); put_u32(&mut raw,26,(-3_i32) as u32);
++    raw[30..32].copy_from_slice(&60059_u16.to_le_bytes());
++    for historical in [false,true] {
++        let decoded = if historical { decode_history_transactions(raw.clone().into(),RawPolicy::Omit)? } else { decode_transactions(raw.clone().into(),RawPolicy::Omit)? };
++        let row = &decoded.value()[0]; assert_eq!(row.time().clock(),Some((10,1,59))); assert_eq!(row.nature(),6);
++        assert_eq!(*row.price_raw().value(),12345); assert_eq!(*row.zengcang().value(),-3); assert_eq!(row.direction_raw(),60059);
++    }
++    raw[30..32].copy_from_slice(&10060_u16.to_le_bytes()); assert!(decode_transactions(raw.into(),RawPolicy::Omit).is_err());
++    Ok(())
++}
++#[test]
++fn complete_empty_responses_and_truncated_declared_rows() -> TestResult {
++    assert!(decode_markets(Bytes::from(vec![0,0]))?.value().is_empty());
++    assert!(decode_instruments(Bytes::from(vec![0;6]))?.value().is_empty());
++    assert!(decode_quote_list(Bytes::from(vec![0,0]),QuoteCategory::Futures)?.value().is_empty());
++    assert!(decode_bars(Bytes::from(vec![0;20]),&BarsQuery::new(id()?,ExPeriod::Day),RawPolicy::Omit)?.value().is_empty());
++    assert!(decode_bars_range(Bytes::from(vec![0;14]),RawPolicy::Omit)?.value().is_empty());
++    assert!(decode_minutes(Bytes::from(vec![0;12]),RawPolicy::Omit)?.value().is_empty());
++    assert!(decode_history_minutes(Bytes::from(vec![0;20]),RawPolicy::Omit)?.value().is_empty());
++    assert!(decode_transactions(Bytes::from(vec![0;16]),RawPolicy::Omit)?.value().is_empty());
++    assert!(decode_history_transactions(Bytes::from(vec![0;16]),RawPolicy::Omit)?.value().is_empty());
++    let truncated = |h,c,w| { let mut data = response(h,c,w,1); data.pop(); Bytes::from(data) };
++    assert!(decode_markets(truncated(2,0,64)).is_err()); assert!(decode_instruments(truncated(6,4,64)).is_err());
++    assert!(decode_quote_list(truncated(2,0,300),QuoteCategory::HongKong).is_err());
++    assert!(decode_bars(truncated(20,18,32),&BarsQuery::new(id()?,ExPeriod::Day),RawPolicy::Omit).is_err());
++    assert!(decode_bars_range(truncated(14,12,32),RawPolicy::Omit).is_err());
++    assert!(decode_minutes(truncated(12,10,18),RawPolicy::Omit).is_err());
++    assert!(decode_history_minutes(truncated(20,18,18),RawPolicy::Omit).is_err());
++    assert!(decode_transactions(truncated(16,14,16),RawPolicy::Omit).is_err());
++    assert!(decode_history_transactions(truncated(16,14,16),RawPolicy::Omit).is_err());
++    assert!(decode_instrument_count(Bytes::from(vec![0;22])).is_err()); assert!(decode_quote(Bytes::from(vec![0;149]),RawPolicy::Omit).is_err());
++    Ok(())
++}
++#[test]
++fn explicit_host_configuration_is_pure_and_does_not_silently_fallback() -> TestResult {
++    let config = ExConfig::default(); assert_eq!(config.timeout(),std::time::Duration::from_secs(8)); assert_eq!(config.raw(),RawPolicy::Omit);
++    assert_eq!(config.endpoints()[0].port(),7727); assert!(config.auto_failover()); assert_eq!(config.endpoints().len(),16);
++    assert_eq!(ProbeOptions::default().timeout(),std::time::Duration::from_secs(5)); assert_eq!(DiscoveryOptions::default().max_workers().get(),8);
++    assert!(parse_hosts(["127.0.0.1:7727"],7727).is_err()); assert!(parse_hosts(["bad-host"],7727).is_err());
++    assert_eq!(parse_hosts(["127.0.0.1","127.0.0.1"],7727)?.len(),1); assert_eq!(parse_hosts(["[::1]"],7727)?.len(),1);
++    let snapshot = HostConfigSource::default().with_environment(EnvironmentSource::Value(Some("127.0.0.1; 127.0.0.2".into())));
++    assert_eq!(load_hosts(&snapshot)?.len(),2);
++    let explicit = snapshot.with_explicit(parse_hosts(["127.0.0.3"],7727)?)?.with_environment(EnvironmentSource::Value(Some("invalid".into())));
++    assert_eq!(load_hosts(&explicit)?,parse_hosts(["127.0.0.3"],7727)?);
++    assert!(load_hosts(&HostConfigSource::default().with_environment(EnvironmentSource::Value(Some("".into())))).is_err());
++    assert!(parse_hosts_json("{\"hosts\":[]}",7727).is_err()); assert!(parse_hosts_json("{\"hosts\":[7]}",7727).is_err());
++    assert!(parse_hosts_json("[]",7727).is_err()); assert!(parse_hosts_json("not json",7727).is_err());
++    assert_eq!(parse_hosts_json("{\"schema_version\":1,\"hosts\":[\"127.0.0.1\"]}",7727)?.len(),1);
++    assert_eq!(server_file_path("data"),std::path::Path::new("data").join("ex_servers.json"));
++    Ok(())
++}
++
++#[test]
++fn raw_projection_shares_payload_and_enforces_caller_allowance() -> TestResult {
++    let payload = Bytes::from(vec![1,2,3,4]); let ptr = payload.as_ptr();
++    assert!(project_raw(payload.clone(),None,&[(0,4)],RawPolicy::Omit,0)?.is_none());
++    let retained = project_raw(payload.clone(),None,&[(1,3)],RawPolicy::RetainPayload,4)?.ok_or("raw")?;
++    assert_eq!(retained.payloads()[0].as_ptr(),ptr); assert_eq!(retained.row_ranges(),&[(0,1,3)]);
++    assert!(project_raw(payload.clone(),None,&[(0,5)],RawPolicy::RetainPayload,100).is_err());
++    assert!(project_raw(payload.clone(),None,&[(0,4)],RawPolicy::RetainWire,100).is_err());
++    assert_eq!(project_raw(payload.clone(),None,&[(0,4)],RawPolicy::RetainPayload,3).err().map(|e|e.kind()),Some(ErrorKind::LimitExceeded));
++    let wire = Bytes::from(plain_frame(&payload,1,1)?);
++    assert!(project_raw(payload.clone(),Some(wire.clone()),&[(0,4)],RawPolicy::RetainWire,23).is_err());
++    let all = project_raw(payload,Some(wire),&[(0,4)],RawPolicy::RetainWire,24)?.ok_or("raw")?;
++    assert_eq!(all.wire_frames().ok_or("wire")?[0].len(),20);
++    Ok(())
++}
++
++#[test]
++fn explicit_file_config_roundtrip_and_invalid_source_precedence() -> TestResult {
++    // This test is source only until validation is authorized. No filesystem
++    // side effects occur during authoring or test discovery.
++    let path = std::env::temp_dir().join(format!("eltdx-ex-{}-{}.json",std::process::id(),std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_nanos()));
++    let endpoints = parse_hosts(["127.0.0.1","[::1]"],7727)?;
++    save_hosts(&path,&endpoints)?;
++    let source = HostConfigSource::default().with_file(&path);
++    assert_eq!(load_hosts(&source)?,endpoints);
++    save_hosts(&path,&parse_hosts(["127.0.0.2"],7727)?)?;
++    assert_eq!(load_hosts(&source)?,parse_hosts(["127.0.0.2"],7727)?);
++    std::fs::write(&path,b"{invalid")?;
++    assert!(load_hosts(&source).is_err());
++    assert_eq!(load_hosts(&source.clone().with_environment(EnvironmentSource::Value(Some("127.0.0.3".into()))))?,parse_hosts(["127.0.0.3"],7727)?);
++    assert!(save_hosts(&path,&parse_hosts(["127.0.0.1"],7000)?).is_err());
++    std::fs::remove_file(&path)?;
++    assert_eq!(load_hosts(&source)?.len(),16);
++    Ok(())
++}
++
++#[test]
++fn nondefault_queries_encode_exact_wire_widths_and_periods() -> TestResult {
++    let max = ExInstrumentId::new(ExMarketId::new(255)?,ExCode::new("123456789")?);
++    let instruments = instruments_request(&InstrumentsQuery::new(u32::MAX).with_count(65535)?);
++    assert_eq!(&instruments.wire()[12..],&[255;6]);
++    let list = quote_list_request(&QuoteListQuery::new(ExMarketId::new(255)?,QuoteCategory::Futures).with_start(65535)?.with_count(65535)?);
++    assert_eq!(&list.wire()[12..],&[255,0,0,255,255,255,255,1,0]);
++    for code in 0..=11 {
++        let period = ExPeriod::known(code)?;
++        let request = bars_request(&BarsQuery::new(max.clone(),period).with_start(u32::MAX).with_count(65535)?);
++        assert_eq!(request.wire()[12],255); assert_eq!(&request.wire()[13..22],b"123456789");
++        assert_eq!(&request.wire()[22..24],&code.to_le_bytes()); assert_eq!(&request.wire()[26..],&[255;6]);
++    }
++    let last = TradingDate::new(9999,12,31)?;
++    assert!(HistoryMinutesQuery::new(max.clone(),TradingDate::new(10000,1,1)?).is_err());
++    let current = transactions_request(&TransactionsQuery::new(max.clone()).with_start(i32::MAX as u32)?.with_count(65535)?);
++    let history = history_transactions_request(&HistoryTransactionsQuery::new(max,last)?.with_start(i32::MAX as u32)?.with_count(65535)?);
++    assert_eq!(&current.wire()[12..],&history.wire()[16..]);
++    assert_eq!(&current.wire()[26..],&[255,255]);
++    Ok(())
++}
++
++#[test]
++fn day_boundaries_and_retained_rows_share_payload_allocation() -> TestResult {
++    let mut bytes = bar_payload(20,18); bytes[22..24].copy_from_slice(&1439_u16.to_le_bytes());
++    let payload = Bytes::from(bytes); let pointer = payload.as_ptr();
++    let rows = decode_bars(payload.clone(),&BarsQuery::new(id()?,ExPeriod::Minute5).with_bar_time(BarTime::End)?,RawPolicy::RetainPayload)?;
++    let row = &rows.value()[0]; assert_eq!(row.time().clock(),Some((0,4,0)));
++    assert_eq!(row.time().date(),Some(TradingDate::new(2004,1,3)?));
++    assert_eq!(row.record_raw().ok_or("raw")?.as_ptr(),pointer.wrapping_add(20));
++    let mut invalid = bar_payload(20,18); invalid[22..24].copy_from_slice(&1440_u16.to_le_bytes());
++    assert!(decode_bars(invalid.into(),&BarsQuery::new(id()?,ExPeriod::Minute1),RawPolicy::Omit).is_err());
++    Ok(())
++}
++
++#[test]
++fn command_headers_and_invalid_clock_fields_are_never_empty_success() -> TestResult {
++    for length in 0..2 { assert!(decode_markets(Bytes::from(vec![0;length])).is_err()); }
++    for length in 0..6 { assert!(decode_instruments(Bytes::from(vec![0;length])).is_err()); }
++    for length in 0..12 { assert!(decode_minutes(Bytes::from(vec![0;length]),RawPolicy::Omit).is_err()); }
++    for length in 0..20 { assert!(decode_history_minutes(Bytes::from(vec![0;length]),RawPolicy::Omit).is_err()); }
++    for length in 0..16 {
++        assert!(decode_transactions(Bytes::from(vec![0;length]),RawPolicy::Omit).is_err());
++        assert!(decode_history_transactions(Bytes::from(vec![0;length]),RawPolicy::Omit).is_err());
++    }
++    let mut invalid = response(12,10,18,1); invalid[12..14].copy_from_slice(&1440_u16.to_le_bytes());
++    assert_eq!(decode_minutes(invalid.into(),RawPolicy::Omit).err().map(|e|e.kind()),Some(ErrorKind::Protocol));
++    let mut quote = vec![0;150]; quote[1]=0xff;
++    assert!(!decode_quote(quote.into(),RawPolicy::Omit)?.diagnostics().is_empty());
++    Ok(())
++}
++
++#[test]
++fn quote_list_every_named_field_maps_to_its_source_slot_and_native_kind() -> TestResult {
++    let futures = [
++        ("BiShu",0,false),("ZuoJie",1,true),("JinKai",2,true),("ZuiGao",3,true),("ZuiDi",4,true),("MaiChu",5,true),
++        ("KaiCang",6,false),("ZongLiang",8,false),("XianLiang",9,false),("ZongJinE",10,true),("NeiPan",11,false),
++        ("WaiPan",12,false),("ChiCangLiang",14,false),("MaiRuJia",15,true),("MaiRuLiang",20,false),("MaiChuJia",25,true),("MaiChuLiang",30,false),
++    ];
++    let hk = [
++        ("HuoYueDu",0,false),("ZuoShou",1,true),("JinKai",2,true),("ZuiGao",3,true),("ZuiDi",4,true),("XianJia",5,true),
++        ("MaiRuJia",7,true),("ZongLiang",8,false),("XianLiang",9,false),("ZongJinE",10,true),("Nei",13,false),("Wai",14,false),
++        ("MaiRuJia1",15,true),("MaiRuJia2",16,true),("MaiRuJia3",17,true),("MaiRuJia4",18,true),("MaiRuJia5",19,true),
++        ("MaiRuLiang1",20,false),("MaiRuLiang2",21,false),("MaiRuLiang3",22,false),("MaiRuLiang4",23,false),("MaiRuLiang5",24,false),
++        ("MaiChuJia1",25,true),("MaiChuJia2",26,true),("MaiChuJia3",27,true),("MaiChuJia4",28,true),("MaiChuJia5",29,true),
++        ("MaiChuLiang1",30,false),("MaiChuLiang2",31,false),("MaiChuLiang3",32,false),("MaiChuLiang4",33,false),("MaiChuLiang5",34,false),
++    ];
++    for (category, expected) in [(QuoteCategory::Futures,futures.as_slice()),(QuoteCategory::HongKong,hk.as_slice())] {
++        let mut bytes = response(2,0,300,1); bytes[2]=31; bytes[3]=b'X';
++        for slot in 0..35 { put_u32(&mut bytes,12+slot*4,0x7f800001+slot as u32); }
++        let decoded = decode_quote_list(bytes.into(),category)?; let row = &decoded.value()[0];
++        assert_eq!(row.fields().len(),expected.len());
++        for &(name,slot,is_float) in expected {
++            let field = row.field(name).ok_or("field")?;
++            assert_eq!(field.slot(),slot as u8);
++            let bits = 0x7f800001+slot as u32;
++            assert_eq!(field.value(),if is_float { NativeValue::Float(WireFloat::from_bits(bits)) } else { NativeValue::Unsigned(bits) });
++            assert_eq!(field.meaning().unit(),&NativeUnit::Unknown);
++        }
++    }
++    Ok(())
++}
++
++#[test]
++fn filtered_rows_do_not_change_wire_consumption_and_returned_offset_survives() -> TestResult {
++    let mut markets = response(2,0,64,2); markets[2]=1; markets[35]=31;
++    let decoded = decode_markets(markets.into())?;
++    assert_eq!(decoded.wire_row_count(),Some(2)); assert_eq!(decoded.value().len(),1);
++    let mut instruments = response(6,4,64,0); put_u32(&mut instruments,0,u32::MAX);
++    let decoded = decode_instruments(instruments.into())?;
++    assert_eq!(decoded.response_offset(),Some(u32::MAX)); assert_eq!(decoded.wire_row_count(),Some(0));
++    Ok(())
++}
++
++#[test]
++fn pure_codecs_enforce_the_frame_body_ceiling() -> TestResult {
++    assert_eq!(decode_markets(Bytes::from(vec![0;65536])).err().map(|e|e.kind()),Some(ErrorKind::LimitExceeded));
++    assert_eq!(decode_quote(Bytes::from(vec![0;65536]),RawPolicy::Omit).err().map(|e|e.kind()),Some(ErrorKind::LimitExceeded));
++    assert_eq!(WireProfile::Ex.setup_request(),Some(SETUP_REQUEST.as_slice()));
++    assert!(WireProfile::MacEx.setup_request().is_none());
++    assert!(TimeOfDay::new(24,0,0).is_err());
++    assert_eq!(TimeOfDay::new(23,59,59)?.second(),59);
++    Ok(())
++}

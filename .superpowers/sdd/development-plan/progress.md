@@ -160,24 +160,28 @@
 | T07 | Implementation and scoped reviews complete through `98e8558`; final verification deferred |
 | T08 | Implementation and scoped static review complete through `d8574bb`; verification deferred |
 | T09 | Source and scoped static review complete at `65ef657`; unified verification deferred |
-| T10 | Stage A implementation in progress; Stage B owner/operation integration now authorized after T08 approval |
+| T10 | Stage A committed; Stage B source authored, final report/checkpoint pending; static review required before T11 |
 | T11 | Not started |
 | T12 | Not started |
 | T13 | Not started |
 | T14 | Not started |
 | T15 | Not started |
 | T16 | Not started |
-| T17 | Stage A bounded archive/stats source implementation authorized; service integration awaits Stage B |
+| T17 | Stage A cd6735b statically approved; service integration awaits Stage B |
 | T18 | Not started |
 | T19 | Not started |
 | T20 | Not started |
 | T21 | Implementation and scoped source review complete through `b6e4beb`; verification deferred |
 | T22 | Not started |
 | T23 | Not started |
-| T24 | Stage A isolated EX codec implementation authorized; transport/owner integration requires Stage B |
+| T24 | Stage A 1220bf2/report83540ec submitted to scoped static review; transport/owner integration requires Stage B |
 | T25 | Not started |
 | T26 | Not started |
 | T27 | Not started |
 | T28 | Not started |
 | T29 | Not started |
 | T30 | Not started |
+
+- Recovery 2026-11-16: user resumed goal mode. Existing goal confirmed active, remainingTokens=null, no budget added. Reused all three live implementations; no completed task redispatched. T10 Stage B source authored and completing report/checkpoint; T17 Stage A `cd6735b`, T24 Stage A code `1220bf2` and report `83540ec` now persisted.
+- Task 17: Stage A scoped static review Approved with no Critical/Important/Minor source findings. Retained in `task-17-stage-a-review.md`, package `task-17-stage-a-cd6735b.diff`. This only closes the archive/stats parser stage; shared GBK, dependencies, actual resource/company/session/health services, DTO/getters and public entry remain Stage B. Dependency API/licenses and all runtime evidence remain deferred.
+- Task 24: Stage A scoped static review dispatched to `/root/t24_stage_a_review`, package `task-24-stage-a-83540ec.diff`. All eleven wire commands are authored; actual owner/serialized transport/admission and public client remain Stage B. No validation performed.

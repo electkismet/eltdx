@@ -1,0 +1,1074 @@
+T08 fix round 1; base b3371c0; head fc90734; owned paths only.
+--- Commits ---
+fc90734 fix(sdk): address T08 operation review findings
+--- Stat ---
+ crates/eltdx-runtime/src/engine.rs    | 171 +++++++++++++++++++++++++++++-----
+ crates/eltdx-runtime/src/execution.rs |  14 +++
+ crates/eltdx/src/hq/executor.rs       |  43 ++++++++-
+ crates/eltdx/src/operation.rs         |   5 +-
+ crates/eltdx/src/operation_tests.rs   |  42 +++++++++
+ crates/eltdx/src/policy/retries.rs    |  57 ++++++++++--
+ 6 files changed, 299 insertions(+), 33 deletions(-)
+--- Diff ---
+diff --git a/crates/eltdx-runtime/src/engine.rs b/crates/eltdx-runtime/src/engine.rs
+index 34d4387..ce1fde0 100644
+--- a/crates/eltdx-runtime/src/engine.rs
++++ b/crates/eltdx-runtime/src/engine.rs
+@@ -590,31 +590,37 @@ impl<T: Clone> Completion<T> {
+             .wait_timeout(current, timeout)
+             .map_err(|_| RuntimeError::internal("completion condition is poisoned"))?;
+         Ok(current.clone())
+     }
+ }
+ 
+ #[derive(Debug, Default)]
+ struct ControlState {
+     close_requested: bool,
+     close_timed_out: bool,
+-    cancellations: BTreeMap<RequestId, Arc<Completion<Result<(), RuntimeError>>>>,
++    cancellations: BTreeMap<RequestId, RawCancellation>,
+     pin_cancellations: BTreeMap<RequestId, PinCancellation>,
+     pin_closes: Vec<PinIdentity>,
+ }
+ 
+ #[derive(Debug)]
+ struct PinCancellation {
+     confirmation: Arc<Completion<Result<(), RuntimeError>>>,
+     result_terminal: Arc<AtomicBool>,
+ }
+ 
++#[derive(Debug)]
++struct RawCancellation {
++    confirmation: Arc<Completion<Result<(), RuntimeError>>>,
++    result_terminal: Option<Arc<AtomicBool>>,
++}
++
+ #[derive(Debug)]
+ struct ControlCell {
+     state: Mutex<ControlState>,
+     changed: Notify,
+ }
+ 
+ impl ControlCell {
+     fn new() -> Self {
+         Self {
+             state: Mutex::new(ControlState::default()),
+@@ -636,26 +642,40 @@ impl ControlCell {
+         state.close_timed_out = true;
+         drop(state);
+         self.changed.notify_one();
+         Ok(())
+     }
+ 
+     fn request_cancel(
+         &self,
+         request_id: RequestId,
+         confirmation: Arc<Completion<Result<(), RuntimeError>>>,
++    ) -> Result<(), RuntimeError> {
++        self.request_raw_cancel(request_id, None, confirmation)
++    }
++
++    fn request_raw_cancel(
++        &self,
++        request_id: RequestId,
++        result_terminal: Option<Arc<AtomicBool>>,
++        confirmation: Arc<Completion<Result<(), RuntimeError>>>,
+     ) -> Result<(), RuntimeError> {
+         let mut state = lock_mutex(&self.state, "runtime control")?;
++        if result_terminal.as_ref().is_some_and(|terminal| terminal.load(Ordering::Acquire)) {
++            drop(state);
++            confirmation.publish(Ok(()));
++            return Ok(());
++        }
+         state
+             .cancellations
+             .entry(request_id)
+-            .or_insert(confirmation);
++            .or_insert(RawCancellation { confirmation, result_terminal });
+         drop(state);
+         self.changed.notify_one();
+         Ok(())
+     }
+ 
+     fn request_pin_cancel(
+         &self,
+         request_id: RequestId,
+         result_terminal: Arc<AtomicBool>,
+         confirmation: Arc<Completion<Result<(), RuntimeError>>>,
+@@ -694,21 +714,21 @@ impl ControlCell {
+             pin_cancellations: std::mem::take(&mut state.pin_cancellations),
+             pin_closes: std::mem::take(&mut state.pin_closes),
+         })
+     }
+ }
+ 
+ #[derive(Debug)]
+ struct ControlSnapshot {
+     close_requested: bool,
+     close_timed_out: bool,
+-    cancellations: BTreeMap<RequestId, Arc<Completion<Result<(), RuntimeError>>>>,
++    cancellations: BTreeMap<RequestId, RawCancellation>,
+     pin_cancellations: BTreeMap<RequestId, PinCancellation>,
+     pin_closes: Vec<PinIdentity>,
+ }
+ 
+ #[derive(Debug)]
+ struct IngressOwnership {
+     owned: Arc<AtomicUsize>,
+ }
+ 
+ impl Drop for IngressOwnership {
+@@ -717,38 +737,57 @@ impl Drop for IngressOwnership {
+         debug_assert!(previous > 0);
+     }
+ }
+ 
+ #[derive(Debug)]
+ struct PinResultSender {
+     sender: std_mpsc::SyncSender<Result<PinDelivery, RuntimeError>>,
+     terminal: Arc<AtomicBool>,
+ }
+ 
++#[derive(Debug)]
++struct RawResultSender {
++    sender: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
++    terminal: Arc<AtomicBool>,
++}
++
++impl RawResultSender {
++    fn mark_terminal(&self) { self.terminal.store(true, Ordering::Release); }
++
++    fn send(&self, result: Result<RawReply, RuntimeError>)
++        -> Result<(), std_mpsc::SendError<Result<RawReply, RuntimeError>>> {
++        // The single runtime reducer has already retired/released this request.
++        // Publish terminal state before handing the value to another thread.
++        self.terminal.store(true, Ordering::Release);
++        self.sender.send(result)
++    }
++}
++
+ impl PinResultSender {
+     fn send(
+         &self,
+         result: Result<PinDelivery, RuntimeError>,
+     ) -> Result<(), std_mpsc::SendError<Result<PinDelivery, RuntimeError>>> {
+         let sent = self.sender.send(result);
+         self.terminal.store(true, Ordering::Release);
+         sent
+     }
+ }
+ 
+ #[derive(Debug)]
+ pub struct PendingExecution {
+     raw: PendingRawExecution,
+ }
+ 
+ #[derive(Debug)]
+ pub struct PendingRawExecution {
++    result_terminal: Arc<AtomicBool>,
+     created_pid: u32,
+     request_id: RequestId,
+     control: Arc<ControlCell>,
+     admission_rx: Option<std_mpsc::Receiver<Result<(), RuntimeError>>>,
+     result_rx: std_mpsc::Receiver<Result<RawReply, RuntimeError>>,
+     terminal_received: Cell<bool>,
+ }
+ 
+ #[derive(Debug)]
+ pub struct PendingPin {
+@@ -931,46 +970,47 @@ impl PendingRawExecution {
+             }
+         }
+     }
+ 
+     pub fn begin_cancel(&self) -> Result<PendingCancellation, RuntimeError> {
+         check_pid(self.created_pid)?;
+         let confirmation = if self.terminal_received.get() { None } else { match self.result_rx.try_recv() {
+             Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => None,
+             Err(std_mpsc::TryRecvError::Empty) => {
+                 let confirmation = Arc::new(Completion::new());
+-                self.control.request_cancel(self.request_id, Arc::clone(&confirmation))?;
++                self.control.request_raw_cancel(self.request_id, Some(Arc::clone(&self.result_terminal)), Arc::clone(&confirmation))?;
+                 Some(confirmation)
+             }
+         }
+         };
+         Ok(PendingCancellation {
+             created_pid: self.created_pid, control: Arc::clone(&self.control), confirmation,
+         })
+     }
+ 
+     #[doc(hidden)]
+     pub fn quarantine(&self) -> Result<(), RuntimeError> {
+         check_pid(self.created_pid)?;
+         self.control.mark_close_timeout()?;
+         self.control.request_close()
+     }
+ 
+     pub fn cancel_and_confirm(&self, timeout: Duration) -> Result<(), RuntimeError> {
+         check_pid(self.created_pid)?;
++        if self.terminal_received.get() || self.result_terminal.load(Ordering::Acquire) { return Ok(()); }
+         match self.result_rx.try_recv() {
+             Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => return Ok(()),
+             Err(std_mpsc::TryRecvError::Empty) => {}
+         }
+         let confirmation = Arc::new(Completion::new());
+         self.control
+-            .request_cancel(self.request_id, Arc::clone(&confirmation))?;
++            .request_raw_cancel(self.request_id, Some(Arc::clone(&self.result_terminal)), Arc::clone(&confirmation))?;
+         match confirmation.wait(timeout)? {
+             Some(result) => result,
+             None => {
+                 let error = RuntimeError::timeout(TimeoutPhase::CancelConfirmation)
+                     .with_context("request_id", self.request_id.get().to_string());
+                 self.control.mark_close_timeout()?;
+                 self.control.request_close()?;
+                 Err(error)
+             }
+         }
+@@ -1586,20 +1626,22 @@ impl Engine {
+         let authorization = options.as_ref().and_then(|options| options.authorization.clone());
+         let retry_policy = options.as_ref().and_then(|options| options.retry)
+             .unwrap_or_else(|| RetryPolicy::ordinary(request.retry_safe()));
+         let (runtime, request_id, ingress) = self.reserve_authorized_submission(
+             deadline_policy.absolute_deadline(), authorization.as_deref(),
+         )?;
+         let deadline = deadline_policy.resolve_after_startup()?;
+         deadline.require_remaining(TimeoutPhase::Admission)?;
+         let (admission_tx, admission_rx) = std_mpsc::sync_channel(1);
+         let (result_tx, result_rx) = std_mpsc::sync_channel(1);
++        let result_terminal = Arc::new(AtomicBool::new(false));
++        let result_tx = RawResultSender { sender: result_tx, terminal: Arc::clone(&result_terminal) };
+         let command = match pin {
+             Some(pin) => RuntimeCommand::ExecutePinned {
+                 pin,
+                 request_id,
+                 request,
+                 deadline,
+                 retry_policy,
+                 authorization,
+                 admission: admission_tx,
+                 result: result_tx,
+@@ -1627,20 +1669,21 @@ impl Engine {
+                         "7709 runtime ingress channel is full".to_owned()
+                     },
+                     capacity: self.inner.config.total_capacity().unwrap_or(usize::MAX),
+                     context: Vec::new(),
+                 },
+                 mpsc::error::TrySendError::Closed(_) => {
+                     RuntimeError::connection_closed("7709 runtime command channel is closed")
+                 }
+             })?;
+         Ok(PendingRawExecution {
++            result_terminal,
+             terminal_received: Cell::new(false),
+             created_pid: self.inner.created_pid,
+             request_id,
+             control: runtime.control,
+             admission_rx: Some(admission_rx),
+             result_rx,
+         })
+     }
+ 
+     fn begin_pin_close(&self, pin: PinIdentity) -> Result<PendingPinClose, RuntimeError> {
+@@ -2397,39 +2440,39 @@ enum RuntimeCommand {
+         deadline: Option<Deadline>,
+         completion: Arc<Completion<Result<(), RuntimeError>>>,
+     },
+     Execute {
+         request_id: RequestId,
+         request: CommandRequest,
+         deadline: Deadline,
+         retry_policy: RetryPolicy,
+         authorization: Option<Arc<dyn AttemptAuthorization>>,
+         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
+-        result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
++        result: RawResultSender,
+         ingress: IngressOwnership,
+     },
+     OpenPin {
+         request_id: RequestId,
+         deadline: Deadline,
+         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
+         result: PinResultSender,
+         ingress: IngressOwnership,
+     },
+     ExecutePinned {
+         pin: PinIdentity,
+         request_id: RequestId,
+         request: CommandRequest,
+         deadline: Deadline,
+         retry_policy: RetryPolicy,
+         authorization: Option<Arc<dyn AttemptAuthorization>>,
+         admission: std_mpsc::SyncSender<Result<(), RuntimeError>>,
+-        result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
++        result: RawResultSender,
+         ingress: IngressOwnership,
+     },
+     ClosePin {
+         pin: PinIdentity,
+         reply: std_mpsc::SyncSender<Result<(), RuntimeError>>,
+     },
+     PollPush {
+         deadline: Deadline,
+         reply: std_mpsc::SyncSender<Result<Option<PushFrame>, RuntimeError>>,
+     },
+@@ -2650,21 +2693,21 @@ fn lock_mutex<'a, T>(
+         .map_err(|_| RuntimeError::internal(format!("{name} mutex is poisoned")))
+ }
+ 
+ // RuntimeCore and SlotWorker are defined below. Keeping the host boundary above free of Tokio
+ // handles is what makes the pre-lock PID check and child-process finalizer rule enforceable.
+ 
+ #[derive(Debug)]
+ struct PendingRequest {
+     request: CommandRequest,
+     authorization: Option<Arc<dyn AttemptAuthorization>>,
+-    result: std_mpsc::SyncSender<Result<RawReply, RuntimeError>>,
++    result: RawResultSender,
+     _ingress: IngressOwnership,
+     admission: Admission,
+     wire: Option<RequestWireIdentity>,
+     response: Option<(ResponseFrame, RequestWireIdentity, String)>,
+     dispatched: bool,
+     pin: Option<PinIdentity>,
+ }
+ 
+ #[derive(Debug)]
+ struct PendingPinReservation {
+@@ -3761,24 +3804,28 @@ impl RuntimeCore {
+     ) -> Result<(), RuntimeError> {
+         let epoch = attempt.engine_epoch;
+         self.ensure_slot(epoch, attempt.slot_id)?;
+         let request = self
+             .pending
+             .get(&attempt.request_id)
+             .map(|pending| pending.request.clone())
+             .ok_or_else(|| RuntimeError::internal("dispatched request is not pending"))?;
+         let permit = match self.pending.get(&attempt.request_id)
+             .and_then(|pending| pending.authorization.as_ref()) {
+-            Some(authorization) => authorization.reserve(
+-                attempt.attempt_number,
+-                self.supervisor.last_retry_error(attempt.request_id),
+-            ).map(Some),
++            Some(authorization) => {
++                let last = self.supervisor.last_retry_error(attempt.request_id);
++                if begin_endpoint_attempt {
++                    authorization.reserve(attempt.attempt_number, last)
++                } else {
++                    authorization.reserve_endpoint_continuation(attempt.attempt_number, last)
++                }.map(Some)
++            }
+             None => Ok(None),
+         };
+         self.send_slot_work(
+             attempt.slot_id,
+             SlotWork::Execute {
+                 attempt,
+                 request,
+                 begin_endpoint_attempt,
+                 publish_connect_transition,
+                 permit,
+@@ -4421,20 +4468,23 @@ impl RuntimeCore {
+             .any(|action| action.wire.request_id == request_id)
+     }
+ 
+     async fn process_notifications(
+         &mut self,
+         notifications: Vec<TerminalNotification>,
+     ) -> Result<(), RuntimeError> {
+         for notification in notifications {
+             let request_id = notification.request_id;
+             self.heartbeat_requests.remove(&request_id);
++            if let Some(pending) = self.pending.get(&request_id) {
++                pending.result.mark_terminal();
++            }
+             if let Some(reservation) = self.pin_reservations.remove(&request_id) {
+                 let error = notification.error.unwrap_or_else(|| {
+                     RuntimeError::connection_closed("pin reservation was cancelled")
+                 });
+                 let _ = reservation.result.send(Err(error));
+                 if let Some(confirmation) = self.cancel_confirmations.remove(&request_id) {
+                     confirmation.publish(Ok(()));
+                 }
+                 continue;
+             }
+@@ -4718,22 +4768,22 @@ impl RuntimeCore {
+                 };
+                 self.supervisor.finish_close(attempt, Err(error));
+                 match self.supervisor.begin_close()? {
+                     CloseClaim::Owner(retry) | CloseClaim::Existing(retry) => {
+                         self.close_attempt = Some(retry);
+                     }
+                     CloseClaim::AlreadyStopped | CloseClaim::AlreadyFailedClosed => {}
+                 }
+             }
+         }
+-        for (request_id, confirmation) in snapshot.cancellations {
+-            self.cancel_request(request_id, confirmation).await?;
++        for (request_id, cancellation) in snapshot.cancellations {
++            self.cancel_raw_request(request_id, cancellation).await?;
+         }
+         for (request_id, cancellation) in snapshot.pin_cancellations {
+             self.cancel_pin_request(request_id, cancellation).await?;
+         }
+         for pin in snapshot.pin_closes {
+             let (reply, receiver) = std_mpsc::sync_channel(1);
+             drop(receiver);
+             self.close_pin(pin, reply).await?;
+         }
+         if snapshot.close_requested && !self.closing {
+@@ -4748,20 +4798,31 @@ impl RuntimeCore {
+         cancellation: PinCancellation,
+     ) -> Result<(), RuntimeError> {
+         if cancellation.result_terminal.load(Ordering::Acquire) {
+             cancellation.confirmation.publish(Ok(()));
+             return Ok(());
+         }
+         self.cancel_request(request_id, cancellation.confirmation)
+             .await
+     }
+ 
++    async fn cancel_raw_request(
++        &mut self, request_id: RequestId, cancellation: RawCancellation,
++    ) -> Result<(), RuntimeError> {
++        if cancellation.result_terminal.as_ref()
++            .is_some_and(|terminal| terminal.load(Ordering::Acquire)) {
++            cancellation.confirmation.publish(Ok(()));
++            return Ok(());
++        }
++        self.cancel_request(request_id, cancellation.confirmation).await
++    }
++
+     async fn cancel_request(
+         &mut self,
+         request_id: RequestId,
+         confirmation: Arc<Completion<Result<(), RuntimeError>>>,
+     ) -> Result<(), RuntimeError> {
+         if let Some(reservation) = self.pin_reservations.get(&request_id) {
+             let admission = reservation.admission;
+             self.cancel_confirmations.insert(request_id, confirmation);
+             let error = RuntimeError::connection_closed("pin reservation cancelled by caller")
+                 .with_context("request_id", request_id.get().to_string());
+@@ -5057,20 +5118,32 @@ impl RuntimeCore {
+         if let Some(batch) = self.connect_batch.take() {
+             let error = batch.first_error.unwrap_or_else(|| {
+                 RuntimeError::connection_closed("Engine closed during explicit connect")
+             });
+             batch.completion.publish(Err(error));
+         }
+         Ok(())
+     }
+ }
+ 
++fn start_reserved_attempt(
++    deadline: Deadline,
++    permit: Result<Option<Box<dyn ReservedAttempt>>, RuntimeError>,
++) -> Result<(), RuntimeError> {
++    // Expired queued work drops its unique reservation without committing it.
++    deadline.require_remaining(TimeoutPhase::Retry)?;
++    match permit? {
++        Some(permit) => permit.start_before(deadline.instant()),
++        None => Ok(()),
++    }
++}
++
+ fn wire_without_generation(lease: ActiveLease) -> RequestWireIdentity {
+     RequestWireIdentity {
+         engine_epoch: lease.engine_epoch,
+         request_id: lease.request_id,
+         lease_id: lease.lease_id,
+         slot_id: lease.slot_id,
+         generation: None,
+         message: None,
+     }
+ }
+@@ -5546,24 +5619,21 @@ impl SlotWorker {
+         permit: Result<Option<Box<dyn ReservedAttempt>>, RuntimeError>,
+     ) -> Result<WorkOutcome, RuntimeError> {
+         if let Some(interrupted) = self.current_interrupt(attempt.request_id) {
+             if interrupted {
+                 return Ok(WorkOutcome::UnstartedRejected {
+                     attempt,
+                     error: RuntimeError::connection_closed("request cancelled before wire start"),
+                 });
+             }
+         }
+-        let started = permit.and_then(|permit| match permit {
+-            Some(permit) => permit.start(Instant::now()),
+-            None => Ok(()),
+-        });
++        let started = start_reserved_attempt(attempt.deadline, permit);
+         if let Err(error) = started {
+             return Ok(WorkOutcome::UnstartedRejected { attempt, error });
+         }
+         let boundary = if self.slot.state() == SlotState::Idle {
+             self.slot.assign_ready(attempt.request_id)?;
+             self.slot.receive_sequence()
+         } else {
+             match self
+                 .connect_for_request(attempt, begin_endpoint_attempt, publish_connect_transition)
+                 .await?
+@@ -5650,24 +5720,30 @@ impl SlotWorker {
+         publish_connect_transition: bool,
+     ) -> Result<ConnectForRequest, RuntimeError> {
+         if self.slot.state() != SlotState::Disconnected {
+             return Err(RuntimeError::internal(
+                 "request assigned to a Slot that is neither ready nor disconnected",
+             ));
+         }
+         if begin_endpoint_attempt {
+             self.slot.begin_endpoint_attempt()?;
+         }
+-        let start = self
+-            .slot
+-            .start_connect(attempt.request_id, attempt.deadline, Instant::now())?
+-            .ok_or_else(|| RuntimeError::timeout(TimeoutPhase::Connect))?;
++        let start = match self.slot.start_connect(attempt.request_id, attempt.deadline, Instant::now()) {
++            Ok(Some(start)) => start,
++            Ok(None) => return Ok(ConnectForRequest::Outcome(WorkOutcome::UnstartedRejected {
++                attempt, error: RuntimeError::timeout(TimeoutPhase::Connect),
++            })),
++            Err(error @ RuntimeError::Timeout { .. }) => return Ok(ConnectForRequest::Outcome(
++                WorkOutcome::UnstartedRejected { attempt, error },
++            )),
++            Err(error) => return Err(error),
++        };
+         let wire = request_wire(attempt, start.identity, None);
+         if publish_connect_transition
+             && self
+                 .publish_transition(attempt.request_id, RequestState::Connecting, wire)
+                 .await
+                 .is_err()
+         {
+             return Ok(ConnectForRequest::Outcome(WorkOutcome::Interrupted {
+                 wire,
+             }));
+@@ -6705,21 +6781,21 @@ mod tests {
+             crate::request::Admission::Pinned(call) => call.request_id,
+             crate::request::Admission::Waiting(permit) => permit.request_id,
+         };
+         let (result, receiver) = std_mpsc::sync_channel(1);
+         core.pending.insert(request_id, super::PendingRequest {
+             request: eltdx_protocol::CommandRequest::SecurityCount(
+                 eltdx_protocol::commands::security::SecurityCountRequest {
+                     market: eltdx_protocol::unit::Market::Shanghai, client_date: 0,
+                 },
+             ),
+-            authorization: None, result,
++            authorization: None, result: super::RawResultSender { sender: result, terminal: Arc::new(AtomicBool::new(false)) },
+             _ingress: super::IngressOwnership { owned: Arc::new(AtomicUsize::new(1)) },
+             admission, wire: None, response: None, dispatched: false, pin,
+         });
+         receiver
+     }
+ 
+     #[test]
+     fn initial_deadline_expiry_is_local_for_ordinary_and_unstarted_pinned_requests() -> Result<(), RuntimeError> {
+         for pinned in [false, true] {
+             let reservation_id = RequestId::new(200)?;
+@@ -6958,20 +7034,69 @@ mod tests {
+         let request_id = RequestId::new(7)?;
+         control.request_cancel(request_id, Arc::clone(&confirmation))?;
+         control.request_close()?;
+ 
+         let snapshot = control.take_snapshot()?;
+         assert!(snapshot.close_requested);
+         assert!(snapshot.cancellations.contains_key(&request_id));
+         Ok(())
+     }
+ 
++    #[test]
++    fn cancellation_registered_before_terminal_publish_acknowledges_without_pre_cancel_or_close() -> Result<(), RuntimeError> {
++        let request_id = RequestId::new(73)?;
++        let (mut core, runtime, _receiver) = pin_reservation_runtime(RequestId::new(72)?)?;
++        let control = Arc::clone(&core.control);
++        let terminal = Arc::new(AtomicBool::new(false));
++        let confirmation = Arc::new(super::Completion::new());
++        control.request_raw_cancel(request_id, Some(Arc::clone(&terminal)), Arc::clone(&confirmation))?;
++        let snapshot = control.take_snapshot()?;
++        if !snapshot.cancellations.contains_key(&request_id) {
++            return Err(RuntimeError::internal("registered cancellation is missing"));
++        }
++        let (sender, receiver) = std_mpsc::sync_channel(1);
++        let sender = super::RawResultSender {
++            sender,
++            terminal: Arc::clone(&terminal),
++        };
++        sender.send(Err(RuntimeError::connection_closed("terminal result")))
++            .expect("terminal receiver is present");
++        drop(receiver);
++        assert!(terminal.load(Ordering::Acquire));
++        runtime.block_on(core.cancel_raw_request(request_id, snapshot.cancellations.into_values().next()
++                .ok_or_else(|| RuntimeError::internal("cancellation snapshot is empty"))?))?;
++        assert_eq!(confirmation.wait(Duration::ZERO)?, Some(Ok(())));
++        let remaining = control.take_snapshot()?;
++        assert!(!remaining.close_requested);
++        assert!(remaining.cancellations.is_empty());
++        assert!(core.pre_cancelled_submissions.is_empty());
++        Ok(())
++    }
++
++    #[test]
++    fn expired_effective_attempt_is_rejected_before_worker_start() -> Result<(), RuntimeError> {
++        #[derive(Debug)]
++        struct CountStart(Arc<AtomicUsize>);
++        impl crate::execution::ReservedAttempt for CountStart {
++            fn start(self: Box<Self>, _: std::time::Instant) -> Result<(), RuntimeError> {
++                self.0.fetch_add(1, Ordering::AcqRel);
++                Ok(())
++            }
++        }
++        let starts = Arc::new(AtomicUsize::new(0));
++        let deadline = crate::deadline::Deadline::at(std::time::Instant::now());
++        let result = super::start_reserved_attempt(deadline, Ok(Some(Box::new(CountStart(Arc::clone(&starts))))));
++        assert!(matches!(result, Err(RuntimeError::Timeout { .. })));
++        assert_eq!(starts.load(Ordering::Acquire), 0);
++        Ok(())
++    }
++
+     #[test]
+     fn dropping_unwaited_pin_registers_cancellation_without_waiting() -> Result<(), RuntimeError> {
+         let engine = Engine::new(config(1, 1)?)?;
+         let control = Arc::new(ControlCell::new());
+         let request_id = RequestId::new(41)?;
+         let (_admission_tx, admission_rx) = std_mpsc::sync_channel(1);
+         let (_result_tx, result_rx) = std_mpsc::sync_channel(1);
+         let pending = super::PendingPin {
+             created_pid: std::process::id(),
+             engine,
+diff --git a/crates/eltdx-runtime/src/execution.rs b/crates/eltdx-runtime/src/execution.rs
+index ae823d6..e809261 100644
+--- a/crates/eltdx-runtime/src/execution.rs
++++ b/crates/eltdx-runtime/src/execution.rs
+@@ -63,28 +63,42 @@ impl SubmissionOptions {
+ #[doc(hidden)]
+ pub trait AttemptAuthorization: std::fmt::Debug + Send + Sync {
+     fn check_boundary(&self, now: Instant) -> Result<(), RuntimeError>;
+ 
+     fn reserve(
+         &self,
+         attempt: u32,
+         last_failure: Option<&RuntimeError>,
+     ) -> Result<Box<dyn ReservedAttempt>, RuntimeError>;
+ 
++    /// Continue an existing legacy attempt without another logical recovery debit.
++    fn reserve_endpoint_continuation(
++        &self, attempt: u32, last_failure: Option<&RuntimeError>,
++    ) -> Result<Box<dyn ReservedAttempt>, RuntimeError> {
++        self.reserve(attempt, last_failure)
++    }
++
+     /// Old runtime endpoint cycling is retained only by the legacy policy.
+     fn count_endpoint_failover(&self) -> bool;
+ }
+ 
+ /// Unique reservation, moved to a worker. Dropping before start refunds it exactly once.
+ #[doc(hidden)]
+ pub trait ReservedAttempt: std::fmt::Debug + Send {
+     fn start(self: Box<Self>, now: Instant) -> Result<(), RuntimeError>;
++
++    /// Authorizers with admission locks must recheck this bound after locking.
++    fn start_before(self: Box<Self>, deadline: Instant) -> Result<(), RuntimeError> {
++        let now = Instant::now();
++        Deadline::at(deadline).require_remaining_at(now, crate::error::TimeoutPhase::Retry)?;
++        self.start(now)
++    }
+ }
+ 
+ /// An owned protocol frame and the session identity that received it.
+ #[derive(Clone, Debug, Eq, PartialEq)]
+ pub struct RawReply {
+     /// The request used to produce this reply.
+     pub request: CommandRequest,
+     /// The decoded response frame, including both payload and original wire bytes.
+     pub response: ResponseFrame,
+     /// Runtime request identity.
+diff --git a/crates/eltdx/src/hq/executor.rs b/crates/eltdx/src/hq/executor.rs
+index 6f7ff2a..fe1b413 100644
+--- a/crates/eltdx/src/hq/executor.rs
++++ b/crates/eltdx/src/hq/executor.rs
+@@ -116,21 +116,21 @@ impl HqExecutor {
+                     return Err(runtime_error);
+                 }
+             }
+         }
+     }
+ 
+     fn retire_cancelled(
+         &self, context: &OperationContext, pending: &PendingRawExecution,
+         root: Error, command: u16,
+     ) -> Error {
+-        let root = context.stop(root);
++        let root = context.stop(context.annotate(root, TimeoutPhase::Response, Some(command)));
+         let result = (|| {
+             context.claim_cleanup()?;
+             let confirmation = pending.begin_cancel().map_err(Error::from_runtime)?;
+             loop {
+                 match confirmation.wait_timeout(std::time::Duration::ZERO).map_err(Error::from_runtime)? {
+                     PendingPoll::Ready(()) => return Ok(()),
+                     PendingPoll::Pending => {}
+                 }
+                 let remaining = context.cleanup_remaining()?;
+                 if remaining.is_zero() {
+@@ -142,23 +142,62 @@ impl HqExecutor {
+                 match confirmation.wait_timeout(remaining.min(SIGNAL_POLL_INTERVAL)) {
+                     Ok(PendingPoll::Ready(())) => return Ok(()),
+                     Ok(PendingPoll::Pending) => {}
+                     Err(error) => {
+                         let _ = confirmation.quarantine();
+                         return Err(Error::from_runtime(error));
+                     }
+                 }
+             }
+         })();
++        if result.is_err() { let _ = pending.quarantine(); }
++        Self::complete_retirement(context, root, command, result)
++    }
++
++    fn complete_retirement(context: &OperationContext, root: Error, command: u16, result: Result<()>) -> Error {
+         match result {
+             Ok(()) => root,
+             Err(cleanup) => {
+-                let _ = pending.quarantine();
+                 context.annotate(Error::new(ErrorKind::CancelUnconfirmed, "operation stopped but retirement was not confirmed")
+                     .with_context("root_kind", format!("{:?}", root.kind()))
+                     .with_source(root).with_cleanup_failure(cleanup),
+                 TimeoutPhase::CancelConfirm, Some(command),
+                 )
+             }
+         }
+     }
+ }
++
++#[cfg(test)]
++mod operation_retirement_tests {
++    use std::error::Error as _;
++    use std::sync::Arc;
++    use std::time::Duration;
++
++    use super::HqExecutor;
++    use crate::client::ClientBuilder;
++    use crate::error::{Error, ErrorKind, TimeoutPhase};
++    use crate::operation::OperationOptions;
++    use crate::session::SessionOwner;
++
++    #[test]
++    fn confirmed_retirement_returns_first_annotated_stop_cause_with_runtime_source() {
++        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
++        let config = ClientBuilder::new().build().expect("lazy config").config().clone();
++        let context = HqExecutor::new(Arc::clone(&owner))
++            .begin_context("cancelled_lookup", &config, &OperationOptions::default())
++            .expect("operation");
++        let runtime = eltdx_runtime::RuntimeError::timeout(eltdx_runtime::error::TimeoutPhase::Response)
++            .with_context("attempt", "2").with_context("host", "fixture:7709");
++        let cause = context.annotate(Error::from_runtime(runtime.clone()), TimeoutPhase::Response,
++            Some(0x044e));
++        let cause = context.stop(cause);
++        let returned = HqExecutor::complete_retirement(&context, cause, 0x044e, Ok(()));
++        assert_eq!(returned.kind(), ErrorKind::Timeout);
++        assert_eq!(returned.source().and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>()), Some(&runtime));
++        for key in ["operation", "operation_id", "session_id", "phase", "command", "attempt", "host"] {
++            assert!(returned.context().iter().any(|(actual, _)| actual == key), "missing {key}");
++        }
++        assert_eq!(returned.context().iter().find(|(key, _)| key == "command").map(|(_, value)| value.as_str()), Some("0x044e"));
++        owner.close().expect("no runtime started");
++    }
++}
+diff --git a/crates/eltdx/src/operation.rs b/crates/eltdx/src/operation.rs
+index 2735d6c..a8f718b 100644
+--- a/crates/eltdx/src/operation.rs
++++ b/crates/eltdx/src/operation.rs
+@@ -221,21 +221,22 @@ impl OperationContext {
+ 
+     pub(crate) fn set_work_limits(&mut self, limits: WorkLimits) -> Result<()> {
+         if self.counters()?.logical_requests != 0 {
+             return Err(Error::new(ErrorKind::Internal, "work limits must be frozen before the first request"));
+         }
+         self.limits = limits;
+         Ok(())
+     }
+ 
+     pub(crate) fn check_boundary(&self, phase: TimeoutPhase) -> Result<()> {
+-        self.budget.check(Instant::now()).map_err(|error| self.annotate(error, phase, None))
++        self.budget.check(Instant::now())
++            .map_err(|error| self.stop(self.annotate(error, phase, None)))
+     }
+ 
+     pub(crate) fn begin_child(&self, purpose: ChildPurpose, recovery: Option<RecoveryLimit>) -> Result<RequestPermit> {
+         let child_id = self.budget.gate(Instant::now(), |state| {
+             let logical = checked_add(state.counters.logical_requests, 1)?;
+             let pages = checked_add(state.counters.pages, usize::from(purpose == ChildPurpose::Page))?;
+             if let Some(limit) = self.limits.pages {
+                 if pages > limit.get() { return Err(limit_error("pages", limit.get(), state.counters.pages, state.last_recoverable.as_ref())); }
+             }
+             state.counters.logical_requests = logical;
+@@ -293,21 +294,21 @@ impl OperationContext {
+ 
+     pub(crate) fn stop(&self, error: Error) -> Error { self.budget.stop(error) }
+ 
+     pub(crate) fn enrich_stop(&self, root: Error, diagnostic: Error) -> Error {
+         let mut root = self.budget.stop(root);
+         for (key, value) in diagnostic.context() {
+             if !root.context().iter().any(|(existing, _)| existing == key) {
+                 root = root.with_context(key, value);
+             }
+         }
+-        root = root.with_source(diagnostic);
++        if std::error::Error::source(&root).is_none() { root = root.with_source(diagnostic); }
+         if let Ok(mut state) = self.budget.state.lock() { state.root = Some(root.clone()); }
+         root
+     }
+ 
+     pub(crate) fn finish(&self) -> Result<()> {
+         self.budget.gate(Instant::now(), |state| { state.finished = true; Ok(()) })
+             .map_err(|error| self.annotate(error, TimeoutPhase::Aggregate, None))
+     }
+ 
+     /// Claim retirement once for this operation; token cancellation does not gate cleanup.
+diff --git a/crates/eltdx/src/operation_tests.rs b/crates/eltdx/src/operation_tests.rs
+index d8a6bbf..40fee9c 100644
+--- a/crates/eltdx/src/operation_tests.rs
++++ b/crates/eltdx/src/operation_tests.rs
+@@ -196,20 +196,62 @@ fn owner_close_rechecks_at_start_and_refunds_reserved_attempt() {
+     let reservation = operation.budget.reserve(true, None, None).expect("reserved while open");
+     let closer = { let owner = Arc::clone(&owner); thread::spawn(move || owner.close()) };
+     while owner.ensure_open().is_ok() { thread::yield_now(); }
+     assert!(Box::new(reservation).start(Instant::now()).is_err());
+     assert_eq!(operation.counters().expect("counters").extra_reserved, 0);
+     assert_eq!(operation.counters().expect("counters").wire_attempts, 0);
+     drop(operation);
+     closer.join().expect("closer").expect("confirmed owner close");
+ }
+ 
++#[test]
++fn shorter_attempt_deadline_is_rechecked_inside_admission_gate_and_refunds_both_scopes() {
++    let (_owner, operation) = context(2, OperationOptions::default());
++    let authorization = ChildAuthorization {
++        budget: Arc::clone(&operation.budget), purpose: ChildPurpose::EmptyProbe,
++        recovery: Some(RecoveryLimit { name: "short_slice", maximum: 1 }), rust_public: true,
++    };
++    let reservation = authorization.reserve(1, None).expect("atomic local/global reservation");
++    let deadline = Instant::now() + Duration::from_secs(1);
++    let observed = Instant::now();
++    let error = reservation.commit_with_clock(observed, Some(deadline), || deadline)
++        .expect_err("admission-lock wait consumes the shorter attempt window");
++    assert_eq!(error.kind(), ErrorKind::Timeout);
++    drop(reservation);
++    let counters = operation.counters().expect("counters");
++    assert_eq!(counters.extra_reserved, 0);
++    assert_eq!(counters.extra_started, 0);
++    assert_eq!(counters.wire_attempts, 0);
++    authorization.reserve(1, None).expect("both local and global debits were refunded");
++}
++
++#[test]
++fn legacy_endpoint_continuation_does_not_consume_the_logical_recovery_twice() {
++    let legacy_owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
++    let operation = OperationContext::python_legacy(Instant::now(), "legacy_probe", legacy_owner,
++        Duration::from_secs(8), Duration::from_secs(1), None, RawPolicy::Omit).expect("legacy");
++    let authorization = ChildAuthorization { budget: Arc::clone(&operation.budget),
++        purpose: ChildPurpose::EmptyProbe,
++        recovery: Some(RecoveryLimit { name: "legacy_probe", maximum: 1 }), rust_public: false };
++    authorization.reserve(1, None).expect("logical recovery on endpoint 1")
++        .start(Instant::now()).expect("start endpoint 1");
++    for _ in 0..4 {
++        authorization.reserve_endpoint_continuation(1, None)
++            .expect("same logical recovery continues across endpoints")
++            .start_before(Instant::now() + Duration::from_secs(2))
++            .expect("endpoint continuation starts");
++    }
++    assert_eq!(operation.counters().expect("counters").wire_attempts, 1);
++    assert!(authorization.reserve(1, None).is_err(), "one logical recovery was consumed exactly once");
++    operation.finish().expect("legacy child completed");
++}
++
+ #[test]
+ fn close_and_start_share_one_admission_linearization() {
+     for _ in 0..16 {
+         let (owner, operation) = context(1, OperationOptions::default());
+         let reservation = operation.budget.reserve(true, None, None).expect("reserve");
+         let barrier = Arc::new(Barrier::new(2));
+         let closer = { let owner = Arc::clone(&owner); let barrier = Arc::clone(&barrier);
+             thread::spawn(move || { barrier.wait(); owner.close() }) };
+         barrier.wait();
+         let started = Box::new(reservation).start(Instant::now()).is_ok();
+diff --git a/crates/eltdx/src/policy/retries.rs b/crates/eltdx/src/policy/retries.rs
+index 0e1d8a1..ba9a869 100644
+--- a/crates/eltdx/src/policy/retries.rs
++++ b/crates/eltdx/src/policy/retries.rs
+@@ -54,42 +54,68 @@ impl OperationBudget {
+     pub(crate) fn new(
+         owner: Weak<SessionOwner>, token: CancellationToken,
+         deadline: Option<Instant>, extra_limit: Option<usize>,
+     ) -> Arc<Self> {
+         Arc::new(Self { owner, token, deadline, extra_limit, state: Mutex::new(BudgetState::default()) })
+     }
+ 
+     /// Owner close, user cancellation, deadline and budget commit share a strict lock order.
+     /// The action is bounded arithmetic only; no lock survives return to the scheduler.
+     pub(crate) fn gate<T>(&self, now: Instant, action: impl FnOnce(&mut BudgetState) -> Result<T>) -> Result<T> {
++        self.gate_before(now, None, action)
++    }
++
++    fn gate_before<T>(&self, observed: Instant, attempt_deadline: Option<Instant>,
++        action: impl FnOnce(&mut BudgetState) -> Result<T>) -> Result<T> {
++        self.gate_with_clock(observed, attempt_deadline, Instant::now, action)
++    }
++
++    pub(crate) fn gate_with_clock<T>(&self, observed: Instant, attempt_deadline: Option<Instant>,
++        clock: impl FnOnce() -> Instant, action: impl FnOnce(&mut BudgetState) -> Result<T>) -> Result<T> {
+         let owner = self.owner.upgrade().ok_or_else(closed)?;
+         owner.with_open_admission(|| self.token.with_active(|| {
+             let mut state = self.state.lock().map_err(|_| poisoned())?;
+             if let Some(root) = &state.root { return Err(root.clone()); }
+             if state.finished { return Err(Error::new(ErrorKind::Internal, "operation already completed")); }
++            // Include elapsed lock acquisition time; injected future observations
++            // remain useful for deterministic deadline arithmetic cases.
++            let now = observed.max(clock());
+             if self.deadline.is_some_and(|deadline| now >= deadline) {
+                 return Err(Error::new(ErrorKind::Timeout, "operation deadline elapsed"));
+             }
++            if attempt_deadline.is_some_and(|deadline| now >= deadline) {
++                return Err(Error::new(ErrorKind::Timeout, "wire attempt deadline elapsed")
++                    .with_context("phase", "retry"));
++            }
+             action(&mut state)
+         }))
+     }
+ 
+     pub(crate) fn check(&self, now: Instant) -> Result<()> {
+         match self.gate(now, |_| Ok(())) {
+             Ok(()) => Ok(()),
+             Err(error) => Err(self.stop(error)),
+         }
+     }
+ 
+     pub(crate) fn stop(&self, error: Error) -> Error {
+         match self.state.lock() {
+-            Ok(mut state) => state.root.get_or_insert(error).clone(),
++            Ok(mut state) => {
++                let mut first = state.root.take().unwrap_or_else(|| error.clone());
++                for (key, value) in error.context() {
++                    if !first.context().iter().any(|(existing, _)| existing == key) {
++                        first = first.with_context(key, value);
++                    }
++                }
++                state.root = Some(first.clone());
++                first
++            }
+             Err(_) => error,
+         }
+     }
+ 
+     pub(crate) fn counters(&self) -> Result<WorkCounters> {
+         Ok(self.state.lock().map_err(|_| poisoned())?.counters)
+     }
+ 
+     pub(crate) fn last_recoverable(&self) -> Option<Error> {
+         self.state.lock().ok().and_then(|state| state.last_recoverable.clone())
+@@ -137,37 +163,43 @@ impl OperationBudget {
+                     Some(checked_add(reserved, 1)?)
+                 }
+                 None => None,
+             };
+             state.counters.extra_reserved = global_reserved;
+             if let (Some(limit), Some(reserved)) = (recovery, local_reserved) {
+                 let counter = state.recoveries.entry(limit.name).or_default();
+                 counter.configured = limit.maximum;
+                 counter.reserved = reserved;
+             }
+-            Ok(Reservation { budget: Arc::clone(self), extra, recovery, committed: false })
++            Ok(Reservation { budget: Arc::clone(self), extra, recovery, count_wire: true, committed: false })
+         })
+     }
+ }
+ 
+ #[derive(Debug)]
+ pub(crate) struct Reservation {
+     budget: Arc<OperationBudget>,
+     extra: bool,
+     recovery: Option<RecoveryLimit>,
++    count_wire: bool,
+     committed: bool,
+ }
+ 
+ impl Reservation {
+-    fn commit(&mut self, now: Instant) -> Result<()> {
+-        self.budget.gate(now, |state| {
+-            let wire = checked_add(state.counters.wire_attempts, 1)?;
++    fn commit(&mut self, now: Instant, attempt_deadline: Option<Instant>) -> Result<()> {
++        self.commit_with_clock(now, attempt_deadline, Instant::now)
++    }
++
++    pub(crate) fn commit_with_clock(&mut self, now: Instant, attempt_deadline: Option<Instant>,
++        clock: impl FnOnce() -> Instant) -> Result<()> {
++        self.budget.gate_with_clock(now, attempt_deadline, clock, |state| {
++            let wire = checked_add(state.counters.wire_attempts, usize::from(self.count_wire))?;
+             let extra = checked_add(state.counters.extra_started, usize::from(self.extra))?;
+             let local_started = match self.recovery {
+                 Some(limit) => {
+                     let counter = state.recoveries.get(limit.name).ok_or_else(poisoned)?;
+                     Some(checked_add(counter.started, 1)?)
+                 }
+                 None => None,
+             };
+             state.counters.wire_attempts = wire;
+             state.counters.extra_started = extra;
+@@ -179,21 +211,25 @@ impl Reservation {
+             }
+             Ok(())
+         })?;
+         self.committed = true;
+         Ok(())
+     }
+ }
+ 
+ impl ReservedAttempt for Reservation {
+     fn start(mut self: Box<Self>, now: Instant) -> std::result::Result<(), RuntimeError> {
+-        self.commit(now).map_err(to_runtime)
++        self.commit(now, None).map_err(to_runtime)
++    }
++
++    fn start_before(mut self: Box<Self>, deadline: Instant) -> std::result::Result<(), RuntimeError> {
++        self.commit(Instant::now(), Some(deadline)).map_err(to_runtime)
+     }
+ }
+ 
+ impl Drop for Reservation {
+     fn drop(&mut self) {
+         if self.committed { return; }
+         if let Ok(mut state) = self.budget.state.lock() {
+             if self.extra { state.counters.extra_reserved -= 1; }
+             if let Some(limit) = self.recovery {
+                 if let Some(counter) = state.recoveries.get_mut(limit.name) { counter.reserved -= 1; }
+@@ -219,20 +255,29 @@ impl AttemptAuthorization for ChildAuthorization {
+         -> std::result::Result<Box<dyn ReservedAttempt>, RuntimeError> {
+         // A recovery's first request consumes a global extra, but its wire retry is not
+         // a second logical recovery. Each wire retry still consumes another global extra.
+         self.budget.reserve(attempt > 1 || self.purpose.is_extra(),
+             if attempt == 1 { self.recovery } else { None }, last_failure)
+             .map(|reservation| Box::new(reservation) as Box<dyn ReservedAttempt>)
+             .map_err(to_runtime)
+     }
+ 
+     fn count_endpoint_failover(&self) -> bool { self.rust_public }
++
++    fn reserve_endpoint_continuation(&self, _: u32, _: Option<&RuntimeError>)
++        -> std::result::Result<Box<dyn ReservedAttempt>, RuntimeError> {
++        self.budget.gate(Instant::now(), |_| Ok(())).map_err(to_runtime)?;
++        Ok(Box::new(Reservation {
++            budget: Arc::clone(&self.budget), extra: false, recovery: None,
++            count_wire: false, committed: false,
++        }))
++    }
+ }
+ 
+ pub(crate) fn rust_retry_policy(request: &CommandRequest, maximum: std::num::NonZeroU32) -> RetryPolicy {
+     // Explicit read whitelist. Session/stream state changes cannot be replayed after a send.
+     let safe = matches!(request,
+         CommandRequest::CapitalChanges(_) | CommandRequest::FinanceBatch(_)
+         | CommandRequest::CompanyInfoCategory(_) | CommandRequest::CompanyInfoContent(_)
+         | CommandRequest::BlockMeta(_) | CommandRequest::SecurityList(_) | CommandRequest::SecurityCount(_)
+         | CommandRequest::SpecialLimits(_) | CommandRequest::IntradayAux(_) | CommandRequest::DelistedKlines(_)
+         | CommandRequest::Klines(_) | CommandRequest::TodayIntraday(_) | CommandRequest::LegacyQuotes(_)

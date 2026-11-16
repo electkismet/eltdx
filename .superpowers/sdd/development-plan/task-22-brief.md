@@ -16,6 +16,10 @@ New `src/offline/financial.rs`, `src/financial.rs`, associated checked query/opt
 
 ## Authored cases and workflow
 
+### Staged authorization
+
+Controller may authorize isolated Stage A before HQ resource services exist. Stage A owns only new `crates/eltdx/src/offline/financial.rs`, new `crates/eltdx/tests/financial.rs` and this task's report. Implement complete pure DAT parsing, list parsing, checked options/result/provenance and source cases, plus local file reads that reuse T21 helpers if they do not require shared-file edits. Do not edit `offline/mod.rs`, root/Cargo/types/operation/session, archive.rs or public network services. ZIP selection and actual shared archive integration, public exports/registration and HQ download/calculator composition belong to explicit Stage B. Do not duplicate a ZIP parser to make Stage A self-contained. Record exact pending module exports/helper adaptations; no stub network methods. The archive-wide financial expansion policy is still a controller integration decision, not permission to silently introduce a smaller selected-DAT bound.
+
 Independent DAT/ZIP cases all limit boundaries before allocation, fake huge headers with zero inflate, duplicate/encrypted/truncated/badCRC/multiple name selection, header/index/overlap/offset/empty/short faults and total field amplification, raw f32 bits, date precedence, list negative size differences, public resource source cap/cleanup, noHTTP used and lazy calc. Deferred `cargo test -p eltdx --features offline --test financial --locked`.
 
 Workspace `C:/Users/ax/.codex/worktrees/rust-sdk-implementation/tdx抓包`, branch `codex/rust-sdk-implementation`. Until ALL T01–T30 code complete NO tests/collection/build/check/clippy/doctest/network/compile/AST/format/diff checks/equivalents. Source read/write/normal review diff/Git checkpoint only. No subagents/push/tag/publish/merge/controller status edits; exact owned commits/hooks disabled. Do not rewrite T17 dependency evidence as validated.
