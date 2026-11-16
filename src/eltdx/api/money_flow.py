@@ -12,6 +12,8 @@ from eltdx.models import MoneyFlowBatch, MoneyFlowBlock
 from eltdx.models.money_flow import FundFlowRangeSeries
 from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE, TYPE_MONEY_FLOW
 from eltdx.protocol.unit import normalize_code, split_code
+from eltdx.transport import PooledSocketTransport, SocketTransport
+from eltdx.transport.native import native_module
 
 from .base import ApiBase, _weak_callback
 
@@ -26,6 +28,10 @@ _BUDGET_CODE_CAP = 8
 F10_HISTORY_ENTRY = "CWServ.tdxf10_gg_sj"
 #: 服务端接受的历史窗口步长。
 HISTORY_DAY_STEPS = (3, 5, 10, 20, 60)
+_NATIVE_MONEY_FLOW_EXECUTE = {
+    SocketTransport: SocketTransport.execute,
+    PooledSocketTransport: PooledSocketTransport.execute,
+}
 #: 没有 7615 通道时的报错文案。
 F10_REQUIRED_MESSAGE = (
     "money_flow.history 需要 7615 F10 通道：请通过 TdxClient 使用，或传入 f10_factory"
@@ -91,8 +97,9 @@ class MoneyFlowApi(ApiBase):
         transport_factory=None,
         f10_factory=None,
         candidate_hosts: Sequence[str] = (),
+        native_services: bool = False,
     ) -> None:
-        super().__init__(transport)
+        super().__init__(transport, native_services=native_services)
         self._transport_factory = _weak_callback(transport_factory)
         self._f10_factory = _weak_callback(f10_factory)
         self._candidate_hosts = tuple(candidate_hosts)
@@ -181,7 +188,7 @@ class MoneyFlowApi(ApiBase):
         return MoneyFlowBatch(tuple(blocks))
 
     def _single(self, code: str, *, include_raw: bool, failover: _EmptyFailover | None = None):
-        response = self._active_transport().execute(
+        response = self._execute_daily(self._active_transport(),
             TYPE_MONEY_FLOW, {"code": code, "include_raw": include_raw}
         )
         blocks = getattr(response, "blocks", None)
@@ -338,6 +345,13 @@ class MoneyFlowApi(ApiBase):
         candidates = self._candidate_hosts
         total = len(candidates)
         with failover.lock:
+            if (self._native_services and type(self) is MoneyFlowApi
+                    and type(failover) is _EmptyFailover
+                    and type(failover.cursor) is int and 0 <= failover.cursor <= 0xFFFFFFFF
+                    and _MAX_PROBES_PER_CODE == 3):
+                return native_module().recover_money_flow(
+                    self, code, include_raw, failover, candidates, _close_quietly, TransportError
+                )
             if failover.transport is not None:
                 result = self._query(failover.transport, code, include_raw)
                 if result is not None:
@@ -419,6 +433,29 @@ class MoneyFlowApi(ApiBase):
         if len(blocks) == 1:
             return blocks[0]
         return response if blocks else None
+
+    def _execute_daily(self, transport, command, payload):
+        execute = transport.execute
+        if (self._native_services and type(transport) in _NATIVE_MONEY_FLOW_EXECUTE
+                and getattr(execute, "__func__", None) is _NATIVE_MONEY_FLOW_EXECUTE[type(transport)]):
+            execute = transport.sdk_money_flow
+        return execute(command, payload)
+
+    def _native_recovery_query(self, transport, code, include_raw):
+        query = self._query
+        if query is not _ORIGINAL_MONEY_FLOW_QUERY:
+            return query(transport, code, include_raw)
+        response = self._execute_daily(transport, TYPE_MONEY_FLOW,
+                                       {"code": code, "include_raw": include_raw})
+        blocks = getattr(response, "blocks", None)
+        if blocks is None:
+            return None
+        if len(blocks) == 1:
+            return blocks[0]
+        return response if blocks else None
+
+
+_ORIGINAL_MONEY_FLOW_QUERY = MoneyFlowApi._query
 
 
 def _close_quietly(transport) -> None:

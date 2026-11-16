@@ -126,6 +126,90 @@ pub fn auction(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest
     unpriced_domain(py, executor, request, "python_auction", LegacyOperation::auction)
 }
 
+pub fn money_flow(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
+    unpriced_domain(py, executor, request, "python_money_flow", LegacyOperation::money_flow)
+}
+
+struct PythonMoneyFlowSources<'py> {
+    api: Bound<'py, PyAny>,
+    failover: Bound<'py, PyAny>,
+    candidates: Bound<'py, pyo3::types::PyTuple>,
+    code: Bound<'py, PyAny>,
+    include_raw: Bound<'py, PyAny>,
+    close: Bound<'py, PyAny>,
+    transport_error: Bound<'py, PyAny>,
+}
+
+impl PythonMoneyFlowSources<'_> {
+    fn query(&self, transport: &Bound<'_, PyAny>) -> PyResult<Option<Py<PyAny>>> {
+        let result = self.api.call_method1("_native_recovery_query", (transport, &self.code, &self.include_raw))?;
+        Ok((!result.is_none()).then(|| result.unbind()))
+    }
+
+    fn close(&self, transport: &Bound<'_, PyAny>) -> PyResult<()> {
+        self.close.call1((transport,))?;
+        Ok(())
+    }
+}
+
+impl eltdx::__python_compat::LegacyMoneyFlowSources for PythonMoneyFlowSources<'_> {
+    type Value = Py<PyAny>;
+    type Error = PyErr;
+
+    fn selected(&mut self) -> PyResult<Option<Self::Value>> {
+        let transport = self.failover.getattr("transport")?;
+        if transport.is_none() { Ok(None) } else { self.query(&transport) }
+    }
+
+    fn cursor(&mut self) -> PyResult<usize> { self.failover.getattr("cursor")?.extract() }
+
+    fn take(&mut self) -> PyResult<bool> { self.failover.call_method0("take")?.is_truthy() }
+
+    fn skip(&mut self, index: usize) -> PyResult<bool> {
+        let host = self.candidates.get_item(index)?;
+        if host.eq(self.api.getattr("_preferred_host")?)? { return Ok(true); }
+        host.eq(self.failover.getattr("host")?)
+    }
+
+    fn probe(&mut self, index: usize) -> PyResult<Option<Self::Value>> {
+        let host = self.candidates.get_item(index)?;
+        let transport = self.api.call_method1("_open_host_transport", (&host,))?;
+        if transport.is_none() { return Ok(None); }
+        let result = match self.query(&transport) {
+            Ok(result) => result,
+            Err(error) if error.is_instance(self.api.py(), &self.transport_error) => {
+                self.close(&transport)?;
+                return Ok(None);
+            }
+            Err(error) => return Err(error),
+        };
+        if result.is_some() {
+            if self.api.call_method1("_adopt", (&host, &transport))?.is_truthy()? {
+                self.failover.setattr("transport", &transport)?;
+                self.failover.setattr("host", &host)?;
+            } else {
+                self.close(&transport)?;
+            }
+        } else {
+            self.close(&transport)?;
+        }
+        Ok(result)
+    }
+
+    fn advance(&mut self, cursor: usize) -> PyResult<()> { self.failover.setattr("cursor", cursor) }
+}
+
+#[pyfunction]
+pub fn recover_money_flow<'py>(
+    api: Bound<'py, PyAny>, code: Bound<'py, PyAny>, include_raw: Bound<'py, PyAny>,
+    failover: Bound<'py, PyAny>, candidates: Bound<'py, pyo3::types::PyTuple>,
+    close: Bound<'py, PyAny>, transport_error: Bound<'py, PyAny>,
+) -> PyResult<Option<Py<PyAny>>> {
+    let total = candidates.len();
+    let mut sources = PythonMoneyFlowSources { api, failover, candidates, code, include_raw, close, transport_error };
+    eltdx::__python_compat::legacy_money_flow_recover(total, &mut sources)
+}
+
 pub fn trade_read(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
     collect: bool, opening: bool, maximum_pages: Option<usize>, bulk: bool) -> PyResult<Py<PyAny>> {
     let include_raw = match &request {

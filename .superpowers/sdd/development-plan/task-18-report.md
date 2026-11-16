@@ -748,3 +748,42 @@ then T19–T30/Stage B. Goal active, no token cap, subagents or publication.
 Fifteenth source stage committed as **fa7e07d** after trade checkpoint6544772.
 Working tree was clean immediately after that commit. All execution deferred;
 next task remains daily money flow/native recovery and the remaining T18 scope.
+
+## Sixteenth source checkpoint — daily money flow and alternate-source loop
+
+- Shared fetch_money_flow_reply now serves strict Rust and legacy single-wire
+  requests. LegacyOperation/NativeEngine and both Python transports expose the
+  domain, using original parser/DTO semantics: no precision scan, foreign/unknown
+  market identities, multiple blocks, invalid dates, negative/nonfinite values
+  and unconditional record hex remain accepted as before. A present empty-record
+  block remains a successful block; only zero blocks can trigger recovery.
+- Added pure ProbeOrder and callback-based legacy_money_flow_recover in the SDK.
+  Strict Rust uses the shared rotation iterator with its existing physical-budget
+  policy. Legacy source loop preserves selected-host retry, three loop entries,
+  skipped-host budget debits, cursor advancement only after a complete empty
+  pass, and returning None on budget exhaustion. PyO3 supplies narrow callbacks
+  for original Python query/factory/adopt/close objects and exception identity.
+- MoneyFlowApi native requests and recovery now reach these Rust boundaries.
+  Original dedicated/preferred pools, weak factories, batch lock, capacity,
+  duplicate input scheduling and total24 probe budget remain. New-source
+  TransportError is downgraded with quiet close; selected-source errors propagate.
+  Successful unadopted pools close, preserving the existing preferred owner.
+  Custom _query and execute overrides still run; custom subclasses/state/changed
+  probe constants retain the old adapter. History continues its separate F10
+  route pending T23; no category22 fallback was added.
+- Authored12 contract/6 local integration functions and3 Rust source-loop cases.
+  Contracts cover exact source order, remaining codes/duplicates, skipped debit,
+  budget24, selected failure, failed factory, adoption conflict, unknown shape,
+  empty-record blocks, custom callbacks and unchanged F10 routing. Local sources
+  cover wire route/body, multi/foreign block/raw/value parity, malformed payloads,
+  no metadata prefetch, actual probe close, dedicated reopen and KeyboardInterrupt.
+  Updated the existing client fake engine with its new sdk_money_flow seam.
+  The capability manifest records source evidence without promoting migration.
+
+No tests, collection, build/check/clippy/doctest, dependency resolution/download,
+network probes, AST/compile/format/diff-check or equivalent validation ran. Local
+cached PyO3 source was read for its exception API; no dependency command ran.
+T18 stays partial, totals18 source complete/4 partial/8 unstarted. Next corporate
+capital/finance, equity/calendar/resources/stats/health, remaining helper and
+subscription orchestration, global manifest/installed-wheel consumer, T19–T30 and
+remaining Stage B. Goal remains active without token limit; no agents/publication.

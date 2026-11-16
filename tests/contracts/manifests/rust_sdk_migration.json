@@ -1125,6 +1125,37 @@
       "compatibility": "Dedicated 0x0FFC money-flow path; absent from Python COMMANDS registry.",
       "wire_code": "0x0ffc",
       "api": "client.money_flow.daily(code, ..., batch_size=75)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/money_flow.rs",
+        "recovery_sources": ["crates/eltdx/src/services/money_flow_probe.rs", "crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/service.rs"],
+        "bridge_sources": ["crates/eltdx-python/src/transport.rs", "src/eltdx/api/money_flow.py", "src/eltdx/transport/socket.py", "src/eltdx/transport/pool.py"],
+        "contract_nodes": [
+          "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_rotation_keeps_later_codes_and_duplicate_batch_entries",
+          "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_skipped_hosts_consume_budget_without_rotating_on_exhaustion",
+          "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_probe_errors_and_failed_factories_keep_empty_semantics",
+          "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_selected_source_error_is_not_swallowed",
+          "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_new_unadopted_source_is_closed_and_result_returned",
+          "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_batch_budget_remains_twenty_four_across_many_empty_codes",
+          "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_empty_record_block_does_not_trigger_source_probe"
+        ],
+        "integration_nodes": [
+          "tests/integration/test_native_money_flow_domain_bridge.py::test_native_money_flow_matches_old_identity_order_invalid_date_and_raw",
+          "tests/integration/test_native_money_flow_domain_bridge.py::test_native_money_flow_protocol_errors_keep_original_class_text_and_cause",
+          "tests/integration/test_native_money_flow_domain_bridge.py::test_native_money_flow_preserves_nonfinite_legacy_record_value",
+          "tests/integration/test_native_money_flow_domain_bridge.py::test_native_money_flow_recovery_reuses_real_probe_and_closes_unadopted_connection",
+          "tests/integration/test_native_money_flow_domain_bridge.py::test_native_money_flow_dedicated_pool_and_close_recreate_are_unchanged",
+          "tests/integration/test_native_money_flow_domain_bridge.py::test_native_money_flow_interrupt_confirms_request_retirement"
+        ],
+        "fixtures": ["tests/fixtures/7709", "tests/integration/test_native_money_flow_domain_bridge.py::_block"],
+        "temporary_adapter": {
+          "scope": "Python factory/transport lifetime, custom query and result projection, batch scheduler; 7615 history remains T23 work",
+          "reason": "Shared Rust source loop calls narrow Python callbacks to preserve exception identity, preferred ownership, factory errors, skipped-host budget debits and existing weak callback lifetimes.",
+          "contract_nodes": ["tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_recovery_keeps_custom_query_callback", "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_execute_replacement_keeps_custom_response", "tests/contracts/test_sdk_money_flow_domain_bridge.py::test_money_flow_history_retains_f10_route_and_never_uses_daily"],
+          "exit_condition": "Complete native batch scheduling/typed projection without changing arbitrary callback results, worker capacity or F10 channel semantics."
+        },
+        "validation": "Not collected, compiled or executed. Native retains legacy single/multiple/unknown blocks, invalid dates, nonfinite/negative wire values and unconditional record hex."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/0x0ffc-资金流向日数据接口.md",

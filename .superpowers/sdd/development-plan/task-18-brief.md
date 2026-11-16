@@ -61,6 +61,16 @@ host/config, original parser raw/time/count semantics and execute overrides.
 Added5 contract/4 integration functions and1 source-only manifest record. None
 executed. Next daily money flow and remaining HQ/native/helper/subscription work.
 
+Sixteenth recovery: auction committedfa7e07d/recovery353336d. Daily money flow
+shared request domain and Rust callback-based alternate-source loop are authored.
+Preserve existing per-loop budget3/24, skipped debits, cursor rules, selected-error
+propagation vs new-source TransportError downgrade, factory/adoption/close and
+custom query/execute behavior. Legacy parser keeps unknown/multiple blocks and
+invalid/nonfinite/raw semantics; a present empty-record block does not trigger
+probing. Batch scheduler remains an explicit adapter; F10 history awaitsT23.
+Added12 contract/6 integration/3 Rust source cases, none executed. Next corporate,
+equity/calendar/resources/stats/health and remaining T18 helper/subscription work.
+
 ## Exact plan scope
 
 New `src/helpers/{mod,market,boards,shortline,profile}.rs` (split focused files as necessary), all HQ helper DTO/query types, `tests/hq_helpers.rs`, `examples/hq_query.rs`. Migrate Python HQ `api`, `helpers`, `equity.py`, `workday.py`, `stats.py`, native bridge and manifest per completed domain; author domain differential/compatibility source tests. Implement all HQ M79–M97 including pure classify_fund_flow M95. Complete all HQ methods left by prior tasks; no exposed placeholder/Unsupported for documented valid supported HQ behavior.

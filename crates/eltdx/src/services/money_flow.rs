@@ -15,6 +15,33 @@ use crate::types::{Amount, AmountUnit, BatchItem, BatchItemState, BatchOutcome, 
     Diagnostic, EnrichmentStatus, MoneyFlowDay, NumericValue, Ratio, RatioUnit,
     SecurityId, TradingDate, ValueProvenance};
 use super::{aggregate_meta, allocation_error, checked_ids, identity_from_market, result_meta, ServiceSource};
+use super::money_flow_probe::ProbeOrder;
+
+fn fetch_money_flow_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<crate::hq::decode::DecodedReply>,
+) -> Result<crate::hq::decode::DecodedReply> {
+    if !matches!(&request, CommandRequest::MoneyFlow(_)) {
+        return Err(Error::new(ErrorKind::InvalidArgument, "money-flow service requires a money-flow request"));
+    }
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let decoded = fetch(request)?;
+    if !matches!(&decoded.response, CommandResponse::MoneyFlow(_)) {
+        return Err(Error::new(ErrorKind::Protocol, "money-flow request returned a different response kind"));
+    }
+    context.check_boundary(TimeoutPhase::Decode)?;
+    Ok(decoded)
+}
+
+pub(crate) fn legacy_money_flow_reply(
+    context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<crate::hq::decode::DecodedReply>,
+) -> Result<CommandResponse> {
+    if !context.is_legacy() {
+        return Err(Error::new(ErrorKind::InvalidArgument, "legacy money flow requires a compatibility operation"));
+    }
+    Ok(fetch_money_flow_reply(context, request, fetch)?.response)
+}
 
 #[derive(Clone, Debug)]
 pub struct MoneyFlowService { executor: HqExecutor, pools: Arc<DomainPools>, config: ClientConfig }
@@ -86,18 +113,20 @@ impl MoneyFlowService {
         let primary = initial.meta().source().endpoint().map(|host| host.to_string());
         let mut unique = HashSet::new();
         candidates.retain(|host| Some(host.as_str()) != primary.as_deref() && unique.insert(host.clone()));
-        if !candidates.is_empty() {
-            let length = candidates.len(); candidates.rotate_left(state.cursor % length);
+        let start = if !candidates.is_empty() {
+            let start = state.cursor % candidates.len();
             state.cursor = state.cursor.checked_add(1).ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "probe cursor overflows"))?;
-        }
+            start
+        } else { 0 };
         let mut source_error: Option<Error> = None;
-        for endpoint in candidates {
+        for index in ProbeOrder::new(candidates.len(), start, candidates.len()) {
+            let endpoint = &candidates[index];
             context.check_boundary(TimeoutPhase::Admission)?;
             // The physical attempt reservation atomically debits code, batch and
             // global counters. These reads only avoid knowingly exhausted work.
             if context.budget.probe_started(scope)? >= 3
                 || context.budget.recovery_started("money_flow_probes")? >= state.maximum { break; }
-            let probe = self.pools.money_probe(&self.executor, engine, &self.config, &endpoint)?;
+            let probe = self.pools.money_probe(&self.executor, engine, &self.config, endpoint)?;
             let requested = self.request(context, &probe, id, Some((state.maximum, scope)));
             match retire_probe(&self.executor, context, &self.config, &probe, requested) {
                 Ok(value) => {
@@ -130,11 +159,13 @@ impl MoneyFlowService {
         probe: Option<(usize, usize)>) -> Result<DailyMoneyFlow> {
         let code = NormalizedCode::parse(&id.to_string()).map_err(Error::from_protocol)?;
         let request = CommandRequest::MoneyFlow(MoneyFlowRequest::new(code));
-        let raw = match probe {
-            Some((maximum, scope)) => self.executor.execute_probe_raw(engine, context, request, maximum, scope)?,
-            None => self.executor.execute_raw(engine, context, request, ChildPurpose::Required, None)?,
-        };
-        let decoded = self.executor.decode_received(context, raw)?;
+        let decoded = fetch_money_flow_reply(context, request, |request| {
+            let raw = match probe {
+                Some((maximum, scope)) => self.executor.execute_probe_raw(engine, context, request, maximum, scope)?,
+                None => self.executor.execute_raw(engine, context, request, ChildPurpose::Required, None)?,
+            };
+            self.executor.decode_received(context, raw)
+        })?;
         let CommandResponse::MoneyFlow(response) = &decoded.response else {
             return Err(Error::new(ErrorKind::Protocol, "money-flow request returned a different response kind"));
         };

@@ -245,6 +245,7 @@ class TdxClient:
                                  native_services=native_services)
         self.money_flow = MoneyFlowApi(
             self.transport,
+            native_services=native_services,
             transport_factory=(
                 self._build_money_flow_transport
                 if isinstance(self.transport, PooledSocketTransport)

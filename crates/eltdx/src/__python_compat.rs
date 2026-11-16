@@ -22,6 +22,7 @@ use crate::types::HqMarket;
 use crate::{CancellationToken, RawPolicy};
 
 pub use crate::services::code_selection::CodeSelection as LegacyCodeSelection;
+pub use crate::services::money_flow_probe::{legacy_money_flow_recover, LegacyMoneyFlowSources};
 
 #[derive(Clone, Copy, Debug)]
 pub enum LegacyChildPurpose { Required, Metadata, Page, MissingRecovery, EmptyProbe, Fallback, Renewal }
@@ -311,6 +312,14 @@ impl LegacyOperation {
 
     pub fn auction(&self, request: CommandRequest) -> Result<CommandResponse> {
         crate::services::legacy_auction_reply(&self.context, request, |request| {
+            let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,
+                request, ChildPurpose::Required, None)?;
+            self.executor.executor.decode_unpriced(&self.context, raw)
+        })
+    }
+
+    pub fn money_flow(&self, request: CommandRequest) -> Result<CommandResponse> {
+        crate::services::legacy_money_flow_reply(&self.context, request, |request| {
             let raw = self.executor.executor.execute_raw(&self.executor.engine, &self.context,
                 request, ChildPurpose::Required, None)?;
             self.executor.executor.decode_unpriced(&self.context, raw)

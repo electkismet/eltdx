@@ -282,6 +282,7 @@ impl HqExecutor {
             | CommandRequest::Klines(_) | CommandRequest::DelistedKlines(_)
             | CommandRequest::TodayTicks(_) | CommandRequest::HistoricalTicks(_)
             | CommandRequest::AuctionSeries(_)
+            | CommandRequest::MoneyFlow(_)
             | CommandRequest::IntradayAux(_) | CommandRequest::Sparkline(_)
             | CommandRequest::BlockMeta(_) | CommandRequest::CompanyInfoCategory(_) | CommandRequest::CompanyInfoContent(_)) {
             return Err(Error::new(ErrorKind::InvalidArgument, "unpriced decoder requires an unpriced command"));
