@@ -3,7 +3,8 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
 
 use eltdx_runtime::engine::Engine;
-use eltdx_runtime::engine::PinHandle;
+use eltdx_runtime::engine::{PendingPoll, PinHandle, SIGNAL_POLL_INTERVAL};
+use eltdx_runtime::RuntimeError;
 
 use crate::error::{Error, ErrorKind, Result};
 
@@ -20,6 +21,7 @@ struct CloseFailure {
     kind: ErrorKind,
     message: String,
     context: Vec<(String, String)>,
+    runtime_source: Option<RuntimeError>,
 }
 
 impl CloseFailure {
@@ -28,6 +30,9 @@ impl CloseFailure {
             kind: error.kind(),
             message: error.to_string(),
             context: error.context().to_vec(),
+            runtime_source: std::error::Error::source(&error)
+                .and_then(|source| source.downcast_ref::<RuntimeError>())
+                .cloned(),
         }
     }
 
@@ -35,6 +40,9 @@ impl CloseFailure {
         let mut error = Error::new(self.kind, self.message.clone());
         for (key, value) in &self.context {
             error = error.with_context(key.clone(), value.clone());
+        }
+        if let Some(source) = &self.runtime_source {
+            error = error.with_source(source.clone());
         }
         error
     }
@@ -127,6 +135,44 @@ impl SessionOwner {
         }
     }
 
+    // Share the owner deadline even when a pin close began while the owner was open.
+    // Never hold the owner state lock while awaiting runtime retirement.
+    fn close_pin(&self, pin: &PinHandle, deadline: Option<Instant>) -> Result<()> {
+        let local_deadline = match deadline {
+            Some(deadline) => deadline,
+            None => Instant::now().checked_add(self.close_timeout)
+                .ok_or_else(|| Error::new(ErrorKind::Internal, "pin close deadline overflow"))?,
+        };
+        let mut pending = pin.begin_close().map_err(map_close_error)?;
+        self.wait_pin_close(local_deadline, || pending.wait_timeout(Duration::ZERO))
+    }
+
+    fn wait_pin_close(
+        &self,
+        local_deadline: Instant,
+        mut poll: impl FnMut() -> std::result::Result<PendingPoll<()>, RuntimeError>,
+    ) -> Result<()> {
+        loop {
+            match poll().map_err(map_close_error)? {
+                PendingPoll::Ready(()) => return Ok(()),
+                PendingPoll::Pending => {}
+            }
+            let state = self.lock_state()?;
+            let deadline = state.shutdown_deadline.map_or(local_deadline, |owner_deadline| {
+                local_deadline.min(owner_deadline)
+            });
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Err(map_close_error(RuntimeError::CloseTimeout {
+                    message: "pinned session did not close before its owner deadline".to_owned(),
+                    context: Vec::new(),
+                }));
+            }
+            let _ = self.changed.wait_timeout(state, remaining.min(SIGNAL_POLL_INTERVAL))
+                .map_err(|_| poisoned_state_error())?;
+        }
+    }
+
     pub(crate) fn register_engine(&self, engine: Engine) -> Result<()> {
         let mut state = self.lock_state()?;
         if state.phase != SessionPhase::Open {
@@ -186,6 +232,7 @@ impl SessionOwner {
                         state.shutdown_deadline = Some(deadline);
                         state.phase = SessionPhase::Closing;
                         signal_operation_cancellation(&mut state);
+                        self.changed.notify_all();
                         state.close_failure = None;
                         state.cleanup_confirmed = false;
                         state.close_generation = state.close_generation.checked_add(1).ok_or_else(|| {
@@ -214,6 +261,7 @@ impl SessionOwner {
                         state.shutdown_deadline = Some(deadline);
                         state.phase = SessionPhase::Closing;
                         signal_operation_cancellation(&mut state);
+                        self.changed.notify_all();
                         state.close_generation = state.close_generation.checked_add(1).ok_or_else(|| {
                             Error::new(ErrorKind::Internal, "close generation overflow")
                         })?;
@@ -231,22 +279,14 @@ impl SessionOwner {
 
         let mut failure = None;
         for pin in pins {
-            if let Err(error) = pin.close() {
-                failure.get_or_insert_with(|| Error::new(ErrorKind::Internal, error.to_string()));
+            match self.close_pin(&pin, Some(deadline)) {
+                Ok(()) => self.unregister_pin(pin.identity()),
+                Err(error) => { failure.get_or_insert(error); }
             }
         }
         for engine in engines {
             if let Err(error) = engine.close_until(deadline) {
-                failure.get_or_insert_with(|| {
-                    Error::new(
-                        if matches!(&error, eltdx_runtime::RuntimeError::CloseTimeout { .. }) {
-                            ErrorKind::CloseTimeout
-                        } else {
-                            ErrorKind::Internal
-                        },
-                        error.to_string(),
-                    )
-                });
+                failure.get_or_insert_with(|| map_close_error(error));
             }
         }
 
@@ -335,9 +375,7 @@ impl PinnedSession {
         let Some(pin) = self.pin.as_ref() else {
             return Ok(());
         };
-        pin.close().map_err(|error| {
-            Error::new(ErrorKind::Internal, error.to_string())
-        })?;
+        self.owner.close_pin(pin, None)?;
         self.owner.unregister_pin(pin.identity());
         self.pin = None;
         Ok(())
@@ -347,9 +385,8 @@ impl PinnedSession {
 impl Drop for PinnedSession {
     fn drop(&mut self) {
         if let Some(pin) = self.pin.take() {
-            let identity = pin.identity();
             let _ = pin.begin_close();
-            self.owner.unregister_pin(identity);
+            // The owner retains its handle until a close confirms retirement.
         }
     }
 }
@@ -423,15 +460,177 @@ fn poisoned_state_error() -> Error {
     Error::new(ErrorKind::Internal, "client session state is poisoned")
 }
 
+fn map_close_error(error: RuntimeError) -> Error {
+    let kind = match &error {
+        RuntimeError::CloseTimeout { .. } => ErrorKind::CloseTimeout,
+        RuntimeError::Timeout { .. } => ErrorKind::Timeout,
+        RuntimeError::ConnectionClosed { .. } => ErrorKind::Closed,
+        RuntimeError::PoolBusy { .. } => ErrorKind::PoolBusy,
+        RuntimeError::InvalidArgument { .. } => ErrorKind::InvalidArgument,
+        RuntimeError::Protocol { .. } => ErrorKind::Protocol,
+        RuntimeError::UnsupportedCommand { .. } => ErrorKind::Unsupported,
+        RuntimeError::PushOverflow { .. } => ErrorKind::PushGap,
+        RuntimeError::Internal { .. } => ErrorKind::Internal,
+    };
+    let mut mapped = Error::new(kind, error.to_string());
+    for (key, value) in error.context() {
+        mapped = mapped.with_context(key, value);
+    }
+    mapped.with_source(error)
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Barrier};
     use std::thread;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     use super::SessionOwner;
     use crate::error::ErrorKind;
     use crate::hq::executor::HqExecutor;
+
+    #[test]
+    fn pin_wait_is_capped_by_the_supplied_deadline() {
+        let owner = SessionOwner::new(Duration::from_secs(10), Duration::from_secs(10));
+        let started = Instant::now();
+        let error = owner.wait_pin_close(started + Duration::from_millis(10), || {
+            Ok(eltdx_runtime::engine::PendingPoll::Pending)
+        }).expect_err("no retirement confirmation before deadline");
+        assert_eq!(error.kind(), ErrorKind::CloseTimeout);
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert!(owner.ensure_open().is_ok());
+    }
+
+    #[test]
+    fn pin_wait_adopts_a_concurrent_owner_deadline() {
+        let owner = Arc::new(SessionOwner::new(Duration::from_millis(30), Duration::from_secs(10)));
+        let operation = owner.admit().expect("open owner");
+        let (poll_tx, poll_rx) = std::sync::mpsc::sync_channel(1);
+        let pin_owner = Arc::clone(&owner);
+        let waiter = thread::spawn(move || {
+            let mut first = true;
+            pin_owner.wait_pin_close(Instant::now() + Duration::from_secs(5), || {
+                if first {
+                    first = false;
+                    poll_tx.send(()).expect("test observes first poll");
+                }
+                Ok(eltdx_runtime::engine::PendingPoll::Pending)
+            })
+        });
+        poll_rx.recv_timeout(Duration::from_secs(1)).expect("pin wait started before owner close");
+        let started = Instant::now();
+        let result = owner.close();
+        assert!(matches!(result, Err(error) if error.kind() == ErrorKind::CloseTimeout));
+        assert!(matches!(waiter.join().expect("waiter exits"), Err(error) if error.kind() == ErrorKind::CloseTimeout));
+        assert!(started.elapsed() < Duration::from_secs(1));
+        drop(operation);
+    }
+
+    #[test]
+    fn pin_wait_does_not_extend_local_cap_to_cleanup_deadline() {
+        let owner = SessionOwner::new(Duration::from_secs(1), Duration::from_secs(10));
+        {
+            let mut state = owner.state.lock().expect("state available");
+            state.phase = super::SessionPhase::Closing;
+            state.shutdown_deadline = Some(Instant::now() + Duration::from_secs(10));
+        }
+        let result = owner.wait_pin_close(Instant::now(), || {
+            Ok(eltdx_runtime::engine::PendingPoll::Pending)
+        });
+        assert!(matches!(result, Err(error) if error.kind() == ErrorKind::CloseTimeout));
+    }
+
+    #[test]
+    fn close_error_mapping_and_shared_failure_keep_runtime_source() {
+        let runtime = eltdx_runtime::RuntimeError::internal("pin retirement failed")
+            .with_context("pin_id", "7");
+        let failure = super::CloseFailure::from_error(super::map_close_error(runtime.clone()));
+        let error = failure.into_error();
+        assert_eq!(error.message(), "pin retirement failed");
+        assert_eq!(error.context(), runtime.context().as_slice());
+        assert_eq!(std::error::Error::source(&error)
+            .and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>()), Some(&runtime));
+    }
+
+    fn loopback_pin() -> (Arc<SessionOwner>, super::PinnedSession, thread::JoinHandle<()>) {
+        use eltdx_protocol::frame::{RequestFrame, RESPONSE_PREFIX};
+        use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions};
+        use std::io::{Read, Write};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("loopback bind");
+        let address = listener.local_addr().expect("loopback address");
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("engine connects");
+            stream.set_read_timeout(Some(Duration::from_secs(3))).expect("bounded server read");
+            let mut raw = vec![0; 12];
+            stream.read_exact(&mut raw).expect("handshake header");
+            let body = usize::from(u16::from_le_bytes([raw[6], raw[7]])) - 2;
+            raw.resize(12 + body, 0);
+            stream.read_exact(&mut raw[12..]).expect("handshake body");
+            let request = RequestFrame::decode(&raw).expect("valid handshake frame");
+            let mut response = Vec::from(RESPONSE_PREFIX);
+            response.push(1);
+            response.extend_from_slice(&request.msg_id.to_le_bytes());
+            response.push(0);
+            response.extend_from_slice(&request.msg_type.to_le_bytes());
+            response.extend_from_slice(&189_u16.to_le_bytes());
+            response.extend_from_slice(&189_u16.to_le_bytes());
+            response.extend_from_slice(&[0; 189]);
+            stream.write_all(&response).expect("handshake response");
+            let mut byte = [0];
+            assert_eq!(stream.read(&mut byte).expect("owner closes socket"), 0);
+        });
+        let engine = Engine::new(EngineConfig::new(
+            vec![format!("{}:{}", address.ip(), address.port())], 2.0,
+            EngineConfigOptions {
+                pool_size: 1, runtime_workers: Some(1), server_count: 1,
+                max_connections_per_host: None, connect_concurrency: None,
+                connect_concurrency_per_host: None, global_raw_bytes: None,
+                global_decoded_bytes: None, heartbeat_interval: None,
+                max_pending_requests: 8, push_queue_size: 1, push_queue_bytes: 1024,
+            },
+        ).expect("valid config")).expect("lazy engine");
+        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+        owner.register_engine(engine.clone()).expect("owner open");
+        let pin = super::PinnedSession::new(Arc::clone(&owner), engine.pin().expect("pin handshake"))
+            .expect("pin registered");
+        (owner, pin, server)
+    }
+
+    #[test]
+    fn dropped_pin_remains_owned_until_owner_confirms_release() {
+        let (owner, pin, server) = loopback_pin();
+        let identity = pin.identity().expect("pin live");
+        drop(pin);
+        assert!(owner.state.lock().expect("state").pins.iter().any(|pin| pin.identity() == identity));
+        owner.close().expect("owner confirms release and engine join");
+        assert!(owner.state.lock().expect("state").pins.is_empty());
+        server.join().expect("server observed socket shutdown");
+    }
+
+    #[test]
+    fn explicit_pin_close_racing_owner_preserves_unconfirmed_guard() {
+        let (owner, mut pin, server) = loopback_pin();
+        let barrier = Arc::new(Barrier::new(2));
+        let close_owner = Arc::clone(&owner);
+        let close_barrier = Arc::clone(&barrier);
+        let closer = thread::spawn(move || {
+            close_barrier.wait();
+            close_owner.close()
+        });
+        barrier.wait();
+        match pin.close() {
+            Ok(()) => assert!(pin.identity().is_none()),
+            Err(error) => {
+                assert!(matches!(error.kind(), ErrorKind::Closed | ErrorKind::CloseTimeout));
+                assert!(pin.identity().is_some());
+            }
+        }
+        closer.join().expect("owner closer exits").expect("owner closes owned resources");
+        assert!(owner.state.lock().expect("state").pins.is_empty());
+        server.join().expect("server observed socket shutdown");
+    }
 
     #[test]
     fn admission_gate_closes_before_waiting_for_active_operations() {

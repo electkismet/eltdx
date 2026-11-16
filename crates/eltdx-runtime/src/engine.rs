@@ -1042,6 +1042,27 @@ impl PendingPinClose {
             }
         }
     }
+
+    /// Wait for pin retirement without extending an absolute caller deadline.
+    pub fn wait_until(&mut self, deadline: Instant) -> Result<(), RuntimeError> {
+        loop {
+            if let PendingPoll::Ready(()) = self.wait_timeout(Duration::ZERO)? {
+                return Ok(());
+            }
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Err(RuntimeError::CloseTimeout {
+                    message: "7709 pinned close did not finish before its absolute deadline"
+                        .to_owned(),
+                    context: Vec::new(),
+                });
+            }
+            match self.wait_timeout(remaining.min(SIGNAL_POLL_INTERVAL))? {
+                PendingPoll::Ready(()) => return Ok(()),
+                PendingPoll::Pending => {}
+            }
+        }
+    }
 }
 
 impl PinHandle {
@@ -1095,6 +1116,11 @@ impl PinHandle {
 
     pub fn close(&self) -> Result<(), RuntimeError> {
         self.begin_close()?.wait()
+    }
+
+    pub fn close_until(&self, deadline: Instant) -> Result<(), RuntimeError> {
+        let mut pending = self.begin_close()?;
+        pending.wait_until(deadline)
     }
 }
 
@@ -7035,6 +7061,37 @@ mod tests {
         first.wait()?;
         second.wait()?;
         Ok(())
+    }
+
+    #[test]
+    fn pending_pin_close_deadline_does_not_consume_the_receipt() -> Result<(), RuntimeError> {
+        let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+        let mut pending = super::PendingPinClose {
+            created_pid: std::process::id(),
+            result_rx: receiver,
+            terminal: None,
+        };
+        let started = std::time::Instant::now();
+        let deadline = started + Duration::from_millis(10);
+        assert!(matches!(pending.wait_until(deadline), Err(RuntimeError::CloseTimeout { .. })));
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert!(pending.terminal.is_none());
+        sender.send(Ok(())).expect("timeout retained receipt");
+        pending.wait_until(deadline)?;
+        Ok(())
+    }
+
+    #[test]
+    fn bounded_pin_close_keeps_runtime_error_details() {
+        let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+        let expected = RuntimeError::internal("retirement failed").with_context("pin_id", "9");
+        sender.send(Err(expected.clone())).expect("receipt exists");
+        let mut pending = super::PendingPinClose {
+            created_pid: std::process::id(),
+            result_rx: receiver,
+            terminal: None,
+        };
+        assert_eq!(pending.wait_until(std::time::Instant::now()), Err(expected));
     }
 
     #[test]
