@@ -78,6 +78,13 @@
 
 ## Task log
 
+2026-11-17 T18 seventeenth checkpoint: daily money-flow committed6b4fc0b. Corporate
+capital/finance shared request/cursor/recovery code and Python bindings authored,
+15 contract/7 local integration/3 Rust functions unexecuted;2 manifest source-only
+entries. Native finance projection retains generators/property access/aliases;
+budget32 and custom callbacks preserve old contracts. Equity remains next;
+counts18/4/8, goal active without cap, all execution deferred/no subagents.
+
 2026-11-16 T18 second source checkpoint d0f8c2c: authored lazy HelperService/M79–M85,
 shared-context quote/depth/legacy/category/minute and directory seams, typed
 FullQuote/RankQuery/RealtimeRankRow, optional Table.end completion evidence and

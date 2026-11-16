@@ -73,6 +73,15 @@ equity/calendar/resources/stats/health and remaining T18 helper/subscription wor
 
 ## Exact plan scope
 
+Seventeenth recovery: daily flow committed6b4fc0b. Capital/finance native source
+routes now share corporate request boundaries, prefix cursor and generic ordered
+binary tree. Legacy preserves32 recovery calls excluding initial, Python warning
+stack/exception identity, original success order/raw, duplicate queues, fields
+aliases/generator/hasattr-getattr. Added15 contract/7 integration/3 Rust functions
+and2 source-only manifest entries, none executed. Capital outer chunk scheduler
+remains an adapter; equity is next, followed by calendar/resources/stats/health
+and remaining helpers/subscriptions/manifest/consumer. Counts remain18/4/8.
+
 New `src/helpers/{mod,market,boards,shortline,profile}.rs` (split focused files as necessary), all HQ helper DTO/query types, `tests/hq_helpers.rs`, `examples/hq_query.rs`. Migrate Python HQ `api`, `helpers`, `equity.py`, `workday.py`, `stats.py`, native bridge and manifest per completed domain; author domain differential/compatibility source tests. Implement all HQ M79–M97 including pure classify_fund_flow M95. Complete all HQ methods left by prior tasks; no exposed placeholder/Unsupported for documented valid supported HQ behavior.
 
 - full_quotes, daily capital/limits, rank, boards/member quotes, shortline/ladder, market_stat and full profile default features. profile uses only HQ quotes/catalog/finance; no invented f10/offline dependency.

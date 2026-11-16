@@ -13,6 +13,29 @@ use crate::types::{AdjustmentFactors, Amount, BatchItem, BatchItemState, BatchOu
     FinanceValue, MissingPolicy, MissingReason, Quantity, ResultMeta, SecurityId, ValueProvenance};
 use super::{aggregate_meta, allocation_error, checked_ids, identity_from_market, result_meta, ServiceSource};
 use super::recovery::{ordered_tree, RecoveryStep};
+use super::corporate_legacy::CapitalPrefix;
+
+fn fetch_corporate_reply(context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>) -> Result<DecodedReply> {
+    context.check_boundary(TimeoutPhase::Admission)?;
+    let capital = match &request {
+        CommandRequest::CapitalChanges(_) => true,
+        CommandRequest::FinanceBatch(_) => false,
+        _ => return Err(Error::new(ErrorKind::InvalidArgument, "corporate service requires a capital or finance request")),
+    };
+    let decoded = fetch(request)?;
+    if !matches!((&decoded.response, capital),
+        (CommandResponse::CapitalChanges(_), true) | (CommandResponse::FinanceBatch(_), false)) {
+        return Err(wrong("corporate"));
+    }
+    Ok(decoded)
+}
+
+pub(crate) fn legacy_corporate_reply(context: &OperationContext, request: CommandRequest,
+    fetch: impl FnOnce(CommandRequest) -> Result<DecodedReply>) -> Result<CommandResponse> {
+    if !context.is_legacy() { return Err(Error::new(ErrorKind::InvalidArgument, "legacy corporate adapter requires a Python-profile operation")); }
+    Ok(fetch_corporate_reply(context, request, fetch)?.response)
+}
 
 const FINANCE_RECOVERY: RecoveryLimit = RecoveryLimit { name: "finance_missing", maximum: 32 };
 const FINANCE_CHUNK: usize = 300;
@@ -90,14 +113,16 @@ impl CorporateService {
         let mut items = Vec::new(); items.try_reserve(ids.len()).map_err(allocation_error)?;
         let mut metas = Vec::new(); let mut page_index = 0;
         for chunk in codes.chunks(query.batch_size()) {
-            let mut consumed = 0;
-            while consumed < chunk.len() {
+            let mut cursor = CapitalPrefix::new(chunk.len());
+            while let Some(consumed) = cursor.remaining() {
                 context.check_boundary(TimeoutPhase::Admission)?;
                 let remaining = &chunk[consumed..];
                 let request = CommandRequest::CapitalChanges(CapitalChangesRequest::new_batch(remaining.to_vec()).map_err(Error::from_protocol)?);
-                let raw = self.executor.execute_raw(&self.engine, context, request,
-                    if page_index == 0 { ChildPurpose::Required } else { ChildPurpose::Page }, None)?;
-                let decoded = self.executor.decode_received(context, raw)?;
+                let decoded = fetch_corporate_reply(context, request, |request| {
+                    let raw = self.executor.execute_raw(&self.engine, context, request,
+                        if page_index == 0 { ChildPurpose::Required } else { ChildPurpose::Page }, None)?;
+                    self.executor.decode_received(context, raw)
+                })?;
                 let CommandResponse::CapitalChanges(page) = &decoded.response else { return Err(wrong("capital changes")); };
                 if page.blocks.is_empty() || page.blocks.len() > remaining.len() { return Err(wrong("empty or excess capital prefix")); }
                 for (expected, block) in remaining.iter().zip(&page.blocks) {
@@ -121,7 +146,8 @@ impl CorporateService {
                         CapitalChangeBlock::new(id, events, page.declared_blocks, row_meta))));
                 }
                 context.record_work(page.blocks.len(), 0)?;
-                consumed += page.blocks.len(); page_index += 1; metas.push(meta);
+                cursor.advance(page.blocks.len(), true).map_err(|_| wrong("capital prefix"))?;
+                page_index += 1; metas.push(meta);
             }
         }
         Ok(BatchOutcome::with_meta(items, aggregate_meta(context, &metas, context.metadata()?.as_deref().map(|snapshot| snapshot.version()))?))
@@ -149,8 +175,10 @@ impl CorporateService {
         let mut execute = |part: &[NormalizedCode], recovery: bool| {
             let purpose = if recovery { ChildPurpose::MissingRecovery } else if first { first = false; first_purpose } else { ChildPurpose::Page };
             let request = CommandRequest::FinanceBatch(FinanceBatchRequest::new(part.to_vec()).map_err(Error::from_protocol)?);
-            let raw = self.executor.execute_raw(&self.engine, context, request, purpose, recovery.then_some(FINANCE_RECOVERY))?;
-            self.executor.decode_received(context, raw)
+            fetch_corporate_reply(context, request, |request| {
+                let raw = self.executor.execute_raw(&self.engine, context, request, purpose, recovery.then_some(FINANCE_RECOVERY))?;
+                self.executor.decode_received(context, raw)
+            })
         };
         for chunk in codes.chunks(chunk_size) {
             let fetched = ordered_tree(context, chunk, false,

@@ -1102,6 +1102,29 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x000f",
       "api": "client.corporate.capital_changes(code_or_codes, batch_size=75)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/corporate.rs; crates/eltdx/src/services/corporate_legacy.rs::CapitalPrefix",
+        "bridge_sources": ["crates/eltdx/src/__python_compat.rs", "crates/eltdx-python/src/corporate.rs", "crates/eltdx-python/src/service.rs", "crates/eltdx-python/src/transport.rs", "src/eltdx/api/corporate.py"],
+        "contract_nodes": [
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_capital_prefix_keeps_duplicates_pages_and_raw",
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_capital_prefix_failures_keep_exact_runtime_error",
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_capital_custom_result_is_returned_without_followup",
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_capital_chunks_keep_input_order_and_single_shape"
+        ],
+        "integration_nodes": [
+          "tests/integration/test_native_corporate_domain_bridge.py::test_native_corporate_capital_matches_original_dates_values_and_raw",
+          "tests/integration/test_native_corporate_domain_bridge.py::test_native_corporate_capital_prefix_collects_original_pages",
+          "tests/integration/test_native_corporate_domain_bridge.py::test_native_corporate_capital_protocol_error_keeps_original_class_text_and_cause"
+        ],
+        "fixtures": ["tests/integration/test_native_corporate_domain_bridge.py::_capital"],
+        "temporary_adapter": {
+          "scope": "Outer chunk scheduling, Python model constructors/properties and custom execute hooks",
+          "reason": "Original worker capacity/chunk order and arbitrary user response objects remain Python extension contracts; the Rust prefix cursor drives every standard native chunk.",
+          "exit_condition": "Move remaining batch scheduling with equal capacity, object evaluation and error timing; retain explicit user callback hooks."
+        },
+        "validation": "Source only; not collected, compiled or executed. No migration status promotion."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-股本变迁GBBQ.md",
@@ -1200,6 +1223,33 @@
       "compatibility": "Catalog capability remains distinct from wire-code and Python registry counts.",
       "wire_code": "0x0010",
       "api": "client.corporate.finance_batch(codes)",
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "shared_business_source": "crates/eltdx/src/services/corporate.rs; crates/eltdx/src/services/recovery.rs::ordered_tree_with",
+        "recovery_source": "crates/eltdx/src/services/corporate_legacy.rs::legacy_finance_recover",
+        "bridge_sources": ["crates/eltdx-python/src/corporate.rs", "src/eltdx/api/_batch.py", "src/eltdx/api/corporate.py"],
+        "contract_nodes": [
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_finance_success_keeps_original_order_and_response_identity",
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_finance_recovery_preserves_duplicate_occurrences_and_raw_empty",
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_finance_missing_policy_preserves_warning_or_error",
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_finance_budget_keeps_initial_request_plus_thirty_two",
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_finance_fields_keep_aliases_and_generator_consumption",
+          "tests/contracts/test_sdk_corporate_domain_bridge.py::test_corporate_finance_fields_preserve_hasattr_then_getattr"
+        ],
+        "integration_nodes": [
+          "tests/integration/test_native_corporate_domain_bridge.py::test_native_corporate_finance_preserves_server_order_dates_and_raw",
+          "tests/integration/test_native_corporate_domain_bridge.py::test_native_corporate_finance_recovery_keeps_missing_warning_and_aggregate_raw",
+          "tests/integration/test_native_corporate_domain_bridge.py::test_native_corporate_finance_keeps_nonfinite_legacy_value",
+          "tests/integration/test_native_corporate_domain_bridge.py::test_native_corporate_interrupt_confirms_request_retirement"
+        ],
+        "fixtures": ["tests/fixtures/7709/finance_batch/normal", "tests/integration/test_native_corporate_domain_bridge.py::_finance"],
+        "temporary_adapter": {
+          "scope": "Python warning/error classes, custom transport callbacks, changed recovery limit, subclass overrides",
+          "reason": "Rust owns the binary tree, counter, classification and ordered aggregation while Python retains public exception/warning stack locations and model identities.",
+          "exit_condition": "Keep exact warning stack and extension hooks while completing the remaining HQ orchestration migration."
+        },
+        "validation": "Source only; all commands and cases unexecuted. Standard success retains original server order/raw; recovered results retain duplicate input order and empty aggregate raw."
+      },
       "kind": "底层协议",
       "catalog_source": "7709",
       "catalog_doc": "methods/7709-财务基础信息.md",

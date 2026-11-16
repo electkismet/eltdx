@@ -264,7 +264,7 @@ class TdxClient:
                 else None
             ),
         )
-        self.corporate = CorporateApi(self.transport)
+        self.corporate = CorporateApi(self.transport, native_services=native_services)
         self.company_info = CompanyInfoApi(self.transport, native_services=native_services)
         self.limits = LimitApi(self.transport)
         self.workdays = WorkdayService(self)

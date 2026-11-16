@@ -787,3 +787,37 @@ T18 stays partial, totals18 source complete/4 partial/8 unstarted. Next corporat
 capital/finance, equity/calendar/resources/stats/health, remaining helper and
 subscription orchestration, global manifest/installed-wheel consumer, T19–T30 and
 remaining Stage B. Goal remains active without token limit; no agents/publication.
+
+Sixteenth source stage committed as **6b4fc0b**. All execution remains deferred.
+
+## Seventeenth source checkpoint — capital prefixes and finance recovery
+
+- Corporate strict/legacy paths share fetch_corporate_reply. LegacyOperation,
+  NativeEngine and both transports expose sdk_corporate using the original
+  extractor/parser without metadata prefetch. Strict services retain typed
+  validation; legacy keeps original raw/scalars/invalid dates/nonfinite values.
+- Added CapitalPrefix shared by strict collector and Python callback adapter.
+  Python native chunks retain original prefix checks, empty/excess errors,
+  single/custom responses, raw payload collection and duplicates. The outer
+  ThreadPoolExecutor chunk scheduler still awaits the broader batch migration.
+- Generalized the existing ordered_tree traversal without changing its strict
+  operation boundary. legacy_finance_recover drives the same binary traversal
+  with32 recovery requests excluding initial, exact legacy message classification
+  and singleton absence. Binding callbacks retain Python exception identity and
+  normalized missing items. Python warning/raise stays at original stack depth.
+- Binding aggregation uses Python hash/equality and deques in requested occurrence
+  order; success returns the original response/raw/server order, recovery clears
+  aggregate raw. Field projection retains alias mapping, per-record iteration
+  (including exhausted generators), string keys and separate hasattr/getattr.
+  Custom execute, API subclass, changed budget and selector hooks retain adapters.
+- Authored15 contract functions,7 local integration functions and3 Rust unit
+  functions. Cover prefix/duplicates/raw/custom, native routing/execute hooks,
+  finance order/absence/budget/errors/fields, wire parity/no catalog, nonfinite
+  values, invalid dates and KeyboardInterrupt retirement. Two manifest records
+  have source-only evidence; no migration status promoted.
+
+No tests/collection/build/check/clippy/doctest, dependency commands, network,
+AST/compile/format/diff-check or equivalent validation ran. Counts remain18
+source complete/4 partial/8 unstarted. T18 remains partial; next equity, calendar,
+resources/stats/health, capital/moneyflow batch scheduling, helpers/subscription,
+manifest and installed-wheel consumer. Goal active/no cap; no agents/publication.

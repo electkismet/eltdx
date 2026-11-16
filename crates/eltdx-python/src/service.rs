@@ -130,6 +130,10 @@ pub fn money_flow(py: Python<'_>, executor: LegacyExecutor, request: CommandRequ
     unpriced_domain(py, executor, request, "python_money_flow", LegacyOperation::money_flow)
 }
 
+pub fn corporate(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
+    unpriced_domain(py, executor, request, "python_corporate", LegacyOperation::corporate)
+}
+
 struct PythonMoneyFlowSources<'py> {
     api: Bound<'py, PyAny>,
     failover: Bound<'py, PyAny>,
