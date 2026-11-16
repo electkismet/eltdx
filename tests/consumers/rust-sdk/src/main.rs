@@ -4,6 +4,10 @@
 mod server;
 #[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
 mod financial;
+#[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
+mod offline;
+#[cfg(any(feature = "sdk-f10", feature = "sdk-full"))]
+mod f10;
 use std::io;
 use std::time::Duration;
 use eltdx::{BatchItemState, CodeScanQuery, EndEvidence, ErrorKind, HqMarket, OperationOptions,
@@ -73,7 +77,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some("lazy") => lazy()?,
         #[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
         Some("financial") => financial::run()?,
-        Some(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput, "use lazy or loopback").into()),
+        #[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
+        Some("offline") => offline::run()?,
+        #[cfg(any(feature = "sdk-f10", feature = "sdk-full"))]
+        Some("f10") => f10::run()?,
+        Some(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput,
+            "use lazy or loopback; financial/offline need sdk-offline, f10 needs sdk-f10").into()),
     }
     println!("independent Rust consumer completed"); Ok(())
 }

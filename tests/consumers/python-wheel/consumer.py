@@ -8,7 +8,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import importlib.metadata
+import io
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -17,6 +19,10 @@ import socket
 import struct
 import sys
 import threading
+import tempfile
+import zipfile
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
 
 
 CODE = "sh" + str(600_001)
@@ -75,7 +81,7 @@ def quote_row(identity):
 
 
 class Fixture:
-    def __init__(self):
+    def __init__(self, files=None):
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.bind(("127.0.0.1", 0))
         self.listener.listen()
@@ -85,6 +91,8 @@ class Fixture:
         self.errors = []
         self.commands = []
         self.offsets = []
+        self.files = dict(files or {})
+        self.resources = []
         self.connections = 0
         self.disconnected = threading.Event()
         self.workers = []
@@ -172,7 +180,158 @@ class Fixture:
             )
         if command == 0x0004:
             return bytes(10)
+        if command == 0x06B9:
+            require(len(data) >= 9, "short resource request")
+            offset, size = struct.unpack_from("<II", data)
+            path = data[8:].split(b"\0", 1)[0].decode("ascii")
+            require(path in self.files, "unexpected resource path: %r" % path)
+            self.resources.append((path, offset, size))
+            payload = self.files[path][offset:offset + size]
+            return struct.pack("<I", len(payload)) + payload
         raise AssertionError("unexpected command 0x%04x" % command)
+
+
+def financial_payload():
+    # Independent 20-byte header, one 11-byte index, one negative-zero float.
+    data = struct.pack("<hIHIII", 0, 20240331, 1, 0, 4, 0)
+    data += struct.pack("<6scI", b"600000", b"\x01", 31) + struct.pack("<I", 0x80000000)
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("report.dat", data)
+    return data, output.getvalue()
+
+
+def exercise_offline(data, archive):
+    from eltdx import offline
+    from eltdx.exceptions import ResourceFormatError
+
+    with tempfile.TemporaryDirectory(prefix="eltdx-wheel-consumer-") as directory:
+        path = Path(directory) / "sh600000.day"
+        first = struct.pack("<IIIIIfII", 20240628, 1000, 1200, 900, 1100, -0.0, 10000, 17)
+        newer = struct.pack("<IIIIIfII", 20240701, 1100, 1300, 1000, 1200, 1234.5, 20000, 19)
+        path.write_bytes(first + newer)
+        rows = offline.read_daily_bar(path)
+        require([row.date_int for row in rows] == [20240628, 20240701], "offline dates changed")
+        require(rows[0].open == 10.0 and rows[0].volume == 100.0, "offline coefficients changed")
+        require(offline.encode_daily_bar(rows[0], 0.01, 0.01) == first, "offline byte round trip changed")
+        require(math.copysign(1, rows[0].amount) == -1, "offline negative zero lost")
+        path.write_bytes(first)
+        require(offline.append_daily_bar(path, [rows[1], rows[0], rows[1]], 0.01, 0.01) == 2,
+                "offline append changed fixed-tail filtering or duplicate retention")
+        expected = first + newer + newer
+        require(path.read_bytes() == expected, "offline append source order changed")
+        path.write_bytes(expected + b"tail")
+        require(len(offline.read_daily_bar(path)) == 3, "offline ignored tail discarded complete rows")
+        try:
+            offline.append_daily_bar(path, [], 0.01, 0.01)
+        except ResourceFormatError:
+            pass
+        else:
+            raise AssertionError("empty append accepted a partial tail")
+        require(path.read_bytes() == expected + b"tail", "rejected offline append modified bytes")
+        industry = offline.parse_tdxhy_cfg(b"1|600000|old|x|y|old\n1|600001|other|x|y|other\n1|600000|last|x|y|new\n")
+        require(list(industry) == ["600000", "600001"] and industry["600000"] == ("last", "new"),
+                "industry duplicate order or values changed")
+        parsed = offline.parse_financial_dat(data)
+        require(parsed[0][:3] == ("600000", 1, 20240331) and math.copysign(1, parsed[0][3][0]) == -1,
+                "local financial DAT fields changed")
+        financial_path = Path(directory) / "gpcw20240630.zip"
+        financial_path.write_bytes(archive)
+        records = offline.read_history_financial(financial_path)
+        require(len(records) == 1 and records[0].code == "600000" and records[0].report_date == 20240331,
+                "local financial ZIP projection changed")
+    return {"daily_rows": 3, "industry_codes": 2, "financial_rows": 1}
+
+
+def exercise_f10(TdxClient, SocketTransport):
+    from eltdx.f10 import F10Client
+
+    cases = [
+        ("consumer.business", {"Params": ["literal", 7]},
+         {"ErrorCode": 17, "HitCache": True, "ResultSets": [{"ColName": ["x", "x"], "Content": [[1, 2]]}]}),
+        ("CWServ.tdxf10_gg_comreq", {"Params": ["gpquery", "600000"]},
+         {"ErrorCode": 0, "ResultSets": [{"ColName": ["name"], "Content": [["stock"]]}]}),
+        ("CWServ.skef10_zs_cfgsj_cfgjcsj", {"Params": ["001", "000300", "1", "100"]},
+         {"ErrorCode": 0, "ResultSets": [{"ColName": ["N001", "N002", "N004"], "Content": [["600000", "member", 1]]}]}),
+        ("CWServ.tdxf10_gg_comreq", {"Params": ["rdtcgn", "600000"]},
+         {"ErrorCode": 0, "ResultSets": [{"ColName": ["t001", "t002"], "Content": [["42", "topic"]]}]}),
+        ("CWServ.tdxf10_gg_rdtc", {"Params": ["600000", "zttzbkz"]},
+         {"ErrorCode": 0, "ResultSets": [{"ColName": ["id", "ztmc", "gld"], "Content": [["42", "updated", 3]]}]}),
+        ("CWServ.tdxf10_gg_rdtc_gndb", {"Params": ["gndbzfsj", "600000", "42", "zdf"]},
+         {"ErrorCode": 0, "ResultSets": [{"ColName": ["pm", "zqdm", "sc"], "Content": [[2, "600001", 1], [1, "600000", 1]]}]}),
+    ]
+    observed, errors = [], []
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *_):
+            pass
+
+        def do_POST(self):
+            try:
+                self.connection.settimeout(3)
+                require(len(observed) < len(cases), "unexpected extra HTTP request")
+                expected_entry, expected_body, reply = cases[len(observed)]
+                target = urlsplit(self.path)
+                require(target.path == "/TQLEX" and parse_qs(target.query).get("Entry") == [expected_entry],
+                        "F10 HTTP Entry route changed")
+                size = int(self.headers["Content-Length"])
+                require(0 <= size <= 65536, "unbounded HTTP fixture body")
+                require(json.loads(self.rfile.read(size)) == expected_body, "F10 Params or types changed")
+                body = json.dumps(reply).encode("utf-8")
+                observed.append(expected_entry)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.wfile.write(body)
+            except BaseException as error:
+                errors.append(repr(error))
+                self.send_error(500)
+            finally:
+                self.close_connection = True
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    worker = threading.Thread(target=server.serve_forever, name="wheel-f10-consumer", daemon=True)
+    worker.start()
+    try:
+        url = "http://127.0.0.1:%d/TQLEX" % server.server_port
+        f10 = F10Client(base_url=url, mg_hk_base_url=url, timeout=3, prefer_ipv4=False)
+        generic = f10.params("consumer.business", "literal", 7)
+        require(not generic.ok and generic.error_code == 17 and generic.raw["HitCache"] is True,
+                "F10 business status or raw metadata changed")
+        require(generic.rows == ({"x": 1, "x__2": 2},), "F10 duplicate column projection changed")
+        require(f10.stock_info("sh600000").rows == ({"name": "stock"},), "named F10 result changed")
+        with socket.socket() as hq:
+            hq.bind(("127.0.0.1", 0)); hq.listen(); hq.settimeout(0.05)
+            client = TdxClient(transport=SocketTransport(["%s:%d" % hq.getsockname()], timeout=3,
+                                                       heartbeat_interval=None), probe_hosts=False)
+            client.f10 = f10
+            try:
+                members = client.helpers.index_members("sh000300")
+                require(members.codes == ("600000",), "index helper result changed")
+                require(client.helpers.index_members("sh000300") is members, "helper cache object identity changed")
+                topics = client.helpers.stock_topics("sh600000")
+                require(len(topics.topics) == 1 and topics.topics[0].topic_name == "updated"
+                        and topics.topics[0].relation_level == 3.0, "topic overlay changed")
+                comparison = client.helpers.topic_stocks("sh600000", topic_id="42")
+                require([row.rank for row in comparison.rows] == [2, 1], "topic comparison source order changed")
+                try:
+                    connection, _ = hq.accept()
+                except socket.timeout:
+                    pass
+                else:
+                    connection.close()
+                    raise AssertionError("F10-only helper opened HQ")
+            finally:
+                client.close()
+        require(len(observed) == len(cases) and not errors, "HTTP consumer source obligations failed: %r" % errors)
+        return {"requests": observed, "hq_connections": 0}
+    finally:
+        server.shutdown(); server.server_close(); worker.join(5)
+        require(not worker.is_alive(), "HTTP consumer listener did not stop")
 
 
 def main():
@@ -191,12 +350,16 @@ def main():
     from eltdx import TdxClient
     from eltdx.models import CapitalChangeBatch, QuoteSnapshot
     from eltdx.transport import SocketTransport
+    from eltdx import financial
 
     installed = Path(eltdx.__file__).resolve()
     forbidden = args.forbidden_root.resolve()
     require(not installed.is_relative_to(forbidden), "consumer imported the source checkout instead of the installed wheel")
     require(not os.environ.get("PYTHONPATH"), "consumer requires an isolated PYTHONPATH")
-    with Fixture() as fixture:
+    financial_data, financial_archive = financial_payload()
+    files = {"tdxfin/gpcw.txt": b"gpcw20240630.zip,unverified-hash,1\n",
+             "tdxfin/gpcw20240630.zip": financial_archive}
+    with Fixture(files) as fixture:
         client = TdxClient(transport=SocketTransport([fixture.host], timeout=3, heartbeat_interval=None), probe_hosts=False)
         try:
             codes = client.codes.all("sh", page_size=2)
@@ -211,18 +374,29 @@ def main():
             require([block.full_code for block in capital.blocks] == [CODE, OTHER], "capital chunk assembly changed")
             require(len(capital.raw_payloads) == 2 and all(capital.raw_payloads), "capital raw bytes lost")
             require(client.ping() == "pong", "public local ping changed")
+            archives = financial.list_archive_files(client)
+            require(len(archives) == 1 and archives[0].filename == "gpcw20240630.zip", "HQ financial file list changed")
+            records = financial.download_records(client, "tdxfin/gpcw20240630.zip")
+            require(len(records) == 1 and records[0].code == "600000" and records[0].report_date == 20240630,
+                    "HQ financial ZIP/DAT composition changed")
+            require(math.copysign(1, records[0].fields[0]) == -1, "HQ financial float bits changed")
         finally:
             client.close()
         client.close()
         require(fixture.disconnected.wait(3), "close did not release the TCP connection")
         require(fixture.connections == 1, "consumer unexpectedly opened another connection")
         require((1, 0) in fixture.offsets and (1, 2) in fixture.offsets, "directory terminal page not requested")
+        require([path for path, _, _ in fixture.resources] == ["tdxfin/gpcw.txt", "tdxfin/gpcw20240630.zip"],
+                "financial consumer did not use the two HQ resource paths")
         evidence = {
             "status": "passed", "package_version": importlib.metadata.version("eltdx"),
             "package_path": str(installed), "python": sys.version, "platform": platform.platform(),
             "toolchain_lookup": found, "commands": fixture.commands, "directory_offsets": fixture.offsets,
             "connections": fixture.connections,
+            "financial_resources": fixture.resources,
         }
+    evidence["offline"] = exercise_offline(financial_data, financial_archive)
+    evidence["f10"] = exercise_f10(TdxClient, SocketTransport)
     # Hash the installed distribution binaries for comparison with wheel RECORD.
     distribution = importlib.metadata.distribution("eltdx")
     evidence["native_files"] = [

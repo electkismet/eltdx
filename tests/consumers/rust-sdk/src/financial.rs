@@ -1,8 +1,8 @@
 //! A single-dependency consumer: hand-authored ZIP and DAT, std plus eltdx.
 use std::io;
 use eltdx::financial::{open_calc_client, CalcClientConfig, DownloadOptions, FinancialArchiveName};
-use eltdx::offline::financial::{parse_zip_detailed, FinancialReadOptions};
-use eltdx::{DownloadCompletion, ErrorKind, OperationOptions, RawPolicy};
+use eltdx::offline::financial::{parse_zip_detailed, FinancialCompletion, FinancialReadOptions, FinancialRecordsQuery, ReportDateSource};
+use eltdx::{DownloadCompletion, ErrorKind, OperationOptions, RawPolicy, TdxClient, TradingDate};
 
 fn crc32(data: &[u8]) -> u32 {
     let mut crc = u32::MAX;
@@ -46,7 +46,7 @@ fn require(condition: bool, message: &str) -> io::Result<()> {
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut data = Vec::new();
-    data.extend_from_slice(&0_i16.to_le_bytes()); data.extend_from_slice(&20240630_u32.to_le_bytes());
+    data.extend_from_slice(&0_i16.to_le_bytes()); data.extend_from_slice(&20240331_u32.to_le_bytes());
     data.extend_from_slice(&1_u16.to_le_bytes()); data.extend_from_slice(&0_u32.to_le_bytes());
     data.extend_from_slice(&4_u32.to_le_bytes()); data.extend_from_slice(&0_u32.to_le_bytes());
     data.extend_from_slice(b"600000"); data.push(1); data.extend_from_slice(&31_u32.to_le_bytes());
@@ -69,5 +69,30 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     client.close()?;
     require(service.list_archive_files(&OperationOptions::default()).is_err_and(|error|
         error.kind() == ErrorKind::Closed), "financial owner reopened")?;
+    let fixture = super::server::Fixture::start_with_files(vec![
+        ("tdxfin/gpcw.txt".to_owned(), b"gpcw20240630.zip,unverified-hash,1\n".to_vec()),
+        ("tdxfin/gpcw20240630.zip".to_owned(), archive.clone()),
+    ])?;
+    let config = CalcClientConfig::new().with_endpoint(fixture.endpoint.parse()?)
+        .with_builder(TdxClient::builder().heartbeat_interval(None).pool_size(1));
+    let client = open_calc_client(&config)?;
+    let operation = (|| -> Result<(), Box<dyn std::error::Error>> {
+        let query = FinancialRecordsQuery::new(filename);
+        let result = client.financial().download_records_detailed(&query,
+            &OperationOptions::default().with_raw(RawPolicy::RetainPayload))?;
+        require(result.completion() == FinancialCompletion::Complete && result.rows().len() == 1, "HQ archive did not produce complete records")?;
+        require(result.date_source() == ReportDateSource::ArchiveFilename
+            && result.rows()[0].report_date() == Some(TradingDate::new(2024, 6, 30)?), "financial report date source changed")?;
+        require(result.rows()[0].fields()[0].bits() == 0x80000000, "HQ financial float bits changed")?;
+        require(result.archive_raw() == Some(archive.as_slice()), "HQ archive raw changed")?;
+        require(result.source_meta().ok_or("missing financial provenance")?.sources().len() == 2,
+            "financial list/archive source provenance missing")?;
+        Ok(())
+    })();
+    let cleanup = client.close(); let observed = fixture.finish();
+    operation?; cleanup?; let observed = observed?;
+    require(observed.connections == 1 && observed.resources.len() == 2, "financial consumer did not use one HQ connection and two downloads")?;
+    require(observed.resources[0].0 == "tdxfin/gpcw.txt" && observed.resources[1].0 == "tdxfin/gpcw20240630.zip",
+        "professional financial download did not use HQ resource paths")?;
     Ok(())
 }

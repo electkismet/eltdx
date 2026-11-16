@@ -7,13 +7,18 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 #[derive(Default)]
-pub struct Observed { pub connections: usize, pub directory_offsets: Vec<u32>, pub snapshots: usize }
+pub struct Observed { pub connections: usize, pub directory_offsets: Vec<u32>, pub snapshots: usize,
+    pub resources: Vec<(String, u32, u32)> }
 pub struct Fixture { pub endpoint: String, stop: Arc<AtomicBool>, worker: Option<JoinHandle<io::Result<Observed>>> }
 impl Fixture {
     pub fn start() -> io::Result<Self> {
+        Self::start_with_files(Vec::new())
+    }
+    pub fn start_with_files(files: Vec<(String, Vec<u8>)>) -> io::Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")?; listener.set_nonblocking(true)?;
         let endpoint = format!("{}", listener.local_addr()?); let stop = Arc::new(AtomicBool::new(false)); let stopping = stop.clone();
         let worker = thread::spawn(move || {
+            let files = Arc::new(files);
             let observed = Arc::new(Mutex::new(Observed::default())); let mut children = Vec::new();
             let accept = (|| -> io::Result<()> {
                 while !stopping.load(Ordering::Acquire) {
@@ -21,7 +26,8 @@ impl Fixture {
                         Ok((stream, _)) => {
                             observed.lock().map_err(|_| io::Error::other("fixture observations poisoned"))?.connections += 1;
                             let child_stop = stopping.clone(); let child_observed = observed.clone();
-                            children.push(thread::spawn(move || serve(stream, child_stop, child_observed)));
+                            let child_files = files.clone();
+                            children.push(thread::spawn(move || serve(stream, child_stop, child_observed, child_files)));
                         }
                         Err(error) if error.kind() == io::ErrorKind::WouldBlock => thread::park_timeout(Duration::from_millis(1)),
                         Err(error) => return Err(error),
@@ -49,7 +55,8 @@ impl Fixture {
 }
 impl Drop for Fixture { fn drop(&mut self) { self.stop.store(true, Ordering::Release); } }
 
-fn serve(mut stream: TcpStream, stop: Arc<AtomicBool>, observed: Arc<Mutex<Observed>>) -> io::Result<()> {
+fn serve(mut stream: TcpStream, stop: Arc<AtomicBool>, observed: Arc<Mutex<Observed>>,
+    files: Arc<Vec<(String, Vec<u8>)>>) -> io::Result<()> {
     stream.set_read_timeout(Some(Duration::from_millis(100)))?;
     stream.set_write_timeout(Some(Duration::from_secs(2)))?;
     while !stop.load(Ordering::Acquire) {
@@ -89,6 +96,22 @@ fn serve(mut stream: TcpStream, stop: Arc<AtomicBool>, observed: Arc<Mutex<Obser
                     bytes.extend_from_slice(&[0; 8]); bytes.extend_from_slice(&[0; 4]); bytes.extend_from_slice(&[0; 8]);
                 }
                 bytes
+            }
+            0x06b9 => {
+                if data.len() < 9 { return Err(io::Error::other("short resource request")); }
+                let offset = u32::from_le_bytes(data[..4].try_into().map_err(io::Error::other)?);
+                let size = u32::from_le_bytes(data[4..8].try_into().map_err(io::Error::other)?);
+                let path = std::str::from_utf8(data[8..].split(|byte| *byte == 0).next().unwrap_or(&[]))
+                    .map_err(io::Error::other)?;
+                observed.lock().map_err(|_| io::Error::other("fixture observations poisoned"))?
+                    .resources.push((path.to_owned(), offset, size));
+                let file = &files.iter().find(|(name, _)| name == path)
+                    .ok_or_else(|| io::Error::other(format!("unexpected resource {path}")))?.1;
+                let start = (offset as usize).min(file.len());
+                let end = start.saturating_add(size as usize).min(file.len());
+                let payload = &file[start..end];
+                let mut reply = u32::try_from(payload.len()).map_err(io::Error::other)?.to_le_bytes().to_vec();
+                reply.extend_from_slice(payload); reply
             }
             _ => return Err(io::Error::other(format!("unexpected consumer command {command:04x}"))),
         };

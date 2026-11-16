@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第七十一段恢复点：题材强度已提交`e6d0cd5`。补Rust独立consumer六次HTTP请求、F10 helper及共享关闭、HQ不启动、本地日线/行业读写和真正HQ财报列表/ZIP/DAT下载源码；installed-wheel consumer对应覆盖真实HTTP与HQ资源请求、缓存identity、题材组合、本地文件、公开Python模型/日期/负零。源码复查区分本地ZIP取header日期、下载取文件名日期；两个方向README补最终阶段执行模板。以上全部未编译/执行。T23仍需完整manifest/域交接，随后T24–T30；21源码完整/4部分/5未开始、目标active无额度上限，全部执行验证延期。
+
 2026-11-17第七十段恢复点：基础提交`fa891d0`。题材强度排行Rust typed入口和Python native聚合源码已写；HQ完整天梯和逐证券F10复用同一parent context、总期限及输入行/HTTP字节预算，可选来源失败保留证券/原因，取消/关闭/预算等终止错误传播。全部输入聚合后再稳定四指标排序/topN；Python保留旧异常范围、重复项、动态hooks、数值/round6、延后count校验及lazy tuple。新增8个Python/4个Rust私有/2个Rust公开用例函数，均未执行；源码复查已修正用例持有活动context时同线程close的等待问题。T23剩完整manifest与独立consumer/文档，之后T24–T30；21源码完整/4部分/5未开始、目标active无额度上限，全部执行验证延期。
 
 2026-11-17第六十九段恢复点：owner检查点`52355bb`。新增Rust题材合并/成分查询与typed结果，同一F10 context、必需来源、byte/输入行上限、原始Response/来源/业务状态；显式ID只调compare，名称/明确first才解析前置。Python对应入口、resolver、模型/标量/行投影接入native，共用来源遍历/字段/选择顺序，保留提前读取两源、null覆盖、首次顺序/末份raw、live hooks及lazy tuple。新增10个Python/5个Rust测试函数源码，全部未执行。T23剩题材强度/manifest/consumer，之后T24–T30；21源码完整/4部分/5未开始、目标active无额度上限。

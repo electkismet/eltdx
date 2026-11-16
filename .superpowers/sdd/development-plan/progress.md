@@ -2,6 +2,17 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage71: basee6d0cd5. Independent Rust consumer
+  now has std-only six-POST F10 mode, shared-owner/HQ-laziness assertions,
+  local daily/industry mode, and real HQ financial list/ZIP/DAT composition.
+  Installed-wheel consumer likewise covers six actual HTTP requests, cache
+  identity/topic merging/comparison, local daily/industry/DAT/ZIP and HQ
+  financial resource download/model/date/negative-zero paths. All are authored
+  but unexecuted. Source review corrected local ZIP's expected date to header
+  date (download uses archive filename). READMEs include final-only commands.
+  T23 still needs complete manifest/domain handoff, thenT24–T30.21/4/5 source
+  counts unchanged, unlimited active goal; no execution checks or agents.
+
 - Latest recovery2026-11-17 stage70: basefa891d0. Full-ladder theme strength
   query/results and Python native aggregation are authored. One parent context
   covers HQ ladder and all F10 sources, total records/HTTP bytes/deadline;

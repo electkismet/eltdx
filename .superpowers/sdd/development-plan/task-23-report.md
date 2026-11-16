@@ -650,3 +650,35 @@ for the full migration manifest, independent F10/offline/financial/helper
 consumer source coverage and documentation handoff. Counts remain21 source
 complete/4 partial/5 unstarted; no execution validation until allT01–T30 source
 work completes. Goal active without token budget; no agents or publication.
+
+## Twenty-third checkpoint — independent T23 consumer sources
+
+Basee6d0cd5. Added a std-only Rust F10 HTTP consumer mode with independent
+literal Entry/body expectations for six POSTs. Covers nonzero business codes,
+duplicate columns, raw/cache metadata, named stock info, typed index helper,
+two-source topic overlay, ordered comparison, no HQ startup and shared-owner
+close. Added an offline mode for daily byte/negative-zero retention, original
+tail append with duplicates, corrupt-tail refusal without mutation and stable
+industry overwrite. Temporary cleanup removes two known files and their own
+directory only, never recursively deleting a computed path.
+
+The existing Rust std HQ fixture now supports explicitly supplied resource
+files and observes requested path/range. Financial mode downloads the listing
+and archive through the actual HQ public service, retains both sources/raw,
+checks float bits and archive filename date priority, and ignores the listing's
+stale size/opaque hash as completeness proof. No protocol/runtime direct imports
+or consumer dependencies were added.
+
+The installed-wheel single-file consumer now authors corresponding real HTTP
+and HQ requests plus local files using only stdlib and public installed eltdx.
+Python F10 keeps its original lifecycle, cache identity, row containers and
+topic semantics. Local ZIP keeps its header date; downloaded ZIP uses the
+filename date. Source review corrected this intentional policy distinction in
+the new expectation. Output is still emitted only after all actual consumer
+assertions pass when eventually executed. README final-validation commands and
+limitations updated for both installation directions.
+
+None of these consumers or other tests were executed, imported, compiled,
+collected, formatted or checked. T23 remains open for complete manifest/domain
+evidence and documentation handoff, thenT24–T30 source implementation. Counts
+remain21 source complete/4 partial/5 unstarted, goal active without token cap.
