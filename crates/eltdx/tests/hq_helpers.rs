@@ -2,6 +2,7 @@
 use eltdx::{helpers::classify_fund_flow, AmountUnit};
 #[path = "support/hq_server.rs"] mod hq_server;
 #[path = "support/daily_helpers_cases.rs"] mod daily_helpers_cases;
+#[path = "support/shortline_cases.rs"] mod shortline_cases;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::time::Duration;

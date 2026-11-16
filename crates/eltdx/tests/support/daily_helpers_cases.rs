@@ -15,7 +15,7 @@ fn client(server: &hq_server::Server) -> TdxClient {
     TdxClient::builder().endpoints(vec![server.address]).pool_size(1).heartbeat_interval(None).clock(Arc::new(EpochClock)).build().unwrap()
 }
 fn explicit() -> SecuritySelection { SecuritySelection::Explicit(vec!["sh600000".parse().unwrap()]) }
-fn stats_zip(stat_date: &str, stat2_date: &str) -> Vec<u8> {
+pub(super) fn stats_zip(stat_date: &str, stat2_date: &str) -> Vec<u8> {
     let mut stat = [""; 35]; let mut stat2 = [""; 21];
     for (index, value) in [(0, "1"), (1, "600000"), (4, stat_date), (11, "1.5")] { stat[index] = value; }
     for (index, value) in [(0, "1"), (1, "600000"), (2, stat2_date)] { stat2[index] = value; }
@@ -26,14 +26,14 @@ fn stats_zip(stat_date: &str, stat2_date: &str) -> Vec<u8> {
     }
     writer.finish().unwrap().into_inner()
 }
-fn file_reply(request: &RequestFrame, bytes: &[u8]) -> Vec<u8> {
+pub(super) fn file_reply(request: &RequestFrame, bytes: &[u8]) -> Vec<u8> {
     let offset = u32::from_le_bytes(request.data[..4].try_into().unwrap()) as usize;
     let size = u32::from_le_bytes(request.data[4..8].try_into().unwrap()) as usize;
     let contents = &bytes[offset.min(bytes.len())..offset.saturating_add(size).min(bytes.len())];
     let mut reply = (contents.len() as u32).to_le_bytes().to_vec(); reply.extend_from_slice(contents); reply
 }
-fn offset(request: &RequestFrame) -> u16 { u16::from_le_bytes(request.data[12..14].try_into().unwrap()) }
-fn bars(request: &RequestFrame, rows: &[(u32, i64)]) -> Vec<u8> {
+pub(super) fn offset(request: &RequestFrame) -> u16 { u16::from_le_bytes(request.data[12..14].try_into().unwrap()) }
+pub(super) fn bars(request: &RequestFrame, rows: &[(u32, i64)]) -> Vec<u8> {
     assert_eq!(u16::from_le_bytes(request.data[8..10].try_into().unwrap()), 4);
     assert_eq!(u16::from_le_bytes(request.data[16..18].try_into().unwrap()), 0, "must remain unadjusted");
     let mut bytes = (rows.len() as u16).to_le_bytes().to_vec(); let mut previous = 0;

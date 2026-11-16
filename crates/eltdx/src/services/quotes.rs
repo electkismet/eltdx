@@ -155,8 +155,20 @@ impl QuoteService {
     /// Freeze precision for the entire composition before any child decodes.
     pub(crate) fn prepare_in_context(&self, context: &OperationContext, ids: &[SecurityId])
         -> Result<Arc<MetadataSnapshot>> {
+        self.prepare_composition_in_context(context, ids, false)
+    }
+
+    /// Category responses may contain any HQ market. Capture that scope with
+    /// all explicitly requested identities before an intrinsic child decoder
+    /// freezes the operation snapshot (calendar and finance included).
+    pub(crate) fn prepare_composition_in_context(&self, context: &OperationContext, ids: &[SecurityId], category: bool)
+        -> Result<Arc<MetadataSnapshot>> {
         let codes = checked_ids(ids)?;
-        let requests = snapshot_requests(&codes, 80)?;
+        let mut requests = snapshot_requests(&codes, 80)?;
+        if category {
+            requests.try_reserve(1).map_err(allocation_error)?;
+            requests.push(CommandRequest::CategoryQuotes(CategoryQuotesRequest::new(6, 0, 0, 80, true, None, 0)));
+        }
         request_metadata(&self.executor, &self.engine, context, &self.config, &self.namespace, &requests)
     }
 

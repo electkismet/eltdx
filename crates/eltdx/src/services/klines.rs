@@ -232,6 +232,14 @@ impl KlineService {
         checked_ids(std::slice::from_ref(id))?;
         query.validate()?;
         context.set_work_limits(WorkLimits { pages: None, records: Some(query.count()), bytes: None })?;
+        self.page_with_parent_context(context, id, query, pin)
+    }
+
+    /// Bounded single-page child; keeps the parent's limits and lifetime.
+    pub(crate) fn page_with_parent_context(&self, context: &OperationContext, id: &SecurityId, query: &KlineQuery,
+        pin: Option<&eltdx_runtime::engine::PinHandle>) -> Result<KlineSeries> {
+        context.check_boundary(TimeoutPhase::Admission)?;
+        checked_ids(std::slice::from_ref(id))?; query.validate()?;
         let request = self.ordinary_request(id, query, u32::from(query.start()), query.count())?;
         let engine = self.engine_for_cursor(context, query.cursor())?;
         let metadata = self.capture_metadata(context, std::slice::from_ref(id))?;

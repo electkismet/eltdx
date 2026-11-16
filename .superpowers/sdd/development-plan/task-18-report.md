@@ -253,3 +253,68 @@ daily/auction source-date fallback alone is not a readiness proof. Do not repeat
 M88/M89 or reset caller budgets in the new internal service seams. Final full
 compilation, behavior, compatibility, packaging and performance evidence remains
 outstanding until all T01–T30 implementation sources are authored.
+
+Fifth source stage committed as **4823fb8** (25 files). No execution validation.
+
+## Sixth source checkpoint — M90/M91 shortline and ladder
+
+Authored after4823fb8, on2026-11-17. M79–M95 now have initial source
+implementations (17 of19 HQ helper methods). T18 remains partial; totals still
+18 source-complete/4 partial/8 unstarted. No Python or migration-manifest upgrade.
+
+- Added public ShortlineQuery/LadderQuery/ShortlineTable/ShortlineIndicator and
+  StatsAlignment, in types/shortline.rs and crate-root reexports. Nonempty
+  ShortlineQuery preserves occurrences. Explicit(empty) ladder admits and returns
+  without clock/session/files/catalog I/O; closed/cancelled/expired entry errors
+  still apply. Count zero is invalid; final count truncates after selection/sort.
+- M90 requires a date-and-clock server datetime and maximum valid explicit
+  handshake source date. No datetime-date substitute for absent source dates.
+  Same-target server time before09:25 is DataNotReady before other source work.
+  Previous date uses the observed calendar; both statistics files reuse the
+  shared inclusive95percent/date alignment/cache gates before quotes or finance.
+- New QuoteService prepare_composition_in_context captures all explicit quote
+  IDs and, for>=80 occurrences, category's three-market scope before calendar or
+  finance starts decoding. Later children retain one immutable capture, parent
+  work allowance, cancellation and absolute deadline. KlineService gained a
+  single-page parent-context seam, with original standalone limit/finish intact.
+- Required full quotes preserve identity/occurrences. Optional finance cache,
+  recent six unadjusted daily bars, and category opening-rush failures are
+  diagnosed; owner close/cancellation/outer deadline still propagate. Bars are
+  fetched once per distinct identity; first-occurrence order determines metadata
+  aggregation. Five latest distinct prior source dates are required for the
+  hand-volume/(240*5) baseline; missing/zero/conflicting/unknown units yield None.
+- Stat2 previous-day mapping uses current amount/seal/opening and previous seal
+  as prior fields; same-day uses prior columns. Missing or out-of-range individual
+  rows retain source-date diagnostics and None fields without substituting another
+  security. Finance circulation and stat free float remain independent. Derived
+  percentage-point fields, fractions, shares, hands and CNY are explicitly typed;
+  zero denominators/overflow do not produce nonfinite output. Generic quote amount
+  currently retains Unknown currency units, so seal_to_amount remains None for
+  those sources with an explicit diagnostic; no implicit CNY relabeling. Python
+  round6 and legacy amount projection belong to the later compatibility seam.
+- Opening-rush sweep only for>=80 occurrences: ascending Code/category6,
+  maximum200 pages x80, first endpoint retained, short page not EOF, repeated
+  identity-page detection independent of raw policy. Valid matched supplements
+  survive an optional later failure; unresolved identities carry Failed with
+  error kind and never become confirmed missing. Small input is NotRequested.
+- M91 filters Sealed/Touched according to include_touched, sorts level descending,
+  seal amount descending and full ID ascending, then truncates. Pure source-day
+  progression keeps original counters unchanged and guards u32 overflow. The
+  approved policy registry is deliberately empty, so production rows currently
+  remain UnknownRule; empty ladder carries explicit unclassified occurrence count
+  and is not proof of no limit stocks. Synthetic approved-price cases exercise
+  sealed/touched/not-at-limit arithmetic without registering an exchange profile.
+- Authored7 private source cases and8 public loopback cases: readiness/09:25,
+  stat remapping, ratios/units, missing/unaligned rows, five distinct prior dates,
+  synthetic limit classification/progression, final ladder ordering/truncation,
+  lazy entry, required resource gates, repeated occurrences/raw, optional failures
+  versus cancellation, three-market metadata capture, partial category supplement
+  failure and unknown-policy empty ladder. All are source only, unexecuted.
+
+Next: M96/M97 board file parsers/explicit sources/cache/member filtering/quotes,
+then ALL HQ Python/native migration, truthful manifest evidence and independent
+consumer/example sources. Region must require actual base.dbf; reuse shared GBK
+and default-HQ internal bounded parsers, never add a mandatory offline dependency.
+No tests, collection, cargo/dependency/build/check/clippy/doctest/format/AST,
+network probes, diff-check or equivalent execution occurred. No agents or remote
+publication operations. Goal remains active with no token budget.

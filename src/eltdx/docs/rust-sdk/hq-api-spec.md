@@ -417,6 +417,8 @@ daily_price_limits用选定trade_date之前最近**不复权**日bar作reference
 
 T18 M88/M89源码补充（未执行）：SecuritySelection::Explicit保留重复及顺序，Explicit(empty)在准入后不读clock/日历/目录/会话/资源。M88 trade_date为服务端target；接受previous日stats时保留其源日诊断，不重标当日。双表主日期各覆盖>=95%（缺失/非法日计入分母），且同日、属于target或previous；普通格式/双表不同日为ResourceFormat，共同日期超出接受范围附code=stats_date_mismatch。只缓存已对齐成功的stats，key含完整StatsQuery/target/previous/本地加载日/RawPolicy，900秒TTL、最多2项/65536权重（行数+保留raw字节/4KiB），超大返回但不存；refresh失败仍报错、clear隔离旧在途发布。M89需要有覆盖证据的交易日，完整不复权日线按最大前序源日选参考，同日冲突收盘报Protocol，按原序使用tag1系数；缺参考status=MissingReference同时保留Unknown rule，有参考仍UnknownRule且upper/lower=None。新内部resource/calendar/Kline/capital collector不重设外层limits、不finish父操作。Python尚未切换，不能据此声称兼容验证通过。
 
+T18 M90/M91源码补充（未执行）：公开模型在types::shortline及根重导出；ShortlineQuery非空且保留occurrence，LadderQuery Explicit(empty)准入后直接返回。读取日历/finance前一次捕获全部输入及category需要的三个市场，避免首次decode冻结不完整metadata。前六日bar只选择五个不同的严格前序源日，未知/冲突单位不算零。分类补扫只在>=80个输入occurrence启动，固定首endpoint、最多200x80、重复身份页检测，不以短页判断EOF；中途失败保留已匹配补充，未找到者Failed带error_kind，不能声称确证缺失。通用Snapshot.amount仍是Unknown单位的来源，不强制重标CNY，此类seal_to_amount为None且有诊断；其余元/股/手及百分数/比例按本节公式。计数使用各stat自己的对齐日期作派生，源计数不覆写。approved policy仍空，实际limit_status为UnknownRule且ladder_level=None，天梯排除未知行并明确诊断未分类数；空输出不是无涨停的证明。封板/触板算术仅在人工approved价用例中覆盖，不注册真实交易所规则。Python round6、旧规则/金额投影由后续adapter保留。全部实现/用例未编译或运行。
+
 ## 13. 竞价组合、市场统计与逐笔资金流（T14、T18）
 
 旧auction_data(code,date=None,include_series=True,include_snapshot=True,include_quote=True,pre_close_price=None)；market_stat()；today_fund_flow(code)；纯classify_fund_flow(ticks)。
