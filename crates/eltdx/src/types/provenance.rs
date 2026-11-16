@@ -65,7 +65,7 @@ pub enum ValueProvenance {
     Unknown,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SourceStamp {
     command: Option<u16>,

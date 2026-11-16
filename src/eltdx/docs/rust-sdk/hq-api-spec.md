@@ -496,7 +496,7 @@ DBF header/record length、deleted标记、field offset/width和编码均需有�
 | F34 | ladder T18 | levels A2/seal100、B2/seal200、C1/seal500、TouchedD3 | 默认B,A,C；include_touched时D在首；count2只截最终排序。 |
 | F35 | auction_data T18 | 历史price_base10、当前quote20、opening11 | pre_close10、open_change10%；不请求当前quote替历史。 |
 | F36 | market_stat T18 | 伪指数乱序；880005=up10/down20/neutral5/total40，cap2、limit3/4 | 按id得100/200/50/400、剩余50、cap2e10、limit30/40；旧按位置另差分。 |
-| F37 | fund_flow T14/T18 | 四笔Buy金额40000/200000/1000000/1000001；auction2e6、Neutral10 | small40000、medium200000、large1000000、super1000001；后两skip，不归流出；净额2240001。 |
+| F37 | fund_flow T14/T18 | 四笔Buy金额40000/200000/1000000/1000001；auction2e6、Neutral10 | small40000、medium200000、large1000000、super1000001；后两skip，不归流出；净额2440001。 |
 | F38 | boards T17/T18 | header声明2成员[A,A,B]去重2，目录仅A，A quote价10 | rawA/B、displayA、excludedB；行A10；声明3而实际unique2为ResourceFormat。 |
 | F39 | boards T17/T18 | DBF记录长度越header界、成员码正常 | 解析失败，不能跨记录读出假成员；缺base.dbf的Region明确不可用。 |
 | F40 | 时间策略 T12/T18 | 两次wire各5秒，另预取5秒+主查5秒 | Rust总8秒Timeout；Python两次请求均成功；各自单wire9秒均按策略超时。 |

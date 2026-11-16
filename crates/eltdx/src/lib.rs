@@ -14,6 +14,7 @@ mod operation;
 mod policy;
 pub mod adjustment;
 pub mod calendar;
+pub mod helpers;
 /// Approved limit-price policy evaluation with explicit unknown results.
 pub mod price_limits { pub use crate::policy::limits::evaluate; }
 /// Pure corporate-action factor calculation; usable without a client or Python.
@@ -42,6 +43,7 @@ pub use types::corporate::{AdjustmentFactor, AdjustmentFactors, CapitalChangeBlo
     FactorQuery, FinanceField, FinanceProjection, FinanceQuery, FinanceRecord, FinanceValue};
 pub use types::limits::{LimitDecision, LimitRule, LimitStatus, SpecialLimit, SpecialLimitQuery};
 pub use types::calendar::{CalendarQuery, CalendarSnapshot};
+pub use types::helpers::FundFlow;
 pub use types::resources::{BlockMeta, DownloadCompletion, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
 pub use types::company_info::{CompanySection, CompanySectionQuery, CompanyText, Table};
 pub use types::session::{HandshakeInfo, HeartbeatAck, HealthReport, PingReply};

@@ -2,6 +2,7 @@ pub mod batch;
 pub mod auctions;
 pub mod codes;
 pub mod corporate;
+pub mod helpers;
 pub mod resources;
 pub mod company_info;
 pub mod session;
@@ -25,6 +26,7 @@ pub use corporate::{AdjustmentFactor, AdjustmentFactors, CapitalChangeBlock, Cap
     FactorQuery, FinanceField, FinanceProjection, FinanceQuery, FinanceRecord, FinanceValue};
 pub use limits::{LimitDecision, LimitRule, LimitStatus, SpecialLimit, SpecialLimitQuery};
 pub use calendar::{CalendarQuery, CalendarSnapshot};
+pub use helpers::FundFlow;
 pub use resources::{BlockMeta, DownloadCompletion, DownloadResult, StatRow, Stat2Row, StatsQuery, StatsResource};
 pub use company_info::{CompanySection, CompanySectionQuery, CompanyText, Table};
 pub use session::{HandshakeInfo, HeartbeatAck, HealthReport, PingReply};
