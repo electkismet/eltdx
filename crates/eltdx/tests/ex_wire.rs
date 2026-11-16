@@ -398,3 +398,87 @@ fn pure_codecs_enforce_the_frame_body_ceiling() -> TestResult {
     assert_eq!(TimeOfDay::new(23,59,59)?.second(),59);
     Ok(())
 }
+
+#[test]
+fn fixed_width_commands_reject_undeclared_tail_bytes_and_records() -> TestResult {
+    fn decode(kind: u8, body: Bytes) -> Result<(), eltdx::Error> {
+        match kind {
+            0 => decode_markets(body).map(|_| ()),
+            1 => decode_instruments(body).map(|_| ()),
+            2 => decode_quote_list(body,QuoteCategory::Futures).map(|_| ()),
+            3 => decode_quote_list(body,QuoteCategory::HongKong).map(|_| ()),
+            4 => decode_bars(body,&BarsQuery::new(id()?,ExPeriod::Minute5),RawPolicy::Omit).map(|_| ()),
+            5 => decode_bars_range(body,RawPolicy::Omit).map(|_| ()),
+            6 => decode_minutes(body,RawPolicy::Omit).map(|_| ()),
+            7 => decode_history_minutes(body,RawPolicy::Omit).map(|_| ()),
+            8 => decode_transactions(body,RawPolicy::Omit).map(|_| ()),
+            9 => decode_history_transactions(body,RawPolicy::Omit).map(|_| ()),
+            _ => unreachable!("test case registry"),
+        }
+    }
+    for (kind,header,count_offset,width) in [
+        (0,2,0,64),(1,6,4,64),(2,2,0,300),(3,2,0,300),
+        (4,20,18,32),(5,14,12,32),(6,12,10,18),(7,20,18,18),
+        (8,16,14,16),(9,16,14,16),
+    ] {
+        for count in [0,1] {
+            let complete = if count == 1 && (kind == 4 || kind == 5) {
+                bar_payload(header,count_offset)
+            } else { response(header,count_offset,width,count) };
+            decode(kind,Bytes::from(complete.clone()))?;
+            // Every partial-record suffix and an undeclared complete record
+            // fail even when all declared records are otherwise valid.
+            for tail_len in 1..=width {
+                let mut malformed = complete.clone();
+                malformed.resize(malformed.len()+tail_len,0);
+                let error = decode(kind,Bytes::from(malformed)).err().ok_or("tail accepted")?;
+                assert_eq!(error.kind(),ErrorKind::Protocol);
+                assert!(error.context().iter().any(|(key,value)| key == "expected_bytes" && value == &format!("{}",complete.len())));
+            }
+        }
+    }
+    for tail_len in [1,4,23] {
+        let mut scalar = vec![0;23]; scalar.resize(23+tail_len,0);
+        assert_eq!(decode_instrument_count(scalar.into()).err().map(|e|e.kind()),Some(ErrorKind::Protocol));
+    }
+    for tail_len in [1,4,150] {
+        let mut quote = vec![0;150]; quote.resize(150+tail_len,0);
+        assert_eq!(decode_quote(quote.into(),RawPolicy::Omit).err().map(|e|e.kind()),Some(ErrorKind::Protocol));
+    }
+    Ok(())
+}
+
+#[test]
+fn malformed_clocks_preserve_source_minutes_seconds_and_direction() -> TestResult {
+    fn context<'a>(error: &'a eltdx::Error, key: &str) -> Option<&'a str> {
+        error.context().iter().find(|(name,_)| name == key).map(|(_,value)|value.as_str())
+    }
+    let error = eltdx::ex::time::time_of_day(1440,60).err().ok_or("invalid clock accepted")?;
+    assert_eq!(error.kind(),ErrorKind::Protocol);
+    assert_eq!(context(&error,"raw_minutes"),Some("1440"));
+    assert_eq!(context(&error,"raw_seconds"),Some("60"));
+    for historical in [false,true] {
+        let mut body = response(16,14,16,1);
+        body[16..18].copy_from_slice(&1441_u16.to_le_bytes());
+        body[30..32].copy_from_slice(&10060_u16.to_le_bytes());
+        let result = if historical { decode_history_transactions(body.into(),RawPolicy::Omit) }
+            else { decode_transactions(body.into(),RawPolicy::Omit) };
+        let error = result.err().ok_or("invalid transaction clock accepted")?;
+        assert_eq!(context(&error,"raw_minutes"),Some("1441"));
+        assert_eq!(context(&error,"raw_seconds"),Some("60"));
+        assert_eq!(context(&error,"direction_raw"),Some("10060"));
+        assert_eq!(context(&error,"offset"),Some("16"));
+    }
+    Ok(())
+}
+
+#[test]
+fn instrument_identity_forwarding_getters_match_preserved_id() -> TestResult {
+    let mut body = response(6,4,64,1);
+    body[7]=255; body[11..14].copy_from_slice(b"ABC");
+    let decoded = decode_instruments(body.into())?;
+    let row = &decoded.value()[0];
+    assert_eq!(row.market(),row.id().market()); assert_eq!(row.market().get(),255);
+    assert_eq!(row.code(),row.id().code()); assert_eq!(row.code(),"ABC");
+    Ok(())
+}

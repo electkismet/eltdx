@@ -79,13 +79,25 @@ fn float_at(data: &[u8], offset: usize) -> Result<WireFloat> { Ok(WireFloat::fro
 fn array<const N: usize>(data: &[u8], offset: usize) -> Result<[u8; N]> {
     slice(data, offset, N)?.try_into().map_err(|_| protocol("EX fixed record length mismatch"))
 }
-fn counted(data: &[u8], header: usize, count_offset: usize, width: usize) -> Result<(u16, usize)> {
+fn counted(data: &[u8], header: usize, count_offset: usize, width: usize) -> Result<u16> {
     slice(data, 0, header)?;
     let count = u16_at(data, count_offset)?;
     let end = header.checked_add(usize::from(count).checked_mul(width).ok_or_else(|| protocol("EX row count overflow"))?)
         .ok_or_else(|| protocol("EX row count overflow"))?;
     slice(data, header, end - header)?;
-    Ok((count, end))
+    exact_payload(data, end)?;
+    Ok(count)
+}
+// No independent source documents a trailer for these fixed-width commands.
+// Unknown bytes inside a declared record remain preserved by its model; bytes
+// beyond that complete layout must not become a successful prefix response.
+fn exact_payload(data: &[u8], expected: usize) -> Result<()> {
+    if data.len() != expected {
+        return Err(protocol("EX payload does not match complete command layout")
+            .with_context("expected_bytes", format!("{expected}"))
+            .with_context("actual_bytes", format!("{}", data.len())));
+    }
+    Ok(())
 }
 fn diagnostic(message: &str) -> Diagnostic {
     Diagnostic::new("ex", "decode", EnrichmentStatus::Unavailable, None, Some(message.to_owned()))
@@ -106,12 +118,11 @@ fn text(raw: &[u8], gbk: bool, trim_leading: bool, diagnostics: &mut Vec<Diagnos
 fn response_id(raw: [u8; 10], gbk: bool, trim_leading: bool, diagnostics: &mut Vec<Diagnostic>) -> ResponseIdentity {
     ResponseIdentity { market: ExMarketId::from_wire(raw[0]), code: text(&raw[1..], gbk, trim_leading, diagnostics), raw }
 }
-fn finish<T>(value: T, mut diagnostics: Vec<Diagnostic>, ranges: Vec<(usize, usize)>, end: usize, len: usize) -> Decoded<T> {
-    if end < len { diagnostics.push(diagnostic("uninterpreted EX response trailer retained by payload policy")); }
+fn finish<T>(value: T, diagnostics: Vec<Diagnostic>, ranges: Vec<(usize, usize)>) -> Decoded<T> {
     Decoded { value, diagnostics, ranges, wire_row_count: None, response_offset: None }
 }
 pub fn decode_markets(body: Bytes) -> Result<Decoded<Vec<MarketInfo>>> {
-    let (count, end) = counted(&body, 2, 0, 64)?;
+    let count = counted(&body, 2, 0, 64)?;
     let mut rows = Vec::with_capacity(usize::from(count)); let mut diagnostics = Vec::new(); let mut ranges = Vec::new();
     for index in 0..usize::from(count) {
         let offset = 2 + index * 64; let raw: [u8; 64] = array(&body, offset)?;
@@ -121,14 +132,15 @@ pub fn decode_markets(body: Bytes) -> Result<Decoded<Vec<MarketInfo>>> {
             name: text(&raw[1..33], true, false, &mut diagnostics), short_name: text(&raw[34..36], true, false, &mut diagnostics), record_raw: raw });
         ranges.push((offset, offset + 64));
     }
-    Ok(finish(rows, diagnostics, ranges, end, body.len()).with_wire_page(count, None))
+    Ok(finish(rows, diagnostics, ranges).with_wire_page(count, None))
 }
 pub fn decode_instrument_count(body: Bytes) -> Result<Decoded<u32>> {
     let value = u32_at(&body, 19)?;
-    Ok(finish(value, Vec::new(), Vec::new(), 23, body.len()))
+    exact_payload(&body, 23)?;
+    Ok(finish(value, Vec::new(), Vec::new()))
 }
 pub fn decode_instruments(body: Bytes) -> Result<Decoded<Vec<InstrumentInfo>>> {
-    let (count, end) = counted(&body, 6, 4, 64)?;
+    let count = counted(&body, 6, 4, 64)?;
     let mut rows = Vec::with_capacity(usize::from(count)); let mut diagnostics = Vec::new(); let mut ranges = Vec::new();
     for index in 0..usize::from(count) {
         let offset = 6 + index * 64; let raw: [u8; 64] = array(&body, offset)?;
@@ -137,25 +149,25 @@ pub fn decode_instruments(body: Bytes) -> Result<Decoded<Vec<InstrumentInfo>>> {
             name: text(&raw[14..31], true, false, &mut diagnostics), desc: text(&raw[31..40], true, false, &mut diagnostics), record_raw: raw });
         ranges.push((offset, offset + 64));
     }
-    Ok(finish(rows, diagnostics, ranges, end, body.len()).with_wire_page(count, Some(u32_at(&body, 0)?)))
+    Ok(finish(rows, diagnostics, ranges).with_wire_page(count, Some(u32_at(&body, 0)?)))
 }
 pub fn decode_quote(body: Bytes, policy: RawPolicy) -> Result<Decoded<Option<Quote>>> {
     // No captured absence marker exists. Even an empty body is not evidence of
     // a missing instrument; keep it a strict protocol error until established.
     slice(&body, 0, 150)?;
+    exact_payload(&body, 150)?;
     let mut diagnostics = Vec::new(); let id = response_id(array(&body, 0)?, false, false, &mut diagnostics);
     let float = |slot: usize| -> Result<NativeNumber<WireFloat>> { Ok(NativeNumber::unknown(float_at(&body, 14 + slot * 4)?)) };
     let integer = |slot: usize| -> Result<NativeNumber<u32>> { Ok(NativeNumber::unknown(u32_at(&body, 14 + slot * 4)?)) };
     let level = |p: usize, v: usize| -> Result<BookLevel> { Ok(BookLevel { price: float(p)?, volume: integer(v)? }) };
     let mut opaque = vec![Bytes::copy_from_slice(&body[10..14])];
     for slot in [6, 9, 12] { opaque.push(Bytes::copy_from_slice(&body[14 + slot * 4..18 + slot * 4])); }
-    if body.len() > 150 { opaque.push(Bytes::copy_from_slice(&body[150..])); }
     let quote = Quote { id, pre_close: float(0)?, open: float(1)?, high: float(2)?, low: float(3)?, price: float(4)?,
         kaicang: integer(5)?, zongliang: integer(7)?, xianliang: integer(8)?, neipan: integer(10)?, waipan: integer(11)?, chicang: integer(13)?,
         bid: [level(14,19)?,level(15,20)?,level(16,21)?,level(17,22)?,level(18,23)?],
         ask: [level(24,29)?,level(25,30)?,level(26,31)?,level(27,32)?,level(28,33)?], opaque,
         record_raw: optional_raw(&body, 0, body.len(), policy) };
-    Ok(finish(Some(quote), diagnostics, vec![(0,body.len())], body.len(), body.len()))
+    Ok(finish(Some(quote), diagnostics, vec![(0,body.len())]))
 }
 // (source name, 4-byte slot index, float interpretation). The Python futures
 // parser's unpack target has 34 names for a 35-slot format. Preserve the known
@@ -177,7 +189,7 @@ const HONG_KONG: &[(&str, u8, bool)] = &[
     ("MaiChuLiang1",30,false),("MaiChuLiang2",31,false),("MaiChuLiang3",32,false),("MaiChuLiang4",33,false),("MaiChuLiang5",34,false),
 ];
 pub fn decode_quote_list(body: Bytes, category: QuoteCategory) -> Result<Decoded<Vec<QuoteListRow>>> {
-    let (count, end) = counted(&body, 2, 0, 300)?;
+    let count = counted(&body, 2, 0, 300)?;
     let mut rows = Vec::with_capacity(usize::from(count)); let mut diagnostics = Vec::new(); let mut ranges = Vec::new();
     let schema = match category { QuoteCategory::HongKong => HONG_KONG, QuoteCategory::Futures => FUTURES };
     for index in 0..usize::from(count) {
@@ -190,7 +202,7 @@ pub fn decode_quote_list(body: Bytes, category: QuoteCategory) -> Result<Decoded
         }
         rows.push(QuoteListRow { id, category, fields, slot_raw: raw }); ranges.push((offset,offset + 300));
     }
-    Ok(finish(rows, diagnostics, ranges, end, body.len()).with_wire_page(count, None))
+    Ok(finish(rows, diagnostics, ranges).with_wire_page(count, None))
 }
 pub fn decode_bars(body: Bytes, query: &BarsQuery, policy: RawPolicy) -> Result<Decoded<Vec<Bar>>> {
     decode_bar_records(body, 20, 18, query.period(), query.bar_time(), false, policy)
@@ -199,7 +211,7 @@ pub fn decode_bars_range(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<B
     decode_bar_records(body, 14, 12, ExPeriod::Minute1, BarTime::Start, true, policy)
 }
 fn decode_bar_records(body: Bytes, header: usize, count_offset: usize, period: ExPeriod, alignment: BarTime, range: bool, policy: RawPolicy) -> Result<Decoded<Vec<Bar>>> {
-    let (count, end) = counted(&body, header, count_offset, 32)?;
+    let count = counted(&body, header, count_offset, 32)?;
     let mut rows = Vec::with_capacity(usize::from(count)); let mut ranges = Vec::new();
     for index in 0..usize::from(count) {
         let offset = header + index * 32;
@@ -215,12 +227,12 @@ fn decode_bar_records(body: Bytes, header: usize, count_offset: usize, period: E
     let diagnostics = if period.has_known_calendar_semantics() { Vec::new() } else {
         vec![diagnostic("unknown explicit wire period: date layout follows the source decoder; time semantics remain unverified")]
     };
-    Ok(finish(rows, diagnostics, ranges, end, body.len()).with_wire_page(count, None))
+    Ok(finish(rows, diagnostics, ranges).with_wire_page(count, None))
 }
 pub fn decode_minutes(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Minute>>> { decode_minute_records(body,12,10,policy) }
 pub fn decode_history_minutes(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Minute>>> { decode_minute_records(body,20,18,policy) }
 fn decode_minute_records(body: Bytes, header: usize, count_offset: usize, policy: RawPolicy) -> Result<Decoded<Vec<Minute>>> {
-    let (count,end) = counted(&body,header,count_offset,18)?;
+    let count = counted(&body,header,count_offset,18)?;
     let mut rows = Vec::with_capacity(usize::from(count)); let mut ranges = Vec::new();
     for index in 0..usize::from(count) {
         let offset = header + index * 18; let raw_time = u16_at(&body,offset)?;
@@ -229,21 +241,23 @@ fn decode_minute_records(body: Bytes, header: usize, count_offset: usize, policy
             volume: NativeNumber::unknown(u32_at(&body,offset + 10)?), open_interest: NativeNumber::unknown(u32_at(&body,offset + 14)?),
             record_raw: optional_raw(&body,offset,offset + 18,policy) }); ranges.push((offset,offset + 18));
     }
-    Ok(finish(rows, Vec::new(), ranges, end, body.len()).with_wire_page(count, None))
+    Ok(finish(rows, Vec::new(), ranges).with_wire_page(count, None))
 }
 pub fn decode_transactions(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Transaction>>> { decode_transaction_records(body,policy) }
 pub fn decode_history_transactions(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Transaction>>> { decode_transaction_records(body,policy) }
 fn decode_transaction_records(body: Bytes, policy: RawPolicy) -> Result<Decoded<Vec<Transaction>>> {
-    let (count,end) = counted(&body,16,14,16)?;
+    let count = counted(&body,16,14,16)?;
     let mut rows = Vec::with_capacity(usize::from(count)); let mut ranges = Vec::new();
     for index in 0..usize::from(count) {
         let offset = 16 + index * 16; let raw_time = u16_at(&body,offset)?; let direction = u16_at(&body,offset + 14)?;
         // Rust rejects an invalid second instead of Python's legacy coercion to 0.
-        let clock = time::time_of_day(raw_time,direction % 10000)?;
+        let clock = time::time_of_day(raw_time,direction % 10000).map_err(|error| error
+            .with_context("direction_raw", format!("{direction}"))
+            .with_context("offset", format!("{offset}")))?;
         rows.push(Transaction { time: clock, raw_time, direction_raw: direction,
             price_raw: NativeNumber::unknown(u32_at(&body,offset + 2)?), volume: NativeNumber::unknown(u32_at(&body,offset + 6)?),
             zengcang: NativeNumber::unknown(i32::from_le_bytes(array(&body,offset + 10)?)), nature: direction / 10000,
             record_raw: optional_raw(&body,offset,offset + 16,policy) }); ranges.push((offset,offset + 16));
     }
-    Ok(finish(rows,Vec::new(),ranges,end,body.len()).with_wire_page(count, None))
+    Ok(finish(rows,Vec::new(),ranges).with_wire_page(count, None))
 }

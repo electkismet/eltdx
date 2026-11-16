@@ -3,9 +3,15 @@ use crate::{EventTime, Result, TradingDate};
 use super::{protocol, models::BarTimeSource, query::{BarTime, ExPeriod}};
 
 pub fn time_of_day(minutes: u16, second: u16) -> Result<EventTime> {
-    if minutes >= 24 * 60 || second > 59 { return Err(protocol("invalid EX minute/second field")); }
+    if minutes >= 24 * 60 || second > 59 {
+        return Err(protocol("invalid EX minute/second field")
+            .with_context("raw_minutes", format!("{minutes}"))
+            .with_context("raw_seconds", format!("{second}")));
+    }
     EventTime::time_of_day((minutes / 60) as u8, (minutes % 60) as u8, second as u8)
-        .map_err(|_| protocol("invalid EX clock"))
+        .map_err(|_| protocol("invalid EX clock")
+            .with_context("raw_minutes", format!("{minutes}"))
+            .with_context("raw_seconds", format!("{second}")))
 }
 pub fn packed_date(raw: u16) -> Result<TradingDate> {
     let year = (raw >> 11) + 2004;

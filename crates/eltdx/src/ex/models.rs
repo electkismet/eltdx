@@ -65,6 +65,8 @@ pub struct InstrumentInfo { pub(crate) category: u8, pub(crate) id: ResponseIden
 impl InstrumentInfo {
     pub const fn category(&self) -> u8 { self.category }
     getters!(id: ResponseIdentity);
+    pub const fn market(&self) -> ExMarketId { self.id.market() }
+    pub fn code(&self) -> &str { self.id.code() }
     pub fn name(&self) -> &str { &self.name }
     pub fn desc(&self) -> &str { &self.desc }
     pub const fn record_raw(&self) -> &[u8; 64] { &self.record_raw }
