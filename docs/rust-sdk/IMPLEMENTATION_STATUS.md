@@ -21,7 +21,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | K线阶段`b5ed0b5`；后续五类分钟线native源码、原市场推断/raw/异常兼容及未执行合同/差分用例已写；全部执行验证延期 |
+| 最新检查点 | K线阶段`b5ed0b5`；五类分钟线native源码/原市场推断/raw/异常兼容及未执行合同/差分用例`ac99b99`；全部执行验证延期 |
 | 当前阶段 | P2：T01–T17实现源码完成；T18部分，M79–M97首批源码已写。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

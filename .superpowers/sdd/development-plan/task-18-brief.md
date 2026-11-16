@@ -9,7 +9,7 @@ contract/differential sources now authored. Resume minutes/ALL remaining HQ nati
 migrations and evidence/installed-wheel consumer. T18 remains partial; do not rerun
 or rewrite completed sources, and do not execute any verification until T01–T30.
 
-Tenth recovery update: ordinary/delisted bars committed b5ed0b5. All five minute
+Tenth recovery update: ordinary/delisted bars committed b5ed0b5; minutes ac99b99. All five minute
 native routes now authored, sharing request/decode boundary and original scalar
 projection; original-input market inference, resolver order, negative volume,
 raw hex, batch workers and default-date behavior retained. Added10 contract and
