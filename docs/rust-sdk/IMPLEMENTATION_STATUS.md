@@ -9,10 +9,10 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 当前阶段 | P1：T10 `7a85f5c`/fix `151489f` 已完成静态审阅；T17 Stage A/A2 已批、Stage B 待服务核心；T22 Unicode修复 `a64a4a6` 已通过限定复审，ZIP/资源服务待集成；T24 Stage A 已批；T25 Stage A 已提交 |
-| 已提交进度 | T01–T09 既有实现与静态审阅完成；T08 `d8574bb`；T10 `7a85f5c`/`151489f`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
+| 当前阶段 | P2：T11 CodeService/QuoteService 源码实现进行中；P1 的 T10 `7a85f5c`/fix `151489f` 静态审阅已完成；T17 Stage A/A2 已批、Stage B 待服务集成；T22 Unicode修复 `a64a4a6` 已通过限定复审，ZIP/资源服务待集成；T24 Stage A 已批；T25 Stage A 已提交 |
+| 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | 开始 T11 CodeService/QuoteService；继续 T17/T22/T24/T25 Stage B 和 T12–T30；全部实现完成后统一验证 |
+| 下一步 | 完成 T11 源码自审与 T12/T13 handoff，再进入 T12；并行推进其余未完成 Stage B 与 T12–T30；全部实现完成后统一验证 |
 
 ## 阶段进度
 
@@ -20,7 +20,7 @@
 |---|---|---|---|
 | P0 | T01–T03基线、样本、兼容决策 | T01–T03实现与契约源码完成，最终验证延期；涨跌停规则profile因权威证据缺失保持Unknown | 按用户要求暂不运行 |
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
-| P2 | T11–T18 HQ与Python首批迁移 | T11 待开始；T17 archive/stats/GBK 模块已批，服务集成待推进 | 按用户要求暂不运行 |
+| P2 | T11–T18 HQ与Python首批迁移 | T11 服务与批量恢复实现进行中，新增边界用例源码已写但未执行；T17 archive/stats/GBK 模块已批，服务集成待推进 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T21 静态审阅批准；T22 Unicode修复 `a64a4a6` 通过限定复审，ZIP/资源集成待做 | 按用户要求暂不运行 |
 | P4 | T24–T27 EX、MAC、Python迁移 | T24 Stage A/fix 已批；T25 pure codec/model Stage A `c87e5b0` 已写，完整服务与响应范围待 Stage B | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
@@ -57,7 +57,7 @@
 
 ## 恢复规则
 
-最新恢复点：goal 模式 active，remainingTokens=null。T08 静态复审批准。T10 Stage B `7a85f5c` 静态审阅发现4个Important，fix round1进行中。T17 archive/stats `cd6735b` 与共享GBK A2 `bcd6a8f` 均已静态批准，Stage B资源服务仍待T11公共HQ服务核心。T21至`b6e4beb`静态复审批准。T22 DAT/list Stage A `9b6c8fd` 待scoped review；共享ZIP/网络Stage B未做。T24纯EX codecs Stage A与fix `04f613a` 已scoped批准；实际session/transport Stage B未做。T25 MAC纯codec Stage A已授权，尚无客户端实现。T11–T30其余内容继续按brief。没有运行测试、构建、检查或网络验证。
+最新恢复点（2026-11-16）：goal 模式 active，`remainingTokens=null`。当前工作区位于 `a38dc32` 之后的 T11 续写；T11 服务源码已存在并正在完成自审，测试源码尚未执行。T01–T10 与 T21 实现已完成；T17/T22/T24/T25 的服务集成仍有后续工作；T12–T30 按 brief 继续。没有运行测试、collection、构建、检查、格式化、diff 检查或网络验证。
 
 T21 于 `9734db3` 完成35个非财报本地 API、模型/格式算法、GBK 静态查表数据及四组测试源码；所有验证延期。仅运行了经授权的一次 Python 3.12.14 标准库 GBK 映射数据生成，脚本、版本和来源已在实现报告记录。任务审阅包以 `230e566` 为基线，仅含 T21 自有文件，scoped source review 进行中。T10 的 `Diagnostic`/`EnrichmentStatus` 共享实现仍待完成；这不是 T21 已验证集成的证据。
 
@@ -99,6 +99,9 @@ T21 第一轮静态审阅指出 `read_custom` 将空 leaf 当作可跳过数据�
 | `abb4285` / `ca372d2` | T07 fix round 1 | 操作取消/唤醒、pin owner、真实 runtime 并发关闭源码及 Condvar 同步 |
 | `0656e63` | T07 fix round 2 | 有界 pin close、Drop 保留注册、原 runtime source 链 |
 | `98e8558` | T07 fix round 3 | Engine 确认退出后的 pin 核销及跨 Engine reservation 身份隔离；限定复审批准 |
+| `6f5fadb` | T11 checkpoint | QuoteService/CodeService 初始实现与进度恢复记录 |
+| `de9e74f` | T11 checkpoint | 恢复路径、服务实现与严格身份处理 |
+| `a38dc32` | T11 checkpoint | Python legacy metadata 预取顺序与初始快照请求兼容 |
 
 ## 阻塞与风险
 
