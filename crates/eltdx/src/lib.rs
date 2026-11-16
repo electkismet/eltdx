@@ -50,6 +50,8 @@ pub use types::calendar::{CalendarQuery, CalendarSnapshot};
 pub use helpers::HelperService;
 #[cfg(feature = "f10")]
 pub use helpers::{StockTopic, StockTopics, StockTopicsQuery, TopicSource, TopicStock, TopicStockTable, TopicStocksQuery};
+#[cfg(feature = "f10")]
+pub use helpers::{ThemeStrengthQuery, ThemeStrengthRow, ThemeStrengthTable, ThemeTopicSource};
 pub use types::helpers::{AuctionData, AuctionDataQuery, DailyLimitsQuery, DailyPriceLimit, DailyShareCapital,
     DailySharesQuery, FullQuote, FundFlow, MarketStat, ProfileQuery, RankQuery, RealtimeRankRow, SecuritySelection, StockProfile};
 pub use types::shortline::{LadderQuery, ShortlineIndicator, ShortlineQuery, ShortlineTable, StatsAlignment};

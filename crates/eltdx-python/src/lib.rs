@@ -31,6 +31,7 @@ mod helper_daily;
 mod helper_market;
 mod helper_f10;
 mod helper_topics;
+mod helper_theme;
 mod helper_boards;
 mod batch;
 mod subscription;
@@ -215,6 +216,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(helper_topics::helper_topic_key, module)?)?;
     module.add_function(wrap_pyfunction!(helper_topics::helper_topic_pick, module)?)?;
     module.add_function(wrap_pyfunction!(helper_topics::helper_topic_scalar, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_theme::helper_theme_strength, module)?)?;
     module.add_function(wrap_pyfunction!(helper_boards::board_quotes, module)?)?;
     module.add_function(wrap_pyfunction!(helper_boards::board_member_quotes, module)?)?;
     module.add_function(wrap_pyfunction!(helper_boards::board_prepare, module)?)?;

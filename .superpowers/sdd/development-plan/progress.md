@@ -2,6 +2,20 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage70: basefa891d0. Full-ladder theme strength
+  query/results and Python native aggregation are authored. One parent context
+  covers HQ ladder and all F10 sources, total records/HTTP bytes/deadline;
+  optional topic outages retain security/reason diagnostics, terminal owner/
+  cancellation/budget errors propagate. Sort is stable across four metrics and
+  top-N applies after all inputs. Python retains legacy optional-fetch scope,
+  live hooks, delayed count validation, duplicate occurrences and lazy tuple
+  projection. Fixed an authored test's same-thread active-admission close
+  hazard by testing live cancellation, then dropping admission before close.
+  Added8 Python/4 private Rust/2 public Rust test functions, all unexecuted.
+  Read task-23-report twenty-second checkpoint; next T23 full manifest and
+  independent consumers, thenT24–T30.21/4/5 source counts unchanged, active
+  without token cap. No validation execution, agents or publication.
+
 - Latest recovery2026-11-17 stage60: base789ffd1. Added19 named input/
   industry/futures request compositions, total117/157. Date conversion and
   branch/params evaluation order, KeyError vs ValueError, dynamic concat,

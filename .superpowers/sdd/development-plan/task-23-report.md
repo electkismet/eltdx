@@ -614,3 +614,39 @@ T23 still needs theme_strength_rank/native aggregation, full manifest and
 installed-consumer evidence. T24–T30 remain afterwards.21 complete-source/
 4 partial/5 unstarted, goalactive without token budget. All build/test/check/
 dependency/network/AST/format/diff-check execution remains deferred.
+
+## Twenty-second checkpoint — complete-ladder theme strength composition
+
+Basefa891d0. Added feature-gated ThemeStrengthQuery/Row/Table/TopicSource and
+HelperService::theme_strength_rank. Factored a shortline ladder seam so the
+parent context owns admission, total deadline, work counters and metadata for
+HQ plus per-security F10 topics. A supplied ladder's count is discarded;
+all topic observations precede stable descending count/maximum-level/streak/
+seal ordering and final top-N. Finite nonnegative confirmed-CNY seal values
+and bounded groups/input records are explicit strict Rust requirements.
+Optional source outages remain visible per security through source results,
+errors, missing_ids and metadata diagnostics. A business error retains its
+response; a transport/decode failure retains the root error, with no invented
+partial source result. Limit exhaustion, cancellation, closure, internal
+errors and expired parent context terminate the composition.
+
+Python theme_strength_rank now delegates native with a shared ordered update
+skeleton and rank-field definition. Existing stock_theme_strength_rank remains
+a live forwarding alias. Python preserves full ladder input, optional fetch
+Exception scope (iteration errors and BaseException still propagate), duplicate
+topic observations, original numeric/nonfinite arithmetic, first maximum
+leader, six-decimal output rounding, count validation after source work,
+dynamic hooks and lazy tuple/model construction including StopIteration cause.
+
+Eight Python contract functions, four private Rust functions and two public
+Rust functions authored, none compiled/collected/run. Source review corrected
+the private optional-error case: it now cancels a live token, drops the active
+context and only then closes the client, avoiding same-thread close waiting
+for its own admission. Shared close and zero-deadline entry are covered by
+separate authored public cases. This is source review, not execution evidence.
+
+All T23 cross-source entry implementation sources now exist; T23 remains open
+for the full migration manifest, independent F10/offline/financial/helper
+consumer source coverage and documentation handoff. Counts remain21 source
+complete/4 partial/5 unstarted; no execution validation until allT01–T30 source
+work completes. Goal active without token budget; no agents or publication.

@@ -32,13 +32,20 @@ impl HelperService {
     pub fn limit_ladder(&self, query: &LadderQuery, options: &OperationOptions) -> Result<Table<ShortlineIndicator>> {
         let mut context = self.executor.begin_context_at(Instant::now(), "helpers_limit_ladder", &self.config, options)?;
         query.validate()?;
-        if query.selection().is_empty() { context.finish()?; return Ok(Table::new(Vec::new(), ResultMeta::default())); }
         let count = match query.selection() { SecuritySelection::Explicit(ids) => ids.len(), SecuritySelection::AllAShares => 65_535 };
         shortline_limits(&mut context, count, matches!(query.selection(), SecuritySelection::AllAShares))?;
-        let (target, handshake) = self.shortline_date_in_context(&context)?;
-        let selected = self.select_in_context(&context, query.selection())?;
-        if selected.ids.is_empty() { context.finish()?; return Ok(Table::new(Vec::new(), selected.meta)); }
-        let result = self.shortline_in_context(&context, &selected.ids, query.stats(), query.refresh_stats(), target,
+        let (_, result) = self.ladder_in_context(query, &context)?;
+        context.finish()?; Ok(result)
+    }
+
+    /// The caller freezes the complete work budget before entering this seam.
+    /// No child public operation may reset the parent's absolute deadline.
+    pub(super) fn ladder_in_context(&self, query: &LadderQuery, context: &OperationContext) -> Result<(Option<TradingDate>, Table<ShortlineIndicator>)> {
+        if query.selection().is_empty() { return Ok((None, Table::new(Vec::new(), ResultMeta::default()))); }
+        let (target, handshake) = self.shortline_date_in_context(context)?;
+        let selected = self.select_in_context(context, query.selection())?;
+        if selected.ids.is_empty() { return Ok((Some(target), Table::new(Vec::new(), selected.meta))); }
+        let result = self.shortline_in_context(context, &selected.ids, query.stats(), query.refresh_stats(), target,
             vec![handshake.meta().clone(), selected.meta])?;
         let mut meta = result.meta().clone();
         let unknown = result.rows().iter().filter(|row| matches!(row.limit_status(), LimitStatus::UnknownRule | LimitStatus::MissingReference)).count();
@@ -48,7 +55,7 @@ impl HelperService {
         }
         let rows = select_ladder(result.into_rows(), query.include_touched(), query.count(),
             || context.check_boundary(TimeoutPhase::Aggregate))?;
-        context.finish()?; Ok(Table::new(rows, meta))
+        Ok((Some(target), Table::new(rows, meta)))
     }
 
     fn shortline_date_in_context(&self, context: &OperationContext) -> Result<(TradingDate, HandshakeInfo)> {
@@ -195,11 +202,15 @@ struct RushSource { values: HashMap<SecurityId, (Ratio, ResultMeta)>, metas: Vec
     unresolved: EnrichmentStatus, error_kind: Option<ErrorKind>, message: Option<String> }
 
 fn shortline_limits(context: &mut OperationContext, count: usize, scan: bool) -> Result<()> {
+    context.set_work_limits(shortline_work_limits(count, scan)?)
+}
+
+pub(super) fn shortline_work_limits(count: usize, scan: bool) -> Result<WorkLimits> {
     let scan_records = if scan { CodeScanQuery::default().pages().max_records().checked_mul(3).ok_or_else(overflow)? } else { 0 };
     let records = count.checked_mul(9).and_then(|value| value.checked_add(scan_records))
         .and_then(|value| value.checked_add(CalendarQuery::default().pages().max_records()))
         .and_then(|value| value.checked_add(if count >= RUSH_PAGE { RUSH_PAGE * RUSH_PAGES } else { 0 })).ok_or_else(overflow)?;
-    context.set_work_limits(WorkLimits { pages: None, records: Some(records), bytes: None })
+    Ok(WorkLimits { pages: None, records: Some(records), bytes: None })
 }
 
 fn ready_target(info: &HandshakeInfo) -> Result<TradingDate> {

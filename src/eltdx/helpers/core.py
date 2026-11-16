@@ -537,66 +537,9 @@ class HelperApi:
         count: int | None = None,
     ) -> ThemeStrengthTable:
         """Aggregate current ladder stocks by their known F10 topics."""
-        ladder = self.limit_ladder(codes, count=None)
-        grouped: dict[str, dict[str, Any]] = {}
-        for row in ladder.rows:
-            try:
-                topics = self.stock_topics(row.full_code).topics
-            except Exception:
-                topics = ()
-            for topic in topics:
-                key = topic.topic_id or topic.topic_name
-                if not key or not topic.topic_name:
-                    continue
-                item = grouped.setdefault(
-                    str(key),
-                    {
-                        "topic_id": topic.topic_id,
-                        "topic_name": topic.topic_name,
-                        "limit_up_count": 0,
-                        "highest_ladder_level": 0,
-                        "lianban_count": 0,
-                        "total_seal_amount": 0.0,
-                        "leader": None,
-                    },
-                )
-                item["limit_up_count"] += 1
-                level = row.ladder_level or 0
-                item["highest_ladder_level"] = max(item["highest_ladder_level"], level)
-                item["lianban_count"] += int(level >= 2)
-                item["total_seal_amount"] += row.seal_amount or 0.0
-                leader = item["leader"]
-                if leader is None or level > (leader.ladder_level or 0):
-                    item["leader"] = row
-        ranked = sorted(
-            grouped.values(),
-            key=lambda item: (
-                -item["limit_up_count"],
-                -item["highest_ladder_level"],
-                -item["lianban_count"],
-                -item["total_seal_amount"],
-            ),
-        )
-        if count is not None:
-            if count <= 0:
-                raise ValueError("count must be positive or None")
-            ranked = ranked[:count]
-        rows = tuple(
-            ThemeStrengthRow(
-                rank=index,
-                topic_id=item["topic_id"],
-                topic_name=item["topic_name"],
-                limit_up_count=item["limit_up_count"],
-                highest_ladder_level=item["highest_ladder_level"],
-                lianban_count=item["lianban_count"],
-                total_seal_amount=round(item["total_seal_amount"], 6),
-                leader_code=getattr(item["leader"], "full_code", None),
-                leader_ladder_level=getattr(item["leader"], "ladder_level", None),
-            )
-            for index, item in enumerate(ranked, 1)
-        )
-        trade_date = ladder.trade_date
-        return ThemeStrengthTable(trade_date=trade_date, rows=rows)
+        from eltdx.transport.native import native_module
+
+        return native_module().helper_theme_strength(self, codes, count, globals())
 
     def stock_theme_strength_rank(self, codes: str | Sequence[str] | None = None, **kwargs: Any) -> ThemeStrengthTable:
         """Alias matching the data-catalog name for topic strength ranking."""

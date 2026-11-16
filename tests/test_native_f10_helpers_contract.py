@@ -273,3 +273,119 @@ def test_topic_stock_lazy_generator_converts_model_stop_iteration_with_cause(mon
     with pytest.raises(RuntimeError, match="generator raised StopIteration") as caught:
         helper.topic_stocks("000034", topic_id="1")
     assert isinstance(caught.value.__cause__, StopIteration)
+
+
+def theme_helper(rows, topics):
+    helper = helper_with(SimpleNamespace())
+    calls = []
+    helper.limit_ladder = lambda codes, **kwargs: calls.append((codes, kwargs)) or SimpleNamespace(trade_date="day", rows=rows)
+    helper.stock_topics = topics
+    return helper, calls
+
+
+def test_theme_queries_complete_ladder_then_all_topics_before_truncating():
+    seen = []
+    rows = [SimpleNamespace(full_code="one", ladder_level=3, seal_amount=10.125),
+            SimpleNamespace(full_code="two", ladder_level=1, seal_amount=2.25),
+            SimpleNamespace(full_code="three", ladder_level=2, seal_amount=3.5)]
+
+    def topics(code):
+        seen.append(code)
+        topic = "single" if code == "one" else "shared"
+        return SimpleNamespace(topics=[SimpleNamespace(topic_id=topic, topic_name=topic)])
+
+    helper, calls = theme_helper(rows, topics)
+    result = helper.theme_strength_rank("input", count=1)
+    assert calls == [("input", {"count": None})]
+    assert seen == ["one", "two", "three"]
+    assert result.trade_date == "day"
+    assert len(result.rows) == 1
+    assert result.rows[0].topic_id == "shared"
+    assert result.rows[0].limit_up_count == 2
+    assert result.rows[0].lianban_count == 1
+    assert result.rows[0].highest_ladder_level == 2
+    assert result.rows[0].total_seal_amount == 5.75
+    assert result.rows[0].leader_code == "three"
+
+
+def test_theme_stable_ties_first_maximum_leader_and_six_decimal_rounding():
+    rows = [SimpleNamespace(full_code="first", ladder_level=2, seal_amount=0.123456789),
+            SimpleNamespace(full_code="second", ladder_level=2, seal_amount=1.0)]
+    helper, _ = theme_helper(rows, lambda code: SimpleNamespace(topics=[
+        SimpleNamespace(topic_id="z", topic_name="first topic"),
+        SimpleNamespace(topic_id="a", topic_name="second topic")]))
+    result = helper.theme_strength_rank()
+    assert [row.topic_id for row in result.rows] == ["z", "a"]
+    assert [row.rank for row in result.rows] == [1, 2]
+    assert all(row.leader_code == "first" for row in result.rows)
+    assert result.rows[0].total_seal_amount == 1.123457
+
+
+def test_theme_optional_fetch_exception_is_swallowed_but_iteration_error_is_not():
+    rows = [SimpleNamespace(full_code="first", ladder_level=2, seal_amount=None)]
+
+    def failed(code):
+        raise ValueError("optional lookup")
+
+    helper, _ = theme_helper(rows, failed)
+    assert helper.theme_strength_rank().rows == ()
+
+    def iteration_failed():
+        raise ValueError("topic iteration")
+        yield
+
+    helper.stock_topics = lambda code: SimpleNamespace(topics=iteration_failed())
+    with pytest.raises(ValueError, match="topic iteration"):
+        helper.theme_strength_rank()
+
+
+def test_theme_base_exception_from_optional_lookup_propagates():
+    rows = [SimpleNamespace(full_code="first", ladder_level=2, seal_amount=None)]
+
+    def interrupted(code):
+        raise KeyboardInterrupt("interrupt")
+
+    helper, _ = theme_helper(rows, interrupted)
+    with pytest.raises(KeyboardInterrupt, match="interrupt"):
+        helper.theme_strength_rank()
+
+
+@pytest.mark.parametrize("count,error", [(0, ValueError), (-1, ValueError), (1.5, TypeError)])
+def test_theme_count_validation_happens_after_all_source_work(count, error):
+    seen = []
+    rows = [SimpleNamespace(full_code="first", ladder_level=1, seal_amount=0)]
+    helper, calls = theme_helper(rows, lambda code: seen.append(code) or SimpleNamespace(topics=()))
+    with pytest.raises(error):
+        helper.theme_strength_rank("input", count=count)
+    assert calls == [("input", {"count": None})]
+    assert seen == ["first"]
+
+
+def test_theme_tuple_override_keeps_model_projection_lazy(monkeypatch):
+    rows = [SimpleNamespace(full_code="first", ladder_level=1, seal_amount=0)]
+    helper, _ = theme_helper(rows, lambda code: SimpleNamespace(topics=[SimpleNamespace(topic_id="1", topic_name="topic")]))
+    marker = object()
+    monkeypatch.setattr(core, "tuple", lambda values: marker, raising=False)
+    monkeypatch.setattr(core, "ThemeStrengthRow", lambda **kwargs: pytest.fail("tuple override consumed no rows"))
+    assert helper.theme_strength_rank().rows is marker
+
+
+def test_theme_alias_keeps_live_public_method_override():
+    helper = helper_with(SimpleNamespace())
+    marker = object()
+    calls = []
+    helper.theme_strength_rank = lambda *args, **kwargs: calls.append((args, kwargs)) or marker
+    assert helper.stock_theme_strength_rank("input", count=4) is marker
+    assert calls == [(("input",), {"count": 4})]
+
+
+def test_theme_keeps_negative_and_nonfinite_legacy_amounts_and_duplicate_topic_occurrences():
+    rows = [SimpleNamespace(full_code="first", ladder_level=2, seal_amount=-3.25)]
+    topic = SimpleNamespace(topic_id="1", topic_name="name")
+    helper, _ = theme_helper(rows, lambda code: SimpleNamespace(topics=[topic, topic]))
+    row = helper.theme_strength_rank().rows[0]
+    assert row.limit_up_count == 2
+    assert row.lianban_count == 2
+    assert row.total_seal_amount == -6.5
+    rows[0].seal_amount = float("inf")
+    assert helper.theme_strength_rank().rows[0].total_seal_amount == float("inf")

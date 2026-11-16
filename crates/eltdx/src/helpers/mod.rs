@@ -17,6 +17,10 @@ mod f10;
 #[cfg(feature = "f10")]
 pub mod topics;
 #[cfg(feature = "f10")]
+pub mod theme;
+#[cfg(feature = "f10")]
+pub use theme::{ThemeStrengthQuery, ThemeStrengthRow, ThemeStrengthTable, ThemeTopicSource};
+#[cfg(feature = "f10")]
 pub use topics::{StockTopic, StockTopics, StockTopicsQuery, TopicSource, TopicStock, TopicStockTable, TopicStocksQuery};
 pub(crate) use cache::HelperCache;
 pub use market::classify_fund_flow;

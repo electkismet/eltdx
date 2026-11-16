@@ -204,3 +204,38 @@ fn topic_source_record_cap_applies_to_input_rows_before_deduplication() -> TestR
     assert_eq!(client.helpers().stock_topics(&query, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::LimitExceeded);
     client.close()?; worker.join().map_err(|_| "topic cap fixture panicked")??; Ok(())
 }
+
+#[test]
+fn theme_empty_selection_is_lazy_and_ladder_top_n_cannot_truncate_input() -> TestResult {
+    let http = TcpListener::bind("127.0.0.1:0")?; http.set_nonblocking(true)?;
+    let hq = TcpListener::bind("127.0.0.1:0")?; hq.set_nonblocking(true)?;
+    let client = TdxClient::builder().endpoints(vec![hq.local_addr()?]).f10(routed(http.local_addr()?)).build()?;
+    let ladder = eltdx::LadderQuery::new().with_selection(eltdx::SecuritySelection::Explicit(vec![]))?.with_count(Some(1))?;
+    let query = eltdx::ThemeStrengthQuery::new().with_ladder(ladder)?.with_count(Some(1))?;
+    assert_eq!(query.ladder().count(), None);
+    let result = client.helpers().theme_strength_rank(&query, &OperationOptions::default())?;
+    assert_eq!(result.count(), 0); assert_eq!(result.trade_date(), None);
+    assert_eq!(result.missing_ids().count(), 0);
+    assert_eq!(http.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+    assert_eq!(hq.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+    client.close()?; Ok(())
+}
+
+#[test]
+fn theme_entry_guards_reject_cancel_timeout_and_shared_close_without_io() -> TestResult {
+    let http = TcpListener::bind("127.0.0.1:0")?; http.set_nonblocking(true)?;
+    let hq = TcpListener::bind("127.0.0.1:0")?; hq.set_nonblocking(true)?;
+    let client = TdxClient::builder().endpoints(vec![hq.local_addr()?]).f10(routed(http.local_addr()?)).build()?;
+    let query = eltdx::ThemeStrengthQuery::new().with_ladder(eltdx::LadderQuery::new()
+        .with_selection(eltdx::SecuritySelection::Explicit(vec![]))?)?;
+    let token = CancellationToken::default(); token.cancel();
+    assert_eq!(client.helpers().theme_strength_rank(&query, &OperationOptions::default().with_cancellation(token))
+        .unwrap_err().kind(), ErrorKind::Cancelled);
+    assert_eq!(client.helpers().theme_strength_rank(&query, &OperationOptions::default().with_timeout(Duration::ZERO))
+        .unwrap_err().kind(), ErrorKind::Timeout);
+    client.f10().close()?;
+    assert_eq!(client.helpers().theme_strength_rank(&query, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Closed);
+    assert_eq!(http.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+    assert_eq!(hq.accept().unwrap_err().kind(), std::io::ErrorKind::WouldBlock);
+    Ok(())
+}
