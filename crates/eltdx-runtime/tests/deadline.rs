@@ -17,7 +17,10 @@ fn runtime_io_error(error: io::Error) -> RuntimeError {
     RuntimeError::internal(format!("{error}"))
 }
 
-fn engine_config(address: String, max_pending_requests: usize) -> Result<EngineConfig, RuntimeError> {
+fn engine_config(
+    address: String,
+    max_pending_requests: usize,
+) -> Result<EngineConfig, RuntimeError> {
     EngineConfig::from_endpoints(
         vec![Endpoint::numeric(&address)?],
         Duration::from_secs(10),
@@ -74,11 +77,7 @@ fn response(msg_id: u32, msg_type: u16, payload: &[u8]) -> Vec<u8> {
 
 fn serve_handshake(stream: &mut TcpStream) -> io::Result<()> {
     let handshake = read_request(stream)?;
-    stream.write_all(&response(
-        handshake.msg_id,
-        handshake.msg_type,
-        &[0; 189],
-    ))
+    stream.write_all(&response(handshake.msg_id, handshake.msg_type, &[0; 189]))
 }
 
 fn join_server(server: thread::JoinHandle<io::Result<()>>) -> Result<(), RuntimeError> {
@@ -161,8 +160,8 @@ fn coalesced_connect_waiters_have_independent_deadlines() -> Result<(), RuntimeE
 }
 
 #[test]
-fn raw_execution_returns_frame_and_wire_context_without_typed_parsing(
-) -> Result<(), RuntimeError> {
+fn raw_execution_returns_frame_and_wire_context_without_typed_parsing() -> Result<(), RuntimeError>
+{
     let listener = TcpListener::bind("127.0.0.1:0").map_err(runtime_io_error)?;
     let address = listener.local_addr().map_err(runtime_io_error)?.to_string();
     let (request_tx, request_rx) = mpsc::sync_channel(1);
@@ -198,7 +197,10 @@ fn raw_execution_returns_frame_and_wire_context_without_typed_parsing(
     assert_ne!(reply.engine_epoch.get(), 0);
     assert_ne!(reply.generation.get(), 0);
     drop(reply);
-    assert_eq!(engine.execute(request())?, CommandResponse::SecurityCount(7));
+    assert_eq!(
+        engine.execute(request())?,
+        CommandResponse::SecurityCount(7)
+    );
     assert!(matches!(
         engine.execute(request()),
         Err(RuntimeError::Protocol { .. })
@@ -228,7 +230,10 @@ fn queued_request_expires_against_its_submission_deadline() -> Result<(), Runtim
             io::Error::new(io::ErrorKind::BrokenPipe, "test stopped observing request")
         })?;
         release_first_rx.recv().map_err(|_| {
-            io::Error::new(io::ErrorKind::BrokenPipe, "test did not release first response")
+            io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "test did not release first response",
+            )
         })?;
         stream.write_all(&response(first.msg_id, first.msg_type, &[1, 0]))?;
         Ok(())
@@ -244,10 +249,8 @@ fn queued_request_expires_against_its_submission_deadline() -> Result<(), Runtim
         .map_err(|_| RuntimeError::internal("first request did not reach the server"))?;
 
     let second_deadline = Instant::now() + Duration::from_millis(250);
-    let mut second = engine.begin_execute_raw_with_options(
-        request(),
-        SubmissionOptions::new(second_deadline),
-    )?;
+    let mut second = engine
+        .begin_execute_raw_with_options(request(), SubmissionOptions::new(second_deadline))?;
     let second_error = match second.wait_timeout(Duration::from_secs(2)) {
         Err(error @ RuntimeError::Timeout { .. }) => error,
         Err(error) => return Err(error),
@@ -300,10 +303,8 @@ fn response_wait_and_retry_share_the_absolute_deadline() -> Result<(), RuntimeEr
     });
 
     let engine = Engine::new(engine_config(address, 2)?)?;
-    let mut pending = engine.begin_execute_raw_with_options(
-        request(),
-        SubmissionOptions::new(deadline),
-    )?;
+    let mut pending =
+        engine.begin_execute_raw_with_options(request(), SubmissionOptions::new(deadline))?;
     request_rx
         .recv_timeout(Duration::from_secs(3))
         .map_err(|_| RuntimeError::internal("business request did not reach the server"))?;

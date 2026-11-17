@@ -28,26 +28,42 @@ impl MemoryCharge {
     pub(crate) fn array<T>(&mut self, capacity: usize) -> Result<()> {
         self.add(capacity.checked_mul(size_of::<T>()).ok_or_else(overflow)?)
     }
-    pub(crate) fn string(&mut self, string: &String) -> Result<()> { self.add(string.capacity()) }
+    pub(crate) fn string(&mut self, string: &String) -> Result<()> {
+        self.add(string.capacity())
+    }
 
     /// Queued raw buffers originate from exact-sized copies in the HQ decoder.
     /// Include a conservative shared-owner control block as well as content.
     pub(crate) fn buffer(&mut self, buffer: &bytes::Bytes) -> Result<()> {
-        if buffer.is_empty() { return Ok(()); }
+        if buffer.is_empty() {
+            return Ok(());
+        }
         let key = (buffer.as_ptr() as usize, buffer.len());
         if !self.buffers.contains(&key) {
-            self.buffers.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded,
-                "unable to account retained push buffers").with_source(error))?;
+            self.buffers.try_reserve(1).map_err(|error| {
+                Error::new(
+                    ErrorKind::LimitExceeded,
+                    "unable to account retained push buffers",
+                )
+                .with_source(error)
+            })?;
             self.buffers.insert(key);
             self.add(buffer.len())?;
             self.add(BUFFER_CONTROL_BYTES)?;
         }
         Ok(())
     }
-    pub(crate) const fn total(&self) -> usize { self.bytes }
+    pub(crate) const fn total(&self) -> usize {
+        self.bytes
+    }
 }
 
-fn overflow() -> Error { Error::new(ErrorKind::LimitExceeded, "retained push memory charge overflow") }
+fn overflow() -> Error {
+    Error::new(
+        ErrorKind::LimitExceeded,
+        "retained push memory charge overflow",
+    )
+}
 
 #[cfg(test)]
 mod tests {

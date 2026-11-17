@@ -27,20 +27,18 @@ fn invalid_zero_capacity_and_timeouts_are_rejected() {
     let zero_pool = ClientBuilder::new().pool_size(0).build();
     assert!(matches!(zero_pool, Err(error) if error.kind() == ErrorKind::InvalidArgument));
 
-    let zero_request_timeout = ClientBuilder::new()
-        .request_timeout(Duration::ZERO)
-        .build();
-    assert!(matches!(zero_request_timeout, Err(error) if error.kind() == ErrorKind::InvalidArgument));
+    let zero_request_timeout = ClientBuilder::new().request_timeout(Duration::ZERO).build();
+    assert!(
+        matches!(zero_request_timeout, Err(error) if error.kind() == ErrorKind::InvalidArgument)
+    );
 
-    let zero_close_timeout = ClientBuilder::new()
-        .close_timeout(Duration::ZERO)
-        .build();
+    let zero_close_timeout = ClientBuilder::new().close_timeout(Duration::ZERO).build();
     assert!(matches!(zero_close_timeout, Err(error) if error.kind() == ErrorKind::InvalidArgument));
 
-    let zero_cleanup_timeout = ClientBuilder::new()
-        .cleanup_timeout(Duration::ZERO)
-        .build();
-    assert!(matches!(zero_cleanup_timeout, Err(error) if error.kind() == ErrorKind::InvalidArgument));
+    let zero_cleanup_timeout = ClientBuilder::new().cleanup_timeout(Duration::ZERO).build();
+    assert!(
+        matches!(zero_cleanup_timeout, Err(error) if error.kind() == ErrorKind::InvalidArgument)
+    );
 }
 
 #[test]
@@ -63,7 +61,11 @@ fn explicit_endpoint_order_is_preserved() -> eltdx::Result<()> {
         SocketAddr::from((Ipv4Addr::LOCALHOST, 7709)),
         SocketAddr::from((Ipv4Addr::LOCALHOST, 7710)),
     ];
-    let config = ClientBuilder::new().endpoints(endpoints.clone()).build()?.config().clone();
+    let config = ClientBuilder::new()
+        .endpoints(endpoints.clone())
+        .build()?
+        .config()
+        .clone();
 
     assert_eq!(config.endpoints(), Some(endpoints.as_slice()));
     Ok(())
@@ -96,7 +98,8 @@ fn build_and_close_do_not_connect_to_configured_socket() -> Result<(), Box<dyn s
 }
 
 #[test]
-fn failed_configuration_does_not_connect_to_configured_socket() -> Result<(), Box<dyn std::error::Error>> {
+fn failed_configuration_does_not_connect_to_configured_socket(
+) -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0))?;
     listener.set_nonblocking(true)?;
     let endpoint = listener.local_addr()?;
@@ -127,7 +130,10 @@ fn strict_hq_security_identity_preserves_known_inference_rules() -> eltdx::Resul
     assert!("00700".parse::<SecurityId>().is_err());
     assert!("019123".parse::<SecurityId>().is_err());
     assert!("127001".parse::<SecurityId>().is_err());
-    assert_eq!("sz127001".parse::<SecurityId>()?.market(), HqMarket::Shenzhen);
+    assert_eq!(
+        "sz127001".parse::<SecurityId>()?.market(),
+        HqMarket::Shenzhen
+    );
     Ok(())
 }
 
@@ -160,13 +166,19 @@ fn price_reports_provenance_and_requires_explicit_rounding() -> eltdx::Result<()
     assert_eq!(scaled.source(), PriceSource::ScaledInteger { scale: 3 });
     assert_eq!(scaled.to_scaled_integer_exact(3)?, 125528);
     assert!(scaled.to_scaled_integer_exact(1).is_err());
-    assert_eq!(Price::scaled_integer(123400, 3).to_scaled_integer_exact(2)?, 12340);
+    assert_eq!(
+        Price::scaled_integer(123400, 3).to_scaled_integer_exact(2)?,
+        12340
+    );
 
     let wire = Price::from_f32(1.25);
     assert_eq!(wire.source(), PriceSource::WireF32);
     assert!(wire.to_scaled_integer_exact(2).is_err());
     assert_eq!(wire.to_scaled_integer(1, RoundingMode::HalfToEven)?, 12);
-    assert_eq!(wire.to_scaled_integer(1, RoundingMode::HalfAwayFromZero)?, 13);
+    assert_eq!(
+        wire.to_scaled_integer(1, RoundingMode::HalfAwayFromZero)?,
+        13
+    );
     Ok(())
 }
 
@@ -195,7 +207,10 @@ fn scaled_price_rounding_preserves_large_integers_and_integer_boundaries() -> el
         (-25, RoundingMode::HalfAwayFromZero, -3),
     ];
     for (value, mode, expected) in cases {
-        assert_eq!(Price::scaled_integer(value, 1).to_scaled_integer(0, mode)?, expected);
+        assert_eq!(
+            Price::scaled_integer(value, 1).to_scaled_integer(0, mode)?,
+            expected
+        );
     }
     assert!(Price::scaled_integer(i64::MAX, 0)
         .to_scaled_integer(1, RoundingMode::TowardZero)

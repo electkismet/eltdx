@@ -794,7 +794,11 @@ impl RetryPolicy {
     }
 
     pub const fn rust_public(retry_safe: bool, max_attempts: std::num::NonZeroU32) -> Self {
-        Self { retry_safe, max_attempts: max_attempts.get(), strict_failures: true }
+        Self {
+            retry_safe,
+            max_attempts: max_attempts.get(),
+            strict_failures: true,
+        }
     }
 
     pub const fn retry_safe(self) -> bool {
@@ -1080,9 +1084,11 @@ impl RequestTracker {
             return None;
         }
 
-        let rejected_failure = record.attempt.policy.strict_failures && !matches!(
-            &error, RuntimeError::ConnectionClosed { .. } | RuntimeError::Timeout { .. }
-        );
+        let rejected_failure = record.attempt.policy.strict_failures
+            && !matches!(
+                &error,
+                RuntimeError::ConnectionClosed { .. } | RuntimeError::Timeout { .. }
+            );
         let reason = if !retryable || rejected_failure {
             Some(RetryStopReason::NotRetryable)
         } else if record.attempt.attempts_started >= record.attempt.policy.max_attempts {
@@ -1635,7 +1641,12 @@ fn start_attempt(
     }
     let deadline = owner.deadline.fair_slice_at(
         now,
-        usize::try_from(attempts_including_current).map_err(|_| RuntimeError::invalid_argument("OverflowError", "wire attempt count exceeds platform capacity"))?,
+        usize::try_from(attempts_including_current).map_err(|_| {
+            RuntimeError::invalid_argument(
+                "OverflowError",
+                "wire attempt count exceeds platform capacity",
+            )
+        })?,
         TimeoutPhase::Retry,
     )?;
     let attempt_number = record

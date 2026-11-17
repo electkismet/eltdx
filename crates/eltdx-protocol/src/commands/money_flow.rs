@@ -166,9 +166,9 @@ fn parse_money_flow_payload_body(
             )?);
         }
         blocks.push(MoneyFlowBlock {
-            header_raw: header.try_into().map_err(|_| {
-                ProtocolError::invalid_data("money flow", "invalid header")
-            })?,
+            header_raw: header
+                .try_into()
+                .map_err(|_| ProtocolError::invalid_data("money flow", "invalid header"))?,
             market_id,
             market,
             code,
@@ -184,7 +184,10 @@ fn parse_money_flow_payload_body(
     })
 }
 
-fn parse_money_flow_record(record: &[u8], context: &ParseContext<'_>) -> Result<MoneyFlowRecord, ProtocolError> {
+fn parse_money_flow_record(
+    record: &[u8],
+    context: &ParseContext<'_>,
+) -> Result<MoneyFlowRecord, ProtocolError> {
     if record.len() != MONEY_FLOW_RECORD_SIZE {
         return Err(ProtocolError::invalid_data(
             "money flow",
@@ -235,7 +238,6 @@ fn parse_money_flow_record(record: &[u8], context: &ParseContext<'_>) -> Result<
         main_small_net: (f64::from(buckets[12]) - f64::from(buckets[13])) * scale,
     })
 }
-
 
 #[cfg(test)]
 mod tests {

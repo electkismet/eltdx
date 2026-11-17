@@ -143,12 +143,16 @@ fn parse_file_content_payload_body(
         chunk_len,
         content: if context.retains_payload() && !context.is_legacy() {
             context.payload(payload).slice(4..expected_length)
-        } else { Bytes::copy_from_slice(&payload[4..expected_length]) },
+        } else {
+            Bytes::copy_from_slice(&payload[4..expected_length])
+        },
         trailing_payload: if context.is_legacy() {
             Bytes::copy_from_slice(&payload[expected_length..])
         } else if context.retains_payload() {
             context.payload(payload).slice(expected_length..)
-        } else { Bytes::new() },
+        } else {
+            Bytes::new()
+        },
         content_range: context.record_range(&payload[4..expected_length]),
         raw_payload: context.payload(payload),
     })

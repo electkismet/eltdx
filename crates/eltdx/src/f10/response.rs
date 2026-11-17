@@ -3,87 +3,175 @@ use crate::types::ResultMeta;
 use crate::{Error, ErrorKind, Result};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Cell { name: String, index: usize, value: JsonValue }
+pub struct Cell {
+    name: String,
+    index: usize,
+    value: JsonValue,
+}
 impl Cell {
-    pub fn name(&self) -> &str { &self.name }
-    pub fn index(&self) -> usize { self.index }
-    pub fn value(&self) -> &JsonValue { &self.value }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn index(&self) -> usize {
+        self.index
+    }
+    pub fn value(&self) -> &JsonValue {
+        &self.value
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Row { cells: Vec<Cell> }
+pub struct Row {
+    cells: Vec<Cell>,
+}
 impl Row {
-    pub fn cells(&self) -> &[Cell] { &self.cells }
+    pub fn cells(&self) -> &[Cell] {
+        &self.cells
+    }
     pub fn get_all<'a>(&'a self, name: &'a str) -> impl Iterator<Item = &'a Cell> + 'a {
         self.cells.iter().filter(move |cell| cell.name == name)
     }
     /// Python's suffix convention, including overwrite-on-name-collision.
     /// Lossless callers should inspect `cells()` or `get_all()` instead.
     pub fn python_projection(&self) -> Vec<(String, &JsonValue)> {
-        let mut projection = RowProjection { counts: Vec::new(), output: Vec::new() };
-        let result = super::python_legacy::project_cells(self.cells.iter().map(Ok), &mut projection, &mut || Ok(()));
-        match result { Ok(()) => projection.output, Err(impossible) => match impossible {} }
+        let mut projection = RowProjection {
+            counts: Vec::new(),
+            output: Vec::new(),
+        };
+        let result = super::python_legacy::project_cells(
+            self.cells.iter().map(Ok),
+            &mut projection,
+            &mut || Ok(()),
+        );
+        match result {
+            Ok(()) => projection.output,
+            Err(impossible) => match impossible {},
+        }
     }
 }
 
-struct RowProjection<'a> { counts: Vec<(String, usize)>, output: Vec<(String, &'a JsonValue)> }
+struct RowProjection<'a> {
+    counts: Vec<(String, usize)>,
+    output: Vec<(String, &'a JsonValue)>,
+}
 impl<'a> super::python_legacy::Projection<&'a Cell> for RowProjection<'a> {
     type Name = String;
     type Value = &'a JsonValue;
     type Error = std::convert::Infallible;
-    fn name(&mut self, cell: &&'a Cell) -> std::result::Result<String, Self::Error> { Ok(cell.name.clone()) }
+    fn name(&mut self, cell: &&'a Cell) -> std::result::Result<String, Self::Error> {
+        Ok(cell.name.clone())
+    }
     fn count(&mut self, name: String) -> std::result::Result<usize, Self::Error> {
-        Ok(self.counts.iter().find(|(key, _)| *key == name).map_or(0, |(_, count)| *count))
+        Ok(self
+            .counts
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map_or(0, |(_, count)| *count))
     }
     fn store_count(&mut self, name: String, count: usize) -> std::result::Result<(), Self::Error> {
-        if let Some((_, value)) = self.counts.iter_mut().find(|(key, _)| *key == name) { *value = count; }
-        else { self.counts.push((name, count)); }
+        if let Some((_, value)) = self.counts.iter_mut().find(|(key, _)| *key == name) {
+            *value = count;
+        } else {
+            self.counts.push((name, count));
+        }
         Ok(())
     }
-    fn suffix(&mut self, name: String, count: usize) -> std::result::Result<String, Self::Error> { Ok(format!("{name}__{count}")) }
-    fn value(&mut self, cell: &'a Cell) -> std::result::Result<Self::Value, Self::Error> { Ok(&cell.value) }
-    fn insert(&mut self, name: String, value: &'a JsonValue) -> std::result::Result<(), Self::Error> {
-        if let Some((_, target)) = self.output.iter_mut().find(|(key, _)| *key == name) { *target = value; }
-        else { self.output.push((name, value)); }
+    fn suffix(&mut self, name: String, count: usize) -> std::result::Result<String, Self::Error> {
+        Ok(format!("{name}__{count}"))
+    }
+    fn value(&mut self, cell: &'a Cell) -> std::result::Result<Self::Value, Self::Error> {
+        Ok(&cell.value)
+    }
+    fn insert(
+        &mut self,
+        name: String,
+        value: &'a JsonValue,
+    ) -> std::result::Result<(), Self::Error> {
+        if let Some((_, target)) = self.output.iter_mut().find(|(key, _)| *key == name) {
+            *target = value;
+        } else {
+            self.output.push((name, value));
+        }
         Ok(())
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResultSet {
-    key: Option<String>, columns: Vec<String>, rows: Vec<Row>, raw: Option<JsonValue>,
+    key: Option<String>,
+    columns: Vec<String>,
+    rows: Vec<Row>,
+    raw: Option<JsonValue>,
 }
 impl ResultSet {
-    pub fn key(&self) -> Option<&str> { self.key.as_deref() }
-    pub fn columns(&self) -> &[String] { &self.columns }
-    pub fn rows(&self) -> &[Row] { &self.rows }
-    pub fn raw(&self) -> Option<&JsonValue> { self.raw.as_ref() }
+    pub fn key(&self) -> Option<&str> {
+        self.key.as_deref()
+    }
+    pub fn columns(&self) -> &[String] {
+        &self.columns
+    }
+    pub fn rows(&self) -> &[Row] {
+        &self.rows
+    }
+    pub fn raw(&self) -> Option<&JsonValue> {
+        self.raw.as_ref()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Response {
-    entry: String, request: RequestPayload, error_code: Option<i64>,
-    result_sets: Vec<ResultSet>, attributes: super::OrderedJsonObject, meta: ResultMeta,
+    entry: String,
+    request: RequestPayload,
+    error_code: Option<i64>,
+    result_sets: Vec<ResultSet>,
+    attributes: super::OrderedJsonObject,
+    meta: ResultMeta,
 }
 impl Response {
-    pub fn entry(&self) -> &str { &self.entry }
-    pub fn request(&self) -> &RequestPayload { &self.request }
-    pub fn error_code(&self) -> Option<i64> { self.error_code }
-    pub fn result_sets(&self) -> &[ResultSet] { &self.result_sets }
+    pub fn entry(&self) -> &str {
+        &self.entry
+    }
+    pub fn request(&self) -> &RequestPayload {
+        &self.request
+    }
+    pub fn error_code(&self) -> Option<i64> {
+        self.error_code
+    }
+    pub fn result_sets(&self) -> &[ResultSet] {
+        &self.result_sets
+    }
     /// Non-table top-level members, including HitCache/hitCache and unknown
     /// service metadata, retain their original order, types and duplicate keys.
-    pub fn attributes(&self) -> &[(String, JsonValue)] { &self.attributes }
-    pub fn meta(&self) -> &ResultMeta { &self.meta }
-    pub fn ok(&self) -> bool { self.error_code.is_none_or(|code| code == 0) }
-    pub fn first_table(&self) -> Option<&ResultSet> { self.result_sets.first() }
-    pub(crate) fn take_first_rows(&mut self) -> Vec<Row> { self.result_sets.first_mut().map(|table| std::mem::take(&mut table.rows)).unwrap_or_default() }
+    pub fn attributes(&self) -> &[(String, JsonValue)] {
+        &self.attributes
+    }
+    pub fn meta(&self) -> &ResultMeta {
+        &self.meta
+    }
+    pub fn ok(&self) -> bool {
+        self.error_code.is_none_or(|code| code == 0)
+    }
+    pub fn first_table(&self) -> Option<&ResultSet> {
+        self.result_sets.first()
+    }
+    pub(crate) fn take_first_rows(&mut self) -> Vec<Row> {
+        self.result_sets
+            .first_mut()
+            .map(|table| std::mem::take(&mut table.rows))
+            .unwrap_or_default()
+    }
     pub(crate) fn with_diagnostic(mut self, diagnostic: crate::types::Diagnostic) -> Self {
-        self.push_diagnostic(diagnostic); self
+        self.push_diagnostic(diagnostic);
+        self
     }
     pub(crate) fn push_diagnostic(&mut self, diagnostic: crate::types::Diagnostic) {
         self.meta = std::mem::take(&mut self.meta).with_diagnostic(diagnostic);
     }
-    pub(crate) fn with_prerequisite(mut self, prerequisite: &Response, context: &crate::operation::OperationContext) -> Result<Self> {
+    pub(crate) fn with_prerequisite(
+        mut self,
+        prerequisite: &Response,
+        context: &crate::operation::OperationContext,
+    ) -> Result<Self> {
         let mut metadata = MetaCollector::default();
         metadata.add(&prerequisite.meta, context)?;
         metadata.add(&self.meta, context)?;
@@ -91,20 +179,32 @@ impl Response {
         Ok(self)
     }
 
-    pub(crate) fn from_json(entry: String, request: RequestPayload, value: JsonValue,
-        retain: bool, meta: ResultMeta, boundary: &mut dyn FnMut() -> Result<()>) -> Result<Self> {
+    pub(crate) fn from_json(
+        entry: String,
+        request: RequestPayload,
+        value: JsonValue,
+        retain: bool,
+        meta: ResultMeta,
+        boundary: &mut dyn FnMut() -> Result<()>,
+    ) -> Result<Self> {
         boundary()?;
         let JsonValue::Object(mut object) = value else {
             return Err(protocol("TQLEX returned non-object JSON"));
         };
         let error_code = match last(&object, "ErrorCode") {
             None | Some(JsonValue::Null) => None,
-            Some(JsonValue::Number(number)) => Some(number.as_i64().ok_or_else(|| protocol("TQLEX ErrorCode is outside i64"))?),
+            Some(JsonValue::Number(number)) => Some(
+                number
+                    .as_i64()
+                    .ok_or_else(|| protocol("TQLEX ErrorCode is outside i64"))?,
+            ),
             Some(_) => return Err(protocol("TQLEX ErrorCode must be an integer")),
         };
         // Move the authoritative final occurrence; duplicate raw fields remain
         // in the retained HTTP payload without building a second complete tree.
-        let result_sets = object.iter().rposition(|(key, _)| key == "ResultSets")
+        let result_sets = object
+            .iter()
+            .rposition(|(key, _)| key == "ResultSets")
             .map(|position| std::mem::replace(&mut object[position].1, JsonValue::Null));
         let values = match result_sets {
             None | Some(JsonValue::Null) => Vec::new(),
@@ -114,13 +214,27 @@ impl Response {
         let mut result_sets = Vec::new();
         result_sets.try_reserve(values.len()).map_err(allocation)?;
         let mut make_boundary = || Ok(());
-        super::python_legacy::visit_tables_into(values.into_iter().map(Ok), &mut result_sets,
-            |value, _| { boundary()?; parse_table(value, retain, boundary) }, &mut make_boundary)?;
+        super::python_legacy::visit_tables_into(
+            values.into_iter().map(Ok),
+            &mut result_sets,
+            |value, _| {
+                boundary()?;
+                parse_table(value, retain, boundary)
+            },
+            &mut make_boundary,
+        )?;
         // Earlier duplicate ResultSets are available in explicitly retained
         // payload bytes. Do not keep a second whole table tree under Omit.
         object.retain(|(key, _)| key != "ResultSets");
         boundary()?;
-        Ok(Self { entry, request, error_code, result_sets, attributes: object, meta })
+        Ok(Self {
+            entry,
+            request,
+            error_code,
+            result_sets,
+            attributes: object,
+            meta,
+        })
     }
 }
 
@@ -128,24 +242,37 @@ impl Response {
 /// handles share underlying bytes; source order is physical response order.
 #[derive(Default)]
 pub(crate) struct MetaCollector {
-    sources: Vec<crate::types::SourceStamp>, diagnostics: Vec<crate::types::Diagnostic>,
-    payloads: Vec<bytes::Bytes>, frames: Vec<bytes::Bytes>, wire: bool,
+    sources: Vec<crate::types::SourceStamp>,
+    diagnostics: Vec<crate::types::Diagnostic>,
+    payloads: Vec<bytes::Bytes>,
+    frames: Vec<bytes::Bytes>,
+    wire: bool,
 }
 impl MetaCollector {
-    pub fn add(&mut self, meta: &ResultMeta, context: &crate::operation::OperationContext) -> Result<()> {
+    pub fn add(
+        &mut self,
+        meta: &ResultMeta,
+        context: &crate::operation::OperationContext,
+    ) -> Result<()> {
         context.check_boundary(crate::TimeoutPhase::Aggregate)?;
-        self.sources.try_reserve(meta.sources().len()).map_err(allocation)?;
+        self.sources
+            .try_reserve(meta.sources().len())
+            .map_err(allocation)?;
         for source in meta.sources() {
             context.check_boundary(crate::TimeoutPhase::Aggregate)?;
             self.sources.push(source.clone());
         }
-        self.diagnostics.try_reserve(meta.diagnostics().len()).map_err(allocation)?;
+        self.diagnostics
+            .try_reserve(meta.diagnostics().len())
+            .map_err(allocation)?;
         for diagnostic in meta.diagnostics() {
             context.check_boundary(crate::TimeoutPhase::Aggregate)?;
             self.diagnostics.push(diagnostic.clone());
         }
         if let Some(raw) = meta.raw() {
-            self.payloads.try_reserve(raw.payloads().len()).map_err(allocation)?;
+            self.payloads
+                .try_reserve(raw.payloads().len())
+                .map_err(allocation)?;
             // The transport charged these immutable buffers to the same
             // parent's streamed byte budget before allocation. Only handles
             // are retained here, so aggregate raw retention cannot bypass it.
@@ -165,24 +292,42 @@ impl MetaCollector {
         Ok(())
     }
     pub fn finish(self) -> ResultMeta {
-        let source = self.sources.first().cloned().unwrap_or_else(|| ResultMeta::default().source().clone());
+        let source = self
+            .sources
+            .first()
+            .cloned()
+            .unwrap_or_else(|| ResultMeta::default().source().clone());
         self.finish_with_source(source)
     }
     fn finish_with_source(self, source: crate::types::SourceStamp) -> ResultMeta {
-        let raw = (!self.payloads.is_empty()).then(|| crate::types::RawData::new(self.payloads, self.wire.then_some(self.frames), Vec::new()));
+        let raw = (!self.payloads.is_empty()).then(|| {
+            crate::types::RawData::new(self.payloads, self.wire.then_some(self.frames), Vec::new())
+        });
         ResultMeta::new(source, self.diagnostics, raw).with_sources(self.sources)
     }
 }
 
-fn protocol(message: &str) -> Error { Error::new(ErrorKind::Protocol, message) }
+fn protocol(message: &str) -> Error {
+    Error::new(ErrorKind::Protocol, message)
+}
 fn allocation(error: std::collections::TryReserveError) -> Error {
-    Error::new(ErrorKind::LimitExceeded, "cannot reserve F10 response storage").with_source(error)
+    Error::new(
+        ErrorKind::LimitExceeded,
+        "cannot reserve F10 response storage",
+    )
+    .with_source(error)
 }
 fn last<'a>(object: &'a [(String, JsonValue)], key: &str) -> Option<&'a JsonValue> {
-    object.iter().rev().find(|(name, _)| name == key).map(|(_, value)| value)
+    object
+        .iter()
+        .rev()
+        .find(|(name, _)| name == key)
+        .map(|(_, value)| value)
 }
 fn take(object: &mut [(String, JsonValue)], key: &str) -> Option<JsonValue> {
-    object.iter().rposition(|(name, _)| name == key)
+    object
+        .iter()
+        .rposition(|(name, _)| name == key)
         .map(|position| std::mem::replace(&mut object[position].1, JsonValue::Null))
 }
 fn string(value: &JsonValue) -> Result<String> {
@@ -201,9 +346,21 @@ fn array(value: Option<JsonValue>, label: &str) -> Result<Vec<JsonValue>> {
         _ => Err(protocol(label)),
     }
 }
-fn parse_table(value: JsonValue, retain: bool, boundary: &mut dyn FnMut() -> Result<()>) -> Result<ResultSet> {
-    let JsonValue::Object(mut object) = value else { return Err(protocol("TQLEX ResultSet must be an object")); };
-    let raw = if retain { Some(JsonValue::Object(super::json::clone_object(&object, boundary)?)) } else { None };
+fn parse_table(
+    value: JsonValue,
+    retain: bool,
+    boundary: &mut dyn FnMut() -> Result<()>,
+) -> Result<ResultSet> {
+    let JsonValue::Object(mut object) = value else {
+        return Err(protocol("TQLEX ResultSet must be an object"));
+    };
+    let raw = if retain {
+        Some(JsonValue::Object(super::json::clone_object(
+            &object, boundary,
+        )?))
+    } else {
+        None
+    };
     let key = match take(&mut object, "ResultSetKey") {
         None | Some(JsonValue::Null) => None,
         Some(JsonValue::String(value)) => Some(value),
@@ -213,40 +370,81 @@ fn parse_table(value: JsonValue, retain: bool, boundary: &mut dyn FnMut() -> Res
         array(Some(value), "TQLEX ColName must be an array")?
     } else {
         array(take(&mut object, "ColDes"), "TQLEX ColDes must be an array")?
-            .into_iter().map(|value| match value {
-                JsonValue::Object(fields) => last(&fields, "Name").cloned().unwrap_or_else(|| JsonValue::String(String::new())),
+            .into_iter()
+            .map(|value| match value {
+                JsonValue::Object(fields) => last(&fields, "Name")
+                    .cloned()
+                    .unwrap_or_else(|| JsonValue::String(String::new())),
                 value => value,
-            }).collect()
+            })
+            .collect()
     };
     let mut columns = Vec::new();
     columns.try_reserve(names.len()).map_err(allocation)?;
-    for value in &names { boundary()?; columns.push(string(value)?); }
-    let content = array(take(&mut object, "Content"), "TQLEX ResultSet Content must be an array")?;
+    for value in &names {
+        boundary()?;
+        columns.push(string(value)?);
+    }
+    let content = array(
+        take(&mut object, "Content"),
+        "TQLEX ResultSet Content must be an array",
+    )?;
     let mut rows = Vec::new();
     rows.try_reserve(content.len()).map_err(allocation)?;
     for value in content {
         boundary()?;
-        let values = if let JsonValue::Array(values) = value { values } else { vec![value] };
+        let values = if let JsonValue::Array(values) = value {
+            values
+        } else {
+            vec![value]
+        };
         let mut cells = Vec::new();
         cells.try_reserve(values.len()).map_err(allocation)?;
-        super::python_legacy::visit_cells_into(values.into_iter().map(Ok), &mut cells,
-            |index, value| Ok(Cell { name: super::python_legacy::column_name(&columns, index), index, value }), boundary)?;
+        super::python_legacy::visit_cells_into(
+            values.into_iter().map(Ok),
+            &mut cells,
+            |index, value| {
+                Ok(Cell {
+                    name: super::python_legacy::column_name(&columns, index),
+                    index,
+                    value,
+                })
+            },
+            boundary,
+        )?;
         rows.push(Row { cells });
     }
-    Ok(ResultSet { key, columns, rows, raw })
+    Ok(ResultSet {
+        key,
+        columns,
+        rows,
+        raw,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     fn response(json: &[u8], retain: bool) -> Result<Response> {
-        Response::from_json("Example.entry".to_owned(), RequestPayload::Params(Vec::new()),
-            JsonValue::parse(json)?, retain, ResultMeta::default(), &mut || Ok(()))
+        Response::from_json(
+            "Example.entry".to_owned(),
+            RequestPayload::Params(Vec::new()),
+            JsonValue::parse(json)?,
+            retain,
+            ResultMeta::default(),
+            &mut || Ok(()),
+        )
     }
     #[test]
     fn duplicate_columns_and_suffix_collisions_keep_authoritative_cells() -> Result<()> {
-        let response = response(br#"{"ResultSets":[{"ColName":["x","x","x__2",""],"Content":[[1,2,3,null,5]]}]}"#, false)?;
-        let row = &response.first_table().ok_or_else(|| protocol("missing table"))?.rows()[0];
+        let response = response(
+            br#"{"ResultSets":[{"ColName":["x","x","x__2",""],"Content":[[1,2,3,null,5]]}]}"#,
+            false,
+        )?;
+        let row = &response
+            .first_table()
+            .ok_or_else(|| protocol("missing table"))?
+            .rows()[0];
         assert_eq!(row.cells().len(), 5);
         assert_eq!(row.get_all("x").count(), 2);
         let projected = row.python_projection();
@@ -264,32 +462,61 @@ mod tests {
         assert_eq!(response.result_sets().len(), 3);
         assert_eq!(response.result_sets()[2].key(), None);
         assert!(response.result_sets()[0].raw().is_some());
-        assert_eq!(response.result_sets()[0].rows()[0].cells()[0].value(), &JsonValue::Null);
+        assert_eq!(
+            response.result_sets()[0].rows()[0].cells()[0].value(),
+            &JsonValue::Null
+        );
         Ok(())
     }
 
     #[test]
     fn service_attributes_survive_without_retaining_a_complete_table_tree() -> Result<()> {
-        let response = response(br#"{"HitCache":true,"unknown":{"flag":1},"HitCache":false,"ResultSets":[]}"#, false)?;
+        let response = response(
+            br#"{"HitCache":true,"unknown":{"flag":1},"HitCache":false,"ResultSets":[]}"#,
+            false,
+        )?;
         assert_eq!(response.attributes().len(), 3);
-        assert_eq!(response.attributes()[0], ("HitCache".to_owned(), JsonValue::Bool(true)));
-        assert_eq!(response.attributes()[2], ("HitCache".to_owned(), JsonValue::Bool(false)));
-        assert_eq!(response.attributes()[1].1.get("flag").and_then(JsonValue::as_number).and_then(|value| value.as_i64()), Some(1));
+        assert_eq!(
+            response.attributes()[0],
+            ("HitCache".to_owned(), JsonValue::Bool(true))
+        );
+        assert_eq!(
+            response.attributes()[2],
+            ("HitCache".to_owned(), JsonValue::Bool(false))
+        );
+        assert_eq!(
+            response.attributes()[1]
+                .1
+                .get("flag")
+                .and_then(JsonValue::as_number)
+                .and_then(|value| value.as_i64()),
+            Some(1)
+        );
         Ok(())
     }
 
     #[test]
     fn shared_table_and_cell_traversal_stop_on_callback_failure() -> Result<()> {
         let mut seen = Vec::new();
-        let cells = super::super::python_legacy::visit_cells([Ok(10), Ok(20)], |index, value| {
-            seen.push((index, value)); Ok::<_, &'static str>((index, value))
-        }, &mut || Ok(()));
+        let cells = super::super::python_legacy::visit_cells(
+            [Ok(10), Ok(20)],
+            |index, value| {
+                seen.push((index, value));
+                Ok::<_, &'static str>((index, value))
+            },
+            &mut || Ok(()),
+        );
         assert_eq!(cells, Ok(vec![(0, 10), (1, 20)]));
         assert_eq!(seen, [(0, 10), (1, 20)]);
         let mut seen = Vec::new();
-        let tables = super::super::python_legacy::visit_tables([Ok(1), Err("table"), Ok(3)], |value, index| {
-            seen.push((value, index)); Ok(value)
-        }, &mut || Ok(()));
+        let tables = super::super::python_legacy::visit_tables(
+            [Ok(1), Err("table"), Ok(3)],
+            |value, index| {
+                seen.push((value, index));
+                Ok(value)
+            },
+            &mut || Ok(()),
+        );
         assert_eq!(tables, Err("table"));
         assert_eq!(seen, [(1, 0)]);
         Ok(())

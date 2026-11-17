@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 use eltdx_protocol::frame::ResponseFrame;
 use eltdx_protocol::CommandRequest;
 
-use crate::error::RuntimeError;
 use crate::deadline::Deadline;
+use crate::error::RuntimeError;
 use crate::request::{RequestDeadlinePolicy, RequestWireIdentity, RetryPolicy};
 use crate::slot::{EngineEpoch, GenerationId, RequestId, SlotId};
 
@@ -29,7 +29,9 @@ impl SubmissionOptions {
 
     /// Returns the unchanged absolute deadline supplied at construction.
     pub fn absolute_deadline(&self) -> Option<Instant> {
-        self.timing.absolute_deadline().map(|deadline| deadline.instant())
+        self.timing
+            .absolute_deadline()
+            .map(|deadline| deadline.instant())
     }
 
     /// Internal compatibility boundary: start this request's clock after runtime startup.
@@ -72,7 +74,9 @@ pub trait AttemptAuthorization: std::fmt::Debug + Send + Sync {
 
     /// Continue an existing legacy attempt without another logical recovery debit.
     fn reserve_endpoint_continuation(
-        &self, attempt: u32, last_failure: Option<&RuntimeError>,
+        &self,
+        attempt: u32,
+        last_failure: Option<&RuntimeError>,
     ) -> Result<Box<dyn ReservedAttempt>, RuntimeError> {
         self.reserve(attempt, last_failure)
     }
@@ -153,7 +157,10 @@ impl RawReply {
 #[cfg(test)]
 mod operation_policy_tests {
     use super::*;
-    use crate::request::{AdmissionQueue, RequestTracker, RequestWireIdentity, RequestState, RetryDecision, RetryStopReason};
+    use crate::request::{
+        AdmissionQueue, RequestState, RequestTracker, RequestWireIdentity, RetryDecision,
+        RetryStopReason,
+    };
     use crate::slot::{EngineEpoch, GenerationId, RequestId};
     use std::num::NonZeroU32;
 
@@ -163,23 +170,45 @@ mod operation_policy_tests {
         let id = RequestId::new(1).expect("request");
         let mut queue = AdmissionQueue::new(1, 8).expect("queue");
         queue.open(epoch).expect("open");
-        let admission = queue.submit(epoch, id, Deadline::after_at(now, Duration::from_secs(8)).expect("deadline"), now)
+        let admission = queue
+            .submit(
+                epoch,
+                id,
+                Deadline::after_at(now, Duration::from_secs(8)).expect("deadline"),
+                now,
+            )
             .expect("admission");
         let mut tracker = RequestTracker::default();
-        tracker.admit_with_retry_policy(admission, RetryPolicy::rust_public(true, NonZeroU32::new(maximum).expect("positive")))
+        tracker
+            .admit_with_retry_policy(
+                admission,
+                RetryPolicy::rust_public(true, NonZeroU32::new(maximum).expect("positive")),
+            )
             .expect("tracked");
         let attempt = tracker.begin_attempt(id, now).expect("attempt");
-        let wire = RequestWireIdentity { engine_epoch: epoch, request_id: id, lease_id: attempt.lease_id,
-            slot_id: attempt.slot_id, generation: Some(GenerationId::new(1).expect("generation")), message: None };
-        tracker.transition(id, RequestState::Connecting, Some(wire)).expect("connecting");
+        let wire = RequestWireIdentity {
+            engine_epoch: epoch,
+            request_id: id,
+            lease_id: attempt.lease_id,
+            slot_id: attempt.slot_id,
+            generation: Some(GenerationId::new(1).expect("generation")),
+            message: None,
+        };
+        tracker
+            .transition(id, RequestState::Connecting, Some(wire))
+            .expect("connecting");
         (tracker, wire, now)
     }
 
     #[test]
     fn per_request_maximum_keeps_last_network_failure_instead_of_global_limit() {
         let (mut tracker, wire, now) = started_request(1);
-        let network = RuntimeError::connection_closed("real connect failure").with_context("host", "fixture:7709");
-        match tracker.begin_retry(wire, network.clone(), true, now).expect("decision") {
+        let network = RuntimeError::connection_closed("real connect failure")
+            .with_context("host", "fixture:7709");
+        match tracker
+            .begin_retry(wire, network.clone(), true, now)
+            .expect("decision")
+        {
             RetryDecision::RetireThenTerminal(terminal) => {
                 assert_eq!(terminal.reason, RetryStopReason::AttemptsExhausted);
                 assert_eq!(terminal.error, network);
@@ -191,8 +220,15 @@ mod operation_policy_tests {
     #[test]
     fn rust_protocol_failure_is_not_retried_even_when_worker_marks_transport_retryable() {
         let (mut tracker, wire, now) = started_request(2);
-        let protocol = RuntimeError::Protocol { code: "bad_frame".to_owned(), message: "bad frame".to_owned(), context: Vec::new() };
-        match tracker.begin_retry(wire, protocol.clone(), true, now).expect("decision") {
+        let protocol = RuntimeError::Protocol {
+            code: "bad_frame".to_owned(),
+            message: "bad frame".to_owned(),
+            context: Vec::new(),
+        };
+        match tracker
+            .begin_retry(wire, protocol.clone(), true, now)
+            .expect("decision")
+        {
             RetryDecision::RetireThenTerminal(terminal) => {
                 assert_eq!(terminal.reason, RetryStopReason::NotRetryable);
                 assert_eq!(terminal.error, protocol);
@@ -206,11 +242,25 @@ mod operation_policy_tests {
         let entry = Instant::now();
         let public = SubmissionOptions::new(entry + Duration::from_secs(8));
         let legacy = SubmissionOptions::legacy_after_startup(Duration::from_secs(8));
-        assert_eq!(public.absolute_deadline(), Some(entry + Duration::from_secs(8)));
+        assert_eq!(
+            public.absolute_deadline(),
+            Some(entry + Duration::from_secs(8))
+        );
         assert_eq!(legacy.absolute_deadline(), None);
         let after_startup = Instant::now();
-        let legacy_deadline = legacy.timing().resolve_after_startup().expect("old boundary").instant();
+        let legacy_deadline = legacy
+            .timing()
+            .resolve_after_startup()
+            .expect("old boundary")
+            .instant();
         assert!(legacy_deadline >= after_startup + Duration::from_secs(8));
-        assert_eq!(public.timing().resolve_after_startup().expect("absolute").instant(), entry + Duration::from_secs(8));
+        assert_eq!(
+            public
+                .timing()
+                .resolve_after_startup()
+                .expect("absolute")
+                .instant(),
+            entry + Duration::from_secs(8)
+        );
     }
 }

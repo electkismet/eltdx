@@ -38,4 +38,3 @@ section_endpoint!(KjhzExchangeQuery, kjhz_exchange, BondCode, "jgtzzst", code, s
 section_endpoint!(KjhzRateQuery, kjhz_rate, BondCode, "zqll", code, section, "CWServ.skef10_bond_kjhz_zqll", wire [Section, Code]);
 section_endpoint!(BondTermsQuery, bond_terms, BondCode, "hstk", code, section, "CWServ.skef10_bond_kzz_lltk", wire [Section, Code]);
 code_endpoint!(BondBulletinQuery, bond_bulletin, BondCode, code, "CWServ.skef10_bond_zjzx", wire [Code, Market]);
-

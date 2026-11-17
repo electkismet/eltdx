@@ -584,9 +584,14 @@ pub(crate) fn legacy_price_precision(code: &NormalizedCode) -> (u16, Option<u8>)
 
 /// Explicit decoders reject an unrepresentable scale instead of saturating it.
 pub(crate) fn checked_price_divisor(decimal: u8) -> Result<u16, ProtocolError> {
-    10_u16.checked_pow(u32::from(decimal.saturating_sub(2))).ok_or_else(|| {
-        ProtocolError::invalid_data("price precision", "security decimal exceeds supported scale")
-    })
+    10_u16
+        .checked_pow(u32::from(decimal.saturating_sub(2)))
+        .ok_or_else(|| {
+            ProtocolError::invalid_data(
+                "price precision",
+                "security decimal exceeds supported scale",
+            )
+        })
 }
 
 pub fn get_volume(value: u32) -> f64 {

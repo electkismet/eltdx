@@ -1,9 +1,9 @@
-use bytes::Bytes;
 use crate::context::{ParseContext, ParseOptions, RecordRange};
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{DEFAULT_CODE_PAGE_SIZE, MAX_CODE_PAGE_SIZE, MAX_RESPONSE_PAYLOAD_SIZE};
 use crate::unit::{decode_gbk_text, little_f32, little_u16, register_security_decimal, Market};
+use bytes::Bytes;
 
 pub const TYPE_SECURITY_LIST: u16 = 0x044d;
 pub const TYPE_SECURITY_COUNT: u16 = 0x044e;

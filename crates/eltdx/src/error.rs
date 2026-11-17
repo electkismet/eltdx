@@ -97,7 +97,10 @@ impl Error {
     pub(crate) fn from_runtime(error: eltdx_runtime::RuntimeError) -> Self {
         use eltdx_runtime::RuntimeError as R;
         let context = error.context();
-        let sdk_kind = context.iter().find(|(key, _)| key == "sdk_kind").map(|(_, value)| value.as_str());
+        let sdk_kind = context
+            .iter()
+            .find(|(key, _)| key == "sdk_kind")
+            .map(|(_, value)| value.as_str());
         let kind = match sdk_kind {
             Some("Cancelled") => ErrorKind::Cancelled,
             Some("Closed") => ErrorKind::Closed,

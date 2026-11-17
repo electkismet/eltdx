@@ -11,8 +11,11 @@ use crate::config::{ClientConfig, ConfigDraft};
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::hq::executor::HqExecutor;
 use crate::operation::{ChildPurpose, OperationOptions};
+use crate::services::{
+    AuctionService, CodeService, KlineService, MinuteService, MoneyFlowService, QuoteService,
+    TradeService,
+};
 use crate::session::SessionOwner;
-use crate::services::{AuctionService, CodeService, KlineService, MinuteService, MoneyFlowService, QuoteService, TradeService};
 
 #[derive(Clone, Debug)]
 pub struct ClientBuilder {
@@ -67,15 +70,18 @@ impl ClientBuilder {
     }
 
     pub fn auction_endpoints(mut self, endpoints: Vec<SocketAddr>) -> Self {
-        self.draft.auction_endpoints = Some(endpoints); self
+        self.draft.auction_endpoints = Some(endpoints);
+        self
     }
     pub fn money_flow_endpoints(mut self, endpoints: Vec<SocketAddr>) -> Self {
-        self.draft.money_flow_endpoints = Some(endpoints); self
+        self.draft.money_flow_endpoints = Some(endpoints);
+        self
     }
     /// Physical connection cap across ordinary, dedicated and continuation pools.
     /// Defaults to four times pool_size, allowing three domains and a probe pool.
     pub fn max_connections(mut self, maximum: usize) -> Self {
-        self.draft.max_connections = Some(maximum); self
+        self.draft.max_connections = Some(maximum);
+        self
     }
 
     pub fn wire_attempt_limit(mut self, attempts: NonZeroU32) -> Self {
@@ -92,7 +98,8 @@ impl ClientBuilder {
     /// The resulting domain shares this client's close and operation owner.
     #[cfg(feature = "f10")]
     pub fn f10(mut self, builder: crate::f10::F10ClientBuilder) -> Self {
-        self.f10 = Some(builder); self
+        self.f10 = Some(builder);
+        self
     }
 
     pub fn build(self) -> Result<TdxClient> {
@@ -106,10 +113,15 @@ impl ClientBuilder {
             config.clock.clone(),
         ));
         #[cfg(feature = "f10")]
-        let f10 = self.f10.unwrap_or_else(|| crate::f10::F10Client::builder()
-            .with_timeout(config.request_timeout())
-            .with_close_timeout(config.close_timeout())
-            .with_cleanup_timeout(config.cleanup_timeout())).build_with_owner(Arc::clone(&owner))?;
+        let f10 = self
+            .f10
+            .unwrap_or_else(|| {
+                crate::f10::F10Client::builder()
+                    .with_timeout(config.request_timeout())
+                    .with_close_timeout(config.close_timeout())
+                    .with_cleanup_timeout(config.cleanup_timeout())
+            })
+            .build_with_owner(Arc::clone(&owner))?;
         Ok(TdxClient {
             config,
             hq: HqExecutor::new(owner),
@@ -123,7 +135,10 @@ impl ClientBuilder {
 }
 
 pub(crate) fn engine_with_hosts(config: &ClientConfig, hosts: Vec<String>) -> Result<Engine> {
-        let engine_config = EngineConfig::new(hosts, config.request_timeout().as_secs_f64(), EngineConfigOptions {
+    let engine_config = EngineConfig::new(
+        hosts,
+        config.request_timeout().as_secs_f64(),
+        EngineConfigOptions {
             pool_size: config.pool_size(),
             runtime_workers: None,
             server_count: 1,
@@ -136,8 +151,11 @@ pub(crate) fn engine_with_hosts(config: &ClientConfig, hosts: Vec<String>) -> Re
             max_pending_requests: 256,
             push_queue_size: 1_024,
             push_queue_bytes: 64 * 1024 * 1024,
-        }).map_err(Error::from_runtime)?;
-        Engine::new(engine_config.with_connection_limit(config.connection_limit.clone())).map_err(Error::from_runtime)
+        },
+    )
+    .map_err(Error::from_runtime)?;
+    Engine::new(engine_config.with_connection_limit(config.connection_limit.clone()))
+        .map_err(Error::from_runtime)
 }
 
 impl Default for ClientBuilder {
@@ -163,33 +181,72 @@ impl TdxClient {
         crate::financial::FinancialService::new(self.resources())
     }
     pub fn helpers(&self) -> crate::helpers::HelperService {
-        crate::helpers::HelperService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone(), self.domains.clone(),
-            #[cfg(feature = "f10")] self.f10.clone())
+        crate::helpers::HelperService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+            self.namespace.clone(),
+            self.domains.clone(),
+            #[cfg(feature = "f10")]
+            self.f10.clone(),
+        )
     }
     /// HTTP domain of this client. It shares the same irreversible close;
     /// use F10Client::builder for a separately owned HTTP-only client.
     #[cfg(feature = "f10")]
-    pub fn f10(&self) -> crate::f10::F10Client { self.f10.clone() }
+    pub fn f10(&self) -> crate::f10::F10Client {
+        self.f10.clone()
+    }
     pub fn resources(&self) -> crate::services::ResourceService {
-        crate::services::ResourceService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+        crate::services::ResourceService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+        )
     }
     pub fn company_info(&self) -> crate::services::CompanyInfoService {
-        crate::services::CompanyInfoService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+        crate::services::CompanyInfoService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+        )
     }
     pub fn session(&self) -> crate::services::SessionService {
-        crate::services::SessionService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+        crate::services::SessionService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+        )
     }
     pub fn health(&self) -> crate::services::HealthService {
-        crate::services::HealthService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+        crate::services::HealthService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+        )
     }
     pub fn corporate(&self) -> crate::services::CorporateService {
-        crate::services::CorporateService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+        crate::services::CorporateService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+            self.namespace.clone(),
+        )
     }
     pub fn limits(&self) -> crate::services::LimitService {
-        crate::services::LimitService::new(self.hq.clone(), self.engine.clone(), self.config.clone())
+        crate::services::LimitService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+        )
     }
     pub fn calendar(&self) -> crate::calendar::CalendarService {
-        crate::calendar::CalendarService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+        crate::calendar::CalendarService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+            self.namespace.clone(),
+        )
     }
     pub fn builder() -> ClientBuilder {
         ClientBuilder::new()
@@ -202,16 +259,27 @@ impl TdxClient {
     /// Starts the lazy HQ runtime and confirms the protocol handshake with a heartbeat.
     pub fn connect(&self, options: &OperationOptions) -> Result<()> {
         let entry = Instant::now();
-        let context = self.hq.begin_context_at(entry, "connect", &self.config, options)?;
+        let context = self
+            .hq
+            .begin_context_at(entry, "connect", &self.config, options)?;
         let request = CommandRequest::Heartbeat(HeartbeatRequest);
-        let raw = self.hq.execute_raw(&self.engine, &context, request, ChildPurpose::Required, None)?;
+        let raw = self.hq.execute_raw(
+            &self.engine,
+            &context,
+            request,
+            ChildPurpose::Required,
+            None,
+        )?;
         match self.hq.decode_received(&context, raw)?.response {
             CommandResponse::Heartbeat(_) => {
                 context.finish()?;
                 Ok(())
             }
             _ => Err(context.annotate(
-                Error::new(ErrorKind::Protocol, "HQ connection returned a non-heartbeat response"),
+                Error::new(
+                    ErrorKind::Protocol,
+                    "HQ connection returned a non-heartbeat response",
+                ),
                 TimeoutPhase::Decode,
                 None,
             )),
@@ -219,39 +287,73 @@ impl TdxClient {
     }
 
     pub fn codes(&self) -> CodeService {
-        CodeService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+        CodeService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+            self.namespace.clone(),
+        )
     }
 
     /// Reserves a fixed connection. The returned quote service borrows this
     /// unique guard and executes metadata and refresh on that same connection.
     pub fn pin(&self, options: &OperationOptions) -> Result<crate::PinnedSession> {
         let entry = Instant::now();
-        let context = self.hq.begin_context_at(entry, "pin", &self.config, options)?;
+        let context = self
+            .hq
+            .begin_context_at(entry, "pin", &self.config, options)?;
         let mut pin = self.hq.acquire_pin(&self.engine, &context)?;
-        pin.bind_quotes(self.engine.clone(), self.config.clone(), self.namespace.clone());
+        pin.bind_quotes(
+            self.engine.clone(),
+            self.config.clone(),
+            self.namespace.clone(),
+        );
         if let Err(root) = context.finish() {
             return match self.hq.release_pin(&context, &mut pin, Some(root)) {
                 Err(error) => Err(error),
-                Ok(()) => Err(Error::new(ErrorKind::Internal, "pin delivery lost its stop cause")),
+                Ok(()) => Err(Error::new(
+                    ErrorKind::Internal,
+                    "pin delivery lost its stop cause",
+                )),
             };
         }
         Ok(pin)
     }
 
     pub fn quotes(&self) -> QuoteService {
-        QuoteService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+        QuoteService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+            self.namespace.clone(),
+        )
     }
 
     pub fn klines(&self) -> KlineService {
-        KlineService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+        KlineService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+            self.namespace.clone(),
+        )
     }
 
     pub fn minutes(&self) -> MinuteService {
-        MinuteService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+        MinuteService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+            self.namespace.clone(),
+        )
     }
 
     pub fn trades(&self) -> TradeService {
-        TradeService::new(self.hq.clone(), self.engine.clone(), self.config.clone(), self.namespace.clone())
+        TradeService::new(
+            self.hq.clone(),
+            self.engine.clone(),
+            self.config.clone(),
+            self.namespace.clone(),
+        )
     }
 
     pub fn auctions(&self) -> AuctionService {
@@ -269,8 +371,15 @@ impl TdxClient {
 }
 
 pub(crate) fn configured_hosts(config: &ClientConfig) -> Vec<String> {
-    config.endpoints().map(|endpoints| endpoints.iter().map(ToString::to_string).collect())
-        .unwrap_or_else(|| crate::hosts::DEFAULT_7709_HOSTS.iter().map(|host| (*host).to_owned()).collect())
+    config
+        .endpoints()
+        .map(|endpoints| endpoints.iter().map(ToString::to_string).collect())
+        .unwrap_or_else(|| {
+            crate::hosts::DEFAULT_7709_HOSTS
+                .iter()
+                .map(|host| (*host).to_owned())
+                .collect()
+        })
 }
 
 #[cfg(test)]

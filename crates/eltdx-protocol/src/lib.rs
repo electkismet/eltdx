@@ -12,7 +12,9 @@ pub mod unit;
 #[cfg(test)]
 mod round2_tests;
 
+pub use context::{
+    ParseOptions, ParseRawPolicy, PricePrecisionSource, RecordEncoding, RecordRange,
+};
 pub use error::ProtocolError;
-pub use context::{ParseOptions, ParseRawPolicy, PricePrecisionSource, RecordEncoding, RecordRange};
 pub use request::CommandRequest;
 pub use response::CommandResponse;

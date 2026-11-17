@@ -9,18 +9,29 @@ use std::sync::{mpsc, Arc};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use eltdx::f10::{CallQuery, EntryName, F10Client, F10ClientBuilder, JsonValue, ProxyUrl, RequestPayload, ResolverPolicy, TlsPolicy};
+use eltdx::f10::{
+    CallQuery, EntryName, F10Client, F10ClientBuilder, JsonValue, ProxyUrl, RequestPayload,
+    ResolverPolicy, TlsPolicy,
+};
 use eltdx::{CancellationToken, ErrorKind, OperationOptions, RawPolicy};
 
 type TestResult = Result<(), Box<dyn StdError + Send + Sync>>;
 const TABLE: &[u8] = br#"{"ErrorCode":0,"ResultSets":[{"ResultSetKey":"table","ColName":["price","name"],"Content":[[12.50,"TEST"]]}]}"#;
 
-struct Server { address: SocketAddr, thread: JoinHandle<TestResult> }
+struct Server {
+    address: SocketAddr,
+    thread: JoinHandle<TestResult>,
+}
 impl Server {
-    fn start(handler: impl FnOnce(TcpStream) -> TestResult + Send + 'static) -> Result<Self, Box<dyn StdError + Send + Sync>> {
+    fn start(
+        handler: impl FnOnce(TcpStream) -> TestResult + Send + 'static,
+    ) -> Result<Self, Box<dyn StdError + Send + Sync>> {
         Self::at("127.0.0.1:0", handler)
     }
-    fn at(address: &str, handler: impl FnOnce(TcpStream) -> TestResult + Send + 'static) -> Result<Self, Box<dyn StdError + Send + Sync>> {
+    fn at(
+        address: &str,
+        handler: impl FnOnce(TcpStream) -> TestResult + Send + 'static,
+    ) -> Result<Self, Box<dyn StdError + Send + Sync>> {
         let listener = TcpListener::bind(address)?;
         let address = listener.local_addr()?;
         listener.set_nonblocking(true)?;
@@ -34,48 +45,78 @@ impl Server {
                         stream.set_write_timeout(Some(Duration::from_secs(3)))?;
                         return handler(stream);
                     }
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < deadline => thread::sleep(Duration::from_millis(2)),
+                    Err(error)
+                        if error.kind() == std::io::ErrorKind::WouldBlock
+                            && Instant::now() < deadline =>
+                    {
+                        thread::sleep(Duration::from_millis(2))
+                    }
                     Err(error) => return Err(Box::new(error)),
                 }
             }
         });
         Ok(Self { address, thread })
     }
-    fn url(&self) -> String { format!("http://{}/TQLEX", self.address) }
-    fn finish(self) -> TestResult { self.thread.join().map_err(|_| "HTTP fixture panicked")? }
+    fn url(&self) -> String {
+        format!("http://{}/TQLEX", self.address)
+    }
+    fn finish(self) -> TestResult {
+        self.thread.join().map_err(|_| "HTTP fixture panicked")?
+    }
 }
 
-fn read_request(stream: &mut impl Read) -> Result<(String, Vec<u8>), Box<dyn StdError + Send + Sync>> {
+fn read_request(
+    stream: &mut impl Read,
+) -> Result<(String, Vec<u8>), Box<dyn StdError + Send + Sync>> {
     let mut header = Vec::new();
     while !header.ends_with(b"\r\n\r\n") {
         let mut byte = [0_u8];
         stream.read_exact(&mut byte)?;
         header.push(byte[0]);
-        if header.len() > 64 * 1024 { return Err("request header exceeded fixture cap".into()); }
+        if header.len() > 64 * 1024 {
+            return Err("request header exceeded fixture cap".into());
+        }
     }
     let header = String::from_utf8(header)?;
-    let count = header.lines().filter_map(|line| line.split_once(':'))
+    let count = header
+        .lines()
+        .filter_map(|line| line.split_once(':'))
         .find(|(name, _)| name.eq_ignore_ascii_case("content-length"))
-        .map(|(_, value)| value.trim().parse::<usize>()).transpose()?.unwrap_or(0);
+        .map(|(_, value)| value.trim().parse::<usize>())
+        .transpose()?
+        .unwrap_or(0);
     let mut body = vec![0_u8; count];
     stream.read_exact(&mut body)?;
     Ok((header, body))
 }
 fn answer(stream: &mut impl Write, status: &str, extra: &str, body: &[u8]) -> TestResult {
-    write!(stream, "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n{extra}\r\n", body.len())?;
+    write!(
+        stream,
+        "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n{extra}\r\n",
+        body.len()
+    )?;
     stream.write_all(body)?;
     stream.flush()?;
     Ok(())
 }
 fn eof(stream: &mut impl Read) -> TestResult {
     let mut byte = [0_u8];
-    assert_eq!(stream.read(&mut byte)?, 0, "client must retire its connection");
+    assert_eq!(
+        stream.read(&mut byte)?,
+        0,
+        "client must retire its connection"
+    );
     Ok(())
 }
 fn query(entry: &str) -> eltdx::Result<CallQuery> {
-    Ok(CallQuery::new(EntryName::new(entry)?, RequestPayload::Params(vec![JsonValue::from("中文"), JsonValue::from(7_i64)])))
+    Ok(CallQuery::new(
+        EntryName::new(entry)?,
+        RequestPayload::Params(vec![JsonValue::from("中文"), JsonValue::from(7_i64)]),
+    ))
 }
-fn client(url: String) -> eltdx::Result<F10Client> { F10Client::builder().with_base_url(url).build() }
+fn client(url: String) -> eltdx::Result<F10Client> {
+    F10Client::builder().with_base_url(url).build()
+}
 
 #[test]
 fn public_http_call_preserves_unicode_numbers_tables_and_actual_raw() -> TestResult {
@@ -88,10 +129,19 @@ fn public_http_call_preserves_unicode_numbers_tables_and_actual_raw() -> TestRes
         eof(&mut stream)
     })?;
     let client = client(server.url())?;
-    let response = client.call(&query("CWServ.sample")?, &OperationOptions::default().with_raw(RawPolicy::RetainWire))?;
+    let response = client.call(
+        &query("CWServ.sample")?,
+        &OperationOptions::default().with_raw(RawPolicy::RetainWire),
+    )?;
     assert!(response.ok());
     let table = response.first_table().ok_or("missing result table")?;
-    assert_eq!(table.rows()[0].cells()[0].value().as_number().map(|number| number.lexeme()), Some("12.50"));
+    assert_eq!(
+        table.rows()[0].cells()[0]
+            .value()
+            .as_number()
+            .map(|number| number.lexeme()),
+        Some("12.50")
+    );
     let raw = response.meta().raw().ok_or("missing raw")?;
     assert_eq!(raw.payloads()[0].as_ref(), TABLE);
     assert!(raw.wire_frames().ok_or("missing wire")?[0].starts_with(b"HTTP/1.1 200 OK\r\n"));
@@ -103,14 +153,26 @@ fn public_http_call_preserves_unicode_numbers_tables_and_actual_raw() -> TestRes
 
 #[test]
 fn public_route_overrides_are_independent_and_business_failure_is_normal_response() -> TestResult {
-    for entry in ["CWServ.cfg_fx_lbtt", "CWServ.skef10_hk_info", "CWServ.qhf9_info"] {
+    for entry in [
+        "CWServ.cfg_fx_lbtt",
+        "CWServ.skef10_hk_info",
+        "CWServ.qhf9_info",
+    ] {
         let server = Server::start(|mut stream| {
             read_request(&mut stream)?;
-            answer(&mut stream, "200 OK", "", br#"{"ErrorCode":19,"ResultSets":[]}"#)?;
+            answer(
+                &mut stream,
+                "200 OK",
+                "",
+                br#"{"ErrorCode":19,"ResultSets":[]}"#,
+            )?;
             eof(&mut stream)
         })?;
-        let client = F10Client::builder().with_base_url("http://127.0.0.1:1/unused")
-            .with_ladder_url(server.url()).with_international_url(server.url()).build()?;
+        let client = F10Client::builder()
+            .with_base_url("http://127.0.0.1:1/unused")
+            .with_ladder_url(server.url())
+            .with_international_url(server.url())
+            .build()?;
         let response = client.call(&query(entry)?, &OperationOptions::default())?;
         assert_eq!(response.error_code(), Some(19));
         assert!(!response.ok());
@@ -133,13 +195,27 @@ fn public_http_rejects_bad_json_nonobject_status_and_truncated_bodies() -> TestR
         let content = content.to_vec();
         let server = Server::start(move |mut stream| {
             read_request(&mut stream)?;
-            answer(&mut stream, status, if status.starts_with("302") { "Location: /next\r\n" } else { "" }, &content)?;
+            answer(
+                &mut stream,
+                status,
+                if status.starts_with("302") {
+                    "Location: /next\r\n"
+                } else {
+                    ""
+                },
+                &content,
+            )?;
             Ok(())
         })?;
         let client = client(server.url())?;
-        let error = client.call(&query("sample")?, &OperationOptions::default()).unwrap_err();
+        let error = client
+            .call(&query("sample")?, &OperationOptions::default())
+            .unwrap_err();
         assert_eq!(error.kind(), expected);
-        assert!(error.context().iter().any(|(key, value)| key == "domain" && value == "f10"));
+        assert!(error
+            .context()
+            .iter()
+            .any(|(key, value)| key == "domain" && value == "f10"));
         client.close()?;
         server.finish()?;
     }
@@ -149,7 +225,13 @@ fn public_http_rejects_bad_json_nonobject_status_and_truncated_bodies() -> TestR
         Ok(())
     })?;
     let client = client(server.url())?;
-    assert_eq!(client.call(&query("sample")?, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Protocol);
+    assert_eq!(
+        client
+            .call(&query("sample")?, &OperationOptions::default())
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Protocol
+    );
     client.close()?;
     server.finish()
 }
@@ -158,7 +240,13 @@ fn public_http_rejects_bad_json_nonobject_status_and_truncated_bodies() -> TestR
 fn partial_headers_chunked_bodies_bom_and_trailers_are_supported() -> TestResult {
     let server = Server::start(|mut stream| {
         read_request(&mut stream)?;
-        for part in [&b"HTTP/1.1 200 O"[..], &b"K\r\nTransfer-Encoding: chunked\r\n"[..], &b"Connection: close\r\n\r\n"[..]] { stream.write_all(part)?; }
+        for part in [
+            &b"HTTP/1.1 200 O"[..],
+            &b"K\r\nTransfer-Encoding: chunked\r\n"[..],
+            &b"Connection: close\r\n\r\n"[..],
+        ] {
+            stream.write_all(part)?;
+        }
         stream.write_all(b"3\r\n\xef\xbb\xbf\r\n")?;
         write!(stream, "{:x}\r\n", TABLE.len())?;
         stream.write_all(TABLE)?;
@@ -166,13 +254,16 @@ fn partial_headers_chunked_bodies_bom_and_trailers_are_supported() -> TestResult
         eof(&mut stream)
     })?;
     let client = client(server.url())?;
-    assert!(client.call(&query("sample")?, &OperationOptions::default())?.ok());
+    assert!(client
+        .call(&query("sample")?, &OperationOptions::default())?
+        .ok());
     client.close()?;
     server.finish()
 }
 
 #[test]
-fn compressed_payload_retention_differs_from_decoded_json_and_enforces_expansion_cap() -> TestResult {
+fn compressed_payload_retention_differs_from_decoded_json_and_enforces_expansion_cap() -> TestResult
+{
     use flate2::{write::GzEncoder, Compression};
     for limited in [false, true] {
         let mut compressor = GzEncoder::new(Vec::new(), Compression::default());
@@ -181,14 +272,34 @@ fn compressed_payload_retention_differs_from_decoded_json_and_enforces_expansion
         let expected_raw = compressed.clone();
         let server = Server::start(move |mut stream| {
             read_request(&mut stream)?;
-            answer(&mut stream, "200 OK", "Content-Encoding: gzip\r\n", &compressed)?;
+            answer(
+                &mut stream,
+                "200 OK",
+                "Content-Encoding: gzip\r\n",
+                &compressed,
+            )?;
             Ok(())
         })?;
         let builder = F10Client::builder().with_base_url(server.url());
-        let client = if limited { builder.with_max_response_bytes(NonZeroU64::new(12).ok_or("nonzero")?).build()? } else { builder.build()? };
-        let result = client.call(&query("sample")?, &OperationOptions::default().with_raw(RawPolicy::RetainPayload));
-        if limited { assert_eq!(result.unwrap_err().kind(), ErrorKind::LimitExceeded); }
-        else { assert_eq!(result?.meta().raw().ok_or("missing raw")?.payloads()[0].as_ref(), expected_raw); }
+        let client = if limited {
+            builder
+                .with_max_response_bytes(NonZeroU64::new(12).ok_or("nonzero")?)
+                .build()?
+        } else {
+            builder.build()?
+        };
+        let result = client.call(
+            &query("sample")?,
+            &OperationOptions::default().with_raw(RawPolicy::RetainPayload),
+        );
+        if limited {
+            assert_eq!(result.unwrap_err().kind(), ErrorKind::LimitExceeded);
+        } else {
+            assert_eq!(
+                result?.meta().raw().ok_or("missing raw")?.payloads()[0].as_ref(),
+                expected_raw
+            );
+        }
         client.close()?;
         server.finish()?;
     }
@@ -197,16 +308,28 @@ fn compressed_payload_retention_differs_from_decoded_json_and_enforces_expansion
 
 #[test]
 fn operation_bytes_include_retained_copies_before_the_response_is_accepted() -> TestResult {
-    for raw in [RawPolicy::Omit, RawPolicy::RetainPayload, RawPolicy::RetainWire] {
+    for raw in [
+        RawPolicy::Omit,
+        RawPolicy::RetainPayload,
+        RawPolicy::RetainWire,
+    ] {
         let server = Server::start(|mut stream| {
             read_request(&mut stream)?;
             answer(&mut stream, "200 OK", "", TABLE)
         })?;
-        let client = F10Client::builder().with_base_url(server.url())
-            .with_max_operation_bytes(NonZeroU64::new(TABLE.len() as u64).ok_or("nonzero")?).build()?;
-        let result = client.call(&query("sample")?, &OperationOptions::default().with_raw(raw));
-        if raw == RawPolicy::Omit { assert!(result?.ok()); }
-        else { assert_eq!(result.unwrap_err().kind(), ErrorKind::LimitExceeded); }
+        let client = F10Client::builder()
+            .with_base_url(server.url())
+            .with_max_operation_bytes(NonZeroU64::new(TABLE.len() as u64).ok_or("nonzero")?)
+            .build()?;
+        let result = client.call(
+            &query("sample")?,
+            &OperationOptions::default().with_raw(raw),
+        );
+        if raw == RawPolicy::Omit {
+            assert!(result?.ok());
+        } else {
+            assert_eq!(result.unwrap_err().kind(), ErrorKind::LimitExceeded);
+        }
         client.close()?;
         server.finish()?;
     }
@@ -227,7 +350,12 @@ fn report_prerequisite_retains_both_raw_sources_and_shares_streamed_byte_limit()
                 let mut stream = loop {
                     match listener.accept() {
                         Ok((stream, _)) => break stream,
-                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < deadline => thread::sleep(Duration::from_millis(2)),
+                        Err(error)
+                            if error.kind() == std::io::ErrorKind::WouldBlock
+                                && Instant::now() < deadline =>
+                        {
+                            thread::sleep(Duration::from_millis(2))
+                        }
                         Err(error) => return Err(error.into()),
                     }
                 };
@@ -246,12 +374,19 @@ fn report_prerequisite_retains_both_raw_sources_and_shares_streamed_byte_limit()
         });
         let total = 2 * (PERIOD.len() + TABLE.len());
         let limit = if limited { total - 1 } else { total };
-        let client = F10Client::builder().with_base_url(format!("http://{address}/TQLEX"))
-            .with_max_operation_bytes(NonZeroU64::new(limit as u64).ok_or("nonzero")?).build()?;
-        let query = BusinessCompositionQuery::new(AshareCode::new(F10MarketCode::new(1), "600000")?);
-        let result = client.business_composition(&query, &OperationOptions::default().with_raw(RawPolicy::RetainPayload));
-        if limited { assert_eq!(result.unwrap_err().kind(), ErrorKind::LimitExceeded); }
-        else {
+        let client = F10Client::builder()
+            .with_base_url(format!("http://{address}/TQLEX"))
+            .with_max_operation_bytes(NonZeroU64::new(limit as u64).ok_or("nonzero")?)
+            .build()?;
+        let query =
+            BusinessCompositionQuery::new(AshareCode::new(F10MarketCode::new(1), "600000")?);
+        let result = client.business_composition(
+            &query,
+            &OperationOptions::default().with_raw(RawPolicy::RetainPayload),
+        );
+        if limited {
+            assert_eq!(result.unwrap_err().kind(), ErrorKind::LimitExceeded);
+        } else {
             let response = result?;
             assert_eq!(response.meta().sources().len(), 2);
             let raw = response.meta().raw().ok_or("missing composed raw")?;
@@ -270,17 +405,40 @@ fn encoded_chunked_body_and_response_header_caps_apply_while_reading() -> TestRe
     for headers in [false, true] {
         let server = Server::start(move |mut stream| {
             read_request(&mut stream)?;
-            if headers { write!(stream, "HTTP/1.1 200 OK\r\nX-Large: {}\r\nContent-Length: 2\r\n\r\n{{}}", "x".repeat(1000))?; }
-            else { stream.write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n10\r\n1234567890123456\r\n0\r\n\r\n")?; }
+            if headers {
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nX-Large: {}\r\nContent-Length: 2\r\n\r\n{{}}",
+                    "x".repeat(1000)
+                )?;
+            } else {
+                stream.write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n10\r\n1234567890123456\r\n0\r\n\r\n")?;
+            }
             Ok(())
         })?;
         let builder = F10Client::builder().with_base_url(server.url());
-        let client = if headers { builder.with_max_header_bytes(NonZeroUsize::new(512).ok_or("nonzero")?).build()? }
-            else { builder.with_max_encoded_bytes(NonZeroU64::new(14).ok_or("nonzero")?).build()? };
+        let client = if headers {
+            builder
+                .with_max_header_bytes(NonZeroUsize::new(512).ok_or("nonzero")?)
+                .build()?
+        } else {
+            builder
+                .with_max_encoded_bytes(NonZeroU64::new(14).ok_or("nonzero")?)
+                .build()?
+        };
         // Request body must fit the encoded cap too.
-        let query = CallQuery::new(EntryName::new("sample")?, RequestPayload::Body(JsonValue::Object(Vec::new())));
-        let error = client.call(&query, &OperationOptions::default()).unwrap_err();
-        assert_eq!(error.kind(), ErrorKind::LimitExceeded, "headers={headers}: {error:?}");
+        let query = CallQuery::new(
+            EntryName::new("sample")?,
+            RequestPayload::Body(JsonValue::Object(Vec::new())),
+        );
+        let error = client
+            .call(&query, &OperationOptions::default())
+            .unwrap_err();
+        assert_eq!(
+            error.kind(),
+            ErrorKind::LimitExceeded,
+            "headers={headers}: {error:?}"
+        );
         client.close()?;
         server.finish()?;
     }
@@ -300,14 +458,33 @@ fn cancellation_timeout_and_close_during_response_confirm_connection_release() -
         let client = client(server.url())?;
         let worker_client = client.clone();
         let token = CancellationToken::default();
-        let options = OperationOptions::default().with_cancellation(token.clone()).with_timeout(
-            if mode == "timeout" { Duration::from_millis(200) } else { Duration::from_secs(2) });
+        let options = OperationOptions::default()
+            .with_cancellation(token.clone())
+            .with_timeout(if mode == "timeout" {
+                Duration::from_millis(200)
+            } else {
+                Duration::from_secs(2)
+            });
         let worker = thread::spawn(move || worker_client.call(&query("sample")?, &options));
         ready_rx.recv_timeout(Duration::from_secs(2))?;
-        if mode == "cancel" { token.cancel(); }
-        if mode == "close" { client.close()?; }
-        let error = worker.join().map_err(|_| "client worker panic")?.unwrap_err();
-        assert_eq!(error.kind(), match mode { "cancel" => ErrorKind::Cancelled, "timeout" => ErrorKind::Timeout, _ => ErrorKind::Closed });
+        if mode == "cancel" {
+            token.cancel();
+        }
+        if mode == "close" {
+            client.close()?;
+        }
+        let error = worker
+            .join()
+            .map_err(|_| "client worker panic")?
+            .unwrap_err();
+        assert_eq!(
+            error.kind(),
+            match mode {
+                "cancel" => ErrorKind::Cancelled,
+                "timeout" => ErrorKind::Timeout,
+                _ => ErrorKind::Closed,
+            }
+        );
         client.close()?;
         server.finish()?;
     }
@@ -318,15 +495,24 @@ fn certificate() -> Result<(Vec<u8>, Arc<rustls::ServerConfig>), Box<dyn StdErro
     let generated = rcgen::generate_simple_self_signed(vec!["f10.fixture.test".to_owned()])?;
     let der = generated.cert.der().to_vec();
     let key = rustls::pki_types::PrivatePkcs8KeyDer::from(generated.key_pair.serialize_der());
-    let config = rustls::ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
-        .with_safe_default_protocol_versions()?.with_no_client_auth()
-        .with_single_cert(vec![rustls::pki_types::CertificateDer::from(der.clone())], key.into())?;
+    let config = rustls::ServerConfig::builder_with_provider(Arc::new(
+        rustls::crypto::ring::default_provider(),
+    ))
+    .with_safe_default_protocol_versions()?
+    .with_no_client_auth()
+    .with_single_cert(
+        vec![rustls::pki_types::CertificateDer::from(der.clone())],
+        key.into(),
+    )?;
     Ok((der, Arc::new(config)))
 }
 
 /// Minimal independent UDP DNS A/AAAA authority for f10.fixture.test. It returns
 /// a refused IPv4 address first and a listening IPv6 address second when asked.
-fn dns_server(address: SocketAddr) -> Result<(SocketAddr, mpsc::Sender<()>, JoinHandle<TestResult>), Box<dyn StdError + Send + Sync>> {
+fn dns_server(
+    address: SocketAddr,
+) -> Result<(SocketAddr, mpsc::Sender<()>, JoinHandle<TestResult>), Box<dyn StdError + Send + Sync>>
+{
     let socket = UdpSocket::bind("127.0.0.1:0")?;
     socket.set_read_timeout(Some(Duration::from_millis(30)))?;
     let local = socket.local_addr()?;
@@ -337,17 +523,43 @@ fn dns_server(address: SocketAddr) -> Result<(SocketAddr, mpsc::Sender<()>, Join
             let mut bytes = [0_u8; 2048];
             let (count, peer) = match socket.recv_from(&mut bytes) {
                 Ok(value) => value,
-                Err(error) if matches!(error.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) => continue,
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    continue
+                }
                 Err(error) => return Err(Box::new(error) as Box<dyn StdError + Send + Sync>),
             };
-            if count < 17 { return Err("short DNS query".into()); }
+            if count < 17 {
+                return Err("short DNS query".into());
+            }
             let mut end = 12;
-            while bytes[end] != 0 { end += bytes[end] as usize + 1; }
+            while bytes[end] != 0 {
+                end += bytes[end] as usize + 1;
+            }
             end += 1;
             let kind = u16::from_be_bytes([bytes[end], bytes[end + 1]]);
-            let payload = match kind { 1 => Some(vec![127, 0, 0, 1]), 28 if address.is_ipv6() => Some(std::net::Ipv6Addr::LOCALHOST.octets().to_vec()), _ => None };
+            let payload = match kind {
+                1 => Some(vec![127, 0, 0, 1]),
+                28 if address.is_ipv6() => Some(std::net::Ipv6Addr::LOCALHOST.octets().to_vec()),
+                _ => None,
+            };
             let mut response = Vec::from(&bytes[..2]);
-            response.extend_from_slice(&[0x81, 0x80, 0, 1, 0, u8::from(payload.is_some()), 0, 0, 0, 0]);
+            response.extend_from_slice(&[
+                0x81,
+                0x80,
+                0,
+                1,
+                0,
+                u8::from(payload.is_some()),
+                0,
+                0,
+                0,
+                0,
+            ]);
             response.extend_from_slice(&bytes[12..end + 4]);
             if let Some(payload) = payload {
                 response.extend_from_slice(&[0xc0, 0x0c]);
@@ -375,9 +587,17 @@ fn https_uses_custom_roots_sni_and_ipv4_failure_then_ipv6_fallback() -> TestResu
         Ok(())
     })?;
     let (dns, stop, dns_thread) = dns_server(server.address)?;
-    let client = F10Client::builder().with_base_url(format!("https://f10.fixture.test:{}/TQLEX", server.address.port()))
-        .with_resolver(ResolverPolicy::Nameservers(vec![dns])).with_tls(TlsPolicy::CustomRoots(vec![der])).build()?;
-    assert!(client.call(&query("sample")?, &OperationOptions::default())?.ok());
+    let client = F10Client::builder()
+        .with_base_url(format!(
+            "https://f10.fixture.test:{}/TQLEX",
+            server.address.port()
+        ))
+        .with_resolver(ResolverPolicy::Nameservers(vec![dns]))
+        .with_tls(TlsPolicy::CustomRoots(vec![der]))
+        .build()?;
+    assert!(client
+        .call(&query("sample")?, &OperationOptions::default())?
+        .ok());
     client.close()?;
     stop.send(())?;
     dns_thread.join().map_err(|_| "DNS fixture panic")??;
@@ -403,11 +623,21 @@ fn explicit_connect_proxy_keeps_tls_hostname_and_rejects_untrusted_certificate()
             }
             Ok(())
         })?;
-        let client = F10Client::builder().with_base_url("https://f10.fixture.test/TQLEX")
+        let client = F10Client::builder()
+            .with_base_url("https://f10.fixture.test/TQLEX")
             .with_proxy(Some(ProxyUrl::new(&server.url().replace("/TQLEX", "/"))?))
-            .with_tls(TlsPolicy::CustomRoots(if trusted { vec![der] } else { vec![certificate()?.0] })).build()?;
+            .with_tls(TlsPolicy::CustomRoots(if trusted {
+                vec![der]
+            } else {
+                vec![certificate()?.0]
+            }))
+            .build()?;
         let response = client.call(&query("sample")?, &OperationOptions::default());
-        if trusted { assert!(response?.ok()); } else { assert_eq!(response.unwrap_err().kind(), ErrorKind::Connection); }
+        if trusted {
+            assert!(response?.ok());
+        } else {
+            assert_eq!(response.unwrap_err().kind(), ErrorKind::Connection);
+        }
         client.close()?;
         server.finish()?;
     }
@@ -418,15 +648,24 @@ fn explicit_connect_proxy_keeps_tls_hostname_and_rejects_untrusted_certificate()
 fn dns_cancellation_retires_pending_resolver_without_connecting() -> TestResult {
     let socket = UdpSocket::bind("127.0.0.1:0")?;
     socket.set_read_timeout(Some(Duration::from_secs(2)))?;
-    let client = F10ClientBuilder::new().with_base_url("http://never.fixture.test:9000/TQLEX")
-        .with_resolver(ResolverPolicy::Nameservers(vec![socket.local_addr()?])).build()?;
+    let client = F10ClientBuilder::new()
+        .with_base_url("http://never.fixture.test:9000/TQLEX")
+        .with_resolver(ResolverPolicy::Nameservers(vec![socket.local_addr()?]))
+        .build()?;
     let worker_client = client.clone();
     let token = CancellationToken::default();
     let options = OperationOptions::default().with_cancellation(token.clone());
     let worker = thread::spawn(move || worker_client.call(&query("sample")?, &options));
     socket.recv_from(&mut [0_u8; 2048])?;
     token.cancel();
-    assert_eq!(worker.join().map_err(|_| "DNS client panic")?.unwrap_err().kind(), ErrorKind::Cancelled);
+    assert_eq!(
+        worker
+            .join()
+            .map_err(|_| "DNS client panic")?
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Cancelled
+    );
     client.close()?;
     Ok(())
 }
@@ -452,16 +691,29 @@ fn cancelled_tls_and_connect_proxy_waits_confirm_socket_release() -> TestResult 
         })?;
         let builder = F10Client::builder().with_tls(TlsPolicy::CustomRoots(vec![certificate()?.0]));
         let client = if proxy {
-            builder.with_base_url("https://f10.fixture.test/TQLEX")
-                .with_proxy(Some(ProxyUrl::new(&server.url().replace("/TQLEX", "/"))?)).build()?
-        } else { builder.with_base_url(server.url().replacen("http:", "https:", 1)).build()? };
+            builder
+                .with_base_url("https://f10.fixture.test/TQLEX")
+                .with_proxy(Some(ProxyUrl::new(&server.url().replace("/TQLEX", "/"))?))
+                .build()?
+        } else {
+            builder
+                .with_base_url(server.url().replacen("http:", "https:", 1))
+                .build()?
+        };
         let copy = client.clone();
         let token = CancellationToken::default();
         let options = OperationOptions::default().with_cancellation(token.clone());
         let worker = thread::spawn(move || copy.call(&query("sample")?, &options));
         ready_rx.recv_timeout(Duration::from_secs(2))?;
         token.cancel();
-        assert_eq!(worker.join().map_err(|_| "cancel client panic")?.unwrap_err().kind(), ErrorKind::Cancelled);
+        assert_eq!(
+            worker
+                .join()
+                .map_err(|_| "cancel client panic")?
+                .unwrap_err()
+                .kind(),
+            ErrorKind::Cancelled
+        );
         client.close()?;
         server.finish()?;
     }
@@ -473,7 +725,9 @@ fn environment_proxy_variables_do_not_affect_the_explicit_none_policy() -> TestR
     const CHILD: &str = "ELTDX_F10_PROXY_ISOLATION_CHILD";
     if let Ok(url) = std::env::var(CHILD) {
         let client = client(url)?;
-        assert!(client.call(&query("sample")?, &OperationOptions::default())?.ok());
+        assert!(client
+            .call(&query("sample")?, &OperationOptions::default())?
+            .ok());
         return Ok(client.close()?);
     }
     let server = Server::start(|mut stream| {
@@ -484,11 +738,17 @@ fn environment_proxy_variables_do_not_affect_the_explicit_none_policy() -> TestR
     // Configure only the subprocess environment; do not race other tests by
     // mutating this process's HTTP(S)_PROXY or NO_PROXY settings.
     let status = std::process::Command::new(std::env::current_exe()?)
-        .arg("--exact").arg("environment_proxy_variables_do_not_affect_the_explicit_none_policy")
-        .env(CHILD, server.url()).env("HTTP_PROXY", "http://127.0.0.1:1")
-        .env("HTTPS_PROXY", "http://127.0.0.1:1").env("ALL_PROXY", "http://127.0.0.1:1")
-        .env("http_proxy", "http://127.0.0.1:1").env("https_proxy", "http://127.0.0.1:1")
-        .env("NO_PROXY", "").env("no_proxy", "").status()?;
+        .arg("--exact")
+        .arg("environment_proxy_variables_do_not_affect_the_explicit_none_policy")
+        .env(CHILD, server.url())
+        .env("HTTP_PROXY", "http://127.0.0.1:1")
+        .env("HTTPS_PROXY", "http://127.0.0.1:1")
+        .env("ALL_PROXY", "http://127.0.0.1:1")
+        .env("http_proxy", "http://127.0.0.1:1")
+        .env("https_proxy", "http://127.0.0.1:1")
+        .env("NO_PROXY", "")
+        .env("no_proxy", "")
+        .status()?;
     assert!(status.success());
     server.finish()
 }
@@ -502,7 +762,13 @@ fn successful_connect_is_idempotent_and_closed_owner_rejects_before_network() ->
     server.finish()?;
     assert_eq!(client.diagnostics()?.completed_requests(), 1);
     client.close()?;
-    assert_eq!(client.connect(&OperationOptions::default()).unwrap_err().kind(), ErrorKind::Closed);
+    assert_eq!(
+        client
+            .connect(&OperationOptions::default())
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Closed
+    );
     Ok(())
 }
 
@@ -519,12 +785,20 @@ fn simultaneous_connect_calls_share_one_transport_probe() -> TestResult {
         release_rx.recv_timeout(Duration::from_secs(2))?;
         let session = rustls::ServerConnection::new(tls)?;
         let mut secured = rustls::StreamOwned::new(session, stream);
-        while secured.conn.is_handshaking() { secured.conn.complete_io(&mut secured.sock)?; }
+        while secured.conn.is_handshaking() {
+            secured.conn.complete_io(&mut secured.sock)?;
+        }
         Ok(())
     })?;
     let (dns, stop, dns_thread) = dns_server(server.address)?;
-    let client = F10Client::builder().with_base_url(format!("https://f10.fixture.test:{}/TQLEX", server.address.port()))
-        .with_resolver(ResolverPolicy::Nameservers(vec![dns])).with_tls(TlsPolicy::CustomRoots(vec![der])).build()?;
+    let client = F10Client::builder()
+        .with_base_url(format!(
+            "https://f10.fixture.test:{}/TQLEX",
+            server.address.port()
+        ))
+        .with_resolver(ResolverPolicy::Nameservers(vec![dns]))
+        .with_tls(TlsPolicy::CustomRoots(vec![der]))
+        .build()?;
     let first_client = client.clone();
     let first = thread::spawn(move || first_client.connect(&OperationOptions::default()));
     entered_rx.recv_timeout(Duration::from_secs(2))?;
@@ -549,8 +823,10 @@ fn simultaneous_connect_calls_share_one_transport_probe() -> TestResult {
 fn connect_waiter_cancellation_keeps_the_first_probe_running() -> TestResult {
     let dns = UdpSocket::bind("127.0.0.1:0")?;
     dns.set_read_timeout(Some(Duration::from_secs(2)))?;
-    let client = F10Client::builder().with_base_url("https://pending.fixture.test/TQLEX")
-        .with_resolver(ResolverPolicy::Nameservers(vec![dns.local_addr()?])).build()?;
+    let client = F10Client::builder()
+        .with_base_url("https://pending.fixture.test/TQLEX")
+        .with_resolver(ResolverPolicy::Nameservers(vec![dns.local_addr()?]))
+        .build()?;
     let first_token = CancellationToken::default();
     let first_options = OperationOptions::default().with_cancellation(first_token.clone());
     let first_client = client.clone();
@@ -561,10 +837,24 @@ fn connect_waiter_cancellation_keeps_the_first_probe_running() -> TestResult {
     let waiter_client = client.clone();
     let waiter = thread::spawn(move || waiter_client.connect(&waiter_options));
     waiter_token.cancel();
-    assert_eq!(waiter.join().map_err(|_| "connect waiter panic")?.unwrap_err().kind(), ErrorKind::Cancelled);
+    assert_eq!(
+        waiter
+            .join()
+            .map_err(|_| "connect waiter panic")?
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Cancelled
+    );
     assert!(!first.is_finished());
     first_token.cancel();
-    assert_eq!(first.join().map_err(|_| "first connect panic")?.unwrap_err().kind(), ErrorKind::Cancelled);
+    assert_eq!(
+        first
+            .join()
+            .map_err(|_| "first connect panic")?
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Cancelled
+    );
     client.close()?;
     Ok(())
 }
@@ -579,9 +869,17 @@ fn invalid_certificate_hostname_is_rejected_even_when_root_is_trusted() -> TestR
         Ok(())
     })?;
     // The certificate names f10.fixture.test, not this numeric loopback address.
-    let client = F10Client::builder().with_base_url(server.url().replacen("http:", "https:", 1))
-        .with_tls(TlsPolicy::CustomRoots(vec![der])).build()?;
-    assert_eq!(client.call(&query("sample")?, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Connection);
+    let client = F10Client::builder()
+        .with_base_url(server.url().replacen("http:", "https:", 1))
+        .with_tls(TlsPolicy::CustomRoots(vec![der]))
+        .build()?;
+    assert_eq!(
+        client
+            .call(&query("sample")?, &OperationOptions::default())
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Connection
+    );
     client.close()?;
     server.finish()
 }
@@ -592,18 +890,30 @@ fn request_header_order_keeps_separated_duplicate_names() -> TestResult {
     let server = Server::start(|mut stream| {
         let (headers, _) = read_request(&mut stream)?;
         let lines: Vec<_> = headers.lines().collect();
-        let first = lines.iter().position(|line| *line == "X-Order: first").ok_or("missing first header")?;
+        let first = lines
+            .iter()
+            .position(|line| *line == "X-Order: first")
+            .ok_or("missing first header")?;
         assert_eq!(lines[first + 1], "X-Between: middle");
         assert_eq!(lines[first + 2], "X-Order: last");
-        assert!(lines.iter().any(|line| *line == "Accept: application/custom"));
+        assert!(lines
+            .iter()
+            .any(|line| *line == "Accept: application/custom"));
         answer(&mut stream, "200 OK", "", TABLE)?;
         eof(&mut stream)
     })?;
-    let client = F10Client::builder().with_base_url(server.url()).with_headers(vec![
-        Header::new("Accept", "application/custom")?, Header::new("X-Order", "first")?,
-        Header::new("X-Between", "middle")?, Header::new("X-Order", "last")?,
-    ]).build()?;
-    assert!(client.call(&query("sample")?, &OperationOptions::default())?.ok());
+    let client = F10Client::builder()
+        .with_base_url(server.url())
+        .with_headers(vec![
+            Header::new("Accept", "application/custom")?,
+            Header::new("X-Order", "first")?,
+            Header::new("X-Between", "middle")?,
+            Header::new("X-Order", "last")?,
+        ])
+        .build()?;
+    assert!(client
+        .call(&query("sample")?, &OperationOptions::default())?
+        .ok());
     client.close()?;
     server.finish()
 }
@@ -616,9 +926,19 @@ fn truncated_compression_invalid_chunks_and_short_headers_are_protocol_errors() 
         &b"HTTP/1.1 200 OK\r\nContent-Len"[..],
     ] {
         let bytes = bytes.to_vec();
-        let server = Server::start(move |mut stream| { read_request(&mut stream)?; stream.write_all(&bytes)?; Ok(()) })?;
+        let server = Server::start(move |mut stream| {
+            read_request(&mut stream)?;
+            stream.write_all(&bytes)?;
+            Ok(())
+        })?;
         let client = client(server.url())?;
-        assert_eq!(client.call(&query("sample")?, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Protocol);
+        assert_eq!(
+            client
+                .call(&query("sample")?, &OperationOptions::default())
+                .unwrap_err()
+                .kind(),
+            ErrorKind::Protocol
+        );
         client.close()?;
         server.finish()?;
     }
@@ -629,14 +949,18 @@ fn truncated_compression_invalid_chunks_and_short_headers_are_protocol_errors() 
 fn queue_admission_honors_cancellation_before_a_fifth_worker_starts() -> TestResult {
     let dns = UdpSocket::bind("127.0.0.1:0")?;
     dns.set_read_timeout(Some(Duration::from_secs(2)))?;
-    let client = F10Client::builder().with_base_url("http://pending.fixture.test:9000/TQLEX")
-        .with_resolver(ResolverPolicy::Nameservers(vec![dns.local_addr()?])).build()?;
+    let client = F10Client::builder()
+        .with_base_url("http://pending.fixture.test:9000/TQLEX")
+        .with_resolver(ResolverPolicy::Nameservers(vec![dns.local_addr()?]))
+        .build()?;
     let token = CancellationToken::default();
     let mut workers = Vec::new();
     for _ in 0..4 {
         let client = client.clone();
         let options = OperationOptions::default().with_cancellation(token.clone());
-        workers.push(thread::spawn(move || client.call(&query("sample")?, &options)));
+        workers.push(thread::spawn(move || {
+            client.call(&query("sample")?, &options)
+        }));
         dns.recv_from(&mut [0_u8; 2048])?;
     }
     let queued_token = CancellationToken::default();
@@ -644,9 +968,25 @@ fn queue_admission_honors_cancellation_before_a_fifth_worker_starts() -> TestRes
     let options = OperationOptions::default().with_cancellation(queued_token.clone());
     let queued = thread::spawn(move || queued_client.call(&query("sample")?, &options));
     queued_token.cancel();
-    assert_eq!(queued.join().map_err(|_| "queue client panic")?.unwrap_err().kind(), ErrorKind::Cancelled);
+    assert_eq!(
+        queued
+            .join()
+            .map_err(|_| "queue client panic")?
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Cancelled
+    );
     token.cancel();
-    for worker in workers { assert_eq!(worker.join().map_err(|_| "pending client panic")?.unwrap_err().kind(), ErrorKind::Cancelled); }
+    for worker in workers {
+        assert_eq!(
+            worker
+                .join()
+                .map_err(|_| "pending client panic")?
+                .unwrap_err()
+                .kind(),
+            ErrorKind::Cancelled
+        );
+    }
     client.close()?;
     Ok(())
 }
@@ -655,14 +995,29 @@ fn queue_admission_honors_cancellation_before_a_fifth_worker_starts() -> TestRes
 fn close_during_dns_releases_the_owner_and_rejects_future_calls() -> TestResult {
     let dns = UdpSocket::bind("127.0.0.1:0")?;
     dns.set_read_timeout(Some(Duration::from_secs(2)))?;
-    let client = F10Client::builder().with_base_url("http://pending.fixture.test:9000/TQLEX")
-        .with_resolver(ResolverPolicy::Nameservers(vec![dns.local_addr()?])).build()?;
+    let client = F10Client::builder()
+        .with_base_url("http://pending.fixture.test:9000/TQLEX")
+        .with_resolver(ResolverPolicy::Nameservers(vec![dns.local_addr()?]))
+        .build()?;
     let copy = client.clone();
     let worker = thread::spawn(move || copy.call(&query("sample")?, &OperationOptions::default()));
     dns.recv_from(&mut [0_u8; 2048])?;
     client.close()?;
-    assert_eq!(worker.join().map_err(|_| "close client panic")?.unwrap_err().kind(), ErrorKind::Closed);
-    assert_eq!(client.call(&query("sample")?, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Closed);
+    assert_eq!(
+        worker
+            .join()
+            .map_err(|_| "close client panic")?
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Closed
+    );
+    assert_eq!(
+        client
+            .call(&query("sample")?, &OperationOptions::default())
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Closed
+    );
     Ok(())
 }
 
@@ -674,15 +1029,28 @@ fn zlib_requires_checksum_end_and_rejects_trailing_bytes() -> TestResult {
     let compressed = encoder.finish()?;
     for variant in [0, 1, 2] {
         let mut data = compressed.clone();
-        if variant == 1 { data.truncate(data.len() - 2); }
-        if variant == 2 { data.extend_from_slice(b"extra"); }
+        if variant == 1 {
+            data.truncate(data.len() - 2);
+        }
+        if variant == 2 {
+            data.extend_from_slice(b"extra");
+        }
         let server = Server::start(move |mut stream| {
             read_request(&mut stream)?;
-            answer(&mut stream, "200 OK", "Content-Encoding: deflate\r\n", &data)
+            answer(
+                &mut stream,
+                "200 OK",
+                "Content-Encoding: deflate\r\n",
+                &data,
+            )
         })?;
         let client = client(server.url())?;
         let result = client.call(&query("sample")?, &OperationOptions::default());
-        if variant == 0 { assert!(result?.ok()); } else { assert_eq!(result.unwrap_err().kind(), ErrorKind::Protocol); }
+        if variant == 0 {
+            assert!(result?.ok());
+        } else {
+            assert_eq!(result.unwrap_err().kind(), ErrorKind::Protocol);
+        }
         client.close()?;
         server.finish()?;
     }
@@ -701,14 +1069,20 @@ fn gzip_requires_footer_and_preserves_concatenated_member_semantics() -> TestRes
     let mut members = gzip(&TABLE[..split])?;
     members.extend_from_slice(&gzip(&TABLE[split..])?);
     for (mut data, valid) in [(members, true), (gzip(TABLE)?, false)] {
-        if !valid { data.truncate(data.len() - 4); }
+        if !valid {
+            data.truncate(data.len() - 4);
+        }
         let server = Server::start(move |mut stream| {
             read_request(&mut stream)?;
             answer(&mut stream, "200 OK", "Content-Encoding: gzip\r\n", &data)
         })?;
         let client = client(server.url())?;
         let result = client.call(&query("sample")?, &OperationOptions::default());
-        if valid { assert!(result?.ok()); } else { assert_eq!(result.unwrap_err().kind(), ErrorKind::Protocol); }
+        if valid {
+            assert!(result?.ok());
+        } else {
+            assert_eq!(result.unwrap_err().kind(), ErrorKind::Protocol);
+        }
         client.close()?;
         server.finish()?;
     }
@@ -730,7 +1104,10 @@ fn ambiguous_or_unsupported_content_codings_are_rejected() -> TestResult {
         let result = client.call(&query("sample")?, &OperationOptions::default());
         let closed = client.close();
         let joined = server.finish();
-        assert_eq!(result.expect_err("unsupported coding accepted").kind(), ErrorKind::Protocol);
+        assert_eq!(
+            result.expect_err("unsupported coding accepted").kind(),
+            ErrorKind::Protocol
+        );
         closed?;
         joined?;
     }
@@ -748,7 +1125,12 @@ fn opted_in_same_origin_redirect_preserves_post_body_and_request_headers() -> Te
             let mut stream = loop {
                 match listener.accept() {
                     Ok((stream, _)) => break stream,
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < deadline => thread::sleep(Duration::from_millis(2)),
+                    Err(error)
+                        if error.kind() == std::io::ErrorKind::WouldBlock
+                            && Instant::now() < deadline =>
+                    {
+                        thread::sleep(Duration::from_millis(2))
+                    }
                     Err(error) => return Err(Box::new(error)),
                 }
             };
@@ -759,7 +1141,12 @@ fn opted_in_same_origin_redirect_preserves_post_body_and_request_headers() -> Te
             assert_eq!(body, "{\"Params\":[\"中文\",7]}".as_bytes());
             if index == 0 {
                 assert!(header.starts_with("POST /TQLEX?Entry=sample HTTP/1.1\r\n"));
-                answer(&mut stream, "307 Temporary Redirect", "Location: /moved?Entry=sample\r\n", b"")?;
+                answer(
+                    &mut stream,
+                    "307 Temporary Redirect",
+                    "Location: /moved?Entry=sample\r\n",
+                    b"",
+                )?;
             } else {
                 assert!(header.starts_with("POST /moved?Entry=sample HTTP/1.1\r\n"));
                 answer(&mut stream, "200 OK", "", TABLE)?;
@@ -767,10 +1154,17 @@ fn opted_in_same_origin_redirect_preserves_post_body_and_request_headers() -> Te
         }
         Ok(())
     });
-    let client = F10Client::builder().with_base_url(format!("http://{address}/TQLEX")).with_max_redirects(1).build()?;
+    let client = F10Client::builder()
+        .with_base_url(format!("http://{address}/TQLEX"))
+        .with_max_redirects(1)
+        .build()?;
     let response = client.call(&query("sample")?, &OperationOptions::default())?;
     assert!(response.ok());
-    assert!(client.diagnostics()?.active_endpoint().unwrap_or_default().contains("/moved?Entry=sample"));
+    assert!(client
+        .diagnostics()?
+        .active_endpoint()
+        .unwrap_or_default()
+        .contains("/moved?Entry=sample"));
     client.close()?;
     server.join().map_err(|_| "redirect fixture panic")?
 }
@@ -781,24 +1175,47 @@ fn redirect_policy_rejects_cross_origin_method_rewrite_and_limit_exhaustion() ->
         ("307 Temporary Redirect", "http://127.0.0.1:1/other"),
         ("302 Found", "/moved"),
         ("308 Permanent Redirect", "/moved#fragment"),
-        ("307 Temporary Redirect", "http://user:password@127.0.0.1:1/other"),
+        (
+            "307 Temporary Redirect",
+            "http://user:password@127.0.0.1:1/other",
+        ),
     ] {
         let extra = format!("Location: {location}\r\n");
         let server = Server::start(move |mut stream| {
             read_request(&mut stream)?;
             answer(&mut stream, status, &extra, b"")
         })?;
-        let client = F10Client::builder().with_base_url(server.url()).with_max_redirects(1).build()?;
-        assert_eq!(client.call(&query("sample")?, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Protocol);
+        let client = F10Client::builder()
+            .with_base_url(server.url())
+            .with_max_redirects(1)
+            .build()?;
+        assert_eq!(
+            client
+                .call(&query("sample")?, &OperationOptions::default())
+                .unwrap_err()
+                .kind(),
+            ErrorKind::Protocol
+        );
         client.close()?;
         server.finish()?;
     }
     let server = Server::start(|mut stream| {
         read_request(&mut stream)?;
-        answer(&mut stream, "307 Temporary Redirect", "Location: /moved\r\n", b"")
+        answer(
+            &mut stream,
+            "307 Temporary Redirect",
+            "Location: /moved\r\n",
+            b"",
+        )
     })?;
     let client = client(server.url())?;
-    assert_eq!(client.call(&query("sample")?, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::Protocol);
+    assert_eq!(
+        client
+            .call(&query("sample")?, &OperationOptions::default())
+            .unwrap_err()
+            .kind(),
+        ErrorKind::Protocol
+    );
     client.close()?;
     server.finish()
 }

@@ -520,9 +520,10 @@ pub(super) static CASHFLOW_GENERAL: &[Label] = &[
     Label::Include(BALANCE_SHEET_COMMON),
 ];
 
-pub(super) static CASHFLOW_GENERAL_NOTES: &[Label] = &[
-    Label::Pair("T063", "现金流量表补充资料的分组标题，通常不承载数值。"),
-];
+pub(super) static CASHFLOW_GENERAL_NOTES: &[Label] = &[Label::Pair(
+    "T063",
+    "现金流量表补充资料的分组标题，通常不承载数值。",
+)];
 
 pub(super) static CASHFLOW_BANK: &[Label] = &[
     Label::Pair("rq", "报告期"),
@@ -542,7 +543,10 @@ pub(super) static CASHFLOW_BANK: &[Label] = &[
     Label::Pair("T033", "经营活动产生的现金流量净额"),
     Label::Pair("T035", "收回投资收到的现金"),
     Label::Pair("T036", "取得投资收益收到的现金"),
-    Label::Pair("T037", "处置固定资产、无形资产和其他长期资产收回的现金净额（旧字段）"),
+    Label::Pair(
+        "T037",
+        "处置固定资产、无形资产和其他长期资产收回的现金净额（旧字段）",
+    ),
     Label::Pair("T038", "投资活动现金流入小计"),
     Label::Pair("T039", "投资支付的现金"),
     Label::Pair("T041", "购建固定资产、无形资产和其他长期资产支付的现金"),
@@ -846,10 +850,8 @@ pub(super) static MG_DIVIDEND_CF: &[Label] = &[
     Label::Pair("aT007", "发行价格"),
 ];
 
-pub(super) static MG_CAPITAL_001: &[Label] = &[
-    Label::Pair("T003", "日期"),
-    Label::Pair("T004", "总股本"),
-];
+pub(super) static MG_CAPITAL_001: &[Label] =
+    &[Label::Pair("T003", "日期"), Label::Pair("T004", "总股本")];
 
 pub(super) static MG_CAPITAL_002: &[Label] = &[
     Label::Pair("N001", "公告日期"),
@@ -938,10 +940,7 @@ pub(super) static MG_DEEP_ANALYSIS: &[Label] = &[
     Label::Pair("N008", "评级"),
 ];
 
-pub(super) static HK_NAME: &[Label] = &[
-    Label::Pair("name", "名称"),
-    Label::Pair("sc", "市场代码"),
-];
+pub(super) static HK_NAME: &[Label] = &[Label::Pair("name", "名称"), Label::Pair("sc", "市场代码")];
 
 pub(super) static HK_TIPS: &[Label] = &[
     Label::Pair("lb", "类别代码"),
@@ -1208,4 +1207,3 @@ pub(super) static HK_ANALYST_FORECAST: &[Label] = &[
     Label::Pair("N003", "目标价"),
     Label::Pair("N004", "评级"),
 ];
-

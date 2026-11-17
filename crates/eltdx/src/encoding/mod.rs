@@ -18,17 +18,38 @@ pub(crate) enum InvalidBytePolicy {
 /// caller's small byte bound also bounds the reverse lookup work and allocation.
 pub(crate) fn encode_gbk_bounded(value: &str, maximum: usize) -> crate::Result<Vec<u8>> {
     use crate::{Error, ErrorKind};
-    let invalid = || Error::new(ErrorKind::InvalidArgument, "filename must be nonempty strict GBK without NUL and within its byte limit");
-    if value.is_empty() || value.len() > maximum.saturating_mul(4) || value.as_bytes().contains(&0) { return Err(invalid()); }
+    let invalid = || {
+        Error::new(
+            ErrorKind::InvalidArgument,
+            "filename must be nonempty strict GBK without NUL and within its byte limit",
+        )
+    };
+    if value.is_empty() || value.len() > maximum.saturating_mul(4) || value.as_bytes().contains(&0)
+    {
+        return Err(invalid());
+    }
     let mut output = Vec::new();
-    output.try_reserve_exact(maximum).map_err(|error| Error::new(ErrorKind::LimitExceeded, "GBK filename allocation failed").with_source(error))?;
+    output.try_reserve_exact(maximum).map_err(|error| {
+        Error::new(ErrorKind::LimitExceeded, "GBK filename allocation failed").with_source(error)
+    })?;
     for scalar in value.chars() {
         if scalar.is_ascii() {
-            if output.len() == maximum { return Err(invalid()); }
+            if output.len() == maximum {
+                return Err(invalid());
+            }
             output.push(scalar as u8);
         } else {
-            if output.len().checked_add(2).is_none_or(|length| length > maximum) { return Err(invalid()); }
-            let index = gbk_pairs::GBK_PAIRS.iter().position(|candidate| *candidate == u32::from(scalar)).ok_or_else(invalid)?;
+            if output
+                .len()
+                .checked_add(2)
+                .is_none_or(|length| length > maximum)
+            {
+                return Err(invalid());
+            }
+            let index = gbk_pairs::GBK_PAIRS
+                .iter()
+                .position(|candidate| *candidate == u32::from(scalar))
+                .ok_or_else(invalid)?;
             let lead = 0x81 + index / 190;
             let trail_index = index % 190;
             let trail = 0x40 + trail_index + usize::from(trail_index >= 63);
@@ -45,10 +66,14 @@ pub(crate) fn gbk_scalar(lead: u8, trail: u8) -> Option<char> {
     if !(0x81..=0xfe).contains(&lead) || !(0x40..=0xfe).contains(&trail) || trail == 0x7f {
         return None;
     }
-    let index = usize::from(lead - 0x81) * 190 + usize::from(trail - 0x40)
-        - usize::from(trail > 0x7f);
+    let index =
+        usize::from(lead - 0x81) * 190 + usize::from(trail - 0x40) - usize::from(trail > 0x7f);
     let scalar = *gbk_pairs::GBK_PAIRS.get(index)?;
-    if scalar == 0 { None } else { char::from_u32(scalar) }
+    if scalar == 0 {
+        None
+    } else {
+        char::from_u32(scalar)
+    }
 }
 
 /// Emit decoded scalars without allocating a second buffer. On an invalid lead
@@ -81,13 +106,18 @@ pub(crate) fn scan_gbk<E>(
             cursor += 1;
             continue;
         }
-        if let Some(scalar) = bytes.get(cursor + 1).and_then(|trail| gbk_scalar(lead, *trail)) {
+        if let Some(scalar) = bytes
+            .get(cursor + 1)
+            .and_then(|trail| gbk_scalar(lead, *trail))
+        {
             emit(scalar);
             cursor += 2;
             continue;
         }
         had_errors = true;
-        if policy == InvalidBytePolicy::Replace { emit('\u{fffd}'); }
+        if policy == InvalidBytePolicy::Replace {
+            emit('\u{fffd}');
+        }
         cursor += 1;
     }
     boundary()?;

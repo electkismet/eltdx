@@ -42,8 +42,11 @@ pub fn from_runtime(error: eltdx_runtime::RuntimeError) -> PyErr {
 pub fn from_sdk(_py: Python<'_>, error: eltdx::Error) -> PyErr {
     use eltdx::ErrorKind as K;
 
-    if error.kind() == K::LimitExceeded && error.context().iter()
-        .any(|(key, value)| key == "python_kind" && value == "RuntimeError")
+    if error.kind() == K::LimitExceeded
+        && error
+            .context()
+            .iter()
+            .any(|(key, value)| key == "python_kind" && value == "RuntimeError")
     {
         return pyo3::exceptions::PyRuntimeError::new_err(error.message().to_owned());
     }
@@ -56,17 +59,22 @@ pub fn from_sdk(_py: Python<'_>, error: eltdx::Error) -> PyErr {
         K::PoolBusy => "PoolBusy",
         K::PushGap => "PushOverflow",
         K::CloseTimeout => "CloseTimeout",
-        K::Protocol | K::MissingData | K::MetadataUnavailable | K::LimitExceeded
-        | K::ResourceFormat | K::DataNotReady => "Protocol",
-        K::ForkedProcess | K::Cancelled | K::CancelUnconfirmed | K::PinLost | K::Io | K::Internal => {
-            "Internal"
-        }
+        K::Protocol
+        | K::MissingData
+        | K::MetadataUnavailable
+        | K::LimitExceeded
+        | K::ResourceFormat
+        | K::DataNotReady => "Protocol",
+        K::ForkedProcess
+        | K::Cancelled
+        | K::CancelUnconfirmed
+        | K::PinLost
+        | K::Io
+        | K::Internal => "Internal",
         _ => "Internal",
     };
     let mut context = error.context().to_vec();
-    if error.kind() == K::InvalidArgument
-        && !context.iter().any(|(key, _)| key == "python_kind")
-    {
+    if error.kind() == K::InvalidArgument && !context.iter().any(|(key, _)| key == "python_kind") {
         context.push(("python_kind".to_owned(), "ValueError".to_owned()));
     }
     let message = if error.kind() == K::Protocol

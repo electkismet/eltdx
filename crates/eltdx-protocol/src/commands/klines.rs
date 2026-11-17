@@ -229,9 +229,9 @@ fn parse_klines_payload_body(
         let volume_wire_value = get_volume(volume_raw);
         bars.push(KlineBar {
             time,
-            time_raw: time_raw.try_into().map_err(|_| {
-                ProtocolError::invalid_data("klines", "invalid time field")
-            })?,
+            time_raw: time_raw
+                .try_into()
+                .map_err(|_| ProtocolError::invalid_data("klines", "invalid time field"))?,
             open: milli_to_float(open_price_milli),
             close: milli_to_float(close_price_milli),
             high: milli_to_float(high_price_milli),
@@ -303,7 +303,6 @@ fn checked_add(left: i64, right: i64) -> Result<i64, ProtocolError> {
     left.checked_add(right)
         .ok_or_else(|| ProtocolError::invalid_data("klines", "kline price overflow"))
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -14,7 +14,9 @@ pub trait PricePrecisionSource: Send + Sync {
 
     /// Compatibility selection for variable quote ordering only. It does not
     /// enable global precision writes or implicit legacy raw allocations.
-    fn legacy_quote_layout(&self) -> bool { false }
+    fn legacy_quote_layout(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -119,7 +121,9 @@ impl<'a> ParseContext<'a> {
     }
 
     pub(crate) fn legacy_quote_layout(&self) -> bool {
-        self.options.map_or(true, |options| options.price_precision.legacy_quote_layout())
+        self.options.map_or(true, |options| {
+            options.price_precision.legacy_quote_layout()
+        })
     }
 
     pub(crate) fn retains_payload(&self) -> bool {
@@ -168,10 +172,7 @@ impl<'a> ParseContext<'a> {
     pub(crate) fn precision(&self, code: &NormalizedCode) -> Result<PricePrecision, ProtocolError> {
         let Some(options) = self.options else {
             let (divisor, decimal) = crate::unit::legacy_price_precision(code);
-            return Ok(PricePrecision {
-                divisor,
-                decimal,
-            });
+            return Ok(PricePrecision { divisor, decimal });
         };
         let decimal = options.price_precision.security_decimal(code);
         if decimal.is_none() && options.price_precision.legacy_quote_layout() {

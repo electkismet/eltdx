@@ -24,8 +24,18 @@ impl PageProgress {
 
     /// Called before reserving/appending an incoming page. A full record cap
     /// still permits the terminal empty probe, subject to the page cap.
-    pub(crate) fn accept(&mut self, count: usize, requested: usize, limits: CollectionLimits) -> Result<()> {
-        if count > requested { return Err(Error::new(ErrorKind::Protocol, "response page exceeds requested size")); }
+    pub(crate) fn accept(
+        &mut self,
+        count: usize,
+        requested: usize,
+        limits: CollectionLimits,
+    ) -> Result<()> {
+        if count > requested {
+            return Err(Error::new(
+                ErrorKind::Protocol,
+                "response page exceeds requested size",
+            ));
+        }
         let records = self.records.checked_add(count).ok_or_else(offset_error)?;
         if limits.records.is_some_and(|maximum| records > maximum) {
             return Err(limit_error("records", limits.records.unwrap_or(0)));
@@ -41,16 +51,31 @@ impl PageProgress {
         Ok(())
     }
 
-    pub(crate) fn pages(&self) -> usize { self.pages }
-    pub(crate) fn records(&self) -> usize { self.records }
+    pub(crate) fn pages(&self) -> usize {
+        self.pages
+    }
+    pub(crate) fn records(&self) -> usize {
+        self.records
+    }
 }
 
 pub(crate) fn advance_offset(offset: u32, count: usize) -> Result<u32> {
-    offset.checked_add(u32::try_from(count).map_err(|_| offset_error())?).ok_or_else(offset_error)
+    offset
+        .checked_add(u32::try_from(count).map_err(|_| offset_error())?)
+        .ok_or_else(offset_error)
 }
 
 fn limit_error(resource: &'static str, maximum: usize) -> Error {
-    Error::new(ErrorKind::LimitExceeded, "complete collection reached its cap without EOF")
-        .with_context("resource", resource).with_context("limit", format!("{maximum}"))
+    Error::new(
+        ErrorKind::LimitExceeded,
+        "complete collection reached its cap without EOF",
+    )
+    .with_context("resource", resource)
+    .with_context("limit", format!("{maximum}"))
 }
-fn offset_error() -> Error { Error::new(ErrorKind::LimitExceeded, "page count, record count or continuation offset overflows") }
+fn offset_error() -> Error {
+    Error::new(
+        ErrorKind::LimitExceeded,
+        "page count, record count or continuation offset overflows",
+    )
+}

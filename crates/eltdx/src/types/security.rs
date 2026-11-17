@@ -30,9 +30,14 @@ pub struct SecurityId {
 }
 
 impl SecurityId {
-    pub(crate) fn canonical_heap(&mut self) { super::memory::canonical_string(&mut self.number); }
+    pub(crate) fn canonical_heap(&mut self) {
+        super::memory::canonical_string(&mut self.number);
+    }
     pub fn new(market: HqMarket, number: &str) -> Result<Self> {
-        if number.len() != 6 || !number.is_ascii() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+        if number.len() != 6
+            || !number.is_ascii()
+            || !number.bytes().all(|byte| byte.is_ascii_digit())
+        {
             return Err(invalid_code(number));
         }
         Ok(Self {
@@ -70,7 +75,10 @@ impl FromStr for SecurityId {
         } else {
             (None, value)
         };
-        if number.len() != 6 || !number.is_ascii() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+        if number.len() != 6
+            || !number.is_ascii()
+            || !number.bytes().all(|byte| byte.is_ascii_digit())
+        {
             return Err(invalid_code(value));
         }
         let market = match explicit_market {
@@ -88,13 +96,22 @@ impl fmt::Display for SecurityId {
 }
 
 fn infer_market(number: &str) -> Option<HqMarket> {
-    if ["019", "120", "122", "126", "127"].iter().any(|prefix| number.starts_with(prefix)) {
+    if ["019", "120", "122", "126", "127"]
+        .iter()
+        .any(|prefix| number.starts_with(prefix))
+    {
         return None;
     }
-    if ["110", "113", "118"].iter().any(|prefix| number.starts_with(prefix)) {
+    if ["110", "113", "118"]
+        .iter()
+        .any(|prefix| number.starts_with(prefix))
+    {
         return Some(HqMarket::Shanghai);
     }
-    if ["123", "127", "128"].iter().any(|prefix| number.starts_with(prefix)) {
+    if ["123", "127", "128"]
+        .iter()
+        .any(|prefix| number.starts_with(prefix))
+    {
         return Some(HqMarket::Shenzhen);
     }
     match number.as_bytes().first().copied()? {

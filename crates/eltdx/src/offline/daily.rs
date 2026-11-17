@@ -1,19 +1,28 @@
 //! `.day` layout `<IIIIIfII>`, retaining integer source slots independently of raw policy.
-use std::ffi::OsStr;
-use std::path::Path;
+use super::{
+    bars, diagnostic, AppendOptions, CoefficientDecision, Coefficients, DailyBar, Evidence,
+    ReadOptions, ReadResult, RecordKey, SecurityType, WireFloat, WriteReport,
+};
 use crate::error::Result;
 use crate::TradingDate;
-use super::{bars, diagnostic, AppendOptions, CoefficientDecision, Coefficients, DailyBar,
-    Evidence, ReadOptions, ReadResult, RecordKey, SecurityType, WireFloat, WriteReport};
+use std::ffi::OsStr;
+use std::path::Path;
 
 pub fn detect_security_type(filename: &OsStr) -> SecurityType {
-    let name = Path::new(filename).file_name().unwrap_or(filename).to_str().unwrap_or("").to_lowercase();
+    let name = Path::new(filename)
+        .file_name()
+        .unwrap_or(filename)
+        .to_str()
+        .unwrap_or("")
+        .to_lowercase();
     python_legacy::classify_leaf(&name)
 }
 
 fn classify_leaf(name: &str) -> SecurityType {
     let bytes = name.as_bytes();
-    if bytes.len() < 4 { return SecurityType::Unknown; }
+    if bytes.len() < 4 {
+        return SecurityType::Unknown;
+    }
     match (&bytes[..2], &bytes[2..4]) {
         (b"sz", b"00" | b"30") => SecurityType::SzA,
         (b"sz", b"20") => SecurityType::SzB,
@@ -32,7 +41,9 @@ fn classify_leaf(name: &str) -> SecurityType {
 #[doc(hidden)]
 pub mod python_legacy {
     /// Receives the leaf normalized by the caller's Path/lower implementation.
-    pub fn classify_leaf(name: &str) -> super::SecurityType { super::classify_leaf(name) }
+    pub fn classify_leaf(name: &str) -> super::SecurityType {
+        super::classify_leaf(name)
+    }
 }
 
 pub fn security_coefficients(filename: &OsStr) -> CoefficientDecision {
@@ -44,18 +55,34 @@ pub fn security_coefficients(filename: &OsStr) -> CoefficientDecision {
         ShIndex | SzIndex => (0.01, 1.0),
         ShFund | ShBond => (0.001, 1.0),
     };
-    CoefficientDecision::new(Coefficients::source(price, volume), security_type,
-        if security_type == Unknown { Evidence::Unknown } else { Evidence::Inferred })
+    CoefficientDecision::new(
+        Coefficients::source(price, volume),
+        security_type,
+        if security_type == Unknown {
+            Evidence::Unknown
+        } else {
+            Evidence::Inferred
+        },
+    )
 }
 
-pub fn read(path: &Path, coefficients: Option<Coefficients>, options: &ReadOptions) -> Result<ReadResult<DailyBar>> {
+pub fn read(
+    path: &Path,
+    coefficients: Option<Coefficients>,
+    options: &ReadOptions,
+) -> Result<ReadResult<DailyBar>> {
     let decision = security_coefficients(path.file_name().unwrap_or(path.as_os_str()));
     let selected = coefficients.unwrap_or(decision.coefficients());
-    let result = bars::read_records(path, options, |record, retain| decode(record, selected, retain))?;
+    let result = bars::read_records(path, options, |record, retain| {
+        decode(record, selected, retain)
+    })?;
     if coefficients.is_none() && decision.is_fallback() {
         let tail = result.ignored_tail_bytes();
         let mut diagnostics = result.diagnostics().to_vec();
-        diagnostics.push(diagnostic("coefficients", "unknown security prefix: source fallback price=0.01, volume=0.01"));
+        diagnostics.push(diagnostic(
+            "coefficients",
+            "unknown security prefix: source fallback price=0.01, volume=0.01",
+        ));
         return Ok(ReadResult::new(result.into_rows(), tail, diagnostics));
     }
     Ok(result)
@@ -64,40 +91,78 @@ pub fn read(path: &Path, coefficients: Option<Coefficients>, options: &ReadOptio
 fn decode(record: &[u8; 32], coefficients: Coefficients, retain: bool) -> Result<DailyBar> {
     let raw = bars::python_legacy::decode(record, bars::python_legacy::Layout::Daily);
     let date = bars::decode_date(raw.date)?;
-    let integers = [raw.prices[0], raw.prices[1], raw.prices[2], raw.prices[3], raw.volume];
-    Ok(DailyBar::decoded(date, integers, coefficients, WireFloat::from_bits(raw.amount),
-        raw.tail, retain.then_some(raw.raw)))
+    let integers = [
+        raw.prices[0],
+        raw.prices[1],
+        raw.prices[2],
+        raw.prices[3],
+        raw.volume,
+    ];
+    Ok(DailyBar::decoded(
+        date,
+        integers,
+        coefficients,
+        WireFloat::from_bits(raw.amount),
+        raw.tail,
+        retain.then_some(raw.raw),
+    ))
 }
 
 pub fn encode(bar: &DailyBar, coefficients: Coefficients) -> Result<[u8; 32]> {
     let integers = match bar.integers {
         Some((integers, original)) if original == coefficients => integers,
-        _ => [bars::round_u32(bar.open() / coefficients.price(), "open")?,
+        _ => [
+            bars::round_u32(bar.open() / coefficients.price(), "open")?,
             bars::round_u32(bar.high() / coefficients.price(), "high")?,
             bars::round_u32(bar.low() / coefficients.price(), "low")?,
             bars::round_u32(bar.close() / coefficients.price(), "close")?,
-            bars::round_u32(bar.volume() / coefficients.volume(), "volume")?],
+            bars::round_u32(bar.volume() / coefficients.volume(), "volume")?,
+        ],
     };
     use bars::python_legacy::{Layout, Slot};
-    let fields = bars::python_legacy::encode_fields(Layout::Daily, |slot| Ok::<_, crate::Error>(match slot {
-        Slot::Date => bars::date_integer(bar.date()), Slot::Price(index) => integers[index],
-        Slot::Amount => bar.amount().bits(), Slot::Volume => integers[4], Slot::Tail => bar.adjust_flag(),
-        Slot::Time => unreachable!("daily layout has no time slot"),
-    }))?;
+    let fields = bars::python_legacy::encode_fields(Layout::Daily, |slot| {
+        Ok::<_, crate::Error>(match slot {
+            Slot::Date => bars::date_integer(bar.date()),
+            Slot::Price(index) => integers[index],
+            Slot::Amount => bar.amount().bits(),
+            Slot::Volume => integers[4],
+            Slot::Tail => bar.adjust_flag(),
+            Slot::Time => unreachable!("daily layout has no time slot"),
+        })
+    })?;
     bars::python_legacy::pack_bits(Layout::Daily, &fields)
         .ok_or_else(|| super::invalid("invalid daily encoder slots"))
 }
 
 pub fn last_date(path: &Path) -> Result<Option<TradingDate>> {
-    bars::last_record(path)?.map(|record| bars::decode_date(bars::u32_at(&record, 0))).transpose()
+    bars::last_record(path)?
+        .map(|record| bars::decode_date(bars::u32_at(&record, 0)))
+        .transpose()
 }
 
-pub fn append(path: &Path, rows: &[DailyBar], coefficients: Coefficients, options: &AppendOptions) -> Result<WriteReport> {
-    bars::append_records(path, rows, options, true, |row| encode(row, coefficients),
-        |row| RecordKey::Date(row.date()), |path| Ok(last_date(path)?.map(RecordKey::Date)))
+pub fn append(
+    path: &Path,
+    rows: &[DailyBar],
+    coefficients: Coefficients,
+    options: &AppendOptions,
+) -> Result<WriteReport> {
+    bars::append_records(
+        path,
+        rows,
+        options,
+        true,
+        |row| encode(row, coefficients),
+        |row| RecordKey::Date(row.date()),
+        |path| Ok(last_date(path)?.map(RecordKey::Date)),
+    )
 }
 
 /// Appends with the source daily sync policy. `Coefficients::default()` is .01/.01.
-pub fn write(path: &Path, rows: &[DailyBar], coefficients: Coefficients, options: &AppendOptions) -> Result<WriteReport> {
+pub fn write(
+    path: &Path,
+    rows: &[DailyBar],
+    coefficients: Coefficients,
+    options: &AppendOptions,
+) -> Result<WriteReport> {
     append(path, rows, coefficients, options)
 }

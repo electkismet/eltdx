@@ -33,8 +33,8 @@ use crate::memory::MemoryBudget;
 use crate::pin::PinIdentity;
 use crate::push::PushFrame;
 use crate::request::{
-    ActiveLease, Admission, Promotion, RequestAttempt, RequestState, RequestWireIdentity,
-    RequestDeadlinePolicy, RetryDecision, RetryPolicy, TerminalBatch, TerminalKind,
+    ActiveLease, Admission, Promotion, RequestAttempt, RequestDeadlinePolicy, RequestState,
+    RequestWireIdentity, RetryDecision, RetryPolicy, TerminalBatch, TerminalKind,
     TerminalNotification,
 };
 use crate::slot::{
@@ -66,12 +66,22 @@ pub struct ConnectionLimit {
 impl ConnectionLimit {
     pub fn new(maximum: usize) -> Result<Self, RuntimeError> {
         if maximum == 0 || maximum > Semaphore::MAX_PERMITS {
-            return Err(RuntimeError::invalid_argument("ValueError", "connection limit is outside the supported range"));
+            return Err(RuntimeError::invalid_argument(
+                "ValueError",
+                "connection limit is outside the supported range",
+            ));
         }
-        Ok(Self { maximum, permits: Arc::new(Semaphore::new(maximum)) })
+        Ok(Self {
+            maximum,
+            permits: Arc::new(Semaphore::new(maximum)),
+        })
     }
-    pub const fn maximum(&self) -> usize { self.maximum }
-    pub fn available(&self) -> usize { self.permits.available_permits() }
+    pub const fn maximum(&self) -> usize {
+        self.maximum
+    }
+    pub fn available(&self) -> usize {
+        self.permits.available_permits()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -445,12 +455,21 @@ struct PushConsumption {
     readers: usize,
 }
 
-struct PushReadGuard { engine: Engine }
+struct PushReadGuard {
+    engine: Engine,
+}
 
 impl Drop for PushReadGuard {
     fn drop(&mut self) {
-        if self.engine.check_pid().is_err() { return; }
-        let mut state = self.engine.inner.push_consumption.lock().unwrap_or_else(|poison| poison.into_inner());
+        if self.engine.check_pid().is_err() {
+            return;
+        }
+        let mut state = self
+            .engine
+            .inner
+            .push_consumption
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         state.readers -= 1;
     }
 }
@@ -466,15 +485,25 @@ impl PushConsumer {
 
 impl Drop for PushConsumer {
     fn drop(&mut self) {
-        if self.engine.check_pid().is_err() { return; }
-        let mut state = self.engine.inner.push_consumption.lock().unwrap_or_else(|poison| poison.into_inner());
-        if state.controlled == Some(self.identity) { state.controlled = None; }
+        if self.engine.check_pid().is_err() {
+            return;
+        }
+        let mut state = self
+            .engine
+            .inner
+            .push_consumption
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
+        if state.controlled == Some(self.identity) {
+            state.controlled = None;
+        }
     }
 }
 
 fn push_consumer_busy() -> RuntimeError {
     RuntimeError::PoolBusy {
-        message: "push queue consumption is reserved by another consumer".to_owned(), capacity: 1,
+        message: "push queue consumption is reserved by another consumer".to_owned(),
+        capacity: 1,
         context: vec![("resource".to_owned(), "push_consumer".to_owned())],
     }
 }
@@ -738,7 +767,10 @@ impl ControlCell {
         confirmation: Arc<Completion<Result<(), RuntimeError>>>,
     ) -> Result<(), RuntimeError> {
         let mut state = lock_mutex(&self.state, "runtime control")?;
-        if result_terminal.as_ref().is_some_and(|terminal| terminal.load(Ordering::Acquire)) {
+        if result_terminal
+            .as_ref()
+            .is_some_and(|terminal| terminal.load(Ordering::Acquire))
+        {
             drop(state);
             confirmation.publish(Ok(()));
             return Ok(());
@@ -746,7 +778,10 @@ impl ControlCell {
         state
             .cancellations
             .entry(request_id)
-            .or_insert(RawCancellation { confirmation, result_terminal });
+            .or_insert(RawCancellation {
+                confirmation,
+                result_terminal,
+            });
         drop(state);
         self.changed.notify_one();
         Ok(())
@@ -764,10 +799,13 @@ impl ControlCell {
             confirmation.publish(Ok(()));
             return Ok(());
         }
-        state.pin_cancellations.entry(request_id).or_insert(PinCancellation {
-            confirmation,
-            result_terminal,
-        });
+        state
+            .pin_cancellations
+            .entry(request_id)
+            .or_insert(PinCancellation {
+                confirmation,
+                result_terminal,
+            });
         drop(state);
         self.changed.notify_one();
         Ok(())
@@ -829,10 +867,14 @@ struct RawResultSender {
 }
 
 impl RawResultSender {
-    fn mark_terminal(&self) { self.terminal.store(true, Ordering::Release); }
+    fn mark_terminal(&self) {
+        self.terminal.store(true, Ordering::Release);
+    }
 
-    fn send(&self, result: Result<RawReply, RuntimeError>)
-        -> Result<(), std_mpsc::SendError<Result<RawReply, RuntimeError>>> {
+    fn send(
+        &self,
+        result: Result<RawReply, RuntimeError>,
+    ) -> Result<(), std_mpsc::SendError<Result<RawReply, RuntimeError>>> {
         // The single runtime reducer has already retired/released this request.
         // Publish terminal state before handing the value to another thread.
         self.terminal.store(true, Ordering::Release);
@@ -905,13 +947,11 @@ impl Drop for PendingPin {
     fn drop(&mut self) {
         if !self.terminal.get() {
             let confirmation = Arc::new(Completion::new());
-            let _ = self
-                .control
-                .request_pin_cancel(
-                    self.request_id,
-                    Arc::clone(&self.result_terminal),
-                    confirmation,
-                );
+            let _ = self.control.request_pin_cancel(
+                self.request_id,
+                Arc::clone(&self.result_terminal),
+                confirmation,
+            );
         }
     }
 }
@@ -1020,7 +1060,10 @@ impl PendingRawExecution {
         if let Some(admission_rx) = self.admission_rx.as_ref() {
             match receive_std_timeout(admission_rx, timeout) {
                 Ok(Ok(())) => self.admission_rx = None,
-                Ok(Err(error)) => { self.terminal_received.set(true); return Err(error); },
+                Ok(Err(error)) => {
+                    self.terminal_received.set(true);
+                    return Err(error);
+                }
                 Err(std_mpsc::RecvTimeoutError::Timeout) => return Ok(PendingPoll::Pending),
                 Err(std_mpsc::RecvTimeoutError::Disconnected) => {
                     return Err(RuntimeError::internal(
@@ -1031,8 +1074,14 @@ impl PendingRawExecution {
         }
         let remaining = timeout.saturating_sub(started.elapsed());
         match receive_std_timeout(&self.result_rx, remaining) {
-            Ok(Ok(reply)) => { self.terminal_received.set(true); Ok(PendingPoll::Ready(reply)) },
-            Ok(Err(error)) => { self.terminal_received.set(true); Err(error) },
+            Ok(Ok(reply)) => {
+                self.terminal_received.set(true);
+                Ok(PendingPoll::Ready(reply))
+            }
+            Ok(Err(error)) => {
+                self.terminal_received.set(true);
+                Err(error)
+            }
             Err(std_mpsc::RecvTimeoutError::Timeout) => Ok(PendingPoll::Pending),
             Err(std_mpsc::RecvTimeoutError::Disconnected) => Err(RuntimeError::internal(
                 "runtime result channel disconnected before terminal publication",
@@ -1051,17 +1100,26 @@ impl PendingRawExecution {
 
     pub fn begin_cancel(&self) -> Result<PendingCancellation, RuntimeError> {
         check_pid(self.created_pid)?;
-        let confirmation = if self.terminal_received.get() { None } else { match self.result_rx.try_recv() {
-            Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => None,
-            Err(std_mpsc::TryRecvError::Empty) => {
-                let confirmation = Arc::new(Completion::new());
-                self.control.request_raw_cancel(self.request_id, Some(Arc::clone(&self.result_terminal)), Arc::clone(&confirmation))?;
-                Some(confirmation)
+        let confirmation = if self.terminal_received.get() {
+            None
+        } else {
+            match self.result_rx.try_recv() {
+                Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => None,
+                Err(std_mpsc::TryRecvError::Empty) => {
+                    let confirmation = Arc::new(Completion::new());
+                    self.control.request_raw_cancel(
+                        self.request_id,
+                        Some(Arc::clone(&self.result_terminal)),
+                        Arc::clone(&confirmation),
+                    )?;
+                    Some(confirmation)
+                }
             }
-        }
         };
         Ok(PendingCancellation {
-            created_pid: self.created_pid, control: Arc::clone(&self.control), confirmation,
+            created_pid: self.created_pid,
+            control: Arc::clone(&self.control),
+            confirmation,
         })
     }
 
@@ -1074,14 +1132,19 @@ impl PendingRawExecution {
 
     pub fn cancel_and_confirm(&self, timeout: Duration) -> Result<(), RuntimeError> {
         check_pid(self.created_pid)?;
-        if self.terminal_received.get() || self.result_terminal.load(Ordering::Acquire) { return Ok(()); }
+        if self.terminal_received.get() || self.result_terminal.load(Ordering::Acquire) {
+            return Ok(());
+        }
         match self.result_rx.try_recv() {
             Ok(_) | Err(std_mpsc::TryRecvError::Disconnected) => return Ok(()),
             Err(std_mpsc::TryRecvError::Empty) => {}
         }
         let confirmation = Arc::new(Completion::new());
-        self.control
-            .request_raw_cancel(self.request_id, Some(Arc::clone(&self.result_terminal)), Arc::clone(&confirmation))?;
+        self.control.request_raw_cancel(
+            self.request_id,
+            Some(Arc::clone(&self.result_terminal)),
+            Arc::clone(&confirmation),
+        )?;
         match confirmation.wait(timeout)? {
             Some(result) => result,
             None => {
@@ -1273,7 +1336,8 @@ impl PinHandle {
         request: CommandRequest,
         options: SubmissionOptions,
     ) -> Result<RawReply, RuntimeError> {
-        self.begin_execute_raw_with_options(request, options)?.wait()
+        self.begin_execute_raw_with_options(request, options)?
+            .wait()
     }
 
     pub fn connected_host(&self) -> Result<Option<String>, RuntimeError> {
@@ -1289,19 +1353,34 @@ impl PinHandle {
     /// loop, without sending a wire request or relying on cached diagnostics.
     /// None means only that this finite inspection wait elapsed. A late reply
     /// owns no resource and may be discarded safely.
-    pub fn source_identity(&self, timeout: Duration) -> Result<Option<GenerationIdentity>, RuntimeError> {
+    pub fn source_identity(
+        &self,
+        timeout: Duration,
+    ) -> Result<Option<GenerationIdentity>, RuntimeError> {
         self.engine.check_pid()?;
-        let runtime = self.engine.current_runtime()?.ok_or_else(|| RuntimeError::connection_closed("pin runtime is stopped"))?;
+        let runtime = self
+            .engine
+            .current_runtime()?
+            .ok_or_else(|| RuntimeError::connection_closed("pin runtime is stopped"))?;
         let (reply, receiver) = std_mpsc::sync_channel(1);
-        runtime.command_tx.try_send(RuntimeCommand::InspectPin { pin: self.identity, reply })
+        runtime
+            .command_tx
+            .try_send(RuntimeCommand::InspectPin {
+                pin: self.identity,
+                reply,
+            })
             .map_err(|error| match error {
                 mpsc::error::TrySendError::Full(_) => push_consumer_busy(),
-                mpsc::error::TrySendError::Closed(_) => RuntimeError::connection_closed("pin runtime is closed"),
+                mpsc::error::TrySendError::Closed(_) => {
+                    RuntimeError::connection_closed("pin runtime is closed")
+                }
             })?;
         match receiver.recv_timeout(timeout) {
             Ok(result) => result.map(Some),
             Err(std_mpsc::RecvTimeoutError::Timeout) => Ok(None),
-            Err(std_mpsc::RecvTimeoutError::Disconnected) => Err(RuntimeError::connection_closed("runtime stopped during pin inspection")),
+            Err(std_mpsc::RecvTimeoutError::Disconnected) => Err(RuntimeError::connection_closed(
+                "runtime stopped during pin inspection",
+            )),
         }
     }
 
@@ -1614,7 +1693,8 @@ impl Engine {
         request: CommandRequest,
         options: SubmissionOptions,
     ) -> Result<RawReply, RuntimeError> {
-        self.begin_execute_raw_with_options(request, options)?.wait()
+        self.begin_execute_raw_with_options(request, options)?
+            .wait()
     }
 
     pub fn begin_pin(&self) -> Result<PendingPin, RuntimeError> {
@@ -1722,18 +1802,26 @@ impl Engine {
         if let Some(deadline) = deadline_policy.absolute_deadline() {
             deadline.require_remaining(TimeoutPhase::Startup)?;
         }
-        let authorization = options.as_ref().and_then(|options| options.authorization.clone());
-        let retry_policy = options.as_ref().and_then(|options| options.retry)
+        let authorization = options
+            .as_ref()
+            .and_then(|options| options.authorization.clone());
+        let retry_policy = options
+            .as_ref()
+            .and_then(|options| options.retry)
             .unwrap_or_else(|| RetryPolicy::ordinary(request.retry_safe()));
         let (runtime, request_id, ingress) = self.reserve_authorized_submission(
-            deadline_policy.absolute_deadline(), authorization.as_deref(),
+            deadline_policy.absolute_deadline(),
+            authorization.as_deref(),
         )?;
         let deadline = deadline_policy.resolve_after_startup()?;
         deadline.require_remaining(TimeoutPhase::Admission)?;
         let (admission_tx, admission_rx) = std_mpsc::sync_channel(1);
         let (result_tx, result_rx) = std_mpsc::sync_channel(1);
         let result_terminal = Arc::new(AtomicBool::new(false));
-        let result_tx = RawResultSender { sender: result_tx, terminal: Arc::clone(&result_terminal) };
+        let result_tx = RawResultSender {
+            sender: result_tx,
+            terminal: Arc::clone(&result_terminal),
+        };
         let command = match pin {
             Some(pin) => RuntimeCommand::ExecutePinned {
                 pin,
@@ -1822,11 +1910,16 @@ impl Engine {
         if state.controlled.is_some() || state.readers != 0 {
             return Err(push_consumer_busy());
         }
-        let identity = state.next_identity.checked_add(1)
+        let identity = state
+            .next_identity
+            .checked_add(1)
             .ok_or_else(|| RuntimeError::internal("push consumer identity space exhausted"))?;
         state.next_identity = identity;
         state.controlled = Some(identity);
-        Ok(PushConsumer { engine: self.clone(), identity })
+        Ok(PushConsumer {
+            engine: self.clone(),
+            identity,
+        })
     }
 
     fn begin_push_read(&self, consumer: Option<u64>) -> Result<PushReadGuard, RuntimeError> {
@@ -1837,16 +1930,24 @@ impl Engine {
             (Some(active), Some(requested)) if active == requested => {}
             _ => return Err(push_consumer_busy()),
         }
-        state.readers = state.readers.checked_add(1)
+        state.readers = state
+            .readers
+            .checked_add(1)
             .ok_or_else(|| RuntimeError::internal("push reader count overflow"))?;
-        Ok(PushReadGuard { engine: self.clone() })
+        Ok(PushReadGuard {
+            engine: self.clone(),
+        })
     }
 
     pub fn poll_push(&self, timeout: Duration) -> Result<Option<PushFrame>, RuntimeError> {
         self.poll_push_as(None, timeout)
     }
 
-    fn poll_push_as(&self, consumer: Option<u64>, timeout: Duration) -> Result<Option<PushFrame>, RuntimeError> {
+    fn poll_push_as(
+        &self,
+        consumer: Option<u64>,
+        timeout: Duration,
+    ) -> Result<Option<PushFrame>, RuntimeError> {
         let _reader = self.begin_push_read(consumer)?;
         self.check_pid()?;
         let runtime = self.current_runtime()?;
@@ -2003,7 +2104,10 @@ impl Engine {
         self.begin_close_with_deadline(proposed_deadline)
     }
 
-    fn begin_close_with_deadline(&self, proposed_deadline: Instant) -> Result<PendingClose, RuntimeError> {
+    fn begin_close_with_deadline(
+        &self,
+        proposed_deadline: Instant,
+    ) -> Result<PendingClose, RuntimeError> {
         self.check_pid()?;
         let (attempt, runtime) = {
             let mut host = lock_mutex(&self.inner.host, "Engine host")?;
@@ -2340,16 +2444,21 @@ impl Engine {
     }
 
     fn ensure_runtime_with_deadline(
-        &self, deadline: Option<Deadline>,
+        &self,
+        deadline: Option<Deadline>,
     ) -> Result<RuntimeRef, RuntimeError> {
         self.ensure_authorized_runtime(deadline, None)
     }
 
     fn ensure_authorized_runtime(
-        &self, deadline: Option<Deadline>, authorization: Option<&dyn AttemptAuthorization>,
+        &self,
+        deadline: Option<Deadline>,
+        authorization: Option<&dyn AttemptAuthorization>,
     ) -> Result<RuntimeRef, RuntimeError> {
         self.check_pid()?;
-        if let Some(authorization) = authorization { authorization.check_boundary(Instant::now())?; }
+        if let Some(authorization) = authorization {
+            authorization.check_boundary(Instant::now())?;
+        }
         if let Some(deadline) = deadline {
             deadline.require_remaining(TimeoutPhase::Startup)?;
         }
@@ -2400,13 +2509,20 @@ impl Engine {
             .map(|deadline| deadline.require_remaining(TimeoutPhase::Startup))
             .transpose()?
             .unwrap_or(self.inner.config.request_timeout);
-        let startup_until = Instant::now().checked_add(startup_timeout)
-            .ok_or_else(|| RuntimeError::invalid_argument("OverflowError", "startup timeout overflow"))?;
+        let startup_until = Instant::now().checked_add(startup_timeout).ok_or_else(|| {
+            RuntimeError::invalid_argument("OverflowError", "startup timeout overflow")
+        })?;
         let result = loop {
-            if let Some(authorization) = authorization { authorization.check_boundary(Instant::now())?; }
+            if let Some(authorization) = authorization {
+                authorization.check_boundary(Instant::now())?;
+            }
             let remaining = startup_until.saturating_duration_since(Instant::now());
-            if remaining.is_zero() { return Err(RuntimeError::timeout(TimeoutPhase::Startup)); }
-            if let Some(result) = startup.wait(remaining.min(SIGNAL_POLL_INTERVAL))? { break result; }
+            if remaining.is_zero() {
+                return Err(RuntimeError::timeout(TimeoutPhase::Startup));
+            }
+            if let Some(result) = startup.wait(remaining.min(SIGNAL_POLL_INTERVAL))? {
+                break result;
+            }
         };
         if result.is_ok() {
             if let Some(deadline) = deadline {
@@ -2484,10 +2600,14 @@ impl Engine {
     }
 
     fn reserve_authorized_submission(
-        &self, deadline: Option<Deadline>, authorization: Option<&dyn AttemptAuthorization>,
+        &self,
+        deadline: Option<Deadline>,
+        authorization: Option<&dyn AttemptAuthorization>,
     ) -> Result<(RuntimeRef, RequestId, IngressOwnership), RuntimeError> {
         let runtime = self.ensure_authorized_runtime(deadline, authorization)?;
-        if let Some(authorization) = authorization { authorization.check_boundary(Instant::now())?; }
+        if let Some(authorization) = authorization {
+            authorization.check_boundary(Instant::now())?;
+        }
         let mut host = lock_mutex(&self.inner.host, "Engine submit gate")?;
         if let Some(deadline) = deadline {
             deadline.require_remaining(TimeoutPhase::Admission)?;
@@ -3334,7 +3454,9 @@ impl RuntimeCore {
                 RuntimeCommand::ClosePin { reply, .. } => {
                     let _ = reply.send(Err(error.clone()));
                 }
-                RuntimeCommand::InspectPin { reply, .. } => { let _ = reply.send(Err(error.clone())); }
+                RuntimeCommand::InspectPin { reply, .. } => {
+                    let _ = reply.send(Err(error.clone()));
+                }
                 RuntimeCommand::PollPush { reply, .. } => {
                     let _ = reply.send(Err(error.clone()));
                 }
@@ -3540,17 +3662,31 @@ impl RuntimeCore {
             RuntimeCommand::InspectPin { pin, reply } => {
                 let result = (|| {
                     if !self.supervisor.pin_is_open(pin) {
-                        return Err(RuntimeError::connection_closed("pinned reservation is no longer open"));
+                        return Err(RuntimeError::connection_closed(
+                            "pinned reservation is no longer open",
+                        ));
                     }
-                    let handle = self.slots.get(pin.slot_id.get()).and_then(Option::as_ref)
-                        .ok_or_else(|| RuntimeError::connection_closed("pinned actor is no longer present"))?;
+                    let handle = self
+                        .slots
+                        .get(pin.slot_id.get())
+                        .and_then(Option::as_ref)
+                        .ok_or_else(|| {
+                            RuntimeError::connection_closed("pinned actor is no longer present")
+                        })?;
                     let snapshot = lock_mutex(&handle.snapshot, "pinned source snapshot")?;
-                    if snapshot.engine_epoch != pin.engine_epoch || !snapshot.actor_alive
-                        || snapshot.tcp_state != crate::diagnostics::TcpState::Ready {
-                        return Err(RuntimeError::connection_closed("pinned source connection is no longer ready"));
+                    if snapshot.engine_epoch != pin.engine_epoch
+                        || !snapshot.actor_alive
+                        || snapshot.tcp_state != crate::diagnostics::TcpState::Ready
+                    {
+                        return Err(RuntimeError::connection_closed(
+                            "pinned source connection is no longer ready",
+                        ));
                     }
-                    Ok(GenerationIdentity { engine_epoch: snapshot.engine_epoch, slot_id: snapshot.slot_id,
-                        generation: crate::slot::GenerationId::new(snapshot.tcp_generation)? })
+                    Ok(GenerationIdentity {
+                        engine_epoch: snapshot.engine_epoch,
+                        slot_id: snapshot.slot_id,
+                        generation: crate::slot::GenerationId::new(snapshot.tcp_generation)?,
+                    })
                 })();
                 let _ = reply.send(result);
                 Ok(())
@@ -3614,7 +3750,9 @@ impl RuntimeCore {
             RuntimeCommand::ClosePin { reply, .. } => {
                 let _ = reply.send(Ok(()));
             }
-            RuntimeCommand::InspectPin { reply, .. } => { let _ = reply.send(Err(error)); }
+            RuntimeCommand::InspectPin { reply, .. } => {
+                let _ = reply.send(Err(error));
+            }
             RuntimeCommand::PollPush { reply, .. } => {
                 let _ = reply.send(self.supervisor.poll_push());
             }
@@ -3844,22 +3982,32 @@ impl RuntimeCore {
     async fn dispatch_initial(&mut self, request_id: RequestId) -> Result<(), RuntimeError> {
         let attempt = match self
             .supervisor
-            .begin_request_attempt(request_id, Instant::now()) {
+            .begin_request_attempt(request_id, Instant::now())
+        {
             Ok(attempt) => attempt,
             Err(error @ RuntimeError::Timeout { .. }) => {
-                let admission = self.pending.get(&request_id)
-                    .ok_or_else(|| RuntimeError::internal("expired initial request is not pending"))?
+                let admission = self
+                    .pending
+                    .get(&request_id)
+                    .ok_or_else(|| {
+                        RuntimeError::internal("expired initial request is not pending")
+                    })?
                     .admission;
                 let wire = match admission {
                     Admission::Active(lease) => wire_without_generation(lease),
                     Admission::Pinned(call) => RequestWireIdentity {
-                        engine_epoch: call.pin.engine_epoch, request_id,
-                        lease_id: call.pin.lease_id, slot_id: call.pin.slot_id,
-                        generation: None, message: None,
+                        engine_epoch: call.pin.engine_epoch,
+                        request_id,
+                        lease_id: call.pin.lease_id,
+                        slot_id: call.pin.slot_id,
+                        generation: None,
+                        message: None,
                     },
-                    Admission::Waiting(_) => return Err(RuntimeError::internal(
-                        "expired initial request has not been assigned",
-                    )),
+                    Admission::Waiting(_) => {
+                        return Err(RuntimeError::internal(
+                            "expired initial request has not been assigned",
+                        ))
+                    }
                 };
                 // A promoted request can expire before dispatch. Release only its
                 // lease; boxing bounds the promotion -> dispatch recursion.
@@ -3875,17 +4023,25 @@ impl RuntimeCore {
         wire: RequestWireIdentity,
         error: RuntimeError,
     ) -> Result<(), RuntimeError> {
-        let Some(pending) = self.pending.get(&wire.request_id) else { return Ok(()); };
+        let Some(pending) = self.pending.get(&wire.request_id) else {
+            return Ok(());
+        };
         let kind = if matches!(&error, RuntimeError::Timeout { .. }) {
             TerminalKind::TimedOut
         } else {
             TerminalKind::Failed
         };
         if let Some(pin) = pending.pin {
-            if let Some(batch) = self.supervisor.terminal_pin(wire, kind, Some(error), Instant::now())? {
+            if let Some(batch) =
+                self.supervisor
+                    .terminal_pin(wire, kind, Some(error), Instant::now())?
+            {
                 self.process_pin_terminal_batch(pin, batch).await?;
             }
-        } else if let Some(batch) = self.supervisor.terminal_active(wire, kind, Some(error), Instant::now())? {
+        } else if let Some(batch) =
+            self.supervisor
+                .terminal_active(wire, kind, Some(error), Instant::now())?
+        {
             self.process_terminal_batch(batch).await?;
         }
         Ok(())
@@ -3974,15 +4130,19 @@ impl RuntimeCore {
             .get(&attempt.request_id)
             .map(|pending| pending.request.clone())
             .ok_or_else(|| RuntimeError::internal("dispatched request is not pending"))?;
-        let permit = match self.pending.get(&attempt.request_id)
-            .and_then(|pending| pending.authorization.as_ref()) {
+        let permit = match self
+            .pending
+            .get(&attempt.request_id)
+            .and_then(|pending| pending.authorization.as_ref())
+        {
             Some(authorization) => {
                 let last = self.supervisor.last_retry_error(attempt.request_id);
                 if begin_endpoint_attempt {
                     authorization.reserve(attempt.attempt_number, last)
                 } else {
                     authorization.reserve_endpoint_continuation(attempt.attempt_number, last)
-                }.map(Some)
+                }
+                .map(Some)
             }
             None => Ok(None),
         };
@@ -4175,11 +4335,16 @@ impl RuntimeCore {
                 }
             }
             SlotEvent::UnstartedRejected { attempt, error } => {
-                if self.closing { return Ok(()); }
+                if self.closing {
+                    return Ok(());
+                }
                 let wire = RequestWireIdentity {
-                    engine_epoch: attempt.engine_epoch, request_id: attempt.request_id,
-                    lease_id: attempt.lease_id, slot_id: attempt.slot_id,
-                    generation: attempt.expected_generation, message: None,
+                    engine_epoch: attempt.engine_epoch,
+                    request_id: attempt.request_id,
+                    lease_id: attempt.lease_id,
+                    slot_id: attempt.slot_id,
+                    generation: attempt.expected_generation,
+                    message: None,
                 };
                 self.fail_unstarted_request(wire, error).await
             }
@@ -4247,7 +4412,10 @@ impl RuntimeCore {
                 // while a response error is queued. Keep that terminal cause
                 // and let the Slot confirm retirement instead of retrying it.
                 if self.retirements.contains_key(&wire.request_id)
-                    && self.pending.get(&wire.request_id).is_some_and(|pending| pending.wire == Some(wire))
+                    && self
+                        .pending
+                        .get(&wire.request_id)
+                        .is_some_and(|pending| pending.wire == Some(wire))
                 {
                     let _ = reply.send(Ok(FailureAction::Retire));
                     return Ok(());
@@ -4257,7 +4425,10 @@ impl RuntimeCore {
                     error = error.with_context("attempt", attempt.to_string());
                 }
                 if let Some(pending) = self.pending.get(&wire.request_id) {
-                    error = error.with_context("command", format!("0x{:04x}", pending.request.command_code()));
+                    error = error.with_context(
+                        "command",
+                        format!("0x{:04x}", pending.request.command_code()),
+                    );
                 }
                 let pin = self
                     .pending
@@ -4301,9 +4472,13 @@ impl RuntimeCore {
                             )),
                         }
                     }
-                } else if same_attempt_possible && !self.pending.get(&wire.request_id)
-                    .and_then(|pending| pending.authorization.as_ref())
-                    .is_some_and(|authorization| authorization.count_endpoint_failover()) {
+                } else if same_attempt_possible
+                    && !self
+                        .pending
+                        .get(&wire.request_id)
+                        .and_then(|pending| pending.authorization.as_ref())
+                        .is_some_and(|authorization| authorization.count_endpoint_failover())
+                {
                     self.retirements
                         .insert(wire.request_id, RetirementPlan::ContinueEndpoint);
                     Ok(FailureAction::Retire)
@@ -4337,10 +4512,20 @@ impl RuntimeCore {
                         }
                         None => Err(RuntimeError::internal(
                             "Supervisor rejected exact request failure",
-                        ).with_context("request_id", wire.request_id.get().to_string())
-                            .with_context("lifecycle_retirement", self.has_lifecycle_retirement(wire.request_id).to_string())
-                            .with_context("existing_retirement", self.retirements.contains_key(&wire.request_id).to_string())
-                            .with_context("supervisor_state", format!("{:?}", self.supervisor.state()))),
+                        )
+                        .with_context("request_id", wire.request_id.get().to_string())
+                        .with_context(
+                            "lifecycle_retirement",
+                            self.has_lifecycle_retirement(wire.request_id).to_string(),
+                        )
+                        .with_context(
+                            "existing_retirement",
+                            self.retirements.contains_key(&wire.request_id).to_string(),
+                        )
+                        .with_context(
+                            "supervisor_state",
+                            format!("{:?}", self.supervisor.state()),
+                        )),
                     }
                 };
                 let _ = reply.send(action.clone());
@@ -4475,12 +4660,19 @@ impl RuntimeCore {
             RetirementPlan::Retry => {
                 let attempt = match self
                     .supervisor
-                    .finish_retry_retirement(acknowledgement, Instant::now()) {
+                    .finish_retry_retirement(acknowledgement, Instant::now())
+                {
                     Ok(Some(attempt)) => attempt,
-                    Ok(None) => return Err(RuntimeError::internal("retry retirement was rejected")),
+                    Ok(None) => {
+                        return Err(RuntimeError::internal("retry retirement was rejected"))
+                    }
                     Err(error @ RuntimeError::Timeout { .. }) => {
-                        let wire = self.supervisor.abort_retry_after_retirement(acknowledgement)
-                            .ok_or_else(|| RuntimeError::internal("expired retry retirement was rejected"))?;
+                        let wire = self
+                            .supervisor
+                            .abort_retry_after_retirement(acknowledgement)
+                            .ok_or_else(|| {
+                                RuntimeError::internal("expired retry retirement was rejected")
+                            })?;
                         return self.fail_unstarted_request(wire, error).await;
                     }
                     Err(error) => return Err(error),
@@ -4670,10 +4862,17 @@ impl RuntimeCore {
             if let Some(pending) = pending {
                 let terminal = match notification.kind {
                     TerminalKind::Completed => {
-                        let (response, wire, host, receive_sequence) = pending.response.ok_or_else(|| {
-                            RuntimeError::internal("completed terminal has no raw response")
-                        })?;
-                        RawReply::from_runtime(pending.request, response, wire, host, receive_sequence)
+                        let (response, wire, host, receive_sequence) =
+                            pending.response.ok_or_else(|| {
+                                RuntimeError::internal("completed terminal has no raw response")
+                            })?;
+                        RawReply::from_runtime(
+                            pending.request,
+                            response,
+                            wire,
+                            host,
+                            receive_sequence,
+                        )
                     }
                     TerminalKind::Cancelled | TerminalKind::TimedOut | TerminalKind::Failed => {
                         Err(notification.error.unwrap_or_else(|| {
@@ -4984,14 +5183,20 @@ impl RuntimeCore {
     }
 
     async fn cancel_raw_request(
-        &mut self, request_id: RequestId, cancellation: RawCancellation,
+        &mut self,
+        request_id: RequestId,
+        cancellation: RawCancellation,
     ) -> Result<(), RuntimeError> {
-        if cancellation.result_terminal.as_ref()
-            .is_some_and(|terminal| terminal.load(Ordering::Acquire)) {
+        if cancellation
+            .result_terminal
+            .as_ref()
+            .is_some_and(|terminal| terminal.load(Ordering::Acquire))
+        {
             cancellation.confirmation.publish(Ok(()));
             return Ok(());
         }
-        self.cancel_request(request_id, cancellation.confirmation).await
+        self.cancel_request(request_id, cancellation.confirmation)
+            .await
     }
 
     async fn cancel_request(
@@ -5055,13 +5260,25 @@ impl RuntimeCore {
         if let Some(wire) = pending.wire {
             if let Some(plan) = self.retirements.get(&request_id) {
                 if !self.supervisor.cancel_retiring_request(wire) {
-                    return Err(RuntimeError::internal("cancellation retirement wire was stale"));
+                    return Err(RuntimeError::internal(
+                        "cancellation retirement wire was stale",
+                    ));
                 }
-                if matches!(plan, RetirementPlan::Retry | RetirementPlan::ContinueEndpoint) {
+                if matches!(
+                    plan,
+                    RetirementPlan::Retry | RetirementPlan::ContinueEndpoint
+                ) {
                     let plan = if let Some(pin) = pending.pin {
-                        RetirementPlan::PinnedTerminal { pin, kind: TerminalKind::Cancelled, error }
+                        RetirementPlan::PinnedTerminal {
+                            pin,
+                            kind: TerminalKind::Cancelled,
+                            error,
+                        }
                     } else {
-                        RetirementPlan::Terminal { kind: TerminalKind::Cancelled, error }
+                        RetirementPlan::Terminal {
+                            kind: TerminalKind::Cancelled,
+                            error,
+                        }
                     };
                     self.retirements.insert(request_id, plan);
                 }
@@ -5577,7 +5794,11 @@ impl SlotWorker {
 
     async fn publish_work_outcome(&mut self, outcome: WorkOutcome) -> Result<(), RuntimeError> {
         match outcome {
-            WorkOutcome::Completed { wire, response, receive_sequence } => {
+            WorkOutcome::Completed {
+                wire,
+                response,
+                receive_sequence,
+            } => {
                 let (reply, received) = oneshot::channel();
                 let host = self
                     .slot
@@ -5637,8 +5858,10 @@ impl SlotWorker {
                     Err(_) => self.retire_wire(wire).await,
                 }
             }
-            WorkOutcome::UnstartedRejected { attempt, error } => self.event_tx
-                .send(SlotEvent::UnstartedRejected { attempt, error }).await
+            WorkOutcome::UnstartedRejected { attempt, error } => self
+                .event_tx
+                .send(SlotEvent::UnstartedRejected { attempt, error })
+                .await
                 .map_err(|_| RuntimeError::internal("runtime event receiver closed")),
             WorkOutcome::UnstartedCancelled { request_id } => self
                 .event_tx
@@ -5655,7 +5878,8 @@ impl SlotWorker {
                 let mut error = error;
                 if !error.context().iter().any(|(key, _)| key == "phase") {
                     let phase = match self.slot.state() {
-                        SlotState::Connecting => "connect", SlotState::Handshaking => "handshake",
+                        SlotState::Connecting => "connect",
+                        SlotState::Handshaking => "handshake",
                         _ => "response",
                     };
                     error = error.with_context("phase", phase);
@@ -5931,16 +6155,26 @@ impl SlotWorker {
         if begin_endpoint_attempt {
             self.slot.begin_endpoint_attempt()?;
         }
-        let start = match self.slot.start_connect(attempt.request_id, attempt.deadline, Instant::now()) {
-            Ok(Some(start)) => start,
-            Ok(None) => return Ok(ConnectForRequest::Outcome(WorkOutcome::UnstartedRejected {
-                attempt, error: RuntimeError::timeout(TimeoutPhase::Connect),
-            })),
-            Err(error @ RuntimeError::Timeout { .. }) => return Ok(ConnectForRequest::Outcome(
-                WorkOutcome::UnstartedRejected { attempt, error },
-            )),
-            Err(error) => return Err(error),
-        };
+        let start =
+            match self
+                .slot
+                .start_connect(attempt.request_id, attempt.deadline, Instant::now())
+            {
+                Ok(Some(start)) => start,
+                Ok(None) => {
+                    return Ok(ConnectForRequest::Outcome(WorkOutcome::UnstartedRejected {
+                        attempt,
+                        error: RuntimeError::timeout(TimeoutPhase::Connect),
+                    }))
+                }
+                Err(error @ RuntimeError::Timeout { .. }) => {
+                    return Ok(ConnectForRequest::Outcome(WorkOutcome::UnstartedRejected {
+                        attempt,
+                        error,
+                    }))
+                }
+                Err(error) => return Err(error),
+            };
         let wire = request_wire(attempt, start.identity, None);
         if publish_connect_transition
             && self
@@ -6280,17 +6514,23 @@ impl SlotWorker {
     ) -> Result<ManagedStream, OperationFailure> {
         // Idle pools can retain connections indefinitely, so exhausted owner
         // capacity is reported immediately instead of waiting behind them.
-        let shared_connection = match self.connection_limiter.shared.as_ref() {
-            Some(limit) => Some(Arc::clone(&limit.permits).try_acquire_owned().map_err(|_| {
-                OperationFailure::Error(RuntimeError::PoolBusy {
-                    message: "shared physical connection limit reached".to_owned(), capacity: limit.maximum,
-                    context: vec![("sdk_kind".to_owned(), "LimitExceeded".to_owned()),
-                        ("resource".to_owned(), "owner_connections".to_owned()),
-                        ("configured".to_owned(), limit.maximum.to_string())],
-                })
-            })?),
-            None => None,
-        };
+        let shared_connection =
+            match self.connection_limiter.shared.as_ref() {
+                Some(limit) => Some(Arc::clone(&limit.permits).try_acquire_owned().map_err(
+                    |_| {
+                        OperationFailure::Error(RuntimeError::PoolBusy {
+                            message: "shared physical connection limit reached".to_owned(),
+                            capacity: limit.maximum,
+                            context: vec![
+                                ("sdk_kind".to_owned(), "LimitExceeded".to_owned()),
+                                ("resource".to_owned(), "owner_connections".to_owned()),
+                                ("configured".to_owned(), limit.maximum.to_string()),
+                            ],
+                        })
+                    },
+                )?),
+                None => None,
+            };
         let (host_connect, host_connections) = self
             .connection_limiter
             .host_semaphores(host)
@@ -6563,7 +6803,9 @@ impl SlotWorker {
                     }
                     matched = Some(routed);
                 }
-                FrameDisposition::Push => self.publish_push(generation, routed.response, routed.frame.receive_sequence),
+                FrameDisposition::Push => {
+                    self.publish_push(generation, routed.response, routed.frame.receive_sequence)
+                }
                 FrameDisposition::Stale => {}
             }
         }
@@ -6639,7 +6881,9 @@ impl SlotWorker {
         };
         for routed in routed {
             match routed.disposition {
-                FrameDisposition::Push => self.publish_push(generation, routed.response, routed.frame.receive_sequence),
+                FrameDisposition::Push => {
+                    self.publish_push(generation, routed.response, routed.frame.receive_sequence)
+                }
                 FrameDisposition::Matched(_) => {
                     return Err(RuntimeError::internal(
                         "idle Slot matched a response without an exchange",
@@ -6665,7 +6909,12 @@ impl SlotWorker {
         Ok(())
     }
 
-    fn publish_push(&self, generation: GenerationIdentity, response: ResponseFrame, receive_sequence: u64) {
+    fn publish_push(
+        &self,
+        generation: GenerationIdentity,
+        response: ResponseFrame,
+        receive_sequence: u64,
+    ) {
         let Some(host) = self.slot.connected_host() else {
             self.push_dropped.fetch_add(1, Ordering::AcqRel);
             return;
@@ -6875,18 +7124,18 @@ fn keyed_permutation(value: u32, key: u64) -> u32 {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
-    use std::sync::Barrier;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-    use std::sync::Arc;
     use std::sync::mpsc as std_mpsc;
+    use std::sync::Arc;
+    use std::sync::Barrier;
     use std::time::Duration;
 
     use super::{
-        build_tokio_runtime, check_pid, keyed_permutation, runtime_epoch_reservation, wire_without_generation,
-        ConnectAttemptId, ControlCell, Engine, EngineConfig, EngineConfigOptions,
-        HostCloseAttemptId, HostConnectAttempt, HostLifecycle, IngressOwnership, PendingConnect,
-        PendingPoll, RuntimeCore, CLOSE_TIMEOUT, MAX_DECODED_QUEUE_BYTES,
-        MAX_RAW_STAGING_BUFFER_SIZE,
+        build_tokio_runtime, check_pid, keyed_permutation, runtime_epoch_reservation,
+        wire_without_generation, ConnectAttemptId, ControlCell, Engine, EngineConfig,
+        EngineConfigOptions, HostCloseAttemptId, HostConnectAttempt, HostLifecycle,
+        IngressOwnership, PendingConnect, PendingPoll, RuntimeCore, CLOSE_TIMEOUT,
+        MAX_DECODED_QUEUE_BYTES, MAX_RAW_STAGING_BUFFER_SIZE,
     };
     use crate::diagnostics::PoolState;
     use crate::endpoint::Endpoint;
@@ -6916,12 +7165,22 @@ mod tests {
     }
 
     #[test]
-    fn controlled_push_consumer_excludes_raw_poll_drain_and_second_claim_without_startup() -> Result<(), RuntimeError> {
+    fn controlled_push_consumer_excludes_raw_poll_drain_and_second_claim_without_startup(
+    ) -> Result<(), RuntimeError> {
         let engine = Engine::new(config(1, 8)?)?;
         let mut consumer = engine.claim_push_consumer()?;
-        assert!(matches!(engine.poll_push(Duration::ZERO), Err(RuntimeError::PoolBusy { .. })));
-        assert!(matches!(engine.drain_pushes(), Err(RuntimeError::PoolBusy { .. })));
-        assert!(matches!(engine.claim_push_consumer(), Err(RuntimeError::PoolBusy { .. })));
+        assert!(matches!(
+            engine.poll_push(Duration::ZERO),
+            Err(RuntimeError::PoolBusy { .. })
+        ));
+        assert!(matches!(
+            engine.drain_pushes(),
+            Err(RuntimeError::PoolBusy { .. })
+        ));
+        assert!(matches!(
+            engine.claim_push_consumer(),
+            Err(RuntimeError::PoolBusy { .. })
+        ));
         assert!(consumer.poll_push(Duration::ZERO)?.is_none());
         assert!(consumer.drain_pushes()?.is_empty());
         assert_eq!(engine.pool_diagnostics()?.epoch, 0);
@@ -6944,12 +7203,20 @@ mod tests {
             drop(guard);
         });
         ready_rx.recv().unwrap();
-        assert!(matches!(engine.claim_push_consumer(), Err(RuntimeError::PoolBusy { .. })));
-        release_tx.send(()).unwrap(); reader.join().unwrap();
+        assert!(matches!(
+            engine.claim_push_consumer(),
+            Err(RuntimeError::PoolBusy { .. })
+        ));
+        release_tx.send(()).unwrap();
+        reader.join().unwrap();
         let first = engine.claim_push_consumer()?;
-        let stale = first.identity; drop(first);
+        let stale = first.identity;
+        drop(first);
         let _second = engine.claim_push_consumer()?;
-        assert!(matches!(engine.begin_push_read(Some(stale)), Err(RuntimeError::PoolBusy { .. })));
+        assert!(matches!(
+            engine.begin_push_read(Some(stale)),
+            Err(RuntimeError::PoolBusy { .. })
+        ));
         Ok(())
     }
 
@@ -6957,8 +7224,17 @@ mod tests {
     fn exhausted_push_consumer_identity_does_not_publish_an_alias() -> Result<(), RuntimeError> {
         let engine = Engine::new(config(1, 8)?)?;
         engine.inner.push_consumption.lock().unwrap().next_identity = u64::MAX;
-        assert!(matches!(engine.claim_push_consumer(), Err(RuntimeError::Internal { .. })));
-        assert!(engine.inner.push_consumption.lock().unwrap().controlled.is_none());
+        assert!(matches!(
+            engine.claim_push_consumer(),
+            Err(RuntimeError::Internal { .. })
+        ));
+        assert!(engine
+            .inner
+            .push_consumption
+            .lock()
+            .unwrap()
+            .controlled
+            .is_none());
         Ok(())
     }
 
@@ -6991,11 +7267,14 @@ mod tests {
 
     fn pin_reservation_runtime(
         request_id: RequestId,
-    ) -> Result<(
-        RuntimeCore,
-        tokio::runtime::Runtime,
-        std_mpsc::Receiver<Result<super::PinDelivery, RuntimeError>>,
-    ), RuntimeError> {
+    ) -> Result<
+        (
+            RuntimeCore,
+            tokio::runtime::Runtime,
+            std_mpsc::Receiver<Result<super::PinDelivery, RuntimeError>>,
+        ),
+        RuntimeError,
+    > {
         let (_command_tx, command_rx) = tokio::sync::mpsc::channel(2);
         let runtime_config = config(1, 1)?;
         let diagnostics = super::DiagnosticsCache::stopped(&runtime_config);
@@ -7048,25 +7327,42 @@ mod tests {
             crate::request::Admission::Waiting(permit) => permit.request_id,
         };
         let (result, receiver) = std_mpsc::sync_channel(1);
-        core.pending.insert(request_id, super::PendingRequest {
-            request: eltdx_protocol::CommandRequest::SecurityCount(
-                eltdx_protocol::commands::security::SecurityCountRequest {
-                    market: eltdx_protocol::unit::Market::Shanghai, client_date: 0,
+        core.pending.insert(
+            request_id,
+            super::PendingRequest {
+                request: eltdx_protocol::CommandRequest::SecurityCount(
+                    eltdx_protocol::commands::security::SecurityCountRequest {
+                        market: eltdx_protocol::unit::Market::Shanghai,
+                        client_date: 0,
+                    },
+                ),
+                authorization: None,
+                result: super::RawResultSender {
+                    sender: result,
+                    terminal: Arc::new(AtomicBool::new(false)),
                 },
-            ),
-            authorization: None, result: super::RawResultSender { sender: result, terminal: Arc::new(AtomicBool::new(false)) },
-            _ingress: super::IngressOwnership { owned: Arc::new(AtomicUsize::new(1)) },
-            admission, wire: None, response: None, dispatched: false, pin,
-        });
+                _ingress: super::IngressOwnership {
+                    owned: Arc::new(AtomicUsize::new(1)),
+                },
+                admission,
+                wire: None,
+                response: None,
+                dispatched: false,
+                pin,
+            },
+        );
         receiver
     }
 
     #[test]
-    fn initial_deadline_expiry_is_local_for_ordinary_and_unstarted_pinned_requests() -> Result<(), RuntimeError> {
+    fn initial_deadline_expiry_is_local_for_ordinary_and_unstarted_pinned_requests(
+    ) -> Result<(), RuntimeError> {
         for pinned in [false, true] {
             let reservation_id = RequestId::new(200)?;
             let (mut core, runtime, _reservation_result) = pin_reservation_runtime(reservation_id)?;
-            let reserved = core.pin_reservations.remove(&reservation_id)
+            let reserved = core
+                .pin_reservations
+                .remove(&reservation_id)
                 .ok_or_else(|| RuntimeError::internal("fixture reservation is missing"))?;
             let crate::request::Admission::Active(lease) = reserved.admission else {
                 return Err(RuntimeError::internal("fixture reservation must be active"));
@@ -7078,132 +7374,244 @@ mod tests {
             let pin = if pinned {
                 Some(core.supervisor.open_pin(reservation_id)?)
             } else {
-                core.supervisor.terminal_active(wire_without_generation(lease),
+                core.supervisor.terminal_active(
+                    wire_without_generation(lease),
                     crate::request::TerminalKind::Failed,
-                    Some(RuntimeError::connection_closed("fixture transfers ordinary slot")), now)?;
+                    Some(RuntimeError::connection_closed(
+                        "fixture transfers ordinary slot",
+                    )),
+                    now,
+                )?;
                 None
             };
             let admission = if let Some(pin) = pin {
-                core.supervisor.submit_pin(pin, request_id, expired,
-                    crate::request::RetryPolicy::ordinary(true), admitted_at)?
+                core.supervisor.submit_pin(
+                    pin,
+                    request_id,
+                    expired,
+                    crate::request::RetryPolicy::ordinary(true),
+                    admitted_at,
+                )?
             } else {
-                core.supervisor.submit_with_retry_policy(request_id, expired,
-                    crate::request::RetryPolicy::ordinary(true), admitted_at)?
+                core.supervisor.submit_with_retry_policy(
+                    request_id,
+                    expired,
+                    crate::request::RetryPolicy::ordinary(true),
+                    admitted_at,
+                )?
             };
             let receiver = track_operation_request(&mut core, admission, pin);
             runtime.block_on(core.dispatch_initial(request_id))?;
-            assert!(matches!(receiver.try_recv().expect("terminal delivered"), Err(RuntimeError::Timeout { .. })));
+            assert!(matches!(
+                receiver.try_recv().expect("terminal delivered"),
+                Err(RuntimeError::Timeout { .. })
+            ));
             assert!(!core.pending.contains_key(&request_id));
             assert!(core.slots.iter().all(Option::is_none));
             assert!(!core.closing);
             let next = RequestId::new(202)?;
             let deadline = crate::deadline::Deadline::at(now + Duration::from_secs(1));
             if let Some(pin) = pin {
-                assert!(matches!(core.supervisor.submit_pin(pin, next, deadline,
-                    crate::request::RetryPolicy::ordinary(true), now)?, crate::request::Admission::Pinned(_)));
+                assert!(matches!(
+                    core.supervisor.submit_pin(
+                        pin,
+                        next,
+                        deadline,
+                        crate::request::RetryPolicy::ordinary(true),
+                        now
+                    )?,
+                    crate::request::Admission::Pinned(_)
+                ));
             } else {
-                assert!(matches!(core.supervisor.submit_with_retry_policy(next, deadline,
-                    crate::request::RetryPolicy::ordinary(true), now)?, crate::request::Admission::Active(_)));
+                assert!(matches!(
+                    core.supervisor.submit_with_retry_policy(
+                        next,
+                        deadline,
+                        crate::request::RetryPolicy::ordinary(true),
+                        now
+                    )?,
+                    crate::request::Admission::Active(_)
+                ));
             }
         }
         Ok(())
     }
 
     #[test]
-    fn retry_deadline_expiring_during_retirement_releases_only_its_request() -> Result<(), RuntimeError> {
+    fn retry_deadline_expiring_during_retirement_releases_only_its_request(
+    ) -> Result<(), RuntimeError> {
         let reservation_id = RequestId::new(210)?;
         let (mut core, runtime, _reservation_result) = pin_reservation_runtime(reservation_id)?;
-        let reserved = core.pin_reservations.remove(&reservation_id)
+        let reserved = core
+            .pin_reservations
+            .remove(&reservation_id)
             .ok_or_else(|| RuntimeError::internal("fixture reservation is missing"))?;
         let crate::request::Admission::Active(reservation) = reserved.admission else {
             return Err(RuntimeError::internal("fixture reservation must be active"));
         };
         let now = std::time::Instant::now();
-        core.supervisor.terminal_active(wire_without_generation(reservation),
+        core.supervisor.terminal_active(
+            wire_without_generation(reservation),
             crate::request::TerminalKind::Failed,
-            Some(RuntimeError::connection_closed("fixture transfers ordinary slot")), now)?;
+            Some(RuntimeError::connection_closed(
+                "fixture transfers ordinary slot",
+            )),
+            now,
+        )?;
         let admitted_at = now - Duration::from_secs(2);
         let request_id = RequestId::new(211)?;
-        let admission = core.supervisor.submit_with_retry_policy(request_id,
+        let admission = core.supervisor.submit_with_retry_policy(
+            request_id,
             crate::deadline::Deadline::at(now - Duration::from_secs(1)),
-            crate::request::RetryPolicy::ordinary(true), admitted_at)?;
+            crate::request::RetryPolicy::ordinary(true),
+            admitted_at,
+        )?;
         let receiver = track_operation_request(&mut core, admission, None);
-        let attempt = core.supervisor.begin_request_attempt(request_id, admitted_at)?;
+        let attempt = core
+            .supervisor
+            .begin_request_attempt(request_id, admitted_at)?;
         let wire = crate::request::RequestWireIdentity {
-            engine_epoch: attempt.engine_epoch, request_id, lease_id: attempt.lease_id,
-            slot_id: attempt.slot_id, generation: Some(crate::slot::GenerationId::new(1)?), message: None,
+            engine_epoch: attempt.engine_epoch,
+            request_id,
+            lease_id: attempt.lease_id,
+            slot_id: attempt.slot_id,
+            generation: Some(crate::slot::GenerationId::new(1)?),
+            message: None,
         };
-        core.supervisor.transition_request(request_id, crate::request::RequestState::Connecting, Some(wire))?;
-        assert!(matches!(core.supervisor.begin_retry(wire,
-            RuntimeError::connection_closed("fixture connect failure"), true, admitted_at),
-            Some(crate::request::RetryDecision::Retire(_))));
+        core.supervisor.transition_request(
+            request_id,
+            crate::request::RequestState::Connecting,
+            Some(wire),
+        )?;
+        assert!(matches!(
+            core.supervisor.begin_retry(
+                wire,
+                RuntimeError::connection_closed("fixture connect failure"),
+                true,
+                admitted_at
+            ),
+            Some(crate::request::RetryDecision::Retire(_))
+        ));
         core.pending.get_mut(&request_id).expect("pending").wire = Some(wire);
-        core.retirements.insert(request_id, super::RetirementPlan::Retry);
+        core.retirements
+            .insert(request_id, super::RetirementPlan::Retry);
         runtime.block_on(core.handle_retired(crate::slot::ReconnectAck {
-            engine_epoch: wire.engine_epoch, slot_id: wire.slot_id, request_id,
+            engine_epoch: wire.engine_epoch,
+            slot_id: wire.slot_id,
+            request_id,
             retired_generation: wire.generation.expect("generation"),
             next_generation: crate::slot::GenerationId::new(2)?,
-            next_endpoint_index: 0, endpoints_remaining_in_attempt: 1,
+            next_endpoint_index: 0,
+            endpoints_remaining_in_attempt: 1,
         }))?;
-        assert!(matches!(receiver.try_recv().expect("terminal delivered"), Err(RuntimeError::Timeout { .. })));
+        assert!(matches!(
+            receiver.try_recv().expect("terminal delivered"),
+            Err(RuntimeError::Timeout { .. })
+        ));
         assert_eq!(core.supervisor.active_count(), 0);
         assert!(!core.closing);
         assert!(core.pending.is_empty());
         assert!(core.retirements.is_empty());
-        assert!(matches!(core.supervisor.submit_with_retry_policy(RequestId::new(212)?,
-            crate::deadline::Deadline::at(now + Duration::from_secs(1)),
-            crate::request::RetryPolicy::ordinary(true), now)?, crate::request::Admission::Active(_)));
+        assert!(matches!(
+            core.supervisor.submit_with_retry_policy(
+                RequestId::new(212)?,
+                crate::deadline::Deadline::at(now + Duration::from_secs(1)),
+                crate::request::RetryPolicy::ordinary(true),
+                now
+            )?,
+            crate::request::Admission::Active(_)
+        ));
         Ok(())
     }
 
     #[test]
-    fn late_slot_failure_preserves_existing_exact_cancellation_retirement() -> Result<(), RuntimeError> {
+    fn late_slot_failure_preserves_existing_exact_cancellation_retirement(
+    ) -> Result<(), RuntimeError> {
         for exact in [true, false] {
             let request_id = RequestId::new(220)?;
             let (mut core, runtime, _reservation_result) = pin_reservation_runtime(request_id)?;
-            let reserved = core.pin_reservations.remove(&request_id).expect("reservation");
+            let reserved = core
+                .pin_reservations
+                .remove(&request_id)
+                .expect("reservation");
             let admission = reserved.admission;
             let receiver = track_operation_request(&mut core, admission, None);
             let now = std::time::Instant::now();
             let attempt = core.supervisor.begin_request_attempt(request_id, now)?;
             let generation = crate::slot::GenerationId::new(1)?;
             let wire = crate::request::RequestWireIdentity {
-                engine_epoch: attempt.engine_epoch, request_id, lease_id: attempt.lease_id,
-                slot_id: attempt.slot_id, generation: Some(generation), message: None,
+                engine_epoch: attempt.engine_epoch,
+                request_id,
+                lease_id: attempt.lease_id,
+                slot_id: attempt.slot_id,
+                generation: Some(generation),
+                message: None,
             };
-            core.supervisor.transition_request(request_id, crate::request::RequestState::Connecting, Some(wire))?;
+            core.supervisor.transition_request(
+                request_id,
+                crate::request::RequestState::Connecting,
+                Some(wire),
+            )?;
             core.pending.get_mut(&request_id).expect("pending").wire = Some(wire);
             let root = RuntimeError::connection_closed("cancel winner");
-            assert!(matches!(core.supervisor.begin_retry(wire, root.clone(), false, now),
-                Some(crate::request::RetryDecision::RetireThenTerminal(_))));
-            core.retirements.insert(request_id, super::RetirementPlan::Terminal {
-                kind: crate::request::TerminalKind::Cancelled, error: root,
-            });
-            let reported = if exact { wire } else { crate::request::RequestWireIdentity {
-                generation: Some(crate::slot::GenerationId::new(9)?), ..wire
-            }};
+            assert!(matches!(
+                core.supervisor.begin_retry(wire, root.clone(), false, now),
+                Some(crate::request::RetryDecision::RetireThenTerminal(_))
+            ));
+            core.retirements.insert(
+                request_id,
+                super::RetirementPlan::Terminal {
+                    kind: crate::request::TerminalKind::Cancelled,
+                    error: root,
+                },
+            );
+            let reported = if exact {
+                wire
+            } else {
+                crate::request::RequestWireIdentity {
+                    generation: Some(crate::slot::GenerationId::new(9)?),
+                    ..wire
+                }
+            };
             let (reply, received) = tokio::sync::oneshot::channel();
             let handled = runtime.block_on(core.handle_slot_event(super::SlotEvent::Failed {
-                wire: reported, error: RuntimeError::connection_closed("late response failure"),
-                retryable: true, same_attempt_possible: false, reply,
+                wire: reported,
+                error: RuntimeError::connection_closed("late response failure"),
+                retryable: true,
+                same_attempt_possible: false,
+                reply,
             }));
             let replied = runtime.block_on(received).expect("failure action");
             if exact {
                 handled?;
                 assert!(matches!(replied?, super::FailureAction::Retire));
             } else {
-                assert!(handled.is_err(), "a foreign generation cannot use an existing retirement");
+                assert!(
+                    handled.is_err(),
+                    "a foreign generation cannot use an existing retirement"
+                );
                 assert!(replied.is_err());
             }
-            assert!(matches!(core.retirements.get(&request_id), Some(super::RetirementPlan::Terminal {
-                kind: crate::request::TerminalKind::Cancelled, ..
-            })));
+            assert!(matches!(
+                core.retirements.get(&request_id),
+                Some(super::RetirementPlan::Terminal {
+                    kind: crate::request::TerminalKind::Cancelled,
+                    ..
+                })
+            ));
             runtime.block_on(core.handle_retired(crate::slot::ReconnectAck {
-                engine_epoch: wire.engine_epoch, slot_id: wire.slot_id, request_id,
-                retired_generation: generation, next_generation: crate::slot::GenerationId::new(2)?,
-                next_endpoint_index: 0, endpoints_remaining_in_attempt: 1,
+                engine_epoch: wire.engine_epoch,
+                slot_id: wire.slot_id,
+                request_id,
+                retired_generation: generation,
+                next_generation: crate::slot::GenerationId::new(2)?,
+                next_endpoint_index: 0,
+                endpoints_remaining_in_attempt: 1,
             }))?;
-            let error = receiver.try_recv().expect("cancelled request terminal").expect_err("cancel wins");
+            let error = receiver
+                .try_recv()
+                .expect("cancelled request terminal")
+                .expect_err("cancel wins");
             assert!(error.to_string().contains("cancel winner"));
             assert!(core.pending.is_empty());
             assert!(core.retirements.is_empty());
@@ -7213,12 +7621,17 @@ mod tests {
     }
 
     #[test]
-    fn late_cancellation_waits_for_failed_retry_and_endpoint_retirement() -> Result<(), RuntimeError> {
+    fn late_cancellation_waits_for_failed_retry_and_endpoint_retirement() -> Result<(), RuntimeError>
+    {
         for pinned in [false, true] {
             for mode in ["terminal", "retry", "endpoint"] {
                 let reservation_id = RequestId::new(230)?;
-                let (mut core, runtime, _reservation_result) = pin_reservation_runtime(reservation_id)?;
-                let reserved = core.pin_reservations.remove(&reservation_id).expect("reservation");
+                let (mut core, runtime, _reservation_result) =
+                    pin_reservation_runtime(reservation_id)?;
+                let reserved = core
+                    .pin_reservations
+                    .remove(&reservation_id)
+                    .expect("reservation");
                 let crate::request::Admission::Active(lease) = reserved.admission else {
                     panic!("active fixture reservation");
                 };
@@ -7228,54 +7641,101 @@ mod tests {
                 let pin = if pinned {
                     Some(core.supervisor.open_pin(reservation_id)?)
                 } else {
-                    core.supervisor.terminal_active(wire_without_generation(lease),
+                    core.supervisor.terminal_active(
+                        wire_without_generation(lease),
                         crate::request::TerminalKind::Failed,
-                        Some(RuntimeError::connection_closed("fixture releases reservation")), now)?;
+                        Some(RuntimeError::connection_closed(
+                            "fixture releases reservation",
+                        )),
+                        now,
+                    )?;
                     None
                 };
                 let policy = crate::request::RetryPolicy::ordinary(true);
                 let admission = if let Some(pin) = pin {
-                    core.supervisor.submit_pin(pin, request_id, deadline, policy, now)?
+                    core.supervisor
+                        .submit_pin(pin, request_id, deadline, policy, now)?
                 } else {
-                    core.supervisor.submit_with_retry_policy(request_id, deadline, policy, now)?
+                    core.supervisor
+                        .submit_with_retry_policy(request_id, deadline, policy, now)?
                 };
                 let receiver = track_operation_request(&mut core, admission, pin);
                 let attempt = core.supervisor.begin_request_attempt(request_id, now)?;
                 let generation = crate::slot::GenerationId::new(1)?;
                 let wire = crate::request::RequestWireIdentity {
-                    engine_epoch: attempt.engine_epoch, request_id, lease_id: attempt.lease_id,
-                    slot_id: attempt.slot_id, generation: Some(generation), message: None,
+                    engine_epoch: attempt.engine_epoch,
+                    request_id,
+                    lease_id: attempt.lease_id,
+                    slot_id: attempt.slot_id,
+                    generation: Some(generation),
+                    message: None,
                 };
-                core.supervisor.transition_request(request_id, crate::request::RequestState::Connecting, Some(wire))?;
+                core.supervisor.transition_request(
+                    request_id,
+                    crate::request::RequestState::Connecting,
+                    Some(wire),
+                )?;
                 core.pending.get_mut(&request_id).expect("pending").wire = Some(wire);
                 let (reply, received) = tokio::sync::oneshot::channel();
                 runtime.block_on(core.handle_slot_event(super::SlotEvent::Failed {
-                    wire, error: RuntimeError::connection_closed("original failed attempt"),
-                    retryable: mode != "terminal", same_attempt_possible: mode == "endpoint", reply,
+                    wire,
+                    error: RuntimeError::connection_closed("original failed attempt"),
+                    retryable: mode != "terminal",
+                    same_attempt_possible: mode == "endpoint",
+                    reply,
                 }))?;
-                assert!(matches!(runtime.block_on(received).expect("failure reply")?, super::FailureAction::Retire));
+                assert!(matches!(
+                    runtime.block_on(received).expect("failure reply")?,
+                    super::FailureAction::Retire
+                ));
                 let foreign_wire = crate::request::RequestWireIdentity {
-                    generation: Some(crate::slot::GenerationId::new(9)?), ..wire
+                    generation: Some(crate::slot::GenerationId::new(9)?),
+                    ..wire
                 };
-                assert!(!core.supervisor.cancel_retiring_request(foreign_wire), "another generation cannot take ownership");
+                assert!(
+                    !core.supervisor.cancel_retiring_request(foreign_wire),
+                    "another generation cannot take ownership"
+                );
                 let confirmation = Arc::new(super::Completion::new());
                 runtime.block_on(core.cancel_request(request_id, Arc::clone(&confirmation)))?;
-                assert!(confirmation.wait(Duration::ZERO)?.is_none(), "cleanup must wait for actual retirement");
+                assert!(
+                    confirmation.wait(Duration::ZERO)?.is_none(),
+                    "cleanup must wait for actual retirement"
+                );
                 runtime.block_on(core.handle_retired(crate::slot::ReconnectAck {
-                    engine_epoch: wire.engine_epoch, slot_id: wire.slot_id, request_id,
-                    retired_generation: generation, next_generation: crate::slot::GenerationId::new(2)?,
-                    next_endpoint_index: 0, endpoints_remaining_in_attempt: 1,
+                    engine_epoch: wire.engine_epoch,
+                    slot_id: wire.slot_id,
+                    request_id,
+                    retired_generation: generation,
+                    next_generation: crate::slot::GenerationId::new(2)?,
+                    next_endpoint_index: 0,
+                    endpoints_remaining_in_attempt: 1,
                 }))?;
-                confirmation.wait(Duration::ZERO)?.expect("retirement acknowledged")?;
-                let error = receiver.try_recv().expect("terminal delivered").expect_err("cancel prevents retry");
-                let expected = if mode == "terminal" { "original failed attempt" } else { "request cancelled by caller" };
-                assert!(error.to_string().contains(expected), "{pinned}/{mode}: {error}");
+                confirmation
+                    .wait(Duration::ZERO)?
+                    .expect("retirement acknowledged")?;
+                let error = receiver
+                    .try_recv()
+                    .expect("terminal delivered")
+                    .expect_err("cancel prevents retry");
+                let expected = if mode == "terminal" {
+                    "original failed attempt"
+                } else {
+                    "request cancelled by caller"
+                };
+                assert!(
+                    error.to_string().contains(expected),
+                    "{pinned}/{mode}: {error}"
+                );
                 assert!(core.pending.is_empty());
                 assert!(core.retirements.is_empty());
                 assert!(core.cancel_confirmations.is_empty());
                 assert!(!core.closing);
                 assert_eq!(core.supervisor.active_count(), usize::from(pinned));
-                assert!(core.slots.iter().all(Option::is_none), "cancellation must not start another attempt");
+                assert!(
+                    core.slots.iter().all(Option::is_none),
+                    "cancellation must not start another attempt"
+                );
             }
         }
         Ok(())
@@ -7433,13 +7893,18 @@ mod tests {
     }
 
     #[test]
-    fn cancellation_registered_before_terminal_publish_acknowledges_without_pre_cancel_or_close() -> Result<(), RuntimeError> {
+    fn cancellation_registered_before_terminal_publish_acknowledges_without_pre_cancel_or_close(
+    ) -> Result<(), RuntimeError> {
         let request_id = RequestId::new(73)?;
         let (mut core, runtime, _receiver) = pin_reservation_runtime(RequestId::new(72)?)?;
         let control = Arc::clone(&core.control);
         let terminal = Arc::new(AtomicBool::new(false));
         let confirmation = Arc::new(super::Completion::new());
-        control.request_raw_cancel(request_id, Some(Arc::clone(&terminal)), Arc::clone(&confirmation))?;
+        control.request_raw_cancel(
+            request_id,
+            Some(Arc::clone(&terminal)),
+            Arc::clone(&confirmation),
+        )?;
         let snapshot = control.take_snapshot()?;
         if !snapshot.cancellations.contains_key(&request_id) {
             return Err(RuntimeError::internal("registered cancellation is missing"));
@@ -7449,12 +7914,21 @@ mod tests {
             sender,
             terminal: Arc::clone(&terminal),
         };
-        sender.send(Err(RuntimeError::connection_closed("terminal result")))
+        sender
+            .send(Err(RuntimeError::connection_closed("terminal result")))
             .expect("terminal receiver is present");
         drop(receiver);
         assert!(terminal.load(Ordering::Acquire));
-        runtime.block_on(core.cancel_raw_request(request_id, snapshot.cancellations.into_values().next()
-                .ok_or_else(|| RuntimeError::internal("cancellation snapshot is empty"))?))?;
+        runtime.block_on(
+            core.cancel_raw_request(
+                request_id,
+                snapshot
+                    .cancellations
+                    .into_values()
+                    .next()
+                    .ok_or_else(|| RuntimeError::internal("cancellation snapshot is empty"))?,
+            ),
+        )?;
         assert_eq!(confirmation.wait(Duration::ZERO)?, Some(Ok(())));
         let remaining = control.take_snapshot()?;
         assert!(!remaining.close_requested);
@@ -7475,7 +7949,10 @@ mod tests {
         }
         let starts = Arc::new(AtomicUsize::new(0));
         let deadline = crate::deadline::Deadline::at(std::time::Instant::now());
-        let result = super::start_reserved_attempt(deadline, Ok(Some(Box::new(CountStart(Arc::clone(&starts))))));
+        let result = super::start_reserved_attempt(
+            deadline,
+            Ok(Some(Box::new(CountStart(Arc::clone(&starts))))),
+        );
         assert!(matches!(result, Err(RuntimeError::Timeout { .. })));
         assert_eq!(starts.load(Ordering::Acquire), 0);
         Ok(())
@@ -7504,7 +7981,9 @@ mod tests {
         let worker = std::thread::spawn(move || {
             worker_barrier.wait();
             drop(pending);
-            dropped_tx.send(()).expect("drop acknowledgement receiver is present");
+            dropped_tx
+                .send(())
+                .expect("drop acknowledgement receiver is present");
         });
 
         barrier.wait();
@@ -7525,7 +8004,8 @@ mod tests {
             slot_id: crate::slot::SlotId::new(0),
             reservation_request_id: RequestId::new(43)?,
         };
-        let (sender, receiver) = std_mpsc::sync_channel::<Result<super::PinDelivery, RuntimeError>>(1);
+        let (sender, receiver) =
+            std_mpsc::sync_channel::<Result<super::PinDelivery, RuntimeError>>(1);
         drop(receiver);
         let result = sender.send(Ok(super::PinDelivery {
             identity: Some(identity),
@@ -7548,7 +8028,10 @@ mod tests {
 
         assert_eq!(core.supervisor.active_count(), 0);
         assert_eq!(core.supervisor.pin_count(), 0);
-        assert!(receiver.recv().expect("terminal result is published").is_err());
+        assert!(receiver
+            .recv()
+            .expect("terminal result is published")
+            .is_err());
         assert_eq!(confirmation.wait(Duration::ZERO)?, Some(Ok(())));
         Ok(())
     }
@@ -7582,7 +8065,9 @@ mod tests {
         });
 
         barrier.wait();
-        queued_rx.recv().expect("cancellation reached control state");
+        queued_rx
+            .recv()
+            .expect("cancellation reached control state");
         worker.join().expect("cancellation worker completed");
         let mut snapshot = core.control.take_snapshot()?;
         let queued_confirmation = snapshot
@@ -7633,9 +8118,7 @@ mod tests {
             .map(|reservation| reservation.admission)
             .ok_or_else(|| RuntimeError::internal("pin reservation disappeared"))?
         else {
-            return Err(RuntimeError::internal(
-                "test pin reservation is not active",
-            ));
+            return Err(RuntimeError::internal("test pin reservation is not active"));
         };
         let batch = core
             .supervisor
@@ -7677,13 +8160,12 @@ mod tests {
             .get(&request_id)
             .map(|reservation| Arc::clone(&reservation.result.terminal))
             .ok_or_else(|| RuntimeError::internal("pin reservation has no result state"))?;
-        assert!(runtime.block_on(core.complete_pin_reservation(request_id))?.is_none());
+        assert!(runtime
+            .block_on(core.complete_pin_reservation(request_id))?
+            .is_none());
         let confirmation = Arc::new(super::Completion::new());
-        core.control.request_pin_cancel(
-            request_id,
-            result_terminal,
-            Arc::clone(&confirmation),
-        )?;
+        core.control
+            .request_pin_cancel(request_id, result_terminal, Arc::clone(&confirmation))?;
         assert_eq!(confirmation.wait(Duration::ZERO)?, Some(Ok(())));
         assert!(core.control.take_snapshot()?.pin_cancellations.is_empty());
 
@@ -7768,7 +8250,9 @@ mod tests {
         let request_id = RequestId::new(49)?;
         let (mut core, runtime, receiver) = pin_reservation_runtime(request_id)?;
         drop(receiver);
-        assert!(runtime.block_on(core.complete_pin_reservation(request_id))?.is_none());
+        assert!(runtime
+            .block_on(core.complete_pin_reservation(request_id))?
+            .is_none());
 
         assert_eq!(core.supervisor.active_count(), 0);
         assert_eq!(core.supervisor.pin_count(), 0);
@@ -7919,7 +8403,10 @@ mod tests {
         };
         let started = std::time::Instant::now();
         let deadline = started + Duration::from_millis(10);
-        assert!(matches!(pending.wait_until(deadline), Err(RuntimeError::CloseTimeout { .. })));
+        assert!(matches!(
+            pending.wait_until(deadline),
+            Err(RuntimeError::CloseTimeout { .. })
+        ));
         assert!(started.elapsed() < Duration::from_secs(1));
         assert!(pending.terminal.is_none());
         sender.send(Ok(())).expect("timeout retained receipt");
@@ -7941,7 +8428,8 @@ mod tests {
     }
 
     #[test]
-    fn pin_engine_membership_uses_owner_identity_not_equal_config_or_pin_ids() -> Result<(), RuntimeError> {
+    fn pin_engine_membership_uses_owner_identity_not_equal_config_or_pin_ids(
+    ) -> Result<(), RuntimeError> {
         let engine = Engine::new(config(1, 1)?)?;
         let other = Engine::new(config(1, 1)?)?;
         let pin = super::PinHandle {
@@ -7957,7 +8445,10 @@ mod tests {
         assert!(pin.belongs_to_engine(&engine));
         assert!(pin.belongs_to_engine(&engine.clone()));
         assert!(!pin.belongs_to_engine(&other));
-        let other_pin = super::PinHandle { engine: other, identity: pin.identity };
+        let other_pin = super::PinHandle {
+            engine: other,
+            identity: pin.identity,
+        };
         assert!(pin.same_reservation(&pin.clone()));
         assert!(!pin.same_reservation(&other_pin));
         Ok(())

@@ -260,7 +260,6 @@ fn python_round_to_i64(value: f64) -> Result<i64, ProtocolError> {
     .ok_or_else(|| ProtocolError::invalid_data("auction series", "auction price overflow"))
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{parse_auction_series_payload, python_round_to_i64, AuctionSeriesRequest};

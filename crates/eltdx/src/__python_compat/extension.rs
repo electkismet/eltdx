@@ -9,10 +9,14 @@ use crate::{Error, ErrorKind, Result};
 /// One irreversible generation. Reconnecting creates a new value; cloning it
 /// never revives a retired connection. It starts no worker, socket or timer.
 #[derive(Clone, Debug)]
-pub struct LegacyExtensionSession { owner: Arc<SessionOwner> }
+pub struct LegacyExtensionSession {
+    owner: Arc<SessionOwner>,
+}
 
 impl Default for LegacyExtensionSession {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LegacyExtensionSession {
@@ -20,23 +24,34 @@ impl LegacyExtensionSession {
         // External adapters own their original I/O timeouts and close policy.
         // Shared close finalizes only this admission state after retirement
         // and the final admission, without waiting on Python network work.
-        Self { owner: Arc::new(SessionOwner::new(Duration::ZERO, Duration::ZERO)) }
+        Self {
+            owner: Arc::new(SessionOwner::new(Duration::ZERO, Duration::ZERO)),
+        }
     }
 
-    pub fn generation(&self) -> usize { self.owner.generation() }
+    pub fn generation(&self) -> usize {
+        self.owner.generation()
+    }
 
     pub fn admit(&self) -> Result<LegacyExtensionOperation> {
-        Ok(LegacyExtensionOperation { session: self.clone(), admission: self.owner.admit()? })
+        Ok(LegacyExtensionOperation {
+            session: self.clone(),
+            admission: self.owner.admit()?,
+        })
     }
 
-    pub fn ensure_open(&self) -> Result<()> { self.owner.ensure_open() }
+    pub fn ensure_open(&self) -> Result<()> {
+        self.owner.ensure_open()
+    }
 
     /// Seal this generation when the adapter closes or replaces a connection.
     /// This does not establish physical cleanup: the adapter owns that policy,
     /// including retaining a resource whose custom close failed for later retry.
     /// Admissions remain owned until they unwind, but cannot publish a result
     /// after this boundary. A same-thread reentrant close is safe.
-    pub fn retire(&self) -> Result<()> { self.owner.retire_external() }
+    pub fn retire(&self) -> Result<()> {
+        self.owner.retire_external()
+    }
 }
 
 #[derive(Debug)]
@@ -46,11 +61,16 @@ pub struct LegacyExtensionOperation {
 }
 
 impl LegacyExtensionOperation {
-    pub fn generation(&self) -> usize { self.session.generation() }
+    pub fn generation(&self) -> usize {
+        self.session.generation()
+    }
 
     pub fn check(&self) -> Result<()> {
         if self.admission.is_cancelled() {
-            return Err(Error::new(ErrorKind::Closed, "extension connection generation has retired"));
+            return Err(Error::new(
+                ErrorKind::Closed,
+                "extension connection generation has retired",
+            ));
         }
         self.session.ensure_open()
     }

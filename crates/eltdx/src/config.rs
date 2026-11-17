@@ -21,7 +21,9 @@ pub struct ClientConfig {
 }
 
 impl ClientConfig {
-    pub fn clock(&self) -> &dyn crate::types::Clock { self.clock.0.as_ref() }
+    pub fn clock(&self) -> &dyn crate::types::Clock {
+        self.clock.0.as_ref()
+    }
     pub fn pool_size(&self) -> usize {
         self.pool_size
     }
@@ -46,9 +48,15 @@ impl ClientConfig {
         self.endpoints.as_deref()
     }
 
-    pub fn auction_endpoints(&self) -> Option<&[SocketAddr]> { self.auction_endpoints.as_deref() }
-    pub fn money_flow_endpoints(&self) -> Option<&[SocketAddr]> { self.money_flow_endpoints.as_deref() }
-    pub fn max_connections(&self) -> usize { self.connection_limit.maximum() }
+    pub fn auction_endpoints(&self) -> Option<&[SocketAddr]> {
+        self.auction_endpoints.as_deref()
+    }
+    pub fn money_flow_endpoints(&self) -> Option<&[SocketAddr]> {
+        self.money_flow_endpoints.as_deref()
+    }
+    pub fn max_connections(&self) -> usize {
+        self.connection_limit.maximum()
+    }
 
     pub fn wire_attempt_limit(&self) -> NonZeroU32 {
         self.wire_attempt_limit
@@ -108,14 +116,20 @@ impl ConfigDraft {
                 return Err(invalid(name, "must be greater than zero"));
             }
         }
-        if self.heartbeat_interval.is_some_and(|interval| interval.is_zero()) {
+        if self
+            .heartbeat_interval
+            .is_some_and(|interval| interval.is_zero())
+        {
             return Err(invalid(
                 "heartbeat_interval",
                 "must be greater than zero when enabled",
             ));
         }
-        for (name, endpoints) in [("endpoints", &self.endpoints), ("auction_endpoints", &self.auction_endpoints),
-            ("money_flow_endpoints", &self.money_flow_endpoints)] {
+        for (name, endpoints) in [
+            ("endpoints", &self.endpoints),
+            ("auction_endpoints", &self.auction_endpoints),
+            ("money_flow_endpoints", &self.money_flow_endpoints),
+        ] {
             if let Some(endpoints) = endpoints {
                 if endpoints.is_empty() {
                     return Err(invalid(name, "must contain at least one socket address"));
@@ -127,13 +141,19 @@ impl ConfigDraft {
         }
         let maximum = match self.max_connections {
             Some(maximum) => maximum,
-            None => self.pool_size.checked_mul(4)
+            None => self
+                .pool_size
+                .checked_mul(4)
                 .ok_or_else(|| invalid("pool_size", "default total connection bound overflows"))?,
         };
         if maximum < self.pool_size {
-            return Err(invalid("max_connections", "must hold at least one configured pool"));
+            return Err(invalid(
+                "max_connections",
+                "must hold at least one configured pool",
+            ));
         }
-        let connection_limit = eltdx_runtime::engine::ConnectionLimit::new(maximum).map_err(Error::from_runtime)?;
+        let connection_limit =
+            eltdx_runtime::engine::ConnectionLimit::new(maximum).map_err(Error::from_runtime)?;
 
         Ok(ClientConfig {
             clock: self.clock,

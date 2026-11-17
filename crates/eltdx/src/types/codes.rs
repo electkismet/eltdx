@@ -57,20 +57,50 @@ impl Security {
         board: SecurityBoard,
         board_reason: String,
     ) -> Self {
-        Self { id, name, multiple, decimal, previous_close, volume_ratio_base,
-            category, category_reason, board, board_reason }
+        Self {
+            id,
+            name,
+            multiple,
+            decimal,
+            previous_close,
+            volume_ratio_base,
+            category,
+            category_reason,
+            board,
+            board_reason,
+        }
     }
 
-    pub fn id(&self) -> &SecurityId { &self.id }
-    pub fn name(&self) -> &str { &self.name }
-    pub const fn multiple(&self) -> u16 { self.multiple }
-    pub const fn decimal(&self) -> u8 { self.decimal }
-    pub const fn previous_close(&self) -> Price { self.previous_close }
-    pub const fn volume_ratio_base(&self) -> f64 { self.volume_ratio_base }
-    pub fn category(&self) -> &SecurityCategory { &self.category }
-    pub fn category_reason(&self) -> &str { &self.category_reason }
-    pub fn board(&self) -> &SecurityBoard { &self.board }
-    pub fn board_reason(&self) -> &str { &self.board_reason }
+    pub fn id(&self) -> &SecurityId {
+        &self.id
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub const fn multiple(&self) -> u16 {
+        self.multiple
+    }
+    pub const fn decimal(&self) -> u8 {
+        self.decimal
+    }
+    pub const fn previous_close(&self) -> Price {
+        self.previous_close
+    }
+    pub const fn volume_ratio_base(&self) -> f64 {
+        self.volume_ratio_base
+    }
+    pub fn category(&self) -> &SecurityCategory {
+        &self.category
+    }
+    pub fn category_reason(&self) -> &str {
+        &self.category_reason
+    }
+    pub fn board(&self) -> &SecurityBoard {
+        &self.board
+    }
+    pub fn board_reason(&self) -> &str {
+        &self.board_reason
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -81,7 +111,9 @@ pub struct CodeQuery {
 }
 
 impl CodeQuery {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn with_start(mut self, value: u32) -> Result<Self> {
         self.start = value;
@@ -90,7 +122,9 @@ impl CodeQuery {
     }
 
     pub fn with_limit(mut self, value: usize) -> Result<Self> {
-        if value > 1_600 { return Err(query_error("limit", "must be between 0 and 1600")); }
+        if value > 1_600 {
+            return Err(query_error("limit", "must be between 0 and 1600"));
+        }
         self.limit = value;
         Ok(self)
     }
@@ -101,13 +135,25 @@ impl CodeQuery {
         Ok(self)
     }
 
-    pub const fn start(&self) -> u32 { self.start }
-    pub const fn limit(&self) -> usize { self.limit }
-    pub fn cursor(&self) -> Option<&PageCursor> { self.cursor.as_ref() }
+    pub const fn start(&self) -> u32 {
+        self.start
+    }
+    pub const fn limit(&self) -> usize {
+        self.limit
+    }
+    pub fn cursor(&self) -> Option<&PageCursor> {
+        self.cursor.as_ref()
+    }
 }
 
 impl Default for CodeQuery {
-    fn default() -> Self { Self { start: 0, limit: 1_600, cursor: None } }
+    fn default() -> Self {
+        Self {
+            start: 0,
+            limit: 1_600,
+            cursor: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -118,7 +164,9 @@ pub struct CodeScanQuery {
 }
 
 impl CodeScanQuery {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn with_pages(mut self, value: PageOptions) -> Result<Self> {
         validate_scan_pages(&value)?;
@@ -139,20 +187,31 @@ impl CodeScanQuery {
         Ok(self)
     }
 
-    pub fn pages(&self) -> &PageOptions { &self.pages }
-    pub fn category(&self) -> Option<&SecurityCategory> { self.category.as_ref() }
-    pub fn cursor(&self) -> Option<&PageCursor> { self.cursor.as_ref() }
+    pub fn pages(&self) -> &PageOptions {
+        &self.pages
+    }
+    pub fn category(&self) -> Option<&SecurityCategory> {
+        self.category.as_ref()
+    }
+    pub fn cursor(&self) -> Option<&PageCursor> {
+        self.cursor.as_ref()
+    }
 }
 
 impl Default for CodeScanQuery {
     fn default() -> Self {
-        Self { pages: PageOptions::new(1_600, 200, 320_000).unwrap_or_else(|_| unreachable!()),
-            category: None, cursor: None }
+        Self {
+            pages: PageOptions::new(1_600, 200, 320_000).unwrap_or_else(|_| unreachable!()),
+            category: None,
+            cursor: None,
+        }
     }
 }
 
 pub(crate) fn validate_scan_pages(value: &PageOptions) -> Result<()> {
-    if value.page_size() > 1_600 { return Err(query_error("page_size", "must not exceed 1600")); }
+    if value.page_size() > 1_600 {
+        return Err(query_error("page_size", "must not exceed 1600"));
+    }
     Ok(())
 }
 

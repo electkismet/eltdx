@@ -6,8 +6,7 @@ use crate::frame::RequestFrame;
 use crate::limits::MAX_RESPONSE_PAYLOAD_SIZE;
 use crate::unit::{
     consume_price, consume_varint, little_f32, little_u16, little_u32, milli_to_float,
-    minute_index_datetime, minute_index_label, DateParts, DateTimeParts, Market,
-    NormalizedCode,
+    minute_index_datetime, minute_index_label, DateParts, DateTimeParts, Market, NormalizedCode,
 };
 
 pub const TYPE_INTRADAY_AUX: u16 = 0x051b;
@@ -1000,7 +999,6 @@ fn python_date_ordinal(date: DateParts) -> Result<u32, ProtocolError> {
 fn is_leap_year(year: i32) -> bool {
     year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
 }
-
 
 #[cfg(test)]
 mod tests {

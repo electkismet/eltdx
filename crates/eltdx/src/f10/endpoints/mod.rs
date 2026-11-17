@@ -2,24 +2,49 @@
 //! restarts. Macros emit distinct public query types and named client methods.
 use std::time::Instant;
 
+use super::{CallQuery, EntryName, F10Client, JsonValue, RequestPayload, Response};
 use crate::operation::OperationContext;
 use crate::types::{Diagnostic, EnrichmentStatus};
 use crate::{OperationOptions, Result, TimeoutPhase};
-use super::{CallQuery, EntryName, F10Client, JsonValue, RequestPayload, Response};
 
 pub(crate) fn params(entry: &str, values: Vec<JsonValue>) -> Result<CallQuery> {
-    Ok(CallQuery::new(EntryName::new(entry)?, RequestPayload::Params(values)))
+    Ok(CallQuery::new(
+        EntryName::new(entry)?,
+        RequestPayload::Params(values),
+    ))
 }
 pub(crate) fn inferred_bond(response: Response, inferred: bool) -> Response {
-    if inferred { response.with_diagnostic(Diagnostic::new("bond_identity", "query", EnrichmentStatus::NotRequested, None,
-        Some("Unprefixed bond code uses the historical SH market default; market is inferred.".to_owned()))) } else { response }
+    if inferred {
+        response.with_diagnostic(Diagnostic::new(
+            "bond_identity",
+            "query",
+            EnrichmentStatus::NotRequested,
+            None,
+            Some(
+                "Unprefixed bond code uses the historical SH market default; market is inferred."
+                    .to_owned(),
+            ),
+        ))
+    } else {
+        response
+    }
 }
 impl F10Client {
-    pub(crate) fn endpoint_call(&self, query: &CallQuery, context: &OperationContext) -> Result<Response> {
+    pub(crate) fn endpoint_call(
+        &self,
+        query: &CallQuery,
+        context: &OperationContext,
+    ) -> Result<Response> {
         context.check_boundary(TimeoutPhase::Send)?;
         self.call_in_context(query, context)
     }
-    fn endpoint(&self, name: &'static str, entry: Instant, query: impl FnOnce() -> Result<CallQuery>, options: &OperationOptions) -> Result<Response> {
+    fn endpoint(
+        &self,
+        name: &'static str,
+        entry: Instant,
+        query: impl FnOnce() -> Result<CallQuery>,
+        options: &OperationOptions,
+    ) -> Result<Response> {
         let context = self.context(entry, name, options)?;
         let result = self.endpoint_call(&query()?, &context)?;
         context.finish()?;
@@ -184,13 +209,22 @@ macro_rules! section_endpoint {
 mod template;
 pub use template::{input_template, page_template, SectionMap, SimpleArgument, SimpleEndpoint};
 mod sector_templates;
-pub use sector_templates::{position_arguments, position_prefix, sector_choices, sector_dynamic, sector_selection, sector_weights_without_date};
+pub use sector_templates::{
+    position_arguments, position_prefix, sector_choices, sector_dynamic, sector_selection,
+    sector_weights_without_date,
+};
 mod request_shapes;
 pub use request_shapes::{cache_alias, cache_payload, CacheValue, CACHE_ENTRY, CACHE_KINDS};
 mod report_templates;
-pub use report_templates::{report_table, fund_period_section, market_section, ReportArgument, ReportEntry, SHAREHOLDER_PLAN_SECTION};
+pub use report_templates::{
+    fund_period_section, market_section, report_table, ReportArgument, ReportEntry,
+    SHAREHOLDER_PLAN_SECTION,
+};
 mod object_templates;
-pub use object_templates::{object_entry, object_fields, object_part, stage_request, ObjectArgument, ObjectPart, THEME_WINDOW_REQUESTS, VALUATION_RANGE_REQUESTS};
+pub use object_templates::{
+    object_entry, object_fields, object_part, stage_request, ObjectArgument, ObjectPart,
+    THEME_WINDOW_REQUESTS, VALUATION_RANGE_REQUESTS,
+};
 mod simple_registry;
 pub use simple_registry::simple_endpoint;
 mod international;

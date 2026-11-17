@@ -1,7 +1,7 @@
 //! Synthetic loopback framing. This is not a real-server capture.
 
 use std::io::{self, Read, Write};
-use std::net::{SocketAddr, Shutdown, TcpListener, TcpStream};
+use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -28,7 +28,9 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn identity(&self) -> usize { self.identity }
+    pub fn identity(&self) -> usize {
+        self.identity
+    }
     pub fn push(&self, msg_type: u16, payload: &[u8]) -> io::Result<()> {
         let message = self.push_id.fetch_add(1, Ordering::Relaxed);
         self.write(&framed_response(message, msg_type, payload))
@@ -36,30 +38,44 @@ impl Connection {
 
     pub fn disconnect(&self) -> io::Result<()> {
         self.disconnected.store(true, Ordering::Release);
-        self.writer.lock().map_err(|_| io::Error::other("fixture writer poisoned"))?
+        self.writer
+            .lock()
+            .map_err(|_| io::Error::other("fixture writer poisoned"))?
             .shutdown(Shutdown::Both)
     }
 
     fn write(&self, raw: &[u8]) -> io::Result<()> {
-        self.writer.lock().map_err(|_| io::Error::other("fixture writer poisoned"))?.write_all(raw)
+        self.writer
+            .lock()
+            .map_err(|_| io::Error::other("fixture writer poisoned"))?
+            .write_all(raw)
     }
 }
 
 impl Server {
-    pub fn start(handler: impl Fn(&RequestFrame) -> Vec<u8> + Send + Sync + 'static) -> io::Result<Self> {
+    pub fn start(
+        handler: impl Fn(&RequestFrame) -> Vec<u8> + Send + Sync + 'static,
+    ) -> io::Result<Self> {
         Self::start_controlled(move |request, _| handler(request))
     }
 
-    pub fn start_controlled(handler: impl Fn(&RequestFrame, &Connection) -> Vec<u8> + Send + Sync + 'static) -> io::Result<Self> {
+    pub fn start_controlled(
+        handler: impl Fn(&RequestFrame, &Connection) -> Vec<u8> + Send + Sync + 'static,
+    ) -> io::Result<Self> {
         Self::start_profile(handler, false)
     }
 
     /// Allows explicit session business bytes as well as ordinary commands.
-    pub fn start_all(handler: impl Fn(&RequestFrame) -> Vec<u8> + Send + Sync + 'static) -> io::Result<Self> {
+    pub fn start_all(
+        handler: impl Fn(&RequestFrame) -> Vec<u8> + Send + Sync + 'static,
+    ) -> io::Result<Self> {
         Self::start_profile(move |request, _| handler(request), true)
     }
 
-    fn start_profile(handler: impl Fn(&RequestFrame, &Connection) -> Vec<u8> + Send + Sync + 'static, custom_session: bool) -> io::Result<Self> {
+    fn start_profile(
+        handler: impl Fn(&RequestFrame, &Connection) -> Vec<u8> + Send + Sync + 'static,
+        custom_session: bool,
+    ) -> io::Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         listener.set_nonblocking(true)?;
         let address = listener.local_addr()?;
@@ -77,12 +93,19 @@ impl Server {
                 let mut index = 0;
                 while index < connections.len() {
                     if connections[index].is_finished() {
-                        let result = connections.swap_remove(index).join()
-                            .unwrap_or_else(|_| Err(io::Error::other("fixture connection panicked")));
-                        if let Err(error) = result { failure.get_or_insert(error); }
-                    } else { index += 1; }
+                        let result = connections.swap_remove(index).join().unwrap_or_else(|_| {
+                            Err(io::Error::other("fixture connection panicked"))
+                        });
+                        if let Err(error) = result {
+                            failure.get_or_insert(error);
+                        }
+                    } else {
+                        index += 1;
+                    }
                 }
-                if failure.is_some() { break; }
+                if failure.is_some() {
+                    break;
+                }
                 match listener.accept() {
                     Ok((mut stream, _)) => {
                         let identity = worker_accepted.fetch_add(1, Ordering::SeqCst) + 1;
@@ -94,73 +117,139 @@ impl Server {
                         })();
                         let writer = match prepared {
                             Ok(writer) => writer,
-                            Err(error) => { failure.get_or_insert(error); break; }
+                            Err(error) => {
+                                failure.get_or_insert(error);
+                                break;
+                            }
                         };
-                        let connection = Connection { writer: Arc::new(Mutex::new(writer)),
+                        let connection = Connection {
+                            writer: Arc::new(Mutex::new(writer)),
                             push_id: Arc::new(AtomicU32::new(0x7000_0000)),
-                            disconnected: Arc::new(AtomicBool::new(false)), identity };
+                            disconnected: Arc::new(AtomicBool::new(false)),
+                            identity,
+                        };
                         let handler = Arc::clone(&handler);
                         let stop = Arc::clone(&worker_stop);
                         worker_active.fetch_add(1, Ordering::SeqCst);
                         let active = Arc::clone(&worker_active);
                         connections.push(thread::spawn(move || -> io::Result<()> {
                             struct Active(Arc<AtomicUsize>);
-                            impl Drop for Active { fn drop(&mut self) { self.0.fetch_sub(1, Ordering::SeqCst); } }
+                            impl Drop for Active {
+                                fn drop(&mut self) {
+                                    self.0.fetch_sub(1, Ordering::SeqCst);
+                                }
+                            }
                             let _active = Active(active);
-                            while !stop.load(Ordering::Acquire) && !connection.disconnected.load(Ordering::Acquire) {
+                            while !stop.load(Ordering::Acquire)
+                                && !connection.disconnected.load(Ordering::Acquire)
+                            {
                                 let request = match read_request(&mut stream) {
                                     Ok(request) => request,
-                                    Err(_) if connection.disconnected.load(Ordering::Acquire) => return Ok(()),
-                                    Err(error) if matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) => continue,
-                                    Err(error) if matches!(error.kind(), io::ErrorKind::UnexpectedEof | io::ErrorKind::ConnectionReset
-                                        | io::ErrorKind::ConnectionAborted | io::ErrorKind::NotConnected) => return Ok(()),
+                                    Err(_) if connection.disconnected.load(Ordering::Acquire) => {
+                                        return Ok(())
+                                    }
+                                    Err(error)
+                                        if matches!(
+                                            error.kind(),
+                                            io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+                                        ) =>
+                                    {
+                                        continue
+                                    }
+                                    Err(error)
+                                        if matches!(
+                                            error.kind(),
+                                            io::ErrorKind::UnexpectedEof
+                                                | io::ErrorKind::ConnectionReset
+                                                | io::ErrorKind::ConnectionAborted
+                                                | io::ErrorKind::NotConnected
+                                        ) =>
+                                    {
+                                        return Ok(())
+                                    }
                                     Err(error) => return Err(error),
                                 };
-                                let payload = if custom_session { handler(&request, &connection) } else { match request.msg_type {
-                                    0x000d => vec![0; 189],
-                                    0x0004 => vec![0; 10],
-                                    _ => handler(&request, &connection),
-                                } };
-                                if connection.disconnected.load(Ordering::Acquire) { return Ok(()); }
-                                if let Err(error) = connection.write(&response(&request, &payload)) {
-                                    if matches!(error.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::NotConnected
-                                        | io::ErrorKind::ConnectionReset | io::ErrorKind::ConnectionAborted) { return Ok(()); }
+                                let payload = if custom_session {
+                                    handler(&request, &connection)
+                                } else {
+                                    match request.msg_type {
+                                        0x000d => vec![0; 189],
+                                        0x0004 => vec![0; 10],
+                                        _ => handler(&request, &connection),
+                                    }
+                                };
+                                if connection.disconnected.load(Ordering::Acquire) {
+                                    return Ok(());
+                                }
+                                if let Err(error) = connection.write(&response(&request, &payload))
+                                {
+                                    if matches!(
+                                        error.kind(),
+                                        io::ErrorKind::BrokenPipe
+                                            | io::ErrorKind::NotConnected
+                                            | io::ErrorKind::ConnectionReset
+                                            | io::ErrorKind::ConnectionAborted
+                                    ) {
+                                        return Ok(());
+                                    }
                                     return Err(error);
                                 }
                             }
                             Ok(())
                         }));
                     }
-                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => thread::sleep(Duration::from_millis(1)),
-                    Err(error) => { failure.get_or_insert(error); break; }
+                    Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                        thread::sleep(Duration::from_millis(1))
+                    }
+                    Err(error) => {
+                        failure.get_or_insert(error);
+                        break;
+                    }
                 }
             }
             // Reap every child even after the first error. Detached fixture
             // workers would contaminate the resource measurements themselves.
             worker_stop.store(true, Ordering::Release);
             for connection in connections {
-                if let Err(error) = connection.join()
-                    .unwrap_or_else(|_| Err(io::Error::other("fixture connection panicked"))) {
+                if let Err(error) = connection
+                    .join()
+                    .unwrap_or_else(|_| Err(io::Error::other("fixture connection panicked")))
+                {
                     failure.get_or_insert(error);
                 }
             }
             failure.map_or(Ok(()), Err)
         });
-        Ok(Self { address, stop, worker: Some(worker), accepted, active })
+        Ok(Self {
+            address,
+            stop,
+            worker: Some(worker),
+            accepted,
+            active,
+        })
     }
 
-    pub fn connection_count(&self) -> usize { self.accepted.load(Ordering::SeqCst) }
-    pub fn active_connection_count(&self) -> usize { self.active.load(Ordering::SeqCst) }
+    pub fn connection_count(&self) -> usize {
+        self.accepted.load(Ordering::SeqCst)
+    }
+    pub fn active_connection_count(&self) -> usize {
+        self.active.load(Ordering::SeqCst)
+    }
 
     pub fn finish(mut self) -> io::Result<()> {
         self.stop.store(true, Ordering::Release);
-        self.worker.take().expect("server worker").join()
+        self.worker
+            .take()
+            .expect("server worker")
+            .join()
             .map_err(|_| io::Error::new(io::ErrorKind::Other, "fixture server panicked"))?
     }
 }
 
 impl Drop for Server {
-    fn drop(&mut self) { self.stop.store(true, Ordering::Release); }
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Release);
+    }
 }
 
 fn read_request(stream: &mut TcpStream) -> io::Result<RequestFrame> {
@@ -172,7 +261,8 @@ fn read_request(stream: &mut TcpStream) -> io::Result<RequestFrame> {
     let mut raw = vec![0; 12];
     raw[0] = first[0];
     stream.read_exact(&mut raw[1..])?;
-    let body = usize::from(u16::from_le_bytes([raw[6], raw[7]])).checked_sub(2)
+    let body = usize::from(u16::from_le_bytes([raw[6], raw[7]]))
+        .checked_sub(2)
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "bad request length"))?;
     raw.resize(12 + body, 0);
     stream.read_exact(&mut raw[12..])?;
@@ -225,9 +315,13 @@ pub fn snapshots(rows: &[(&str, i64)]) -> Vec<u8> {
         payload.extend_from_slice(number.as_bytes());
         payload.extend_from_slice(&1_u16.to_le_bytes());
         append_varint(&mut payload, current_hundredths);
-        for _ in 0..8 { append_varint(&mut payload, 0); } // four price deltas and time/unknown/total/current.
+        for _ in 0..8 {
+            append_varint(&mut payload, 0);
+        } // four price deltas and time/unknown/total/current.
         payload.extend_from_slice(&0_u32.to_le_bytes());
-        for _ in 0..8 { append_varint(&mut payload, 0); } // inside/outside/unknown/open, bid/ask/volumes.
+        for _ in 0..8 {
+            append_varint(&mut payload, 0);
+        } // inside/outside/unknown/open, bid/ask/volumes.
     }
     payload
 }
@@ -237,13 +331,19 @@ pub fn snapshots_with_volume(rows: &[(&str, i64, i64)]) -> Vec<u8> {
     let mut payload = vec![0, 0];
     payload.extend_from_slice(&(rows.len() as u16).to_le_bytes());
     for &(number, current_hundredths, total_hand) in rows {
-        payload.push(1); payload.extend_from_slice(number.as_bytes());
+        payload.push(1);
+        payload.extend_from_slice(number.as_bytes());
         payload.extend_from_slice(&1_u16.to_le_bytes());
         append_varint(&mut payload, current_hundredths);
-        for _ in 0..6 { append_varint(&mut payload, 0); }
-        append_varint(&mut payload, total_hand); append_varint(&mut payload, 0);
+        for _ in 0..6 {
+            append_varint(&mut payload, 0);
+        }
+        append_varint(&mut payload, total_hand);
+        append_varint(&mut payload, 0);
         payload.extend_from_slice(&0_u32.to_le_bytes());
-        for _ in 0..8 { append_varint(&mut payload, 0); }
+        for _ in 0..8 {
+            append_varint(&mut payload, 0);
+        }
     }
     payload
 }
@@ -253,12 +353,21 @@ pub fn snapshots_with_volume(rows: &[(&str, i64, i64)]) -> Vec<u8> {
 pub fn finance(rows: &[(&str, f32, f32, f32)]) -> Vec<u8> {
     let mut payload = (rows.len() as u16).to_le_bytes().to_vec();
     for &(number, circulation, total, eps) in rows {
-        payload.push(1); payload.extend_from_slice(number.as_bytes());
+        payload.push(1);
+        payload.extend_from_slice(number.as_bytes());
         payload.extend_from_slice(&circulation.to_le_bytes());
-        payload.extend_from_slice(&3_u16.to_le_bytes()); payload.extend_from_slice(&7_u16.to_le_bytes());
-        payload.extend_from_slice(&20261116_u32.to_le_bytes()); payload.extend_from_slice(&19910101_u32.to_le_bytes());
+        payload.extend_from_slice(&3_u16.to_le_bytes());
+        payload.extend_from_slice(&7_u16.to_le_bytes());
+        payload.extend_from_slice(&20261116_u32.to_le_bytes());
+        payload.extend_from_slice(&19910101_u32.to_le_bytes());
         for index in 1..31 {
-            let value = if index == 1 { total } else if index == 7 { eps } else { 0.0 };
+            let value = if index == 1 {
+                total
+            } else if index == 7 {
+                eps
+            } else {
+                0.0
+            };
             payload.extend_from_slice(&value.to_le_bytes());
         }
     }
@@ -266,7 +375,10 @@ pub fn finance(rows: &[(&str, f32, f32, f32)]) -> Vec<u8> {
 }
 
 pub fn finance_codes(request: &RequestFrame) -> Vec<String> {
-    request.data[2..].chunks_exact(7).map(|row| String::from_utf8(row[1..7].to_vec()).unwrap()).collect()
+    request.data[2..]
+        .chunks_exact(7)
+        .map(|row| String::from_utf8(row[1..7].to_vec()).unwrap())
+        .collect()
 }
 
 /// Legacy pseudo-index fixtures use wire hundredths for each price. The amount
@@ -275,15 +387,30 @@ pub fn legacy_prices(rows: &[(&str, i64, i64, i64, i64)]) -> Vec<u8> {
     let mut payload = vec![0, 0];
     payload.extend_from_slice(&(rows.len() as u16).to_le_bytes());
     for &(number, last, open, high, low) in rows {
-        payload.push(1); payload.extend_from_slice(number.as_bytes());
+        payload.push(1);
+        payload.extend_from_slice(number.as_bytes());
         payload.extend_from_slice(&1_u16.to_le_bytes());
-        for value in [last, 0, open - last, high - last, low - last, 93000, 0, 23, 0] {
+        for value in [
+            last,
+            0,
+            open - last,
+            high - last,
+            low - last,
+            93000,
+            0,
+            23,
+            0,
+        ] {
             append_varint(&mut payload, value);
         }
         payload.extend_from_slice(&0_u32.to_le_bytes());
-        for _ in 0..24 { append_varint(&mut payload, 0); }
+        for _ in 0..24 {
+            append_varint(&mut payload, 0);
+        }
         payload.extend_from_slice(&0_u16.to_le_bytes());
-        for _ in 0..4 { append_varint(&mut payload, 0); }
+        for _ in 0..4 {
+            append_varint(&mut payload, 0);
+        }
         payload.extend_from_slice(&[0; 4]); // explicit optional long tail.
     }
     payload
@@ -297,10 +424,14 @@ pub fn trade_offset(request: &RequestFrame) -> u16 {
 /// Ordinary tick fixtures: minute, per-page price delta, hand volume, status.
 pub fn trade_rows(request: &RequestFrame, rows: &[(u16, i64, i64, i64)]) -> Vec<u8> {
     let mut payload = (rows.len() as u16).to_le_bytes().to_vec();
-    if request.msg_type == 0x0fc6 { payload.extend_from_slice(&10_f32.to_le_bytes()); }
+    if request.msg_type == 0x0fc6 {
+        payload.extend_from_slice(&10_f32.to_le_bytes());
+    }
     for &(minute, delta, volume, status) in rows {
         payload.extend_from_slice(&minute.to_le_bytes());
-        for value in [delta, volume, 2, status, 0] { append_varint(&mut payload, value); }
+        for value in [delta, volume, 2, status, 0] {
+            append_varint(&mut payload, value);
+        }
     }
     payload
 }
@@ -308,7 +439,8 @@ pub fn trade_rows(request: &RequestFrame, rows: &[(u16, i64, i64, i64)]) -> Vec<
 pub fn handshake_dates(first: u32, second: u32) -> Vec<u8> {
     let mut payload = vec![0; 189];
     payload[1..3].copy_from_slice(&((first / 10000) as u16).to_le_bytes());
-    payload[3] = (first % 100) as u8; payload[4] = (first / 100 % 100) as u8;
+    payload[3] = (first % 100) as u8;
+    payload[4] = (first / 100 % 100) as u8;
     payload[6] = 10; // source-local10:00:00.
     payload[42..46].copy_from_slice(&first.to_le_bytes());
     payload[50..54].copy_from_slice(&second.to_le_bytes());
@@ -318,9 +450,12 @@ pub fn handshake_dates(first: u32, second: u32) -> Vec<u8> {
 pub fn auction_rows(rows: &[(u16, u8, f32, u32, i32)]) -> Vec<u8> {
     let mut payload = (rows.len() as u16).to_le_bytes().to_vec();
     for &(minute, second, price, matched, unmatched) in rows {
-        payload.extend_from_slice(&minute.to_le_bytes()); payload.extend_from_slice(&price.to_le_bytes());
-        payload.extend_from_slice(&matched.to_le_bytes()); payload.extend_from_slice(&unmatched.to_le_bytes());
-        payload.push(0); payload.push(second);
+        payload.extend_from_slice(&minute.to_le_bytes());
+        payload.extend_from_slice(&price.to_le_bytes());
+        payload.extend_from_slice(&matched.to_le_bytes());
+        payload.extend_from_slice(&unmatched.to_le_bytes());
+        payload.push(0);
+        payload.push(second);
     }
     payload
 }
@@ -332,13 +467,21 @@ pub fn refresh(rows: &[(&str, u32)]) -> Vec<u8> {
         payload.extend_from_slice(number.as_bytes());
         payload.extend_from_slice(&1_u16.to_le_bytes());
         append_varint(&mut payload, 10);
-        for _ in 0..4 { append_varint(&mut payload, 0); }
+        for _ in 0..4 {
+            append_varint(&mut payload, 0);
+        }
         payload.extend_from_slice(&cursor.to_le_bytes());
-        for _ in 0..3 { append_varint(&mut payload, 0); }
+        for _ in 0..3 {
+            append_varint(&mut payload, 0);
+        }
         payload.extend_from_slice(&0_u32.to_le_bytes());
-        for _ in 0..24 { append_varint(&mut payload, 0); } // four fields, five levels with four fields each.
+        for _ in 0..24 {
+            append_varint(&mut payload, 0);
+        } // four fields, five levels with four fields each.
     }
-    for byte in &mut payload { *byte ^= 0x93; }
+    for byte in &mut payload {
+        *byte ^= 0x93;
+    }
     payload
 }
 
@@ -351,39 +494,61 @@ pub fn category(rows: &[&str]) -> Vec<u8> {
         payload.extend_from_slice(number.as_bytes());
         payload.extend_from_slice(&1_u16.to_le_bytes());
         append_varint(&mut payload, 1_000);
-        for _ in 0..8 { append_varint(&mut payload, 0); }
+        for _ in 0..8 {
+            append_varint(&mut payload, 0);
+        }
         payload.extend_from_slice(&0_u32.to_le_bytes());
-        for _ in 0..8 { append_varint(&mut payload, 0); }
+        for _ in 0..8 {
+            append_varint(&mut payload, 0);
+        }
         payload.extend_from_slice(&[0; 56]);
     }
     payload
 }
 
 pub fn category_window(request: &RequestFrame) -> (u16, u16) {
-    (u16::from_le_bytes(request.data[4..6].try_into().unwrap()),
-        u16::from_le_bytes(request.data[6..8].try_into().unwrap()))
+    (
+        u16::from_le_bytes(request.data[4..6].try_into().unwrap()),
+        u16::from_le_bytes(request.data[6..8].try_into().unwrap()),
+    )
 }
 
 pub fn snapshot_codes(request: &RequestFrame) -> Vec<String> {
-    request.data[10..].chunks_exact(7).map(|row| String::from_utf8(row[1..].to_vec()).unwrap()).collect()
+    request.data[10..]
+        .chunks_exact(7)
+        .map(|row| String::from_utf8(row[1..].to_vec()).unwrap())
+        .collect()
 }
 
 pub fn refresh_requests(request: &RequestFrame) -> Vec<(String, u32)> {
-    request.data[2..].chunks_exact(11).map(|row| (String::from_utf8(row[1..7].to_vec()).unwrap(),
-        u32::from_le_bytes(row[7..11].try_into().unwrap()))).collect()
+    request.data[2..]
+        .chunks_exact(11)
+        .map(|row| {
+            (
+                String::from_utf8(row[1..7].to_vec()).unwrap(),
+                u32::from_le_bytes(row[7..11].try_into().unwrap()),
+            )
+        })
+        .collect()
 }
 
 pub(crate) fn append_varint(target: &mut Vec<u8>, value: i64) {
     let mut magnitude = value.unsigned_abs();
     let mut first = (magnitude & 0x3f) as u8;
     magnitude >>= 6;
-    if value < 0 { first |= 0x40; }
-    if magnitude != 0 { first |= 0x80; }
+    if value < 0 {
+        first |= 0x40;
+    }
+    if magnitude != 0 {
+        first |= 0x80;
+    }
     target.push(first);
     while magnitude != 0 {
         let mut byte = (magnitude & 0x7f) as u8;
         magnitude >>= 7;
-        if magnitude != 0 { byte |= 0x80; }
+        if magnitude != 0 {
+            byte |= 0x80;
+        }
         target.push(byte);
     }
 }

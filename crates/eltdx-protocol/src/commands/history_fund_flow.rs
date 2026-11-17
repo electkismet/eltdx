@@ -182,14 +182,15 @@ fn parse_history_fund_flow_payload_body(
     }
     Ok(HistoryFundFlowSeries {
         request,
-        prefix_raw: Some(payload[..HISTORY_FUND_FLOW_PREFIX_SIZE].try_into().map_err(|_| {
-            ProtocolError::invalid_data("history fund flow", "invalid prefix")
-        })?),
+        prefix_raw: Some(
+            payload[..HISTORY_FUND_FLOW_PREFIX_SIZE]
+                .try_into()
+                .map_err(|_| ProtocolError::invalid_data("history fund flow", "invalid prefix"))?,
+        ),
         records,
         raw_payload: context.payload(payload),
     })
 }
-
 
 #[cfg(test)]
 mod tests {

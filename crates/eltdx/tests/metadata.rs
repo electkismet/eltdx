@@ -4,12 +4,20 @@ use eltdx::ErrorKind;
 
 #[test]
 fn frozen_diagnostic_constructor_and_readonly_result_provenance() {
-    let diagnostic = Diagnostic::new("hq-security-list", "metadata", EnrichmentStatus::Failed,
-        Some(ErrorKind::MetadataUnavailable), Some("incomplete catalog".to_owned()));
+    let diagnostic = Diagnostic::new(
+        "hq-security-list",
+        "metadata",
+        EnrichmentStatus::Failed,
+        Some(ErrorKind::MetadataUnavailable),
+        Some("incomplete catalog".to_owned()),
+    );
     assert_eq!(diagnostic.source(), "hq-security-list");
     assert_eq!(diagnostic.stage(), "metadata");
     assert_eq!(diagnostic.status(), EnrichmentStatus::Failed);
-    assert_eq!(diagnostic.error_kind(), Some(ErrorKind::MetadataUnavailable));
+    assert_eq!(
+        diagnostic.error_kind(),
+        Some(ErrorKind::MetadataUnavailable)
+    );
     assert_eq!(diagnostic.message(), Some("incomplete catalog"));
     let source = SourceStamp::new(None, None, "owner-1", Some(7), None);
     let meta = ResultMeta::new(source, vec![diagnostic], None);

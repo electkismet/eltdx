@@ -4,8 +4,8 @@ use std::thread;
 use eltdx::__python_compat::{LegacyBarTime, LegacyCodeSelection, LegacyExecutor, LegacyOperation};
 use eltdx::types::HqMarket;
 use eltdx::{CancellationToken, Error, ErrorKind, RawPolicy};
-use eltdx_protocol::{CommandRequest, CommandResponse};
 use eltdx_protocol::unit::{Market, NormalizedCode};
+use eltdx_protocol::{CommandRequest, CommandResponse};
 use eltdx_runtime::engine::SIGNAL_POLL_INTERVAL;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
@@ -20,11 +20,8 @@ pub fn snapshots(
 ) -> PyResult<Py<PyAny>> {
     let markets = precision_markets(&codes);
     let batch = run_legacy(py, move |token| {
-        let operation = executor.begin_operation(
-            "python_quotes_snapshots",
-            RawPolicy::Omit,
-            Some(token),
-        )?;
+        let operation =
+            executor.begin_operation("python_quotes_snapshots", RawPolicy::Omit, Some(token))?;
         operation.prepare_hq_metadata(&namespace, &markets)?;
         let normalized = codes
             .iter()
@@ -48,16 +45,15 @@ pub fn security_pages(
     page_size: usize,
 ) -> PyResult<Vec<Py<PyAny>>> {
     let market = Market::normalize(&market).map_err(|source| {
-        error::from_sdk(py, Error::new(ErrorKind::InvalidArgument, format!("{source}")))
+        error::from_sdk(
+            py,
+            Error::new(ErrorKind::InvalidArgument, format!("{source}")),
+        )
     })?;
-    let market = hq_market(market)
-    .map_err(|sdk_error| error::from_sdk(py, sdk_error))?;
+    let market = hq_market(market).map_err(|sdk_error| error::from_sdk(py, sdk_error))?;
     let pages = run_legacy(py, move |token| {
-        let operation = executor.begin_operation(
-            "python_codes_all",
-            RawPolicy::Omit,
-            Some(token),
-        )?;
+        let operation =
+            executor.begin_operation("python_codes_all", RawPolicy::Omit, Some(token))?;
         let pages = operation.security_pages(&namespace, market, page_size)?;
         operation.finish()?;
         Ok(pages)
@@ -69,17 +65,32 @@ pub fn security_pages(
 }
 
 pub fn bars(
-    py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
-    collect: bool, maximum_pages: Option<usize>, bar_time: LegacyBarTime,
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+    collect: bool,
+    maximum_pages: Option<usize>,
+    bar_time: LegacyBarTime,
 ) -> PyResult<Py<PyAny>> {
     let raw = match &request {
         CommandRequest::Klines(request) => request.include_raw,
         CommandRequest::DelistedKlines(request) => request.include_raw,
-        _ => return Err(pyo3::exceptions::PyValueError::new_err("native bars require an OHLC command")),
+        _ => {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "native bars require an OHLC command",
+            ))
+        }
     };
     let series = run_legacy(py, move |token| {
-        let operation = executor.begin_operation("python_bars",
-            if raw { RawPolicy::RetainPayload } else { RawPolicy::Omit }, Some(token))?;
+        let operation = executor.begin_operation(
+            "python_bars",
+            if raw {
+                RawPolicy::RetainPayload
+            } else {
+                RawPolicy::Omit
+            },
+            Some(token),
+        )?;
         let series = operation.bars(request, collect, maximum_pages, bar_time)?;
         operation.finish()?;
         Ok(series)
@@ -88,7 +99,10 @@ pub fn bars(
 }
 
 pub fn minutes(
-    py: Python<'_>, executor: LegacyExecutor, namespace: String, request: CommandRequest,
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    namespace: String,
+    request: CommandRequest,
     original_code: String,
 ) -> PyResult<Py<PyAny>> {
     let (include_raw, priced) = match &request {
@@ -97,14 +111,25 @@ pub fn minutes(
         CommandRequest::RecentIntraday(request) => (request.include_raw, true),
         CommandRequest::IntradayAux(request) => (request.include_raw, false),
         CommandRequest::Sparkline(request) => (request.include_raw, false),
-        _ => return Err(pyo3::exceptions::PyValueError::new_err("native minutes require a minute-domain command")),
+        _ => {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "native minutes require a minute-domain command",
+            ))
+        }
     };
     // The original resolver inferred markets before normalization. For example,
     // bare019xxx scans sz even though the request extractor normalizes it to sh.
     let markets = precision_markets(&[original_code]);
     let result = run_legacy(py, move |token| {
-        let operation = executor.begin_operation("python_minutes",
-            if include_raw { RawPolicy::RetainPayload } else { RawPolicy::Omit }, Some(token))?;
+        let operation = executor.begin_operation(
+            "python_minutes",
+            if include_raw {
+                RawPolicy::RetainPayload
+            } else {
+                RawPolicy::Omit
+            },
+            Some(token),
+        )?;
         if priced {
             operation.prepare_hq_metadata(&namespace, &markets)?;
         }
@@ -115,34 +140,99 @@ pub fn minutes(
     response::to_python(py, result)
 }
 
-pub fn directory(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
-    unpriced_domain(py, executor, request, "python_directory", LegacyOperation::directory)
+pub fn directory(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+) -> PyResult<Py<PyAny>> {
+    unpriced_domain(
+        py,
+        executor,
+        request,
+        "python_directory",
+        LegacyOperation::directory,
+    )
 }
 
-pub fn trades(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
-    unpriced_domain(py, executor, request, "python_trades", LegacyOperation::trades)
+pub fn trades(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+) -> PyResult<Py<PyAny>> {
+    unpriced_domain(
+        py,
+        executor,
+        request,
+        "python_trades",
+        LegacyOperation::trades,
+    )
 }
 
-pub fn auction(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
-    unpriced_domain(py, executor, request, "python_auction", LegacyOperation::auction)
+pub fn auction(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+) -> PyResult<Py<PyAny>> {
+    unpriced_domain(
+        py,
+        executor,
+        request,
+        "python_auction",
+        LegacyOperation::auction,
+    )
 }
 
-pub fn money_flow(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
-    unpriced_domain(py, executor, request, "python_money_flow", LegacyOperation::money_flow)
+pub fn money_flow(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+) -> PyResult<Py<PyAny>> {
+    unpriced_domain(
+        py,
+        executor,
+        request,
+        "python_money_flow",
+        LegacyOperation::money_flow,
+    )
 }
 
-pub fn corporate(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
-    unpriced_domain(py, executor, request, "python_corporate", LegacyOperation::corporate)
+pub fn corporate(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+) -> PyResult<Py<PyAny>> {
+    unpriced_domain(
+        py,
+        executor,
+        request,
+        "python_corporate",
+        LegacyOperation::corporate,
+    )
 }
 
-pub fn special_limits(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
-    unpriced_domain(py, executor, request, "python_special_limits", LegacyOperation::special_limits)
+pub fn special_limits(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+) -> PyResult<Py<PyAny>> {
+    unpriced_domain(
+        py,
+        executor,
+        request,
+        "python_special_limits",
+        LegacyOperation::special_limits,
+    )
 }
 
-pub fn resource(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
-    pin: Option<eltdx_runtime::engine::PinHandle>) -> PyResult<Py<PyAny>> {
+pub fn resource(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+    pin: Option<eltdx_runtime::engine::PinHandle>,
+) -> PyResult<Py<PyAny>> {
     let result = run_legacy(py, move |token| {
-        let operation = executor.begin_operation("python_resource", RawPolicy::RetainPayload, Some(token))?;
+        let operation =
+            executor.begin_operation("python_resource", RawPolicy::RetainPayload, Some(token))?;
         let result = operation.resource(request, pin.as_ref())?;
         operation.finish()?;
         Ok(result)
@@ -162,7 +252,10 @@ struct PythonMoneyFlowSources<'py> {
 
 impl PythonMoneyFlowSources<'_> {
     fn query(&self, transport: &Bound<'_, PyAny>) -> PyResult<Option<Py<PyAny>>> {
-        let result = self.api.call_method1("_native_recovery_query", (transport, &self.code, &self.include_raw))?;
+        let result = self.api.call_method1(
+            "_native_recovery_query",
+            (transport, &self.code, &self.include_raw),
+        )?;
         Ok((!result.is_none()).then(|| result.unbind()))
     }
 
@@ -178,23 +271,35 @@ impl eltdx::__python_compat::LegacyMoneyFlowSources for PythonMoneyFlowSources<'
 
     fn selected(&mut self) -> PyResult<Option<Self::Value>> {
         let transport = self.failover.getattr("transport")?;
-        if transport.is_none() { Ok(None) } else { self.query(&transport) }
+        if transport.is_none() {
+            Ok(None)
+        } else {
+            self.query(&transport)
+        }
     }
 
-    fn cursor(&mut self) -> PyResult<usize> { self.failover.getattr("cursor")?.extract() }
+    fn cursor(&mut self) -> PyResult<usize> {
+        self.failover.getattr("cursor")?.extract()
+    }
 
-    fn take(&mut self) -> PyResult<bool> { self.failover.call_method0("take")?.is_truthy() }
+    fn take(&mut self) -> PyResult<bool> {
+        self.failover.call_method0("take")?.is_truthy()
+    }
 
     fn skip(&mut self, index: usize) -> PyResult<bool> {
         let host = self.candidates.get_item(index)?;
-        if host.eq(self.api.getattr("_preferred_host")?)? { return Ok(true); }
+        if host.eq(self.api.getattr("_preferred_host")?)? {
+            return Ok(true);
+        }
         host.eq(self.failover.getattr("host")?)
     }
 
     fn probe(&mut self, index: usize) -> PyResult<Option<Self::Value>> {
         let host = self.candidates.get_item(index)?;
         let transport = self.api.call_method1("_open_host_transport", (&host,))?;
-        if transport.is_none() { return Ok(None); }
+        if transport.is_none() {
+            return Ok(None);
+        }
         let result = match self.query(&transport) {
             Ok(result) => result,
             Err(error) if error.is_instance(self.api.py(), &self.transport_error) => {
@@ -204,7 +309,11 @@ impl eltdx::__python_compat::LegacyMoneyFlowSources for PythonMoneyFlowSources<'
             Err(error) => return Err(error),
         };
         if result.is_some() {
-            if self.api.call_method1("_adopt", (&host, &transport))?.is_truthy()? {
+            if self
+                .api
+                .call_method1("_adopt", (&host, &transport))?
+                .is_truthy()?
+            {
                 self.failover.setattr("transport", &transport)?;
                 self.failover.setattr("host", &host)?;
             } else {
@@ -216,30 +325,62 @@ impl eltdx::__python_compat::LegacyMoneyFlowSources for PythonMoneyFlowSources<'
         Ok(result)
     }
 
-    fn advance(&mut self, cursor: usize) -> PyResult<()> { self.failover.setattr("cursor", cursor) }
+    fn advance(&mut self, cursor: usize) -> PyResult<()> {
+        self.failover.setattr("cursor", cursor)
+    }
 }
 
 #[pyfunction]
 pub fn recover_money_flow<'py>(
-    api: Bound<'py, PyAny>, code: Bound<'py, PyAny>, include_raw: Bound<'py, PyAny>,
-    failover: Bound<'py, PyAny>, candidates: Bound<'py, pyo3::types::PyTuple>,
-    close: Bound<'py, PyAny>, transport_error: Bound<'py, PyAny>,
+    api: Bound<'py, PyAny>,
+    code: Bound<'py, PyAny>,
+    include_raw: Bound<'py, PyAny>,
+    failover: Bound<'py, PyAny>,
+    candidates: Bound<'py, pyo3::types::PyTuple>,
+    close: Bound<'py, PyAny>,
+    transport_error: Bound<'py, PyAny>,
 ) -> PyResult<Option<Py<PyAny>>> {
     let total = candidates.len();
-    let mut sources = PythonMoneyFlowSources { api, failover, candidates, code, include_raw, close, transport_error };
+    let mut sources = PythonMoneyFlowSources {
+        api,
+        failover,
+        candidates,
+        code,
+        include_raw,
+        close,
+        transport_error,
+    };
     eltdx::__python_compat::legacy_money_flow_recover(total, &mut sources)
 }
 
-pub fn trade_read(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
-    collect: bool, opening: bool, maximum_pages: Option<usize>, bulk: bool) -> PyResult<Py<PyAny>> {
+pub fn trade_read(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+    collect: bool,
+    opening: bool,
+    maximum_pages: Option<usize>,
+    bulk: bool,
+) -> PyResult<Py<PyAny>> {
     let include_raw = match &request {
         CommandRequest::TodayTicks(query) => query.include_raw,
         CommandRequest::HistoricalTicks(query) => query.include_raw,
-        _ => return Err(pyo3::exceptions::PyValueError::new_err("native trade read requires ticks")),
+        _ => {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "native trade read requires ticks",
+            ))
+        }
     };
     let value = run_legacy(py, move |token| {
-        let operation = executor.begin_operation("python_trade_read",
-            if include_raw { RawPolicy::RetainPayload } else { RawPolicy::Omit }, Some(token))?;
+        let operation = executor.begin_operation(
+            "python_trade_read",
+            if include_raw {
+                RawPolicy::RetainPayload
+            } else {
+                RawPolicy::Omit
+            },
+            Some(token),
+        )?;
         let result = operation.trade_read(request, collect, opening, maximum_pages)?;
         operation.finish()?;
         Ok(result)
@@ -248,11 +389,14 @@ pub fn trade_read(py: Python<'_>, executor: LegacyExecutor, request: CommandRequ
 }
 
 pub fn quotes(
-    py: Python<'_>, executor: LegacyExecutor, request: CommandRequest,
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
     pin: Option<eltdx_runtime::engine::PinHandle>,
 ) -> PyResult<Py<PyAny>> {
     let result = run_legacy(py, move |token| {
-        let operation = executor.begin_operation("python_quotes", RawPolicy::RetainPayload, Some(token))?;
+        let operation =
+            executor.begin_operation("python_quotes", RawPolicy::RetainPayload, Some(token))?;
         // Python's original resolver already chose and loaded its markets. A
         // missing resolver/pinned refresh must keep the old no-prefetch path.
         let result = operation.quotes(request, pin.as_ref())?;
@@ -262,9 +406,14 @@ pub fn quotes(
     response::to_python(py, result)
 }
 
-pub fn suspended(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Vec<String>> {
+pub fn suspended(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+) -> PyResult<Vec<String>> {
     run_legacy(py, move |token| {
-        let operation = executor.begin_operation("python_suspended", RawPolicy::RetainPayload, Some(token))?;
+        let operation =
+            executor.begin_operation("python_suspended", RawPolicy::RetainPayload, Some(token))?;
         let result = operation.suspended(request)?;
         operation.finish()?;
         Ok(result)
@@ -272,26 +421,58 @@ pub fn suspended(py: Python<'_>, executor: LegacyExecutor, request: CommandReque
 }
 
 #[pyfunction]
-pub fn select_security_rows(py: Python<'_>, rows: Vec<(String, String)>, selection: &str) -> PyResult<Vec<usize>> {
-    let selection = LegacyCodeSelection::from_name(selection).map_err(|source| error::from_sdk(py, source))?;
+pub fn select_security_rows(
+    py: Python<'_>,
+    rows: Vec<(String, String)>,
+    selection: &str,
+) -> PyResult<Vec<usize>> {
+    let selection =
+        LegacyCodeSelection::from_name(selection).map_err(|source| error::from_sdk(py, source))?;
     let mut selected = Vec::new();
     for (index, (category, name)) in rows.iter().enumerate() {
-        if index % 256 == 0 { py.check_signals()?; }
-        if selection.matches_legacy(category, name) { selected.push(index); }
+        if index % 256 == 0 {
+            py.check_signals()?;
+        }
+        if selection.matches_legacy(category, name) {
+            selected.push(index);
+        }
     }
     Ok(selected)
 }
 
-pub fn session(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
-    unpriced_domain(py, executor, request, "python_session", LegacyOperation::session)
+pub fn session(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+) -> PyResult<Py<PyAny>> {
+    unpriced_domain(
+        py,
+        executor,
+        request,
+        "python_session",
+        LegacyOperation::session,
+    )
 }
 
-pub fn company_info(py: Python<'_>, executor: LegacyExecutor, request: CommandRequest) -> PyResult<Py<PyAny>> {
-    unpriced_domain(py, executor, request, "python_company_info", LegacyOperation::company_info)
+pub fn company_info(
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+) -> PyResult<Py<PyAny>> {
+    unpriced_domain(
+        py,
+        executor,
+        request,
+        "python_company_info",
+        LegacyOperation::company_info,
+    )
 }
 
 fn unpriced_domain(
-    py: Python<'_>, executor: LegacyExecutor, request: CommandRequest, name: &'static str,
+    py: Python<'_>,
+    executor: LegacyExecutor,
+    request: CommandRequest,
+    name: &'static str,
     domain: fn(&LegacyOperation, CommandRequest) -> eltdx::Result<CommandResponse>,
 ) -> PyResult<Py<PyAny>> {
     let result = run_legacy(py, move |token| {
@@ -326,7 +507,9 @@ fn precision_markets(codes: &[String]) -> Vec<HqMarket> {
             let first = code.as_bytes().first().copied();
             if code.starts_with("92") || first == Some(b'8') {
                 Some(HqMarket::Beijing)
-            } else if matches!(first, Some(b'6' | b'9')) || ["110", "113", "118"].iter().any(|p| code.starts_with(p)) {
+            } else if matches!(first, Some(b'6' | b'9'))
+                || ["110", "113", "118"].iter().any(|p| code.starts_with(p))
+            {
                 Some(HqMarket::Shanghai)
             } else if matches!(first, Some(b'0' | b'1' | b'2' | b'3')) {
                 Some(HqMarket::Shenzhen)
@@ -388,21 +571,21 @@ where
         if let Err(signal_error) = py.check_signals() {
             token.cancel();
             let pending = Arc::clone(&receiver);
-            let cleanup = py.detach(move || {
-                pending
-                    .lock()
-                    .ok()
-                    .map(|receiver| receiver.recv())
-            });
+            let cleanup = py.detach(move || pending.lock().ok().map(|receiver| receiver.recv()));
             match cleanup {
-                Some(Ok(Err(cleanup_error))) if cleanup_error.kind() == ErrorKind::CancelUnconfirmed => {
+                Some(Ok(Err(cleanup_error)))
+                    if cleanup_error.kind() == ErrorKind::CancelUnconfirmed =>
+                {
                     signal_error.set_cause(py, Some(error::from_sdk(py, cleanup_error)));
                 }
                 Some(Ok(_)) => {}
                 Some(Err(channel_error)) => {
-                    signal_error.set_cause(py, Some(PyRuntimeError::new_err(format!(
+                    signal_error.set_cause(
+                        py,
+                        Some(PyRuntimeError::new_err(format!(
                         "native SDK service cancellation could not be confirmed: {channel_error}",
-                    ))));
+                    ))),
+                    );
                 }
                 None => {
                     signal_error.set_cause(

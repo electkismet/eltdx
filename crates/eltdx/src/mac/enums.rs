@@ -51,17 +51,34 @@ registry!(FilterType { New = 1, Kc = 2, St = 4, Cy = 8, HkConnect = 16, Bj = 32,
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct FilterMask(u8);
 impl FilterMask {
-    pub const fn empty() -> Self { Self(0) }
+    pub const fn empty() -> Self {
+        Self(0)
+    }
     pub fn from_flags(flags: impl IntoIterator<Item = FilterType>) -> Self {
-        Self(flags.into_iter().fold(0, |bits, flag| bits | flag.wire() as u8))
+        Self(
+            flags
+                .into_iter()
+                .fold(0, |bits, flag| bits | flag.wire() as u8),
+        )
     }
     pub fn from_bits(value: u32) -> Result<Self> {
-        u8::try_from(value).map(Self).map_err(|_| Error::new(ErrorKind::InvalidArgument,
-            "MAC filter mask exceeds its eight source bits").with_context("domain", "mac"))
+        u8::try_from(value).map(Self).map_err(|_| {
+            Error::new(
+                ErrorKind::InvalidArgument,
+                "MAC filter mask exceeds its eight source bits",
+            )
+            .with_context("domain", "mac")
+        })
     }
-    pub const fn bits(self) -> u8 { self.0 }
-    pub const fn contains(self, flag: FilterType) -> bool { self.0 & flag.wire() as u8 != 0 }
-    pub const fn union(self, other: Self) -> Self { Self(self.0 | other.0) }
+    pub const fn bits(self) -> u8 {
+        self.0
+    }
+    pub const fn contains(self, flag: FilterType) -> bool {
+        self.0 & flag.wire() as u8 != 0
+    }
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
 }
 
 /// Board conversions preserve the exact caller text alongside the checked
@@ -76,48 +93,99 @@ pub enum BoardCodePlan {
 /// Shared source decision order; conversion/overflow are separate policies.
 /// Python supplies its live string methods, len and arbitrary-precision int.
 #[doc(hidden)]
-pub fn board_code_plan<E>(mut starts: impl FnMut(&str) -> std::result::Result<bool,E>,
-    six_characters: impl FnOnce() -> std::result::Result<bool,E>) -> std::result::Result<BoardCodePlan,E>
-{
-    if starts("US")? { return Ok(BoardCodePlan::Prefix { skip: 2,add: 30000 }); }
-    if starts("HK")? { return Ok(BoardCodePlan::Prefix { skip: 2,add: 20000 }); }
+pub fn board_code_plan<E>(
+    mut starts: impl FnMut(&str) -> std::result::Result<bool, E>,
+    six_characters: impl FnOnce() -> std::result::Result<bool, E>,
+) -> std::result::Result<BoardCodePlan, E> {
+    if starts("US")? {
+        return Ok(BoardCodePlan::Prefix {
+            skip: 2,
+            add: 30000,
+        });
+    }
+    if starts("HK")? {
+        return Ok(BoardCodePlan::Prefix {
+            skip: 2,
+            add: 20000,
+        });
+    }
     if six_characters()? {
-        for (prefix,subtract,add) in [("88",880000,20000),("399",399000,30000),("899",899000,32000),("000",0,31000)] {
-            if starts(prefix)? { return Ok(BoardCodePlan::Full { subtract,add }); }
+        for (prefix, subtract, add) in [
+            ("88", 880000, 20000),
+            ("399", 399000, 30000),
+            ("899", 899000, 32000),
+            ("000", 0, 31000),
+        ] {
+            if starts(prefix)? {
+                return Ok(BoardCodePlan::Full { subtract, add });
+            }
         }
     }
     Ok(BoardCodePlan::Plain)
 }
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct BoardSymbol { source: String, wire_code: u32 }
+pub struct BoardSymbol {
+    source: String,
+    wire_code: u32,
+}
 impl BoardSymbol {
     pub fn new(value: impl Into<String>) -> Result<Self> {
         let source = value.into();
         let text = source.trim();
-        let invalid = || Error::new(ErrorKind::InvalidArgument, "invalid or overflowing MAC board symbol")
-            .with_context("domain", "mac");
+        let invalid = || {
+            Error::new(
+                ErrorKind::InvalidArgument,
+                "invalid or overflowing MAC board symbol",
+            )
+            .with_context("domain", "mac")
+        };
         let decimal = |text: &str| -> Result<u32> {
-            if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) { return Err(invalid()); }
+            if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+                return Err(invalid());
+            }
             text.parse::<u32>().map_err(|_| invalid())
         };
-        let plan = board_code_plan::<std::convert::Infallible>(|prefix| Ok(text.starts_with(prefix)),|| Ok(text.len() == 6))
-            .unwrap_or_else(|never| match never {});
+        let plan = board_code_plan::<std::convert::Infallible>(
+            |prefix| Ok(text.starts_with(prefix)),
+            || Ok(text.len() == 6),
+        )
+        .unwrap_or_else(|never| match never {});
         let wire_code = match plan {
-            BoardCodePlan::Prefix { skip,add } => decimal(&text[skip..])?.checked_add(add).ok_or_else(invalid)?,
-            BoardCodePlan::Full { subtract,add } => decimal(text)?.checked_sub(subtract).and_then(|value| value.checked_add(add)).ok_or_else(invalid)?,
+            BoardCodePlan::Prefix { skip, add } => decimal(&text[skip..])?
+                .checked_add(add)
+                .ok_or_else(invalid)?,
+            BoardCodePlan::Full { subtract, add } => decimal(text)?
+                .checked_sub(subtract)
+                .and_then(|value| value.checked_add(add))
+                .ok_or_else(invalid)?,
             BoardCodePlan::Plain => decimal(text)?,
         };
         Ok(Self { source, wire_code })
     }
-    pub fn as_str(&self) -> &str { &self.source }
-    pub const fn wire_code(&self) -> u32 { self.wire_code }
+    pub fn as_str(&self) -> &str {
+        &self.source
+    }
+    pub const fn wire_code(&self) -> u32 {
+        self.wire_code
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum BoardRankKey { #[default] ChangePct, Amount, Volume, MainNetAmount, MainNet3d, MainNet5d }
+pub enum BoardRankKey {
+    #[default]
+    ChangePct,
+    Amount,
+    Volume,
+    MainNetAmount,
+    MainNet3d,
+    MainNet5d,
+}
 
 /// Source-order is the only sorting contract of the ordinary MAC-EX listing.
 /// A sorted collector is a separate composition; this enum cannot silently
 /// accept an ignored legacy SortType argument.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum QuoteListOrder { #[default] SourceOrder }
+pub enum QuoteListOrder {
+    #[default]
+    SourceOrder,
+}

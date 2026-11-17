@@ -1,19 +1,27 @@
 #![cfg(feature = "offline")]
+use eltdx::offline::{block, ReadOptions};
+use eltdx::{CancellationToken, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use eltdx::{CancellationToken, ErrorKind};
-use eltdx::offline::{block, ReadOptions};
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 static NEXT: AtomicU64 = AtomicU64::new(1);
 struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> std::io::Result<Self> {
-        let path = std::env::temp_dir().join(format!("eltdx-offline-block-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+        let path = std::env::temp_dir().join(format!(
+            "eltdx-offline-block-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
         std::fs::create_dir(&path)?;
         Ok(Self(path))
     }
 }
-impl Drop for Scratch { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); } }
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
 fn cfg(name: &[u8], leaf: &[u8]) -> [u8; 120] {
     let mut row = [0; 120];
     row[..name.len()].copy_from_slice(name);
@@ -35,9 +43,16 @@ fn dat(declared: u16) -> Vec<u8> {
 }
 
 #[test]
-fn declared_stock_count_over_400_is_preserved_and_categories_follow_source_filename() -> TestResult {
+fn declared_stock_count_over_400_is_preserved_and_categories_follow_source_filename() -> TestResult
+{
     let scratch = Scratch::new()?;
-    for (name, category) in [("block_gn.dat", 2), ("block_fg.dat", 3), ("block_dy.dat", 1), ("block_hy.dat", 0), ("block_gnfgdy.dat", 2)] {
+    for (name, category) in [
+        ("block_gn.dat", 2),
+        ("block_fg.dat", 3),
+        ("block_dy.dat", 1),
+        ("block_hy.dat", 0),
+        ("block_gnfgdy.dat", 2),
+    ] {
         let path = scratch.0.join(name);
         std::fs::write(&path, dat(401))?;
         let result = block::read(&path, &ReadOptions::default())?;
@@ -60,13 +75,22 @@ fn incomplete_header_and_declared_record_are_errors_with_index() -> TestResult {
         bytes.truncate(length);
         std::fs::write(&path, bytes)?;
         let result = block::read(&path, &ReadOptions::default());
-        assert_eq!(result.err().map(|e| e.kind()), Some(ErrorKind::ResourceFormat));
+        assert_eq!(
+            result.err().map(|e| e.kind()),
+            Some(ErrorKind::ResourceFormat)
+        );
     }
     let mut bytes = dat(1);
     bytes[384..386].copy_from_slice(&2_u16.to_le_bytes());
     std::fs::write(&path, bytes)?;
-    let error = match block::read(&path, &ReadOptions::default()) { Err(error) => error, Ok(_) => return Err("expected truncated record".into()) };
-    assert!(error.context().iter().any(|(key, value)| key == "record_index" && value == "1"));
+    let error = match block::read(&path, &ReadOptions::default()) {
+        Err(error) => error,
+        Ok(_) => return Err("expected truncated record".into()),
+    };
+    assert!(error
+        .context()
+        .iter()
+        .any(|(key, value)| key == "record_index" && value == "1"));
     Ok(())
 }
 
@@ -85,12 +109,23 @@ fn customer_gbk_utf8_lines_skips_and_total_byte_cap() -> TestResult {
     assert_eq!(result.rows().len(), 1);
     assert_eq!(result.rows()[0].blockname(), "中文");
     assert_eq!(result.rows()[0].block_type(), "first");
-    assert_eq!(result.rows()[0].codes(), ["000001", "600000", "\u{fffd}", "abcdef"]);
+    assert_eq!(
+        result.rows()[0].codes(),
+        ["000001", "600000", "\u{fffd}", "abcdef"]
+    );
     assert_eq!(result.ignored_tail_bytes(), 2);
     assert_eq!(result.diagnostics().len(), 3);
     let limit = config.len() as u64 + content.len() as u64;
     assert!(block::read_custom(&scratch.0, &ReadOptions::default().with_max_bytes(limit)?).is_ok());
-    assert_eq!(block::read_custom(&scratch.0, &ReadOptions::default().with_max_bytes(limit - 1)?).err().map(|e| e.kind()), Some(ErrorKind::LimitExceeded));
+    assert_eq!(
+        block::read_custom(
+            &scratch.0,
+            &ReadOptions::default().with_max_bytes(limit - 1)?
+        )
+        .err()
+        .map(|e| e.kind()),
+        Some(ErrorKind::LimitExceeded)
+    );
     let empty_leaf = scratch.0.join("blocknew.cfg");
     std::fs::write(&empty_leaf, cfg(b"Empty filename", b""))?;
     let error = match block::read_custom(&scratch.0, &ReadOptions::default()) {
@@ -98,20 +133,40 @@ fn customer_gbk_utf8_lines_skips_and_total_byte_cap() -> TestResult {
         Ok(_) => return Err("expected empty customer-block filename rejection".into()),
     };
     assert_eq!(error.kind(), ErrorKind::ResourceFormat);
-    assert!(error.context().iter().any(|(key, value)| key == "record_index" && value == "0"));
+    assert!(error
+        .context()
+        .iter()
+        .any(|(key, value)| key == "record_index" && value == "0"));
     Ok(())
 }
 
 #[test]
 fn customer_rejects_nonleaf_names_and_cancelled_reads() -> TestResult {
     let scratch = Scratch::new()?;
-    for leaf in [b".".as_slice(), b"..", b"../escape", b"sub/file", b"sub\\file", b"C:escape"] {
+    for leaf in [
+        b".".as_slice(),
+        b"..",
+        b"../escape",
+        b"sub/file",
+        b"sub\\file",
+        b"C:escape",
+    ] {
         std::fs::write(scratch.0.join("blocknew.cfg"), cfg(b"Name", leaf))?;
-        assert_eq!(block::read_custom(&scratch.0, &ReadOptions::default()).err().map(|e| e.kind()), Some(ErrorKind::ResourceFormat));
+        assert_eq!(
+            block::read_custom(&scratch.0, &ReadOptions::default())
+                .err()
+                .map(|e| e.kind()),
+            Some(ErrorKind::ResourceFormat)
+        );
     }
     let token = CancellationToken::default();
     token.cancel();
-    assert_eq!(block::read_custom(&scratch.0, &ReadOptions::default().with_cancel(Some(token))).err().map(|e| e.kind()), Some(ErrorKind::Cancelled));
+    assert_eq!(
+        block::read_custom(&scratch.0, &ReadOptions::default().with_cancel(Some(token)))
+            .err()
+            .map(|e| e.kind()),
+        Some(ErrorKind::Cancelled)
+    );
     Ok(())
 }
 
@@ -129,9 +184,14 @@ fn shared_block_layout_and_code_lines_keep_source_boundaries() -> TestResult {
     assert!(shared::safe_leaf("..name"));
     assert!(!shared::safe_leaf("x:y"));
     let mut codes = Vec::new();
-    shared::visit_codes(" 市中文 \r\n0\u{1c}000001\n", |code| {
-        codes.push(code.to_owned()); Ok::<_, &'static str>(())
-    }, &mut || Ok(()))?;
+    shared::visit_codes(
+        " 市中文 \r\n0\u{1c}000001\n",
+        |code| {
+            codes.push(code.to_owned());
+            Ok::<_, &'static str>(())
+        },
+        &mut || Ok(()),
+    )?;
     assert_eq!(codes, ["中文", "00001"]);
     let result = shared::visit_codes("\n", |_| Ok(()), &mut || Err("cancelled"));
     assert_eq!(result, Err("cancelled"));
@@ -140,8 +200,14 @@ fn shared_block_layout_and_code_lines_keep_source_boundaries() -> TestResult {
 
 #[cfg(any(unix, windows))]
 fn link(target: &Path, path: &Path) -> std::io::Result<()> {
-    #[cfg(unix)] { std::os::unix::fs::symlink(target, path) }
-    #[cfg(windows)] { std::os::windows::fs::symlink_file(target, path) }
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, path)
+    }
+    #[cfg(windows)]
+    {
+        std::os::windows::fs::symlink_file(target, path)
+    }
 }
 
 #[test]
@@ -154,11 +220,28 @@ fn customer_symlink_escape_is_rejected_even_for_dangling_targets() -> TestResult
     std::fs::write(&destination, b"0000001")?;
     match link(&destination, &scratch.0.join("escape.blk")) {
         Ok(()) => (),
-        Err(error) if matches!(error.kind(), std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::Unsupported) => return Ok(()),
+        Err(error)
+            if matches!(
+                error.kind(),
+                std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::Unsupported
+            ) =>
+        {
+            return Ok(())
+        }
         Err(error) => return Err(error.into()),
     }
-    assert_eq!(block::read_custom(&scratch.0, &ReadOptions::default()).err().map(|e| e.kind()), Some(ErrorKind::ResourceFormat));
+    assert_eq!(
+        block::read_custom(&scratch.0, &ReadOptions::default())
+            .err()
+            .map(|e| e.kind()),
+        Some(ErrorKind::ResourceFormat)
+    );
     std::fs::remove_file(&destination)?;
-    assert_eq!(block::read_custom(&scratch.0, &ReadOptions::default()).err().map(|e| e.kind()), Some(ErrorKind::ResourceFormat));
+    assert_eq!(
+        block::read_custom(&scratch.0, &ReadOptions::default())
+            .err()
+            .map(|e| e.kind()),
+        Some(ErrorKind::ResourceFormat)
+    );
     Ok(())
 }

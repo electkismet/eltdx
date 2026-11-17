@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -18,9 +18,13 @@ use crate::types::time::ClockHandle;
 /// stop is nonblocking; close_until confirms retirement outside the owner state lock.
 pub(crate) trait OwnerTaskGroup: std::fmt::Debug + Send + Sync {
     fn stop(&self);
-    fn stop_before(&self, _deadline: Instant) { self.stop(); }
+    fn stop_before(&self, _deadline: Instant) {
+        self.stop();
+    }
     fn close_until(&self, deadline: Instant) -> Result<()>;
-    fn completed(&self) -> bool { false }
+    fn completed(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -87,7 +91,11 @@ struct SessionState {
 
 #[derive(Debug)]
 enum CleanupSignal {
-    Drop { engines: Vec<Engine>, tasks: Vec<Arc<dyn OwnerTaskGroup>>, deadline: Instant },
+    Drop {
+        engines: Vec<Engine>,
+        tasks: Vec<Arc<dyn OwnerTaskGroup>>,
+        deadline: Instant,
+    },
     ExplicitComplete,
 }
 
@@ -108,31 +116,71 @@ struct CleanupControl {
 impl CleanupControl {
     fn ensure_started(self: &Arc<Self>) -> Result<()> {
         let mut state = self.state.lock().map_err(|_| poisoned_state_error())?;
-        if state.worker.is_some() || state.signal.is_some() { return Ok(()); }
+        if state.worker.is_some() || state.signal.is_some() {
+            return Ok(());
+        }
         let control = Arc::clone(self);
-        let worker = thread::Builder::new().name("eltdx-owner-cleanup".to_owned()).spawn(move || {
-            let signal = {
-                let mut state = match control.state.lock() { Ok(state) => state, Err(poison) => poison.into_inner() };
-                while state.signal.is_none() {
-                    state = match control.changed.wait(state) { Ok(state) => state, Err(poison) => poison.into_inner() };
+        let worker = thread::Builder::new()
+            .name("eltdx-owner-cleanup".to_owned())
+            .spawn(move || {
+                let signal = {
+                    let mut state = match control.state.lock() {
+                        Ok(state) => state,
+                        Err(poison) => poison.into_inner(),
+                    };
+                    while state.signal.is_none() {
+                        state = match control.changed.wait(state) {
+                            Ok(state) => state,
+                            Err(poison) => poison.into_inner(),
+                        };
+                    }
+                    state.signal.take()
+                };
+                if let Some(CleanupSignal::Drop {
+                    engines,
+                    tasks,
+                    deadline,
+                }) = signal
+                {
+                    for task in &tasks {
+                        task.stop_before(deadline);
+                    }
+                    for engine in engines {
+                        let _ = engine.close_until(deadline);
+                    }
+                    for task in tasks {
+                        let _ = task.close_until(deadline);
+                    }
                 }
-                state.signal.take()
-            };
-            if let Some(CleanupSignal::Drop { engines, tasks, deadline }) = signal {
-                for task in &tasks { task.stop_before(deadline); }
-                for engine in engines { let _ = engine.close_until(deadline); }
-                for task in tasks { let _ = task.close_until(deadline); }
-            }
-        }).map_err(|error| Error::new(ErrorKind::Internal, "unable to start owner cleanup controller").with_source(error))?;
+            })
+            .map_err(|error| {
+                Error::new(
+                    ErrorKind::Internal,
+                    "unable to start owner cleanup controller",
+                )
+                .with_source(error)
+            })?;
         state.worker = Some(worker);
         Ok(())
     }
 
-    fn signal_drop(&self, engines: Vec<Engine>, tasks: Vec<Arc<dyn OwnerTaskGroup>>, deadline: Instant) {
-        let mut state = self.state.lock().unwrap_or_else(|poison| poison.into_inner());
+    fn signal_drop(
+        &self,
+        engines: Vec<Engine>,
+        tasks: Vec<Arc<dyn OwnerTaskGroup>>,
+        deadline: Instant,
+    ) {
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         if let Some(worker) = state.worker.as_ref() {
             if worker.thread().id() != thread::current().id() {
-                state.signal = Some(CleanupSignal::Drop { engines, tasks, deadline });
+                state.signal = Some(CleanupSignal::Drop {
+                    engines,
+                    tasks,
+                    deadline,
+                });
                 self.changed.notify_all();
                 return;
             }
@@ -141,22 +189,31 @@ impl CleanupControl {
         // armed. Release handles here; EngineInner itself only signals shutdown.
         drop(state);
         drop(engines);
-        for task in tasks { task.stop(); }
+        for task in tasks {
+            task.stop();
+        }
     }
 
     fn explicit_complete(&self) -> Result<()> {
         let worker = {
             let mut state = self.state.lock().map_err(|_| poisoned_state_error())?;
-            let Some(worker) = state.worker.take() else { return Ok(()); };
+            let Some(worker) = state.worker.take() else {
+                return Ok(());
+            };
             if worker.thread().id() == thread::current().id() {
                 state.worker = Some(worker);
-                return Err(Error::new(ErrorKind::Internal, "cleanup controller cannot join itself"));
+                return Err(Error::new(
+                    ErrorKind::Internal,
+                    "cleanup controller cannot join itself",
+                ));
             }
             state.signal = Some(CleanupSignal::ExplicitComplete);
             self.changed.notify_all();
             worker
         };
-        worker.join().map_err(|_| Error::new(ErrorKind::Internal, "owner cleanup controller panicked"))
+        worker
+            .join()
+            .map_err(|_| Error::new(ErrorKind::Internal, "owner cleanup controller panicked"))
     }
 }
 
@@ -180,7 +237,11 @@ impl SessionOwner {
         Self::new_with_clock(close_timeout, cleanup_timeout, ClockHandle::default())
     }
 
-    pub(crate) fn new_with_clock(close_timeout: Duration, cleanup_timeout: Duration, clock: ClockHandle) -> Self {
+    pub(crate) fn new_with_clock(
+        close_timeout: Duration,
+        cleanup_timeout: Duration,
+        clock: ClockHandle,
+    ) -> Self {
         let metadata = Arc::new(MetadataStore::new(Arc::clone(&clock.0)));
         Self {
             metadata: Arc::clone(&metadata),
@@ -212,11 +273,19 @@ impl SessionOwner {
         }
     }
 
-    pub(crate) fn metadata(&self) -> &Arc<MetadataStore> { &self.metadata }
-    pub(crate) fn calendar(&self) -> &crate::calendar::CalendarCache { &self.calendar }
-    pub(crate) fn helpers(&self) -> &crate::helpers::HelperCache { &self.helpers }
+    pub(crate) fn metadata(&self) -> &Arc<MetadataStore> {
+        &self.metadata
+    }
+    pub(crate) fn calendar(&self) -> &crate::calendar::CalendarCache {
+        &self.calendar
+    }
+    pub(crate) fn helpers(&self) -> &crate::helpers::HelperCache {
+        &self.helpers
+    }
 
-    pub(crate) const fn generation(&self) -> usize { self.generation }
+    pub(crate) const fn generation(&self) -> usize {
+        self.generation
+    }
 
     pub(crate) fn current_shanghai_date(&self) -> Result<crate::types::TradingDate> {
         crate::types::TradingDate::shanghai_today(self.clock.0.as_ref())
@@ -225,7 +294,9 @@ impl SessionOwner {
     pub(crate) fn register_task_group(&self, task: Arc<dyn OwnerTaskGroup>) -> Result<()> {
         self.reap_completed_tasks();
         let mut state = self.lock_state()?;
-        if state.phase != SessionPhase::Open { return Err(closed_error()); }
+        if state.phase != SessionPhase::Open {
+            return Err(closed_error());
+        }
         self.cleanup.ensure_started()?;
         state.tasks.push(task);
         Ok(())
@@ -247,7 +318,11 @@ impl SessionOwner {
     }
 
     pub(crate) fn unregister_task_group(&self, task: &Arc<dyn OwnerTaskGroup>) {
-        if let Ok(mut state) = self.state.lock() { state.tasks.retain(|registered| !Arc::ptr_eq(registered, task)); }
+        if let Ok(mut state) = self.state.lock() {
+            state
+                .tasks
+                .retain(|registered| !Arc::ptr_eq(registered, task));
+        }
     }
 
     pub(crate) fn retire_registered_pin(&self, pin: &PinHandle, deadline: Instant) -> Result<()> {
@@ -258,21 +333,41 @@ impl SessionOwner {
 
     /// The cache key is exact Engine ownership, not an endpoint or slot number.
     /// Construction is lazy; register stop/join before permitting worker start.
-    pub(crate) fn push_dispatcher(&self, engine: &Engine) -> Result<Arc<crate::subscription::dispatcher::Dispatcher>> {
+    pub(crate) fn push_dispatcher(
+        &self,
+        engine: &Engine,
+    ) -> Result<Arc<crate::subscription::dispatcher::Dispatcher>> {
         let dispatcher = {
             let mut state = self.lock_state()?;
-            if state.phase != SessionPhase::Open { return Err(closed_error()); }
-            if let Some((_, dispatcher)) = state.dispatchers.iter().find(|(source, _)| source.same_owner(engine)) {
+            if state.phase != SessionPhase::Open {
+                return Err(closed_error());
+            }
+            if let Some((_, dispatcher)) = state
+                .dispatchers
+                .iter()
+                .find(|(source, _)| source.same_owner(engine))
+            {
                 Arc::clone(dispatcher)
             } else {
                 self.cleanup.ensure_started()?;
-                state.tasks.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded,
-                    "unable to register push dispatcher").with_source(error))?;
-                state.dispatchers.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded,
-                    "unable to cache push dispatcher").with_source(error))?;
+                state.tasks.try_reserve(1).map_err(|error| {
+                    Error::new(
+                        ErrorKind::LimitExceeded,
+                        "unable to register push dispatcher",
+                    )
+                    .with_source(error)
+                })?;
+                state.dispatchers.try_reserve(1).map_err(|error| {
+                    Error::new(ErrorKind::LimitExceeded, "unable to cache push dispatcher")
+                        .with_source(error)
+                })?;
                 let dispatcher = crate::subscription::dispatcher::Dispatcher::new(engine)?;
-                state.tasks.push(Arc::clone(&dispatcher) as Arc<dyn OwnerTaskGroup>);
-                state.dispatchers.push((engine.clone(), Arc::clone(&dispatcher)));
+                state
+                    .tasks
+                    .push(Arc::clone(&dispatcher) as Arc<dyn OwnerTaskGroup>);
+                state
+                    .dispatchers
+                    .push((engine.clone(), Arc::clone(&dispatcher)));
                 dispatcher
             }
         };
@@ -289,20 +384,36 @@ impl SessionOwner {
         }
     }
 
-    pub(crate) fn endpoint_engine(&self, base: &Engine, endpoint: &str,
-        create: impl FnOnce() -> Result<Engine>) -> Result<Engine> {
+    pub(crate) fn endpoint_engine(
+        &self,
+        base: &Engine,
+        endpoint: &str,
+        create: impl FnOnce() -> Result<Engine>,
+    ) -> Result<Engine> {
         let mut state = self.lock_state()?;
-        if state.phase != SessionPhase::Open { return Err(closed_error()); }
-        if let Some((_, _, engine)) = state.endpoint_engines.iter()
-            .find(|(source, host, _)| source.same_owner(base) && host == endpoint) {
+        if state.phase != SessionPhase::Open {
+            return Err(closed_error());
+        }
+        if let Some((_, _, engine)) = state
+            .endpoint_engines
+            .iter()
+            .find(|(source, host, _)| source.same_owner(base) && host == endpoint)
+        {
             return Ok(engine.clone());
         }
         // Factory only constructs lazy in-memory Engine state; no networking,
         // worker startup, metadata lookup or callback occurs under this lock.
         let engine = create()?;
-        state.endpoint_engines.try_reserve(1).map_err(|error| Error::new(ErrorKind::LimitExceeded,
-            "unable to reserve endpoint-bound engine cache").with_source(error))?;
-        state.endpoint_engines.push((base.clone(), endpoint.to_owned(), engine.clone()));
+        state.endpoint_engines.try_reserve(1).map_err(|error| {
+            Error::new(
+                ErrorKind::LimitExceeded,
+                "unable to reserve endpoint-bound engine cache",
+            )
+            .with_source(error)
+        })?;
+        state
+            .endpoint_engines
+            .push((base.clone(), endpoint.to_owned(), engine.clone()));
         Ok(engine)
     }
 
@@ -310,7 +421,9 @@ impl SessionOwner {
     // Lock order for operation admission is owner -> business token -> budget.
     pub(crate) fn with_open_admission<T>(&self, action: impl FnOnce() -> Result<T>) -> Result<T> {
         let state = self.lock_state()?;
-        if state.phase != SessionPhase::Open || state.external_retired { return Err(closed_error()); }
+        if state.phase != SessionPhase::Open || state.external_retired {
+            return Err(closed_error());
+        }
         action()
     }
 
@@ -348,7 +461,9 @@ impl SessionOwner {
             self.changed.notify_all();
             state.phase == SessionPhase::Open && state.active_operations == 0
         };
-        if finish { self.close()?; }
+        if finish {
+            self.close()?;
+        }
         Ok(())
     }
 
@@ -364,12 +479,18 @@ impl SessionOwner {
 
     fn unregister_pin(&self, pin: &PinHandle) {
         if let Ok(mut state) = self.state.lock() {
-            state.pins.retain(|registered| !registered.same_reservation(pin));
+            state
+                .pins
+                .retain(|registered| !registered.same_reservation(pin));
         }
     }
 
     fn pin_registered(&self, pin: &PinHandle) -> Result<bool> {
-        Ok(self.lock_state()?.pins.iter().any(|registered| registered.same_reservation(pin)))
+        Ok(self
+            .lock_state()?
+            .pins
+            .iter()
+            .any(|registered| registered.same_reservation(pin)))
     }
 
     fn reconcile_engine_pins(&self, engine: &Engine) -> Result<()> {
@@ -387,19 +508,28 @@ impl SessionOwner {
         }
         let local_deadline = match deadline {
             Some(deadline) => deadline,
-            None => Instant::now().checked_add(self.close_timeout)
+            None => Instant::now()
+                .checked_add(self.close_timeout)
                 .ok_or_else(|| Error::new(ErrorKind::Internal, "pin close deadline overflow"))?,
         };
         let mut pending = match pin.begin_close() {
             Ok(pending) => pending,
             Err(error) => {
-                return if !self.pin_registered(pin)? { Ok(()) } else { Err(map_close_error(error)) };
+                return if !self.pin_registered(pin)? {
+                    Ok(())
+                } else {
+                    Err(map_close_error(error))
+                };
             }
         };
         match self.wait_pin_close(local_deadline, || pending.wait_timeout(Duration::ZERO)) {
             Ok(()) => Ok(()),
             Err(error) => {
-                if !self.pin_registered(pin)? { Ok(()) } else { Err(error) }
+                if !self.pin_registered(pin)? {
+                    Ok(())
+                } else {
+                    Err(error)
+                }
             }
         }
     }
@@ -415,9 +545,11 @@ impl SessionOwner {
                 PendingPoll::Pending => {}
             }
             let state = self.lock_state()?;
-            let deadline = state.shutdown_deadline.map_or(local_deadline, |owner_deadline| {
-                local_deadline.min(owner_deadline)
-            });
+            let deadline = state
+                .shutdown_deadline
+                .map_or(local_deadline, |owner_deadline| {
+                    local_deadline.min(owner_deadline)
+                });
             let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() {
                 return Err(map_close_error(RuntimeError::CloseTimeout {
@@ -425,14 +557,18 @@ impl SessionOwner {
                     context: Vec::new(),
                 }));
             }
-            let _ = self.changed.wait_timeout(state, remaining.min(SIGNAL_POLL_INTERVAL))
+            let _ = self
+                .changed
+                .wait_timeout(state, remaining.min(SIGNAL_POLL_INTERVAL))
                 .map_err(|_| poisoned_state_error())?;
         }
     }
 
     pub(crate) fn register_engine(&self, engine: Engine) -> Result<()> {
         let mut state = self.lock_state()?;
-        if state.phase != SessionPhase::Open { return Err(closed_error()); }
+        if state.phase != SessionPhase::Open {
+            return Err(closed_error());
+        }
         self.cleanup.ensure_started()?;
         register_engine_locked(&mut state, engine);
         Ok(())
@@ -496,20 +632,22 @@ impl SessionOwner {
                         }
                     }
                     SessionPhase::Open => {
-                        let deadline = Instant::now()
-                            .checked_add(self.close_timeout)
-                            .ok_or_else(|| {
-                                Error::new(ErrorKind::Internal, "close deadline overflow")
-                            })?;
+                        let deadline =
+                            Instant::now()
+                                .checked_add(self.close_timeout)
+                                .ok_or_else(|| {
+                                    Error::new(ErrorKind::Internal, "close deadline overflow")
+                                })?;
                         state.shutdown_deadline = Some(deadline);
                         state.phase = SessionPhase::Closing;
                         signal_operation_cancellation(&mut state);
                         self.changed.notify_all();
                         state.close_failure = None;
                         state.cleanup_confirmed = false;
-                        state.close_generation = state.close_generation.checked_add(1).ok_or_else(|| {
-                            Error::new(ErrorKind::Internal, "close generation overflow")
-                        })?;
+                        state.close_generation =
+                            state.close_generation.checked_add(1).ok_or_else(|| {
+                                Error::new(ErrorKind::Internal, "close generation overflow")
+                            })?;
                         break (
                             deadline,
                             state.close_generation,
@@ -535,9 +673,10 @@ impl SessionOwner {
                         state.phase = SessionPhase::Closing;
                         signal_operation_cancellation(&mut state);
                         self.changed.notify_all();
-                        state.close_generation = state.close_generation.checked_add(1).ok_or_else(|| {
-                            Error::new(ErrorKind::Internal, "close generation overflow")
-                        })?;
+                        state.close_generation =
+                            state.close_generation.checked_add(1).ok_or_else(|| {
+                                Error::new(ErrorKind::Internal, "close generation overflow")
+                            })?;
                         break (
                             deadline,
                             state.close_generation,
@@ -552,11 +691,15 @@ impl SessionOwner {
         };
 
         let mut failure = None;
-        for task in &tasks { task.stop_before(deadline); }
+        for task in &tasks {
+            task.stop_before(deadline);
+        }
         for pin in pins {
             match close_pin(&pin, deadline) {
                 Ok(()) => self.unregister_pin(&pin),
-                Err(error) => { failure.get_or_insert(error); }
+                Err(error) => {
+                    failure.get_or_insert(error);
+                }
             }
         }
         let mut engines_confirmed = true;
@@ -600,7 +743,10 @@ impl SessionOwner {
             }
         }
 
-        let cleanup_confirmed = engines_confirmed && tasks_confirmed && state.pins.is_empty() && state.active_operations == 0;
+        let cleanup_confirmed = engines_confirmed
+            && tasks_confirmed
+            && state.pins.is_empty()
+            && state.active_operations == 0;
         let terminal = match (prior_failure, failure) {
             (Some(root), Some(_)) => {
                 state.phase = SessionPhase::FailedClosed;
@@ -632,7 +778,9 @@ impl SessionOwner {
         state.completed_generation = generation;
         self.changed.notify_all();
         drop(state);
-        if terminal.is_ok() { self.cleanup.explicit_complete()?; }
+        if terminal.is_ok() {
+            self.cleanup.explicit_complete()?;
+        }
         terminal
     }
 
@@ -644,16 +792,29 @@ impl SessionOwner {
 impl Drop for SessionOwner {
     fn drop(&mut self) {
         // The finalizer signals an independent owner of retirement work and never waits.
-        let deadline = Instant::now().checked_add(self.cleanup_timeout).unwrap_or_else(Instant::now);
-        let state = self.state.get_mut().unwrap_or_else(|poison| poison.into_inner());
+        let deadline = Instant::now()
+            .checked_add(self.cleanup_timeout)
+            .unwrap_or_else(Instant::now);
+        let state = self
+            .state
+            .get_mut()
+            .unwrap_or_else(|poison| poison.into_inner());
         state.phase = SessionPhase::Closing;
         signal_operation_cancellation(state);
-        self.cleanup.signal_drop(std::mem::take(&mut state.engines), std::mem::take(&mut state.tasks), deadline);
+        self.cleanup.signal_drop(
+            std::mem::take(&mut state.engines),
+            std::mem::take(&mut state.tasks),
+            deadline,
+        );
     }
 }
 
 fn register_engine_locked(state: &mut SessionState, engine: Engine) {
-    if !state.engines.iter().any(|registered| registered.same_owner(&engine)) {
+    if !state
+        .engines
+        .iter()
+        .any(|registered| registered.same_owner(&engine))
+    {
         state.engines.push(engine);
     }
 }
@@ -693,15 +854,32 @@ impl PinnedSession {
         })
     }
 
-    pub(crate) fn bind_quotes(&mut self, engine: Engine, config: crate::config::ClientConfig, namespace: String) {
-        self.quote_source = Some(PinnedQuoteSource { engine, config, namespace, activation: Mutex::new(Some(Vec::new())) });
+    pub(crate) fn bind_quotes(
+        &mut self,
+        engine: Engine,
+        config: crate::config::ClientConfig,
+        namespace: String,
+    ) {
+        self.quote_source = Some(PinnedQuoteSource {
+            engine,
+            config,
+            namespace,
+            activation: Mutex::new(Some(Vec::new())),
+        });
     }
 
     pub(crate) fn quote_source(&self) -> Result<&PinnedQuoteSource> {
-        self.quote_source.as_ref().ok_or_else(|| Error::new(ErrorKind::InvalidArgument, "internal pin has no public quote source"))
+        self.quote_source.as_ref().ok_or_else(|| {
+            Error::new(
+                ErrorKind::InvalidArgument,
+                "internal pin has no public quote source",
+            )
+        })
     }
 
-    pub(crate) fn owner(&self) -> &Arc<SessionOwner> { &self.owner }
+    pub(crate) fn owner(&self) -> &Arc<SessionOwner> {
+        &self.owner
+    }
 
     pub fn quotes(&self) -> crate::services::PinnedQuoteService<'_> {
         crate::services::PinnedQuoteService::new(self)
@@ -712,17 +890,23 @@ impl PinnedSession {
     }
 
     pub(crate) fn handle(&self) -> Result<&PinHandle> {
-        self.pin.as_ref().ok_or_else(|| Error::new(ErrorKind::PinLost, "pinned session is closed"))
+        self.pin
+            .as_ref()
+            .ok_or_else(|| Error::new(ErrorKind::PinLost, "pinned session is closed"))
     }
 
     pub(crate) fn mark_released(&mut self) {
-        if let Some(pin) = self.pin.take() { self.owner.unregister_pin(&pin); }
+        if let Some(pin) = self.pin.take() {
+            self.owner.unregister_pin(&pin);
+        }
     }
 
     /// Transfer cleanup to an owner-registered task without unregistering the
     /// reservation. The receiving task must already own a cloned handle.
     pub(crate) fn transfer_to_task(mut self) -> Result<PinHandle> {
-        self.pin.take().ok_or_else(|| Error::new(ErrorKind::PinLost, "pinned session is closed"))
+        self.pin
+            .take()
+            .ok_or_else(|| Error::new(ErrorKind::PinLost, "pinned session is closed"))
     }
 
     pub fn close(&mut self) -> Result<()> {
@@ -795,7 +979,8 @@ impl Drop for SessionOperation {
         let mut finish_external = false;
         if let Ok(mut state) = self.owner.state.lock() {
             state.active_operations = state.active_operations.saturating_sub(1);
-            finish_external = state.external_retired && state.active_operations == 0
+            finish_external = state.external_retired
+                && state.active_operations == 0
                 && state.phase == SessionPhase::Open;
             self.owner.changed.notify_all();
         }
@@ -854,23 +1039,42 @@ mod tests {
     #[test]
     fn task_methods_run_without_the_owner_state_lock() {
         #[derive(Debug)]
-        struct CompletedTask { owner: std::sync::Weak<SessionOwner> }
+        struct CompletedTask {
+            owner: std::sync::Weak<SessionOwner>,
+        }
         impl super::OwnerTaskGroup for CompletedTask {
             fn stop(&self) {}
             fn completed(&self) -> bool {
                 let owner = self.owner.upgrade().expect("live source-case owner");
-                assert!(owner.state.try_lock().is_ok(), "completion inspection must not hold the owner lock");
+                assert!(
+                    owner.state.try_lock().is_ok(),
+                    "completion inspection must not hold the owner lock"
+                );
                 true
             }
             fn close_until(&self, _: Instant) -> crate::Result<()> {
-                self.owner.upgrade().expect("live source-case owner").ensure_open()
+                self.owner
+                    .upgrade()
+                    .expect("live source-case owner")
+                    .ensure_open()
             }
         }
-        let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
-        let task: Arc<dyn super::OwnerTaskGroup> = Arc::new(CompletedTask { owner: Arc::downgrade(&owner) });
+        let owner = Arc::new(SessionOwner::new(
+            Duration::from_secs(1),
+            Duration::from_secs(1),
+        ));
+        let task: Arc<dyn super::OwnerTaskGroup> = Arc::new(CompletedTask {
+            owner: Arc::downgrade(&owner),
+        });
         owner.register_task_group(task.clone()).unwrap();
         owner.reap_completed_tasks();
-        assert!(!owner.state.lock().unwrap().tasks.iter().any(|registered| Arc::ptr_eq(registered, &task)));
+        assert!(!owner
+            .state
+            .lock()
+            .unwrap()
+            .tasks
+            .iter()
+            .any(|registered| Arc::ptr_eq(registered, &task)));
         owner.close().unwrap();
     }
 
@@ -878,9 +1082,11 @@ mod tests {
     fn pin_wait_is_capped_by_the_supplied_deadline() {
         let owner = SessionOwner::new(Duration::from_secs(10), Duration::from_secs(10));
         let started = Instant::now();
-        let error = owner.wait_pin_close(started + Duration::from_millis(10), || {
-            Ok(eltdx_runtime::engine::PendingPoll::Pending)
-        }).expect_err("no retirement confirmation before deadline");
+        let error = owner
+            .wait_pin_close(started + Duration::from_millis(10), || {
+                Ok(eltdx_runtime::engine::PendingPoll::Pending)
+            })
+            .expect_err("no retirement confirmation before deadline");
         assert_eq!(error.kind(), ErrorKind::CloseTimeout);
         assert!(started.elapsed() < Duration::from_secs(1));
         assert!(owner.ensure_open().is_ok());
@@ -888,7 +1094,10 @@ mod tests {
 
     #[test]
     fn pin_wait_adopts_a_concurrent_owner_deadline() {
-        let owner = Arc::new(SessionOwner::new(Duration::from_millis(30), Duration::from_secs(10)));
+        let owner = Arc::new(SessionOwner::new(
+            Duration::from_millis(30),
+            Duration::from_secs(10),
+        ));
         let operation = owner.admit().expect("open owner");
         let (poll_tx, poll_rx) = std::sync::mpsc::sync_channel(1);
         let pin_owner = Arc::clone(&owner);
@@ -902,11 +1111,15 @@ mod tests {
                 Ok(eltdx_runtime::engine::PendingPoll::Pending)
             })
         });
-        poll_rx.recv_timeout(Duration::from_secs(1)).expect("pin wait started before owner close");
+        poll_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("pin wait started before owner close");
         let started = Instant::now();
         let result = owner.close();
         assert!(matches!(result, Err(error) if error.kind() == ErrorKind::CloseTimeout));
-        assert!(matches!(waiter.join().expect("waiter exits"), Err(error) if error.kind() == ErrorKind::CloseTimeout));
+        assert!(
+            matches!(waiter.join().expect("waiter exits"), Err(error) if error.kind() == ErrorKind::CloseTimeout)
+        );
         assert!(started.elapsed() < Duration::from_secs(1));
         drop(operation);
     }
@@ -933,15 +1146,28 @@ mod tests {
         let error = failure.into_error();
         assert_eq!(error.message(), "pin retirement failed");
         assert_eq!(error.context(), runtime.context().as_slice());
-        assert_eq!(std::error::Error::source(&error)
-            .and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>()), Some(&runtime));
+        assert_eq!(
+            std::error::Error::source(&error)
+                .and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>()),
+            Some(&runtime)
+        );
     }
 
-    fn loopback_pin() -> (Arc<SessionOwner>, super::PinnedSession, thread::JoinHandle<()>) {
+    fn loopback_pin() -> (
+        Arc<SessionOwner>,
+        super::PinnedSession,
+        thread::JoinHandle<()>,
+    ) {
         loopback_pin_for_owner(None)
     }
 
-    fn loopback_pin_for_owner(existing_owner: Option<Arc<SessionOwner>>) -> (Arc<SessionOwner>, super::PinnedSession, thread::JoinHandle<()>) {
+    fn loopback_pin_for_owner(
+        existing_owner: Option<Arc<SessionOwner>>,
+    ) -> (
+        Arc<SessionOwner>,
+        super::PinnedSession,
+        thread::JoinHandle<()>,
+    ) {
         use eltdx_protocol::frame::{RequestFrame, RESPONSE_PREFIX};
         use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions};
         use std::io::{Read, Write};
@@ -951,7 +1177,9 @@ mod tests {
         let address = listener.local_addr().expect("loopback address");
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().expect("engine connects");
-            stream.set_read_timeout(Some(Duration::from_secs(3))).expect("bounded server read");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .expect("bounded server read");
             let mut raw = vec![0; 12];
             stream.read_exact(&mut raw).expect("handshake header");
             let body = usize::from(u16::from_le_bytes([raw[6], raw[7]])) - 2;
@@ -970,46 +1198,87 @@ mod tests {
             let mut byte = [0];
             assert_eq!(stream.read(&mut byte).expect("owner closes socket"), 0);
         });
-        let engine = Engine::new(EngineConfig::new(
-            vec![format!("{}:{}", address.ip(), address.port())], 2.0,
-            EngineConfigOptions {
-                pool_size: 1, runtime_workers: Some(1), server_count: 1,
-                max_connections_per_host: None, connect_concurrency: None,
-                connect_concurrency_per_host: None, global_raw_bytes: None,
-                global_decoded_bytes: None, heartbeat_interval: None,
-                max_pending_requests: 8, push_queue_size: 1, push_queue_bytes: 1024,
-            },
-        ).expect("valid config")).expect("lazy engine");
-        let owner = existing_owner.unwrap_or_else(|| Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1))));
+        let engine = Engine::new(
+            EngineConfig::new(
+                vec![format!("{}:{}", address.ip(), address.port())],
+                2.0,
+                EngineConfigOptions {
+                    pool_size: 1,
+                    runtime_workers: Some(1),
+                    server_count: 1,
+                    max_connections_per_host: None,
+                    connect_concurrency: None,
+                    connect_concurrency_per_host: None,
+                    global_raw_bytes: None,
+                    global_decoded_bytes: None,
+                    heartbeat_interval: None,
+                    max_pending_requests: 8,
+                    push_queue_size: 1,
+                    push_queue_bytes: 1024,
+                },
+            )
+            .expect("valid config"),
+        )
+        .expect("lazy engine");
+        let owner = existing_owner.unwrap_or_else(|| {
+            Arc::new(SessionOwner::new(
+                Duration::from_secs(1),
+                Duration::from_secs(1),
+            ))
+        });
         owner.register_engine(engine.clone()).expect("owner open");
-        let pin = super::PinnedSession::new(Arc::clone(&owner), engine.pin().expect("pin handshake"))
-            .expect("pin registered");
+        let pin =
+            super::PinnedSession::new(Arc::clone(&owner), engine.pin().expect("pin handshake"))
+                .expect("pin registered");
         (owner, pin, server)
     }
 
     fn unstarted_engine() -> eltdx_runtime::engine::Engine {
         use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions};
-        Engine::new(EngineConfig::new(vec!["127.0.0.1:1".to_owned()], 1.0, EngineConfigOptions {
-            pool_size: 1, runtime_workers: Some(1), server_count: 1,
-            max_connections_per_host: None, connect_concurrency: None, connect_concurrency_per_host: None,
-            global_raw_bytes: None, global_decoded_bytes: None, heartbeat_interval: None,
-            max_pending_requests: 1, push_queue_size: 1, push_queue_bytes: 1024,
-        }).expect("valid unstarted Engine config")).expect("lazy Engine construction")
+        Engine::new(
+            EngineConfig::new(
+                vec!["127.0.0.1:1".to_owned()],
+                1.0,
+                EngineConfigOptions {
+                    pool_size: 1,
+                    runtime_workers: Some(1),
+                    server_count: 1,
+                    max_connections_per_host: None,
+                    connect_concurrency: None,
+                    connect_concurrency_per_host: None,
+                    global_raw_bytes: None,
+                    global_decoded_bytes: None,
+                    heartbeat_interval: None,
+                    max_pending_requests: 1,
+                    push_queue_size: 1,
+                    push_queue_bytes: 1024,
+                },
+            )
+            .expect("valid unstarted Engine config"),
+        )
+        .expect("lazy Engine construction")
     }
 
     #[test]
     fn lazy_engine_registration_starts_no_cleanup_controller() {
         let owner = SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1));
-        owner.register_engine_lazy(unstarted_engine()).expect("owner open");
+        owner
+            .register_engine_lazy(unstarted_engine())
+            .expect("owner open");
         assert!(owner.cleanup.state.lock().unwrap().worker.is_none());
-        owner.close().expect("explicit close handles lazy Engine synchronously");
+        owner
+            .close()
+            .expect("explicit close handles lazy Engine synchronously");
         assert!(owner.cleanup.state.lock().unwrap().worker.is_none());
     }
 
     #[test]
     fn engine_registration_racing_close_cannot_leave_a_late_cleanup_worker() {
         for _ in 0..8 {
-            let owner = Arc::new(SessionOwner::new(Duration::from_secs(1), Duration::from_secs(1)));
+            let owner = Arc::new(SessionOwner::new(
+                Duration::from_secs(1),
+                Duration::from_secs(1),
+            ));
             let barrier = Arc::new(Barrier::new(3));
             let register_owner = Arc::clone(&owner);
             let register_barrier = Arc::clone(&barrier);
@@ -1030,7 +1299,10 @@ mod tests {
                 Ok(()) => {}
                 Err(error) => assert_eq!(error.kind(), ErrorKind::Closed),
             }
-            assert_eq!(owner.state.lock().unwrap().phase, super::SessionPhase::Closed);
+            assert_eq!(
+                owner.state.lock().unwrap().phase,
+                super::SessionPhase::Closed
+            );
             assert!(owner.cleanup.state.lock().unwrap().worker.is_none());
         }
     }
@@ -1040,8 +1312,16 @@ mod tests {
         let (owner, pin, server) = loopback_pin();
         let identity = pin.identity().expect("pin live");
         drop(pin);
-        assert!(owner.state.lock().expect("state").pins.iter().any(|pin| pin.identity() == identity));
-        owner.close().expect("owner confirms release and engine join");
+        assert!(owner
+            .state
+            .lock()
+            .expect("state")
+            .pins
+            .iter()
+            .any(|pin| pin.identity() == identity));
+        owner
+            .close()
+            .expect("owner confirms release and engine join");
         assert!(owner.state.lock().expect("state").pins.is_empty());
         server.join().expect("server observed socket shutdown");
     }
@@ -1049,36 +1329,51 @@ mod tests {
     #[test]
     fn engine_join_confirms_timed_out_pin_without_losing_root_failure() {
         let (owner, mut pin, server) = loopback_pin();
-        let original = owner.close_with_pin_closer(|runtime_pin, _owner_deadline| {
-            // Issue a real runtime close, but deliberately withhold its receipt
-            // from this wait. Engine shutdown below must supply actual join proof.
-            let _pending = runtime_pin.begin_close().expect("runtime accepts close");
-            owner.wait_pin_close(Instant::now(), || {
-                Ok(eltdx_runtime::engine::PendingPoll::Pending)
+        let original = owner
+            .close_with_pin_closer(|runtime_pin, _owner_deadline| {
+                // Issue a real runtime close, but deliberately withhold its receipt
+                // from this wait. Engine shutdown below must supply actual join proof.
+                let _pending = runtime_pin.begin_close().expect("runtime accepts close");
+                owner.wait_pin_close(Instant::now(), || {
+                    Ok(eltdx_runtime::engine::PendingPoll::Pending)
+                })
             })
-        }).expect_err("first pin confirmation wait expired");
+            .expect_err("first pin confirmation wait expired");
         assert_eq!(original.kind(), ErrorKind::CloseTimeout);
         let original_source = std::error::Error::source(&original)
             .and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>())
-            .expect("original timeout source remains structured").clone();
+            .expect("original timeout source remains structured")
+            .clone();
         let generation = {
             let state = owner.state.lock().expect("state");
-            assert!(state.pins.is_empty(), "confirmed Engine join retires its remaining pins");
+            assert!(
+                state.pins.is_empty(),
+                "confirmed Engine join retires its remaining pins"
+            );
             assert!(state.cleanup_confirmed);
             assert_eq!(state.phase, super::SessionPhase::FailedClosed);
             state.close_generation
         };
 
-        let subsequent = owner.close().expect_err("cleanup confirmation preserves first error");
+        let subsequent = owner
+            .close()
+            .expect_err("cleanup confirmation preserves first error");
         assert_eq!(subsequent.kind(), original.kind());
         assert_eq!(subsequent.message(), original.message());
         assert_eq!(subsequent.context(), original.context());
-        assert_eq!(std::error::Error::source(&subsequent)
-            .and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>()), Some(&original_source));
-        assert_eq!(owner.state.lock().expect("state").close_generation, generation,
-            "confirmed cleanup does not open another attempt");
+        assert_eq!(
+            std::error::Error::source(&subsequent)
+                .and_then(|source| source.downcast_ref::<eltdx_runtime::RuntimeError>()),
+            Some(&original_source)
+        );
+        assert_eq!(
+            owner.state.lock().expect("state").close_generation,
+            generation,
+            "confirmed cleanup does not open another attempt"
+        );
 
-        pin.close().expect("owner-confirmed pin close is idempotent even after runtime stopped");
+        pin.close()
+            .expect("owner-confirmed pin close is idempotent even after runtime stopped");
         assert!(pin.identity().is_none());
         pin.close().expect("explicit repeated close is idempotent");
         server.join().expect("actual socket shutdown observed");
@@ -1087,9 +1382,12 @@ mod tests {
     #[test]
     fn explicit_pin_close_after_successful_owner_shutdown_is_idempotent() {
         let (owner, mut pin, server) = loopback_pin();
-        owner.close().expect("owner confirms pin and Engine shutdown");
+        owner
+            .close()
+            .expect("owner confirms pin and Engine shutdown");
         assert!(owner.state.lock().expect("state").cleanup_confirmed);
-        pin.close().expect("no fresh request is sent to a stopped Engine");
+        pin.close()
+            .expect("no fresh request is sent to a stopped Engine");
         assert!(pin.identity().is_none());
         server.join().expect("actual socket shutdown observed");
     }
@@ -1098,23 +1396,32 @@ mod tests {
     fn stopped_engine_error_alone_does_not_unregister_retained_pin() {
         let (owner, mut pin, server) = loopback_pin();
         let engine = owner.state.lock().expect("state").engines[0].clone();
-        engine.close_until(Instant::now() + Duration::from_secs(1)).expect("external Engine shutdown joins");
-        let error = pin.close().expect_err("owner has not reconciled its retained registration");
+        engine
+            .close_until(Instant::now() + Duration::from_secs(1))
+            .expect("external Engine shutdown joins");
+        let error = pin
+            .close()
+            .expect_err("owner has not reconciled its retained registration");
         assert_eq!(error.kind(), ErrorKind::Closed);
         assert!(pin.identity().is_some());
         assert_eq!(owner.state.lock().expect("state").pins.len(), 1);
 
-        let original = owner.close().expect_err("pin begin-close error remains first failure");
+        let original = owner
+            .close()
+            .expect_err("pin begin-close error remains first failure");
         assert_eq!(original.kind(), ErrorKind::Closed);
         {
             let state = owner.state.lock().expect("state");
             assert!(state.pins.is_empty());
             assert!(state.cleanup_confirmed);
         }
-        let repeated = owner.close().expect_err("confirmed cleanup retains original failure");
+        let repeated = owner
+            .close()
+            .expect_err("confirmed cleanup retains original failure");
         assert_eq!(repeated.kind(), original.kind());
         assert_eq!(repeated.message(), original.message());
-        pin.close().expect("reconciliation now proves this guard is retired");
+        pin.close()
+            .expect("reconciliation now proves this guard is retired");
         server.join().expect("actual socket shutdown observed");
     }
 
@@ -1122,13 +1429,25 @@ mod tests {
     fn closing_one_of_two_colliding_local_pin_ids_preserves_the_other_registration() {
         let (owner, mut first, first_server) = loopback_pin();
         let (_, mut second, second_server) = loopback_pin_for_owner(Some(Arc::clone(&owner)));
-        assert_eq!(first.identity(), second.identity(), "fresh independent engines reuse local counters");
-        assert!(!first.pin.as_ref().expect("first pin").same_reservation(second.pin.as_ref().expect("second pin")));
+        assert_eq!(
+            first.identity(),
+            second.identity(),
+            "fresh independent engines reuse local counters"
+        );
+        assert!(!first
+            .pin
+            .as_ref()
+            .expect("first pin")
+            .same_reservation(second.pin.as_ref().expect("second pin")));
         first.close().expect("first reservation releases");
-        assert!(owner.pin_registered(second.pin.as_ref().expect("second guard stays live")).expect("state"));
+        assert!(owner
+            .pin_registered(second.pin.as_ref().expect("second guard stays live"))
+            .expect("state"));
         assert_eq!(owner.state.lock().expect("state").pins.len(), 1);
         owner.close().expect("both actual runtimes join");
-        second.close().expect("second confirmed by its own Engine shutdown");
+        second
+            .close()
+            .expect("second confirmed by its own Engine shutdown");
         first_server.join().expect("first socket closed");
         second_server.join().expect("second socket closed");
     }
@@ -1139,10 +1458,18 @@ mod tests {
         let (_, mut second, second_server) = loopback_pin_for_owner(Some(Arc::clone(&owner)));
         assert_eq!(first.identity(), second.identity());
         let first_engine = owner.state.lock().expect("state").engines[0].clone();
-        first_engine.close_until(Instant::now() + Duration::from_secs(1)).expect("first actual Engine joins");
-        owner.reconcile_engine_pins(&first_engine).expect("join evidence reconciled");
-        assert!(!owner.pin_registered(first.pin.as_ref().expect("first guard")).expect("state"));
-        assert!(owner.pin_registered(second.pin.as_ref().expect("second guard")).expect("state"));
+        first_engine
+            .close_until(Instant::now() + Duration::from_secs(1))
+            .expect("first actual Engine joins");
+        owner
+            .reconcile_engine_pins(&first_engine)
+            .expect("join evidence reconciled");
+        assert!(!owner
+            .pin_registered(first.pin.as_ref().expect("first guard"))
+            .expect("state"));
+        assert!(owner
+            .pin_registered(second.pin.as_ref().expect("second guard"))
+            .expect("state"));
         assert_eq!(owner.state.lock().expect("state").pins.len(), 1);
         first.close().expect("first confirmed retired");
         owner.close().expect("remaining actual Engine joins");
@@ -1165,11 +1492,17 @@ mod tests {
         match pin.close() {
             Ok(()) => assert!(pin.identity().is_none()),
             Err(error) => {
-                assert!(matches!(error.kind(), ErrorKind::Closed | ErrorKind::CloseTimeout));
+                assert!(matches!(
+                    error.kind(),
+                    ErrorKind::Closed | ErrorKind::CloseTimeout
+                ));
                 assert!(pin.identity().is_some());
             }
         }
-        closer.join().expect("owner closer exits").expect("owner closes owned resources");
+        closer
+            .join()
+            .expect("owner closer exits")
+            .expect("owner closes owned resources");
         assert!(owner.state.lock().expect("state").pins.is_empty());
         server.join().expect("server observed socket shutdown");
     }
@@ -1229,7 +1562,9 @@ mod tests {
         )
         .expect("engine constructs lazily");
         let pending_connect = engine.begin_connect().expect("runtime resource starts");
-        owner.register_engine(engine).expect("engine is attached to owner");
+        owner
+            .register_engine(engine)
+            .expect("engine is attached to owner");
         let barrier = Arc::new(Barrier::new(3));
         let mut closers = Vec::new();
         for _ in 0..2 {
@@ -1245,7 +1580,10 @@ mod tests {
             assert!(closer.join().expect("close thread exits").is_ok());
         }
         assert!(owner.close().is_ok());
-        assert!(owner.cleanup.state.lock().unwrap().worker.is_none(), "explicit close joins its cleanup controller");
+        assert!(
+            owner.cleanup.state.lock().unwrap().worker.is_none(),
+            "explicit close joins its cleanup controller"
+        );
         drop(pending_connect);
     }
 
@@ -1260,6 +1598,8 @@ mod tests {
 
         assert!(executor.ensure_open().is_ok());
         assert!(executor.close().is_ok());
-        assert!(matches!(executor.begin_operation(), Err(error) if error.kind() == ErrorKind::Closed));
+        assert!(
+            matches!(executor.begin_operation(), Err(error) if error.kind() == ErrorKind::Closed)
+        );
     }
 }

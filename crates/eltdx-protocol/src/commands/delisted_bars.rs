@@ -175,9 +175,11 @@ fn parse_delisted_klines_payload_body(
             low_delta_raw,
             up_count: None,
             down_count: None,
-            unknown_suffix_raw: Some(unknown_suffix.try_into().map_err(|_| {
-                ProtocolError::invalid_data("delisted klines", "invalid suffix")
-            })?),
+            unknown_suffix_raw: Some(
+                unknown_suffix.try_into().map_err(|_| {
+                    ProtocolError::invalid_data("delisted klines", "invalid suffix")
+                })?,
+            ),
             record_hex: context.record_hex(&payload[record_start..offset]),
             record_range: context.record_range(&payload[record_start..offset]),
         });
@@ -209,7 +211,6 @@ fn checked_add(left: i64, right: i64) -> Result<i64, ProtocolError> {
     left.checked_add(right)
         .ok_or_else(|| ProtocolError::invalid_data("delisted klines", "price overflow"))
 }
-
 
 #[cfg(test)]
 mod tests {

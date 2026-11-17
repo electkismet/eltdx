@@ -1,9 +1,12 @@
 //! A transport worker borrows the existing operation clock and weak owner.
-use std::future::Future;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
-use std::time::{Duration, Instant};
 use crate::operation::OperationSponsor;
 use crate::{Error, ErrorKind, Result, TimeoutPhase};
+use std::future::Future;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug)]
 pub(crate) struct Control {
@@ -14,19 +17,34 @@ pub(crate) struct Control {
 }
 impl Control {
     pub fn check(&self, phase: TimeoutPhase) -> Result<()> {
-        self.sponsor.check_boundary().map_err(|error| phase_error(error, phase))?;
+        self.sponsor
+            .check_boundary()
+            .map_err(|error| phase_error(error, phase))?;
         if self.owner_stopped.load(Ordering::Acquire) {
-            return Err(phase_error(Error::new(ErrorKind::Closed, "extension owner closed"), phase));
+            return Err(phase_error(
+                Error::new(ErrorKind::Closed, "extension owner closed"),
+                phase,
+            ));
         }
         if self.stopped.load(Ordering::Acquire) {
-            return Err(phase_error(Error::new(ErrorKind::Cancelled, "extension worker stopped"), phase));
+            return Err(phase_error(
+                Error::new(ErrorKind::Cancelled, "extension worker stopped"),
+                phase,
+            ));
         }
         if Instant::now() >= self.deadline {
-            return Err(phase_error(Error::new(ErrorKind::Timeout, "extension operation deadline elapsed"), phase));
+            return Err(phase_error(
+                Error::new(ErrorKind::Timeout, "extension operation deadline elapsed"),
+                phase,
+            ));
         }
         Ok(())
     }
-    pub async fn wait<T>(&self, phase: TimeoutPhase, future: impl Future<Output = Result<T>>) -> Result<T> {
+    pub async fn wait<T>(
+        &self,
+        phase: TimeoutPhase,
+        future: impl Future<Output = Result<T>>,
+    ) -> Result<T> {
         tokio::pin!(future);
         loop {
             self.check(phase)?;
@@ -45,14 +63,22 @@ impl Control {
         let remaining = self.deadline.saturating_duration_since(Instant::now());
         let allowance = (remaining / 2).min(Duration::from_secs(1));
         self.wait(TimeoutPhase::Connect, async {
-            tokio::time::timeout(allowance, future).await
-                .map_err(|_| Error::new(ErrorKind::Connection, "extension endpoint connect timed out"))?
-        }).await
+            tokio::time::timeout(allowance, future).await.map_err(|_| {
+                Error::new(
+                    ErrorKind::Connection,
+                    "extension endpoint connect timed out",
+                )
+            })?
+        })
+        .await
     }
 }
 pub(crate) fn phase_error(error: Error, phase: TimeoutPhase) -> Error {
-    if error.context().iter().any(|(key, _)| key == "phase") { error }
-    else { error.with_context("phase", format!("{phase:?}").to_ascii_lowercase()) }
+    if error.context().iter().any(|(key, _)| key == "phase") {
+        error
+    } else {
+        error.with_context("phase", format!("{phase:?}").to_ascii_lowercase())
+    }
 }
 pub(crate) fn connection(error: std::io::Error) -> Error {
     Error::new(ErrorKind::Connection, "extension socket I/O failed").with_source(error)

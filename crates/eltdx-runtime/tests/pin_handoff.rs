@@ -4,8 +4,8 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions, PendingPoll};
 use eltdx_runtime::endpoint::Endpoint;
+use eltdx_runtime::engine::{Engine, EngineConfig, EngineConfigOptions, PendingPoll};
 use eltdx_runtime::RuntimeError;
 
 fn engine_config(address: String) -> Result<EngineConfig, RuntimeError> {
@@ -33,23 +33,37 @@ fn engine_config(address: String) -> Result<EngineConfig, RuntimeError> {
 fn cancel_after_ready_does_not_revoke_delivered_pin() -> Result<(), RuntimeError> {
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|error| RuntimeError::internal(format!("fixture bind: {error}")))?;
-    let address = listener.local_addr()
-        .map_err(|error| RuntimeError::internal(format!("fixture address: {error}")))?.to_string();
+    let address = listener
+        .local_addr()
+        .map_err(|error| RuntimeError::internal(format!("fixture address: {error}")))?
+        .to_string();
     let (accepted_tx, accepted_rx) = mpsc::sync_channel(1);
     let (release_tx, release_rx) = mpsc::sync_channel(1);
     let server = thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("runtime connects to test listener");
-        stream.set_read_timeout(Some(Duration::from_secs(3))).expect("bounded handshake read");
-        stream.set_write_timeout(Some(Duration::from_secs(3))).expect("bounded handshake write");
-        accepted_tx.send(()).expect("test observes accepted connection");
+        let (mut stream, _) = listener
+            .accept()
+            .expect("runtime connects to test listener");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .expect("bounded handshake read");
+        stream
+            .set_write_timeout(Some(Duration::from_secs(3)))
+            .expect("bounded handshake write");
+        accepted_tx
+            .send(())
+            .expect("test observes accepted connection");
         let mut header = [0_u8; 12];
-        stream.read_exact(&mut header).expect("setup request header");
+        stream
+            .read_exact(&mut header)
+            .expect("setup request header");
         assert_eq!(u16::from_le_bytes([header[10], header[11]]), 0x000d);
         let size = usize::from(u16::from_le_bytes([header[6], header[7]]));
         let mut body = vec![0; size.checked_sub(2).expect("setup length")];
         stream.read_exact(&mut body).expect("setup request body");
         let mut reply = eltdx_protocol::frame::RESPONSE_PREFIX.to_vec();
-        reply.push(1); reply.extend_from_slice(&header[1..5]); reply.push(0);
+        reply.push(1);
+        reply.extend_from_slice(&header[1..5]);
+        reply.push(0);
         reply.extend_from_slice(&header[10..12]);
         reply.extend_from_slice(&189_u16.to_le_bytes());
         reply.extend_from_slice(&189_u16.to_le_bytes());
@@ -71,15 +85,22 @@ fn cancel_after_ready_does_not_revoke_delivered_pin() -> Result<(), RuntimeError
         }
     };
 
-    let source = handle.source_identity(Duration::from_secs(1))?
+    let source = handle
+        .source_identity(Duration::from_secs(1))?
         .ok_or_else(|| RuntimeError::internal("live pin inspection elapsed"))?;
     pending.cancel_and_confirm(Duration::ZERO)?;
     // Pool diagnostics are cached. Inspect the live reservation instead of
     // assuming its next 25ms diagnostic refresh has already happened.
-    assert_eq!(handle.source_identity(Duration::from_secs(1))?, Some(source));
+    assert_eq!(
+        handle.source_identity(Duration::from_secs(1))?,
+        Some(source)
+    );
 
     let mut next_pending = engine.begin_pin()?;
-    assert!(matches!(next_pending.wait_timeout(Duration::from_millis(25))?, PendingPoll::Pending));
+    assert!(matches!(
+        next_pending.wait_timeout(Duration::from_millis(25))?,
+        PendingPoll::Pending
+    ));
     handle.begin_close()?.wait()?;
     assert!(handle.source_identity(Duration::from_secs(1)).is_err());
 
@@ -91,12 +112,16 @@ fn cancel_after_ready_does_not_revoke_delivered_pin() -> Result<(), RuntimeError
             ));
         }
     };
-    assert!(next_handle.source_identity(Duration::from_secs(1))?.is_some());
+    assert!(next_handle
+        .source_identity(Duration::from_secs(1))?
+        .is_some());
     next_handle.begin_close()?.wait()?;
     assert!(next_handle.source_identity(Duration::from_secs(1)).is_err());
 
     engine.close()?;
-    release_tx.send(()).expect("server stream waiter is present");
+    release_tx
+        .send(())
+        .expect("server stream waiter is present");
     server.join().expect("test server exits");
     Ok(())
 }

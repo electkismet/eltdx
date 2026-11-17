@@ -3,13 +3,57 @@
 use super::{Response, Row};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub enum NewsHomeTab { Rolling, TodayFocus, Headlines, Positive, Negative, Essence, LatestTips, InstitutionResearch, Unknown(i32) }
+pub enum NewsHomeTab {
+    Rolling,
+    TodayFocus,
+    Headlines,
+    Positive,
+    Negative,
+    Essence,
+    LatestTips,
+    InstitutionResearch,
+    Unknown(i32),
+}
 impl NewsHomeTab {
-    pub const fn wire(self) -> i32 { match self { Self::Rolling => 1, Self::TodayFocus => 2, Self::Headlines => 3, Self::Positive => 4, Self::Negative => 5, Self::Essence => 6, Self::LatestTips => 7, Self::InstitutionResearch => 9, Self::Unknown(value) => value } }
-    pub const fn from_wire(value: i32) -> Self { match value { 1 => Self::Rolling, 2 => Self::TodayFocus, 3 => Self::Headlines, 4 => Self::Positive, 5 => Self::Negative, 6 => Self::Essence, 7 => Self::LatestTips, 9 => Self::InstitutionResearch, value => Self::Unknown(value) } }
+    pub const fn wire(self) -> i32 {
+        match self {
+            Self::Rolling => 1,
+            Self::TodayFocus => 2,
+            Self::Headlines => 3,
+            Self::Positive => 4,
+            Self::Negative => 5,
+            Self::Essence => 6,
+            Self::LatestTips => 7,
+            Self::InstitutionResearch => 9,
+            Self::Unknown(value) => value,
+        }
+    }
+    pub const fn from_wire(value: i32) -> Self {
+        match value {
+            1 => Self::Rolling,
+            2 => Self::TodayFocus,
+            3 => Self::Headlines,
+            4 => Self::Positive,
+            5 => Self::Negative,
+            6 => Self::Essence,
+            7 => Self::LatestTips,
+            9 => Self::InstitutionResearch,
+            value => Self::Unknown(value),
+        }
+    }
 }
 pub fn home_tab_name(tab: NewsHomeTab) -> Option<&'static str> {
-    Some(match tab.wire() { 1 => "滚动资讯", 2 => "今日焦点", 3 => "要闻速递", 4 => "正面消息", 5 => "负面消息", 6 => "精华集锦", 7 => "最新提示", 9 => "机构调研", _ => return None })
+    Some(match tab.wire() {
+        1 => "滚动资讯",
+        2 => "今日焦点",
+        3 => "要闻速递",
+        4 => "正面消息",
+        5 => "负面消息",
+        6 => "精华集锦",
+        7 => "最新提示",
+        9 => "机构调研",
+        _ => return None,
+    })
 }
 
 /// News payloads always follow the first metadata result set.
@@ -18,19 +62,24 @@ pub const NEWS_RESULT_SET_INDEX: usize = 1;
 
 /// Keep key and fallback preparation eager and ordered for dynamic callers.
 #[doc(hidden)]
-pub fn lookup_name_with<K, V, E>(key: impl FnOnce() -> Result<K, E>,
-    fallback: impl FnOnce() -> Result<V, E>, lookup: impl FnOnce(K, V) -> Result<V, E>) -> Result<V, E>
-{
+pub fn lookup_name_with<K, V, E>(
+    key: impl FnOnce() -> Result<K, E>,
+    fallback: impl FnOnce() -> Result<V, E>,
+    lookup: impl FnOnce(K, V) -> Result<V, E>,
+) -> Result<V, E> {
     let key = key()?;
     let fallback = fallback()?;
     lookup(key, fallback)
 }
 
 #[doc(hidden)]
-pub fn visit_rows<T, E>(rows: impl IntoIterator<Item = Result<T, E>>,
-    mut copy: impl FnMut(T) -> Result<(), E>) -> Result<(), E>
-{
-    for row in rows { copy(row?)?; }
+pub fn visit_rows<T, E>(
+    rows: impl IntoIterator<Item = Result<T, E>>,
+    mut copy: impl FnMut(T) -> Result<(), E>,
+) -> Result<(), E> {
+    for row in rows {
+        copy(row?)?;
+    }
     Ok(())
 }
 
@@ -46,11 +95,21 @@ macro_rules! channels {
     };
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct NewsChannelInfo { id: i32, label: &'static str, group: Option<&'static str> }
+pub struct NewsChannelInfo {
+    id: i32,
+    label: &'static str,
+    group: Option<&'static str>,
+}
 impl NewsChannelInfo {
-    pub const fn id(&self) -> i32 { self.id }
-    pub const fn label(&self) -> &'static str { self.label }
-    pub const fn group(&self) -> Option<&'static str> { self.group }
+    pub const fn id(&self) -> i32 {
+        self.id
+    }
+    pub const fn label(&self) -> &'static str {
+        self.label
+    }
+    pub const fn group(&self) -> Option<&'static str> {
+        self.group
+    }
 }
 channels! {
     FinanceLatest = 200 => ("最新", "财经"), FinanceHeadlines = 201 => ("财经要闻", "财经"), FinanceDomestic = 202 => ("国内财经", "财经"),
@@ -82,14 +141,27 @@ channels! {
     BondInternational = 1203 => ("国际债市", "债券"), BondNewsBrief = 1204 => ("债券新闻", "债券"), BondAnnouncement = 1205 => ("债券公告", "债券"),
     OptionLatest = 1801 => ("最新", "期权"), OptionNews = 1802 => ("期权要闻", "期权"), OptionIndex = 1803 => ("指数期权", "期权"), OptionCommodity = 1804 => ("商品期权", "期权"),
 }
-pub fn channel_name(channel: NewsChannel) -> Option<&'static str> { CHANNELS.iter().find(|info| info.id == channel.wire()).map(|info| info.label) }
+pub fn channel_name(channel: NewsChannel) -> Option<&'static str> {
+    CHANNELS
+        .iter()
+        .find(|info| info.id == channel.wire())
+        .map(|info| info.label)
+}
 /// News is in the second table. Never substitute metadata in the first table.
 pub fn extract_rows(response: &Response) -> Vec<&Row> {
     let mut rows = Vec::new();
     if let Some(table) = response.result_sets().get(NEWS_RESULT_SET_INDEX) {
-        let result = visit_rows(table.rows().iter().map(Ok::<_, std::convert::Infallible>),
-            |row| { rows.push(row); Ok(()) });
-        match result { Ok(()) => (), Err(impossible) => match impossible {} }
+        let result = visit_rows(
+            table.rows().iter().map(Ok::<_, std::convert::Infallible>),
+            |row| {
+                rows.push(row);
+                Ok(())
+            },
+        );
+        match result {
+            Ok(()) => (),
+            Err(impossible) => match impossible {},
+        }
     }
     rows
 }
@@ -100,7 +172,10 @@ mod tests {
     #[test]
     fn registry_has_all_channels_and_unknown_values_roundtrip() {
         assert_eq!(CHANNELS.len(), 84);
-        assert_eq!(NewsChannel::from_wire(1011), NewsChannel::WealthInternetFinance);
+        assert_eq!(
+            NewsChannel::from_wire(1011),
+            NewsChannel::WealthInternetFinance
+        );
         assert_eq!(channel_name(NewsChannel::Unknown(98765)), None);
         assert_eq!(NewsHomeTab::from_wire(8), NewsHomeTab::Unknown(8));
         assert_eq!(home_tab_name(NewsHomeTab::Headlines), Some("要闻速递"));

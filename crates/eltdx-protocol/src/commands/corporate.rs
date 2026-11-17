@@ -298,7 +298,10 @@ fn parse_capital_changes_payload_body(
         let mut record_offset = header_end;
         while record_offset < records_end {
             let end = record_offset.saturating_add(CAPITAL_CHANGE_RECORD_SIZE);
-            records.push(parse_capital_change_record(&payload[record_offset..end], context)?);
+            records.push(parse_capital_change_record(
+                &payload[record_offset..end],
+                context,
+            )?);
             record_offset = end;
         }
         blocks.push(CapitalChangeBlock {
@@ -422,7 +425,10 @@ fn parse_finance_batch_payload_body(
     })
 }
 
-fn parse_capital_change_record(record: &[u8], context: &ParseContext<'_>) -> Result<CapitalChangeRecord, ProtocolError> {
+fn parse_capital_change_record(
+    record: &[u8],
+    context: &ParseContext<'_>,
+) -> Result<CapitalChangeRecord, ProtocolError> {
     if record.len() != CAPITAL_CHANGE_RECORD_SIZE {
         return Err(ProtocolError::invalid_data(
             "capital changes",
@@ -487,7 +493,10 @@ fn parse_capital_change_record(record: &[u8], context: &ParseContext<'_>) -> Res
     })
 }
 
-fn parse_finance_record(record: &[u8], context: &ParseContext<'_>) -> Result<FinanceRecord, ProtocolError> {
+fn parse_finance_record(
+    record: &[u8],
+    context: &ParseContext<'_>,
+) -> Result<FinanceRecord, ProtocolError> {
     if record.len() != FINANCE_RECORD_SIZE {
         return Err(ProtocolError::invalid_data(
             "finance batch",
@@ -663,7 +672,6 @@ fn check_payload(payload: &[u8], resource: &'static str) -> Result<(), ProtocolE
     Ok(())
 }
 
-
 pub const TYPE_COMPANY_INFO_CATEGORY: u16 = 0x02cf;
 pub const TYPE_COMPANY_INFO_CONTENT: u16 = 0x02d0;
 pub const COMPANY_INFO_NAME_SIZE: usize = 64;
@@ -715,13 +723,32 @@ pub struct CompanyInfoContentRequest {
 impl CompanyInfoContentRequest {
     /// Strict callers can supply bytes encoded by their source-compatible GBK
     /// policy. The existing text constructor keeps its legacy encoding policy.
-    pub fn from_encoded_filename(market: Market, code: &str, filename: Vec<u8>, offset: u32, length: u32) -> Result<Self, ProtocolError> {
+    pub fn from_encoded_filename(
+        market: Market,
+        code: &str,
+        filename: Vec<u8>,
+        offset: u32,
+        length: u32,
+    ) -> Result<Self, ProtocolError> {
         let code = normalize_numeric_code(code)?;
-        if filename.is_empty() || filename.len() > COMPANY_INFO_CONTENT_FILENAME_SIZE || filename.contains(&0)
-            || length == 0 || offset.checked_add(length).is_none() {
-            return Err(ProtocolError::invalid_argument("company info", "invalid encoded filename or byte range"));
+        if filename.is_empty()
+            || filename.len() > COMPANY_INFO_CONTENT_FILENAME_SIZE
+            || filename.contains(&0)
+            || length == 0
+            || offset.checked_add(length).is_none()
+        {
+            return Err(ProtocolError::invalid_argument(
+                "company info",
+                "invalid encoded filename or byte range",
+            ));
         }
-        Ok(Self { market, code, filename, offset, length })
+        Ok(Self {
+            market,
+            code,
+            filename,
+            offset,
+            length,
+        })
     }
     pub fn new(
         market: Market,

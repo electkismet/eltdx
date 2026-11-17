@@ -4,7 +4,10 @@ use crate::f10::{CallQuery, JsonValue};
 #[doc(hidden)]
 #[derive(Clone, Copy, Debug)]
 pub enum ReportArgument {
-    Literal(&'static str), Code, Input(&'static str), OrInput(&'static str, &'static str),
+    Literal(&'static str),
+    Code,
+    Input(&'static str),
+    OrInput(&'static str, &'static str),
 }
 
 #[doc(hidden)]
@@ -16,8 +19,14 @@ pub struct ReportEntry {
 }
 
 impl ReportEntry {
-    pub fn compose<T, E>(&self, mut value: impl FnMut(ReportArgument) -> Result<T, E>) -> Result<Vec<T>, E> {
-        self.arguments.iter().map(|&argument| value(argument)).collect()
+    pub fn compose<T, E>(
+        &self,
+        mut value: impl FnMut(ReportArgument) -> Result<T, E>,
+    ) -> Result<Vec<T>, E> {
+        self.arguments
+            .iter()
+            .map(|&argument| value(argument))
+            .collect()
     }
 }
 
@@ -155,19 +164,31 @@ pub fn report_table(method: &str) -> &'static [ReportEntry] {
     }
 }
 
-pub(super) fn native_report(method: &str, code: &str, section: &str,
-    mut input: impl FnMut(&str) -> crate::Result<JsonValue>) -> crate::Result<CallQuery>
-{
-    let definition = report_table(method).iter().find(|entry| entry.section == section)
+pub(super) fn native_report(
+    method: &str,
+    code: &str,
+    section: &str,
+    mut input: impl FnMut(&str) -> crate::Result<JsonValue>,
+) -> crate::Result<CallQuery> {
+    let definition = report_table(method)
+        .iter()
+        .find(|entry| entry.section == section)
         .ok_or_else(|| crate::f10::values::invalid("unknown report section"))?;
-    let values = definition.compose(|slot| Ok::<_, crate::Error>(match slot {
-        ReportArgument::Code => code.into(), ReportArgument::Literal(value) => value.into(),
-        ReportArgument::Input(name) => input(name)?,
-        ReportArgument::OrInput(name, default) => {
-            let value = input(name)?;
-            if value.as_str() == Some("") { default.into() } else { value }
-        }
-    }))?;
+    let values = definition.compose(|slot| {
+        Ok::<_, crate::Error>(match slot {
+            ReportArgument::Code => code.into(),
+            ReportArgument::Literal(value) => value.into(),
+            ReportArgument::Input(name) => input(name)?,
+            ReportArgument::OrInput(name, default) => {
+                let value = input(name)?;
+                if value.as_str() == Some("") {
+                    default.into()
+                } else {
+                    value
+                }
+            }
+        })
+    })?;
     super::params(definition.entry, values)
 }
 
@@ -176,12 +197,20 @@ pub const SHAREHOLDER_PLAN_SECTION: &str = "plan";
 
 #[doc(hidden)]
 pub fn fund_period_section(section: &str) -> Option<&'static str> {
-    match section { "industry_allocation" => Some("hyfbbgq"), "bond_allocation" => Some("zczqbgq"),
-        "futures_allocation" => Some("ccqhmxbgq"), _ => None }
+    match section {
+        "industry_allocation" => Some("hyfbbgq"),
+        "bond_allocation" => Some("zczqbgq"),
+        "futures_allocation" => Some("ccqhmxbgq"),
+        _ => None,
+    }
 }
 
 #[doc(hidden)]
 pub fn market_section(section: &str) -> &str {
-    match section { "index_members" => "index_flow_members", "index_etfs" => "index_tracking",
-        "ipo_calendar" => "market_new_shares", value => value }
+    match section {
+        "index_members" => "index_flow_members",
+        "index_etfs" => "index_tracking",
+        "ipo_calendar" => "market_new_shares",
+        value => value,
+    }
 }

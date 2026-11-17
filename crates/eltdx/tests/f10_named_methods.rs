@@ -2,16 +2,20 @@
 //! wire snapshots in f10_route_inventory. Authored before final verification.
 #![cfg(feature = "f10")]
 
+use eltdx::f10::*;
+use eltdx::{OperationOptions, RawPolicy, TradingDate};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
 use std::time::{Duration, Instant};
-use eltdx::f10::*;
-use eltdx::{OperationOptions, RawPolicy, TradingDate};
 
 type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 type Invocation = Box<dyn Fn(&F10Client, &OperationOptions) -> eltdx::Result<Response>>;
-struct Case { name: &'static str, expected: CallQuery, invoke: Invocation }
+struct Case {
+    name: &'static str,
+    expected: CallQuery,
+    invoke: Invocation,
+}
 
 // The separate literal inventory fixes query-to-wire behavior. This suite
 // checks that the actual named public methods execute those query objects,
@@ -19,17 +23,34 @@ struct Case { name: &'static str, expected: CallQuery, invoke: Invocation }
 macro_rules! case {
     ($method:ident, $query:expr) => {{
         let query = $query;
-        Case { name: stringify!($method), expected: query.to_call()?,
-            invoke: Box::new(move |client, options| client.$method(&query, options)) }
+        Case {
+            name: stringify!($method),
+            expected: query.to_call()?,
+            invoke: Box::new(move |client, options| client.$method(&query, options)),
+        }
     }};
 }
-fn ashare() -> eltdx::Result<AshareCode> { AshareCode::new(F10MarketCode::new(1), "600000") }
-fn us() -> eltdx::Result<UsTicker> { UsTicker::new("BRK.B") }
-fn hk() -> eltdx::Result<HongKongCode> { HongKongCode::new("700") }
-fn sb() -> eltdx::Result<ThirdBoardCode> { ThirdBoardCode::new("430047") }
-fn bond() -> eltdx::Result<BondCode> { BondCode::new("sz123001") }
-fn industry() -> eltdx::Result<IndustryCode> { IndustryCode::new("881319") }
-fn future() -> eltdx::Result<FuturesCode> { FuturesCode::new("rb") }
+fn ashare() -> eltdx::Result<AshareCode> {
+    AshareCode::new(F10MarketCode::new(1), "600000")
+}
+fn us() -> eltdx::Result<UsTicker> {
+    UsTicker::new("BRK.B")
+}
+fn hk() -> eltdx::Result<HongKongCode> {
+    HongKongCode::new("700")
+}
+fn sb() -> eltdx::Result<ThirdBoardCode> {
+    ThirdBoardCode::new("430047")
+}
+fn bond() -> eltdx::Result<BondCode> {
+    BondCode::new("sz123001")
+}
+fn industry() -> eltdx::Result<IndustryCode> {
+    IndustryCode::new("881319")
+}
+fn future() -> eltdx::Result<FuturesCode> {
+    FuturesCode::new("rb")
+}
 
 fn international_cases() -> eltdx::Result<Vec<Case>> {
     Ok(vec![
@@ -137,7 +158,10 @@ fn sector_cases() -> eltdx::Result<Vec<Case>> {
         case!(hy_index, HyIndexQuery::new(industry()?)),
         case!(qh_position_report, QhPositionReportQuery::new(future()?)),
         case!(qh_basis_spread, QhBasisSpreadQuery::new(future()?)),
-        case!(qh_warehouse_receipt, QhWarehouseReceiptQuery::new(future()?)),
+        case!(
+            qh_warehouse_receipt,
+            QhWarehouseReceiptQuery::new(future()?)
+        ),
         case!(qh_inventory, QhInventoryQuery::new(future()?)),
         case!(qh_variety_info, QhVarietyInfoQuery::new(future()?)),
         case!(qh_index_info, QhIndexInfoQuery::new(future()?)),
@@ -152,7 +176,10 @@ fn report_cases() -> eltdx::Result<Vec<Case>> {
         case!(topic_ids, TopicIdsQuery::new(ashare()?)),
         case!(company_profile, CompanyProfileQuery::new(ashare()?)),
         case!(shareholders, ShareholdersQuery::new(ashare()?)),
-        case!(shareholder_change_plans, ShareholderChangePlansQuery::new(ashare()?)),
+        case!(
+            shareholder_change_plans,
+            ShareholderChangePlansQuery::new(ashare()?)
+        ),
         case!(capital_structure, CapitalStructureQuery::new(ashare()?)),
         case!(business_report, BusinessReportQuery::new(ashare()?)),
         case!(industry_analysis, IndustryAnalysisQuery::new(ashare()?)),
@@ -161,7 +188,10 @@ fn report_cases() -> eltdx::Result<Vec<Case>> {
         case!(market_report, MarketReportQuery::new(Some(ashare()?))),
         case!(dividend_financing, DividendFinancingQuery::new(ashare()?)),
         case!(allotment_dates, AllotmentDatesQuery::new(ashare()?)),
-        case!(allotment_details, AllotmentDetailsQuery::new(ashare()?, TradingDate::new(2024, 6, 30)?)),
+        case!(
+            allotment_details,
+            AllotmentDetailsQuery::new(ashare()?, TradingDate::new(2024, 6, 30)?)
+        ),
         case!(finance_report, FinanceReportQuery::new(ashare()?)),
         case!(finance_diagnosis, FinanceDiagnosisQuery::new(ashare()?)),
         case!(stock_score, StockScoreQuery::new(ashare()?)),
@@ -169,7 +199,10 @@ fn report_cases() -> eltdx::Result<Vec<Case>> {
         case!(ranking_detail, RankingDetailQuery::new(ashare()?)),
         case!(governance, GovernanceQuery::new(ashare()?)),
         case!(hot_topics, HotTopicsQuery::new(ashare()?)),
-        case!(stock_finance_weights, StockFinanceWeightsQuery::new(ashare()?)),
+        case!(
+            stock_finance_weights,
+            StockFinanceWeightsQuery::new(ashare()?)
+        ),
     ])
 }
 fn news_and_valuation_cases() -> eltdx::Result<Vec<Case>> {
@@ -184,40 +217,82 @@ fn news_and_valuation_cases() -> eltdx::Result<Vec<Case>> {
         case!(news, NewsQuery::new(ashare()?)),
         case!(roadshows, RoadshowsQuery::new(ashare()?)),
         case!(market_news, MarketNewsQuery::new()),
-        case!(channel_news, ChannelNewsQuery::new(NewsChannel::FinanceLatest)),
+        case!(
+            channel_news,
+            ChannelNewsQuery::new(NewsChannel::FinanceLatest)
+        ),
         case!(theme_market, ThemeMarketQuery::new(ashare()?)),
         case!(stock_stage_gain, StockStageGainQuery::new(ashare()?)),
         case!(stock_main_funds, StockMainFundsQuery::new(ashare()?)),
         case!(stock_industry_rank, StockIndustryRankQuery::new(ashare()?)),
-        case!(stock_industry_pct_rank, StockIndustryPctRankQuery::new(ashare()?)),
-        case!(stock_board_member_quotes, StockBoardMemberQuotesQuery::new(ashare()?)),
-        case!(stock_valuation_percentile, StockValuationPercentileQuery::new(ashare()?)),
-        case!(stock_pepb_percentile, StockPepbPercentileQuery::new(ashare()?)),
+        case!(
+            stock_industry_pct_rank,
+            StockIndustryPctRankQuery::new(ashare()?)
+        ),
+        case!(
+            stock_board_member_quotes,
+            StockBoardMemberQuotesQuery::new(ashare()?)
+        ),
+        case!(
+            stock_valuation_percentile,
+            StockValuationPercentileQuery::new(ashare()?)
+        ),
+        case!(
+            stock_pepb_percentile,
+            StockPepbPercentileQuery::new(ashare()?)
+        ),
         case!(stock_history_trend, StockHistoryTrendQuery::new(ashare()?)),
         case!(valuation, ValuationQuery::new(ashare()?)),
     ])
 }
 
 fn generic_cases() -> eltdx::Result<Vec<Case>> {
-    let call = CallQuery::new(EntryName::new("fixture.call")?,
-        RequestPayload::Body(JsonValue::parse("{\"中文\":1,\"nested\":[true,null]}".as_bytes())?));
-    let params = ParamsQuery::new(EntryName::new("fixture.params")?, vec!["中文".into(), 7_i64.into()]);
+    let call = CallQuery::new(
+        EntryName::new("fixture.call")?,
+        RequestPayload::Body(JsonValue::parse(
+            "{\"中文\":1,\"nested\":[true,null]}".as_bytes(),
+        )?),
+    );
+    let params = ParamsQuery::new(
+        EntryName::new("fixture.params")?,
+        vec!["中文".into(), 7_i64.into()],
+    );
     Ok(vec![
-        Case { name: "call", expected: call.clone(), invoke: Box::new(move |client, options| client.call(&call, options)) },
-        Case { name: "params", expected: params.clone().into_call(), invoke: Box::new(move |client, options| client.params(&params, options)) },
+        Case {
+            name: "call",
+            expected: call.clone(),
+            invoke: Box::new(move |client, options| client.call(&call, options)),
+        },
+        Case {
+            name: "params",
+            expected: params.clone().into_call(),
+            invoke: Box::new(move |client, options| client.params(&params, options)),
+        },
     ])
 }
 
 fn encoded(payload: &RequestPayload) -> eltdx::Result<Vec<u8>> {
     match payload {
         RequestPayload::Body(value) => value.to_json_bytes(),
-        RequestPayload::Params(params) => JsonValue::Object(vec![("Params".to_owned(), JsonValue::Array(params.clone()))]).to_json_bytes(),
+        RequestPayload::Params(params) => JsonValue::Object(vec![(
+            "Params".to_owned(),
+            JsonValue::Array(params.clone()),
+        )])
+        .to_json_bytes(),
     }
 }
 fn run_cases(cases: Vec<Case>) -> TestResult {
-    let expected = cases.iter().enumerate().map(|(index, case)| {
-        Ok((case.expected.entry().as_str().to_owned(), encoded(case.expected.payload())?, response_bytes(index)))
-    }).collect::<eltdx::Result<Vec<_>>>()?;
+    let expected = cases
+        .iter()
+        .enumerate()
+        .map(|(index, case)| {
+            Ok((
+                case.expected.entry().as_str().to_owned(),
+                encoded(case.expected.payload())?,
+                response_bytes(index),
+            ))
+        })
+        .collect::<eltdx::Result<Vec<_>>>()?;
     let listener = TcpListener::bind("127.0.0.1:0")?;
     listener.set_nonblocking(true)?;
     let url = format!("http://{}/TQLEX", listener.local_addr()?);
@@ -227,7 +302,12 @@ fn run_cases(cases: Vec<Case>) -> TestResult {
             let mut stream = loop {
                 match listener.accept() {
                     Ok((stream, _)) => break stream,
-                    Err(error) if error.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < until => thread::sleep(Duration::from_millis(2)),
+                    Err(error)
+                        if error.kind() == std::io::ErrorKind::WouldBlock
+                            && Instant::now() < until =>
+                    {
+                        thread::sleep(Duration::from_millis(2))
+                    }
                     Err(error) => return Err(error.into()),
                 }
             };
@@ -236,41 +316,98 @@ fn run_cases(cases: Vec<Case>) -> TestResult {
             stream.set_write_timeout(Some(Duration::from_secs(2)))?;
             let mut headers = Vec::new();
             while !headers.ends_with(b"\r\n\r\n") {
-                if headers.len() >= 64 * 1024 { return Err("oversized request header".into()); }
-                let mut byte = [0]; stream.read_exact(&mut byte)?; headers.push(byte[0]);
+                if headers.len() >= 64 * 1024 {
+                    return Err("oversized request header".into());
+                }
+                let mut byte = [0];
+                stream.read_exact(&mut byte)?;
+                headers.push(byte[0]);
             }
             let headers = String::from_utf8(headers)?;
             assert!(headers.starts_with(&format!("POST /TQLEX?Entry={entry} HTTP/1.1\r\n")));
-            let size: usize = headers.lines().filter_map(|line| line.split_once(':'))
-                .find(|(key, _)| key.eq_ignore_ascii_case("Content-Length")).ok_or("missing body length")?.1.trim().parse()?;
+            let size: usize = headers
+                .lines()
+                .filter_map(|line| line.split_once(':'))
+                .find(|(key, _)| key.eq_ignore_ascii_case("Content-Length"))
+                .ok_or("missing body length")?
+                .1
+                .trim()
+                .parse()?;
             assert_eq!(size, body.len());
-            let mut actual = vec![0; size]; stream.read_exact(&mut actual)?;
+            let mut actual = vec![0; size];
+            stream.read_exact(&mut actual)?;
             assert_eq!(actual, body);
-            write!(stream, "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", reply.len())?;
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                reply.len()
+            )?;
             stream.write_all(&reply)?;
         }
         Ok(())
     });
-    let client = F10Client::builder().with_base_url(url.clone()).with_international_url(url.clone()).with_ladder_url(url).build()?;
+    let client = F10Client::builder()
+        .with_base_url(url.clone())
+        .with_international_url(url.clone())
+        .with_ladder_url(url)
+        .build()?;
     for (index, case) in cases.iter().enumerate() {
-        let response = (case.invoke)(&client, &OperationOptions::default().with_raw(RawPolicy::RetainPayload))?;
-        assert_eq!(response.entry(), case.expected.entry().as_str(), "{}", case.name);
+        let response = (case.invoke)(
+            &client,
+            &OperationOptions::default().with_raw(RawPolicy::RetainPayload),
+        )?;
+        assert_eq!(
+            response.entry(),
+            case.expected.entry().as_str(),
+            "{}",
+            case.name
+        );
         assert_eq!(response.request(), case.expected.payload(), "{}", case.name);
         assert_eq!(response.ok(), index % 2 == 0, "{}", case.name);
         assert_eq!(response.result_sets().len(), 2, "{}", case.name);
         let first = &response.first_table().ok_or("missing first table")?.rows()[0];
         assert_eq!(first.get_all("duplicate").count(), 2, "{}", case.name);
-        assert_eq!(first.cells()[0].value().as_number().and_then(JsonNumber::as_u64), Some(index as u64));
-        assert_eq!(response.result_sets()[1].rows()[0].cells()[0].value().as_str(), Some("新闻"));
-        assert_eq!(response.meta().raw().ok_or("missing response payload")?.payloads()[0].as_ref(), response_bytes(index));
+        assert_eq!(
+            first.cells()[0]
+                .value()
+                .as_number()
+                .and_then(JsonNumber::as_u64),
+            Some(index as u64)
+        );
+        assert_eq!(
+            response.result_sets()[1].rows()[0].cells()[0]
+                .value()
+                .as_str(),
+            Some("新闻")
+        );
+        assert_eq!(
+            response
+                .meta()
+                .raw()
+                .ok_or("missing response payload")?
+                .payloads()[0]
+                .as_ref(),
+            response_bytes(index)
+        );
     }
-    assert_eq!(client.diagnostics()?.completed_requests(), cases.len() as u64);
+    assert_eq!(
+        client.diagnostics()?.completed_requests(),
+        cases.len() as u64
+    );
     client.close()?;
     for case in &cases {
-        assert_eq!((case.invoke)(&client, &OperationOptions::default()).unwrap_err().kind(),
-            eltdx::ErrorKind::Closed, "{}", case.name);
+        assert_eq!(
+            (case.invoke)(&client, &OperationOptions::default())
+                .unwrap_err()
+                .kind(),
+            eltdx::ErrorKind::Closed,
+            "{}",
+            case.name
+        );
     }
-    worker.join().map_err(|_| "named-method fixture panicked")??;
+    worker
+        .join()
+        .map_err(|_| "named-method fixture panicked")??;
     Ok(())
 }
 fn response_bytes(index: usize) -> Vec<u8> {
@@ -280,23 +417,35 @@ fn response_bytes(index: usize) -> Vec<u8> {
 
 #[test]
 fn every_international_named_method_executes_its_query_and_retains_response() -> TestResult {
-    let cases = international_cases()?; assert_eq!(cases.len(), 50); run_cases(cases)
+    let cases = international_cases()?;
+    assert_eq!(cases.len(), 50);
+    run_cases(cases)
 }
 #[test]
 fn every_bond_named_method_executes_its_query_and_retains_response() -> TestResult {
-    let cases = bond_cases()?; assert_eq!(cases.len(), 31); run_cases(cases)
+    let cases = bond_cases()?;
+    assert_eq!(cases.len(), 31);
+    run_cases(cases)
 }
 #[test]
 fn every_sector_named_method_executes_its_query_and_retains_response() -> TestResult {
-    let cases = sector_cases()?; assert_eq!(cases.len(), 21); run_cases(cases)
+    let cases = sector_cases()?;
+    assert_eq!(cases.len(), 21);
+    run_cases(cases)
 }
 #[test]
 fn every_report_named_single_request_method_executes_its_query() -> TestResult {
-    let cases = report_cases()?; assert_eq!(cases.len(), 23); run_cases(cases)
+    let cases = report_cases()?;
+    assert_eq!(cases.len(), 23);
+    run_cases(cases)
 }
 #[test]
 fn every_news_and_valuation_named_single_request_method_executes_its_query() -> TestResult {
-    let cases = news_and_valuation_cases()?; assert_eq!(cases.len(), 21); run_cases(cases)
+    let cases = news_and_valuation_cases()?;
+    assert_eq!(cases.len(), 21);
+    run_cases(cases)
 }
 #[test]
-fn generic_call_and_params_execute_their_distinct_body_shapes() -> TestResult { run_cases(generic_cases()?) }
+fn generic_call_and_params_execute_their_distinct_body_shapes() -> TestResult {
+    run_cases(generic_cases()?)
+}

@@ -683,7 +683,8 @@ impl Supervisor {
     }
 
     pub(crate) fn pin_is_open(&self, pin: PinIdentity) -> bool {
-        self.state == EngineState::Running && self.active_epoch == Some(pin.engine_epoch)
+        self.state == EngineState::Running
+            && self.active_epoch == Some(pin.engine_epoch)
             && self.pins.state(pin) == Some(crate::pin::PinState::Open)
     }
 
@@ -879,7 +880,9 @@ impl Supervisor {
     /// second retirement. The exact wire remains owned until its acknowledgement.
     pub(crate) fn cancel_retiring_request(&mut self, identity: RequestWireIdentity) -> bool {
         if self.state != EngineState::Running
-            || self.lifecycle_retirements.contains_key(&identity.request_id)
+            || self
+                .lifecycle_retirements
+                .contains_key(&identity.request_id)
             || !self.requests.begin_terminal_retirement(identity)
         {
             self.record_stale();
@@ -962,13 +965,17 @@ impl Supervisor {
         acknowledgement: ReconnectAck,
     ) -> Option<RequestWireIdentity> {
         if self.state != EngineState::Running
-            || self.lifecycle_retirements.contains_key(&acknowledgement.request_id)
+            || self
+                .lifecycle_retirements
+                .contains_key(&acknowledgement.request_id)
         {
             self.record_stale();
             return None;
         }
         let wire = self.requests.abort_retry_after_retirement(acknowledgement);
-        if wire.is_none() { self.record_stale(); }
+        if wire.is_none() {
+            self.record_stale();
+        }
         wire
     }
 

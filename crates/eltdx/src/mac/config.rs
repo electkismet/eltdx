@@ -1,40 +1,62 @@
 //! Local-only MAC configuration. Shared transport limits are the same checked
 //! values used by EX; endpoints and immutable setup profiles remain separate.
+use super::handshake::{LoginReplyRules, MacSetupPolicy};
+use super::services::XdxrProvider;
+use crate::ex::{config::ExConfig, frame::FrameLimits};
+use crate::{RawPolicy, Result};
 use std::net::SocketAddr;
 use std::num::{NonZeroU32, NonZeroUsize};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use crate::{RawPolicy, Result};
-use crate::ex::{config::ExConfig, frame::FrameLimits};
-use super::handshake::{LoginReplyRules, MacSetupPolicy};
-use super::services::XdxrProvider;
 
 pub const MAC_PORT: u16 = 7709;
 pub const MAC_EX_PORT: u16 = 7727;
-pub const MAC_HOSTS: &[&str] = &["121.36.248.138","123.60.47.136","121.37.207.165"];
-pub const MAC_EX_HOSTS: &[&str] = &["116.205.135.205","121.37.232.167"];
+pub const MAC_HOSTS: &[&str] = &["121.36.248.138", "123.60.47.136", "121.37.207.165"];
+pub const MAC_EX_HOSTS: &[&str] = &["116.205.135.205", "121.37.232.167"];
 pub fn default_endpoints() -> Vec<SocketAddr> {
-    [[121,36,248,138],[123,60,47,136],[121,37,207,165]].into_iter()
-        .map(|address| SocketAddr::from((address,MAC_PORT))).collect()
+    [[121, 36, 248, 138], [123, 60, 47, 136], [121, 37, 207, 165]]
+        .into_iter()
+        .map(|address| SocketAddr::from((address, MAC_PORT)))
+        .collect()
 }
 pub fn default_ex_endpoints() -> Vec<SocketAddr> {
-    [[116,205,135,205],[121,37,232,167]].into_iter()
-        .map(|address| SocketAddr::from((address,MAC_EX_PORT))).collect()
+    [[116, 205, 135, 205], [121, 37, 232, 167]]
+        .into_iter()
+        .map(|address| SocketAddr::from((address, MAC_EX_PORT)))
+        .collect()
 }
 #[derive(Clone, Debug)]
-pub struct MacConfig { pub(crate) transport: ExConfig, pub(crate) setup: MacSetupPolicy, pub(crate) xdxr_provider: Option<Arc<dyn XdxrProvider>> }
+pub struct MacConfig {
+    pub(crate) transport: ExConfig,
+    pub(crate) setup: MacSetupPolicy,
+    pub(crate) xdxr_provider: Option<Arc<dyn XdxrProvider>>,
+}
 impl Default for MacConfig {
     fn default() -> Self {
-        let mut transport = ExConfig::default(); transport.endpoints = default_endpoints();
-        Self { transport, setup: MacSetupPolicy::default(), xdxr_provider: None }
+        let mut transport = ExConfig::default();
+        transport.endpoints = default_endpoints();
+        Self {
+            transport,
+            setup: MacSetupPolicy::default(),
+            xdxr_provider: None,
+        }
     }
 }
 #[derive(Clone, Debug)]
-pub struct MacExConfig { pub(crate) transport: ExConfig, pub(crate) login: Option<LoginReplyRules>, pub(crate) xdxr_provider: Option<Arc<dyn XdxrProvider>> }
+pub struct MacExConfig {
+    pub(crate) transport: ExConfig,
+    pub(crate) login: Option<LoginReplyRules>,
+    pub(crate) xdxr_provider: Option<Arc<dyn XdxrProvider>>,
+}
 impl Default for MacExConfig {
     fn default() -> Self {
-        let mut transport = ExConfig::default(); transport.endpoints = default_ex_endpoints();
-        Self { transport, login: None, xdxr_provider: None }
+        let mut transport = ExConfig::default();
+        transport.endpoints = default_ex_endpoints();
+        Self {
+            transport,
+            login: None,
+            xdxr_provider: None,
+        }
     }
 }
 macro_rules! shared_config {
@@ -74,18 +96,30 @@ macro_rules! shared_config {
 }
 shared_config!(MacConfig, MacExConfig);
 impl MacConfig {
-    pub fn setup_policy(&self) -> &MacSetupPolicy { &self.setup }
-    pub fn with_setup_policy(mut self, value: MacSetupPolicy) -> Self { self.setup = value; self }
+    pub fn setup_policy(&self) -> &MacSetupPolicy {
+        &self.setup
+    }
+    pub fn with_setup_policy(mut self, value: MacSetupPolicy) -> Self {
+        self.setup = value;
+        self
+    }
 }
 impl MacExConfig {
     /// No production positive/negative response capture is bundled yet.
     /// Missing evidence never becomes successful authentication by byte length.
-    pub fn login_reply_rules(&self) -> Option<&LoginReplyRules> { self.login.as_ref() }
-    pub fn with_login_reply_rules(mut self, value: LoginReplyRules) -> Self { self.login = Some(value); self }
+    pub fn login_reply_rules(&self) -> Option<&LoginReplyRules> {
+        self.login.as_ref()
+    }
+    pub fn with_login_reply_rules(mut self, value: LoginReplyRules) -> Self {
+        self.login = Some(value);
+        self
+    }
 }
 fn duration(value: Duration) -> Result<()> {
     if value.is_zero() || Instant::now().checked_add(value).is_none() {
-        return Err(super::query::invalid("MAC timeout must be positive and fit the monotonic clock"));
+        return Err(super::query::invalid(
+            "MAC timeout must be positive and fit the monotonic clock",
+        ));
     }
     Ok(())
 }

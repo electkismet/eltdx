@@ -1,5 +1,5 @@
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::{Error, ErrorKind, Result};
 
@@ -25,7 +25,9 @@ pub struct SystemClock;
 pub(crate) struct ClockHandle(pub(crate) Arc<dyn Clock>);
 
 impl Default for ClockHandle {
-    fn default() -> Self { Self(Arc::new(SystemClock)) }
+    fn default() -> Self {
+        Self(Arc::new(SystemClock))
+    }
 }
 
 impl std::fmt::Debug for ClockHandle {
@@ -42,9 +44,12 @@ impl Clock for SystemClock {
                 .map_err(|_| date_error("system clock is outside supported epoch range")),
             Err(before_epoch) => {
                 let duration = before_epoch.duration();
-                let rounded_seconds = duration.as_secs().checked_add(u64::from(duration.subsec_nanos() != 0))
+                let rounded_seconds = duration
+                    .as_secs()
+                    .checked_add(u64::from(duration.subsec_nanos() != 0))
                     .ok_or_else(|| date_error("system clock is outside supported epoch range"))?;
-                i64::try_from(rounded_seconds).map(|seconds| -seconds)
+                i64::try_from(rounded_seconds)
+                    .map(|seconds| -seconds)
                     .map_err(|_| date_error("system clock is outside supported epoch range"))
             }
         }
@@ -61,31 +66,47 @@ pub struct TradingDate {
 
 impl std::fmt::Display for TradingDate {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
+        write!(
+            formatter,
+            "{:04}-{:02}-{:02}",
+            self.year, self.month, self.day
+        )
     }
 }
 
 impl TradingDate {
     pub fn new(year: u16, month: u8, day: u8) -> Result<Self> {
         if year == 0 || !(1..=12).contains(&month) || day == 0 || day > month_days(year, month) {
-            return Err(Error::new(ErrorKind::InvalidArgument, "invalid Gregorian date"));
+            return Err(Error::new(
+                ErrorKind::InvalidArgument,
+                "invalid Gregorian date",
+            ));
         }
         Ok(Self { year, month, day })
     }
 
-    pub const fn year(self) -> u16 { self.year }
-    pub const fn month(self) -> u8 { self.month }
-    pub const fn day(self) -> u8 { self.day }
+    pub const fn year(self) -> u16 {
+        self.year
+    }
+    pub const fn month(self) -> u8 {
+        self.month
+    }
+    pub const fn day(self) -> u8 {
+        self.day
+    }
 
     pub fn shanghai_today(clock: &dyn Clock) -> Result<Self> {
-        let shanghai_seconds = clock.unix_seconds()?.checked_add(8 * 60 * 60)
+        let shanghai_seconds = clock
+            .unix_seconds()?
+            .checked_add(8 * 60 * 60)
             .ok_or_else(|| date_error("Shanghai clock conversion overflows epoch seconds"))?;
         Self::from_days_since_epoch(shanghai_seconds.div_euclid(86_400))
     }
 
     pub fn add_days(self, days: i64) -> Result<Self> {
         let current = days_from_civil(self.year, self.month, self.day);
-        let next = current.checked_add(days)
+        let next = current
+            .checked_add(days)
             .ok_or_else(|| date_error("date arithmetic overflows"))?;
         Self::from_days_since_epoch(next)
     }
@@ -95,7 +116,8 @@ impl TradingDate {
             return Err(date_error("date is outside supported Gregorian range"));
         }
         let (year, month, day) = civil_from_days(days);
-        let year = u16::try_from(year).map_err(|_| date_error("date is outside supported Gregorian range"))?;
+        let year = u16::try_from(year)
+            .map_err(|_| date_error("date is outside supported Gregorian range"))?;
         Self::new(year, month, day)
     }
 }
@@ -135,36 +157,60 @@ impl EventTime {
 
     pub fn shanghai(date: TradingDate, hour: u8, minute: u8, second: u8) -> Result<Self> {
         validate_clock(hour, minute, second)?;
-        Ok(Self(EventTimeKind::Shanghai { date, hour, minute, second }))
+        Ok(Self(EventTimeKind::Shanghai {
+            date,
+            hour,
+            minute,
+            second,
+        }))
     }
 
     pub fn local(date: TradingDate, hour: u8, minute: u8, second: u8) -> Result<Self> {
         validate_clock(hour, minute, second)?;
-        Ok(Self(EventTimeKind::Local { date, hour, minute, second }))
+        Ok(Self(EventTimeKind::Local {
+            date,
+            hour,
+            minute,
+            second,
+        }))
     }
 
     pub fn time_of_day(hour: u8, minute: u8, second: u8) -> Result<Self> {
         validate_clock(hour, minute, second)?;
-        Ok(Self(EventTimeKind::TimeOfDay { hour, minute, second }))
+        Ok(Self(EventTimeKind::TimeOfDay {
+            hour,
+            minute,
+            second,
+        }))
     }
 
     /// Retains an event-time scalar whose wire encoding has not been established.
-    pub const fn unknown_raw(raw: i64) -> Self { Self(EventTimeKind::UnknownRaw(raw)) }
+    pub const fn unknown_raw(raw: i64) -> Self {
+        Self(EventTimeKind::UnknownRaw(raw))
+    }
 
     pub const fn unknown_raw_value(self) -> Option<i64> {
-        match self.0 { EventTimeKind::UnknownRaw(raw) => Some(raw), _ => None }
+        match self.0 {
+            EventTimeKind::UnknownRaw(raw) => Some(raw),
+            _ => None,
+        }
     }
 
     /// Adds elapsed minutes while preserving the source's known or unknown zone.
     /// Date-only values and time-of-day values have no unambiguous rollover date.
     pub fn add_minutes(self, minutes: i64) -> Result<Self> {
-        if matches!(self.0, EventTimeKind::TradingDate(_) | EventTimeKind::TimeOfDay { .. }) {
+        if matches!(
+            self.0,
+            EventTimeKind::TradingDate(_) | EventTimeKind::TimeOfDay { .. }
+        ) {
             return Err(date_error("minute rollover requires a dated local time"));
         }
         if matches!(self.0, EventTimeKind::UnknownRaw(_)) {
             return Err(date_error("unknown raw event time cannot be shifted"));
         }
-        let delta = minutes.checked_mul(60).ok_or_else(|| date_error("event time arithmetic overflows"))?;
+        let delta = minutes
+            .checked_mul(60)
+            .ok_or_else(|| date_error("event time arithmetic overflows"))?;
         self.add_seconds(delta)
     }
 
@@ -172,8 +218,18 @@ impl EventTime {
     /// precision. A dated source is required to determine a rollover day.
     pub fn add_seconds(self, delta: i64) -> Result<Self> {
         let (date, hour, minute, second, shanghai) = match self.0 {
-            EventTimeKind::Shanghai { date, hour, minute, second } => (date, hour, minute, second, true),
-            EventTimeKind::Local { date, hour, minute, second } => (date, hour, minute, second, false),
+            EventTimeKind::Shanghai {
+                date,
+                hour,
+                minute,
+                second,
+            } => (date, hour, minute, second, true),
+            EventTimeKind::Local {
+                date,
+                hour,
+                minute,
+                second,
+            } => (date, hour, minute, second, false),
             EventTimeKind::TradingDate(_) | EventTimeKind::TimeOfDay { .. } => {
                 return Err(date_error("second rollover requires a dated local time"));
             }
@@ -183,16 +239,27 @@ impl EventTime {
         };
         let seconds = days_from_civil(date.year, date.month, date.day)
             .checked_mul(86_400)
-            .and_then(|value| value.checked_add(i64::from(hour) * 3_600 + i64::from(minute) * 60 + i64::from(second)))
+            .and_then(|value| {
+                value.checked_add(
+                    i64::from(hour) * 3_600 + i64::from(minute) * 60 + i64::from(second),
+                )
+            })
             .and_then(|value| value.checked_add(delta))
             .ok_or_else(|| date_error("event time arithmetic overflows"))?;
         let days = seconds.div_euclid(86_400);
         let second_of_day = seconds.rem_euclid(86_400);
         let date = TradingDate::from_days_since_epoch(days)?;
-        let hour = u8::try_from(second_of_day / 3_600).map_err(|_| date_error("invalid derived hour"))?;
-        let minute = u8::try_from((second_of_day % 3_600) / 60).map_err(|_| date_error("invalid derived minute"))?;
-        let second = u8::try_from(second_of_day % 60).map_err(|_| date_error("invalid derived second"))?;
-        if shanghai { Self::shanghai(date, hour, minute, second) } else { Self::local(date, hour, minute, second) }
+        let hour =
+            u8::try_from(second_of_day / 3_600).map_err(|_| date_error("invalid derived hour"))?;
+        let minute = u8::try_from((second_of_day % 3_600) / 60)
+            .map_err(|_| date_error("invalid derived minute"))?;
+        let second =
+            u8::try_from(second_of_day % 60).map_err(|_| date_error("invalid derived second"))?;
+        if shanghai {
+            Self::shanghai(date, hour, minute, second)
+        } else {
+            Self::local(date, hour, minute, second)
+        }
     }
 
     pub const fn source_kind(self) -> EventTimeSource {
@@ -217,9 +284,23 @@ impl EventTime {
     pub const fn clock(self) -> Option<(u8, u8, u8)> {
         match self.0 {
             EventTimeKind::TradingDate(_) => None,
-            EventTimeKind::Shanghai { hour, minute, second, .. }
-            | EventTimeKind::Local { hour, minute, second, .. }
-            | EventTimeKind::TimeOfDay { hour, minute, second } => Some((hour, minute, second)),
+            EventTimeKind::Shanghai {
+                hour,
+                minute,
+                second,
+                ..
+            }
+            | EventTimeKind::Local {
+                hour,
+                minute,
+                second,
+                ..
+            }
+            | EventTimeKind::TimeOfDay {
+                hour,
+                minute,
+                second,
+            } => Some((hour, minute, second)),
             EventTimeKind::UnknownRaw(_) => None,
         }
     }
@@ -237,7 +318,10 @@ pub enum EventTimeSource {
 
 fn validate_clock(hour: u8, minute: u8, second: u8) -> Result<()> {
     if hour > 23 || minute > 59 || second > 59 {
-        return Err(Error::new(ErrorKind::InvalidArgument, "invalid time of day"));
+        return Err(Error::new(
+            ErrorKind::InvalidArgument,
+            "invalid time of day",
+        ));
     }
     Ok(())
 }
@@ -268,7 +352,8 @@ fn civil_from_days(days: i64) -> (i64, u8, u8) {
     let shifted = days + 719_468;
     let era = shifted.div_euclid(146_097);
     let day_of_era = shifted - era * 146_097;
-    let year_of_era = (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
     let mut year = year_of_era + era * 400;
     let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
     let month_prime = (5 * day_of_year + 2) / 153;

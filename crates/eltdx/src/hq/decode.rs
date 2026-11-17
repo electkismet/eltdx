@@ -54,33 +54,80 @@ pub(crate) fn decode_reply(
 }
 
 pub(crate) fn decode_reply_profile(
-    reply: RawReply, raw: RawPolicy, precision: &dyn PricePrecisionSource, legacy: bool,
+    reply: RawReply,
+    raw: RawPolicy,
+    precision: &dyn PricePrecisionSource,
+    legacy: bool,
 ) -> Result<DecodedReply, ProtocolError> {
-    let RawReply { request, response, request_id, engine_epoch, slot_id, generation, host, receive_sequence } = reply;
-    decode_frame_profile(request, response, DecodeSource { request_id: Some(request_id),
-        engine_epoch, slot_id, generation, host, receive_sequence }, raw, precision, legacy)
+    let RawReply {
+        request,
+        response,
+        request_id,
+        engine_epoch,
+        slot_id,
+        generation,
+        host,
+        receive_sequence,
+    } = reply;
+    decode_frame_profile(
+        request,
+        response,
+        DecodeSource {
+            request_id: Some(request_id),
+            engine_epoch,
+            slot_id,
+            generation,
+            host,
+            receive_sequence,
+        },
+        raw,
+        precision,
+        legacy,
+    )
 }
 
 pub(crate) fn decode_push(
-    frame: &eltdx_runtime::push::PushFrame, activation: CommandRequest,
-    raw: RawPolicy, precision: &dyn PricePrecisionSource,
+    frame: &eltdx_runtime::push::PushFrame,
+    activation: CommandRequest,
+    raw: RawPolicy,
+    precision: &dyn PricePrecisionSource,
 ) -> Result<DecodedReply, ProtocolError> {
-    decode_frame_profile(activation, frame.response.clone(), DecodeSource { request_id: None,
-        receive_sequence: frame.receive_sequence,
-        engine_epoch: frame.engine_epoch, slot_id: frame.slot_id, generation: frame.generation,
-        host: frame.connected_host.to_string() }, raw, precision, false)
+    decode_frame_profile(
+        activation,
+        frame.response.clone(),
+        DecodeSource {
+            request_id: None,
+            receive_sequence: frame.receive_sequence,
+            engine_epoch: frame.engine_epoch,
+            slot_id: frame.slot_id,
+            generation: frame.generation,
+            host: frame.connected_host.to_string(),
+        },
+        raw,
+        precision,
+        false,
+    )
 }
 
 fn decode_frame_profile(
-    request: CommandRequest, mut response: ResponseFrame, source: DecodeSource,
-    raw: RawPolicy, precision: &dyn PricePrecisionSource, legacy: bool,
+    request: CommandRequest,
+    mut response: ResponseFrame,
+    source: DecodeSource,
+    raw: RawPolicy,
+    precision: &dyn PricePrecisionSource,
+    legacy: bool,
 ) -> Result<DecodedReply, ProtocolError> {
-    struct QuoteLayout<'a> { precision: &'a dyn PricePrecisionSource, legacy: bool }
+    struct QuoteLayout<'a> {
+        precision: &'a dyn PricePrecisionSource,
+        legacy: bool,
+    }
     impl PricePrecisionSource for QuoteLayout<'_> {
         fn security_decimal(&self, code: &eltdx_protocol::unit::NormalizedCode) -> Option<u8> {
             self.precision.security_decimal(code)
         }
-        fn legacy_quote_layout(&self) -> bool { self.legacy }
+        fn legacy_quote_layout(&self) -> bool {
+            self.legacy
+        }
     }
     let layout = QuoteLayout { precision, legacy };
     let parse_raw = match raw {
@@ -96,7 +143,9 @@ fn decode_frame_profile(
     // buffers once here and share those exact-sized copies across all rows.
     if !legacy && raw != RawPolicy::Omit {
         response.data = Bytes::copy_from_slice(&response.data);
-        if raw == RawPolicy::RetainWire { response.raw = Bytes::copy_from_slice(&response.raw); }
+        if raw == RawPolicy::RetainWire {
+            response.raw = Bytes::copy_from_slice(&response.raw);
+        }
     }
     // Legacy directories publish row precision to the old registry, including
     // earlier rows when a later row fails. The remaining legacy quote families
@@ -105,11 +154,21 @@ fn decode_frame_profile(
     // Legacy trades also retain their intrinsic units, raw record text and
     // original datetime errors independently of directory metadata. Corporate
     // and limit replies retain the old scalar and market interpretation too.
-    let parsed = if legacy && matches!(&request, CommandRequest::SecurityList(_)
-        | CommandRequest::LegacyQuotes(_) | CommandRequest::CategoryQuotes(_) | CommandRequest::RefreshStream(_)
-        | CommandRequest::TodayTicks(_) | CommandRequest::HistoricalTicks(_) | CommandRequest::AuctionSeries(_)
-        | CommandRequest::MoneyFlow(_) | CommandRequest::CapitalChanges(_)
-        | CommandRequest::FinanceBatch(_) | CommandRequest::SpecialLimits(_)) {
+    let parsed = if legacy
+        && matches!(
+            &request,
+            CommandRequest::SecurityList(_)
+                | CommandRequest::LegacyQuotes(_)
+                | CommandRequest::CategoryQuotes(_)
+                | CommandRequest::RefreshStream(_)
+                | CommandRequest::TodayTicks(_)
+                | CommandRequest::HistoricalTicks(_)
+                | CommandRequest::AuctionSeries(_)
+                | CommandRequest::MoneyFlow(_)
+                | CommandRequest::CapitalChanges(_)
+                | CommandRequest::FinanceBatch(_)
+                | CommandRequest::SpecialLimits(_)
+        ) {
         CommandResponse::parse(request.clone(), &response.data)?
     } else {
         CommandResponse::parse_with_context(request.clone(), response.data.clone(), &options)?
@@ -124,7 +183,11 @@ fn decode_frame_profile(
         response: parsed,
         source,
         payload,
-        wire: if raw == RawPolicy::RetainWire { Some(response) } else { None },
+        wire: if raw == RawPolicy::RetainWire {
+            Some(response)
+        } else {
+            None
+        },
     })
 }
 
@@ -136,7 +199,9 @@ mod tests {
 
     struct NoPrecision;
     impl PricePrecisionSource for NoPrecision {
-        fn security_decimal(&self, _: &NormalizedCode) -> Option<u8> { None }
+        fn security_decimal(&self, _: &NormalizedCode) -> Option<u8> {
+            None
+        }
     }
 
     // Synthetic framing: tests retention and identity, not live-server provenance.
@@ -167,9 +232,20 @@ mod tests {
         let original = heartbeat()?;
         let payload = original.response.data.clone();
         let wire = original.response.raw.clone();
-        for raw in [RawPolicy::Omit, RawPolicy::RetainPayload, RawPolicy::RetainWire] {
+        for raw in [
+            RawPolicy::Omit,
+            RawPolicy::RetainPayload,
+            RawPolicy::RetainWire,
+        ] {
             let decoded = decode_reply(original.clone(), raw, &NoPrecision)?;
-            assert_eq!(decoded.source.request_id.expect("requested reply identity").get(), 1);
+            assert_eq!(
+                decoded
+                    .source
+                    .request_id
+                    .expect("requested reply identity")
+                    .get(),
+                1
+            );
             assert_eq!(decoded.source.host, "synthetic.invalid:7709");
             let CommandResponse::Heartbeat(ack) = decoded.response else {
                 panic!("expected heartbeat");
