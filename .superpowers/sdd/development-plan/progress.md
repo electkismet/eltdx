@@ -1215,3 +1215,9 @@ Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.
 最终候选 `6a6cd8b` 的 44188994800 已成功结束，双 Rust 工具链各 31 条和归档 24 条全部通过并已核对哈希。44189071921 继续等待 macOS wheel 及后续合计；同 SHA 的两个原生 Linux wheel 与四份无编译工具报告已下载并通过 `artifacts/unified/stage159-actions-confirmation-attempt01/verify.ps1 -LinuxOnly`。首轮 44187905757 已结束成功，五 wheel、一个 sdist 和十种独立安装保留在 stage157；不能冒充新 SHA。请继续下载最终候选剩余 wheel、消费者、release-dist 和 release-verification，运行 `verify.ps1` 与 SHA256SUMS 校验后更新最终验收。
 
 初始发布预检已按最终候选重做：`stage160-registry-preflight-attempt01` 三名 404、protocol dry-run exit 0。固定检出为 `artifacts/unified/stage158-macos-retest-attempt01/registry-source`，换行配置为 `core.autocrlf=false`。凭据尚缺。完整生产仍需独立的服务端 MAC-EX 拒绝证据、可选 MAC setup、实验 category 22 非空和受权行情数据的实际限价文件。
+
+## Stage161–163：同 SHA 失败任务重试及生产 F10
+
+限定现货限价证据为有授权的交易所实际交易日记录，公开 LDDS 测试方案只作取证线索。最终 wheel/sdist 运行 `44189071921` attempt 1 在 macOS Intel 上传产物时 DNS `ENOTFOUND`，构建及两版 Python 冒烟步骤已通过。运行结束后 `--failed` 重跑成功进入 attempt 2，SHA 不变；最新状态以该运行和原始产物为准。失败日志、未能在运行中单 job 重试的结果，以及接受重试的命令都保留在 `artifacts/unified/stage162-macos-upload-retry-attempt01/`、`attempt02/` 对应目录。不要重复调度。
+
+最终候选的独立 Rust F10 consumer（只启用 `f10`）查询 `600000` 五日资金流，返回五条带日期和主力净额的记录，正常关闭，通过。见 `artifacts/unified/stage163-f10-production-attempt01/result.json`；不作 category 22 或实际涨跌停价证据。仍需用户本地 `cargo login` 配置发布权限，然后才能发布三个 crate 与验证公开消费。目标尚未完成。

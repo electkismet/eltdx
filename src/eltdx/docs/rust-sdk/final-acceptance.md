@@ -10,7 +10,7 @@
 | 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
 | 发布平台与隔离 | macOS Rust 与原生 Linux 安装已通过；最终候选 wheel/sdist 聚合待确认 | Stage159 在 `6a6cd8b` 上通过 macOS Rust 1.89/stable、三 crate 归档及原生 Linux x64/ARM64 的 Python 3.10/3.14 干净容器消费。五平台十组独立 Python 安装和 5+1 产物聚合在其父候选 `4b31a56` 已全部通过；修正候选的同 SHA wheel/sdist 复验见下。 |
 | 注册表发布与消费 | 未发布 | Stage160 在最终候选干净检出查询三个名称均返回 404，本地归档与 protocol 的 Cargo publish dry-run 通过。缺少 crates.io 发布凭据；发布后仍需用无 patch 独立项目验证。 |
-| 生产协议验收 | 部分公开主站流程已验证 | 标准EX主站完成查询52个市场与111218个商品，与Python实测一致；三个普通MAC主站通过默认三步握手及业务查询。两台MAC-EX主站以即时完整样本完成独立Rust查询，Stage151回放进一步验证匹配样本的查询和跨时段不匹配时的关闭。仍待可复用的MAC-EX登录规则及服务端拒绝样本、可选setup和category22非空证据。Stage150核对三笔证监会披露的涨停价，尚缺交易所当日参考价和双侧边界。 |
+| 生产协议验收 | 部分公开主站流程已验证 | 标准 EX 主站查询 52 个市场与 111218 个商品，与 Python 实测一致；三个普通 MAC 主站通过默认三步握手及业务查询。两台 MAC-EX 主站以即时完整样本完成独立 Rust 查询；Stage163 在稳定 F10 入口查询到五条真实历史资金流记录。仍待可复用的 MAC-EX 登录规则及服务端拒绝、可选 setup、实验 category 22 非空和交易所当日参考价及双侧边界。 |
 
 因此，当前可报告为“实现完成；记录范围内的本地核心验证通过；发布/生产验收未完成”。后两项依赖外部平台、注册表权限或生产数据，不用来回滚前两项状态，也不合并成一个完成比例。
 
@@ -58,7 +58,7 @@
 
 ## 后续工作
 
-- 发布平台：公开候选 `6a6cd8b` 上的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)已通过；等待同 SHA 的[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)结束并核对汇总产物。两份初次 macOS Rust 失败报告保留在 Stage157。手动验证不上传 PyPI 或创建 GitHub Release。
+- 发布平台：公开候选 `6a6cd8b` 的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)已通过。同 SHA 的[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)因 macOS Intel 的产物上传 DNS 错误已重跑失败任务；以新的汇总产物为准。两份初次 macOS Rust 失败报告保留在 Stage157。手动验证不上传 PyPI 或创建 GitHub Release。
 - 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的登录成功样本，确认候选时钟差异符合观测；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选setup的身份/顺序/fence、category22非空路径和交易所当日涨跌停价；未验证含义继续保持Unknown。
 - 注册表：在本机配置获授权的crates.io发布凭据后，核对包名、版本和账号权限，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前重新查询，404仅代表该时间点的查询结果。
 
