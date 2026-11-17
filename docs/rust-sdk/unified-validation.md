@@ -230,4 +230,4 @@ Python版本差异修正在测试层：AST快照不再依赖`ast.unparse`的括�
 
 该矩阵补齐了Windows上的声明Python版本范围，不补齐macOS/非Windows wheel、物理隔离环境、公开registry无patch消费、生产MAC/setup/category22样本或权威涨跌停规则。统一验收仍active；这些外部证据缺口维持未闭合。
 
-stage136文档 attempt01 针对本节与验收索引的更新执行了`check_release_metadata.py`、`mkdocs build --strict`、`check_pages_links.py site`及dirty-tree `git diff --check`，四项均exit0，逐命令SHA和日志见`artifacts/unified/stage136-docs-attempt01/results.json`（文件SHA256 `1d8c0013c9efa9af1e78e87983c5c9dc45c31466067b12392b5b2f5a5ecd8d81`）。恢复提交后会对同一文档内容在clean tree再次运行并另存attempt，不覆盖本次dirty-tree证据。
+stage136文档 attempt01 针对本节与验收索引的更新执行了`check_release_metadata.py`、`mkdocs build --strict`、`check_pages_links.py site`及dirty-tree `git diff --check`，四项均exit0，逐命令SHA和日志见`artifacts/unified/stage136-docs-attempt01/results.json`（文件SHA256 `1d8c0013c9efa9af1e78e87983c5c9dc45c31466067b12392b5b2f5a5ecd8d81`）。恢复提交`fa9355e`之后再次执行相同四项门禁，均exit0且Git工作树clean；逐命令日志及hash见`artifacts/unified/stage136-docs-attempt03/results.json`（文件SHA256 `33ceffc0a69374ca7b74c76a74c0d3d74966de5e7ca2249ad885111621b0e41a`）。attempt01保留dirty-tree证据，attempt03绑定已提交的文档树，不相互覆盖。

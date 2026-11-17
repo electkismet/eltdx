@@ -77,6 +77,6 @@ stage135审计快照之后，stage136补齐了Windows Python3.10–3.14全部兼
 
 候选 `e2b8819c4729de28f0472ecbe743b0c2e100872f` 使用Windows x64/MSVC构建的`eltdx-3.3.5-cp310-abi3-win_amd64.whl`。Python3.10.22、3.11.18、3.12.6、3.13.18、3.14.10分别通过local 3048、loopback 276和golden 103项，合计17135 passed、0 failed、0 errors、0 skipped。每个版本另从临时环境安装同一wheel，pip check及独立非空公开API consumer均exit0；记录了wheel/native身份并成功close。
 
-wheel SHA256为`82b0bf70a847ea7775079cb4d958130cfca850e9ca515ebf1e38b686de65fd3e`，native SHA256为`465e28d1dc950a97ce36bb3ee82766c6aebe52448d3486fad5203b67c030de66`，Cargo.lock SHA256为`214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`。逐版本解释器、各JUnit SHA、installed-wheel报告与consumer证据摘要见`artifacts/unified/stage136-python-matrix/results.json`。consumer为`process-path-only`工具链隔离，不能代表物理隔离镜像；这些是Windows合成loopback和兼容证据，不提供macOS、生产协议、公开registry或非Windows wheel证明。stage136的跨Python修正只调整了测试/快照比较假设，未改变运行时代码。文档门禁与最新恢复点结果见统一验证记录stage136章节。
+wheel SHA256为`82b0bf70a847ea7775079cb4d958130cfca850e9ca515ebf1e38b686de65fd3e`，native SHA256为`465e28d1dc950a97ce36bb3ee82766c6aebe52448d3486fad5203b67c030de66`，Cargo.lock SHA256为`214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`。逐版本解释器、各JUnit SHA、installed-wheel报告与consumer证据摘要见`artifacts/unified/stage136-python-matrix/results.json`。consumer为`process-path-only`工具链隔离，不能代表物理隔离镜像；这些是Windows合成loopback和兼容证据，不提供macOS、生产协议、公开registry或非Windows wheel证明。stage136的跨Python修正只调整了测试/快照比较假设，未改变运行时代码。恢复提交`fa9355e`上的metadata、MkDocs strict、站点链接和diff门禁均exit0；最新门禁与后续恢复记录见统一验证记录stage136章节。
 
 这些不是授权缩减任务范围的理由。源码范围须全部实现，执行失败须继续处理；任何确实需要独立外部输入的项保留具体缺口和后续行动，不能借文档标记自动通过。
