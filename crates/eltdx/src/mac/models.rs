@@ -31,6 +31,7 @@ impl MacCode {
     }
     pub fn as_str(&self) -> &str { &self.text }
     pub fn encoded(&self) -> &[u8] { &self.wire }
+    pub(crate) fn heap_bytes(&self) -> usize { self.text.capacity()+self.wire.capacity() }
     pub fn wire_bytes(&self) -> [u8; 22] {
         let mut bytes = [0; 22];
         bytes[..self.wire.len()].copy_from_slice(&self.wire);

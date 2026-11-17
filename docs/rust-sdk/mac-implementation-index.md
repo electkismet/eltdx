@@ -99,8 +99,8 @@ Quote/Bar/Transaction/BoardInfo/Unusual带逐响应共享meta；PageResult带聚
 | transactions | 已接通港股EX23FC/2406既有解码及富Transaction，其余MAC122F；新session必须login |
 | all_transactions | 已接通港股1800分页、50页/90000或更小显式上限仍满报LimitExceeded |
 
-MAC-EX的quotes/tick_chart/chart_sampling/bars/transactions/all_transactions已接入；
-其余七项仍是待实现组合。bars明确按700页collect，旧Python单请求由T27保留。
+MAC-EX全部13项已有实现源码；目录/宏观/列表七项的完整边界与未执行源码用例见
+[目录实现交接](catalog-implementation-index.md)。bars明确按700页collect，旧Python单请求由T27保留。
 MAC-EX查询已统一使用ExInstrumentId，再做显式无损MAC转换；市场号不推断HQ
 交易所。转换拒绝u8溢出、GBK不可表示和反向超过9B UTF-8代码。Stage A的
 MacExInstrumentId仅为旧纯codec groundwork，未被新公开查询采用。
@@ -142,7 +142,7 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
    覆盖取消/半包/close/failover等，均未执行。fields/util/advanced辅助接口源码
    已补；T26首段已接显式provider及parent上下文的网络QFQ编排，尚未执行验收。
    继续余下简单入口覆盖与源码收尾；生产握手缺口仍须在最终证据阶段解决。
-5. T26 QFQ、聚合/排行/N日、同源下载源码已写；继续MAC-EX目录/fallback/缓存/唯一宏观解析及余下7入口，再T27兼容迁移。
+5. T26 QFQ、聚合/排行/N日、同源下载及MAC-EX目录/fallback/缓存/唯一宏观解析七入口源码已写；继续广域生命周期/换源/多批用例源码与交接，再T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
 详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint6，

@@ -90,11 +90,15 @@ pub(crate) fn bars(owner: &MacOwner, context: &OperationContext, query: &BarsQue
 }
 pub(crate) fn bars_with_purpose(owner: &MacOwner, context: &OperationContext, query: &BarsQuery,
     first_purpose: ChildPurpose) -> Result<Collection<Bar>> {
+    bars_with_source(owner,context,query,first_purpose,None)
+}
+pub(crate) fn bars_with_source(owner: &MacOwner, context: &OperationContext, query: &BarsQuery,
+    first_purpose: ChildPurpose, source: Option<(super::Endpoint,u64)>) -> Result<Collection<Bar>> {
     let progress = Pagination::new(query.start(),Target::Count(query.count()),query.pages().clone(),maximum(700),u32::MAX,EndPolicy::EmptyOrShort)?;
     let mut first = true;
     collect(owner,context,progress,MergeOrder::PrependPages,|request| {
         let purpose = if first { first_purpose } else { ChildPurpose::Page }; first = false;
-        bars_page(owner,context,query,request.offset(),request.count(),purpose)
+        bars_page_with_source(owner,context,query,request.offset(),request.count(),purpose,source)
             .map(|reply| Reply { value: (None,reply.value),meta: reply.meta,wire_count: reply.wire_count,response_offset: reply.response_offset })
     })
 }
@@ -102,9 +106,14 @@ pub(crate) fn bars_with_purpose(owner: &MacOwner, context: &OperationContext, qu
 /// QFQ refetches and board history windows. No composite copies its layout.
 pub(crate) fn bars_page(owner: &MacOwner, context: &OperationContext, query: &BarsQuery,
     offset: u32, requested: u16, purpose: ChildPurpose) -> Result<Reply<Vec<Bar>>> {
+    bars_page_with_source(owner,context,query,offset,requested,purpose,None)
+}
+fn bars_page_with_source(owner: &MacOwner, context: &OperationContext, query: &BarsQuery,
+    offset: u32, requested: u16, purpose: ChildPurpose, source: Option<(super::Endpoint,u64)>) -> Result<Reply<Vec<Bar>>> {
     let command = commands::bars_request(query.id(),query.period(),query.times().get(),offset,requested,query.adjust())?;
+    let work = match source { Some(source) => owner.pinned_mac_work(command,source)?,None => owner.mac_work(command)? };
     let query = query.clone();
-    owner.exchange_with_purpose(context,owner.mac_work(command)?,0x122e,purpose,move |body,raw| {
+    owner.exchange_with_purpose(context,work,0x122e,purpose,move |body,raw| {
         let records = commands::decode_bars(&body,query.period())?;
         let values = records.into_iter().enumerate().map(|(index,value)| {
             let offset = 33+index*36;

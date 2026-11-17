@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第八十五段恢复点：基础提交`b6b6860`。MAC-EX余下7个具名入口及instrument/goods不可变snapshot/refresh/clear源码已接通，现13/13入口有源码；全局EX目录扫描与前后count、实际市场范围/乱序诊断、空goods同源fallback、完整代码/名称/desc、owner/source/profile/raw/schema缓存与epoch失效、宏观唯一精确解析/80分批/按identity重排和同源macro bars均已写。补可选的父操作总logical-request限额，覆盖metadata/fallback/provider，不重置原期限/attempt预算；新增分配前响应count/offset检查及克隆内存计账。新增extended_catalogs26个公开函数、6个cache/2个operation源码用例，全未执行。T26仍部分，继续真实EX/MAC/MAC-EX广域生命周期、换源缓存/多批宏观用例与源码交接，再T25余下覆盖、T27–T30和最终统一验证。23源码完整/3部分/4未开始不变，目标active无额度上限，无代理/发布。恢复读task-26-report Stage4及catalog-implementation-index.md；生产登录证据缺口未解决，绝不把合成ACK当生产证据。
+
 2026-11-17第八十四段恢复点：板块组合已提交`29256d1`。本段写完MAC同源download_file/download_complete：沿用共享DownloadCursor与整段lease，首个有效metadata/chunk固定endpoint和generation，后续禁止重连和failover；元数据大小仅为提示，短/空块与一致绝对EOF才能Complete。byte/chunk cap给LimitReached和准确续传位置，cap0不联网；strict要求start0，续传普通入口只返回后缀。保留原prefix/raw/来源/失败证据，输出与独立解码分配提前计入父字节。新增extended_downloads17个公开函数源码，全部未执行。MAC现23/23方法有源码，MAC-EX仍6/13；T26仍需目录fallback/缓存/宏观唯一解析/余下7入口及生命周期覆盖，随后T25余下源码、T27–T30和最终统一验证。23源码完整/3部分/4未开始不变；目标active无限额，无代理或发布。恢复先读task-26-report第三段。
 
 2026-11-17第八十三段恢复点：QFQ组合已提交95721fc。本段新增板块全成员汇总、六指标稳定排行、历史目标向旧分页与完整N日窗口源码，以及BoardSummary/BoardRank/BoardChangeRank/NamedNativeField返回模型；None可取全候选，缺失/非有限指标排后，重复源日期保留原始记录但不冒充交易日，所有目录/成员/历史共用父页/记录/字节/期限。bar解码/投影抽为同一bars_page，百分比共用现有算术。新增extended_boards16个公开函数源码（含取消/关闭半帧），全部未执行。MAC现22/23方法接入；下一步同源文件下载、MAC-EX目录/缓存/宏观及其余方法，再T27–T30。23源码完整/3部分/4未开始不变；目标active无限额，所有执行验证继续延期。恢复先读task-26-report第二段。

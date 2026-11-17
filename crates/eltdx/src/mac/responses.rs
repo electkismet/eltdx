@@ -28,6 +28,7 @@ impl<const N: usize> WireText<N> {
     pub fn as_str(&self) -> &str { &self.text }
     pub const fn raw(&self) -> &[u8; N] { &self.raw }
     pub const fn replacement_used(&self) -> bool { self.replaced }
+    pub(crate) fn heap_bytes(&self) -> usize { self.text.capacity() }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResponseIdentity { pub(crate) market: MacMarketId, pub(crate) code: WireText<22> }
@@ -249,6 +250,8 @@ pub struct GoodsItem {
     pub(crate) name: WireText<23>, pub(crate) category: u16, pub(crate) u: u16,
     pub(crate) index: u32, pub(crate) switch: u8, pub(crate) code: [WireFloat; 3],
     pub(crate) c1: u16, pub(crate) c2: u16,
+    pub(crate) source_instrument: Option<crate::ex::InstrumentInfo>,
+    pub(crate) derived_numeric_code: Option<WireFloat>,
 }
 impl GoodsItem {
     refs!(name: WireText<23>);
@@ -259,6 +262,32 @@ impl GoodsItem {
     pub const fn code(&self) -> &[WireFloat; 3] { &self.code }
     pub const fn c1(&self) -> u16 { self.c1 }
     pub const fn c2(&self) -> u16 { self.c2 }
+    /// The native 23B field contains the source code, not a display name.
+    pub fn actual_code(&self) -> &str { self.source_instrument.as_ref().map_or(self.name.as_str(),|row| row.code()) }
+    pub fn display_name(&self) -> Option<&str> { self.source_instrument.as_ref().map(|row| row.name()) }
+    pub fn description(&self) -> Option<&str> { self.source_instrument.as_ref().map(|row| row.desc()) }
+    pub fn source_instrument(&self) -> Option<&crate::ex::InstrumentInfo> { self.source_instrument.as_ref() }
+    pub fn is_derived(&self) -> bool { self.source_instrument.is_some() }
+    /// Only an EX fallback's parseable source code has this derived value.
+    /// The three fixed source slots remain uninterpreted for native goods.
+    pub const fn derived_numeric_code(&self) -> Option<WireFloat> { self.derived_numeric_code }
+    pub(crate) fn heap_bytes(&self) -> crate::Result<usize> {
+        let mut charge = crate::types::memory::MemoryCharge::default();
+        charge.add(self.name.heap_bytes())?;
+        if let Some(info) = &self.source_instrument {
+            charge.string(&info.id.code)?; charge.string(&info.name)?; charge.string(&info.desc)?;
+        }
+        Ok(charge.total())
+    }
+    pub(crate) fn from_instrument(info: &crate::ex::InstrumentInfo, index: u32) -> Self {
+        let (encoded,_,replaced) = GBK.encode(info.code()); let mut raw = [0;23];
+        let length = encoded.len().min(raw.len()); raw[..length].copy_from_slice(&encoded[..length]);
+        let name = WireText { raw,text: info.code().into(),replaced };
+        let numeric = info.code().parse::<f32>().ok().filter(|value| value.is_finite()).map(|value| WireFloat::from_bits(value.to_bits()));
+        Self { name,category: u16::from(info.category()),u: 0,index,switch: 0,
+            code: [numeric.unwrap_or(WireFloat::from_bits(0)),WireFloat::from_bits(0),WireFloat::from_bits(0)],
+            c1: 0,c2: 0,source_instrument: Some(info.clone()),derived_numeric_code: numeric }
+    }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FileMeta {

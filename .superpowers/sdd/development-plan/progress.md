@@ -2,6 +2,23 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage85: base b6b6860. MAC-EX remaining7 named
+  entry sources and explicit instrument/goods snapshot/refresh/clear APIs are
+  authored, bringing named source counts to MAC23/23 and MAC-EX13/13.
+  Full bounded global EX scan with count fences/sorted-bound proof or unsorted
+  filtering, source-pinned goods fallback and actual code/name/desc, bounded
+  source/raw/schema owner cache with clear epochs/versions, unique exact macro
+  resolution,80-batch identity joins and source-bound macro bars are present.
+  Opt-in parent logical-request cap includes metadata/fallback/provider;
+  allocation count/offset prechecks and clone heap charges were added.
+  Added26 public catalog,6 private cache and2 operation function sources,
+  all unexecuted. T26 stays partial. Counts23 source-complete/3 partial/4
+  unstarted, active goal without quota. Next broader ExClient/MAC/MAC-EX
+  lifecycles, source-replacement cache/multi-batch macro sources and T26
+  handoff, T25 coverage, T27-T30, then unified execution/production evidence.
+  No tests/collection/build/check/dependencies/network/AST/format/diff-check,
+  agents or publication. Read task-26-report Stage4 and catalog index.
+
 - Latest recovery2026-11-17 stage84: base29256d1. Completed same-source MAC
   download_file/download_complete source using existing DownloadCursor and
   one held lease. Accepted metadata/chunk pins endpoint+generation; pinned

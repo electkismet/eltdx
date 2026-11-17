@@ -1,5 +1,71 @@
 # T26 implementation report
 
+## Stage 4 — source-scoped catalogs and macro consumers (2026-11-17, stage85)
+
+Base b6b6860. Added ex/catalog.rs, mac/catalog.rs, mac/ex_services.rs and
+tests/extended_catalogs.rs. All13 named MAC-EX methods now have source
+implementations, as do all23 named MAC methods. T26 remains partial;
+totals23 source-complete/3 partial/4 unstarted. None compiled or executed.
+
+Full handoff: docs/rust-sdk/catalog-implementation-index.md (also mirrored
+in src/eltdx/docs/rust-sdk). It specifies every entry, request/frame/owner
+reuse, scan/count/source guarantees and limits, cache retention/epochs,
+refresh scope, actual derived-source values, macro lookup/identity joins,
+raw provenance and explicit lack of server atomicity/production login proof.
+
+The scan holds the one owner lease. Direct initial count/native goods may
+retry/failover until an accepted source; EX continuation/fences and fallback
+from goods use exact endpoint+generation pinned encoded work. Final count
+detects growth/shrink only. Sorted bounds are proved over every global row;
+unsorted directories retain matching occurrences in source order without a
+range claim. Empty goods may fallback same-source, with explicit diagnostic
+and full actual InstrumentInfo attached to each derived GoodsItem.
+
+Two owner-local caches (one per kind) each retain at most16 entries/65536
+rows/16MiB. Identity includes owner/source/profile/market/kind/raw/schema.
+Clear increments an epoch; stale in-flight publication is ignored. Versions
+are monotonic and cannot wrap. Oversized results are returned uncached;
+retained Arc handles survive refresh/clear/close. Refresh intentionally
+clears both kinds first, even when loading one requested kind/market.
+
+Macro selectors require exact case-sensitive full code, suffix or actual
+name with one unique full code. Duplicate same-code rows are not ambiguous;
+distinct-code collisions are InvalidArgument, missing is MissingData. Native
+code-only goods can add same-source EX names. Output requests batch80 and
+join actual response identities, preserving duplicate requested occurrences.
+Source-bound normal/QFQ bars retain directory observations and their own
+primary raw rows. Source-order quote_list exposes min(count,80), actual
+continuation and a truncation diagnostic; unsupported sorting rejects.
+
+OperationContext and OperationSponsor gain an opt-in total logical-request
+cap, frozen before first child, covering ordinary metadata/pages/fallbacks
+and injected provider requests. Existing nonopted contexts keep old policy;
+physical attempts keep their authorization/extra/deadline. This closes a
+source-read-discovered gap when directory compositions enter shared bars.
+EX directory and MAC goods/quote response offset/counts are checked before
+decoder allocations. GBK replacement, range/field/string/vector clones and
+retained metadata have bounded parent byte charges; caches charge new calls
+even on hits. Added PageResult::into_rows and structural Eq for directory
+identity/info to support consuming projection and attached derived rows.
+
+Authored26 public functions (some multiple cases),6 cache functions and2
+operation functions. Cover sorted/absent/unsorted/fallback/raw/native/counts,
+bad offsets/counts/premature empty/count change, request/record/byte/extra
+gates, version/clear/refresh/in-flight/raw-key semantics, macro ambiguity/
+case/name/duplicates/reordered/missing quotes, source-order80, macro bars,
+preaccept failover/pinned loss/cancel/close half-frame and local rejection.
+All test sources are unexecuted; text counting is not runtime evidence.
+
+Remaining: broader actual ExClient/MAC/MAC-EX extended_loopback lifecycle
+source cases, cache replacement and multi-batch macro source cases, bounded
+task-wide source review and final T26 handoff. T25 needs remaining simple
+method/schema coverage; production login/optional-boundary evidence remains
+final-phase work. T27 full Python EX/MAC/MAC-EX compatibility migration and
+T28-T30 consumer/platform/package/docs sources precede unified validation.
+No tests/build/check/clippy/doctest/collection/dependency resolve/download,
+network/compiler/AST/format/diff checks; source reads/edits and ordinary Git
+only. No agents/push/tags/publication/merge. Active unlimited goal.
+
 ## Stage 3 — exact-source bounded downloads (2026-11-17, stage84)
 
 Base29256d1. Added mac/download.rs and tests/extended_downloads.rs; changed

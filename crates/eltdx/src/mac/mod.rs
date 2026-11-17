@@ -8,6 +8,8 @@ mod quote;
 mod market_data;
 mod boards;
 mod download;
+mod catalog;
+mod ex_services;
 pub(crate) mod collect;
 pub mod config;
 pub mod bitmap;
@@ -33,6 +35,8 @@ pub use market_data::{Bar, BarPrice, BarPriceSource, BarTimeSource, CountPresenc
 pub use fields::KnownField;
 pub use util::{AdjustmentEvent, XdxrEvent};
 pub use services::{XdxrBatch, XdxrContext, XdxrProvider, XdxrSourceRequest};
+pub use catalog::{GoodsCatalog, InstrumentCatalog};
+pub use crate::ex::catalog::{CatalogKind, CatalogSnapshot, CATALOG_SCHEMA_VERSION};
 pub use crate::ex::hosts::{DiagnosticSnapshot, DiscoveryOptions, Endpoint, HostProbe, ProbeMode, ProbeOptions, ProbeStatus};
 pub use crate::ex::frame::FrameLimits;
 pub use bitmap::{FieldId, FieldSelection, PresetField};

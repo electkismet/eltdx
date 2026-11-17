@@ -1,5 +1,7 @@
 //! Independent EX client, checked identities and bounded wire codecs.
 mod client;
+#[cfg(feature = "mac")]
+pub(crate) mod catalog;
 pub(crate) mod control;
 pub(crate) mod probe;
 pub(crate) mod profile;

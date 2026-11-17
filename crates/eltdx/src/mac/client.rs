@@ -400,9 +400,27 @@ fn board_limits(context: &mut crate::operation::OperationContext, pages: &crate:
 }
 fn quotes(owner: &MacOwner, context: &crate::operation::OperationContext,
     ids: &[super::MacInstrumentId], fields: &super::FieldSelection) -> Result<Vec<super::Quote>> {
+    let lease = owner.session.lease(context)?;
+    let rows = quotes_leased(owner,context,&lease,ids,fields,None)?;
+    lease.accept(); Ok(rows)
+}
+pub(super) fn quotes_leased(owner: &MacOwner, context: &crate::operation::OperationContext,
+    lease: &crate::ex::session::Lease, ids: &[super::MacInstrumentId], fields: &super::FieldSelection,
+    source: Option<(Endpoint,u64)>) -> Result<Vec<super::Quote>> {
     let requested = u16::try_from(ids.len()).map_err(|_| super::query::invalid("MAC quote occurrences exceed wire range"))?;
     let request = commands::quote_request(ids,fields)?;
-    let reply = owner.exchange(context,owner.mac_work(request)?,0x122b,move |body,_| {
+    let work = match source { Some(source) => owner.pinned_mac_work(request,source)?,None => owner.mac_work(request)? };
+    let sponsor = context.sponsor();
+    let reply = owner.exchange_leased_with_purpose(context,lease,work,0x122b,crate::operation::ChildPurpose::Page,move |body,_| {
+        let prefix = body.get(..26).ok_or_else(|| crate::Error::new(ErrorKind::Protocol,"MAC quote response lacks its prefix"))?;
+        let count = u16::from_le_bytes([prefix[24],prefix[25]]);
+        if count>requested { return Err(crate::Error::new(ErrorKind::Protocol,"MAC quote response exceeds its request")); }
+        let bitmap = super::bitmap::decode_bitmap(&prefix[..20])?;
+        let width = super::bitmap::quote_row_width(&bitmap)?;
+        let slots = width.saturating_sub(68)/4;
+        let per_row = std::mem::size_of::<super::Quote>()+std::mem::size_of::<super::models::QuoteRow>()+66*6
+            +slots*(std::mem::size_of::<super::models::QuoteField>()+128)+std::mem::size_of::<(usize,usize)>();
+        sponsor.record_bytes(usize::from(count).checked_mul(per_row).ok_or_else(|| crate::Error::new(ErrorKind::LimitExceeded,"MAC quote allocation overflows"))?)?;
         let (_,rows,bitmap) = commands::decode_quote_rows(&body,super::models::FieldContext::Instrument)?;
         let width = super::bitmap::quote_row_width(&bitmap)?;
         // Identity projection is inside strict decoding: a malformed identity

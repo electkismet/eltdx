@@ -41,7 +41,7 @@ impl NamedNativeField {
     pub const fn value(&self) -> NativeValue { self.value }
     pub fn meaning(&self) -> &FieldMeaning { &self.meaning }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResponseIdentity { pub(crate) market: ExMarketId, pub(crate) code: String, pub(crate) raw: [u8; 10] }
 impl ResponseIdentity {
     pub const fn market(&self) -> ExMarketId { self.market }
@@ -60,7 +60,7 @@ impl MarketInfo {
     pub fn short_name(&self) -> &str { &self.short_name }
     pub const fn record_raw(&self) -> &[u8; 64] { &self.record_raw }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InstrumentInfo { pub(crate) category: u8, pub(crate) id: ResponseIdentity, pub(crate) name: String, pub(crate) desc: String, pub(crate) record_raw: [u8; 64] }
 impl InstrumentInfo {
     pub const fn category(&self) -> u8 { self.category }
@@ -213,6 +213,7 @@ pub enum PageCompletion { EndOfData, RequestedCount, MoreAvailable, Unknown, Inc
 pub struct PageResult<T> { rows: Vec<T>, server_total: Option<u64>, next_offset: Option<u32>, completion: PageCompletion, meta: ExtensionMeta }
 impl<T> PageResult<T> {
     pub fn rows(&self) -> &[T] { &self.rows }
+    pub fn into_rows(self) -> Vec<T> { self.rows }
     pub const fn server_total(&self) -> Option<u64> { self.server_total }
     pub const fn next_offset(&self) -> Option<u32> { self.next_offset }
     pub const fn completion(&self) -> PageCompletion { self.completion }

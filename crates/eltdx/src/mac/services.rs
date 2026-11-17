@@ -94,7 +94,11 @@ pub trait XdxrProvider: std::fmt::Debug + Send + Sync {
 
 pub(crate) fn bars(owner: &MacOwner, context: &OperationContext, query: &BarsQuery,
     provider: Option<Arc<dyn XdxrProvider>>) -> Result<Collection<Bar>> {
-    let original = collect::bars(owner,context,query)?;
+    bars_with_source(owner,context,query,provider,None)
+}
+pub(crate) fn bars_with_source(owner: &MacOwner, context: &OperationContext, query: &BarsQuery,
+    provider: Option<Arc<dyn XdxrProvider>>, source: Option<(super::Endpoint,u64)>) -> Result<Collection<Bar>> {
+    let original = collect::bars_with_source(owner,context,query,ChildPurpose::Page,source)?;
     if query.adjust() != MacAdjust::Qfq || original.rows.is_empty() || !bad_prices(context,&original.rows)? {
         return Ok(original);
     }
@@ -104,7 +108,7 @@ pub(crate) fn bars(owner: &MacOwner, context: &OperationContext, query: &BarsQue
     context.remember_recoverable(Error::new(ErrorKind::Protocol,"server QFQ contains nonpositive or nonfinite OHLC")
         .with_context("domain","mac").with_context("adjustment","InvalidServerQfq"));
     let raw_query = query.clone().with_adjust(MacAdjust::None).with_strict_adjustment(false);
-    let unadjusted = collect::bars_with_purpose(owner,context,&raw_query,ChildPurpose::Fallback)?;
+    let unadjusted = collect::bars_with_source(owner,context,&raw_query,ChildPurpose::Fallback,source)?;
     let mut stages = vec![original.meta.clone(),unadjusted.meta.clone()];
     let rejected_ranges = original.meta.raw().map_or(0,|raw| raw.row_ranges().len());
     if unadjusted.rows.is_empty() {

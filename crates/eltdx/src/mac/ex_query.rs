@@ -206,8 +206,13 @@ pub struct MacroCode(String);
 impl MacroCode {
     pub fn new(value: impl Into<String>) -> Result<Self> {
         let value = value.into(); let value = value.trim();
-        let code = ExCode::new(value)?;
-        super::models::MacCode::new(code.as_str())?;
+        if value.is_empty() || value.len()>512 || value.contains('\0') {
+            return Err(invalid("macro selector must contain 1..512 UTF-8 bytes without NUL"));
+        }
+        if value.contains('_') {
+            let code = ExCode::new(value)?;
+            super::models::MacCode::new(code.as_str())?;
+        }
         Ok(Self(value.into()))
     }
     pub fn as_str(&self) -> &str { &self.0 }
@@ -232,7 +237,9 @@ impl MacroQuotesQuery {
 pub struct MacroBarsQuery { code: MacroCode, bars: BarsQuery }
 impl MacroBarsQuery {
     pub fn new(code: MacroCode) -> Result<Self> {
-        let id = ExInstrumentId::new(ExMarketId::from_wire(38),ExCode::new(code.as_str())?);
+        // A checked full request ID is installed only after directory matching.
+        // Long exact display names are valid selectors, never sent as codes.
+        let id = ExInstrumentId::new(ExMarketId::from_wire(38),ExCode::new("_")?);
         let bars = BarsQuery::new(id)?.with_period(MacPeriod::Monthly)?;
         Ok(Self { code, bars })
     }
@@ -247,7 +254,6 @@ impl MacroBarsQuery {
     pub const fn strict_adjustment(&self) -> bool { self.bars.strict_adjustment() }
     pub(crate) fn bars(&self) -> &BarsQuery { &self.bars }
     pub fn with_code(mut self, value: MacroCode) -> Result<Self> {
-        self.bars = self.bars.with_id(ExInstrumentId::new(ExMarketId::from_wire(38),ExCode::new(value.as_str())?))?;
         self.code = value; Ok(self)
     }
     pub fn with_period(mut self, value: MacPeriod) -> Result<Self> { self.bars = self.bars.with_period(value)?; Ok(self) }

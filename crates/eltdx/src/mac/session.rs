@@ -1,6 +1,6 @@
 //! MAC owners reuse the domain-neutral operation clock and EX's serialized,
 //! registered worker/frame transport. No second socket loop or executor.
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use bytes::Bytes;
 use crate::config::{ClientConfig, ConfigDraft};
@@ -22,6 +22,7 @@ impl Domain {
 #[derive(Debug)]
 pub(crate) struct MacOwner {
     pub config: ExConfig, pub session: Arc<Session>, common: ClientConfig,
+    pub catalogs: Mutex<super::catalog::Catalogs>,
     owner: Arc<SessionOwner>, domain: Domain,
 }
 pub(crate) struct Reply<T> {
@@ -36,7 +37,7 @@ impl MacOwner {
         }.validate()?;
         let owner = Arc::new(SessionOwner::new(config.close_timeout(),config.cleanup_timeout()));
         let session = Session::with_profile(config.endpoints().to_vec(),profile);
-        Ok(Arc::new(Self { config, session, common, owner, domain }))
+        Ok(Arc::new(Self { config, session, common, owner, domain, catalogs: Mutex::new(super::catalog::Catalogs::default()) }))
     }
     pub fn context(&self, entry: Instant, name: &'static str, options: &OperationOptions) -> Result<OperationContext> {
         let options = options.inheriting_raw(self.config.raw());

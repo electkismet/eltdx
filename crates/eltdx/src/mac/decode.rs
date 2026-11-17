@@ -198,7 +198,7 @@ pub fn goods(body: &[u8]) -> Result<Vec<GoodsItem>> {
         items.push(GoodsItem { category: view.u16(offset)?, name: WireText::from_wire(view.array(offset + 2)?),
             u: view.u16(offset + 25)?, index: view.u32(offset + 27)?, switch: view.u8(offset + 31)?,
             code: [view.float(offset + 32)?, view.float(offset + 36)?, view.float(offset + 40)?],
-            c1: view.u16(offset + 44)?, c2: view.u16(offset + 46)? });
+            c1: view.u16(offset + 44)?, c2: view.u16(offset + 46)?, source_instrument: None, derived_numeric_code: None });
     }
     Ok(items)
 }

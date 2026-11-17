@@ -107,6 +107,7 @@ pub(crate) struct OperationSponsor {
     budget: Arc<OperationBudget>,
     profile: ExecutionProfile,
     limits: WorkLimits,
+    request_limit: Option<NonZeroUsize>,
 }
 
 impl OperationSponsor {
@@ -151,7 +152,11 @@ impl OperationSponsor {
 
     fn source_authorization(&self, purpose: ChildPurpose) -> Result<Arc<dyn eltdx_runtime::execution::AttemptAuthorization>> {
         self.budget.gate(Instant::now(), |state| {
-            state.counters.logical_requests = checked_add(state.counters.logical_requests, 1)?;
+            let next = checked_add(state.counters.logical_requests, 1)?;
+            if let Some(limit) = self.request_limit {
+                if next > limit.get() { return Err(limit_error("logical_requests",limit.get(),state.counters.logical_requests,state.last_recoverable.as_ref())); }
+            }
+            state.counters.logical_requests = next;
             Ok(())
         })?;
         Ok(Arc::new(ChildAuthorization {
@@ -216,6 +221,7 @@ pub(crate) struct OperationContext {
     profile: ExecutionProfile,
     pub(crate) budget: Arc<OperationBudget>,
     limits: WorkLimits,
+    request_limit: Option<NonZeroUsize>,
     cleanup_timeout: Duration,
     metadata: Mutex<DecodeMetadata>,
     market_date: Mutex<Option<crate::types::TradingDate>>,
@@ -263,7 +269,7 @@ impl OperationContext {
         let admission = owner.admit()?;
         let context = Self {
             id, session_id: owner.generation(), entry, name, owner,
-            _admission: admission, options, profile, budget, limits: WorkLimits::default(), cleanup_timeout,
+            _admission: admission, options, profile, budget, limits: WorkLimits::default(), request_limit: None, cleanup_timeout,
             metadata: Mutex::new(DecodeMetadata::default()),
             market_date: Mutex::new(None),
         };
@@ -273,7 +279,7 @@ impl OperationContext {
 
     pub(crate) fn raw(&self) -> RawPolicy { self.options.raw }
     pub(crate) fn sponsor(&self) -> OperationSponsor {
-        OperationSponsor { budget: Arc::clone(&self.budget), profile: self.profile, limits: self.limits }
+        OperationSponsor { budget: Arc::clone(&self.budget), profile: self.profile, limits: self.limits, request_limit: self.request_limit }
     }
     pub(crate) fn owner(&self) -> &Arc<SessionOwner> { &self.owner }
     /// Freeze the injected-clock Shanghai date once for this logical operation.
@@ -320,6 +326,17 @@ impl OperationContext {
         Ok(())
     }
 
+    /// Opt-in composition limit over every logical child, including metadata,
+    /// fallbacks and explicitly injected provider requests. Physical retries
+    /// continue to use the existing attempt authorization and extra budget.
+    #[cfg(feature = "mac")]
+    pub(crate) fn set_request_limit(&mut self, maximum: NonZeroUsize) -> Result<()> {
+        if self.counters()?.logical_requests != 0 {
+            return Err(Error::new(ErrorKind::Internal,"logical request limit must be frozen before the first request"));
+        }
+        self.request_limit = Some(maximum); Ok(())
+    }
+
     pub(crate) fn check_boundary(&self, phase: TimeoutPhase) -> Result<()> {
         self.budget.check(Instant::now())
             .map_err(|error| self.stop(self.annotate(error, phase, None)))
@@ -336,6 +353,9 @@ impl OperationContext {
         }
         let child_id = self.budget.gate(Instant::now(), |state| {
             let logical = checked_add(state.counters.logical_requests, 1)?;
+            if let Some(limit) = self.request_limit {
+                if logical > limit.get() { return Err(limit_error("logical_requests",limit.get(),state.counters.logical_requests,state.last_recoverable.as_ref())); }
+            }
             let pages = checked_add(state.counters.pages, usize::from(purpose == ChildPurpose::Page))?;
             if let Some(limit) = self.limits.pages {
                 if pages > limit.get() { return Err(limit_error("pages", limit.get(), state.counters.pages, state.last_recoverable.as_ref())); }

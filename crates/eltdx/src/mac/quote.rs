@@ -20,6 +20,18 @@ impl Quote {
     pub fn field(&self, bit: FieldId) -> Option<&QuoteField> { self.fields.iter().find(|value| value.bit == bit) }
     pub const fn reserved_bitmap(&self) -> &[u8;20] { &self.reserved_bitmap }
     pub fn meta(&self) -> &ResultMeta { &self.meta }
+    /// Heap storage copied by Quote::clone. Shared Arc metadata is charged by
+    /// the enclosing composition once, before it creates its aggregate view.
+    pub(crate) fn clone_heap_bytes(&self) -> Result<usize> {
+        let mut charge = crate::types::memory::MemoryCharge::default();
+        charge.add(self.id.code().heap_bytes())?; charge.add(self.name.heap_bytes())?;
+        charge.array::<QuoteField>(self.fields.capacity())?;
+        for field in &self.fields {
+            if let Some(text) = &field.derived_text { charge.string(text)?; }
+            if let super::models::NativeUnit::Currency(unit) = field.meaning.unit() { charge.string(unit)?; }
+        }
+        Ok(charge.total())
+    }
     pub(crate) fn from_row(row: QuoteRow) -> Result<Self> {
         let code = WireText::from_wire(row.code_raw);
         if code.replacement_used() { return Err(protocol("MAC quote identity has invalid GBK bytes")); }

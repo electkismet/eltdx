@@ -27,6 +27,31 @@ fn request() -> CommandRequest {
     CommandRequest::SecurityCount(SecurityCountRequest { market: Market::Shanghai, client_date: 0 })
 }
 
+#[cfg(feature = "mac")]
+#[test]
+fn composition_request_limit_covers_pages_metadata_fallback_and_injected_sources() {
+    let (_owner,mut operation) = context(8,OperationOptions::default());
+    operation.set_request_limit(NonZeroUsize::new(3).unwrap()).unwrap();
+    operation.begin_child(ChildPurpose::Page,None).unwrap();
+    operation.begin_child(ChildPurpose::Metadata,None).unwrap();
+    operation.sponsor().fallback_authorization().unwrap();
+    assert_eq!(operation.counters().unwrap().logical_requests,3);
+    assert_eq!(operation.counters().unwrap().pages,1);
+    assert_eq!(operation.begin_child(ChildPurpose::Fallback,None).unwrap_err().kind(),ErrorKind::LimitExceeded);
+    assert_eq!(operation.sponsor().fallback_authorization().unwrap_err().kind(),ErrorKind::LimitExceeded);
+    assert_eq!(operation.counters().unwrap().logical_requests,3);
+}
+
+#[cfg(feature = "mac")]
+#[test]
+fn composition_request_limit_is_opt_in_and_cannot_change_after_a_child_begins() {
+    let (_owner,mut operation) = context(8,OperationOptions::default());
+    for _ in 0..4 { operation.begin_child(ChildPurpose::Metadata,None).unwrap(); }
+    assert_eq!(operation.counters().unwrap().logical_requests,4);
+    assert_eq!(operation.set_request_limit(NonZeroUsize::new(1).unwrap()).unwrap_err().kind(),ErrorKind::Internal);
+    operation.begin_child(ChildPurpose::Required,None).unwrap();
+}
+
 #[test]
 fn probe_reservation_refunds_global_batch_and_per_code_limits_before_start() {
     let (_owner, operation) = context(4, OperationOptions::default());
