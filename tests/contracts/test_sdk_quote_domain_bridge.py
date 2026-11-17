@@ -89,6 +89,8 @@ def test_native_refresh_keeps_empty_wire_poll_and_copied_cursor_map() -> None:
 def test_quote_transport_subclasses_retain_execute_extension(transport_type) -> None:
     class CustomTransport(transport_type):
         def execute(self, command, payload=None):
+            if command == 0x044D:
+                return []
             return command, payload
 
     client = TdxClient(transport=CustomTransport(["127.0.0.1:7709"], heartbeat_interval=None))

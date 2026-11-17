@@ -213,8 +213,9 @@ def test_native_recent_default_date_uses_original_binding_date_selector() -> Non
 
 
 def test_native_minute_precision_market_inference_precedes_code_normalization() -> None:
-    # Historical resolver inference and wire normalization intentionally disagree
-    # for this bare bond prefix. Native preparation must not add a sh scan.
+    # Resolver inference and the legacy wire extractor both select sz here.
+    # The standalone Python normalization helper selects sh for this bond;
+    # native preparation must preserve the legacy path without a sh scan.
     data, directory = _minute_payload("today"), _directory(3, "sz019001")
     _parse(0x044D, directory, {"market": "sz", "start": 0, "limit": 800})
     expected = _invoke(MinuteApi(RecordedMinutes(0x0537, data)), "today",
@@ -224,7 +225,8 @@ def test_native_minute_precision_market_inference_precedes_code_normalization() 
         try:
             actual = client.minutes.today("019001", include_raw=True)
             assert actual == expected
-            assert actual.full_code == normalize_code("019001")
+            assert actual.full_code == expected.full_code == "sz019001"
+            assert normalize_code("019001") == "sh019001"
         finally:
             client.close()
         assert server.wait_for_handlers(1)

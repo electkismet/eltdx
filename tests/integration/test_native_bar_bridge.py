@@ -116,7 +116,7 @@ def test_native_bar_page_limit_keeps_original_runtime_error(delisted) -> None:
             api = client.delisted_bars if delisted else client.bars
             name = "delisted_bars" if delisted else "bars"
             with pytest.raises(RuntimeError) as caught:
-                api.get("sz000038" if delisted else "sh600000", all_pages=True, max_pages=1)
+                api.get("sz000038" if delisted else "sh600000", period="day" if delisted else "1m", all_pages=True, max_pages=1)
             assert type(caught.value) is RuntimeError
             assert str(caught.value) == f"{name}.get reached max_pages before the server returned an empty page"
             assert caught.value.__cause__ is None

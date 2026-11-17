@@ -122,8 +122,8 @@ def test_native_directory_selection_matches_existing_rows_order_and_counts(trans
 
     def handler(connection):
         answer_handshake(connection)
-        _answer_directory(connection, offset=0, limit=800, data=data)
-        _answer_directory(connection, offset=len(ROWS), limit=800, data=b"\x00\x00")
+        _answer_directory(connection, offset=0, limit=1600, data=data)
+        _answer_directory(connection, offset=len(ROWS), limit=1600, data=b"\x00\x00")
         wait_for_peer_close(connection)
 
     with ScriptedServer([handler]) as server:
@@ -149,9 +149,9 @@ def test_native_directory_retains_old_precision_registry_for_unmigrated_commands
 
     def handler(connection):
         answer_handshake(connection)
-        _answer_directory(connection, offset=0, limit=800 if collect else 1600, data=current)
+        _answer_directory(connection, offset=0, limit=1600, data=current)
         if collect:
-            _answer_directory(connection, offset=1, limit=800, data=b"\x00\x00")
+            _answer_directory(connection, offset=1, limit=1600, data=b"\x00\x00")
         message_id, kind, _ = read_request(connection)
         assert kind == 0x0537
         connection.sendall(response_bytes(message_id, kind, minute))
