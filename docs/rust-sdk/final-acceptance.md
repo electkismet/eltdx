@@ -59,7 +59,7 @@
 ## 后续工作
 
 - 发布平台：`6a6cd8b` 的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)和[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)均通过。Stage166 校验新汇总产物；保留 Stage157 的 Rust fixture 失败和 Stage162 的上传错误。手动验证未上传 PyPI 或创建 GitHub Release。
-- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选 setup 的身份、顺序和 fence，category 22 非空路径，以及常规和特殊交易日的交易所原始参考价、限价和限制类型；现有公告、行情和复算证据的范围见 Stage164–165。未验证含义继续保持 Unknown。
+- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选 setup 的身份、顺序和 fence，category 22 非空路径，以及常规和特殊交易日的交易所原始参考价、限价和限制类型；价格证据的范围见 Stage164–165。Stage170 留存 category 22 空响应与普通日线对照原件，未取得非空样本。未验证含义继续保持 Unknown。
 - 注册表：在本机配置获授权的crates.io发布凭据后，核对包名、版本和账号权限，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前重新查询，404仅代表该时间点的查询结果。
 
 R01–R12首轮逐项审计是stage135时点的历史快照，后续更新以本节状态和[统一验证记录](unified-validation.md)为准，不再复制一份逐行“部分”表。已有Windows Python矩阵、Windows/Linux压力与性能、以及stage138归档结果分别保留在对应阶段记录中。

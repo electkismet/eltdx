@@ -1245,3 +1245,7 @@ Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.
 ## Stage169：冻结候选无 Python 镜像与注册表核对
 
 同一 `6a6cd8b` 的无 Python OCI 镜像复验通过：12 次真实消费者运行、两份依赖树、四组 feature 禁用/启用，根锁字节与发布检出一致。原始日志和复核报告见 `artifacts/unified/stage169-isolated-rust-tools-attempt01/verified.json`。crates.io 只读复查三个名称均 404，原响应见 `stage169-registry-observation-attempt01/packages.json`。本机仍无发布凭据，按 Stage166 的顺序待发布并验证公开消费；生产侧未取得新样本。
+
+## Stage170：category 22 原始空响应取证
+
+从 `6a6cd8b` 的 CI Windows wheel 安装协议编解码器，在普通和专用 7709 主站各用一个会话查询同一证券。两台普通日线均返回 5 条，category 22 均返回 `0000`；完整请求、响应、解压载荷和独立核验保留在 `artifacts/unified/stage170-category22-attempt01/`。不重复扫描相同公开主站来代替经过授权的非空样本。MAC-EX 跨日/服务端拒绝、MAC 可选 setup、交易所原始价格记录、发布和公开无 patch 消费仍未闭合。

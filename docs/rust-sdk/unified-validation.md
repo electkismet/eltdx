@@ -454,3 +454,9 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 12 次消费者运行全部通过，覆盖最小、默认和 full，包括非空 HQ/F10/EX/MAC/MAC-EX 回环及离线文件；最小和 full 的 normal/build 依赖树均不含 Python 绑定。`offline`、`f10`、`ex`、`mac` 禁用时均命中 E0432，逐一启用后编译成功。根 Cargo.lock 与发布检出字节一致。内外两层均 exit 0，证据为 `artifacts/unified/stage169-isolated-rust-attempt01/` 和 `stage169-isolated-rust-tools-attempt01/`。首轮复核表达式漏计 `f10`，保留失败日志；在同一份运行原始日志上修正并复核通过，`verified.json` SHA256 `3ab8e3932e720bd01e0b106a78f02c032b1c15f3ae2c84a0616eb96ac6882c84`。此项验证的是 Rust 源码独立消费；公开 registry 消费仍须另行验证。
 
 在同一干净检出读 crates.io，2026-11-17 23:35:01–02 UTC 三个名称仍均返回 HTTP 404。查询原响应逐份核对哈希，`artifacts/unified/stage169-registry-observation-attempt01/packages.json` SHA256 `dd018166ef956be1e978d02744364380210a5cdb3300299ec8100e4a0e0e974d`。本机无发布凭据，未执行上传，404 不证明账号有命名或发布权限。
+
+## Stage170：category 22 生产空响应与日线对照
+
+通过 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的 CI Windows wheel 安装现有协议编解码器，校验 wheel/native 散列。在一个普通主站和一个资金流专用主站各开一次标准 7709 会话，以同一连接查询 `sh600000`：`0x052d` category 4 与 category 22 均请求 start 0、count 5。两台的普通日线均返回 5 条、96 字节 payload；category 22 均返回 2 字节 `0000`，连接关闭。两台的对应响应帧逐字节相同，不能据此推定其后台数据源相互独立。
+
+`artifacts/unified/stage170-category22-attempt01/` 保留握手、两个查询的请求、响应帧和解压后载荷，以及实际命令、时间和退出码。`verify.py` 逐份复算散列，独立验证帧长度、消息 ID、命令、证券身份、查询类别和记录计数，exit 0；`verified.json` SHA256 `87dfeafa3858c876ba18480f885a19ce0ef774014eb59e8cf58618f792eb1ca7`。这补齐公开主站空响应的原始证据，非空布局和业务字段仍未验收，稳定历史资金流继续使用 F10。
