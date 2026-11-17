@@ -183,6 +183,17 @@ pub struct Decoded<T> {
     pub(crate) wire_row_count: Option<u16>, pub(crate) response_offset: Option<u32>,
 }
 impl<T> Decoded<T> {
+    /// Projects a validated value while retaining its exact wire consumption,
+    /// raw ranges and diagnostics. No re-decoding or new source is introduced.
+    pub fn map<U>(self, project: impl FnOnce(T) -> U) -> Decoded<U> {
+        Decoded { value: project(self.value), diagnostics: self.diagnostics, ranges: self.ranges,
+            wire_row_count: self.wire_row_count, response_offset: self.response_offset }
+    }
+    pub(crate) fn try_map<U>(self, project: impl FnOnce(T) -> crate::Result<U>) -> crate::Result<Decoded<U>> {
+        let value = project(self.value)?;
+        Ok(Decoded { value, diagnostics: self.diagnostics, ranges: self.ranges,
+            wire_row_count: self.wire_row_count, response_offset: self.response_offset })
+    }
     pub fn value(&self) -> &T { &self.value }
     pub fn into_value(self) -> T { self.value }
     pub fn diagnostics(&self) -> &[Diagnostic] { &self.diagnostics }

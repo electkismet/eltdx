@@ -123,6 +123,69 @@ management!(MacClient, MacClientBuilder, MacConfig, "mac");
 management!(MacExClient, MacExClientBuilder, MacExConfig, "mac-ex");
 
 impl MacClient {
+    /// Collects a checked target, retaining response order and duplicate rows.
+    /// Board categories use board aliases; constituent lists use instrument
+    /// meanings even though both commands share the same bitmap layout.
+    pub fn quote_list(&self, query: &QuoteListQuery, options: &OperationOptions) -> Result<super::PageResult<super::Quote>> {
+        let context = self.inner.context(Instant::now(),"mac.quote_list",options)?;
+        let code = u32::from(query.category().wire());
+        let field_context = if (10000..=10010).contains(&code) { super::models::FieldContext::Board }
+            else { super::models::FieldContext::Instrument };
+        let page = super::collect::quote_list(&self.inner,&context,super::collect::ListPlan {
+            code,start: query.start(),target: super::pagination::Target::Count(query.count()),
+            fields: query.fields(),sort: query.sort(),order: query.order(),exclude: query.exclude(),
+            pages: query.pages().clone(),field_context,
+        })?.page()?;
+        context.finish()?; Ok(page)
+    }
+    pub fn board_members(&self, query: &BoardMembersQuery, options: &OperationOptions) -> Result<super::PageResult<super::Quote>> {
+        let context = self.inner.context(Instant::now(),"mac.board_members",options)?;
+        let page = super::collect::quote_list(&self.inner,&context,super::collect::ListPlan {
+            code: query.board().wire_code(),start: query.start(),target: super::pagination::Target::Count(query.count()),
+            fields: query.fields(),sort: query.sort(),order: query.order(),exclude: query.exclude(),
+            pages: query.pages().clone(),field_context: super::models::FieldContext::Instrument,
+        })?.page()?;
+        context.finish()?; Ok(page)
+    }
+    /// Each response is ordered oldest to newest; older pages are prepended
+    /// intact. Unknown native units and all seven source float bits survive.
+    pub fn bars(&self, query: &BarsQuery, options: &OperationOptions) -> Result<Vec<super::Bar>> {
+        let context = self.inner.context(Instant::now(),"mac.bars",options)?;
+        let result = super::collect::bars(&self.inner,&context,query)?;
+        context.finish()?; Ok(result.rows)
+    }
+    pub fn transactions(&self, query: &TransactionsQuery, options: &OperationOptions) -> Result<super::PageResult<super::Transaction>> {
+        let context = self.inner.context(Instant::now(),"mac.transactions",options)?;
+        let page = super::collect::transactions(&self.inner,&context,query)?.page()?;
+        context.finish()?; Ok(page)
+    }
+    pub fn boards(&self, query: &BoardsQuery, options: &OperationOptions) -> Result<Vec<BoardInfo>> {
+        let context = self.inner.context(Instant::now(),"mac.boards",options)?;
+        let result = super::collect::boards(&self.inner,&context,query,super::pagination::Target::Count(query.count()))?;
+        context.finish()?; Ok(result.rows)
+    }
+    /// A single bounded wire page. There is no verified empty/short-page EOF
+    /// rule for this command, so an unfulfilled target remains Unknown. Resume
+    /// with next_offset explicitly rather than assuming a complete event log.
+    pub fn unusual(&self, query: &UnusualQuery, options: &OperationOptions) -> Result<super::PageResult<Unusual>> {
+        let context = self.inner.context(Instant::now(),"mac.unusual",options)?;
+        let target = usize::try_from(query.count().get()).map_err(|_| super::query::invalid("MAC unusual target exceeds platform capacity"))?;
+        let requested = u16::try_from(target.min(query.pages().page_size()).min(query.pages().max_records()).min(600))
+            .map_err(|_| super::query::invalid("MAC unusual page exceeds wire range"))?;
+        let start = u16::try_from(query.start()).map_err(|_| super::query::invalid("MAC unusual offset exceeds wire range"))?;
+        let request = commands::unusual_request(query.market(),start,requested)?;
+        let reply = self.inner.exchange(&context,self.inner.mac_work(request)?,0x1237,move |body,_| {
+            session::rows(decode::unusual(&body)?,requested,2,32)
+        })?;
+        let count = reply.wire_count.ok_or_else(|| crate::Error::new(ErrorKind::Internal,"MAC unusual page lacks wire count"))?;
+        let next = query.start().checked_add(u32::from(count)).ok_or_else(|| super::query::invalid("MAC unusual next offset overflows"))?;
+        let completion = if u32::from(count) == query.count().get() { super::PageCompletion::RequestedCount }
+            else { super::PageCompletion::Unknown };
+        let shared_meta = Arc::new(reply.meta.clone()); let mut rows = reply.value;
+        for row in &mut rows { row.set_meta(Arc::clone(&shared_meta)); }
+        let page = super::PageResult::new(rows,None,Some(next),completion,reply.meta)?;
+        context.finish()?; Ok(page)
+    }
     pub fn quotes(&self, query: &QuotesQuery, options: &OperationOptions) -> Result<Vec<super::Quote>> {
         let context = self.inner.context(Instant::now(),"mac.quotes",options)?;
         let reply = quotes(&self.inner,&context,query.ids(),query.fields())?;
@@ -238,6 +301,34 @@ impl MacClient {
 }
 
 impl MacExClient {
+    /// Explicitly collects at most 700 rows per MAC-wire response under one
+    /// operation. This does not inherit Python's historical single-request
+    /// goods_kline behavior; T27 preserves that in its compatibility profile.
+    pub fn bars(&self, query: &super::ex_query::BarsQuery, options: &OperationOptions) -> Result<Vec<super::Bar>> {
+        let context = self.inner.context(Instant::now(),"mac-ex.bars",options)?;
+        let result = super::collect::bars(&self.inner,&context,query.common())?;
+        context.finish()?; Ok(result.rows)
+    }
+    /// HK stock markets use ordinary EX transaction bytes on this same logged
+    /// in owner. Futures and other markets retain MAC0x122F encoding.
+    pub fn transactions(&self, query: &super::ex_query::TransactionsQuery, options: &OperationOptions) -> Result<super::PageResult<super::Transaction>> {
+        let context = self.inner.context(Instant::now(),"mac-ex.transactions",options)?;
+        let result = super::collect::ex_transactions(&self.inner,&context,super::collect::ExTransactionPlan {
+            id: query.id(),date: query.date(),start: query.start(),target: super::pagination::Target::Count(query.count()),
+            pages: query.pages().clone(),
+        })?.page()?;
+        context.finish()?; Ok(result)
+    }
+    /// A full cap of 50 pages/90000 rows without EOF is LimitExceeded. The
+    /// method cannot return success while claiming an unproven complete day.
+    pub fn all_transactions(&self, query: &super::ex_query::AllTransactionsQuery, options: &OperationOptions) -> Result<Vec<super::Transaction>> {
+        let context = self.inner.context(Instant::now(),"mac-ex.all_transactions",options)?;
+        let result = super::collect::ex_transactions(&self.inner,&context,super::collect::ExTransactionPlan {
+            id: query.id(),date: query.date(),start: query.start(),target: super::pagination::Target::All,
+            pages: query.pages().clone(),
+        })?;
+        context.finish()?; Ok(result.rows)
+    }
     pub fn quotes(&self, query: &super::ex_query::QuotesQuery, options: &OperationOptions) -> Result<Vec<super::Quote>> {
         let context = self.inner.context(Instant::now(),"mac-ex.quotes",options)?;
         let reply = quotes(&self.inner,&context,query.wire_ids(),query.fields())?;
@@ -267,7 +358,8 @@ fn quotes(owner: &MacOwner, context: &crate::operation::OperationContext,
         let values = rows.into_iter().map(super::Quote::from_row).collect::<Result<Vec<_>>>()?;
         session::rows(values,requested,26,width)
     })?;
-    let values = reply.value.into_iter().map(|value| value.with_meta(reply.meta.clone())).collect();
+    let meta = Arc::new(reply.meta);
+    let values = reply.value.into_iter().map(|value| value.with_meta(Arc::clone(&meta))).collect();
     context.check_boundary(TimeoutPhase::Decode)?;
     Ok(values)
 }

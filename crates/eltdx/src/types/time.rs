@@ -158,11 +158,24 @@ impl EventTime {
     /// Adds elapsed minutes while preserving the source's known or unknown zone.
     /// Date-only values and time-of-day values have no unambiguous rollover date.
     pub fn add_minutes(self, minutes: i64) -> Result<Self> {
+        if matches!(self.0, EventTimeKind::TradingDate(_) | EventTimeKind::TimeOfDay { .. }) {
+            return Err(date_error("minute rollover requires a dated local time"));
+        }
+        if matches!(self.0, EventTimeKind::UnknownRaw(_)) {
+            return Err(date_error("unknown raw event time cannot be shifted"));
+        }
+        let delta = minutes.checked_mul(60).ok_or_else(|| date_error("event time arithmetic overflows"))?;
+        self.add_seconds(delta)
+    }
+
+    /// Adds an exact elapsed duration without discarding sub-minute source
+    /// precision. A dated source is required to determine a rollover day.
+    pub fn add_seconds(self, delta: i64) -> Result<Self> {
         let (date, hour, minute, second, shanghai) = match self.0 {
             EventTimeKind::Shanghai { date, hour, minute, second } => (date, hour, minute, second, true),
             EventTimeKind::Local { date, hour, minute, second } => (date, hour, minute, second, false),
             EventTimeKind::TradingDate(_) | EventTimeKind::TimeOfDay { .. } => {
-                return Err(date_error("minute rollover requires a dated local time"));
+                return Err(date_error("second rollover requires a dated local time"));
             }
             EventTimeKind::UnknownRaw(_) => {
                 return Err(date_error("unknown raw event time cannot be shifted"));
@@ -171,7 +184,7 @@ impl EventTime {
         let seconds = days_from_civil(date.year, date.month, date.day)
             .checked_mul(86_400)
             .and_then(|value| value.checked_add(i64::from(hour) * 3_600 + i64::from(minute) * 60 + i64::from(second)))
-            .and_then(|value| value.checked_add(minutes.checked_mul(60)?))
+            .and_then(|value| value.checked_add(delta))
             .ok_or_else(|| date_error("event time arithmetic overflows"))?;
         let days = seconds.div_euclid(86_400);
         let second_of_day = seconds.rem_euclid(86_400);

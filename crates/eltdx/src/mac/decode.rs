@@ -177,7 +177,8 @@ pub fn boards(body: &[u8]) -> Result<BoardPage> {
     let mut items = Vec::with_capacity(count);
     for index in 0..count {
         let offset = 4 + index * 160;
-        items.push(BoardInfo { board: board_side(&view, offset)?, leader: board_side(&view, offset + 80)? });
+        items.push(BoardInfo { board: board_side(&view, offset)?, leader: board_side(&view, offset + 80)?,
+            meta: std::sync::Arc::new(crate::types::ResultMeta::default()) });
     }
     Ok(BoardPage { paired_count, total_raw, items })
 }
@@ -265,7 +266,8 @@ pub fn unusual(body: &[u8]) -> Result<Vec<Unusual>> {
         let time = EventTime::time_of_day(hour, minute as u8, second as u8)
             .map_err(|error| protocol("invalid MAC unusual event time").with_source(error))?;
         items.push(Unusual { index: view.u16(offset + 11)?, id: view.short_identity(offset)?,
-            name: names.get(index).copied().unwrap_or("").to_owned(), time, unusual_type: kind, description, value, raw: view.array(offset)? });
+            name: names.get(index).copied().unwrap_or("").to_owned(), time, unusual_type: kind, description, value, raw: view.array(offset)?,
+            meta: std::sync::Arc::new(crate::types::ResultMeta::default()) });
     }
     Ok(items)
 }

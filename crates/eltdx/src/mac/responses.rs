@@ -2,6 +2,8 @@
 //! from fabricating validated records; unresolved units remain explicit.
 use encoding_rs::GBK;
 use serde_json::Value;
+use std::sync::Arc;
+use crate::types::ResultMeta;
 use crate::{EventTime, TradingDate};
 use super::models::{FieldMeaning, MacMarketId, WireFloat};
 
@@ -162,8 +164,12 @@ impl BoardSide {
     pub const fn reserved(&self) -> &[u8; 16] { &self.reserved }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BoardInfo { pub(crate) board: BoardSide, pub(crate) leader: BoardSide }
-impl BoardInfo { refs!(board: BoardSide, leader: BoardSide); }
+pub struct BoardInfo { pub(crate) board: BoardSide, pub(crate) leader: BoardSide, pub(crate) meta: Arc<ResultMeta> }
+impl BoardInfo {
+    refs!(board: BoardSide, leader: BoardSide);
+    pub fn meta(&self) -> &ResultMeta { &self.meta }
+    pub(crate) fn set_meta(&mut self, value: Arc<ResultMeta>) { self.meta = value; }
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BoardPage { pub(crate) paired_count: u16, pub(crate) total_raw: u16, pub(crate) items: Vec<BoardInfo> }
 impl BoardPage {
@@ -187,6 +193,7 @@ pub struct Unusual {
     pub(crate) index: u16, pub(crate) id: ResponseIdentity, pub(crate) name: String,
     pub(crate) time: EventTime, pub(crate) unusual_type: u8,
     pub(crate) description: String, pub(crate) value: String, pub(crate) raw: [u8; 32],
+    pub(crate) meta: Arc<ResultMeta>,
 }
 impl Unusual {
     pub const fn index(&self) -> u16 { self.index }
@@ -197,6 +204,8 @@ impl Unusual {
     pub fn description(&self) -> &str { &self.description }
     pub fn value(&self) -> &str { &self.value }
     pub const fn raw(&self) -> &[u8; 32] { &self.raw }
+    pub fn meta(&self) -> &ResultMeta { &self.meta }
+    pub(crate) fn set_meta(&mut self, value: Arc<ResultMeta>) { self.meta = value; }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SessionWindow { pub(crate) open_minutes: u16, pub(crate) close_minutes: u16 }

@@ -661,6 +661,8 @@ Category定义独立：SH=0、SZ=2、A=6、B=7、KCB=8、BJ=12、CYB=14；板块
 
 quote_list/board_members每页最多80、transactions1000、bars700，末页按剩余目标数请求，按实际条数推进；MAC这些入口空页或短页结束，维持服务端顺序。bar单页为时间正序、分页从最新偏移向旧取，合并时前插，所以结果oldest→newest；行情列表不前插。重复输入/返回保留，不能按证券代码去重行情发生记录。
 
+boards的配对计数是本页board/leader记录数，total_raw没有全局总量证据；原实现首个短页后仍可继续，因此完整扫描只接受空页结束证据。unusual原实现只有一次请求，没有可复用的空/短页EOF规则；Rust同样只取一页，大小为min(目标、PageOptions.page_size/max_records、600)，按实际行数给next_offset。目标满足为RequestedCount，否则Unknown；即使空页也不宣称完整异动日志。其PageOptions只限制这一页，不授权隐式全量扫描。
+
 QFQ出现非正或非有限OHLC时，原算法重取None bars，再可选XDXR本地重算；category1事件以每股换算，排序事件并跳过不合法因子。没有provider/没有事件/重算仍坏时，Python返回原服务器QFQ。Rust保留原结果但附 `AdjustmentFallbackUnavailable` 或 `AdjustmentStillInvalid`，可选strict_adjustment令其报错；重取失败按原Python异常传播，Rust更不能吞取消/期限。XDXR provider通过明确依赖注入，不把HQ cache视为MAC身份元数据。已证实数据可提供本地 `compute_forward_factor`、`apply_forward_adjust`、`has_bad_prices`，不发隐含网络。
 
 board_summary从全部members聚合amount、vol、main_net_amount、main_net_3d、main_net_5d、up_count、down_count、member_count并保留members；不是直接服务端JSON的别名。0x1218 flag1为板块归属JSON，flag2为资金流JSON，跳过27B协议prefix后GBK解码，不当完整body都是JSON。ranking的money/amount/volume类必须先取全部候选聚合再topN，不能先按涨幅截前N；change_pct可用服务排序预截。days回报需要每块各取历史bar并说明缺历史的数据点，不能空历史当0%。相同sort值保持输入顺序作为稳定tie规则；top_n=None是全候选，受PageOptions保护。

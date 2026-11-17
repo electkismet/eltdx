@@ -295,3 +295,79 @@ and exact seconds, paginated quote_list/board_members/bars/transactions/boards/
 unusual with chronological metadata/raw mapping, HK EX commands and lifecycle/
 cancellation/half-frame/failover source coverage; then T26–T30. Production
 handshake acceptance remains explicit final-phase work, not fake success.
+
+## Stage B checkpoint 5 — rich records and public page collectors (2026-11-17, stage80)
+
+Basec66fe5c. Preserved all pending market_data/collect/metadata/second-arithmetic
+edits across context compression, manually read their dependencies and wired
+them into the public owners. No source was compiled, collected or executed.
+
+Public MAC now has19/23 specified method sources: the previous13 plus
+quote_list,board_members,bars,transactions,boards,unusual. Remaining four are
+T26 compositions: board_summary,board_ranking,board_change_ranking,download_file
+(and its strict complete convenience). MAC-EX now has6/13 method sources:
+quotes,tick_chart,chart_sampling,bars,transactions,all_transactions. Its other
+seven require directory/cache/macro services in T26. Method source existence
+does not complete T25 or establish public usability. Auxiliary fields/util/
+advanced surfaces and broader coverage also remain.
+
+market_data.rs supplies private-field Bar/Transaction and typed time/source/
+count/nature provenance. Bar retains all7 f32 bits, exact seconds from midnight,
+raw date/time, and only known intraday durations shift End. Calendar periods
+use local midnight; explicitly unknown periods retain unknown EventTime and
+diagnostics instead of guessing calendar or rejecting their raw dates. Strict
+36B bars always provide float_shares: Some(wire0) is distinct from absence in
+another schema. Optional raw records are Bytes slices of the same body, never
+per-record raw copies. EventTime::add_seconds shares checked dated arithmetic;
+add_minutes retains its prior validation/error boundary. QFQ repair/provider/
+strict_adjustment behavior is still T26, not yet implemented by these routes.
+
+collect.rs reuses checked Pagination and existing services::aggregate_meta.
+Each reply is fully decoded and over-response-checked inside the worker before
+publication. Progress uses actual wire occurrences, never deduplicated keys.
+List/member requests use80 maximum, bars700, MAC trades1000 and HK trades1800;
+the last request is the remaining target or smaller explicit safety allowance.
+Quote rows append, whole bar pages prepend without reversing rows inside a
+page. Raw row references alone receive the same permutation; retained bodies,
+frames and SourceStamps stay chronological. Each page's records share one
+Arc<ResultMeta>, preventing quadratic raw-range cloning at large row counts.
+Changing reported totals yields None with diagnostic; no single total is
+asserted. Aggregate metadata is retained in diagnostics.latest_meta.
+
+quote_list uses Board context only for the closed10000..10010 categories;
+board_members always uses Instrument context, preserving the bit93/94/136/139
+aliases and actual bit IDs. boards uses EmptyOnly because original source
+permits another request after its first short page; paired_count is not a
+global count, and total_raw remains available only in the pure BoardPage.
+unusual is explicitly one bounded response, matching the source's lack of any
+pagination loop. It returns actual next offset; RequestedCount only if target
+is fulfilled, otherwise Unknown even on short/empty, never fabricated EOF.
+
+MAC-EX HK stocks27/31/48/49/71/98 send unchanged ordinary EX23FC/2406 requests
+on the same MAC-EX owner/profile. Their data uses the existing strict EX decoder
+and a diagnostic/range-preserving Decoded::try_map seam; no parallel EX socket
+or second decode. Raw u32 price/divisor1000 with documented HKD, count0 with
+NotProvided, nature, original direction and open-interest change survive.
+Other markets, including23..26 futures/options, use MAC122F. all_transactions
+supports only the checked HK markets and Target::All; a full50-page/90000-row
+cap, or a smaller explicit cap, fails LimitExceeded without terminal evidence.
+
+Added14 public fixture source functions (19 total in mac_session.rs):80+20 and
+duplicate list rows/shared metadata; category/constituent aliases and changing
+total; bar page/raw permutation and seconds/end rollover; calendar/unknown
+period; MAC trades and provided count; HK today/history commands/native price/
+absent count; futures route and full all cap; unusual Unknown; malformed clock
+and pre-cancel; boards short-followup/leader; cancelled partial frame/fresh
+setup; close during partial frame; transport failover/repeated setup; complete
+over-response/no reusable socket. All synthetic responses remain independent
+of production login/association evidence. No test was collected or run.
+
+Ordinary source reading found PageOptions is Clone but not Copy, and corrected
+four draft dereferences to clones; the explicit unknown period fixture now
+uses the existing Wire variant. No compiler/AST/format/diff check was used.
+T25 production login/optional-boundary evidence remains unresolved and default
+MAC-EX fails explicitly without rules. Continue remaining T25 helpers/coverage,
+T26 compositions and T27–T30 source before the unified verification phase.
+Counts23 complete source/2 partial/5 unstarted, active unlimited goal; no
+tests/build/check/collection/dependency/network/equivalent verification,
+subagents/push/tag/publish/merge.

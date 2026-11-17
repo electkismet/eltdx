@@ -2,6 +2,24 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage80: basec66fe5c. Rich public Bar/Transaction
+  records and common collect orchestration now connect MAC quote_list,
+  board_members,bars,transactions,boards,unusual and MAC-EX bars,transactions,
+  all_transactions. Exact second rollover, whole-page bar prepend and raw-row
+  permutation preserve chronological payload/frame/source order. HK stocks
+  use existing EX23FC/2406 decoders on the same logged-in owner; market23..26
+  stay MAC122F. Per-response Arc metadata avoids per-row raw-map duplication.
+  Boards require empty followup rather than guessing total_raw/global EOF;
+  unusual is one bounded page with Unknown when target is unfulfilled.
+  Full all-transactions safety cap is LimitExceeded. Added14 public source
+  functions (19 total in mac_session), including lifecycle/cancel/partial
+  frame/failover/over-response; none executed. Manual source reading corrected
+  non-Copy PageOptions use and draft unknown-period fixture constructor.
+  Read task-25-report checkpoint5. T25 still partial: remaining fields/advanced
+  helpers, source coverage and T26 composition/repair/directory/download,
+  production response/login evidence, then T27–T30.23/2/5 unchanged; unlimited
+  active goal, all execution verification deferred, no agents/publication.
+
 - Latest recovery2026-11-17 stage79: base2a11033. Preserved and completed
   pending config/profile/session source integration; added independent
   MacClient/MacExClient builders/management and feature mac root registration.

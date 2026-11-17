@@ -1,6 +1,6 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前为T25部分实现，握手证据已提交`2a11033`，后续为owner/client源码检查点stage79。
+当前为T25部分实现，owner阶段已提交`c66fe5c`，后续为分页/富模型/HK源码检查点stage80。
 **MAC模块/两类公开客户端已在源码登记；没有编译、测试、联网或安装证据，尚未验收可用。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
@@ -22,12 +22,14 @@
 | `mac/config.rs` | 独立MAC/MAC-EX配置、数字endpoint默认值及共同受控传输限额；纯build |
 | `mac/profile.rs` | 三步setup/严格optional fence及独立login，复用现有frame/write/read实现 |
 | `mac/session.rs` | 独立owner/session、现有门与worker/授权/取消清理、meta/raw及共享探测调度 |
-| `mac/client.rs` | 两类builder/管理/探测/关闭；MAC首13个简单入口、MAC-EX共享3入口；其余仍待接入 |
+| `mac/client.rs` | 两类builder/管理/探测/关闭；MAC19/23、MAC-EX6/13入口源码已接入；剩余组合仍待实现 |
 | `mac/quote.rs` | checked MAC身份、名称源字节、bit字段/未知位和逐响应meta的公开Quote |
+| `mac/market_data.rs` | 富Bar/Transaction、精确秒级/跨日/原始时间、七个float bits、HK原价/count presence/来源和共享meta |
+| `mac/collect.rs` | 80/700/1000/1800分页、整页前插、raw行排列、复用aggregate_meta/HK现有EX解码和all严格终止 |
 | `crates/eltdx/tests/mac_wire.rs` | 7个原Stage A函数源码，未执行 |
 | `crates/eltdx/tests/mac_responses.rs` | 14个简单响应/边界函数源码，未执行 |
 | `crates/eltdx/tests/mac_queries.rs` | 10个查询/默认/编码/身份边界函数源码；另pagination内部6个函数，全部未执行 |
-| `crates/eltdx/tests/mac_session.rs` | 5个实际公开入口/lifecycle/非空行情/optional fence/login用例源码，全部未执行 |
+| `crates/eltdx/tests/mac_session.rs` | 19个公开入口/非空分页/秒级/raw/HK/lifecycle/取消/半包/换源/超量用例函数源码，全部未执行 |
 
 MAC模块已按feature mac在crate root登记；mac依赖ex，JSON使用现有optional
 serde_json，未引入第二网络/解压栈。三组原path包含用例已改为公开eltdx::mac
@@ -35,37 +37,35 @@ serde_json，未引入第二网络/解压栈。三组原path包含用例已改�
 
 ## MAC全部23个方法的归属
 
-全部query已写。首批13个简单方法已有独立client/profile接线；其余仍待实现。
-下面历史表的尚待项由本段覆盖：quotes、tick_chart、tick_charts、chart_sampling、
-symbol_info、belonging_boards、capital_flow、auction、server_info、kline_offsets、
-file_meta、download_chunk、goods已接入。quotes带结果meta；goods带PageResult meta；
-其他简单返回的最近响应meta可通过diagnostics.latest_meta读取。全部未验证。
+全部query已写。19/23方法已有独立client/profile接线；下面表中的组合项仍待实现。
+Quote/Bar/Transaction/BoardInfo/Unusual带逐响应共享meta；PageResult带聚合meta；
+其他返回的最近响应meta可通过diagnostics.latest_meta读取。全部未验证。
 
 | 方法 | 已有基础 | 尚待工作 |
 |---|---|---|
-| quotes | 0x122B bitmap/rows | 1..80 query、owner、meta/raw |
-| quote_list | 0x122C rows | Category/SortType/FilterMask、80分页 |
-| bars | 0x122E四flag/36B记录 | u32目标/700分页、时间投影；T26复权修复 |
-| tick_chart | 0x122D18B tick +120B tail | checked id/date及返回meta |
-| tick_charts | 0x123E14B tick/5日期/短首日 | checked days/date及返回meta |
-| chart_sampling | 0x254D count/float bits | owner/meta |
-| transactions | 0x122F18B记录 | u32目标/1000分页、PageResult |
-| symbol_info | 0x122A194B已知字段及tail | checked id、时间/单位/meta |
-| boards | 0x1231配对160B记录 | checked BoardType、分页 |
-| board_members | 0x122C bitmap/rows | BoardSymbol、80分页 |
-| belonging_boards | 0x1218 flag1/27B prefix/GBK JSON | <=8B专用请求代码验证、meta |
+| quotes | 0x122B bitmap/rows及1..80 checked query/owner/meta/raw | 最终统一验证 |
+| quote_list | 0x122C rows、Category/SortType/FilterMask、80分页、board alias | 最终统一验证 |
+| bars | 0x122E四flag/36B记录、u32目标/700分页、秒级时间/整页前插/raw映射 | T26复权修复与最终验证 |
+| tick_chart | 0x122D18B tick +120B tail、checked id/date/owner | 最终统一验证 |
+| tick_charts | 0x123E14B tick/5日期/短首日、checked days/date/owner | 最终统一验证 |
+| chart_sampling | 0x254D count/float bits、owner/meta | 最终统一验证 |
+| transactions | 0x122F18B记录、u32目标/1000分页、富Transaction/PageResult | 最终统一验证 |
+| symbol_info | 0x122A194B已知字段及tail、checked id/时间/单位/owner | 最终统一验证 |
+| boards | 0x1231配对160B记录、BoardType/分页；只以空页证明结束 | 最终统一验证 |
+| board_members | 0x122C bitmap/rows、BoardSymbol/80分页；Instrument alias | 最终统一验证 |
+| belonging_boards | 0x1218 flag1/27B prefix/GBK JSON、<=8B代码/owner | 最终统一验证 |
 | board_summary | 基础members/fields | T26全成员聚合 |
 | board_ranking | 基础boards/members | T26全候选聚合再稳定排序/topN |
 | board_change_ranking | 基础boards/bars | T26完整历史、缺历史诊断和稳定排序 |
-| capital_flow | 0x1218 flag2独立双表/Presence | checked请求/meta，不能套Python默认0 |
-| auction | 0x123D16B有符号unmatched | checked id/固定请求500/meta |
-| unusual | 0x1237记录/类型/文本suffix | checked market/页目标/meta |
-| server_info | 0x120F日期/window/参数/tail | 数据探活有效日期要求/diagnostic |
-| kline_offsets | 0x124A混合端序 | query/owner/meta；returned不是EOF |
-| file_meta | 0x1215/70B名称/41B结果 | query/owner/meta；hash算法未知 |
-| download_chunk | 0x1217/8B prefix/size上界 | checked index>=1/size/query/来源 |
+| capital_flow | 0x1218 flag2独立双表/Presence、checked请求/owner | 最终统一验证，不能套Python默认0 |
+| auction | 0x123D16B有符号unmatched、checked id/固定500请求 | 最终统一验证 |
+| unusual | 0x1237记录/文本suffix、单页min目标/页限额/600，未满目标Unknown | 最终统一验证，无隐式EOF |
+| server_info | 0x120F日期/window/参数/tail、有效today探活/diagnostic | 最终统一验证 |
+| kline_offsets | 0x124A混合端序、query/owner/meta | 最终统一验证；returned不是EOF |
+| file_meta | 0x1215/70B名称/41B结果、query/owner | 最终统一验证；hash算法未知 |
+| download_chunk | 0x1217/8B prefix、index>=1/size/query/owner | 最终统一验证 |
 | download_file | 基础meta/chunk | T26固定同源/完整性/上限/EOF组合 |
-| goods | 0x2562/48B记录 | checked count<=1000/PageResult |
+| goods | 0x2562/48B记录、checked count<=1000/PageResult/未知全局总数 | 最终统一验证 |
 
 ## MAC-EX全部13个方法的归属
 
@@ -81,13 +81,14 @@ file_meta、download_chunk、goods已接入。quotes带结果meta；goods带Page
 | instruments | 复用EX info完整desc；T26目录范围 |
 | quotes | 共享0x122B，默认恰好0/1/2/3/4/5/7 |
 | quote_list | T26 goods/source order前min(count,80)；新排序不支持时构造拒绝 |
-| bars | 共享0x122E布局；T26复权处理 |
+| bars | 共享0x122E/700页collector/富Bar已接通；T26复权处理 |
 | tick_chart | 共享0x122D |
 | chart_sampling | 共享0x254D |
-| transactions | 港股EX23FC/2406，其余MAC122F；新session必须login |
-| all_transactions | T26港股1800分页、50页/90000到上限仍满报LimitExceeded |
+| transactions | 已接通港股EX23FC/2406既有解码及富Transaction，其余MAC122F；新session必须login |
+| all_transactions | 已接通港股1800分页、50页/90000或更小显式上限仍满报LimitExceeded |
 
-MAC-EX的quotes/tick_chart/chart_sampling已接入共享简单方法；其余仍是待实现组合。
+MAC-EX的quotes/tick_chart/chart_sampling/bars/transactions/all_transactions已接入；
+其余七项仍是待实现组合。bars明确按700页collect，旧Python单请求由T27保留。
 MAC-EX查询已统一使用ExInstrumentId，再做显式无损MAC转换；市场号不推断HQ
 交易所。转换拒绝u8溢出、GBK不可表示和反向超过9B UTF-8代码。Stage A的
 MacExInstrumentId仅为旧纯codec groundwork，未被新公开查询采用。
@@ -125,11 +126,11 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
    一个操作沿用同一授权/期限/流量预算。共享探测调度支持8个worker和TCP-only。
    MAC DataReady要求server_info的today有效；MAC-EX要求独立login及market38一行
    goods。后者仅证明该样例命令可用，不代表全部市场/业务或生产默认login已验收。
-4. 继续quote_list/board_members/bars/transactions/boards/unusual分页、公开Bar和
-   Transaction秒级投影、HK EX路由、raw合并与来源。5个公开client回环源码已写，
-   模块已登记；取消/半包/failover/逐简单方法覆盖仍需补，所有执行继续延期。
-5. T26完成目录/fallback/缓存、聚合/排行、复权、同源下载及all-pages；T27兼容迁移。
+4. 分页/公开Bar和Transaction/HK路由/raw合并来源已写，19个公开client函数源码
+   覆盖取消/半包/close/failover等，均未执行。继续fields/util/advanced辅助接口、
+   余下简单入口的覆盖与源码收尾；生产握手缺口仍必须在最终证据阶段解决。
+5. T26完成目录/fallback/缓存、聚合/排行、复权、同源下载；T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
-详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint4。
+详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint5。
 实现源码完整不等于执行验收通过，当前任务总数仍23完成源码/2部分/5未开始。
