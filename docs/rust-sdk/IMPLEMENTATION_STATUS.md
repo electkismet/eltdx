@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第九十七段恢复点：基础e9fbac1。MAC日期/GBK/3价格规则及EX/MAC帧request/header/body/encode和有界zlib策略迁native，秒分解/限价乘法与strict共用。保留原seconds/惰性时间/hooks、板块优先ST/上市窗口链比较/epsilon/round/nonfinite、live struct/两次len/DTO构造方式/raw/异常上下文与cause；Python显式except/custom decompressor为对象适配。strict批准规则目录仍空，未推断生产login/关联证据。新增22个Python函数（6参数化、7装饰器）/2个Rust函数源码，九份新增合同188个Python函数，全未执行。下一步MAC完整命令/parser和transport/owner/generation/config/清单/consumer，再T28–T30/T19及统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage10。
+
 2026-11-17第九十六段恢复点：基础3f73981。EX全部11响应方法及分钟/逐笔/列表私有parser迁native，strict与legacy共用报价/列表字段名/槽位/类型。保留短头/完整前缀/raw切片类型/GBK与UTF8/原count/int/历史class与当日self hooks、不校验日历时钟/非法秒置0、普通K线先解时间与position重解释amount、范围settlement、列表140数值足够但300步长及旧期货35值/34目标ValueError。新增26个Python函数（5参数化）/1个Rust schema函数源码，八份新增合同166个Python函数，全未执行。下一步MAC完整命令/parser/codec/price及transport/owner/generation/config/清单/consumer，后续T28–T30/T19及统一验证；25源码完整/2部分/3未开始不变，active无额度上限。恢复读task-27-report Stage9。
 
 2026-11-17第九十五段恢复点：基础c48a967。EX布局模块注册并让strict与native共用全部11请求头；EX构造器/builders、范围class序号与日期/时间、MAC-EX登录入口迁native。EX/MAC二进制guard/准备/slice及EX日期解码全部接线，保留旧参数/任意整数/编码/struct错误、校验与捕获/赋值顺序、live hooks/序号回绕、legacy登录启发式、异常活动上下文/cause及不验证日历/时钟。Python仅显式保留struct buffer和except/raise适配shell。新增22个Python函数（7个参数化）/2个Rust标量函数源码，七份新增合同共140个Python函数，全部未编译/收集/执行。下一步完整EX/MAC parser/命令/codec及transport/owner/generation/config/清单/consumer，再T28–T30/T19和统一验证；25源码完整/2部分/3未开始不变，目标active无额度上限。恢复读task-27-report Stage8；源码提交不代表验收通过。

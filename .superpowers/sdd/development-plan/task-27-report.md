@@ -1,5 +1,47 @@
 # T27 implementation report
 
+## Stage 10 — MAC date/price rules and EX/MAC framing (2026-11-17, stage97)
+
+Basee9fbac1. Authored extension_rules.rs/extension_frame.rs; MAC bar-datetime
+and GBK helpers, all3 price-rule functions, MAC request/header/body framing,
+EX header/body/encode helpers and common limited-zlib policy now native-backed.
+Seconds projection and limit-price factor/multiply primitives are shared with
+strict MAC clock and approved Rust price arithmetic. The strict approved
+profile registry remains empty; Python compatibility rules do not create
+approved dated exchange evidence.
+
+Keep MAC seconds/minute/second, daily lazy clock, original date errors/live
+datetime hooks and arbitrary numeric components. GBK ignore/all-NUL removal
+and custom decode/replace objects remain. Price policy retains upper-name
+before index, live market/index/window/CHINEXT/round hooks, code prefixes,
+registration-board priority beforeST, positive chained listed-days comparison,
+source epsilon and Python round behavior, and original nonfinite policy.
+
+Frames retain10/16-byte layouts, live struct/constants/two len calls, original
+unknown magic acceptance and positionalMAC versus keywordEX DTO construction.
+EX header length guard remains outside try and model construction outside
+struct-error wrapping. Body checks preserve raw identity, header/property/len
+rereads and original message/format/cause/context. Explicit Python except and
+custom decompress call shells remain object adapters. Limited zlib calls the
+standard/custom Python decompressor adapter from native policy, with original
+max argument, tail/unused/eof short circuit, no flush/new cap, original errors
+and returned object identity; independent Rust still uses its native codec.
+No assertion here establishes response association or production login.
+
+Added tests/test_native_extension_rules_frame_contract.py with22 public
+functions(6 parametrized;7 decorators) and2 Rust scalar source functions.
+Nine new extension contract files total188 public Python functions. All remain
+uncompiled/uncollected/unexecuted. No tests/build/check/network/dependencies/
+AST/format/diff validation executed. Sources only.
+
+Counts25 complete source/2 partial(T19/T27)/3 unstarted(T28-T30), unchanged.
+Next full MAC command constructors/builders/response parsers/helpers, then
+transport/owner/generation/config/host/probe/export/manifest/consumer migration.
+Then T28-T30/T19 source closure, unified verification/repairs and real production
+login/optional-boundary evidence. Goal active unlimited, no agents/publication/
+controller-state edits. Recovery commit preserves source without hooks.
+
+
 ## Stage 9 — all EX response parsers and shared slot schemas (2026-11-17, stage96)
 
 Base3f73981. Authored extension_parse.rs and registered three native entry

@@ -160,6 +160,8 @@ fn day(raw: u32) -> Result<TradingDate> {
 }
 fn clock(raw: u32) -> Result<(u8,u8,u8)> {
     if raw >= 86400 { return Err(protocol("MAC record clock exceeds seconds since midnight")); }
-    Ok(((raw/3600) as u8,((raw%3600)/60) as u8,(raw%60) as u8))
+    let (hour,minute,second) = crate::helpers::calculation::seconds_parts_with::<_,std::convert::Infallible>(&raw,
+        |raw| Ok(raw/3600),|raw| Ok((raw%3600)/60),|raw| Ok(raw%60)).unwrap_or_else(|never| match never {});
+    Ok((hour as u8,minute as u8,second as u8))
 }
 fn protocol(message: &'static str) -> Error { Error::new(ErrorKind::Protocol,message).with_context("domain","mac") }

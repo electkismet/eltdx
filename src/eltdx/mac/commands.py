@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import struct
+from sys import modules as _MODULES
 from datetime import date, datetime, time
 from typing import TypeVar, cast
 
@@ -55,19 +56,13 @@ def _combine_bar_datetime(ymd: int, time_num: int, is_intraday: bool) -> datetim
     ``09:30:00``，后续按时间排序/去重都会出错。
     """
 
-    year = ymd // 10000
-    month = (ymd % 10000) // 100
-    day = ymd % 100
-    if is_intraday and time_num:
-        hour = time_num // 3600
-        minute = (time_num % 3600) // 60
-        second = time_num % 60
-        return datetime(year, month, day, hour, minute, second)
-    return datetime(year, month, day)
+    from eltdx._native_abi import load_native
+    return load_native().mac_combine_datetime(ymd, time_num, is_intraday, _MODULES[__name__])
 
 
 def _decode_gbk(raw: bytes) -> str:
-    return raw.decode("gbk", errors="ignore").replace("\x00", "")
+    from eltdx._native_abi import load_native
+    return load_native().mac_decode_gbk(raw)
 
 
 class SymbolQuotesCmd(BaseCommand[list[MacQuoteField]]):

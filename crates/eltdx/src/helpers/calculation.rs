@@ -22,6 +22,20 @@ pub fn clock_parts_with<T,E>(value: &T,hour: impl FnOnce(&T) -> Result<T,E>,
     Ok((hour(value)?,minute(value)?))
 }
 
+pub fn seconds_parts_with<T,E>(value: &T,hour: impl FnOnce(&T) -> Result<T,E>,
+    minute: impl FnOnce(&T) -> Result<T,E>,second: impl FnOnce(&T) -> Result<T,E>) -> Result<(T,T,T),E> {
+    Ok((hour(value)?,minute(value)?,second(value)?))
+}
+
+/// Price arithmetic is shared; profile approval, input validity and rounding
+/// remain the caller's policy. Python preserves its legacy unapproved rules.
+pub fn limit_price_with<T,E>(reference: &T,ratio: &T,upper: bool,
+    add_one: impl FnOnce(&T) -> Result<T,E>,subtract_from_one: impl FnOnce(&T) -> Result<T,E>,
+    multiply: impl FnOnce(&T,T) -> Result<T,E>) -> Result<T,E> {
+    let factor = if upper {add_one(ratio)?} else {subtract_from_one(ratio)?};
+    multiply(reference,factor)
+}
+
 pub fn turnover_with<T, E>(volume: T, shares: &T,
     mut multiply_hundred: impl FnMut(T) -> Result<T, E>,
     divide: impl FnOnce(T, &T) -> Result<T, E>) -> Result<T, E> {
@@ -88,6 +102,35 @@ pub fn share_source_names(total: bool, circulating: bool, free_float: bool) -> V
 #[cfg(test)]
 mod source_cases {
     use super::*;
+
+    #[test]
+    fn seconds_projection_keeps_precision_evaluation_order_and_original_failure() {
+        use std::cell::RefCell;
+        let order = RefCell::new(Vec::new());
+        let result = seconds_parts_with::<_,&str>(&34201_u32,
+            |raw| {order.borrow_mut().push("hour");Ok(raw/3600)},
+            |raw| {order.borrow_mut().push("minute");Ok((raw%3600)/60)},
+            |raw| {order.borrow_mut().push("second");Ok(raw%60)}).unwrap();
+        assert_eq!(result,(9,30,1)); assert_eq!(*order.borrow(),["hour","minute","second"]);
+        assert_eq!(seconds_parts_with::<_,&str>(&0,|_| Ok(0),|_| Err("minute failure"),
+            |_| panic!("minute failed")),Err("minute failure"));
+    }
+
+    #[test]
+    fn limit_scalar_uses_selected_factor_before_multiplication_and_no_rounding() {
+        use std::cell::RefCell;
+        let order = RefCell::new(Vec::new());
+        let upper = limit_price_with::<_,&str>(&10.0,&0.2,true,
+            |ratio| {order.borrow_mut().push("add");Ok(1.0+ratio)},
+            |_| panic!("upper does not subtract"),
+            |reference,factor| {order.borrow_mut().push("multiply");Ok(reference*factor)}).unwrap();
+        assert_eq!(upper,12.0); assert_eq!(*order.borrow(),["add","multiply"]);
+        let lower = limit_price_with::<_,&str>(&10.0,&0.2,false,
+            |_| panic!("lower does not add"),|ratio| Ok(1.0-ratio),|reference,factor| Ok(reference*factor)).unwrap();
+        assert_eq!(lower,8.0);
+        assert_eq!(limit_price_with::<_,&str>(&1.0,&0.1,true,|_| Err("factor failure"),
+            |_| panic!("upper does not subtract"),|_,_| panic!("factor failed")),Err("factor failure"));
+    }
 
     #[test]
     fn packed_projection_preserves_unvalidated_components_and_error_identity() {

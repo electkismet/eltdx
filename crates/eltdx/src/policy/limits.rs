@@ -34,7 +34,9 @@ fn evaluate_profiles(id: &SecurityId, date: TradingDate, reference: Option<Price
         return Ok(LimitDecision::new(rule, LimitStatus::MissingReference, None, None, evidence));
     };
     let rounded = |direction| {
-        let price = Price::from_f64(reference.as_f64() * (1.0 + direction * ratio));
+        let value = crate::helpers::calculation::limit_price_with::<_,std::convert::Infallible>(&reference.as_f64(),&ratio,direction>0.0,
+            |ratio| Ok(1.0+ratio),|ratio| Ok(1.0-ratio),|reference,factor| Ok(reference*factor)).unwrap_or_else(|never| match never {});
+        let price = Price::from_f64(value);
         price.to_scaled_integer(profile.tick_scale, profile.rounding)
             .map(|value| Price::with_value_and_provenance(NumericValue::ScaledInteger { value, scale: profile.tick_scale }, ValueProvenance::WireRule))
     };

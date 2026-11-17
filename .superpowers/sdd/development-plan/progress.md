@@ -2,6 +2,21 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage97: basee9fbac1. Native MAC date/GBK/3
+  price-rule helpers and EX/MAC frame request/header/body/encode plus limited
+  zlib policy authored. Shared seconds/limit multiplication with strict Rust;
+  no approved rule registry change. Keep second precision/lazy calendar/live
+  hooks, board-beforeST/chained window/epsilon/round/nonfinite rules, live
+  struct/two lengths/header DTO style and original raw/cause/context. Python
+  except/custom decompressor shells remain explicit adapters; no association
+  or login evidence inferred. Added22 Python functions(6 parametrized,7
+  decorators)/2 Rust sources; nine new files total188 Python functions, all
+  unexecuted. Read task-27-report Stage10. Next complete MAC commands/parser
+  and transport/owner/generation/config/manifest/consumer, then T28-T30/T19
+  source closure and unified verification.25/2/3 unchanged; unlimited active,
+  no verification/agents/publication/controller-state edits.
+
+
 - Latest recovery2026-11-17 stage96: base3f73981. All11 EX response methods
   and minute/transaction/quote-list private helpers now native delegates.
   Shared quote/list names/slots/types also drive strict Rust. Keep prefixes/

@@ -1,4 +1,4 @@
-"""A 股价格限制规则引擎（纯 Python，零第三方依赖）。
+"""A 股价格限制兼容规则（共用 native 算术，保留原 Python 行为）。
 
 从 easy_tdx ``codec/price_rules.py`` 移植。``market`` 采用与 easy_tdx
 ``Market`` 枚举一致的数字约定：``0=深圳``、``1=上海``、``2=北京``。
@@ -7,6 +7,8 @@
 """
 
 from __future__ import annotations
+
+from sys import modules as _MODULES
 
 _MARKET_SZ = 0
 _MARKET_SH = 1
@@ -25,30 +27,15 @@ def get_no_limit_window_days(market: int, code: str, name: str) -> int:
     * ``5``: 沪深主板/创业板/科创板上市前 5 个交易日不设涨跌幅限制
     """
 
-    if _is_index_like(market, code, name):
-        return 0
-
-    if code.startswith(("43", "83", "87", "92")):
-        return 1
-
-    if market == _MARKET_SH and code.startswith(("60", "68")):
-        return 5
-    if market == _MARKET_SZ and code.startswith(("00", "30")):
-        return 5
-
-    return 0
+    from eltdx._native_abi import load_native
+    return load_native().mac_no_limit_window(market, code, name, _MODULES[__name__])
 
 
 def _is_index_like(market: int, code: str, name: str) -> bool:
     """判断是否为指数/板块类代码。"""
 
-    if market == _MARKET_SH and code.startswith(
-        ("000", "880", "881", "882", "883", "884", "885", "999")
-    ):
-        return True
-    if market == _MARKET_SZ and code.startswith(("395", "399")):
-        return True
-    return "指数" in name or "板块" in name
+    from eltdx._native_abi import load_native
+    return load_native().mac_index_like(market, code, name, _MODULES[__name__])
 
 
 def compute_price_limits(
@@ -69,44 +56,8 @@ def compute_price_limits(
             函数会按上市初期无涨跌幅限制规则优先返回 ``(None, None)``。
     """
 
-    if pre_close <= 0:
-        return None, None
-
-    upper_name = name.upper()
-
-    # 指数/板块类代码通常无涨跌停。
-    if _is_index_like(market, code, name):
-        return None, None
-
-    no_limit_window_days = get_no_limit_window_days(market, code, name)
-    if listed_days is not None and 0 < listed_days <= no_limit_window_days:
-        return None, None
-
-    limit_pct = 0.10  # 默认 10%
-
-    # 板块规则优先于 ST 判断：注册制板块（创业板/科创板）自 2020 年起对 ST 股票
-    # 同样适用 20% 限制，主板 ST 才是 5%。早期把 ST 放在最前面，创业板 ST 会被
-    # 误按 5% 计算。
-    # 创业板 300/301/302 —— 用前三位集合而非 "30" 前缀，避免把未分配的 30x 段误判。
-    if code[:3] in _CHINEXT_CODES:
-        limit_pct = 0.20
-    # 科创板 (688)
-    elif code.startswith("688"):
-        limit_pct = 0.20
-    # 北交所 (43, 83, 87, 92)
-    elif code.startswith(("43", "83", "87", "92")):
-        limit_pct = 0.30
-    # 主板 ST / *ST
-    elif "ST" in upper_name:
-        limit_pct = 0.05
-
-    def _round_price(price: float) -> float:
-        return round(price + 0.00001, 2)
-
-    limit_up = _round_price(pre_close * (1 + limit_pct))
-    limit_down = _round_price(pre_close * (1 - limit_pct))
-
-    return limit_up, limit_down
+    from eltdx._native_abi import load_native
+    return load_native().mac_price_limits(market, code, name, pre_close, listed_days, _MODULES[__name__])
 
 
 __all__ = ["compute_price_limits", "get_no_limit_window_days"]

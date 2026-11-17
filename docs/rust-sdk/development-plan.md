@@ -531,6 +531,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T27：扩展 Python 迁移与全能力核对
 
+2026-11-17第十段源码恢复点（stage97，基础e9fbac1）：MAC日期/GBK/价格规则及EX/MAC framing/limited-zlib策略接native，共用strict秒与限价算术；原hooks/窗口/ST优先级/round/异常/raw对象规则保留，显式except/custom decompressor为adapter，strict规则审批与生产证据不变。新增22个Python函数（6参数化、7装饰器）/2个Rust函数，九份合同188函数，全未执行。MAC全命令/parser及transport/owner/generation/config/清单/consumer继续；25完整源码/2部分/3未开始不变，全部执行验收延期。
+
 2026-11-17第九段源码恢复点（stage96，基础3f73981）：全部11个EX响应和私有记录helper迁native，报价/list schema与strict共用；完整保留prefix/raw/编码/动态hooks/无日历时钟校验、普通bar时间先解与amount双义、范围settlement、列表140/300规则及原期货unpack目标错误。新增26个Python函数（5参数化）/1个Rust schema函数，八份新增合同166个Python函数，全未执行。完整MAC命令/parser/codec/price与transport/owner/generation/config/清单/consumer继续；25完整源码/2部分/3未开始不变，全部执行验收延期。
 
 2026-11-17第八段源码恢复点（stage95，基础c48a967）：EX全部11请求头与strict共用，构造器/builders/范围序号/日期时钟及MAC-EX登录迁native；EX/MAC二进制guard/准备/slice和EX日期helper接线，保留原动态对象/校验捕获赋值顺序/编码与struct错误、class回绕、旧登录启发式、活动异常/cause及不验证日历时钟。显式struct/except shell为Python适配器。新增22个Python函数（7参数化）/2个Rust函数源码，七份新增合同140个Python函数，全部未执行。完整EX/MAC parser/命令/codec/transport/owner/generation/config/清单/consumer继续；25源码完整/2部分/3未开始不变，全部执行验收延期。
