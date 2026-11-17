@@ -108,6 +108,12 @@
 //! stability promise. MAC-EX production login rules and optional MAC setup
 //! association require independent evidence; synthetic test ACKs are not defaults.
 //!
+#![doc = include_str!("guide/hq.md")]
+#![cfg_attr(feature = "f10", doc = include_str!("guide/f10.md"))]
+#![cfg_attr(feature = "offline", doc = include_str!("guide/offline.md"))]
+#![cfg_attr(feature = "ex", doc = include_str!("guide/ex.md"))]
+#![cfg_attr(feature = "mac", doc = include_str!("guide/mac.md"))]
+#![cfg_attr(feature = "serde", doc = include_str!("guide/serde.md"))]
 #![forbid(unsafe_code)]
 
 mod client;

@@ -609,6 +609,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T30：最终覆盖、性能和维护文档
 
+2026-11-17第四段源码恢复点（stage114，基础fd548ca）：18个service和独立客户端的普通调用、六份feature条件rustdoc include与精确非空回环对应已写；固定连接非空refresh用例、E06七组serde运行合同和三个checked类型compile-fail、serde/f10单独文档门禁及六对include同步检查源码已补。按本任务交付范围收尾源码审阅并同步包内文档。当前30项源码范围完整/0部分/0未开始；此处尚无任何新编译或运行结果。保存本检查点后由root记录全源码门槛，按最终验收顺序准备lock并统一验证；所有下方执行验收框保持未通过，外部生产证据缺口不能改标通过。
+
 2026-11-17第三段源码恢复点（stage113，基础58f7664）：补crate首页可运行惰性/no_run查询rustdoc、六份使用/迁移/最终验收/候选/维护/F10传输文档、MkDocs导航与最小/default/full严格rustdoc/doctest和独立documentation job；EX/财报例子保留业务主错误并另报close错误。压力补actor槽数、实际generation单调和close后零actor/queue。T19源码交接已收尾，29源码完整/1部分(T30)/0未开始。仍未执行任何测试/构建/check/依赖/网络/文档验证；T30还需逐service普通使用示例和现有非空回环对应及最后源码审阅，不以首页示例或表格存在宣布全源码门槛。
 
 2026-11-17第二段源码恢复点（stage112，基础c5584c9）：固定语料Rust/旧新Python性能worker、release wheel来源与84trial采集复验、性能政策和独立workflow已写；10类压力补真实预热/配置/取消及close分阶段时延。详见[performance-policy.md](performance-policy.md)。全部未执行；T30仍部分，继续最终覆盖/文档和T19源码收尾，28完整源码/2部分不变。

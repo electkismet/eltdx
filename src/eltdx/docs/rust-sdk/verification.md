@@ -346,15 +346,19 @@ Python adapter另跑已有native/Python契约回归，包括异常、partial/mis
 ```sh
 cargo +1.89.0 test -p eltdx --doc --no-default-features --locked
 cargo +1.89.0 test -p eltdx --doc --locked
+cargo +1.89.0 test -p eltdx --doc --no-default-features --features serde --locked
+cargo +1.89.0 test -p eltdx --doc --no-default-features --features f10 --locked
 cargo +1.89.0 test -p eltdx --doc --no-default-features --features full --locked
 cargo +1.89.0 doc -p eltdx --no-deps --no-default-features --locked
 cargo +1.89.0 doc -p eltdx --no-deps --locked
+cargo +1.89.0 doc -p eltdx --no-deps --no-default-features --features serde --locked
+cargo +1.89.0 doc -p eltdx --no-deps --no-default-features --features f10 --locked
 cargo +1.89.0 doc -p eltdx --no-deps --no-default-features --features full --locked
 ```
 
-`rust_sdk_matrix.ps1`的platform分支为上述最小/default/full命令设置`RUSTDOCFLAGS=-D warnings`、记录实际flag并在失败或成功后恢复原环境；`rust-sdk.yml`另有独立手动documentation job复用metadata/mirror、MkDocs strict及生成HTML本地链接/fragment检查。源码入口已写，不表示CI已执行。文档中的feature标签、单位、错误、顺序、missing语义、分页停止条件、缓存、同步/异步、线程安全、取消与close语义必须与行为测试关联。compile-fail示例验证私有 `OperationContext`不可访问、受控advanced边界、不Clone的资源句柄及关闭后使用的运行期结果；不把内部Engine所有方法自动重导出为长期公共API。
+`rust_sdk_matrix.ps1`的platform分支为上述最小/default/serde/f10/full命令设置`RUSTDOCFLAGS=-D warnings`、记录实际flag并在失败或成功后恢复原环境；另用单独serde feature执行`serde_contract`。`rust-sdk.yml`另有独立手动documentation job复用metadata/mirror、MkDocs strict及生成HTML本地链接/fragment检查。源码入口已写，不表示CI已执行。文档中的feature标签、单位、错误、顺序、missing语义、分页停止条件、缓存、同步/异步、线程安全、取消与close语义必须与行为测试关联。compile-fail示例验证私有 `OperationContext`不可访问、受控advanced边界、不Clone的资源句柄及关闭后使用的运行期结果；不把内部Engine所有方法自动重导出为长期公共API。
 
-`serde`测试应覆盖模型往返、enum未知值、bytes格式、日期、finite/non-finite浮点的公开策略。lossless wire数据和JSON可表达能力不同；不能承诺普通JSON完整保存任意NaN payload。F10大整数策略和serde feature结果格式要单独记录。
+`serde`测试应覆盖模型往返、enum未知值、bytes格式、日期、finite/non-finite浮点的公开策略。lossless wire数据和JSON可表达能力不同；不能承诺普通JSON完整保存任意NaN payload。F10大整数策略和serde feature结果格式要单独记录。具体格式与七组运行合同、三个checked类型compile-fail见[Serde示例](examples-serde.md)，逐服务普通使用例与真实非空回环函数见[对应表](service-examples.md)。两者目前仅有源码，不是通过记录。
 
 ## 9. workspace外consumer门禁
 

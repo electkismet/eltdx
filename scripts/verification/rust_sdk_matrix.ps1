@@ -77,13 +77,15 @@ try {
         Invoke-SdkCargo -Arguments @('test', '-p', 'eltdx', '--locked', '--no-default-features')
         Invoke-SdkCargo -Arguments @('test', '-p', 'eltdx', '--locked')
         Invoke-SdkCargo -Arguments @('test', '-p', 'eltdx', '--all-targets', '--locked', '--no-default-features', '--features', 'full')
+        Invoke-SdkCargo -Arguments @('test', '-p', 'eltdx', '--test', 'serde_contract', '--locked', '--no-default-features', '--features', 'serde')
         $taskPreviousRustdocFlags = [System.Environment]::GetEnvironmentVariable('RUSTDOCFLAGS', 'Process')
         try {
             $env:RUSTDOCFLAGS = (@($taskPreviousRustdocFlags, '-D warnings') | Where-Object { $_ }) -join ' '
-            foreach ($taskDocFeatures in @('minimal', 'default', 'full')) {
+            foreach ($taskDocFeatures in @('minimal', 'default', 'serde', 'f10', 'full')) {
                 $taskDocFlags = @()
                 if ($taskDocFeatures -eq 'minimal') { $taskDocFlags = @('--no-default-features') }
                 if ($taskDocFeatures -eq 'full') { $taskDocFlags = @('--no-default-features', '--features', 'full') }
+                if ($taskDocFeatures -in @('serde', 'f10')) { $taskDocFlags = @('--no-default-features', '--features', $taskDocFeatures) }
                 Invoke-SdkCargo -Arguments (@('test', '-p', 'eltdx', '--doc', '--locked') + $taskDocFlags)
                 Invoke-SdkCargo -Arguments (@('doc', '-p', 'eltdx', '--no-deps', '--locked') + $taskDocFlags)
             }

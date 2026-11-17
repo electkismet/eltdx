@@ -1,6 +1,15 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage114: basefd548ca. T30 remaining source scope
+  authored:18 service/independent-client examples, six feature-gated includes,
+  exact nonempty loopback index, pinned refresh case, seven serde contracts
+  and three checked-type compile-fail examples, serde/f10 docs matrix. Final
+  source handoff review and mirrors authored.30 source-complete/0 partial/0
+  unstarted, no executed acceptance. Commit this checkpoint then root records
+  the global source gate before actual tool/lock/dependency preparation and
+  unified validation. Read task-30-report checkpoint4. External production,
+  registry/platform and resource evidence remain missing. No agents/publish.
 - Latest recovery2026-11-17 stage110: base1cfa649. T29 source complete:
   SDK0.1.0/internal exact path+version/README/original license/include; archive
   simulation and registry observation/identity/dry-run scripts,3-platform job.

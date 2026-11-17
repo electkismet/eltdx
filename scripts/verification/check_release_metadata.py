@@ -73,6 +73,22 @@ def _mirror_errors() -> list[str]:
     return errors
 
 
+def _sdk_guide_errors() -> list[str]:
+    """Check byte identity only; doctests separately prove example compilation."""
+    errors = []
+    for domain in ("hq", "f10", "offline", "ex", "mac", "serde"):
+        source = ROOT / "docs" / "rust-sdk" / f"examples-{domain}.md"
+        included = ROOT / "crates" / "eltdx" / "src" / "guide" / f"{domain}.md"
+        try:
+            same = source.read_bytes() == included.read_bytes()
+        except OSError as error:
+            errors.append(f"SDK rustdoc guide cannot be read ({domain}): {error}")
+        else:
+            if not same:
+                errors.append(f"SDK rustdoc guide differs from canonical docs: {domain}")
+    return errors
+
+
 def check(
     *,
     artifact_dir: Path | None = None,
@@ -111,6 +127,7 @@ def check(
             f"README banner lacks eltdx_release={TARGET_PYTHON_VERSION} PNG metadata"
         )
     errors.extend(_mirror_errors())
+    errors.extend(_sdk_guide_errors())
     release_values = (artifact_dir, ref, sha)
     if any(value is not None for value in release_values):
         if artifact_dir is None or ref is None or sha is None:

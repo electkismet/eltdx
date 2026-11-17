@@ -76,10 +76,10 @@ cursor 绑定 owner、查询及必要的来源/metadata 版本，不跨 client �
 
 RawPolicy 默认为 Omit。RetainPayload 保存协议载荷，RetainWire 在可用传输上增加收到的帧；F10 payload 为编码后的 HTTP body，wire 为收到的 HTTP 明文，均不等于解压后的 JSON，也不等于 TLS 密文。raw 策略只控制额外保留，不保证零拷贝；解码、模型和必要 provenance 仍可分配。大结果应同时配置页/记录/字节上限。
 
-serde feature 不定义统一永久 JSON schema。只有源码上明确实现的 Serialize/Deserialize 可用；受校验的身份/日期类型保留 checked 构造，不通过任意反序列化绕过。非有限源浮点序列化报错，应用需显式映射和保留原 bits，不能悄悄写成 JSON null。
+serde feature 不定义统一永久 JSON schema。只有源码上明确实现的 Serialize/Deserialize 可用；受校验的身份/日期类型保留 checked 构造，不通过任意反序列化绕过。非有限源浮点序列化报错，应用需显式映射和保留原 bits，不能悄悄写成 JSON null。具体bytes整数数组、日期/时区变体、Unknown及编译失败合同见[Serde格式与校验](examples-serde.md)。
 
 ## 稳定边界与后续阅读
 
 MAC-EX 没有已证明的默认生产登录判定；必须注入有来源的 LoginReplyRules。可选 MAC setup 的响应身份、顺序和 fence 需要独立证据，合成 ACK 只证明本机状态机合同。category22、未知涨跌停规则、未知单位与未采样市场不能扩大为稳定承诺。
 
-版本和包见[发布政策](release-policy.md)，现有 Python 使用者见[兼容迁移](python-migration.md)，要求与证据逐项关系见[最终验收索引](final-acceptance.md)，维护与复验见[维护手册](maintenance.md)。
+版本和包见[发布政策](release-policy.md)，逐服务普通调用与非空回环对应见[示例索引](service-examples.md)，现有 Python 使用者见[兼容迁移](python-migration.md)，要求与证据逐项关系见[最终验收索引](final-acceptance.md)，维护与复验见[维护手册](maintenance.md)。

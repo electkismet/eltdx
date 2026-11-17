@@ -122,6 +122,14 @@ nav:
   - Rust SDK 候选与设计:
       - 状态与安装边界: rust-sdk/index.md
       - Rust 使用指南: rust-sdk/user-guide.md
+      - 逐服务示例与回环:
+          - 示例覆盖与编译方式: rust-sdk/service-examples.md
+          - HQ 服务: rust-sdk/examples-hq.md
+          - F10 与历史资金流: rust-sdk/examples-f10.md
+          - 财报与本地文件: rust-sdk/examples-offline.md
+          - EX: rust-sdk/examples-ex.md
+          - MAC 与 MAC-EX: rust-sdk/examples-mac.md
+          - Serde 格式与校验: rust-sdk/examples-serde.md
       - Python 兼容与迁移: rust-sdk/python-migration.md
       - SDK 候选说明: rust-sdk/release-notes.md
       - 架构设计: rust-sdk/architecture.md

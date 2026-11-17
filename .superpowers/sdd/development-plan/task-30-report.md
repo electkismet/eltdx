@@ -77,3 +77,53 @@ the global source gate and start unified dependency/build/test/docs execution.
 All dependency/API/MSRV/license/platform, package/compatibility, resource and
 performance outcomes remain unverified. MAC-EX production login and optional
 MAC setup identity/order/fence evidence remain missing.
+
+## Fourth checkpoint — service examples and E06 serialization contracts (stage114)
+
+Basefd548ca,2026-11-17. Completed the remaining authored T30 deliverables:
+six canonical example guides copied byte-for-byte into crate src/guide and
+feature-gated include_str rustdoc; service-examples.md maps18 public services,
+four standalone clients and local financial reading to actual nonempty fixture
+functions. Sixteen HQ snippets include the public pin query; other guides use
+actual checked F10/financial/EX/MAC/MAC-EX APIs. Examples borrow configured
+owners and explain explicit outer cleanup, original units/dates/raw/completion,
+per-public-call relative deadlines and the synthetic/production profile limit.
+
+Authored a new nonempty public pinned refresh fixture preserving request ID,
+source cursor, raw payload/frame and explicit pin/owner close. Authored seven
+serde_contract functions covering representation/scale/extreme i64/provenance,
+f32/f64 negative zero, three nonfinite forms per width with unmodified raw bits,
+display/source units, JSON byte sequences and absent-vs-empty wire, all five
+time representations, checked constructors and explicit Unknown-vs-foreign
+variants. Serde guide adds one generic serializer usage and separate compile-
+fail contracts for SecurityId/TradingDate/EventTime Deserialize absence. The
+JSON dependency for these tests is dev-only; production serde selection remains
+independent. Tests/doc examples have NOT been compiled, collected or executed.
+
+Extended the existing metadata checker to six include byte pairs; it proves
+only synchronization. Matrix now authors standalone serde integration plus
+minimal/default/serde/f10/full strict doctest/doc. Updated actual navigation,
+user/maintenance/final acceptance/verification indexes and package mirrors.
+These are real source edits, not another file-existence acceptance program.
+
+Final focused source handoff reviewed T30 brief/plan, R01-R12 final index,
+service APIs and samples, T28/T29 sources/reports, feature/dependency boundaries,
+E01-E10 decisions and existing T19/pressure/performance handoffs. No remaining
+promised implementation source gap was identified; missing independent external
+evidence stays explicit rather than being invented or replaced by synthetic
+fixtures. Source search found no todo!/unimplemented! body in SDK/bindings or
+consumers; that search is not proof of correctness or completed test coverage.
+
+Current count30 source-complete/0 partial/0 unstarted. ALL execution acceptance
+is still pending; no test/collection/build/check/clippy/doctest, dependency or
+network probe, compiler/AST/format/diff-check/equivalent command ran. Ordinary
+source/document/Git operations only. Existing historical reports keep their
+then-current counts. No subagents/push/tag/publish/merge/goal-controller edits.
+
+Next root action: commit this source checkpoint with hooks disabled, then record
+the global source-complete gate and begin unified verification in the order in
+final-acceptance.md. Discover actual tools, resolve/lock dependencies, retain raw
+failures, fix without reducing feature/API/test scope, and checkpoint repairs.
+Uncompiled dependencies/API/MSRV/licenses/platforms, package/compatibility/
+resource/performance outcomes and production profiles remain unverified. The
+unlimited goal remains active until requirement-by-requirement actual acceptance.

@@ -32,6 +32,44 @@ fn refresh_requests_retain_source_local_cursors_without_monotonic_reinterpretati
 }
 
 #[test]
+fn pinned_nonempty_refresh_preserves_identity_cursor_raw_and_releases_its_connection()
+    -> Result<(), Box<dyn std::error::Error>> {
+    let server = Server::start(|request| match request.msg_type {
+        0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&[("600000", 2)]),
+        0x044d => hq_server::directory(&[]),
+        0x0547 => {
+            assert_eq!(hq_server::refresh_requests(request), vec![("600000".to_owned(), 93000)]);
+            hq_server::refresh(&[("600000", 93001)])
+        }
+        _ => panic!("unexpected pinned quote command"),
+    })?;
+    let client = eltdx::TdxClient::builder().endpoints(vec![server.address])
+        .pool_size(1).heartbeat_interval(None).build()?;
+    let options = OperationOptions::default().with_raw(eltdx::RawPolicy::RetainWire);
+    let id = SecurityId::new(eltdx::HqMarket::Shanghai, "600000")?;
+    let mut pin = client.pin(&options)?;
+    let request = RefreshRequest::new(id.clone()).with_cursor(93000)?;
+    let result = pin.quotes().refresh(&[request], &options);
+    let pin_closed = pin.close();
+    let closed = client.close();
+    let joined = server.finish();
+    let page = result?;
+    pin_closed?;
+    closed?;
+    joined?;
+    assert_eq!(page.requested().len(), 1);
+    assert_eq!(page.requested()[0].id(), &id);
+    assert_eq!(page.updates().len(), 1);
+    assert_eq!(page.updates()[0].id(), &id);
+    assert_eq!(page.updates()[0].cursor(), 93001);
+    let raw = page.meta().raw().ok_or("missing pinned response raw")?;
+    assert_eq!(raw.row_ranges().len(), 1);
+    assert_eq!(raw.payloads().len(), 1);
+    assert_eq!(raw.wire_frames().ok_or("missing pinned wire")?.len(), 1);
+    Ok(())
+}
+
+#[test]
 fn cold_metadata_refresh_with_the_only_slot_pinned_uses_that_connection() {
     use std::sync::{Arc, Mutex};
     let seen = Arc::new(Mutex::new(Vec::new()));

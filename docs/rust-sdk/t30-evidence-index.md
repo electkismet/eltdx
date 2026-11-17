@@ -1,6 +1,6 @@
 # T30 压力、性能与最终交付证据索引
 
-当前为源码阶段恢复记录。以下压力/性能源码、采集器及工作流均未编译、启动或执行，不是通过证据。stage113已补最终指南、R01–R12导航和严格文档验证入口；T19传输源码交接已收尾。T30仍部分完成，尚需逐服务普通使用示例与现有非空回环逐项对应及最后源码审阅；全部T01–T30源码写齐前不能进入统一验证。
+当前为源码阶段恢复记录。以下压力/性能源码、采集器及工作流均未编译、启动或执行，不是通过证据。stage114在stage113的指南和R01–R12导航基础上补齐18个service、独立客户端的普通调用示例与精确非空回环对应，以及E06 Serde合同和严格单feature文档门禁。T01–T30源码范围已写齐；记录并提交全源码门槛后进入统一验证，不把源码完成当成运行通过。
 
 ## 独立 Rust 压力源码
 
@@ -58,12 +58,12 @@ python scripts/verification/rust_sdk_stress.py aggregate --implementation-comple
 
 每次 run 使用全新目录并要求干净候选；原失败日志不得覆盖。`rust-sdk-stress.yml` 是独立手动工作流，默认 quick CI 不运行这些 ignored 负载。聚合必须使用产生证据的候选仓库 Git objects 复核 blob，不能只相信 JSON 声称的 SHA。注册表发布、真实公网探测与上线仍是独立行动，本工具均不执行。
 
-## 尚待写齐的源码和文档
+## 源码交接与待执行证据
 
 - 固定语料的Rust core、旧/新Python解析和模型构造、非空loopback、实际close及预取消微负载源码已写，详见[性能政策](performance-policy.md)。84个默认trial、同release profile、两个真实构建wheel及原始日志复验入口均未执行；外部网络仅显式opt-in。
-- stage113补齐了代次/资源源码记录和复验条件；最后仍须整体源码自审，且不替代最终压力运行。
+- stage113补齐了代次/资源源码记录和复验条件，stage114按T30交付范围进行源码收尾审阅；这些不替代最终压力运行。
 - [R01–R12最终交接](final-acceptance.md)、crate首页rustdoc、[Rust指南](user-guide.md)、[Python迁移](python-migration.md)、[候选说明](release-notes.md)与[维护手册](maintenance.md)已有源码。最小/default/full的严格rustdoc及doctest进入matrix，独立手动documentation job复用现有mirror/metadata/MkDocs/local-link检查器；均尚未运行。
-- T30最后源码任务是逐个公开service补齐可编译的普通使用说明，与真实非空回环测试逐项对应，并复查全部交付项；不能以首页两个示例代替每个service的说明。
+- 逐公开service的普通调用源码、实际include及非空回环精确函数已补入[示例索引](service-examples.md)；[Serde](examples-serde.md)补齐有限/非有限、bytes、日期和未知值及checked类型边界。新增固定连接非空刷新与七组serde运行合同源码。后续须真实收集/编译/执行，不能以文档表或函数名代替结果。
 - T19源码交接见[F10传输索引](f10-transport-index.md)，其依赖/API/MSRV/license/平台仍待执行。生产MAC-EX登录和optional MAC setup关联证据仍缺，不能把合成ACK升级为默认生产规则。
 
 最终运行输出目录尚不存在；当前不存在本页新工具的 passed 结果。

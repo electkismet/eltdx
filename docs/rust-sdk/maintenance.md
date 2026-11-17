@@ -10,6 +10,8 @@
 
 提交只作为可恢复源码快照，消息不能声称未执行的测试通过。源码阶段禁止测试/构建/check/collection/AST/格式/依赖解析/网络探测及等价验证；保存提交时禁用可能隐式触发这些操作的hooks。文档源在 `docs/`，包内镜像在 `src/eltdx/docs/`，同阶段同步。正式执行文档镜像校验仍需在全源码门槛后。
 
+逐服务与Serde示例的权威源码为`docs/rust-sdk/examples-{hq,f10,offline,ex,mac,serde}.md`；同时逐字复制到`crates/eltdx/src/guide/{hq,f10,offline,ex,mac,serde}.md`供rustdoc的include_str使用，并同步通常的包内docs mirror。既有metadata检查器只验证六对字节一致，不替代真实doctest、非空回环或归档编译；对应关系维护在`service-examples.md`。单独serde的运行合同与Serde/F10各自文档门禁须保留，不能仅依赖full feature。
+
 ## 网络波动与进程恢复
 
 开启耗时命令时保存其确切命令、开始时间、输出目录和实际session/process/job句柄；输出写文件，避免上下文只留下截断文本。观察超时不等于进程退出，重连后先查询同一真实句柄/进程，不凭一份lock或running JSON就重启。确认终态或句柄不存在后，才按任务语义决定继续、修复或重试。

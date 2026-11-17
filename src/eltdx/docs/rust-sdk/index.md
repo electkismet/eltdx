@@ -2,7 +2,7 @@
 
 > 状态：独立 Rust SDK 0.1.0 候选源码正在收尾，尚未编译、测试或发布。原设计基线为 `af471f1`（Python v3.3.5），两轮源码审阅日期 2026-11-16。
 
-实施恢复点更新于2026-11-17 stage113：HQ、F10具名入口、本地文件/财报、EX/MAC/MAC-EX及Python共享业务迁移的源码已按域编写，独立消费、包、压力和性能工具已有源码；最终文档和统一验证交接正在收尾。所有T01–T30实现源码写齐后才统一验证。逐任务准确状态见[实施进度](IMPLEMENTATION_STATUS.md)，要求与证据见[最终验收索引](final-acceptance.md)。这些是源码进度，不能当作可用、兼容或可发布结论。
+实施恢复点更新于2026-11-17 stage114：HQ、F10具名入口、本地文件/财报、EX/MAC/MAC-EX及Python共享业务迁移，独立消费、包、压力性能、逐服务示例和Serde合同的T01–T30源码范围已写齐。保存全源码检查点、记录门槛后统一验证。逐任务准确状态见[实施进度](IMPLEMENTATION_STATUS.md)，要求与证据见[最终验收索引](final-acceptance.md)。这些是源码进度，不能当作可用、兼容或可发布结论。
 
 目标是让 **Python 用户调用 Python API，Rust 用户调用 Rust API，两者共用 Rust 业务实现**。Rust 程序的构建和运行均不需要 Python、PyO3、maturin 或 Python 服务进程。
 
@@ -26,6 +26,8 @@ Python 从源码安装、为暂未提供wheel的平台自行构建，以及参�
 | 文档 | 回答的问题 | 主要读者 |
 | --- | --- | --- |
 | [Rust 使用指南](user-guide.md) | 如何选择feature、使用同步API、处理结果和关闭 | Rust 使用者 |
+| [逐服务示例与回环](service-examples.md) | 18个service和独立客户端的普通用法如何进入rustdoc编译并对应非空回环 | Rust 使用者、验收人员 |
+| [Serde 格式与校验](examples-serde.md) | 有限/非有限数、bytes、日期、未知值及checked类型的反序列化边界 | Rust 使用者、数据接口维护者 |
 | [Python 兼容与迁移](python-migration.md) | 用户是否需要改用法；维护者为何保留Python适配 | Python 使用者、绑定维护者 |
 | [候选说明](release-notes.md) | 候选新增范围、未验证事实和已知限制 | 使用者、发布评审人员 |
 | [架构设计](architecture.md) | 为什么这样拆分；数据、控制、所有权如何流动 | 架构、维护、评审人员 |
