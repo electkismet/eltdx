@@ -69,8 +69,12 @@ impl MacOwner {
     }
     pub fn exchange<T: Send + 'static>(&self, context: &OperationContext, work: Work, command: u16,
         decode: impl FnOnce(Bytes,RawPolicy) -> Result<Decoded<T>> + Send + 'static) -> Result<Reply<T>> {
+        self.exchange_with_purpose(context,work,command,ChildPurpose::Required,decode)
+    }
+    pub fn exchange_with_purpose<T: Send + 'static>(&self, context: &OperationContext, work: Work, command: u16,
+        purpose: ChildPurpose, decode: impl FnOnce(Bytes,RawPolicy) -> Result<Decoded<T>> + Send + 'static) -> Result<Reply<T>> {
         let lease = self.session.lease(context)?;
-        let reply = self.exchange_leased(context,&lease,work,command,decode)?;
+        let reply = self.exchange_leased_with_purpose(context,&lease,work,command,purpose,decode)?;
         lease.accept(); Ok(reply)
     }
     /// A composite that must keep one source holds this same lease across its
@@ -78,7 +82,11 @@ impl MacOwner {
     /// second Session or resets the operation's budget.
     pub fn exchange_leased<T: Send + 'static>(&self, context: &OperationContext, lease: &Lease, work: Work, command: u16,
         decode: impl FnOnce(Bytes,RawPolicy) -> Result<Decoded<T>> + Send + 'static) -> Result<Reply<T>> {
-        let authorization = context.begin_child(ChildPurpose::Required,None)?.into_transport_authorization();
+        self.exchange_leased_with_purpose(context,lease,work,command,ChildPurpose::Required,decode)
+    }
+    pub fn exchange_leased_with_purpose<T: Send + 'static>(&self, context: &OperationContext, lease: &Lease, work: Work, command: u16,
+        purpose: ChildPurpose, decode: impl FnOnce(Bytes,RawPolicy) -> Result<Decoded<T>> + Send + 'static) -> Result<Reply<T>> {
+        let authorization = context.begin_child(purpose,None)?.into_transport_authorization();
         let raw = context.raw(); let operation_session = context.session_id;
         let maximum_bytes = self.config.max_operation_bytes().get(); let session = Arc::clone(&self.session);
         let domain = self.domain;

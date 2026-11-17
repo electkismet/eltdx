@@ -2,6 +2,19 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage82: helper base0ec8907. Authored MAC/MAC-EX
+  QFQ composition, None refetch, explicit XdxrProvider/Batch/Context and parent
+  source-attempt authorization, original-price fallback diagnostics and strict
+  errors. Same worker/gate/deadline/bytes/cancellation/cleanup; blocked callback
+  retains gate until actual retirement. Raw metadata keeps all source payloads
+  but selects returned rows using pure adjustment source_indices. Added13
+  extended_services and7 extended_loopback public function sources, unexecuted.
+  T26 is now partial; continue catalog/cache/macro, board summary/rank/history,
+  same-source downloads and remaining methods, then T27-T30/final evidence.
+  T25 production login and remaining coverage still pending.23 complete source,
+  3 partial (T19/T25/T26),4 unstarted; active unlimited, all execution checks
+  remain deferred, no agents or publication. Read task-26-report stage1 first.
+
 - Latest recovery2026-11-17 stage80: basec66fe5c. Rich public Bar/Transaction
   records and common collect orchestration now connect MAC quote_list,
   board_members,bars,transactions,boards,unusual and MAC-EX bars,transactions,
@@ -607,3 +620,5 @@ execution deferred until T01–T30 implementation is fully authored; no subagent
 - Recovery2026-11-17 stage69: shared-owner checkpoint52355bb retained. Authored pure Rust stock_topics/topic_stocks query/results and one-context source compositions; native Python entry/resolution/model/scalar bridges share source traversal, fields and id-before-name resolution. Preserves eager source reads/first discovery order/hot-null overwrite/per-source last raw, live converter-before-pick/hooks, arbitrary precision/nonfinite/surrogates and lazy tuple/StopIteration cause. Ten Python/five Rust source functions authored, none executed. Next theme_strength_rank, manifest/consumer andT24–T30.21/4/5 unchanged; active unlimited goal, no execution validation/agents/publication.
 
 - Recovery2026-11-17 stage81: base0502015 retained. Completed fields/util/advanced helper sources plus BarPrice effective f64/original f32 split, per-event shared evidence and per-page meta. Stable source-date/clock ties and sequential equal-date events, End source-day prefixes, invalid/overflow skips and parent cancel boundary authored. Only affected prefixes get LocalForwardAdjustment; untouched latest rows keep Wire. Six public helper and eight private adjustment fixture functions authored, none executed. T25 partial; network QFQ refetch/provider/strict fallback remains T26, along with board ranking/download/MAC-EX services, then T27-T30 and final evidence. Read task-25-report checkpoint6.23 source complete/2 partial/5 unstarted; goal active with no token quota; all tests/build/check/collection/dependency/network/AST/format/diff-check/equivalent validation still deferred, no agents or publication.
+
+- Recovery2026-11-17 stage82: base0ec8907. T26 QFQ public MAC/MAC-EX composition authored: None refetch, explicit provider and parent context/physical-attempt API, pure repair, original fallback/strict errors, full provenance with primary raw row selection. Same registered worker retains gate on unconfirmed cleanup.13 composition and7 lifecycle/MAC-EX/failover fixture functions authored, all unexecuted. Manual source reading corrected EX shared RawData projection to offset/length (decoder stays start/end) and source fixture expectations.23 source complete/3 partial(T19/T25/T26)/4 unstarted; full T26 directory/cache/boards/history/download and T27-T30 remain, production login evidence deferred. Read task-26-report stage1. Active unlimited goal, no execution verification, agents or publication.

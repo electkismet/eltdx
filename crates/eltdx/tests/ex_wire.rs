@@ -263,7 +263,9 @@ fn raw_projection_shares_payload_and_enforces_caller_allowance() -> TestResult {
     let payload = Bytes::from(vec![1,2,3,4]); let ptr = payload.as_ptr();
     assert!(project_raw(payload.clone(),None,&[(0,4)],RawPolicy::Omit,0)?.is_none());
     let retained = project_raw(payload.clone(),None,&[(1,3)],RawPolicy::RetainPayload,4)?.ok_or("raw")?;
-    assert_eq!(retained.payloads()[0].as_ptr(),ptr); assert_eq!(retained.row_ranges(),&[(0,1,3)]);
+    assert_eq!(retained.payloads()[0].as_ptr(),ptr); assert_eq!(retained.row_ranges(),&[(0,1,2)]);
+    let (page,offset,length) = retained.row_ranges()[0];
+    assert_eq!(&retained.payloads()[page][offset..offset+length],&[2,3]);
     assert!(project_raw(payload.clone(),None,&[(0,5)],RawPolicy::RetainPayload,100).is_err());
     assert!(project_raw(payload.clone(),None,&[(0,4)],RawPolicy::RetainWire,100).is_err());
     assert_eq!(project_raw(payload.clone(),None,&[(0,4)],RawPolicy::RetainPayload,3).err().map(|e|e.kind()),Some(ErrorKind::LimitExceeded));

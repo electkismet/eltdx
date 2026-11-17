@@ -107,7 +107,7 @@ fn required_setup_nonempty_quotes_bits_meta_and_close_use_the_public_entry() -> 
     assert_eq!(rows.len(),1); assert_eq!(rows[0].id(),&id()?);
     assert_eq!(rows[0].name(),"name");
     assert_eq!(rows[0].field(FieldId::new(47)?).unwrap().value,models::SlotValue::Unknown([0xef,0xbe,0xad,0xde]));
-    let raw = rows[0].meta().raw().unwrap(); assert_eq!(raw.row_ranges(),&[(0,26,102)]);
+    let raw = rows[0].meta().raw().unwrap(); assert_eq!(raw.row_ranges(),&[(0,26,76)]);
     assert_eq!(raw.wire_frames().unwrap().len(),1);
     assert_eq!(rows[0].meta().source().endpoint(),Some(endpoint));
     assert!(!rows[0].meta().diagnostics().is_empty());
@@ -230,8 +230,8 @@ fn quote_list_requests_eighty_then_twenty_and_keeps_duplicate_occurrences() -> C
     assert_eq!(result.rows()[99].field(bit).unwrap().value,models::SlotValue::U32(99));
     assert_eq!(result.rows()[0].id(),result.rows()[99].id());
     let raw = result.meta().raw().unwrap(); assert_eq!(raw.payloads().len(),2);
-    assert_eq!(raw.row_ranges()[79],(0,26+79*72,26+80*72));
-    assert_eq!(raw.row_ranges()[80],(1,26,98));
+    assert_eq!(raw.row_ranges()[79],(0,26+79*72,72));
+    assert_eq!(raw.row_ranges()[80],(1,26,72));
     assert!(std::ptr::eq(result.rows()[0].meta(),result.rows()[79].meta()));
     assert!(!std::ptr::eq(result.rows()[79].meta(),result.rows()[80].meta()));
     client.close()?; join(job)
@@ -288,7 +288,7 @@ fn bars_prepend_whole_pages_keep_seconds_and_reorder_only_raw_row_references() -
     assert_eq!(rows[0].float_shares().unwrap().value().bits(),306);
     assert_eq!(rows[0].record_raw().unwrap().len(),36);
     let latest = client.diagnostics()?.latest_meta().unwrap().clone();
-    let raw = latest.raw().unwrap(); assert_eq!(raw.row_ranges(),&[(1,33,69),(0,33,69),(0,69,105)]);
+    let raw = latest.raw().unwrap(); assert_eq!(raw.row_ranges(),&[(1,33,36),(0,33,36),(0,69,36)]);
     assert_eq!(raw.payloads().len(),2); assert_eq!(raw.wire_frames().unwrap().len(),2);
     assert_eq!(scalar(&raw.payloads()[0],33+8),100); assert_eq!(scalar(&raw.payloads()[1],33+8),300);
     client.close()?; join(job)
@@ -396,7 +396,7 @@ fn unusual_short_reply_remains_unknown_and_does_not_issue_an_implicit_next_page(
     assert_eq!(result.rows().len(),1); assert_eq!(result.next_offset(),Some(1)); assert_eq!(result.server_total(),None);
     assert_eq!(result.completion(),PageCompletion::Unknown); assert_eq!(result.rows()[0].name(),"name");
     assert_eq!(result.rows()[0].time().clock(),Some((9,30,5)));
-    assert_eq!(result.rows()[0].meta().raw().unwrap().row_ranges(),&[(0,2,34)]);
+    assert_eq!(result.rows()[0].meta().raw().unwrap().row_ranges(),&[(0,2,32)]);
     client.close()?; join(job)
 }
 

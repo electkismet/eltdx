@@ -139,12 +139,23 @@ impl OperationSponsor {
     }
 
     pub(crate) fn metadata_authorization(&self) -> Result<Arc<dyn eltdx_runtime::execution::AttemptAuthorization>> {
+        self.source_authorization(ChildPurpose::Metadata)
+    }
+
+    /// An explicitly injected source uses the same reservation gate as the
+    /// owning service. It does not create another operation or retry budget.
+    #[cfg(feature = "mac")]
+    pub(crate) fn fallback_authorization(&self) -> Result<Arc<dyn eltdx_runtime::execution::AttemptAuthorization>> {
+        self.source_authorization(ChildPurpose::Fallback)
+    }
+
+    fn source_authorization(&self, purpose: ChildPurpose) -> Result<Arc<dyn eltdx_runtime::execution::AttemptAuthorization>> {
         self.budget.gate(Instant::now(), |state| {
             state.counters.logical_requests = checked_add(state.counters.logical_requests, 1)?;
             Ok(())
         })?;
         Ok(Arc::new(ChildAuthorization {
-            budget: Arc::clone(&self.budget), purpose: ChildPurpose::Metadata, recovery: None,
+            budget: Arc::clone(&self.budget), purpose, recovery: None,
             probe_scope: None,
             rust_public: matches!(self.profile, ExecutionProfile::RustPublic { .. }),
         }))

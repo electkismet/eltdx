@@ -229,6 +229,35 @@ impl ResultMeta {
         }
         Ok(self)
     }
+
+    /// Keep auxiliary payloads, frames and source stamps, while making the row
+    /// references describe only the selected primary result rows. This differs
+    /// from a permutation: a repair may retain its rejected source as evidence.
+    #[cfg(feature = "mac")]
+    pub(crate) fn with_raw_row_selection(mut self, selection: &[usize]) -> crate::error::Result<Self> {
+        if let Some(raw) = self.raw.as_mut() {
+            let mut ranges = Vec::new(); let mut encodings = Vec::new();
+            ranges.try_reserve(selection.len()).map_err(raw_allocation_error)?;
+            encodings.try_reserve(selection.len()).map_err(raw_allocation_error)?;
+            for &index in selection {
+                ranges.push(*raw.row_ranges.get(index).ok_or_else(|| crate::Error::new(
+                    ErrorKind::Internal,"primary result selection contains an invalid raw row index"))?);
+                encodings.push(raw.row_requires_xor93(index).unwrap_or(false));
+            }
+            raw.row_ranges = ranges; raw.xor93_rows = encodings;
+        }
+        Ok(self)
+    }
+
+    #[cfg(feature = "mac")]
+    pub(crate) fn with_raw_policy(mut self, policy: crate::RawPolicy) -> Self {
+        match policy {
+            crate::RawPolicy::Omit => self.raw = None,
+            crate::RawPolicy::RetainPayload => { if let Some(raw) = &mut self.raw { raw.wire_frames = None; } },
+            crate::RawPolicy::RetainWire => {},
+        }
+        self
+    }
 }
 
 fn raw_allocation_error(error: std::collections::TryReserveError) -> crate::error::Error {

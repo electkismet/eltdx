@@ -243,7 +243,9 @@ pub fn project_raw(payload: Bytes, wire: Option<Bytes>, ranges: &[(usize, usize)
     if retained_bytes > remaining_bytes {
         return Err(crate::Error::new(crate::ErrorKind::LimitExceeded, "EX raw response exceeds remaining byte allowance").with_context("domain", "ex"));
     }
-    let row_ranges = ranges.iter().map(|&(start, end)| (0, start, end)).collect();
+    // Decoder ranges use start/end. Shared RawData uses payload/offset/length,
+    // exactly like HQ and explicit auxiliary provider metadata.
+    let row_ranges = ranges.iter().map(|&(start, end)| (0, start, end-start)).collect();
     Ok(Some(RawData::new(vec![payload], frames, row_ranges)))
 }
 

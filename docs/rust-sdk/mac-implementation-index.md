@@ -1,6 +1,6 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前为T25部分实现，分页/富模型/HK阶段已提交`0502015`，本地工具源码检查点为stage81。
+当前T25/T26部分实现，本地工具已提交`0ec8907`，QFQ组合源码检查点为stage82。
 **MAC模块/两类公开客户端已在源码登记；没有编译、测试、联网或安装证据，尚未验收可用。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
@@ -12,6 +12,7 @@
 | `mac/bitmap.rs` | 全部具名field/preset、20B响应位图、合法未知位占槽、reserved151..159、16B请求拒高位 |
 | `mac/fields.rs` | 16B/20B具名字段视图、上下文别名及唯一bitmap编码；未知位不从wire消失 |
 | `mac/util.rs` | 纯本地逐事件f64前复权、逐事件证据/跳过原因、原始bits保留、parent边界；8个内部用例源码 |
+| `mac/services.rs` | QFQ异常/None重取/显式provider/strict/降级及共享meta，owner worker与parent预算/取消/清理；其余组合待实现 |
 | `advanced/mac.rs` | 受限请求/精确16B头/同一frame解压及DEBUG位图，无socket入口 |
 | `mac/commands.rs` | 单一请求布局、quote/bar/transaction/kline-offset及login原始请求/仅首字节rewrite |
 | `mac/responses.rs` | 私有字段/只读getter、源identity/float/未知单位、图/快照/板块/商品/文件/JSON响应 |
@@ -34,6 +35,9 @@
 | `crates/eltdx/tests/mac_queries.rs` | 10个查询/默认/编码/身份边界函数源码；另pagination内部6个函数，全部未执行 |
 | `crates/eltdx/tests/mac_session.rs` | 19个公开入口/非空分页/秒级/raw/HK/lifecycle/取消/半包/换源/超量用例函数源码，全部未执行 |
 | `crates/eltdx/tests/mac_helpers.rs` | 6个字段视图/别名/unknown/debug/请求/头/有界zlib/板块转换函数源码，全部未执行 |
+| `crates/eltdx/tests/extended_services.rs` | 13个QFQ修复/降级/strict/来源/字节/额外次数/原始行映射公开函数源码，全部未执行 |
+| `crates/eltdx/tests/extended_loopback.rs` | 7个MAC/MAC-EX真实owner入口、取消/关闭/期限/阻塞回调门保留/换源公开函数源码，全部未执行 |
+| `crates/eltdx/tests/support/extension_peer.rs` | std-only手写请求/响应及明确合成setup辅助，不作生产登录证据 |
 
 MAC模块已按feature mac在crate root登记；mac依赖ex，JSON使用现有optional
 serde_json，未引入第二网络/解压栈。三组原path包含用例已改为公开eltdx::mac
@@ -132,10 +136,11 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
    goods。后者仅证明该样例命令可用，不代表全部市场/业务或生产默认login已验收。
 4. 分页/公开Bar和Transaction/HK路由/raw合并来源已写，19个公开client函数源码
    覆盖取消/半包/close/failover等，均未执行。fields/util/advanced辅助接口源码
-   已补；本地复权不等于网络QFQ修复已完成，后者仍需T26显式provider和parent上下文。
+   已补；T26首段已接显式provider及parent上下文的网络QFQ编排，尚未执行验收。
    继续余下简单入口覆盖与源码收尾；生产握手缺口仍须在最终证据阶段解决。
-5. T26完成目录/fallback/缓存、聚合/排行、复权、同源下载；T27兼容迁移。
+5. T26继续目录/fallback/缓存、聚合/排行、同源下载及余下公开入口；T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
-详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint6。
-实现源码完整不等于执行验收通过，当前任务总数仍23完成源码/2部分/5未开始。
+详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint6，
+以及`.superpowers/sdd/development-plan/task-26-report.md`第一段。
+实现源码完整不等于执行验收通过，当前任务总数23完成源码/3部分/4未开始。

@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第八十二段恢复点：辅助工具阶段已提交`0ec8907`。T26首段接入MAC/MAC-EX完整QFQ修复编排：异常后重取None，再调用显式provider、共享纯算法并保留事件证据；无可用来源/事件/因子或仍坏保留原QFQ且有具体诊断，strict报错，重取/提供者错误和取消/期限不吞。提供者复用注册worker、串行门及parent期限/字节/可选物理尝试授权；不合作阻塞清理未确认时报CancelUnconfirmed并保留门至真实退出。聚合保留所有原始来源，仅将raw行引用选择为返回序列。新增13个组合和7个公开生命周期/回环函数源码，全部未执行。T26目录/缓存/板块排行/同源下载、T25剩余覆盖/生产握手证据、T27–T30继续；23源码完整/3部分/4未开始。目标active且无额度上限，禁止提前执行验证。恢复先读task-26-report第一段。
+
 2026-11-17第八十一段恢复点：分页/HK阶段已提交`0502015`。本段补齐mac::fields/util与advanced::mac辅助源码：具名16/20B位图/别名、精确头/有界解压、逐事件f64前复权和纯板块转换。OHLC有效价格与七个源f32 bits独立保存，未影响行保留Wire，跨日End仍按源日除权，事件顺序/跳过/溢出证据与原始报文可追溯；内部沿用parent取消边界，行共享事件表及逐响应meta。新增6个公开helper与8个内部复权用例函数源码，全部未执行。网络QFQ refetch/provider、T26目录/排行/下载及T27–T30仍待实现；生产握手证据缺口不变。23源码完整/2部分/5未开始，目标active且无额度上限，全部执行验证继续延期。恢复先读task-25-report checkpoint6。
 
 2026-11-17第八十段恢复点：owner阶段已提交`c66fe5c`。本段接入MAC六个入口quote_list/board_members/bars/transactions/boards/unusual及MAC-EX bars/transactions/all_transactions，现分别19/23与6/13指定方法有源码。富Bar/Transaction保留原始值、秒级跨日、单位/计数缺失与来源；分页复用唯一worker/operation及aggregate_meta，K线仅前插整页并重排行引用，不改原始响应/来源顺序。HK复用EX23FC/2406及原login owner，其余仍MAC122F；all满cap报LimitExceeded，boards需空页结束，unusual单页短回复为Unknown。新增14个公开用例函数源码（mac_session共19），覆盖重复/别名/raw、取消、半包、关闭、换源重握手及超量响应，全部未执行。T25仍部分，辅助接口/余下覆盖、T26组合/目录/复权/下载、生产握手证据及T27–T30继续；23源码完整/2部分/5未开始不变。目标active无额度限制，所有执行验证仍延期。恢复先读task-25-report checkpoint5；不要重写已接通的分页/HK路由。
@@ -149,11 +151,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | T25 owner阶段c66fe5c；stage80分页/富模型/HK路由源码已写，MAC19/23、MAC-EX6/13方法已接入；辅助接口/T26组合/生产判定仍待完成，全部执行验证延期 |
-| 当前阶段 | T01–T18及T20–T24源码完成；T19/T25部分；23完整源码/2部分/5未开始。 |
+| 最新检查点 | stage82：基于0ec8907，MAC/MAC-EX QFQ修复编排、显式事件provider、父操作预算/取消、原始数据与事件追溯源码已写，新增20个未执行测试函数源码。 |
+| 当前阶段 | T01–T18及T20–T24源码完成；T19/T25/T26部分；T27–T30未开始。23完整源码/3部分/4未开始，尚未统一编译或测试。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T25 fields/util/advanced辅助接口与余下覆盖；T26组合/目录/修复/下载、T27–T30；生产握手证据留明确验收项，全部源码完成后统一执行 |
+| 下一步 | T26目录/缓存、板块汇总/排行/历史、同源下载与余下方法；补T25剩余覆盖，再完成T27–T30。生产握手证据留明确验收项，全部源码完成后统一执行。 |
 
 ## 阶段进度
 
@@ -163,7 +165,7 @@
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | T11–T18实现源码完成；HQ桥/证据/consumer源码具备；兼容和可用版本验收全部待最终执行 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T20–T23源码完成，含Python兼容/跨源helper/manifest/consumer；T19依赖/平台验收待最终执行 | 按用户要求暂不运行 |
-| P4 | T24–T27 EX、MAC、Python迁移 | T24源码范围完成；T25两类owner、MAC19/23与MAC-EX6/13方法/分页/富模型/HK路由已接入；辅助/组合/迁移与生产握手仍待完成 | 按用户要求暂不运行 |
+| P4 | T24–T27 EX、MAC、Python迁移 | T24源码范围完成；T25两类owner及分页/富模型/HK/辅助工具已接入；T26 QFQ修复源码已写，目录/排行/下载待续；T27兼容迁移未开始，生产握手证据仍待取得 | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
 
 ## 依赖与冲突预审

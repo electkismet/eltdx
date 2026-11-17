@@ -2,10 +2,12 @@
 //! values used by EX; endpoints and immutable setup profiles remain separate.
 use std::net::SocketAddr;
 use std::num::{NonZeroU32, NonZeroUsize};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use crate::{RawPolicy, Result};
 use crate::ex::{config::ExConfig, frame::FrameLimits};
 use super::handshake::{LoginReplyRules, MacSetupPolicy};
+use super::services::XdxrProvider;
 
 pub const MAC_PORT: u16 = 7709;
 pub const MAC_EX_PORT: u16 = 7727;
@@ -20,19 +22,19 @@ pub fn default_ex_endpoints() -> Vec<SocketAddr> {
         .map(|address| SocketAddr::from((address,MAC_EX_PORT))).collect()
 }
 #[derive(Clone, Debug)]
-pub struct MacConfig { pub(crate) transport: ExConfig, pub(crate) setup: MacSetupPolicy }
+pub struct MacConfig { pub(crate) transport: ExConfig, pub(crate) setup: MacSetupPolicy, pub(crate) xdxr_provider: Option<Arc<dyn XdxrProvider>> }
 impl Default for MacConfig {
     fn default() -> Self {
         let mut transport = ExConfig::default(); transport.endpoints = default_endpoints();
-        Self { transport, setup: MacSetupPolicy::default() }
+        Self { transport, setup: MacSetupPolicy::default(), xdxr_provider: None }
     }
 }
 #[derive(Clone, Debug)]
-pub struct MacExConfig { pub(crate) transport: ExConfig, pub(crate) login: Option<LoginReplyRules> }
+pub struct MacExConfig { pub(crate) transport: ExConfig, pub(crate) login: Option<LoginReplyRules>, pub(crate) xdxr_provider: Option<Arc<dyn XdxrProvider>> }
 impl Default for MacExConfig {
     fn default() -> Self {
         let mut transport = ExConfig::default(); transport.endpoints = default_ex_endpoints();
-        Self { transport, login: None }
+        Self { transport, login: None, xdxr_provider: None }
     }
 }
 macro_rules! shared_config {
@@ -59,6 +61,9 @@ macro_rules! shared_config {
             pub fn with_wire_attempt_limit(mut self, value: NonZeroU32) -> Self { self.transport.wire_attempt_limit = value; self }
             pub fn with_extra_attempt_budget(mut self, value: usize) -> Self { self.transport.extra_attempt_budget = value; self }
             pub fn with_max_operation_bytes(mut self, value: NonZeroUsize) -> Self { self.transport.max_operation_bytes = value; self }
+            pub fn xdxr_provider(&self) -> Option<&dyn XdxrProvider> { self.xdxr_provider.as_deref() }
+            pub fn with_xdxr_provider(mut self, value: Arc<dyn XdxrProvider>) -> Self { self.xdxr_provider = Some(value); self }
+            pub fn without_xdxr_provider(mut self) -> Self { self.xdxr_provider = None; self }
             pub(crate) fn validate(mut self) -> Result<Self> {
                 self.transport = self.transport.clone().with_endpoints(self.transport.endpoints().to_vec())?;
                 for value in [self.timeout(),self.close_timeout(),self.cleanup_timeout()] { duration(value)?; }

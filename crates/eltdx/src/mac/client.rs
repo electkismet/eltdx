@@ -33,6 +33,8 @@ macro_rules! builder_config {
             pub fn with_wire_attempt_limit(mut self, value: NonZeroU32) -> Self { self.config.transport.wire_attempt_limit = value; self }
             pub fn with_extra_attempt_budget(mut self, value: usize) -> Self { self.config.transport.extra_attempt_budget = value; self }
             pub fn with_max_operation_bytes(mut self, value: NonZeroUsize) -> Self { self.config.transport.max_operation_bytes = value; self }
+            pub fn with_xdxr_provider(mut self, value: Arc<dyn super::XdxrProvider>) -> Self { self.config.xdxr_provider = Some(value); self }
+            pub fn without_xdxr_provider(mut self) -> Self { self.config.xdxr_provider = None; self }
         }
     };
 }
@@ -151,7 +153,7 @@ impl MacClient {
     /// intact. Unknown native units and all seven source float bits survive.
     pub fn bars(&self, query: &BarsQuery, options: &OperationOptions) -> Result<Vec<super::Bar>> {
         let context = self.inner.context(Instant::now(),"mac.bars",options)?;
-        let result = super::collect::bars(&self.inner,&context,query)?;
+        let result = super::services::bars(&self.inner,&context,query,self.config.xdxr_provider.clone())?;
         context.finish()?; Ok(result.rows)
     }
     pub fn transactions(&self, query: &TransactionsQuery, options: &OperationOptions) -> Result<super::PageResult<super::Transaction>> {
@@ -306,7 +308,7 @@ impl MacExClient {
     /// goods_kline behavior; T27 preserves that in its compatibility profile.
     pub fn bars(&self, query: &super::ex_query::BarsQuery, options: &OperationOptions) -> Result<Vec<super::Bar>> {
         let context = self.inner.context(Instant::now(),"mac-ex.bars",options)?;
-        let result = super::collect::bars(&self.inner,&context,query.common())?;
+        let result = super::services::bars(&self.inner,&context,query.common(),self.config.xdxr_provider.clone())?;
         context.finish()?; Ok(result.rows)
     }
     /// HK stock markets use ordinary EX transaction bytes on this same logged

@@ -31,10 +31,14 @@ impl AdjustmentEvent {
 }
 /// Detailed pure computation, also used by the network fallback service.
 #[derive(Clone, Debug)]
-pub struct AdjustmentResult { pub(crate) rows: Vec<Bar>, events: Arc<[AdjustmentEvent]> }
+pub struct AdjustmentResult { pub(crate) rows: Vec<Bar>, events: Arc<[AdjustmentEvent]>, source_indices: Vec<usize> }
 impl AdjustmentResult {
     pub fn rows(&self) -> &[Bar] { &self.rows }
     pub fn events(&self) -> &[AdjustmentEvent] { &self.events }
+    pub(crate) fn shared_events(&self) -> Arc<[AdjustmentEvent]> { Arc::clone(&self.events) }
+    /// Each output occurrence's index in the original input slice, including
+    /// duplicates. Useful when matching sorted rows to retained raw ranges.
+    pub fn source_indices(&self) -> &[usize] { &self.source_indices }
     pub fn into_rows(self) -> Vec<Bar> { self.rows }
 }
 
@@ -144,7 +148,12 @@ pub(crate) fn forward_adjustment_with_boundary(bars: &[Bar], events: &[XdxrEvent
         });
         bar.set_meta(Arc::clone(meta));
     }
-    boundary()?; Ok(AdjustmentResult { rows,events: evidence })
+    let mut source_indices = Vec::new(); source_indices.try_reserve(keys.len()).map_err(crate::services::allocation_error)?;
+    for (position,&(_,_,index)) in keys.iter().enumerate() {
+        if position % 256 == 0 { boundary()?; }
+        source_indices.push(index);
+    }
+    boundary()?; Ok(AdjustmentResult { rows,events: evidence,source_indices })
 }
 fn prices(bar: &Bar) -> [f64;4] {
     [bar.open().value().as_f64(),bar.high().value().as_f64(),bar.low().value().as_f64(),bar.close().value().as_f64()]

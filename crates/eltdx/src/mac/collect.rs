@@ -3,7 +3,7 @@
 use std::num::NonZeroU16;
 use std::sync::Arc;
 use crate::{Error, ErrorKind, PageOptions, RawPolicy, Result, TimeoutPhase, TradingDate};
-use crate::operation::OperationContext;
+use crate::operation::{ChildPurpose, OperationContext};
 use crate::types::{Diagnostic, EnrichmentStatus, ResultMeta};
 use crate::ex::transport::Work;
 use super::{commands, decode, Bar, BoardInfo, FieldSelection, MacInstrumentId, PageCompletion, PageResult, Quote, Transaction};
@@ -86,11 +86,17 @@ pub(crate) fn quote_list(owner: &MacOwner, context: &OperationContext, plan: Lis
 }
 
 pub(crate) fn bars(owner: &MacOwner, context: &OperationContext, query: &BarsQuery) -> Result<Collection<Bar>> {
+    bars_with_purpose(owner,context,query,ChildPurpose::Page)
+}
+pub(crate) fn bars_with_purpose(owner: &MacOwner, context: &OperationContext, query: &BarsQuery,
+    first_purpose: ChildPurpose) -> Result<Collection<Bar>> {
     let progress = Pagination::new(query.start(),Target::Count(query.count()),query.pages().clone(),maximum(700),u32::MAX,EndPolicy::EmptyOrShort)?;
+    let mut first = true;
     collect(owner,context,progress,MergeOrder::PrependPages,|request| {
         let command = commands::bars_request(query.id(),query.period(),query.times().get(),request.offset(),request.count(),query.adjust())?;
         let query = query.clone(); let requested = request.count();
-        owner.exchange(context,owner.mac_work(command)?,0x122e,move |body,raw| {
+        let purpose = if first { first_purpose } else { ChildPurpose::Page }; first = false;
+        owner.exchange_with_purpose(context,owner.mac_work(command)?,0x122e,purpose,move |body,raw| {
             let records = commands::decode_bars(&body,query.period())?;
             let values = records.into_iter().enumerate().map(|(index,value)| {
                 let offset = 33+index*36;
