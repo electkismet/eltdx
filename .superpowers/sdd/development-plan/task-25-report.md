@@ -227,3 +227,71 @@ goal active, no token cap, no agents/publication. Next implementation remains
 owner/config/profile transport reuse, then all simple APIs/meta/raw/probes,
 T26/T27 and T28–T30; response evidence is explicitly unresolved rather than
 an excuse to skip independent remaining source work.
+
+## Stage B checkpoint 4 — independent owners and first public methods (2026-11-17, stage79)
+
+Base2a11033; retained pending config/profile/session and shared EX probe edits
+across context compression, then connected them to public clients. Do not
+reimplement these owners on recovery. This is source progress, not acceptance.
+
+MacConfig/MacExConfig reuse checked ExConfig limits but keep independent numeric
+candidate lists,8s default,rawOmit and immutable setup/login inputs. Pure builders
+validate endpoint/positive monotonic timeout configuration without I/O or
+environment/disk resolution. Each build creates an independent SessionOwner
+and Session; clones retain the same irreversible close state. Both clients
+offer config/host(s)/diagnostics/healthy/unhealthy/close/disconnect/connect/
+ensure_connected/probe_endpoints/discover/ping_all/refresh_hosts/
+refresh_endpoints/from_best_host. Discovery and selected connect share one
+context and physical attempt/stream-byte sponsor; no renewed per-page clock.
+
+MacProfile sends the three original literal setup packets and reads complete
+replies via the existing EX read_frame/write functions. Optional suffix replies
+are deferred to the exact caller-asserted fence tracker; server_info fence must
+strictly decode and have valid today. No silent timeout proves absence.
+MacExProfile requires configured LoginReplyRules, sends the source80B login
+body and requires an exact positive reply. It never sends EX92B setup. Every
+replacement socket carries this same immutable per-owner profile. None of this
+resolves the still-missing production login/optional ordering evidence: default
+MAC may reject optional servers, and default MAC-EX cannot authenticate yet.
+Final allowed evidence work must resolve that before accepting T25.
+
+MacOwner reuses the existing EX registered worker/session lease/frame decoder,
+domain-neutral authorization and cancellation/cleanup. Encoded MAC-EX changes
+only a0x1c first byte to1; ordinary EX Work::Request is unchanged. Decoding,
+over-response rejection,raw projection and source stamp happen before socket
+publication. exchange_leased permits later fixed-source downloads without a
+second session or a new operation. The existing EX probe scheduler now takes
+an immutable DataProbe for both protocols;8-worker bounded runtime and terminal
+parent limits/cancellation are unchanged. TCP-only is still distinct. MAC
+readiness requires valid server today; MAC-EX requires positive configured login
+then exactly one market38 goods record. This proves only that sample command;
+do not claim every market or production classifier has been validated.
+
+MAC first13 wired methods: quotes,tick_chart,tick_charts,chart_sampling,
+symbol_info,belonging_boards,capital_flow,auction,server_info,kline_offsets,
+file_meta,download_chunk,goods. MAC-EX shares quotes/tick_chart/chart_sampling
+with canonical checked EX-to-MAC identity conversion. Quote validates response
+identity while retaining code bytes/name replacement indication, ordered bits,
+legal unknown fields,reserved bitmap and per-response ResultMeta. Goods returns
+PageResult with actual count/next offset, no invented global market total or
+single-page EOF. KlineOffsetInfo keeps independent mixed-endian counters.
+Server bad dates retain observations plus diagnostics. Other simple methods'
+last-response meta is observable through diagnostics.latest_meta.
+
+Registered mac module in lib.rs behind existing mac=[ex]. Replaced the three
+path-included MAC source suites with imports from actual public eltdx::mac;
+private owner/profile modules are no longer cloned into integration crates.
+Authored5 public mac_session source functions: lazy independent build/shared
+close; required three-step setup/nonempty known+unknown quote/raw provenance;
+optional missing reply plus exact ordered fence and aligned next response;
+MAC-EX80B login/head rewrite/seven-field request; negative login with no business
+request. All replies are explicitly synthetic and establish no production ACK.
+
+No test/collection/build/check/clippy/doctest/dependency download/network probe/
+AST/compiler/format/diff-check execution occurred. Ordinary reads and Git diffs
+only. Counts remain23 complete-source/2 partial/5 unstarted, goal active with
+no token cap and no agents/publication. Next T25 source: public Bar/Transaction
+and exact seconds, paginated quote_list/board_members/bars/transactions/boards/
+unusual with chronological metadata/raw mapping, HK EX commands and lifecycle/
+cancellation/half-frame/failover source coverage; then T26–T30. Production
+handshake acceptance remains explicit final-phase work, not fake success.

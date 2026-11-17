@@ -1,7 +1,7 @@
 //! Independent EX client, checked identities and bounded wire codecs.
 mod client;
 pub(crate) mod control;
-mod probe;
+pub(crate) mod probe;
 pub(crate) mod profile;
 pub(crate) mod session;
 pub(crate) mod transport;

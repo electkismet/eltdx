@@ -1,9 +1,6 @@
 // Authored source only; execution waits for the complete T01-T30 source gate.
 #![cfg(feature = "mac")]
-#[path = "../src/mac/mod.rs"]
-mod mac;
-pub use eltdx::{DownloadOptions, Error, ErrorKind, EventTime, PageOptions, Result, TradingDate};
-pub use eltdx::{ex, types};
+use eltdx::{mac, ex, types, DownloadOptions, ErrorKind, PageOptions, TradingDate};
 use mac::{ex_query as mx, query as mq, models::{MacAdjust, MacCode, MacInstrumentId, MacMarketId, MacPeriod}};
 use mac::{BoardSymbol, BoardType, Category, FieldId, FieldSelection, FilterMask, FilterType, PresetField, SortOrder, SortType};
 use std::num::{NonZeroU16, NonZeroU32};

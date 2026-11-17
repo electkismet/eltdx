@@ -1,7 +1,7 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前为T25部分实现，查询/分页已提交`538b01d`，后续为握手证据源码检查点stage78。
-**没有编译、测试、联网或安装证据；没有注册可用的公开MAC客户端。**
+当前为T25部分实现，握手证据已提交`2a11033`，后续为owner/client源码检查点stage79。
+**MAC模块/两类公开客户端已在源码登记；没有编译、测试、联网或安装证据，尚未验收可用。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
 ## 文件与已写源码
@@ -19,18 +19,27 @@
 | `mac/ex_query.rs` | canonical EX身份、全部MAC-EX查询、1800/1000页、50/90000 cap、macro默认 |
 | `mac/pagination.rs` | 单一checked分页进度、实际wire行推进、短/空证据和满保护上限拒绝；列表追加/K线前插 |
 | `mac/handshake.rs` | 明确optional回复/fence身份、终态tracker和正/负login证据；不虚构生产ACK；5个内部用例源码 |
+| `mac/config.rs` | 独立MAC/MAC-EX配置、数字endpoint默认值及共同受控传输限额；纯build |
+| `mac/profile.rs` | 三步setup/严格optional fence及独立login，复用现有frame/write/read实现 |
+| `mac/session.rs` | 独立owner/session、现有门与worker/授权/取消清理、meta/raw及共享探测调度 |
+| `mac/client.rs` | 两类builder/管理/探测/关闭；MAC首13个简单入口、MAC-EX共享3入口；其余仍待接入 |
+| `mac/quote.rs` | checked MAC身份、名称源字节、bit字段/未知位和逐响应meta的公开Quote |
 | `crates/eltdx/tests/mac_wire.rs` | 7个原Stage A函数源码，未执行 |
 | `crates/eltdx/tests/mac_responses.rs` | 14个简单响应/边界函数源码，未执行 |
 | `crates/eltdx/tests/mac_queries.rs` | 10个查询/默认/编码/身份边界函数源码；另pagination内部6个函数，全部未执行 |
+| `crates/eltdx/tests/mac_session.rs` | 5个实际公开入口/lifecycle/非空行情/optional fence/login用例源码，全部未执行 |
 
-MAC模块仍未在crate root注册。feature mac已依赖ex；JSON使用现有optional
-serde_json，未引入第二网络/解压栈。当前源码路径包含用例只用于最终验证，
-不能据此宣称独立入口已可用。
+MAC模块已按feature mac在crate root登记；mac依赖ex，JSON使用现有optional
+serde_json，未引入第二网络/解压栈。三组原path包含用例已改为公开eltdx::mac
+导入。登记和用例源码不等于编译/运行通过，不能据此宣称独立入口已可用。
 
 ## MAC全部23个方法的归属
 
-全部query已写；下列每个方法仍待独立client/profile和响应meta接线。
-“已有”仅表示纯codec/checked query源码，不表示公开入口完成。
+全部query已写。首批13个简单方法已有独立client/profile接线；其余仍待实现。
+下面历史表的尚待项由本段覆盖：quotes、tick_chart、tick_charts、chart_sampling、
+symbol_info、belonging_boards、capital_flow、auction、server_info、kline_offsets、
+file_meta、download_chunk、goods已接入。quotes带结果meta；goods带PageResult meta；
+其他简单返回的最近响应meta可通过diagnostics.latest_meta读取。全部未验证。
 
 | 方法 | 已有基础 | 尚待工作 |
 |---|---|---|
@@ -78,6 +87,7 @@ serde_json，未引入第二网络/解压栈。当前源码路径包含用例只
 | transactions | 港股EX23FC/2406，其余MAC122F；新session必须login |
 | all_transactions | T26港股1800分页、50页/90000到上限仍满报LimitExceeded |
 
+MAC-EX的quotes/tick_chart/chart_sampling已接入共享简单方法；其余仍是待实现组合。
 MAC-EX查询已统一使用ExInstrumentId，再做显式无损MAC转换；市场号不推断HQ
 交易所。转换拒绝u8溢出、GBK不可表示和反向超过9B UTF-8代码。Stage A的
 MacExInstrumentId仅为旧纯codec groundwork，未被新公开查询采用。
@@ -111,10 +121,15 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
    纯证据策略/tracker已写：默认要求全部setup回复；显式optional只在已声明的
    有序fence确认后结束。缺生产login规则时Protocol/Handshake拒绝，而不是
    误报成功。这仍不是可交付的默认登录方案，最终允许的证据阶段必须补齐。
-3. 接入独立MacClient/MacExClient、lazy builder/管理/探测/关闭、同一个操作预算。
-4. 接入分页/meta/raw，补真实公开client回环fixture源码后登记模块。
+3. 独立MacClient/MacExClient、lazy builder/管理/探测/关闭和首批简单方法已写；
+   一个操作沿用同一授权/期限/流量预算。共享探测调度支持8个worker和TCP-only。
+   MAC DataReady要求server_info的today有效；MAC-EX要求独立login及market38一行
+   goods。后者仅证明该样例命令可用，不代表全部市场/业务或生产默认login已验收。
+4. 继续quote_list/board_members/bars/transactions/boards/unusual分页、公开Bar和
+   Transaction秒级投影、HK EX路由、raw合并与来源。5个公开client回环源码已写，
+   模块已登记；取消/半包/failover/逐简单方法覆盖仍需补，所有执行继续延期。
 5. T26完成目录/fallback/缓存、聚合/排行、复权、同源下载及all-pages；T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
-详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint3。
+详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint4。
 实现源码完整不等于执行验收通过，当前任务总数仍23完成源码/2部分/5未开始。

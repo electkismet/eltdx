@@ -5,6 +5,14 @@ use serde_json::Value;
 use crate::{EventTime, TradingDate};
 use super::models::{FieldMeaning, MacMarketId, WireFloat};
 
+/// Independent source counters. `returned` alone supplies no EOF evidence.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct KlineOffsetInfo { pub(crate) total: u32, pub(crate) returned: u32 }
+impl KlineOffsetInfo {
+    pub const fn total(&self) -> u32 { self.total }
+    pub const fn returned(&self) -> u32 { self.returned }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WireText<const N: usize> { raw: [u8; N], text: String, replaced: bool }
 impl<const N: usize> WireText<N> {

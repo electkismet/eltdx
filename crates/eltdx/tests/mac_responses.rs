@@ -1,9 +1,6 @@
 // Source cases only. Do not execute before the T01-T30 implementation gate.
 #![cfg(feature = "mac")]
-#[path = "../src/mac/mod.rs"]
-mod mac;
-pub use eltdx::{DownloadOptions, Error, ErrorKind, EventTime, PageOptions, Result, TradingDate};
-pub use eltdx::{ex, types};
+use eltdx::{mac, TradingDate};
 use mac::{decode, responses::JsonPresence, models::{MacCode, RemoteFileName}};
 
 fn word(bytes: &mut [u8], offset: usize, value: u16) { bytes[offset..offset + 2].copy_from_slice(&value.to_le_bytes()); }

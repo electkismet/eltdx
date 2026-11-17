@@ -1,12 +1,6 @@
 // Authored Stage A source cases. Execution is deferred until T01-T30 code is complete.
 #![cfg(feature = "mac")]
-#[path = "../src/mac/mod.rs"]
-mod mac;
-
-// Until Stage B registers the complete MAC client, these source modules are
-// included by path and use the same crate-local imports as their final home.
-pub use eltdx::{DownloadOptions, Error, ErrorKind, EventTime, PageOptions, Result, TradingDate};
-pub use eltdx::{ex, types};
+use eltdx::mac;
 
 use mac::bitmap::{decode_bitmap, decode_slot, encode_bitmap, FieldId, FieldSelection, BitmapLayout};
 use mac::commands::{bars_request, build_request, decode_bars, decode_quote_rows, decode_hk_transaction, mac_ex_login_request, rewrite_mac_ex_head, MacResponseHeader};

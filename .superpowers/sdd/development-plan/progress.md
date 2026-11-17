@@ -2,6 +2,21 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage79: base2a11033. Preserved and completed
+  pending config/profile/session source integration; added independent
+  MacClient/MacExClient builders/management and feature mac root registration.
+  MAC13 simple methods and MAC-EX3 shared methods now use the one existing
+  EX session gate/worker/frame/control/probe scheduler. Added public Quote
+  bit/source/meta projection and KlineOffsetInfo. Three path-based suites now
+  import public eltdx::mac; authored5 mac_session fixture functions, unexecuted.
+  T25 remains partial: paginated list/members/bars/trades/boards/unusual,
+  rich Bar/Transaction seconds projection/HK routing/raw aggregation and
+  production handshake evidence remain. Missing production login evidence is
+  still Protocol/Handshake, not a completed default policy. MAC-EX DataReady
+  is only login+market38 one-goods sample, not all-market capability evidence.
+  Read task-25-report checkpoint4.23/2/5 unchanged; unlimited active goal,
+  all verification deferred, no agents/push/tags/publish/merge.
+
 - Latest recovery2026-11-17 stage78: query/pagination committed538b01d.
   Authored mac/handshake.rs exact optional identities/ordered fence tracker
   and bounded disjoint login reply evidence with5 unexecuted private functions.

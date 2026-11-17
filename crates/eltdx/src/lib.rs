@@ -28,6 +28,8 @@ pub mod types;
 pub mod f10;
 #[cfg(feature = "ex")]
 pub mod ex;
+#[cfg(feature = "mac")]
+pub mod mac;
 #[cfg(feature = "offline")]
 pub mod offline;
 #[cfg(feature = "offline")]

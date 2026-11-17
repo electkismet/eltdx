@@ -492,6 +492,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T25：MAC、MAC-EX 与未知字段
 
+2026-11-17 Stage B第四段源码恢复点：握手证据已提交`2a11033`；独立MacClient/MacExClient及builder/config/profile/owner已在feature mac下登记。MAC首13个简单方法及MAC-EX共享3方法接入既有EX门/worker/frame/预算/取消和探测调度；新增公开Quote的字段位保真/meta及KlineOffsetInfo。原path用例改公共导入，新增5个公开客户端回环/生命周期用例源码。全部未编译/执行，T25仍部分：分页/Bar/Transaction/HK接线与生产默认登录证据仍待完成；后者不能用合成ACK代替。23源码完整/2部分/5未开始不变。
+
 2026-11-17 Stage B第一段：新增简单响应模型/严格解析，覆盖分时/多日图/快照/板块/采样/商品/竞价/异动/服务器/文件及两类27B-prefix GBK JSON；文件名70B与代码22B独立校验。新增14个未执行函数用例，保留位图/原始数值/未知单位/日期/JSON presence，详见[MAC实现交接](mac-implementation-index.md)。T25仍部分，checked queries、profile/握手、owner/client/管理和公开登记尚待实现；总数仍23/2/5，全部执行验证延期。
 
 **文件：** 新增 `src/mac/{mod,session,bitmap,commands,models,routing}.rs`；新增 `tests/{mac_wire,mac_routing}.rs`。
