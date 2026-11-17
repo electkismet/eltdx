@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | T01–T30实现 | 完成 | 计划内Rust SDK、Python兼容桥接、独立Rust入口及文档/示例源码已写齐。Stage145依据生产样本修正Rust MAC-EX商品总数的31字节响应解析。 |
 | 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
-| 发布平台与隔离 | Linux x64隔离及发布 wheel 通过；macOS、Linux arm64待跑 | stage140补齐两种工具链隔离消费；stage142从sdist重建manylinux2014 x64 wheel，Python 3.10/3.14的基础消费与MCP冒烟均通过。 |
-| 注册表发布与消费 | 未发布 | stage141真实查询三个名称均返回404；本地归档及protocol的Cargo发布dry-run通过。缺少crates.io发布凭据；仍需真实发布及无patch消费。 |
+| 发布平台与隔离 | 已有 Linux x64、ARM 模拟和 Windows 证据；macOS、原生 ARM 待跑 | Stage140补齐两种工具链隔离；Stage142/143从sdist重建x64和arm64 manylinux2014 wheel。Stage147修复后Windows wheel通过Python 3.10/3.14独立消费。 |
+| 注册表发布与消费 | 未发布 | Stage147在干净候选实际查询三个名称均返回404；本地归档及protocol的Cargo发布dry-run通过。缺少crates.io发布凭据；发布后仍需用不带patch的独立项目验证。 |
 | 生产协议验收 | 部分公开主站流程已验证 | 两台MAC-EX主站以即时完整登录样本完成独立Rust查询，三个普通MAC主站通过默认三步握手及业务查询。可跨时段复用的MAC-EX登录规则、可选setup和category22仍待。已核对五份带证券与日期的公告，尚缺交易所当日价格边界。 |
 
 因此，当前可报告为“实现完成；记录范围内的本地核心验证通过；发布/生产验收未完成”。后两项依赖外部平台、注册表权限或生产数据，不用来回滚前两项状态，也不合并成一个完成比例。
@@ -58,7 +58,7 @@
 
 ## 后续工作
 
-- 发布平台：运行已准备的macOS平台和归档工作流，补齐macOS及Linux arm64发布产物。Linux x64隔离消费和源码包重建证据见[统一验证记录](unified-validation.md)。
+- 发布平台：对修复后的候选运行已准备的macOS平台和归档工作流，并在原生runner构建、安装和验证macOS及Linux arm64发布产物。x64隔离消费和ARM模拟源码包重建记录见[统一验证记录](unified-validation.md)。
 - 生产协议：取得跨时段的MAC-EX登录成功样本及独立失败样本，确认时钟字段与响应身份后再确定可长期使用的规则。另补可选setup的身份/顺序/fence、category22非空路径和交易所当日涨跌停价；未验证含义继续保持Unknown。
 - 注册表：在本机配置获授权的crates.io发布凭据后，核对包名、版本和账号权限，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前重新查询，404仅代表该时间点的查询结果。
 

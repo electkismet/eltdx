@@ -287,6 +287,12 @@ macOS runner入口已在本地准备：向公开仓库的 `codex/rust-sdk-implem
 
 对同一 wheel，CPython 3.10.22、3.14.10 均通过无索引二进制安装、`pip check`、本地非空公开 API 查询与关闭。两版本也各自通过带 MCP 的 `verify_wheel_matrix.py --single-wheel`，仅依赖安装阶段使用 PyPI。四个验证进程均 exit 0，见 `stage142-manylinux-consumer-attempt01/exits.txt` 与 `result.json`（SHA256 `d71d581ea2b3ca39233e2818dcd360592f20f67b0dad6fd47d90bb715f9cde8a`）。这一证据覆盖 Linux x64 发布标签及 sdist 重建；无编译器镜像证据仍由 stage140 提供。Linux arm64、macOS、公开 crates.io 发布及生产协议证据仍待取得。
 
+## Stage143：从源码分发包重建 Linux arm64 wheel（模拟环境）
+
+使用 Stage142 的 sdist（源码 `b9d50758d3b711786c0802fc8e6458fa9ab06bd4`，归档 SHA256 `7b1cc8733fb78e5b36088c57ba9821c57093a791c46163a97a8e863d57ce2f1d`），在 WSL2 x64 上用 QEMU AArch64 6.2 模拟 ARM。官方 manylinux2014 aarch64 镜像 digest `sha256:c2995cae5e2d433fbe757d1466486727b3edd68ba644cd60df253365f35fda9e`，使用 glibc 2.17、ARM Rust 1.89.0、maturin 1.15.0 离线编译，整个进程 exit 0。命令、镜像与日志散列见 `artifacts/unified/stage143-arm64-build-attempt01/result.json`（SHA256 `12c24d22bb58ee9eb16d56b59256d7663a6bc23faabcdc24e31c8f13cd503839`）。
+
+`eltdx-3.3.5-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl` SHA256 `dd0ea192e344e53922555ce8b5187813932b497fd7e89f984423670854665077`。原生扩展 ELF 机器号为 183（AArch64），SHA256 `39d3f3adebec11f35aeed6e9d48baf1a3f7f888bd595c9411e0c10f7a19f4af3`。CPython 3.10.22、3.14.10 同一 wheel 的无索引二进制安装、`pip check`、公开 API 非空回环查询与关闭均通过，各三条命令 exit 0；报告分别在 `cp310/installed-wheel.json` 和 `cp314/installed-wheel.json`。未在这一模拟环境执行 MCP 验证；该结果早于 Stage145 的商品总数修复，也不替代最终候选在原生 ARM 机器上的构建和运行。
+
 ## Stage144：带证券状态与日期的交易规则证据
 
 在源码提交 `0f7b2dad4afa325f039e5f255ca900d1016ffc2f` 上读取了交易所及官方披露平台的公开资料。`artifacts/unified/stage144-exchange-status-attempt01/` 和 `stage144-exchange-status-attempt02/` 分别保留请求响应、时间、HTTP 状态、原始文件及散列。两次下载中保留的上交所网页没有计入五份证券边界公告。用 pypdf 逐页检查了纳入的五份 PDF，共 18 处核对，复验文件 `stage144-exchange-status-attempt02/verified-notices.json` SHA256 `4cead22131f482203315cdf68d1cedc929f383d5464eb964e8f3790a939a5206`。
@@ -312,3 +318,9 @@ Windows CPython 3.12 安装了 Stage136 的 wheel（SHA256 `82b0bf70a847ea777507
 在仓库列出的三个公开 MAC 主站分别使用标准Python连接和服务器信息查询。每个会话按序完整收到三条setup响应（帧头均16字节，响应体86、86、179字节），第一条业务帧的响应体为203字节，解析得到日期 `2026-11-18`。各帧头、UTC时点、原始帧及散列见 `stage146-mac-setup-attempt01/result.json`（SHA256 `ce6a1331b86d49ccd43eba4af2404eb2f52b1def6dd355e7ba4e81724c94c579`）。
 
 基于 `45f658d` 的独立Rust consumer使用 `MacClient` 默认策略，在同三台线上主站完成连接、服务器信息查询、有效交易日期解析和关闭，三台均返回 `2026-11-18`，整个进程exit 0。见 `stage146-rust-mac-attempt01/result.json`（SHA256 `4bd129b734128050c3f0817a65ad03adc08985815b1edb0a3ffbe5d21ef03143`）。本轮每一步都有回复；未观察到省略、延迟或交错的可选setup响应，不能据这些标准会话启用可选策略。
+
+## Stage147：修复后 Windows wheel 与 registry 复核
+
+基于运行时代码 `45f658d6842765483420942667b37ab9866fda0c`（打包时有尚未提交的 Stage145–146 文档更新），离线执行 Windows `maturin build --release --locked`，exit 0。生成 `eltdx-3.3.5-cp310-abi3-win_amd64.whl`，SHA256 `a6dc247b031b27cff823b9fada04c29b3065c482d543b57561e673d3e5d0eb1d`。CPython 3.10.22 和 3.14.10 分别独立安装同一 wheel，通过 `pip check` 和非空公开 API 回环查询/关闭，两个消费命令均 exit 0。数据与命令见 `stage147-win-wheel-attempt01/result.json`（SHA256 `96b0bc2807c05a3dbeb24cc1284bda537c365b34c7a04d67e37861add69610b9`）。只验证改动后的 Windows 端点版本安装，与 Stage136 全解释器矩阵分开记录。
+
+registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有访问公开 registry。文档提交 `b405057470c7c58ea5b9962330639c2cd3927066` 后 attempt02 实际查询，2026-11-17 21:09:59–21:10:00 UTC 三个包名均404。记录 `stage147-registry-observation-attempt02/packages.json`（SHA256 `19999c91fa3f28219283f8cb8f137a35c62d4413a7d0cffaf08d94008c4a8bfd`）。同一干净候选的 GitHub 分支推送 dry-run 成功，未实际公开候选、未上传 crate。发布权限和发布后消费未验证。

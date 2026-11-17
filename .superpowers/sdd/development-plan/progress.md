@@ -1161,3 +1161,9 @@ Stage144 在 `0f7b2da` 查到五个具体证券的挂牌、风险状态或退市
 公开MAC-EX两主站的Python标准登录和商品总数均通过。从真实生产帧发现登录响应随服务器时钟变化，必须使用即时完整证据才能匹配目前的严格规则；随后发现两主站均返回31字节商品总数帧。提交 `45f658d` 只修正该生产品种的商品总数格式，不改变Python或标准EX行为。真实样本回归先失败，修复后86项通过；干净提交在两台主站以即时严格样本分别登录、查询110651、关闭，通过。不要将即时样本升为生产默认。原始失败、复验、报告定位见 `docs/rust-sdk/unified-validation.md` 的 Stage145。
 
 `stage145-archives-attempt01` 是在 `45f658d` 干净状态运行的重新打包，24条命令通过，含11种解包消费。Stage146普通MAC三个标准主站三条setup响应齐全，Rust默认连接、日期及close均通过；仍没有可选缺包场景，不能启用可选策略。旧Stage143仍需检查（会话 `87556`），它基于Stage142归档、早于本次商品总数修复。macOS/runners、发布凭据及registry消费继续待做；目标未完成且无限额。
+
+## Stage147：恢复检查点
+
+Stage143会话 `87556` 已退出0。候选 `b9d5075` 的 manylinux2014 aarch64 wheel 在 QEMU 模拟环境重建，Python 3.10/3.14 的独立消费通过。阶段未使用原生ARM，不替代对 `45f658d` 或其后等效代码候选的原生复验。Stage147重建 `45f658d` 的 Windows wheel 并通过 Python 3.10/3.14 安装、pip check、公开API查询及close；构建时尚有文档修改，本次没有全量重跑Stage136。程序源码已提交 `45f658d`，生产验收文档检查点为 `b405057`。
+
+同一干净候选 `b405057` 的三个 crates.io 名称再次返回404；首轮因dirty被跳过，两个attempt均保留。GitHub推送 dry-run 成功，未发布或推送。后续执行点：公开候选分支推送须确认，或接入已有macOS/ARM runner；本机缺crates.io发布凭据，配置后按依赖顺序发布并跑真实registry consumer；生产可复用的MAC-EX登录规则、普通MAC可选setup、category22非空、交易所实际价格边界继续待补。目标仍active且无限额。
