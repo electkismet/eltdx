@@ -324,3 +324,19 @@ Windows CPython 3.12 安装了 Stage136 的 wheel（SHA256 `82b0bf70a847ea777507
 基于运行时代码 `45f658d6842765483420942667b37ab9866fda0c`（打包时有尚未提交的 Stage145–146 文档更新），离线执行 Windows `maturin build --release --locked`，exit 0。生成 `eltdx-3.3.5-cp310-abi3-win_amd64.whl`，SHA256 `a6dc247b031b27cff823b9fada04c29b3065c482d543b57561e673d3e5d0eb1d`。CPython 3.10.22 和 3.14.10 分别独立安装同一 wheel，通过 `pip check` 和非空公开 API 回环查询/关闭，两个消费命令均 exit 0。数据与命令见 `stage147-win-wheel-attempt01/result.json`（SHA256 `96b0bc2807c05a3dbeb24cc1284bda537c365b34c7a04d67e37861add69610b9`）。只验证改动后的 Windows 端点版本安装，与 Stage136 全解释器矩阵分开记录。
 
 registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有访问公开 registry。文档提交 `b405057470c7c58ea5b9962330639c2cd3927066` 后 attempt02 实际查询，2026-11-17 21:09:59–21:10:00 UTC 三个包名均404。记录 `stage147-registry-observation-attempt02/packages.json`（SHA256 `19999c91fa3f28219283f8cb8f137a35c62d4413a7d0cffaf08d94008c4a8bfd`）。同一干净候选的 GitHub 分支推送 dry-run 成功，未实际公开候选、未上传 crate。发布权限和发布后消费未验证。
+
+## Stage148：标准 EX 实盘与当前候选回归
+
+原候选 `290307115c8073bd648fdcc185542f514d7f31a9` 的独立 Rust EX consumer 在 `116.205.143.214:7727` 完成连接和市场查询，但商品总数 `0x23f0` 收到31字节，旧解析只接受23字节，退出1，关闭正常。Python 同一主站的标准会话返回52个市场和111218个商品；响应带 `TDX_DS\0` 标记，小端计数偏移仍为19。原始帧、解压数据及请求记录均保留；解压数据 SHA256 为 `25e4732a72894241fb43713abc87987c0a66ba5e7109e6e39cc17cda61baca16`。新增回归在旧解析上复现失败（exit 101），见 `stage148-ex-red-attempt01/`。
+
+修复 `f2703c1fa52abf3bc683a12e60e07f4c06807489` 统一 EX 与 MAC-EX 的商品总数解码。原23字节布局仍可用；31字节布局必须带该标记，拒绝截断、超长、错误标记，不解释末尾8字节。该修复不改变 Python API。下列报告均位于 `artifacts/unified/`：
+
+| 验证 | 结果与证据 |
+| --- | --- |
+| 实盘复验 | `stage148-ex-attempt02/result.json`（SHA256 `37225d4ed8186cdb2003029b904381c5a7377d1fca37d8ae65ec1abcbea00bf4`）。独立 Rust 1.89 consumer 仅启用 `ex`，同一主站一次正常会话查询得到52个市场、111218个商品，和 `stage148-ex-wire-attempt01` 的 Python 实测一致，关闭成功，exit 0。修复前失败见 `stage148-ex-attempt01`。 |
+| Windows x64 和 Linux x64 | 同一干净提交以 Rust 1.89.0 运行 `ex_wire`、`ex_session`、`extended_catalogs`、`extended_loopback`、`mac_wire`、`mac_session`，两平台各113项通过、0失败。Windows `stage148-windows-clean-attempt01/result.json`（SHA256 `b39ef798838932b9f0e0c05aeb24a1a427e7a7091b6a786296a2504483759988`）；Linux WSL2 使用干净 Git 归档，`stage148-linux-candidate-attempt04/result.json`（SHA256 `8460123549321a25b0eb142e3455d597faa1e6258d4d7197a2dd8b373b048530`）。Linux attempts 01–02 未进入测试，attempt03 的112项绑定原候选 `2903071`。 |
+| 独立 Rust 归档 consumer | `stage148-archives-attempt01/packages.json`（SHA256 `10d1f874e2b40d77e29471368c399f03d941de580a6e6e05228c55f98a8478cb`）。Windows/Rust 1.89 同一干净候选三包打包、解包检查及11种消费者场景，24条命令均 exit 0。`eltdx-0.1.0.crate` SHA256 `114022e2edc98e201bf352c0670cbd971ef12eb18b9f371b97a7254ac018e6fd`；下层包散列未变。消费使用本地目录源及解包 patch。 |
+| Windows abi3 wheel | `stage148-win-wheel-attempt01/result.json`（SHA256 `6b8baecc2e0a324843dfd555b55f22102f4295f073b337170d94dc39ddbc8d01`）。从同一干净候选在 Rust 1.89 离线构建，wheel SHA256 `974e9ae5a45a988bee6f51fe964fdc5730041d7c280a14fff71d9066e5a1023e`。CPython 3.10.22 和 3.14.10 各自独立安装，`pip check`、公开 API 非空查询与关闭均通过。这个端点版本验证不替代 Stage136 的五版本完整矩阵或 Stage140 无编译工具镜像。 |
+| 公开注册表 | `stage148-registry-observation-attempt01/packages.json`（SHA256 `33a924bc83cd74ecbe4d8b6ddc34153cf681ca881e665340f53983932ff23f9a`）。2026-11-17 21:20:30–31 UTC，三个名称仍为404。本机没有 Cargo 发布凭据，未发布；404不证明命名权或发布权限。 |
+
+程序候选冻结在 `f2703c1`；后续文档提交只更新证据和接续说明。macOS 平台及归档任务沿候选分支 push 事件运行，`Publish` 可以对该分支手动运行 wheel/sdist 验证（包括 Linux 原生 ARM、macOS Intel/ARM），该触发方式不会上传 PyPI。仓库 Actions 已启用，无接入的自托管 runner；候选分支尚未公开。MAC-EX 可复用生产登录规则、MAC 可选 setup、category 22 非空数据和交易所实际限价仍缺相应生产证据。标准 EX 通过只覆盖本主站本次会话。

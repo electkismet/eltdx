@@ -1167,3 +1167,9 @@ Stage144 在 `0f7b2da` 查到五个具体证券的挂牌、风险状态或退市
 Stage143会话 `87556` 已退出0。候选 `b9d5075` 的 manylinux2014 aarch64 wheel 在 QEMU 模拟环境重建，Python 3.10/3.14 的独立消费通过。阶段未使用原生ARM，不替代对 `45f658d` 或其后等效代码候选的原生复验。Stage147重建 `45f658d` 的 Windows wheel 并通过 Python 3.10/3.14 安装、pip check、公开API查询及close；构建时尚有文档修改，本次没有全量重跑Stage136。程序源码已提交 `45f658d`，生产验收文档检查点为 `b405057`。
 
 同一干净候选 `b405057` 的三个 crates.io 名称再次返回404；首轮因dirty被跳过，两个attempt均保留。GitHub推送 dry-run 成功，未发布或推送。后续执行点：公开候选分支推送须确认，或接入已有macOS/ARM runner；本机缺crates.io发布凭据，配置后按依赖顺序发布并跑真实registry consumer；生产可复用的MAC-EX登录规则、普通MAC可选setup、category22非空、交易所实际价格边界继续待补。目标仍active且无限额。
+
+## Stage148：标准 EX 生产复验与发布接续
+
+代码检查点 `f2703c1fa52abf3bc683a12e60e07f4c06807489` 统一处理 EX/MAC-EX 商品总数。原候选实盘的23/31字节失败、Python原始帧、旧解析红灯和修复成功结果均保留。干净候选的独立 EX consumer 对同一主站查到52个市场、111218个商品，与 Python 一致，正常关闭；Windows/Linux Rust 1.89 六组回归各113项通过；Windows 三crate归档24条命令通过，含11种解包consumer；Windows abi3 wheel 的 CPython 3.10.22/3.14.10 独立消费均通过。逐报告 SHA256 见 `docs/rust-sdk/unified-validation.md` Stage148。Linux attempt03 绑定旧候选，不能当成修复证据；04 是本次干净复验。
+
+接续：先取得公开候选分支的推送授权（或合适的现成runner），在同一候选完成 macOS Rust 1.89/stable、归档和 `Publish` 分支手动验证的 macOS/Linux ARM 产物消费。三个 crates.io 名称在 Stage148 再次实查404；取得发布凭据后按 protocol → runtime → SDK 顺序发布、逐包核对归档，再运行真实 `registry-consumer`，保留失败。生产仍缺长期 MAC-EX 登录、可选 MAC setup、实验 category 22 非空、交易所实际限价；没有新证据不启用默认规则。目标继续，无额度上限，不用重复已通过的 Stage148 范围。
