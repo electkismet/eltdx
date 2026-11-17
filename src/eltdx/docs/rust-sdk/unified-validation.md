@@ -446,3 +446,11 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 `artifacts/unified/stage168-hq-money-flow-attempt01/verify.py` 独立核对日志散列与退出码，解压 483 字节响应帧得到同一份 480 字节 payload，核对帧类型 `0x0ffc`、证券身份、各条日期、金额浮点位模式和全部 16 个分档，均与 SDK 结果一致。`verified.json` SHA256 `46bbdc7e1cbc5cd1fca6833da1edbaf0c3bfac06675406ff8afea157c42a1879`。wire SHA256 `ba2b983c6c0986155d733204cb79b8d09636cf1ad677fddd27083ca921812446`，payload SHA256 `7651e31c65a34de0434948532f9d008394ab19515e8ecf8636461cfd436ea4c7`。
 
 补齐冻结 fixture 库存中 `money_flow/0x0FFC/nonempty-wire-capture` 的外部验收证据，不修改其冻结清单或发布候选。结果只覆盖该主站和该证券的本次查询，不确认金额单位，SDK 仍返回 `Unknown`；实验 `0x052d` category 22 的非空证据继续缺失，Stage163 的 F10 历史资金流也单列。
+
+## Stage169：同一候选的无 Python Rust 消费和发布名称复查
+
+2026-11-17 23:35–39 UTC，在固定换行的干净检出 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 生成 Git 归档，SHA256 `387dae5b396a4713b0aaa0f20ef1a66a5d121a6a40f1b9e0878ef466b28ea907`。复用固定 OCI `rust@sha256:294917190b5a3fed18d3303213943f40ec9b644b3cd6e5cdc8cd029334a770b3`，检查镜像文件和 PATH 不含 Python、pip、maturin；WSL2 独立命名空间仅有 loopback，未挂载宿主工具或源码目录。使用 Rust 1.89，以离线索引和压缩依赖包在镜像内从独立 Cargo workspace 编译。
+
+12 次消费者运行全部通过，覆盖最小、默认和 full，包括非空 HQ/F10/EX/MAC/MAC-EX 回环及离线文件；最小和 full 的 normal/build 依赖树均不含 Python 绑定。`offline`、`f10`、`ex`、`mac` 禁用时均命中 E0432，逐一启用后编译成功。根 Cargo.lock 与发布检出字节一致。内外两层均 exit 0，证据为 `artifacts/unified/stage169-isolated-rust-attempt01/` 和 `stage169-isolated-rust-tools-attempt01/`。首轮复核表达式漏计 `f10`，保留失败日志；在同一份运行原始日志上修正并复核通过，`verified.json` SHA256 `3ab8e3932e720bd01e0b106a78f02c032b1c15f3ae2c84a0616eb96ac6882c84`。此项验证的是 Rust 源码独立消费；公开 registry 消费仍须另行验证。
+
+在同一干净检出读 crates.io，2026-11-17 23:35:01–02 UTC 三个名称仍均返回 HTTP 404。查询原响应逐份核对哈希，`artifacts/unified/stage169-registry-observation-attempt01/packages.json` SHA256 `dd018166ef956be1e978d02744364380210a5cdb3300299ec8100e4a0e0e974d`。本机无发布凭据，未执行上传，404 不证明账号有命名或发布权限。

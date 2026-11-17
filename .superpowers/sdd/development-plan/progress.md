@@ -1241,3 +1241,7 @@ Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.
 ## Stage168：补齐 7709 日资金流完整生产帧
 
 冻结候选 `6a6cd8b` 的 Rust 1.89 独立最小消费者从一个专用主站获取 `sh600000` 最近五日日资金流，关闭成功。`artifacts/unified/stage168-hq-money-flow-attempt01/verified.json` 将原始 wire 与解压后的 payload 独立核对，五条 88 字节记录的日期、金额位模式和全部分档对应一致。原始帧在本地保留，运行时代码及金额 `Unknown` 语义不变。仍缺 category 22 非空以及 MAC-EX、可选 setup 与交易所原始价格记录；没有配置 crates.io 凭据，未发布。
+
+## Stage169：冻结候选无 Python 镜像与注册表核对
+
+同一 `6a6cd8b` 的无 Python OCI 镜像复验通过：12 次真实消费者运行、两份依赖树、四组 feature 禁用/启用，根锁字节与发布检出一致。原始日志和复核报告见 `artifacts/unified/stage169-isolated-rust-tools-attempt01/verified.json`。crates.io 只读复查三个名称均 404，原响应见 `stage169-registry-observation-attempt01/packages.json`。本机仍无发布凭据，按 Stage166 的顺序待发布并验证公开消费；生产侧未取得新样本。

@@ -1,6 +1,6 @@
 # T28：独立消费者与平台矩阵
 
-下表定位验证入口和证据范围。实际报告见[统一验证记录](unified-validation.md)：Stage131–132 为 Windows 平台与 feature/Loom 验证，Stage134 为 Linux Rust 1.89 full 与 Loom，Stage149 为两个互相独立的工具链镜像，Stage159 为冻结候选的 macOS Rust 与归档检查，Stage166 为同候选全部五个平台的 Python wheel 安装，Stage167 为同候选的 Linux Rust 1.100 full、严格 Clippy 和格式检查。每份报告保留实际候选 SHA；公开 registry 消费另见[发布政策](release-policy.md)。
+下表定位验证入口和证据范围。实际报告见[统一验证记录](unified-validation.md)：Stage131–132 为 Windows 平台与 feature/Loom 验证，Stage134 为 Linux Rust 1.89 full 与 Loom，Stage149 为两个互相独立的工具链镜像；Stage159、166、167、169 分别验证了冻结候选的 macOS Rust 和归档、五平台 Python wheel 安装、Linux Rust 1.100 检查，以及无 Python 镜像中的独立 Rust 消费。每份报告保留实际候选 SHA；公开 registry 消费另见[发布政策](release-policy.md)。
 
 | 要求 | 源码入口 | 执行证据要求 |
 | --- | --- | --- |
