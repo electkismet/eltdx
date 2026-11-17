@@ -39,12 +39,20 @@ fn stress_actual_sdk_budgets_with_slow_server_and_bounded_queue() -> Case {
     let server = hq_server::Server::start_controlled(move |request, connection| {
         assert_eq!(request.msg_type, 0x044d);
         let id = hq_server::directory_offset(request) as usize;
-        captured.wire_for(id, connection.identity(), request.msg_id, request.msg_type).expect("wire evidence");
+        if id < workers * per_worker { captured.wire_for(id, connection.identity(), request.msg_id, request.msg_type).expect("wire evidence"); }
+        else { captured.wire(connection.identity(), request.msg_id, request.msg_type).expect("warmup wire evidence"); }
         thread::park_timeout(Duration::from_millis(1));
         hq_server::directory(&[(&format!("{:06}", 100_000 + id), 2)])
     })?;
     let client = TdxClient::builder().endpoints(vec![server.address]).pool_size(4)
         .heartbeat_interval(None).request_timeout(Duration::from_secs(10)).build()?;
+    let warmup = CodeQuery::new().with_start((workers * per_worker) as u32)?.with_limit(1)?;
+    for _ in 0..128 {
+        assert_eq!(client.codes().list(HqMarket::Shanghai, &warmup,
+            &OperationOptions::default().with_raw(RawPolicy::RetainWire))?.items().len(), 1);
+    }
+    log.write("\"kind\":\"configuration\",\"pool\":4,\"max_pending\":256,\"directory_payload_bytes\":39,\"server_delay_ms\":1,\"warmup_requests\":128".into())?;
+    log.warmed()?;
     sample(&client, &log)?;
     let finished = Arc::new(AtomicBool::new(false));
     let sampler = {

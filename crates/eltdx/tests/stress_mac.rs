@@ -38,7 +38,8 @@ fn stress_mac_ex_catalog_macro_cache_lifecycle() -> Case {
     let cycles = stress_log::count("ELTDX_RUST_STRESS_MAC_CYCLES", 500, 100, 5_000)?;
     let log = stress_log::Log::start("mac_cache", cycles, 1)?;
     let market = ExMarketId::from_wire(38); let pages = PageOptions::new(600, 8, 100)?;
-    for id in 0..cycles {
+    for iteration in 0..=cycles {
+        let id = iteration.saturating_sub(1);
         let started = Instant::now();
         let (endpoint, task) = peer(|mut stream| {
             assert_eq!(request(&mut stream, 1, 0x2454)?.len(), 80);
@@ -73,7 +74,12 @@ fn stress_mac_ex_catalog_macro_cache_lifecycle() -> Case {
         assert_eq!(new_goods.rows()[0].actual_code(), "X_B");
         join(task)?;
         drop((old_directory, cached_directory, old_goods, new_goods, client));
-        log.terminal(id, "completed", started.elapsed())?;
+        if iteration == 0 {
+            log.write("\"kind\":\"configuration\",\"catalog_page_size\":600,\"max_pages\":8,\"max_records\":100,\"macro_cache_reads\":8,\"warmup_owners\":1".into())?;
+            log.warmed()?;
+        } else {
+            log.terminal(id, "completed", started.elapsed())?;
+        }
     }
     log.finish(cycles)?; Ok(())
 }

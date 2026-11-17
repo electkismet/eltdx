@@ -29,6 +29,18 @@ CASES = {
     "mac_cache": ("stress_mac", "stress_mac_ex_catalog_macro_cache_lifecycle", 500),
     "budgets": ("eltdx", "client::stress_internal::stress_actual_sdk_budgets_with_slow_server_and_bounded_queue", 32_000),
 }
+CONFIGURATIONS = {
+    "unique": dict(pool=4, max_pending=256, directory_payload_bytes=39, warmup_requests=128),
+    "inflight": dict(pool=1, max_pending=256, directory_payload_bytes=39, warmup_requests=1),
+    "close": dict(pool=1, max_pending=256, directory_payload_bytes=39, warmup_owners=1),
+    "subscription": dict(pool=1, subscription_queue_frames=2, subscription_queue_bytes=8388608, warmup_subscriptions=1),
+    "limits": dict(pool=1, download_max_bytes=30000, page_size=1, max_pages=4, max_records=4, warmup_downloads=1),
+    "retry": dict(pool=1, max_pending=256, wire_attempt_limit=2, directory_payload_bytes=39, warmup_requests=1),
+    "financial": dict(rows=256, fields_per_row=64, warmup_archives=1),
+    "f10": dict(http_workers_per_owner=4, http_response_rows=1, http_request_max_bytes=1024, warmup_owners=1),
+    "mac_cache": dict(catalog_page_size=600, max_pages=8, max_records=100, macro_cache_reads=8, warmup_owners=1),
+    "budgets": dict(pool=4, max_pending=256, directory_payload_bytes=39, server_delay_ms=1, warmup_requests=128),
+}
 # Fixed before execution. Changes require rationale and retained failed evidence.
 POLICY = {
     "sample_interval_seconds": 0.02,
@@ -189,6 +201,12 @@ def inspect_case(directory: Path, name: str, record: dict, system: str) -> dict:
         expected = 2_000 if system == "Windows" else 10_000
     if events[0]["expected"] != expected or events[-1]["completed"] != expected:
         raise ValueError("Default workload count changed: " + name)
+    configurations = [event for event in events if event["kind"] == "configuration"]
+    if len(configurations) != 1 or any(configurations[0].get(key) != value for key, value in CONFIGURATIONS[name].items()):
+        raise ValueError("Missing or changed workload configuration: " + name)
+    concurrency = {"unique": 8, "budgets": 32}.get(name, 1)
+    if events[0]["concurrency"] != concurrency or events[0]["seed"] != 0:
+        raise ValueError("Changed concurrency or seed")
     terminals = [event for event in events if event["kind"] == "terminal"]
     identities = [integer(event["id"]) for event in terminals]
     if len(terminals) != expected or set(identities) != set(range(expected)):
@@ -235,11 +253,16 @@ def inspect_case(directory: Path, name: str, record: dict, system: str) -> dict:
         if any(max(event[field] for event in budgets) == 0 for field in ("raw_peak", "decoded_peak", "queue", "live_actors")):
             raise ValueError("Budget/queue workload did not exercise its claimed path")
     phases = [event for event in events if event["kind"] == "phase"]
-    baseline = next(event["unix_ns"] for event in phases if event["phase"] == "baseline")
-    measurement = next(event["unix_ns"] for event in phases if event["phase"] == "measurement")
+    baseline = max(event["unix_ns"] for event in phases if event["phase"] == "baseline")
     cooldown = next(event["unix_ns"] for event in phases if event["phase"] == "cooldown")
     # A warmup's final measurement marker supersedes the start marker.
     measurement = max(event["unix_ns"] for event in phases if event["phase"] == "measurement")
+    end = [event for event in phases if event["phase"] == "end"]
+    if (len(end) != 1 or not baseline < measurement < end[0]["unix_ns"] <= cooldown
+            or configurations[0]["unix_ns"] >= baseline):
+        raise ValueError("Missing completed warmup/measurement/end boundaries")
+    if any(not measurement <= event["unix_ns"] <= end[0]["unix_ns"] for event in terminals):
+        raise ValueError("Warmup/cooldown outcomes included in measured workload")
     samples = list(rows(directory / (name + "-resources.ndjson")))
     before = [row for row in samples if baseline <= row["unix_ns"] < measurement]
     during = [row for row in samples if measurement <= row["unix_ns"] < cooldown]
@@ -272,12 +295,27 @@ def inspect_case(directory: Path, name: str, record: dict, system: str) -> dict:
     if late_growth["rss"] > POLICY["late_rss_growth_bytes"] or late_growth["resources"] > POLICY["late_resource_growth"]:
         raise ValueError("Late steady-workload resource growth exceeded")
     latencies = [event["latency_ns"] for event in terminals]
-    duration = (cooldown - measurement) / 1e9
+    stages = {}
+    stage_ids = {}
+    for event in events:
+        if event["kind"] == "latency":
+            stages.setdefault(event["stage"], []).append(integer(event["latency_ns"]))
+            stage_ids.setdefault(event["stage"], []).append(integer(event["id"]))
+    expected_stage = {"inflight": ("admitted_cancel_confirm", expected // 2), "close": ("owner_close", expected)}.get(name)
+    if expected_stage and len(stages.get(expected_stage[0], [])) != expected_stage[1]:
+        raise ValueError("Missing actual cancellation/close latency observations")
+    if expected_stage:
+        expected_ids = set(range(0, expected, 2)) if name == "inflight" else set(range(expected))
+        if set(stage_ids[expected_stage[0]]) != expected_ids:
+            raise ValueError("Cancellation/close latency identity mismatch")
+    duration = (end[0]["unix_ns"] - measurement) / 1e9
     return dict(terminals=len(terminals), actual_wire_requests=len(wires), associated_wire_requests=len(associated),
                 time_wait_for_observed_pairs_peak=max(time_wait),
-                concurrency=events[0]["concurrency"], peaks=peaks, cooldown_delta=deltas, late_growth=late_growth,
+                concurrency=events[0]["concurrency"], configuration=CONFIGURATIONS[name], peaks=peaks, cooldown_delta=deltas, late_growth=late_growth,
                 throughput_per_second=len(terminals) / duration,
                 latency_ns={label: percentile(latencies, fraction) for label, fraction in (("p50", .50), ("p95", .95), ("p99", .99))},
+                stage_latency_ns={stage: {label: percentile(values, fraction) for label, fraction in (("p50", .50), ("p95", .95), ("p99", .99))}
+                                  for stage, values in stages.items()},
                 budget_peaks={field: max((event[field] for event in budgets), default=None)
                               for field in ("raw_peak", "decoded_peak", "queue", "live_actors", "configured_workers")})
 

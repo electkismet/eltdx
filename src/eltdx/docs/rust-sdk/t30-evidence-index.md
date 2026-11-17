@@ -1,6 +1,6 @@
 # T30 压力、性能与最终交付证据索引
 
-当前为源码阶段恢复记录。以下压力源码、采集器及工作流均未编译、启动或执行，不是通过证据。T30 仍部分完成；性能工具、最终文档与 R01–R12 逐项交接还需补齐。T19 源码收尾尚未完成，全部 T01–T30 源码写齐前不能进入统一验证。
+当前为源码阶段恢复记录。以下压力/性能源码、采集器及工作流均未编译、启动或执行，不是通过证据。T30 仍部分完成；性能源码已补，最终文档与 R01–R12 逐项交接还需补齐。T19 源码收尾尚未完成，全部 T01–T30 源码写齐前不能进入统一验证。
 
 ## 独立 Rust 压力源码
 
@@ -20,6 +20,8 @@
 | budgets | 32 callers×1000、pool4、每请求服务器延迟1ms | 实际 SDK 目录请求；私有 seam 采集 engine raw/decoded 当前/max/peak、queue、配置 worker 和活动 actor/generation；关后预算为零 |
 
 `hq_server.rs` 为长期压力补充物理连接 identity 与活动数，并及时 join 已完成连接线程。发生任一 fixture 错误时，accept loop 保留首错、停止并 join 所有子线程，避免测量工具自身积累线程。普通回归仍须覆盖此公共 fixture 修改。
+
+十个场景现均先走真实预热路径，再记录独立的warmed baseline和measurement边界；配置日志保存pool/queue/页/记录/byte限制或fixture尺寸。预热不计terminal工作量，owner类另有一个预热owner，unique/budgets另有128个请求。inflight单独记录已admit取消到调用终态的admitted_cancel_confirm，close单独记录owner_close；采集器核对这两类时延的业务ID与数量，不以整轮耗时冒充。baseline/middle/cooldown OS资源取最后一次预热边界，吞吐取measurement至end，均在复验时从原始日志重算。
 
 ## 采集和复验
 
@@ -56,8 +58,8 @@ python scripts/verification/rust_sdk_stress.py aggregate --implementation-comple
 
 ## 尚待写齐的源码和文档
 
-- 固定语料的 Rust core / Python conversion / loopback / 外部网络分层 benchmark、样本和原始性能证据复验。
-- 更完整的 warmup/ready 同步、场景配置/CPU与close/cancel时延明细；源码自审并不替代最终压力运行。
+- 固定语料的Rust core、旧/新Python解析和模型构造、非空loopback、实际close及预取消微负载源码已写，详见[性能政策](performance-policy.md)。84个默认trial、同release profile、两个真实构建wheel及原始日志复验入口均未执行；外部网络仅显式opt-in。
+- 继续压力/性能源码自审及剩余代次/资源证据交接；源码自审并不替代最终压力运行。
 - R01–R12逐项最终交接、rustdoc/示例说明、Python迁移说明、发行说明与维护手册。
 - T19剩余源码审查和证据交接。生产MAC-EX登录和optional MAC setup关联证据仍缺，不能把合成ACK升级为默认生产规则。
 

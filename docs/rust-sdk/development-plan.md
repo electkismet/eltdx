@@ -607,6 +607,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T30：最终覆盖、性能和维护文档
 
+2026-11-17第二段源码恢复点（stage112，基础c5584c9）：固定语料Rust/旧新Python性能worker、release wheel来源与84trial采集复验、性能政策和独立workflow已写；10类压力补真实预热/配置/取消及close分阶段时延。详见[performance-policy.md](performance-policy.md)。全部未执行；T30仍部分，继续最终覆盖/文档和T19源码收尾，28完整源码/2部分不变。
+
 2026-11-17第一段源码恢复点（stage111，基础43ec6b5）：10个ignored原生压力场景、私有实际SDK预算遥测、OS采集和原始日志复验聚合器及独立手动工作流已写；详见[t30-evidence-index.md](t30-evidence-index.md)。全部未执行，T30仍部分；性能工具/最终文档与T19源码继续。28源码完整/2部分(T19/T30)/0未开始，以下验收框保持未通过。
 
 **文件：** Rust rustdoc、示例、Python迁移说明、能力索引、发布说明、压力/性能证据索引。

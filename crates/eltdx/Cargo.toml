@@ -58,3 +58,7 @@ required-features = ["offline"]
 [[example]]
 name = "ex_query"
 required-features = ["ex"]
+
+[[example]]
+name = "measure_candidate"
+required-features = ["offline"]

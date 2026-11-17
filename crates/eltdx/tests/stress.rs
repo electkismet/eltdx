@@ -54,7 +54,8 @@ fn stress_unique_terminals_and_bounded_concurrency() -> Case {
     let client = client(&server, 4)?;
     log.phase("warmup")?;
     for _ in 0..128 { one(&client, total, &OperationOptions::default())?; }
-    log.phase("measurement")?;
+    log.write("\"kind\":\"configuration\",\"pool\":4,\"max_pending\":256,\"directory_payload_bytes\":39,\"warmup_requests\":128".into())?;
+    log.warmed()?;
     let operations = (|| -> Case {
         let mut jobs = Vec::new();
         for worker in 0..workers {
@@ -104,7 +105,8 @@ fn stress_inflight_cancel_then_recovery_never_crosses_identity() -> Case {
     let server = Server::start_controlled(move |request, connection| {
         assert_eq!(request.msg_type, 0x044d);
         let id = hq_server::directory_offset(request) as usize;
-        captured.wire_for(id, connection.identity(), request.msg_id, request.msg_type).expect("wire log");
+        if id < cycles * 2 { captured.wire_for(id, connection.identity(), request.msg_id, request.msg_type).expect("wire log"); }
+        else { captured.wire(connection.identity(), request.msg_id, request.msg_type).expect("warmup wire log"); }
         if id % 2 == 0 {
             entered_tx.send(id).expect("cancel controller");
             assert_eq!(release_rx.lock().expect("release mutex").recv_timeout(Duration::from_secs(10)).expect("release"), id);
@@ -112,6 +114,9 @@ fn stress_inflight_cancel_then_recovery_never_crosses_identity() -> Case {
         directory(id)
     })?;
     let client = client(&server, 1)?;
+    one(&client, cycles * 2 + 1, &OperationOptions::default())?;
+    log.write("\"kind\":\"configuration\",\"pool\":1,\"max_pending\":256,\"directory_payload_bytes\":39,\"warmup_requests\":1".into())?;
+    log.warmed()?;
     let operation = (|| -> Case {
         for cycle in 0..cycles {
             let id = cycle * 2;
@@ -121,14 +126,16 @@ fn stress_inflight_cancel_then_recovery_never_crosses_identity() -> Case {
             let started = Instant::now();
             let job = thread::spawn(move || one(&child, id, &options));
             let arrival = entered_rx.recv_timeout(Duration::from_secs(5));
-            token.cancel();
+            let cancelled_at = Instant::now(); token.cancel();
             let result = job.join().map_err(|_| io::Error::other("cancelled caller panicked"));
+            let confirmed_after = cancelled_at.elapsed();
             // Always release the source, including cleanup errors. Its late
             // result must never become the next call's different identity.
             let released = release_tx.send(id);
             assert_eq!(arrival?, id);
             released?;
             assert_eq!(result?.expect_err("cancelled call succeeded").kind(), ErrorKind::Cancelled);
+            log.latency(id, "admitted_cancel_confirm", confirmed_after)?;
             log.terminal(id, "cancelled", started.elapsed())?;
             let started = Instant::now();
             one(&client, id + 1, &OperationOptions::default())?;
@@ -149,22 +156,30 @@ fn stress_connected_owner_cycles_retire_all_sockets_and_service_handles() -> Cas
     let captured = log.clone();
     let server = Server::start_controlled(move |request, connection| {
         let id = hq_server::directory_offset(request) as usize;
-        captured.wire_for(id, connection.identity(), request.msg_id, request.msg_type).expect("wire log");
+        if id < cycles { captured.wire_for(id, connection.identity(), request.msg_id, request.msg_type).expect("wire log"); }
+        else { captured.wire(connection.identity(), request.msg_id, request.msg_type).expect("warmup wire log"); }
         directory(id)
     })?;
+    let warmup = client(&server, 1)?;
+    one(&warmup, cycles, &OperationOptions::default())?;
+    warmup.close()?; closed(&server)?; drop(warmup);
+    log.write("\"kind\":\"configuration\",\"pool\":1,\"max_pending\":256,\"directory_payload_bytes\":39,\"warmup_owners\":1".into())?;
+    log.warmed()?;
     for id in 0..cycles {
         let started = Instant::now(); let client = client(&server, 1)?;
         let codes = client.codes(); let quotes = client.quotes();
         one(&client, id, &OperationOptions::default())?;
         let mut pin = client.pin(&OperationOptions::default())?;
         pin.close()?;
-        client.clone().close()?; client.close()?;
+        let closing_at = Instant::now(); client.clone().close()?;
+        log.latency(id, "owner_close", closing_at.elapsed())?;
+        client.close()?;
         assert_eq!(codes.list(HqMarket::Shanghai, &CodeQuery::new(), &OperationOptions::default()).expect_err("old handle reopened").kind(), ErrorKind::Closed);
         assert_eq!(quotes.snapshots(&[], &OperationOptions::default()).expect_err("old quotes reopened").kind(), ErrorKind::Closed);
         closed(&server)?;
         log.terminal(id, "completed", started.elapsed())?;
     }
-    assert_eq!(server.connection_count(), cycles);
+    assert_eq!(server.connection_count(), cycles + 1);
     server.finish()?; log.finish(cycles)?; Ok(())
 }
 
@@ -183,8 +198,17 @@ fn stress_subscription_overflow_and_release() -> Case {
         _ => panic!("unexpected stress subscription command"),
     })?;
     let client = client(&server, 1)?;
-    let ids = ["sh600000", "sh600001", "sh600002"].iter().map(|value| value.parse()).collect::<eltdx::Result<Vec<_>>>()?;
+    let ids = (0..3).map(|index| eltdx::SecurityId::new(HqMarket::Shanghai, &format!("{:06}", 600_000 + index)))
+        .collect::<eltdx::Result<Vec<_>>>()?;
     let options = OperationOptions::default();
+    {
+        let policy = SubscriptionOptions::default().with_renew_interval(None).with_queue_limits(2, 8 * 1024 * 1024);
+        let mut ready = client.quotes().subscribe(&ids, &policy, &options)?;
+        assert!(matches!(ready.next_event(&options)?, Some(PushEvent::Initial(_))));
+        ready.close()?;
+    }
+    log.write("\"kind\":\"configuration\",\"pool\":1,\"subscription_queue_frames\":2,\"subscription_queue_bytes\":8388608,\"warmup_subscriptions\":1".into())?;
+    log.warmed()?;
     for id in 0..cycles {
         let started = Instant::now();
         // A successful close waits for its source work to stop; discard any
@@ -214,10 +238,14 @@ fn stress_protocol_errors_and_aggregate_limits() -> Case {
     let server = Server::start(|request| match request.msg_type {
         0x044d => directory(hq_server::directory_offset(request) as usize),
         0x06b9 => { let mut body = 30_000_u32.to_le_bytes().to_vec(); body.extend_from_slice(&vec![0; 30_000]); body },
-        0x053e => vec![0xff],
+        0x02cf => vec![0xff],
         _ => panic!("unexpected resource stress command"),
     })?;
     let client = client(&server, 1)?;
+    let ready = client.resources().download_file("bounded", 30_000, &OperationOptions::default())?;
+    assert_eq!(ready.data.len(), 30_000); drop(ready);
+    log.write("\"kind\":\"configuration\",\"pool\":1,\"download_max_bytes\":30000,\"page_size\":1,\"max_pages\":4,\"max_records\":4,\"warmup_downloads\":1".into())?;
+    log.warmed()?;
     for id in 0..cycles {
         let started = Instant::now();
         let query = CodeScanQuery::new().with_pages(PageOptions::new(1, 4, 4)?)?;
@@ -244,13 +272,17 @@ fn stress_disconnect_retries_preserve_operation_identity() -> Case {
     let server = Server::start_controlled(move |request, connection| {
         assert_eq!(request.msg_type, 0x044d);
         let id = hq_server::directory_offset(request) as usize;
-        captured.wire_for(id, connection.identity(), request.msg_id, request.msg_type).expect("wire log");
-        if seen.lock().expect("retry fixture mutex").insert(id) {
+        if id < cycles { captured.wire_for(id, connection.identity(), request.msg_id, request.msg_type).expect("wire log"); }
+        else { captured.wire(connection.identity(), request.msg_id, request.msg_type).expect("warmup wire log"); }
+        if id < cycles && seen.lock().expect("retry fixture mutex").insert(id) {
             connection.disconnect().expect("forced disconnect");
         }
         directory(id)
     })?;
     let client = client(&server, 1)?;
+    one(&client, cycles, &OperationOptions::default())?;
+    log.write("\"kind\":\"configuration\",\"pool\":1,\"max_pending\":256,\"wire_attempt_limit\":2,\"directory_payload_bytes\":39,\"warmup_requests\":1".into())?;
+    log.warmed()?;
     let operation = (|| -> Case {
         for id in 0..cycles {
             let started = Instant::now();
@@ -286,7 +318,9 @@ fn stress_financial_zip_limits_and_cancel_release() -> Case {
     let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
     zip.start_file("report.dat", zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored))?;
     zip.write_all(&dat)?; let archive = zip.finish()?.into_inner();
-    log.write(format!("\"kind\":\"configuration\",\"dat_bytes\":{},\"archive_bytes\":{},\"rows\":{rows},\"fields_per_row\":{fields}", dat.len(), archive.len()))?;
+    log.write(format!("\"kind\":\"configuration\",\"dat_bytes\":{},\"archive_bytes\":{},\"rows\":{rows},\"fields_per_row\":{fields},\"warmup_archives\":1", dat.len(), archive.len()))?;
+    assert_eq!(financial::parse_zip_detailed(&archive, &FinancialReadOptions::new())?.rows().len(), usize::from(rows));
+    log.warmed()?;
     for id in 0..cycles {
         let started = Instant::now();
         let token = CancellationToken::default();
@@ -357,7 +391,8 @@ fn stress_f10_connected_owner_worker_lifecycle() -> Case {
         Ok(())
     });
     let operation = (|| -> Case {
-        for id in 0..cycles {
+        for iteration in 0..=cycles {
+            let id = iteration.saturating_sub(1);
             let started = Instant::now();
             let client = F10Client::builder().with_base_url(url.clone()).build()?;
             let retained = client.clone();
@@ -368,13 +403,18 @@ fn stress_f10_connected_owner_worker_lifecycle() -> Case {
             client.close()?; retained.close()?;
             assert_eq!(retained.call(&query, &OperationOptions::default()).expect_err("closed HTTP owner reopened").kind(), ErrorKind::Closed);
             drop(retained); drop(client);
-            log.terminal(id, "completed", started.elapsed())?;
+            if iteration == 0 {
+                log.write("\"kind\":\"configuration\",\"http_workers_per_owner\":4,\"http_response_rows\":1,\"http_request_max_bytes\":1024,\"warmup_owners\":1".into())?;
+                log.warmed()?;
+            } else {
+                log.terminal(id, "completed", started.elapsed())?;
+            }
         }
         Ok(())
     })();
     stopped.store(true, Ordering::Release);
     let peers = peer.join().map_err(|_| io::Error::other("HTTP lifecycle fixture panicked"));
     operation?; peers??;
-    assert_eq!(completed.load(Ordering::SeqCst), cycles);
+    assert_eq!(completed.load(Ordering::SeqCst), cycles + 1);
     log.finish(cycles)?; Ok(())
 }

@@ -31,6 +31,14 @@ impl Log {
     pub fn phase(&self, phase: &'static str) -> io::Result<()> {
         self.write(format!("\"kind\":\"phase\",\"phase\":\"{phase}\""))
     }
+    pub fn warmed(&self) -> io::Result<()> {
+        self.phase("baseline")?;
+        std::thread::park_timeout(Duration::from_secs(1));
+        self.phase("measurement")
+    }
+    pub fn latency(&self, id: usize, stage: &'static str, elapsed: Duration) -> io::Result<()> {
+        self.write(format!("\"kind\":\"latency\",\"id\":{id},\"stage\":\"{stage}\",\"latency_ns\":{}", elapsed.as_nanos()))
+    }
     pub fn terminal(&self, id: usize, outcome: &'static str, elapsed: Duration) -> io::Result<()> {
         self.write(format!("\"kind\":\"terminal\",\"id\":{id},\"outcome\":\"{outcome}\",\"latency_ns\":{}", elapsed.as_nanos()))
     }
@@ -41,6 +49,7 @@ impl Log {
         self.write(format!("\"kind\":\"wire\",\"operation\":{operation},\"connection\":{connection},\"id\":{id},\"command\":{command}"))
     }
     pub fn finish(&self, completed: usize) -> io::Result<()> {
+        self.phase("end")?;
         self.phase("cooldown")?;
         std::thread::park_timeout(Duration::from_secs(2));
         self.write(format!("\"kind\":\"finish\",\"completed\":{completed}"))?;
