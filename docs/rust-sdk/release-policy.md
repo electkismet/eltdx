@@ -1,6 +1,6 @@
 # Rust SDK 与 Python 版本、打包及发布政策
 
-本页规定候选版本与发布边界。T01–T30源码已进入统一验收；stage132在Windows/Rust1.89实际生成并检查三个`.crate`，并从解包归档运行11次外部consumer，使用staging directory source与显式patch模拟尚未发布的内部依赖。此前registry observation在观测时三名称均404。具体候选、通过和失败见[统一验证](unified-validation.md)，本地归档消费不表示注册表已可用，也不表示已经发布或完成验收。
+本页规定候选版本与发布边界。T01–T30源码已进入统一验收；stage132与stage138在Windows/Rust1.89实际生成并检查三个`.crate`，并从解包归档运行11次外部consumer，使用staging directory source与显式patch模拟尚未发布的内部依赖。stage137在最新候选上重新只读查询时，三个名称均返回404。具体候选、通过和失败见[统一验证](unified-validation.md)，本地归档消费不表示注册表已可用，也不表示已经发布或完成验收。
 
 | 产品或组件 | 候选版本 | 依赖关系与安装 |
 | --- | --- | --- |
@@ -13,6 +13,10 @@
 内部依赖同时写 path 和 version。path 用于开发；归档规范化清单使用注册表版本。首次 SDK 使用 0.x；0.1.x 保留已文档化的稳定入口和行为，破坏兼容的公开改动必须升级 minor 并附迁移说明；隐藏的 `__python_compat` 不是 Rust 稳定接口。Python 产品的签名、默认值、模型、异常、hooks 和安装路径仍按原兼容合同维护，SDK 0.x 的版本变化不授权破坏 Python API。
 
 `eltdx`、`eltdx-protocol`、`eltdx-runtime` 于2026年11月17日11:43:52–53 UTC的实际crates.io查询均返回404，原响应/hash见stage126的registry-observation-attempt01；账号发布权尚未验证。注册表404只表示该时点查询未找到，不能证明命名权。若下层 `3.3.5` 已发布且内容与候选不同，必须选择新的下层版本并同步精确依赖；不能重新上传同版本或把注册表旧源码当作本地新代码。实际lock已于统一验证阶段解析并使用Rust1.89执行；lock及源码身份仍必须与每次验收候选对应。
+
+stage137在提交`aa4255a2e9baeb547ae70f30a67b671bef5cef99`上再次进行只读观察，`eltdx-protocol@3.3.5`、`eltdx-runtime@3.3.5`和`eltdx@0.1.0`均返回HTTP404，时间为`2026-11-17T17:55:41Z`。响应原文与SHA256、候选lock和工具版本见`artifacts/unified/stage137-registry-observation-attempt01/packages.json`（SHA256 `4cb9969e56817b5149ffeb9f5e1dbf9229d6dc9f068c0e2c4fa073692c360f91`）。这只是该时点的名称存在性观察，不代表保留名称、账号权限、发布成功或注册表消费。
+
+stage138的Windows/Rust1.89归档验证以同一当前源码树执行，24条工具命令全部exit0，三个归档的manifest/文件内容已检查；从实际解包文件运行11种最小/default/full consumer模式均成功。结果见`artifacts/unified/stage138-archives-attempt01/packages.json`（SHA256 `1519ace848c8809e5a8ad8c337c7a043955f9c26a444c2683471a47f38e1530f`）。下层包由本地目录源登记，消费者显式patch到真实解包内容；不属于公开registry身份或发布验证。
 
 三个 Rust 库各自包含 README 和原 LICENSE 的逐字副本，Cargo include 限定 manifest/lock、许可证、说明、src 和适用 examples。SDK 另包含两个小型测试辅助源码 `tests/support/hq_server.rs` 和 `stress_log.rs`，供 `cfg(test)` 私有预算压力模块在归档中编译；它们不进入生产依赖或运行时。其余仓库测试和大型 fixture 留在仓库；这些测试仍须在最终候选 SHA 上完整运行。归档消费不依赖仓库外部语料。项目原非商业学习和数据研究许可不因 SDK 增加而改变，不填入不符的 MIT/Apache SPDX 标签。
 

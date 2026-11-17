@@ -231,3 +231,11 @@ Python版本差异修正在测试层：AST快照不再依赖`ast.unparse`的括�
 该矩阵补齐了Windows上的声明Python版本范围，不补齐macOS/非Windows wheel、物理隔离环境、公开registry无patch消费、生产MAC/setup/category22样本或权威涨跌停规则。统一验收仍active；这些外部证据缺口维持未闭合。
 
 stage136文档 attempt01 针对本节与验收索引的更新执行了`check_release_metadata.py`、`mkdocs build --strict`、`check_pages_links.py site`及dirty-tree `git diff --check`，四项均exit0，逐命令SHA和日志见`artifacts/unified/stage136-docs-attempt01/results.json`（文件SHA256 `1d8c0013c9efa9af1e78e87983c5c9dc45c31466067b12392b5b2f5a5ecd8d81`）。恢复提交`fa9355e`之后再次执行相同四项门禁，均exit0且Git工作树clean；逐命令日志及hash见`artifacts/unified/stage136-docs-attempt03/results.json`（文件SHA256 `33ceffc0a69374ca7b74c76a74c0d3d74966de5e7ca2249ad885111621b0e41a`）。attempt01保留dirty-tree证据，attempt03绑定已提交的文档树，不相互覆盖。
+
+## Stage137–138：Registry观察与当前归档
+
+提交`aa4255a2e9baeb547ae70f30a67b671bef5cef99`上的只读crates.io观察于`2026-11-17T17:55:41Z`完成：`eltdx-protocol@3.3.5`、`eltdx-runtime@3.3.5`和`eltdx@0.1.0`均HTTP404。原始响应、Rust1.89版本、候选lock SHA和退出码见`artifacts/unified/stage137-registry-observation-attempt01/packages.json`（SHA256 `4cb9969e56817b5149ffeb9f5e1dbf9229d6dc9f068c0e2c4fa073692c360f91`）。这只表示所记录时点查无该名称，不证明名称可发布或账号拥有权限；没有执行发布dry-run或上传。
+
+同一源码树的`rust_sdk_packages.py archives` Windows/Rust1.89 attempt成功：24条命令exit0，生成并检查`eltdx-protocol 3.3.5`、`eltdx-runtime 3.3.5`、`eltdx 0.1.0`三个crate归档；外部Rust consumer从实际解包内容运行11种lazy/loopback/default/full/F10/offline/financial/EX/MAC/MAC-EX模式，均通过。归档SHA256依次为`f12daac55b851830782f8bfed834775ca9acadb37898156f0dc5c633a0150910`、`3d012ac9698de03dc49409f20cfa992fb2b056a834230e80eb0c4354cf6b0c37`、`568ec8eb422337fcd123db3d4cbae50672c1f72456f9173e37722cecb3312cbe`；报告为`artifacts/unified/stage138-archives-attempt01/packages.json`（SHA256 `1519ace848c8809e5a8ad8c337c7a043955f9c26a444c2683471a47f38e1530f`）。这是directory-source与unpacked-patch本地模拟消费，不是registry消费。
+
+发布后无patch注册表消费仍不可执行：当前下层候选名称未出现在registry，实际发布也不在本次授权范围。stage138不提供macOS、物理隔离或生产协议证据；统一验收继续active。
