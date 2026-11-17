@@ -380,3 +380,9 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 在干净检查点 `051c11f10e8516b24319e19b86e4a123236dbbdc` 上，用 Stage148 的 Windows wheel（SHA256 `974e9ae5a45a988bee6f51fe964fdc5730041d7c280a14fff71d9066e5a1023e`）对两台已知公开主站各建立一次正常会话。2026-11-17 22:04 UTC，两次登录、商品总数查询及关闭均成功，均返回 110651。`artifacts/unified/stage153-mac-ex-hour-apart-attempt01/result.json` SHA256 `5f858e8dfd440a15569f857d2455849f82d1f4c575156ae325f38f14b254f417`；同目录保留原始帧、解压数据、命令和日志。
 
 离线校验逐主站与 Stage145 首批样本对照，两轮相隔约 4160 秒。登录帧头和解压长度 299 均未变；零基偏移 57、58、60 是仅有的载荷差异。将偏移 53–60 按小端年份、月、日、分、时、固定零字节、秒解读为 UTC+8 时间时，与各次采集起点误差均小于 5 秒。`verified.json` SHA256 `00e14d2199e6c3dfa1ca5010461d344cfa3eee51407c49f579e7430a1a775df1`。这为跨小时成功响应中的候选时钟字段提供依据；未跨日、未覆盖其他网络条件，无独立服务端拒绝样本，仍不能启用默认生产登录规则。Rust 与 Python 产品代码未改。
+
+## Stage154：Linux x64 wheel 的五版本独立消费
+
+使用 Stage149 在 `33d542d544579456b996f550fecdffdf87363bda` 构建的同一份 manylinux2014 x64 `cp310-abi3` wheel，在干净检查点 `5373824aa3d7b717427001ccdcc9f9b27e806b6a` 执行消费验证。两提交之间的产品代码、Cargo.lock 和消费者脚本一致。CPython 3.10.22、3.11.18、3.12.16、3.13.18、3.14.10 各自以独立虚拟环境执行只接受二进制的无索引安装、`pip check`、非空公开 API 回环查询和关闭，15 条命令和外层脚本均 exit 0。五次都核对 wheel SHA256 `9af2aa792efa8bce55758e51131673de5d2eafbd842018cf8f5d8a4674733632` 和内置扩展 SHA256 `312064aebd194c055dd5a7fae0a8f1b0ec5bd7a9c38786402b89abaef94d4b5b`。
+
+命令、逐版本报告和原始日志位于 `artifacts/unified/stage154-linux-python-matrix-attempt01/`；`result.json` SHA256 `89f4abed6b7b08a0f225f5e2415c9ab02a9eb18540a2dbe4029a19558d18f4e8`。环境为 WSL2 manylinux2014 x64，独立命名空间只开启回环，限制了消费者 PATH；另由 Stage149 的无编译工具镜像验证无需安装编译工具。此轮未运行完整 Python 回归套件或 MCP 扩展，不覆盖 macOS、原生 Linux ARM 或生产行情。

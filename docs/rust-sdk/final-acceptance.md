@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | T01–T30实现 | 完成 | 计划内Rust SDK、Python兼容桥接、独立Rust入口及文档/示例源码已写齐。Stage145–148依据生产样本修正Rust MAC-EX、标准EX商品总数的31字节响应解析。 |
 | 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
-| 发布平台与隔离 | 已有 Linux x64、ARM 模拟和 Windows 证据；macOS、原生 ARM 待跑 | Stage149在含修复的干净候选上复验两种工具链隔离，并从sdist离线重建Linux x64 manylinux2014 wheel。Stage143的arm64 wheel来自旧候选的模拟环境。Stage148的Windows wheel通过Python 3.10/3.14独立消费。 |
+| 发布平台与隔离 | 已有 Linux x64、ARM 模拟和 Windows 证据；macOS、原生 ARM 待跑 | Stage149在含修复的干净候选上复验两种工具链隔离，并从sdist离线重建Linux x64 manylinux2014 wheel；同一 wheel 通过 Stage154 的 CPython 3.10–3.14 独立消费。Stage143的arm64 wheel来自旧候选的模拟环境。Stage148的Windows wheel通过Python 3.10/3.14独立消费。 |
 | 注册表发布与消费 | 未发布 | Stage148在干净候选实际查询三个名称均返回404；本地归档通过，先前的protocol Cargo发布dry-run也通过。缺少crates.io发布凭据；发布后仍需用不带patch的独立项目验证。 |
 | 生产协议验收 | 部分公开主站流程已验证 | 标准EX主站完成查询52个市场与111218个商品，与Python实测一致；三个普通MAC主站通过默认三步握手及业务查询。两台MAC-EX主站以即时完整样本完成独立Rust查询，Stage151回放进一步验证匹配样本的查询和跨时段不匹配时的关闭。仍待可复用的MAC-EX登录规则及服务端拒绝样本、可选setup和category22非空证据。Stage150核对三笔证监会披露的涨停价，尚缺交易所当日参考价和双侧边界。 |
 
@@ -28,7 +28,7 @@
 | R08 订阅 | subscription/dispatcher及Python兼容fanout | `subscription.rs`、`legacy_push.rs`、Python orchestration合同和压力subscription | 唯一push消费者、订阅pin持有/释放、续期/重同步、queue字节/帧限额、gap及关闭竞争 |
 | R09 F10/EX/MAC边界 | [F10传输](f10-transport-index.md)、[端点](f10-implementation-index.md)、[EX](ex-implementation-index.md)、[MAC](mac-implementation-index.md)、[T26](t26-implementation-index.md) | `f10_http/values/routes/named_methods/route_inventory/results`；`ex_wire/session`、`mac_wire/session/routing`、extended组合 | 非空请求/响应、157入口和具名分支、动态重复列/未知slot/GBK/序号/时间；每个生产profile另有独立证据 |
 | R10 文件下载有界 | [offline](offline-migration-index.md)、[financial](financial-implementation-index.md)、HQ/MAC下载 | `offline_bars/offline_blocks/offline_industry/gbbq`、`financial/financial_service/resources/stats/extended_downloads`及故障I/O | 逐字节roundtrip、残尾append不写、原末条阈值、partial write、ZIP目录与解压限额、完整EOF和LimitReached区别 |
-| R11 兼容决策 | [Python基线](python-baseline.md)、[56个兼容案例](compatibility-cases.md)、[决策](decision-register.md) | manifest/static/reflection/public/model/错误与逐域合同；Windows Python3.10–3.14全套local/loopback/golden矩阵 | 原签名/默认/别名/异常context/cache/hooks/重开/文件行为；任何有意变化独立记录，不改黄金值遮盖 |
+| R11 兼容决策 | [Python基线](python-baseline.md)、[56个兼容案例](compatibility-cases.md)、[决策](decision-register.md) | manifest/static/reflection/public/model/错误与逐域合同；Windows Python3.10–3.14全套local/loopback/golden矩阵，Linux x64 Python3.10–3.14 wheel 安装和公开 API 冒烟验证 | 原签名/默认/别名/异常context/cache/hooks/重开/文件行为；任何有意变化独立记录，不改黄金值遮盖 |
 | R12 可交付可复验 | [发布政策](release-policy.md)、[T30压力](t30-evidence-index.md)、[性能](performance-policy.md)、[维护](maintenance.md) | feature/platform/MSRV、doctest/doc、最新候选crate归档consumer、Windows Python3.10–3.14 wheel、原始压力性能复验 | 同一候选的干净来源/lock/hash/平台/命令/计数/失败日志；不把local patch或path消费称为公开registry通过 |
 
 表中的测试名是 `crates/eltdx/tests` 中的target，runtime文件在 `crates/eltdx-runtime/tests`；Python合同与集成目录分别是 `tests/contracts`、`tests/integration`，扩展/F10迁移合同还在其分域测试目录中，精确路径与nodes以分域索引和manifest为准。目录名、方法名和函数数量只是定位信息，执行后须核对实际收集集合和行为断言覆盖。
