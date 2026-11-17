@@ -1,17 +1,17 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
-- Recovery2026-11-17 stage130: all T01-T30 sources are complete; unified
-  validation is active. On clean fe361f9, Windows x64 Rust1.100 platform
-  attempt01 passed protocol/runtime, minimal/default/full, serde, strict docs,
-  and strict Clippy, then failed only fmt import ordering in legacy_push.rs;
-  external consumer did not run after the gate failed. Sorted imports and
-  `cargo +stable fmt --all --check` passed. Rust-only PATH consumer attempt01
-  stopped at crates.io index timeout before build; offline attempt02 is ready
-  but not started. Stage130 metadata/MkDocs/site links passed. Next commit this
-  checkpoint, rerun Windows/MSRV matrices and external archives/consumer on the
-  clean candidate, then final wheel/Python, features/Loom/Linux, stress and 84
-  performance trials. Physical no-Python, macOS, multi-Python and production
-  protocol evidence remain open. Goal active/unlimited; no release/push/tag/merge.
+- Recovery2026-11-17 stage130/131: all T01-T30 sources are complete; unified
+  validation remains active. On checkpoint2f35261, Windows Rust1.100 platform
+  attempt04 passed all31 gates offline; Windows Rust1.98 attempt02 also passed.
+  Rust-only PATH consumer and feature exclusion checks exit0, with process-path
+  isolation only. Windows Rust1.89 attempt01 passed all behavior/docs/clippy
+  gates and failed only fmt due 1.89/1.100 import-sort disagreement. Replaced
+  imports with crate-qualified names; both formatter versions now pass. Commit
+  this correction, then rerun both final platform matrices and 32-feature maps,
+  Loom and archive consumers. Stage130 docs gates passed but must rerun after
+  this ledger update. Wheel/Python, Linux behavior, two-platform native stress,
+  84 performance trials, physical no-Python image, macOS, multi-Python, and
+  production protocol evidence remain open. Goal active/unlimited.
 - Recovery2026-11-17 stage129: checkpoint ec09a40 fixed one-endpoint pagination
   to reuse the base pool. A real TDD red test proved max_connections=1 failed
   on page2; green codes6, HQ regression59 and the original external loopback

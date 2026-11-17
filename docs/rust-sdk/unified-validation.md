@@ -158,8 +158,10 @@ pagination-green-attempt01首次已完成扫描，但新增显式cursor测试误
 
 ## Stage130：最终候选平台复验进行中
 
-2026年11月17日，基线提交 `fe361f967fd061504a530bad6d37b23b8118dd1d`，Windows x64/MSVC 的 Rust 1.100.0 platform attempt01 保存于 `artifacts/unified/stage130-clean-candidate/windows-current-stable-platform-attempt01/`。协议/runtime、minimal/default/full SDK、Serde合同、五组严格rustdoc、全目标严格Clippy均exit0；最后的 `cargo fmt --all --check` 因 `tests/legacy_push.rs` 两条import排序不符而exit1，所以完整矩阵失败，外部consumer门禁未运行。已按rustfmt排序修正；`cargo +stable fmt --all --check` 随后exit0，stable对应rustc 1.100.0。最终平台矩阵仍需在提交后的干净候选重跑。
+2026年11月17日，检查点提交 `2f3526169e846a07943b2f5e0084312f24aa94cb`。Windows x64/MSVC Rust 1.100.0 platform attempt01 保存于 `artifacts/unified/stage130-clean-candidate/windows-current-stable-platform-attempt01/`，最后仅在fmt失败。attempt03复用专用Rustup toolchain但联网consumer锁生成超时；attempt04启用Cargo离线，完整矩阵31个Cargo门禁全部exit0，包括protocol/runtime、minimal/default/full SDK、Serde、strict rustdoc、strict Clippy、fmt、依赖闭包及所有consumer模式。当前candidate即attempt04成功。另用系统Rust 1.98.0 执行platform attempt02也通过31个门禁，记录在 `windows-stable-platform-attempt02/`，作为额外兼容性数据，不替代官方1.100和MSRV1.89矩阵。
 
-同候选的Rust-only PATH隔离消费者 attempt01 在 `cargo generate-lockfile` 请求crates.io `config.json` 时连续超时，未进入consumer构建；原始日志和失败状态保留在 `rust-only-path-isolated-attempt01/`。离线attempt02脚本已设为使用任务cache并指定新输出目录，尚未启动。该检查仅能证明PATH不暴露Python可执行文件，不能替代物理隔离的无Python容器。stage130文档元数据、严格MkDocs和站点本地链接检查attempt01均exit0。
+同候选的Rust-only PATH隔离消费者 attempt01 在 `cargo generate-lockfile` 请求crates.io `config.json` 时连续超时，未进入consumer构建；原始日志和失败状态保留在 `rust-only-path-isolated-attempt01/`。离线attempt02现已exit0：最小及full依赖树均无Python/PyO3/maturin；外部Rust consumer的lazy、loopback、offline、financial、F10、EX、MAC、MAC-EX模式，以及offline/F10/EX/MAC禁用模块的负向检查和启用检查均通过。该检查仅证明PATH不暴露Python可执行文件，不能替代物理隔离的无Python容器。stage130文档metadata/MkDocs/site links attempt01在旧检查点通过；加入本次日志后将重跑正式文档门禁。
 
-下一步：先提交import格式和恢复文档，再在干净提交上以已安装的Rust 1.100 toolchain重跑Windows平台矩阵、MSRV矩阵、归档消费者和离线PATH隔离consumer；随后补最终候选wheel/Python回归、32 feature子集、Loom、Linux行为、两平台默认压力和84 trial性能。以上项目尚未完成，整体验收仍active；macOS、多Python版本、生产协议抓包和物理无Python环境仍是外部证据缺口。
+Windows MSRV1.89 platform attempt01执行于 `2f35261`，协议/runtime、minimal/default/full、Serde、五组strict rustdoc、SDK全目标strict Clippy及所有运行测试/doctest均通过；最后 `fmt --check` 因Rustfmt1.89与1.100对 `eltdx::__python_compat` 和 `eltdx::RawPolicy` 的排序相反而失败。现在测试改为crate-qualified路径，Rustfmt1.89和1.100独立的全仓fmt命令均exit0；完整MSRV平台矩阵待新提交后复跑。旧失败记录保留在 `windows-msrv-platform-attempt01/`。
+
+下一步：提交跨版本fmt修正和更新恢复点后，重跑Windows Rust1.89与1.100平台矩阵、两版32 feature子集、Loom及正式crate archive消费者；随后重建最终候选wheel并重跑Python完整回归，补Linux行为、两平台默认压力和84 trial性能。以上尚未完成，整体验收仍active；macOS、多Python版本、生产协议抓包和物理无Python环境仍是外部证据缺口。

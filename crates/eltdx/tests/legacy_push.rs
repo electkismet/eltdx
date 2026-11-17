@@ -3,8 +3,6 @@
 //! Authored compatibility source cases; execution is deferred with the full plan.
 use std::time::{Duration, Instant};
 
-use eltdx::__python_compat::{LegacyChildPurpose, LegacyExecutor};
-use eltdx::RawPolicy;
 use eltdx_protocol::commands::quotes::RefreshStreamRequest;
 use eltdx_protocol::CommandRequest;
 use eltdx_runtime::{Engine, EngineConfig, EngineConfigOptions, RuntimeError};
@@ -44,7 +42,7 @@ fn exclusive_legacy_reader_preserves_runtime_overflow_and_original_frames() {
         .unwrap(),
     )
     .unwrap();
-    let legacy = LegacyExecutor::new(
+    let legacy = eltdx::__python_compat::LegacyExecutor::new(
         engine.clone(),
         Duration::from_secs(2),
         Duration::from_secs(1),
@@ -53,12 +51,12 @@ fn exclusive_legacy_reader_preserves_runtime_overflow_and_original_frames() {
     .unwrap();
     let reader = legacy.claim_raw_push_reader().unwrap();
     let operation = legacy
-        .begin_operation("raw-push-source-case", RawPolicy::RetainWire, None)
+        .begin_operation("raw-push-source-case", eltdx::RawPolicy::RetainWire, None)
         .unwrap();
     let reply = operation
         .execute_raw(
             CommandRequest::RefreshStream(RefreshStreamRequest::new(Vec::new()).unwrap()),
-            LegacyChildPurpose::Required,
+            eltdx::__python_compat::LegacyChildPurpose::Required,
             None,
         )
         .unwrap();
