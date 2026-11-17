@@ -56,41 +56,7 @@ class GetExHistoryInstrumentBarsRangeCmd(BaseCommand[list[ExInstrumentBar]]):
     def parse_response(self, body: bytes) -> list[ExInstrumentBar]:
         """解析历史K线响应。"""
 
-        pos = 12  # skip 12-byte header
-        if pos + 2 > len(body):
-            return []
-        (ret_count,) = struct.unpack("<H", body[pos : pos + 2])
-        pos += 2
-        results: list[ExInstrumentBar] = []
-        for _ in range(ret_count):
-            record_start = pos
-            if pos + 32 > len(body):
-                break
-            (d1, d2, open_p, high, low, close_p, position, trade, settlement) = struct.unpack(
-                "<HHffffIIf",
-                body[pos : pos + 32],
-            )
-            pos += 32
-            year, month, day = self._parse_date(d1)
-            hour, minute = self._parse_time(d2)
-            results.append(
-                ExInstrumentBar(
-                    open=open_p,
-                    high=high,
-                    low=low,
-                    close=close_p,
-                    position=position,
-                    trade=trade,
-                    amount=settlement,
-                    year=year,
-                    month=month,
-                    day=day,
-                    hour=hour,
-                    minute=minute,
-                    _raw=body[record_start:pos],
-                )
-            )
-        return results
-
+        from eltdx._native_abi import load_native
+        return load_native().ex_response_parse("range", self, body, _MODULES[__name__])
 
 __all__ = ["GetExHistoryInstrumentBarsRangeCmd"]

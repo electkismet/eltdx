@@ -1,5 +1,49 @@
 # T27 implementation report
 
+## Stage 9 — all EX response parsers and shared slot schemas (2026-11-17, stage96)
+
+Base3f73981. Authored extension_parse.rs and registered three native entry
+functions. All11 EX response methods now delegate, including today's/history
+minute/transaction private record helpers and both public-callable quote-list
+helpers. Shared ex::layout now owns quote/list field names/slots/types and
+record formats; strict quote and list projections use the same field schemas.
+Python keeps existing DTO/OrderedDict/struct/GBK/custom helper object adapters.
+
+Preserve every legacy short-header result, directory complete-prefix handling,
+zero-market-and-category padding, right-only versus both-side NUL trimming,
+GBK replace versus single-quote UTF-8 replace and original raw slice/type.
+Count keeps live guarded unpack and int. Today minute/transaction use self
+helpers; history captures the live today class helper. Keep no clock/calendar
+validation, signed interest, raw integer price, seconds>59 coerce0 and nature.
+Ordinary bars call live datetime before numeric completeness, retain position
+integer plus its same-slot float amount, and ignore the last float. Range
+requires all32 bytes before overridden date/time hooks and keeps settlement
+as amount. Quote takes only150 source bytes, all31 named numeric fields,
+unknown slots and nonfinite values stay unchanged.
+
+Quote-list keeps per-record category/hook lookup, 300-byte stride but140-byte
+numeric sufficiency, both-side code trim, original OrderedDict order and
+custom position in-place addition. The frozen futures source format returns35
+values for34 assignment targets: retain ValueError on ordinary full records;
+custom unpack that returns34 still projects original names. Independent Rust
+keeps native strict decoding/opaque slot bytes. This is an explicit existing
+Python defect, not repaired or hidden. Custom range/count/struct/model errors,
+constructor-before-raw/call-before-argument captures and markets <=/None raw
+semantics have source fixtures.
+
+Added tests/test_native_extension_parse_contract.py with26 public functions
+(5 parametrized), plus1 Rust schema function. Eight newly authored extension
+contract files total166 Python public functions. None collected/compiled/run.
+No tests/build/check/network/dependency/AST/format/diff validation executed.
+
+Counts25 complete source/2 partial(T19/T27)/3 unstarted(T28-T30), unchanged.
+Next MAC commands/parsers, frame/codec/price/date helpers, then complete
+transport/owner/generation/config/host/probe/export/manifest/consumer migration.
+Then T28-T30/T19 source closure and unified verification/repairs/real production
+login and optional-boundary evidence. Goal active unlimited; no agents,
+publication or controller-state edits. Recovery commit is source preservation.
+
+
 ## Stage 8 — EX wire requests and binary/date adapters (2026-11-17, stage95)
 
 Basec48a967. Resumed with two unfinished source files: EX layout registry and

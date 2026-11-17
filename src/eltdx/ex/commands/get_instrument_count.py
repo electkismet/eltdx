@@ -20,10 +20,7 @@ class GetExInstrumentCountCmd(BaseCommand[int]):
     def parse_response(self, body: bytes) -> int:
         """解析商品总数响应。"""
 
-        if len(body) < 23:
-            return 0
-        (count,) = unpack_from("<I", body, 19, "ex instrument count")
-        return int(count)
-
+        from eltdx._native_abi import load_native
+        return load_native().ex_response_parse("count", self, body, _MODULES[__name__])
 
 __all__ = ["GetExInstrumentCountCmd"]

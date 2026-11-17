@@ -25,36 +25,13 @@ class GetExTransactionDataCmd(BaseCommand[list[ExTransactionRecord]]):
     def parse_response(self, body: bytes) -> list[ExTransactionRecord]:
         """解析当日分笔成交响应。"""
 
-        if len(body) < 16:
-            return []
-        (_market, _code, _unk, num) = struct.unpack("<B9s4sH", body[0:16])
-        return self._parse_records(body, 16, num)
+        from eltdx._native_abi import load_native
+        return load_native().ex_response_parse("transactions", self, body, _MODULES[__name__])
 
     @staticmethod
     def _parse_records(body: bytes, pos: int, num: int) -> list[ExTransactionRecord]:
-        results: list[ExTransactionRecord] = []
-        for _ in range(num):
-            if pos + 16 > len(body):
-                break
-            record_start = pos
-            (raw_time, price, volume, zengcang, direction) = struct.unpack("<HIIiH", body[pos : pos + 16])
-            pos += 16
-            second = direction % 10000
-            if second > 59:
-                second = 0
-            results.append(
-                ExTransactionRecord(
-                    hour=raw_time // 60,
-                    minute=raw_time % 60,
-                    second=second,
-                    price=price,
-                    volume=volume,
-                    zengcang=zengcang,
-                    nature=direction // 10000,
-                    _raw=body[record_start:pos],
-                )
-            )
-        return results
+        from eltdx._native_abi import load_native
+        return load_native().ex_records_parse("transactions", body, pos, num, _MODULES[__name__])
 
 
 class GetExHistoryTransactionDataCmd(BaseCommand[list[ExTransactionRecord]]):
@@ -80,10 +57,8 @@ class GetExHistoryTransactionDataCmd(BaseCommand[list[ExTransactionRecord]]):
     def parse_response(self, body: bytes) -> list[ExTransactionRecord]:
         """解析历史分笔成交响应。"""
 
-        if len(body) < 16:
-            return []
-        (_market, _code, _unk, num) = struct.unpack("<B9s4sH", body[0:16])
-        return GetExTransactionDataCmd._parse_records(body, 16, num)
+        from eltdx._native_abi import load_native
+        return load_native().ex_response_parse("history_transactions", self, body, _MODULES[__name__])
 
 
 __all__ = ["GetExTransactionDataCmd", "GetExHistoryTransactionDataCmd"]

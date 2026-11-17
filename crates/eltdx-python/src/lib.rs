@@ -29,6 +29,7 @@ mod extension_query;
 mod bar_time;
 mod extension_commands;
 mod extension_binary;
+mod extension_parse;
 mod money_flow_history;
 mod limits;
 mod helpers;
@@ -114,6 +115,9 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(extension_binary::extension_slice_bytes, module)?)?;
     module.add_function(wrap_pyfunction!(extension_binary::ex_date_parts, module)?)?;
     module.add_function(wrap_pyfunction!(extension_binary::ex_datetime_decode, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_parse::ex_response_parse, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_parse::ex_records_parse, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_parse::ex_quote_list_record, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::build_command_frame, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::decode_response, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::encode_request_frame, module)?)?;

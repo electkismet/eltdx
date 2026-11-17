@@ -2,6 +2,21 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage96: base3f73981. All11 EX response methods
+  and minute/transaction/quote-list private helpers now native delegates.
+  Shared quote/list names/slots/types also drive strict Rust. Keep prefixes/
+  raw slice type/GBK/UTF8, count/int, live today-class vs self hooks, no date/
+  clock validation, second coercion, ordinary datetime-before-size and amount
+  reinterpretation vs range settlement, list140-byte minimum/300 stride and
+  original futures35-values/34-target ValueError. Added26 Python functions
+  (5 parametrized)/1 Rust schema function; eight new contracts total166
+  Python functions, all unexecuted. Read task-27-report Stage9. Next full
+  MAC commands/parsers/codec/price and transport/owner/generation/config/
+  manifest/consumer, then T28-T30/T19 source closure and unified verification.
+  Counts25/2/3 unchanged; active unlimited, no verification/agents/publication/
+  controller-state edits.
+
+
 - Latest recovery2026-11-17 stage95: basec48a967. Registered EX layout and
   shared all11 request headers with strict Rust; EX constructors/builders,
   class range sequence and MAC-EX login now native delegates. Both EX/MAC

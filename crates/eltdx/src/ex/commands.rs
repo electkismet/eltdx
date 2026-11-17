@@ -157,41 +157,26 @@ pub fn decode_quote(body: Bytes, policy: RawPolicy) -> Result<Decoded<Option<Quo
     slice(&body, 0, 150)?;
     exact_payload(&body, 150)?;
     let mut diagnostics = Vec::new(); let id = response_id(array(&body, 0)?, false, false, &mut diagnostics);
-    let float = |slot: usize| -> Result<NativeNumber<WireFloat>> { Ok(NativeNumber::unknown(float_at(&body, 14 + slot * 4)?)) };
-    let integer = |slot: usize| -> Result<NativeNumber<u32>> { Ok(NativeNumber::unknown(u32_at(&body, 14 + slot * 4)?)) };
-    let level = |p: usize, v: usize| -> Result<BookLevel> { Ok(BookLevel { price: float(p)?, volume: integer(v)? }) };
+    let slot = |name: &str,is_float: bool| -> Result<usize> {
+        super::layout::QUOTE_FIELDS.iter().find(|&&(field,_,kind)| field == name && kind == is_float)
+            .map(|&(_,index,_)| usize::from(index)).ok_or_else(|| protocol("invalid internal EX quote schema"))
+    };
+    let float = |name: &str| -> Result<NativeNumber<WireFloat>> { Ok(NativeNumber::unknown(float_at(&body, 14 + slot(name,true)? * 4)?)) };
+    let integer = |name: &str| -> Result<NativeNumber<u32>> { Ok(NativeNumber::unknown(u32_at(&body, 14 + slot(name,false)? * 4)?)) };
+    let level = |p: &str, v: &str| -> Result<BookLevel> { Ok(BookLevel { price: float(p)?, volume: integer(v)? }) };
     let mut opaque = vec![Bytes::copy_from_slice(&body[10..14])];
     for slot in [6, 9, 12] { opaque.push(Bytes::copy_from_slice(&body[14 + slot * 4..18 + slot * 4])); }
-    let quote = Quote { id, pre_close: float(0)?, open: float(1)?, high: float(2)?, low: float(3)?, price: float(4)?,
-        kaicang: integer(5)?, zongliang: integer(7)?, xianliang: integer(8)?, neipan: integer(10)?, waipan: integer(11)?, chicang: integer(13)?,
-        bid: [level(14,19)?,level(15,20)?,level(16,21)?,level(17,22)?,level(18,23)?],
-        ask: [level(24,29)?,level(25,30)?,level(26,31)?,level(27,32)?,level(28,33)?], opaque,
+    let quote = Quote { id, pre_close: float("pre_close")?, open: float("open")?, high: float("high")?, low: float("low")?, price: float("price")?,
+        kaicang: integer("kaicang")?, zongliang: integer("zongliang")?, xianliang: integer("xianliang")?, neipan: integer("neipan")?, waipan: integer("waipan")?, chicang: integer("chicang")?,
+        bid: [level("bid1","bid_vol1")?,level("bid2","bid_vol2")?,level("bid3","bid_vol3")?,level("bid4","bid_vol4")?,level("bid5","bid_vol5")?],
+        ask: [level("ask1","ask_vol1")?,level("ask2","ask_vol2")?,level("ask3","ask_vol3")?,level("ask4","ask_vol4")?,level("ask5","ask_vol5")?], opaque,
         record_raw: optional_raw(&body, 0, body.len(), policy) };
     Ok(finish(Some(quote), diagnostics, vec![(0,body.len())]))
 }
-// (source name, 4-byte slot index, float interpretation). The Python futures
-// parser's unpack target has 34 names for a 35-slot format. Preserve the known
-// offsets without executing that inconsistent tuple assignment; slot 34 remains
-// opaque together with the other unnamed slots. All other slots are
-// still available byte-for-byte in QuoteListRow::slot_raw.
-const FUTURES: &[(&str, u8, bool)] = &[
-    ("BiShu",0,false),("ZuoJie",1,true),("JinKai",2,true),("ZuiGao",3,true),("ZuiDi",4,true),("MaiChu",5,true),
-    ("KaiCang",6,false),("ZongLiang",8,false),("XianLiang",9,false),("ZongJinE",10,true),
-    ("NeiPan",11,false),("WaiPan",12,false),("ChiCangLiang",14,false),("MaiRuJia",15,true),
-    ("MaiRuLiang",20,false),("MaiChuJia",25,true),("MaiChuLiang",30,false),
-];
-const HONG_KONG: &[(&str, u8, bool)] = &[
-    ("HuoYueDu",0,false),("ZuoShou",1,true),("JinKai",2,true),("ZuiGao",3,true),("ZuiDi",4,true),("XianJia",5,true),
-    ("MaiRuJia",7,true),("ZongLiang",8,false),("XianLiang",9,false),("ZongJinE",10,true),("Nei",13,false),("Wai",14,false),
-    ("MaiRuJia1",15,true),("MaiRuJia2",16,true),("MaiRuJia3",17,true),("MaiRuJia4",18,true),("MaiRuJia5",19,true),
-    ("MaiRuLiang1",20,false),("MaiRuLiang2",21,false),("MaiRuLiang3",22,false),("MaiRuLiang4",23,false),("MaiRuLiang5",24,false),
-    ("MaiChuJia1",25,true),("MaiChuJia2",26,true),("MaiChuJia3",27,true),("MaiChuJia4",28,true),("MaiChuJia5",29,true),
-    ("MaiChuLiang1",30,false),("MaiChuLiang2",31,false),("MaiChuLiang3",32,false),("MaiChuLiang4",33,false),("MaiChuLiang5",34,false),
-];
 pub fn decode_quote_list(body: Bytes, category: QuoteCategory) -> Result<Decoded<Vec<QuoteListRow>>> {
     let count = counted(&body, 2, 0, 300)?;
     let mut rows = Vec::with_capacity(usize::from(count)); let mut diagnostics = Vec::new(); let mut ranges = Vec::new();
-    let schema = match category { QuoteCategory::HongKong => HONG_KONG, QuoteCategory::Futures => FUTURES };
+    let schema = match category { QuoteCategory::HongKong => super::layout::HONG_KONG_FIELDS, QuoteCategory::Futures => super::layout::FUTURES_FIELDS };
     for index in 0..usize::from(count) {
         let offset = 2 + index * 300; let raw: [u8; 300] = array(&body, offset)?;
         let id = response_id(array(&raw, 0)?, true, true, &mut diagnostics);

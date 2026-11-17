@@ -33,41 +33,7 @@ class GetExInstrumentBarsCmd(BaseCommand[list[ExInstrumentBar]]):
     def parse_response(self, body: bytes) -> list[ExInstrumentBar]:
         """解析K线响应。"""
 
-        pos = 18  # skip 18-byte header
-        if pos + 2 > len(body):
-            return []
-        (ret_count,) = struct.unpack("<H", body[pos : pos + 2])
-        pos += 2
-        results: list[ExInstrumentBar] = []
-        for _ in range(ret_count):
-            record_start = pos
-            year, month, day, hour, minute, pos = get_datetime(self.category, body, pos)
-            if pos + 28 > len(body):
-                break
-            (open_p, high, low, close_p, position, trade, _price) = struct.unpack(
-                "<ffffIIf",
-                body[pos : pos + 28],
-            )
-            (amount,) = struct.unpack("<f", body[pos + 16 : pos + 20])
-            pos += 28
-            results.append(
-                ExInstrumentBar(
-                    open=open_p,
-                    high=high,
-                    low=low,
-                    close=close_p,
-                    position=position,
-                    trade=trade,
-                    amount=amount,
-                    year=year,
-                    month=month,
-                    day=day,
-                    hour=hour,
-                    minute=minute,
-                    _raw=body[record_start:pos],
-                )
-            )
-        return results
-
+        from eltdx._native_abi import load_native
+        return load_native().ex_response_parse("bars", self, body, _MODULES[__name__])
 
 __all__ = ["GetExInstrumentBarsCmd"]

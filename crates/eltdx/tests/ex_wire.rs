@@ -6,6 +6,24 @@ use eltdx::{ErrorKind, RawPolicy, TradingDate};
 use eltdx::ex::{commands::*, config::*, frame::*, hosts::*, *};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[test]
+fn shared_quote_schemas_keep_source_offsets_types_and_the_legacy_futures_mismatch() {
+    use eltdx::ex::layout::{QUOTE_FIELDS,FUTURES_FIELDS,HONG_KONG_FIELDS};
+    assert_eq!(QUOTE_FIELDS.iter().find(|&&(name,_,_)| name == "chicang"),Some(&("chicang",13,false)));
+    assert_eq!(QUOTE_FIELDS.iter().find(|&&(name,_,_)| name == "bid5"),Some(&("bid5",18,true)));
+    assert_eq!(QUOTE_FIELDS.iter().find(|&&(name,_,_)| name == "ask_vol5"),Some(&("ask_vol5",33,false)));
+    assert_eq!(FUTURES_FIELDS.last(),Some(&("MaiChuLiang",30,false)));
+    assert_eq!(HONG_KONG_FIELDS.last(),Some(&("MaiChuLiang5",34,false)));
+    assert_eq!(QUOTE_FIELDS.len(),31); assert_eq!(FUTURES_FIELDS.len(),17); assert_eq!(HONG_KONG_FIELDS.len(),32);
+    for schema in [QUOTE_FIELDS,FUTURES_FIELDS,HONG_KONG_FIELDS] {
+        for (index,&(name,slot,_)) in schema.iter().enumerate() {
+            assert!(slot<35);
+            assert!(!schema[..index].iter().any(|&(old_name,old_slot,_)| old_name == name || old_slot == slot));
+        }
+    }
+}
+
 fn id() -> Result<ExInstrumentId, eltdx::Error> { Ok(ExInstrumentId::new(ExMarketId::new(31)?, ExCode::new("00700")?)) }
 fn date() -> Result<TradingDate, eltdx::Error> { TradingDate::new(2024,1,2) }
 fn hex(text: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {

@@ -25,32 +25,13 @@ class GetExMinuteTimeDataCmd(BaseCommand[list[ExMinuteBar]]):
     def parse_response(self, body: bytes) -> list[ExMinuteBar]:
         """解析当日分时响应。"""
 
-        if len(body) < 12:
-            return []
-        (_market, _code, num) = struct.unpack("<B9sH", body[0:12])
-        return self._parse_records(body, 12, num)
+        from eltdx._native_abi import load_native
+        return load_native().ex_response_parse("minute", self, body, _MODULES[__name__])
 
     @staticmethod
     def _parse_records(body: bytes, pos: int, num: int) -> list[ExMinuteBar]:
-        results: list[ExMinuteBar] = []
-        for _ in range(num):
-            if pos + 18 > len(body):
-                break
-            record_start = pos
-            (raw_time, price, avg_price, volume, amount) = struct.unpack("<HffII", body[pos : pos + 18])
-            pos += 18
-            results.append(
-                ExMinuteBar(
-                    hour=raw_time // 60,
-                    minute=raw_time % 60,
-                    price=price,
-                    avg_price=avg_price,
-                    volume=volume,
-                    open_interest=amount,
-                    _raw=body[record_start:pos],
-                )
-            )
-        return results
+        from eltdx._native_abi import load_native
+        return load_native().ex_records_parse("minute", body, pos, num, _MODULES[__name__])
 
 
 class GetExHistoryMinuteTimeDataCmd(BaseCommand[list[ExMinuteBar]]):
@@ -69,10 +50,8 @@ class GetExHistoryMinuteTimeDataCmd(BaseCommand[list[ExMinuteBar]]):
     def parse_response(self, body: bytes) -> list[ExMinuteBar]:
         """解析历史分时响应。"""
 
-        if len(body) < 20:
-            return []
-        (_market, _code, _unk, num) = struct.unpack("<B9s8sH", body[0:20])
-        return GetExMinuteTimeDataCmd._parse_records(body, 20, num)
+        from eltdx._native_abi import load_native
+        return load_native().ex_response_parse("history_minute", self, body, _MODULES[__name__])
 
 
 __all__ = ["GetExMinuteTimeDataCmd", "GetExHistoryMinuteTimeDataCmd"]
