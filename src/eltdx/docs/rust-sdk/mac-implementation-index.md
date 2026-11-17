@@ -1,6 +1,6 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前为T25部分实现，owner阶段已提交`c66fe5c`，后续为分页/富模型/HK源码检查点stage80。
+当前为T25部分实现，分页/富模型/HK阶段已提交`0502015`，本地工具源码检查点为stage81。
 **MAC模块/两类公开客户端已在源码登记；没有编译、测试、联网或安装证据，尚未验收可用。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
@@ -10,6 +10,9 @@
 |---|---|
 | `crates/eltdx/src/mac/models.rs` | MAC22B代码/u16市场、独立70B远程文件名、wire float/slot/bar/transaction基础类型 |
 | `mac/bitmap.rs` | 全部具名field/preset、20B响应位图、合法未知位占槽、reserved151..159、16B请求拒高位 |
+| `mac/fields.rs` | 16B/20B具名字段视图、上下文别名及唯一bitmap编码；未知位不从wire消失 |
+| `mac/util.rs` | 纯本地逐事件f64前复权、逐事件证据/跳过原因、原始bits保留、parent边界；8个内部用例源码 |
+| `advanced/mac.rs` | 受限请求/精确16B头/同一frame解压及DEBUG位图，无socket入口 |
 | `mac/commands.rs` | 单一请求布局、quote/bar/transaction/kline-offset及login原始请求/仅首字节rewrite |
 | `mac/responses.rs` | 私有字段/只读getter、源identity/float/未知单位、图/快照/板块/商品/文件/JSON响应 |
 | `mac/decode.rs` | 下表简单响应的严格单帧payload解析，无I/O或分页/缓存 |
@@ -24,12 +27,13 @@
 | `mac/session.rs` | 独立owner/session、现有门与worker/授权/取消清理、meta/raw及共享探测调度 |
 | `mac/client.rs` | 两类builder/管理/探测/关闭；MAC19/23、MAC-EX6/13入口源码已接入；剩余组合仍待实现 |
 | `mac/quote.rs` | checked MAC身份、名称源字节、bit字段/未知位和逐响应meta的公开Quote |
-| `mac/market_data.rs` | 富Bar/Transaction、精确秒级/跨日/原始时间、七个float bits、HK原价/count presence/来源和共享meta |
+| `mac/market_data.rs` | 富Bar/Transaction、精确秒级/跨日/原始时间、七个float bits、独立f64有效OHLC/逐事件证据、HK原价/count presence/来源和共享meta |
 | `mac/collect.rs` | 80/700/1000/1800分页、整页前插、raw行排列、复用aggregate_meta/HK现有EX解码和all严格终止 |
 | `crates/eltdx/tests/mac_wire.rs` | 7个原Stage A函数源码，未执行 |
 | `crates/eltdx/tests/mac_responses.rs` | 14个简单响应/边界函数源码，未执行 |
 | `crates/eltdx/tests/mac_queries.rs` | 10个查询/默认/编码/身份边界函数源码；另pagination内部6个函数，全部未执行 |
 | `crates/eltdx/tests/mac_session.rs` | 19个公开入口/非空分页/秒级/raw/HK/lifecycle/取消/半包/换源/超量用例函数源码，全部未执行 |
+| `crates/eltdx/tests/mac_helpers.rs` | 6个字段视图/别名/unknown/debug/请求/头/有界zlib/板块转换函数源码，全部未执行 |
 
 MAC模块已按feature mac在crate root登记；mac依赖ex，JSON使用现有optional
 serde_json，未引入第二网络/解压栈。三组原path包含用例已改为公开eltdx::mac
@@ -127,10 +131,11 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
    MAC DataReady要求server_info的today有效；MAC-EX要求独立login及market38一行
    goods。后者仅证明该样例命令可用，不代表全部市场/业务或生产默认login已验收。
 4. 分页/公开Bar和Transaction/HK路由/raw合并来源已写，19个公开client函数源码
-   覆盖取消/半包/close/failover等，均未执行。继续fields/util/advanced辅助接口、
-   余下简单入口的覆盖与源码收尾；生产握手缺口仍必须在最终证据阶段解决。
+   覆盖取消/半包/close/failover等，均未执行。fields/util/advanced辅助接口源码
+   已补；本地复权不等于网络QFQ修复已完成，后者仍需T26显式provider和parent上下文。
+   继续余下简单入口覆盖与源码收尾；生产握手缺口仍须在最终证据阶段解决。
 5. T26完成目录/fallback/缓存、聚合/排行、复权、同源下载；T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
-详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint5。
+详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint6。
 实现源码完整不等于执行验收通过，当前任务总数仍23完成源码/2部分/5未开始。

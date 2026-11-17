@@ -10,10 +10,27 @@ use super::query::BarsQuery;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BarTimeSource { SecondsSinceMidnight, CalendarMidnight, UnknownPeriod }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BarPriceSource { Wire, LocalForwardAdjustment }
+/// Effective price and its unchanged source f32. Local calculations use f64;
+/// `bits` always means source bits, including after an adjustment.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BarPrice { wire: WireFloat, adjusted: Option<f64> }
+impl BarPrice {
+    pub const fn wire(self) -> WireFloat { self.wire }
+    pub const fn bits(self) -> u32 { self.wire.bits() }
+    pub fn as_f64(self) -> f64 { self.adjusted.unwrap_or_else(|| self.wire.as_f64()) }
+    pub const fn adjusted_value(self) -> Option<f64> { self.adjusted }
+    pub const fn source(self) -> BarPriceSource {
+        if self.adjusted.is_some() { BarPriceSource::LocalForwardAdjustment } else { BarPriceSource::Wire }
+    }
+}
 #[derive(Clone, Debug)]
 pub struct Bar {
     id: MacInstrumentId, time: EventTime, source_time: EventTime, time_source: BarTimeSource,
     date_raw: u32, time_raw: u32, values: [NativeNumber<WireFloat>;7],
+    prices: [NativeNumber<BarPrice>;4],
+    adjustment_events: Option<Arc<[super::util::AdjustmentEvent]>>,
     record_raw: Option<Bytes>, meta: Arc<ResultMeta>,
 }
 impl Bar {
@@ -24,10 +41,13 @@ impl Bar {
     pub const fn time_source(&self) -> BarTimeSource { self.time_source }
     pub const fn date_raw(&self) -> u32 { self.date_raw }
     pub const fn time_raw(&self) -> u32 { self.time_raw }
-    pub fn open(&self) -> &NativeNumber<WireFloat> { &self.values[0] }
-    pub fn high(&self) -> &NativeNumber<WireFloat> { &self.values[1] }
-    pub fn low(&self) -> &NativeNumber<WireFloat> { &self.values[2] }
-    pub fn close(&self) -> &NativeNumber<WireFloat> { &self.values[3] }
+    pub fn open(&self) -> &NativeNumber<BarPrice> { &self.prices[0] }
+    pub fn high(&self) -> &NativeNumber<BarPrice> { &self.prices[1] }
+    pub fn low(&self) -> &NativeNumber<BarPrice> { &self.prices[2] }
+    pub fn close(&self) -> &NativeNumber<BarPrice> { &self.prices[3] }
+    /// All seven source-native values, including original OHLC, remain intact.
+    pub fn wire_values(&self) -> &[NativeNumber<WireFloat>;7] { &self.values }
+    pub fn adjustment_events(&self) -> &[super::util::AdjustmentEvent] { self.adjustment_events.as_deref().unwrap_or(&[]) }
     pub fn amount(&self) -> &NativeNumber<WireFloat> { &self.values[4] }
     pub fn volume(&self) -> &NativeNumber<WireFloat> { &self.values[5] }
     /// The strict36B MAC layout always supplies this scalar. A wire zero is
@@ -35,7 +55,14 @@ impl Bar {
     pub fn float_shares(&self) -> Option<&NativeNumber<WireFloat>> { Some(&self.values[6]) }
     pub fn record_raw(&self) -> Option<&Bytes> { self.record_raw.as_ref() }
     pub fn meta(&self) -> &ResultMeta { &self.meta }
+    pub(crate) fn shared_meta(&self) -> Arc<ResultMeta> { Arc::clone(&self.meta) }
     pub(crate) fn set_meta(&mut self, value: Arc<ResultMeta>) { self.meta = value; }
+    pub(crate) fn set_adjusted_prices(&mut self, values: [f64;4]) {
+        for (index,value) in values.into_iter().enumerate() {
+            self.prices[index] = NativeNumber::unknown(BarPrice { wire: *self.values[index].value(),adjusted: Some(value) });
+        }
+    }
+    pub(crate) fn set_adjustment_events(&mut self, events: Arc<[super::util::AdjustmentEvent]>) { self.adjustment_events = Some(events); }
     pub(crate) fn from_record(value: BarRecord, query: &BarsQuery, record_raw: Option<Bytes>) -> Result<Self> {
         let time_raw = u32::from_le_bytes(value.source_bytes[4..8].try_into()
             .map_err(|_| protocol("MAC bar clock field width differs"))?);
@@ -58,6 +85,8 @@ impl Bar {
             _ => source_time,
         };
         Ok(Self { id: query.id().clone(),time,source_time,time_source,date_raw: value.date_raw,time_raw,
+            prices: std::array::from_fn(|index| NativeNumber::unknown(BarPrice { wire: value.values[index],adjusted: None })),
+            adjustment_events: None,
             values: value.values.map(NativeNumber::unknown),
             record_raw,
             meta: Arc::new(ResultMeta::default()) })

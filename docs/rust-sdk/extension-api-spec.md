@@ -674,7 +674,7 @@ download采用30000B chunk、index从1、offset按实际字节递增；未知exp
 | 模型 | 全部业务字段 | 单位/缺失规则 |
 | --- | --- | --- |
 | SymbolInfo | id/name、time:Option<EventTime>、activity、pre_close/open/high/low/close、momentum、vol、amount、inside/outside_volume、turnover、avg | time缺失None；native price/volume/amount单位按市场证据；momentum/turnover不能仅因名称强制Ratio |
-| Bar | datetime、OHLC、vol、amount、float_shares | 7个f32保留bits；datetime秒级；float_shares线数缺失标Absent与wire0分开 |
+| Bar | datetime/source_time、OHLC、vol、amount、float_shares、wire_values、adjustment_events | 7个源f32保留bits；OHLC为NativeNumber<BarPrice>，有效本地价格独立f64且不覆盖源bits；datetime秒级；float_shares线数缺失标Absent与wire0分开 |
 | Tick / TickChart / MultiTickChart | tick time/price/avg/vol/momentum；图id/name、preclose/OHLC、vol/amount/turnover/avg；多日date/preclose/ticks | 固定最多5日期槽，根据实际tick数分配，短首日不可跨天错位；empty charts成功，坏日期槽Protocol |
 | Transaction | time、price、vol、trade_count、bs_flag | aggregate逐笔不是Level2订单；flag0买/1卖/2中性/5盘后，其他Unknown(u32)；交易时刻保留秒 |
 | BoardInfo | id/name/price/rise_speed/pre_close、leader id/name/price/rise_speed/pre_close | leader另一个身份；BoardSummary/Rank以这些字段、涨跌幅、汇总amount/volume、成员数及动态extra组成 |
@@ -688,6 +688,12 @@ download采用30000B chunk、index从1、offset按实际字节递增；未知exp
 | FileMeta | offset、size、flag、hash | 字节；hash算法未核实，不声称校验完整性 |
 
 模块辅助11项全部有归属：`apply_forward_adjust(&[Bar], &[XdxrEvent])->Result<Vec<Bar>>`、`compute_forward_factor(cum_close:f64, fenhong:f64, peigujia:f64, songzhuangu:f64, peigu:f64)->Result<f64>`、`has_bad_prices(&[Bar])->bool`、`convert_board_code(&BoardSymbol)->Result<u32>`为 `mac::util`；`build_bitmap(&FieldSelection, BitmapLayout)->Result<Vec<u8>>` / `get_active_fields(&[u8])->Result<Vec<KnownField>>` 为 `mac::fields`；`build_mac_request` / `parse_mac_header` / `decompress_mac_body` 为 `advanced::mac` 有界codec；`ping_mac_host` / `ping_mac_all`合并为第1.2节probe API。`MacConnection`不直接稳定公开裸socket，advanced受控会话不得绕过owner/预算。
+
+`BarPrice::wire()/bits()`始终返回源f32及其原始位；`as_f64()`返回本地计算值（若存在）或源值，`adjusted_value()`与`source()`明确区分Wire和LocalForwardAdjustment。未受任何事件影响的行继续Wire，不能因其他行重算就改变其价格来源。`wire_values()`保留全部七个源数；amount/volume/float_shares和raw不随价格修复变化。详细接口`mac::util::forward_adjustment`返回`AdjustmentResult`，每个`AdjustmentEvent`提供原事件、可选因子、实际影响行数及跳过原因；行共享同一事件证据表，每个原响应仅共享一份增加摘要诊断的meta，避免按行复制原始报文或事件表。
+
+纯复权要求输入属于同一MAC身份且有有效source_time日期/时刻；未知period的无日期序列返回InvalidArgument。按源日期/时刻稳定排序，事件按日期稳定排序，同日事件沿用输入次序并以前一事件累计后的收盘价求下一个因子。End显示跨日仍以未移动的源日期决定除权前缀；无效事件保留跳过证据，导致非有限价格的整次事件不生效，有限非正值保留以供has_bad_prices明确识别。此处不调用HQ或网络；其内部parent边界供T26传播取消/期限。
+
+`mac::fields`接受16B零扩展或精确20B位图，具名结果按bit升序，并以`active_fields_in`选择Instrument/Board别名；合法未知bit仍由唯一wire解码器占槽，reserved151..159不占槽，不能用具名列表长度推导响应行宽。高级头解析严格只接受16B；解压重用EX/MAC共同有界frame实现，要求完整单一zlib流、实际/声明长度一致、无尾随流。DEBUG全ff仅高级位图入口可用，Board16只产生16B，不覆盖后续exclude控制字。
 
 本段补足辅助/组合类型：`XdxrEvent{date:TradingDate,category:u8=1,fenhong:f64=0,peigujia:f64=0,songzhuangu:f64=0,peigu:f64=0}`以每股单位，单因子函数无效分母/非有限值在Rust报InvalidArgument，Python仍返回NaN；`BoardSymbol{source:String,wire_code:u32}`；`BitmapLayout::{Quote20,Board16}`；`KnownField{bit:FieldId,name:String,kind:SlotKind}`，SlotKind=F32/U32/I32。`NamedNativeField{name:String,value:NativeValue,meaning:FieldMeaning}`，NativeValue=I64/U64/F32/Text/Bytes；`BoardSummary{vol:NativeNumber<u64>,amount,main_net_amount,main_net_3d,main_net_5d:NativeNumber<f64>,up_count,down_count,member_count:u32,members:Vec<Quote>,extra:Vec<NamedNativeField>,meta}`；`BoardRank{code,name:String,change_pct:Option<f64>,summary:BoardSummary}`；`BoardChangeRank{code,name:String,close_start,close_end:WireFloat,change_pct:f64,meta}`。前收为0时Rust change_pct=None并诊断，Python旧以0参与排序保持。`RemoteFileName`为非空GBK<=70B、不含NUL的源服务器名称，不自行写入本地；`MacroCode`为原目录中非空精确代码或唯一名称匹配结果。任何公开返回类型都不能留成未定义的“任意对象”。
 

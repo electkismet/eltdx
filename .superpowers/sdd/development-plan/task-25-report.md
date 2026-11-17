@@ -371,3 +371,79 @@ T26 compositions and T27–T30 source before the unified verification phase.
 Counts23 complete source/2 partial/5 unstarted, active unlimited goal; no
 tests/build/check/collection/dependency/network/equivalent verification,
 subagents/push/tag/publish/merge.
+
+## Stage B checkpoint 6 — pure helpers and source-preserving adjustment (2026-11-17, stage81)
+
+Base0502015. Preserved the uncommitted fields/advanced/BarPrice/util sources
+across context compression, read exact dependencies and existing Python math,
+then completed the helper surfaces and authored fixtures. No compiler, AST,
+formatter, tests, collection, dependency resolver or equivalent check ran.
+
+mac::fields uses the one bitmap encoder/decoder. KnownField has read-only
+bit/name/kind getters. Exact16B input zero-extends to20B, other input must be
+exact20B. Named entries omit legal unknown slots but cannot supply wire row
+width; unknown legal bits still consume slots in bitmap.rs, reserved151..159
+do not. Contextual Board aliases remain separate from Instrument names.
+
+advanced::mac exposes bounded pure request encoding, exact16B header parsing,
+and body decompression through the same EX/MAC frame implementation. Declared
+and actual sizes, cap, single complete zlib stream and no trailing bytes follow
+that existing decoder. Public DEBUG all-ones selection is confined to this
+advanced bitmap wrapper; Board16 emits only16 bytes and never writes exclude
+control bytes. No raw socket execution, owner admission or second I/O/codec
+implementation was introduced. The root advanced module is feature-safe and
+exposes mac only when that feature is enabled.
+
+Bar's four OHLC getters now hold NativeNumber<BarPrice>. BarPrice retains its
+original WireFloat forever; bits()/wire() mean source bits and as_f64() means
+effective local f64 value if present. adjusted_value()/source() explain which
+value is effective. wire_values retains all7 native scalars, and amount,
+volume, float_shares, raw bytes and source/display times remain unchanged.
+Only rows in a successfully applied event prefix receive local price
+provenance; newer untouched rows remain Wire, even if another row was fixed.
+Existing bit-oriented MAC fixture use sites were read and retain their bits
+getter contract. No published Rust compatibility guarantee is being changed.
+
+mac::util provides the four specified pure helpers plus detailed
+forward_adjustment -> AdjustmentResult. XdxrEvent is per-share and uses the
+specified category1/zero defaults. A single factor rejects nonfinite inputs,
+nonpositive prior close, zero/nonfinite denominator and nonfinite result with
+InvalidArgument. Finite nonpositive factors remain visible; has_bad_prices
+only examines effective OHLC, not amount/volume. The multi-event operation
+requires one exact MAC identity and dated source clocks, stable-sorts source
+rows and event dates, preserves same-key ties, and uses the already adjusted
+prior close for sequential same-date events. Source dates decide prefixes even
+when End display alignment crosses midnight. Invalid categories/zero events,
+missing prior bars, invalid factors and whole-event nonfinite outcomes are
+recorded as explicit skipped evidence. An event is checked before applying any
+part of its prefix. Local f64 calculations never round back into source f32.
+
+Detailed per-event records are one shared Arc per result and are also available
+from each returned Bar. One summary meta per distinct original page is reused
+instead of cloning raw ranges per row or copying all events into each page's
+diagnostic. The internal boundary seam propagates a future parent operation's
+cancel/deadline on entry, source/event loops, every256 prefix rows and exit.
+Cancelled work returns no partial result. This pure function does not fetch
+HQ, infer market identity or create a network operation. Empty series retain
+explicit event skip evidence; unknown-source dates and mixed identities fail.
+
+Added6 public mac_helpers functions: contextual aliases/unknown slots/reserved
+bits and wire widths;16B expansion/invalid widths; ordinary/debug/high-field
+encoding boundaries; literal request and exact header; independent hello zlib
+single-stream/length/truncation/caps/trailing cases; checked board conversion.
+Added8 private util functions: factor guards; source-tie/same-date sequential
+arithmetic/shared evidence and meta; f64 precision/raw/amount/volume/float bits;
+End source-day rollover; skip evidence; whole-prefix overflow/nonpositive
+prices; mixed identity/unknown dates/empty input; parent cancellation inside a
+long series. All14 functions are authored source only and have not executed.
+
+T25 remains partial: other simple-method coverage/source wrapup and the actual
+production login/optional-boundary evidence remain. T26's network QFQ fallback
+is NOT implemented by these helpers: it still needs one parent context,
+unadjusted refetch, an explicitly injected bounded provider, original-QFQ
+fallback diagnostics and strict_adjustment behavior. Continue that work along
+with board aggregation/ranking/history, same-source downloads, MAC-EX
+catalog/ranges/cache/macro and remaining methods, then T27-T30. Do not invent
+production ACKs or claim helper fixtures prove production login. Task counts
+remain23 complete source/2 partial/5 unstarted, none executed; unlimited active
+goal, no subagents, push, tag, publication or merge.

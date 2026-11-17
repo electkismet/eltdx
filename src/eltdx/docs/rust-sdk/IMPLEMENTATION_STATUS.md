@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第八十一段恢复点：分页/HK阶段已提交`0502015`。本段补齐mac::fields/util与advanced::mac辅助源码：具名16/20B位图/别名、精确头/有界解压、逐事件f64前复权和纯板块转换。OHLC有效价格与七个源f32 bits独立保存，未影响行保留Wire，跨日End仍按源日除权，事件顺序/跳过/溢出证据与原始报文可追溯；内部沿用parent取消边界，行共享事件表及逐响应meta。新增6个公开helper与8个内部复权用例函数源码，全部未执行。网络QFQ refetch/provider、T26目录/排行/下载及T27–T30仍待实现；生产握手证据缺口不变。23源码完整/2部分/5未开始，目标active且无额度上限，全部执行验证继续延期。恢复先读task-25-report checkpoint6。
+
 2026-11-17第八十段恢复点：owner阶段已提交`c66fe5c`。本段接入MAC六个入口quote_list/board_members/bars/transactions/boards/unusual及MAC-EX bars/transactions/all_transactions，现分别19/23与6/13指定方法有源码。富Bar/Transaction保留原始值、秒级跨日、单位/计数缺失与来源；分页复用唯一worker/operation及aggregate_meta，K线仅前插整页并重排行引用，不改原始响应/来源顺序。HK复用EX23FC/2406及原login owner，其余仍MAC122F；all满cap报LimitExceeded，boards需空页结束，unusual单页短回复为Unknown。新增14个公开用例函数源码（mac_session共19），覆盖重复/别名/raw、取消、半包、关闭、换源重握手及超量响应，全部未执行。T25仍部分，辅助接口/余下覆盖、T26组合/目录/复权/下载、生产握手证据及T27–T30继续；23源码完整/2部分/5未开始不变。目标active无额度限制，所有执行验证仍延期。恢复先读task-25-report checkpoint5；不要重写已接通的分页/HK路由。
 
 2026-11-17第七十九段恢复点：最近已提交`2a11033`。独立MacClient/MacExClient、builder/配置/profile/owner、连接/关闭/刷新/最佳主机/8并发探测源码已写并登记feature mac；复用既有EX串行门/worker/frame/操作授权与取消清理。MAC首13个简单入口和MAC-EX共享3入口、公开Quote字段bit/源字节/meta、KlineOffsetInfo及5个公开回环/生命周期用例源码已写，三组原path用例改公共入口导入。全部尚未编译或运行。T25仍部分：quote_list/board_members/bars/transactions/boards/unusual分页、Bar/Transaction秒级投影/HK EX路由/metadata合并，以及生产登录/optional边界证据待完成。MAC-EX DataReady只证明配置login及market38单行goods样例，不代表全市场；默认无生产login判定时严格失败。23源码完整/2部分/5未开始不变，目标active无额度限制；全部执行验证延期，继续task-25-report checkpoint4后续再T26–T30。
