@@ -278,3 +278,11 @@ macOS runner入口已在本地准备：向公开仓库的 `codex/rust-sdk-implem
 | 文档 | `stage141-docs-attempt01/results.json`，SHA256 `472851f5993cfda947e7af5fb7956feea1c93032505f7dc7d1102b8a909faeff`。严格构建与站点链接通过；metadata/mirror、Ruff和diff检查亦通过。 |
 
 接续：macOS候选未推送，须获得公开推送授权或接入现成macOS runner；三个 crate 发布后按[发布政策](release-policy.md)再次执行 `registry-consumer`；生产证据缺口与stage140相同。
+
+## Stage142：从源码分发包重建 Linux x64 发布 wheel
+
+干净候选 `b9d50758d3b711786c0802fc8e6458fa9ab06bd4` 在 Windows 上以 maturin 1.15.0 生成 `eltdx-3.3.5.tar.gz`，归档检查通过，包含1438个文件、261份镜像一致的文档。sdist SHA256 `7b1cc8733fb78e5b36088c57ba9821c57093a791c46163a97a8e863d57ce2f1d`。记录位于 `artifacts/unified/stage142-sdist-attempt01/`。
+
+从该归档解包，在 WSL2 隔离的 `quay.io/pypa/manylinux2014_x86_64` 文件系统内以 Rust 1.89.0、CPython 3.10.22、glibc 2.17 和 GCC 10.2.1 离线运行 `maturin build --release --locked --compatibility manylinux2014`。镜像摘要 `sha256:e6a785657009c612fe2a85fa933051d03a50ba62b1c5e47d62abcab546a2e423`，锁文件 SHA256 `214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`。生成的 `eltdx-3.3.5-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl` SHA256 `49ecdcce3427ab67cd534b20942c42f9c13137be0f12b84612018fea5ef4452d`。构建成功后的首次离线 MCP 冒烟因无法下载可选依赖返回1，保留 `stage142-manylinux-rebuild-attempt01/result.json`（SHA256 `0e70b62227f3e9fcd8f542f112fbda77bb2014080e5377c9aa256048924b78ff`）。
+
+对同一 wheel，CPython 3.10.22、3.14.10 均通过无索引二进制安装、`pip check`、本地非空公开 API 查询与关闭。两版本也各自通过带 MCP 的 `verify_wheel_matrix.py --single-wheel`，仅依赖安装阶段使用 PyPI。四个验证进程均 exit 0，见 `stage142-manylinux-consumer-attempt01/exits.txt` 与 `result.json`（SHA256 `d71d581ea2b3ca39233e2818dcd360592f20f67b0dad6fd47d90bb715f9cde8a`）。这一证据覆盖 Linux x64 发布标签及 sdist 重建；无编译器镜像证据仍由 stage140 提供。Linux arm64、macOS、公开 crates.io 发布及生产协议证据仍待取得。

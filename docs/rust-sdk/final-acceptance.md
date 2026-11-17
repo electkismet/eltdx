@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | T01–T30实现 | 完成 | 计划内Rust SDK、Python兼容桥接、独立Rust入口及文档/示例源码已写齐。stage136之后没有运行时代码改动；stage136改动限于跨Python版本测试合同。 |
 | 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
-| 发布平台与隔离 | 两种Linux x64隔离消费通过；macOS待跑 | stage140的无Python Rust环境通过构建、业务回环和feature排除；无Rust工具链的Python环境通过wheel安装、非空查询和关闭。macOS矩阵及其产物仍待GitHub runner执行。 |
+| 发布平台与隔离 | Linux x64隔离及发布 wheel 通过；macOS、Linux arm64待跑 | stage140补齐两种工具链隔离消费；stage142从sdist重建manylinux2014 x64 wheel，Python 3.10/3.14的基础消费与MCP冒烟均通过。 |
 | 注册表发布与消费 | 未发布 | stage140在候选`16d367e`再次观察三个名称均返回404；本地归档及protocol的Cargo发布dry-run通过。缺少crates.io发布凭据；仍需真实发布及无patch消费。 |
 | 生产协议验收 | 独立待补证据 | MAC-EX登录/可选setup规则、category22生产样本和权威涨跌停规则没有足够生产证据。未知规则继续保持Unknown；这不否定本地实现与测试通过。 |
 
@@ -58,7 +58,7 @@
 
 ## 后续工作
 
-- 发布平台：运行已准备的macOS平台和归档工作流，补齐macOS和其余非Windows发布产物。Linux x64隔离wheel消费的范围及报告见[统一验证记录](unified-validation.md)。
+- 发布平台：运行已准备的macOS平台和归档工作流，补齐macOS及Linux arm64发布产物。Linux x64隔离消费和源码包重建证据见[统一验证记录](unified-validation.md)。
 - 生产协议：由有权限的环境提供可追溯样本，验证MAC-EX登录回复与可选setup的身份/顺序/fence、category22非空路径及权威涨跌停规则；没有证据的语义继续标记为Unknown或不作支持承诺。
 - 注册表：在本机配置获授权的crates.io发布凭据后，核对包名、版本和账号权限，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前重新查询，404仅代表该时间点的查询结果。
 
