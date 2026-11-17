@@ -6,6 +6,8 @@
 
 ## 1. 证据等级与完成条件
 
+2026-11-17 T28 源码交接：新增独立 Rust EX/MAC/MAC-EX 消费者、32 个 feature 子集与三平台/MSRV 脚本、Rust-only 容器入口，以及构建 job 外的 installed-wheel consumer 和 native 字节核对。逐项入口和隔离强度见 [T28 源码索引](t28-verification-index.md)。这些文件已经写入，全部尚未运行；本文早期“待实现”描述不构成新的执行证据。
+
 每项能力应分别登记以下证据，不用一个“支持”标记合并：
 
 | 等级 | 要求 | 不能替代的证据 |

@@ -33,6 +33,17 @@ list and archive downloads through the public financial service. The fixture's
 stale size and opaque hash do not stand in for complete download evidence.
 The result must retain both physical sources and the filename's report date.
 
+`ex` (`sdk-ex`, also enabled by `sdk-mac`) uses an independent 92-byte setup
+literal, then nonempty markets, count, directory and five-level quote replies.
+It checks exact requests, native prices, retained row bytes and raw frames.
+`mac` (`sdk-mac`) checks all three setup packets, selected-field quotes and an
+unknown legal slot. `mac-ex` checks its distinct login/head rewrite and exactly
+seven default fields. Its explicitly configured login patterns are synthetic;
+they provide no production authentication evidence. All three peers fragment
+responses, require peer EOF, and check repeated close and rejection afterward.
+Their only imports are std and the public SDK; even the login byte type is
+inferred through the public constructor, without a direct bytes dependency.
+
 After **all T01–T30 implementation sources are complete**, the unified validation
 pass can run these commands, initially resolving a new standalone lockfile:
 
@@ -45,6 +56,9 @@ cargo run --manifest-path tests/consumers/rust-sdk/Cargo.toml --no-default-featu
 cargo run --manifest-path tests/consumers/rust-sdk/Cargo.toml --no-default-features --features sdk-f10 --locked -- f10
 cargo run --manifest-path tests/consumers/rust-sdk/Cargo.toml --no-default-features --features sdk-offline --locked -- offline
 cargo run --manifest-path tests/consumers/rust-sdk/Cargo.toml --no-default-features --features sdk-offline --locked -- financial
+cargo run --manifest-path tests/consumers/rust-sdk/Cargo.toml --no-default-features --features sdk-ex --locked -- ex
+cargo run --manifest-path tests/consumers/rust-sdk/Cargo.toml --no-default-features --features sdk-mac --locked -- mac
+cargo run --manifest-path tests/consumers/rust-sdk/Cargo.toml --no-default-features --features sdk-mac --locked -- mac-ex
 ```
 
 T28 must additionally copy this entire consumer outside the repository, replace the
@@ -55,7 +69,12 @@ repeat against unpacked packages and eventually published registry candidates.
 Merely having `[workspace]` in this checked-in fixture does not prove external
 package completeness, registry availability, MSRV or absence of Python on the
 executing machine. CI integration, feature/platform matrices and corresponding
-evidence remain pending under T28/T29.
+evidence remain unexecuted under T28/T29. Executable source entry points now
+exist at `scripts/verification/rust_sdk_matrix.ps1` (platform/32-subset modes)
+and `rust_sdk_no_python.sh` (external Rust-only container and disabled-feature
+negative/positive consumer pairs). `.github/workflows/rust-sdk.yml` exposes
+the source-complete candidate gate; it is manual to avoid executing while
+implementation remains unfinished. T29 separately validates unpacked archives.
 
 The `hq_query` example in the SDK package is separate: it requires an explicit
 server address and security arguments when run, and performs an actual query.

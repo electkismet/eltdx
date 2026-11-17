@@ -1,0 +1,89 @@
+name: Independent Rust SDK candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      implementation-complete:
+        description: All T01-T30 implementation sources are complete
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  platform:
+    if: inputs.implementation-complete
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+        rust: ['1.89.0', stable]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install selected toolchain
+        run: rustup toolchain install ${{ matrix.rust }} --profile minimal --component rustfmt,clippy
+      - name: Run platform contracts and retain every command result
+        shell: pwsh
+        run: ./scripts/verification/rust_sdk_matrix.ps1 -ImplementationComplete -Mode platform -Toolchain '${{ matrix.rust }}'
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: rust-sdk-${{ matrix.os }}-${{ matrix.rust }}
+          path: artifacts/rust-sdk
+          if-no-files-found: error
+
+  feature-subsets:
+    if: inputs.implementation-complete
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: ['1.89.0', stable]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup toolchain install ${{ matrix.rust }} --profile minimal
+      - name: All 32 explicit subsets plus default and full alias
+        shell: pwsh
+        run: ./scripts/verification/rust_sdk_matrix.ps1 -ImplementationComplete -Mode features -Toolchain '${{ matrix.rust }}'
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: rust-sdk-features-${{ matrix.rust }}
+          path: artifacts/rust-sdk
+          if-no-files-found: error
+
+  no-python:
+    if: inputs.implementation-complete
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Copy and consume outside checkout in a Rust-only container
+        shell: bash
+        run: |
+          mkdir -p artifacts/no-python
+          docker run --rm -e ELTDX_IMPLEMENTATION_COMPLETE=yes \
+            -v "$GITHUB_WORKSPACE:/source:ro" \
+            -v "$GITHUB_WORKSPACE/artifacts/no-python:/evidence" \
+            rust:1.89.0-slim-bookworm bash -c \
+            'set +e; bash /source/scripts/verification/rust_sdk_no_python.sh /source /tmp/consumer-run; result=$?; if [ -d /tmp/consumer-run/evidence ]; then cp -R /tmp/consumer-run/evidence/. /evidence/; fi; exit "$result"'
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: rust-sdk-no-python
+          path: artifacts/no-python
+          if-no-files-found: error
+
+  loom:
+    if: inputs.implementation-complete
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup toolchain install 1.89.0 --profile minimal
+      - run: cargo +1.89.0 test -p eltdx-runtime --features loom --locked

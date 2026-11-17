@@ -2,6 +2,8 @@
 //! Synthetic wire bytes are authored here, without using a production parser
 //! or encoder as the expected-value oracle. Execution is deferred until T30.
 mod server;
+#[cfg(any(feature = "sdk-ex", feature = "sdk-mac", feature = "sdk-full"))]
+mod extension;
 #[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
 mod financial;
 #[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
@@ -75,6 +77,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match std::env::args().nth(1).as_deref() {
         None | Some("loopback") => loopback()?,
         Some("lazy") => lazy()?,
+        #[cfg(any(feature = "sdk-ex", feature = "sdk-mac", feature = "sdk-full"))]
+        Some("ex") => extension::ex()?,
+        #[cfg(any(feature = "sdk-mac", feature = "sdk-full"))]
+        Some("mac") => extension::mac()?,
+        #[cfg(any(feature = "sdk-mac", feature = "sdk-full"))]
+        Some("mac-ex") => extension::mac_ex()?,
         #[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
         Some("financial") => financial::run()?,
         #[cfg(any(feature = "sdk-offline", feature = "sdk-full"))]
@@ -82,7 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(any(feature = "sdk-f10", feature = "sdk-full"))]
         Some("f10") => f10::run()?,
         Some(_) => return Err(io::Error::new(io::ErrorKind::InvalidInput,
-            "use lazy or loopback; financial/offline need sdk-offline, f10 needs sdk-f10").into()),
+            "use lazy/loopback; financial/offline need sdk-offline, f10 needs sdk-f10, ex needs sdk-ex or sdk-mac, mac/mac-ex need sdk-mac").into()),
     }
     println!("independent Rust consumer completed"); Ok(())
 }

@@ -19,6 +19,18 @@ claim that merely hiding PATH entries proves a compiler is absent from the
 machine. The final isolated job/image configuration provides that evidence.
 The consumer's `--require-no-toolchain` is an additional runtime assertion.
 
+`scripts/verification/consume_python_wheel.py` automates this after the
+implementation-complete checkpoint. It accepts exactly one candidate wheel,
+records its filename/tags/native hashes, installs with binary-only/no-index
+options into an external venv, checks dependencies, runs this copied consumer
+with isolated Python, and compares installed native bytes with the archive.
+Logs and nonzero failures survive in the output directory. A Python-only
+Linux image asserts no toolchain before installation. Separate fresh
+Windows/macOS jobs restrict the consumer process PATH; their evidence is
+explicitly `process-path-only` and cannot prove physical compiler absence on
+the hosted machine. A dedicated compiler-free desktop image is still needed
+for that stronger environment claim. No install or workflow has run here.
+
 The fixture listens only on `127.0.0.1`. It checks a nonempty public code-table
 collection including its empty terminal page, snapshots with repeated input and
 known prices, capital-change chunks with raw bytes and original Python DTOs,

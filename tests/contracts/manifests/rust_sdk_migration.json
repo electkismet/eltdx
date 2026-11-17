@@ -14,7 +14,8 @@
     "rust_modes": [
       "tests/consumers/rust-sdk/src/f10.rs",
       "tests/consumers/rust-sdk/src/offline.rs",
-      "tests/consumers/rust-sdk/src/financial.rs"
+      "tests/consumers/rust-sdk/src/financial.rs",
+      "tests/consumers/rust-sdk/src/extension.rs"
     ],
     "python_wheel": "tests/consumers/python-wheel/consumer.py",
     "requirements": "Copy outside the checkout; Rust environment has no Python, wheel environment has no Rust build tools. Package/feature/MSRV/platform execution is deferred to final validation.",

@@ -581,6 +581,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T28：消费者与 feature/平台矩阵
 
+2026-11-17源码恢复点（stage109，基础55814ea）：T28独立EX/MAC/MAC-EX Rust consumer与feature/MSRV/平台/no-Python/分离wheel消费验证源码已写齐，全部未执行；详见[t28-verification-index.md](t28-verification-index.md)。桌面hosted环境只声明进程工具不可达，专用无编译器镜像仍需最终证据。27源码完整/1部分(T19)/2未开始(T29–T30)，以下验收框仍未通过。
+
 **文件：** 新增 `crates/eltdx/examples/`、CI Rust job、独立consumer fixture；`verification.md`包含具体执行模板。
 
 - [ ] 无Python环境先编译，再运行build/close及loopback真实请求；不是只导入crate。

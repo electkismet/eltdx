@@ -1,6 +1,12 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage109: base55814ea. T28 source complete:
+  standalone Rust extension consumer,32 feature subsets/MSRV/stable/platform
+  and Rust-only external consumer/feature exclusion, separate installed-wheel
+  jobs with archive/native identity. No commands/workflows executed. Desktop
+  tool isolation is process-only; stronger clean image evidence remains.27/1/2.
+  Read task-28-report; next T29/T30/T19 source closure then unified validation.
 - Latest recovery2026-11-17 stage108: base5bb5f34. T27 source complete with50
   explicit catalog mappings, real Rust/Python/native paths, hashes and authored
   Python/Rust contract/fixture nodes. Acceptance status/counts remain unchanged;
