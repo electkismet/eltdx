@@ -438,3 +438,11 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 从 Git 归档核对候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 后，解包至 Ubuntu 22.04 WSL2 x64 本地文件系统，在 Rust/Cargo 1.100.0 运行 locked、offline 的 SDK full、runtime 和 protocol 合并测试。65 个测试目标的汇总为 1113 passed、0 failed、10 ignored；ignored 负载不计为本轮通过。三个 crate 的 full all-targets Clippy（`-D warnings`）和 `cargo fmt --all -- --check` 均 exit 0。
 
 首轮因 Windows 路径的反斜杠被 WSL shell 解释，未运行 Cargo（exit 127）。保留 `artifacts/unified/stage167-linux-stable-attempt01/`，第二轮确认 WSL 路径可读后成功。`stage167-linux-stable-attempt02/result.json`（SHA256 `a2c8e8f6289d353cd3dae4fadfc49780b4f363987848b3215f8e51518dc2514f`）记录命令、时间、退出码和原始日志散列。Windows 生成的源归档 SHA256 `6e367ce8d957b650a6c4ecfa78ac609ce9b807ff398e1724364880ff3fa00ce0`，其中 Cargo.lock 因 CRLF 与发布检出的散列不同；转换为 LF 后一致（SHA256 `214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`）。本轮补齐同候选 Linux stable 范围，不重跑平台矩阵或压力性能，也不替代公开 registry 或生产证据。
+
+## Stage168：HQ `0x0ffc` 非空生产原始帧
+
+2026-11-17 23:26 UTC，从固定换行的干净候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 用 Rust 1.89 和独立锁文件运行最小 feature 的消费者。经仓库列出的一个专用主站正常调用 `money_flow().daily`，证券 `sh600000`，保留 wire 与解压后 payload，正常关闭，exit 0。响应含 40 字节证券头及 5 条各 88 字节的记录，分别为 2026-11-17、16、13、12、11。
+
+`artifacts/unified/stage168-hq-money-flow-attempt01/verify.py` 独立核对日志散列与退出码，解压 483 字节响应帧得到同一份 480 字节 payload，核对帧类型 `0x0ffc`、证券身份、各条日期、金额浮点位模式和全部 16 个分档，均与 SDK 结果一致。`verified.json` SHA256 `46bbdc7e1cbc5cd1fca6833da1edbaf0c3bfac06675406ff8afea157c42a1879`。wire SHA256 `ba2b983c6c0986155d733204cb79b8d09636cf1ad677fddd27083ca921812446`，payload SHA256 `7651e31c65a34de0434948532f9d008394ab19515e8ecf8636461cfd436ea4c7`。
+
+补齐冻结 fixture 库存中 `money_flow/0x0FFC/nonempty-wire-capture` 的外部验收证据，不修改其冻结清单或发布候选。结果只覆盖该主站和该证券的本次查询，不确认金额单位，SDK 仍返回 `Unknown`；实验 `0x052d` category 22 的非空证据继续缺失，Stage163 的 F10 历史资金流也单列。

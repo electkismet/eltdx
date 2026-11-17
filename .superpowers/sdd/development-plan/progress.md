@@ -1237,3 +1237,7 @@ Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.
 ## Stage167：补齐最终候选 Linux stable
 
 `6a6cd8b` 的 Git 归档在 WSL2 x64 / Rust 1.100.0 用 `--locked --offline` 通过 SDK full、protocol、runtime 合并测试（1113 通过、0 失败、10 忽略），三 crate 严格 Clippy 与全仓 fmt 检查通过。首轮 WSL 路径错误未进入编译，保留；成功报告为 `artifacts/unified/stage167-linux-stable-attempt02/result.json`。T28–T30 仅将有既有验证证据的复选框更新，未将之前候选记录升级为冻结候选结果。发布凭据仍缺，生产证据缺口沿用 Stage165–166。
+
+## Stage168：补齐 7709 日资金流完整生产帧
+
+冻结候选 `6a6cd8b` 的 Rust 1.89 独立最小消费者从一个专用主站获取 `sh600000` 最近五日日资金流，关闭成功。`artifacts/unified/stage168-hq-money-flow-attempt01/verified.json` 将原始 wire 与解压后的 payload 独立核对，五条 88 字节记录的日期、金额位模式和全部分档对应一致。原始帧在本地保留，运行时代码及金额 `Unknown` 语义不变。仍缺 category 22 非空以及 MAC-EX、可选 setup 与交易所原始价格记录；没有配置 crates.io 凭据，未发布。
