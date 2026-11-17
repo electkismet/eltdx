@@ -18,7 +18,7 @@ impl<'py> PageCall<'py> {
             PageKind::Quotes|PageKind::Members => self.module.getattr("_BOARD_MEMBERS_PAGE_SIZE"),
             PageKind::Bars => self.module.getattr("_KLINE_PAGE_SIZE"),
             PageKind::Transactions => self.module.getattr("_TRANSACTION_PAGE_SIZE"),
-            PageKind::Boards => Ok(150.into_pyobject(self.module.py())?.into_any()),
+            PageKind::Boards => Ok(150_i32.into_pyobject(self.module.py())?.into_any()),
         }
     }
     fn request(&self,client: &Bound<'py,PyAny>,offset: &Bound<'py,PyAny>,size: &Bound<'py,PyAny>) -> PyResult<Bound<'py,PyAny>> {
@@ -81,8 +81,8 @@ pub fn mac_page_query<'py>(py: Python<'py>, client: Bound<'py,PyAny>, kind: &str
         call.date = Some(call.module.getattr("_ymd_to_date")?.call1((call.arg(4)?,))?);
     }
     let count = call.arg(count_index)?;
-    let start = match start_index { Some(index) => call.arg(index)?,None => 0.into_pyobject(py)?.into_any() };
-    let mut fetched = 0.into_pyobject(py)?.into_any(); let mut offset = start.clone();
+    let start = match start_index { Some(index) => call.arg(index)?,None => 0_i32.into_pyobject(py)?.into_any() };
+    let mut fetched = 0_i32.into_pyobject(py)?.into_any(); let mut offset = start.clone();
     let mut output = PyList::empty(py).into_any();
     if kind == PageKind::Transactions || kind == PageKind::Boards {
         // These legacy methods issue an initial request even for count<=0,
@@ -159,7 +159,7 @@ pub fn mac_download_file<'py>(py: Python<'py>, client: Bound<'py,PyAny>, filenam
         size = execute.call1((module.getattr("FileListCmd")?.call1((&filename,))?,))?.getattr("size")?;
     }
     let output = builtin(&module,"bytearray")?.call0()?;
-    let mut offset = 0.into_pyobject(py)?.into_any(); let mut index = 1.into_pyobject(py)?.into_any();
+    let mut offset = 0_i32.into_pyobject(py)?.into_any(); let mut index = 1_i32.into_pyobject(py)?.into_any();
     let op = py.import("operator")?;
     while offset.lt(&size)? {
         py.check_signals()?;

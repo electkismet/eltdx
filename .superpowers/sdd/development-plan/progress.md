@@ -1,6 +1,14 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- stage120 on clean1d61669: Windows1.89 full combined SDK/runtime/protocol
+  actual exit0, SDK lib232 pass1 ignored/30 docs/7 serde, protocol98/runtime129/
+  deadline5/pin1 plus all regular targets. Python check01 failed52 compiler
+  errors; explicit numeric/closure types/current PyO3 APIs/error-layer repairs,
+  check02 failed3, check03 exit0. Actual Python wheel/compatibility not run yet.
+  Linux01 failed crates.io timeouts;02 syncing existing registry cache into WSL
+  task CARGO_HOME before locked/offline full tests, still running. Logs in
+  stage120-matrix. Continue wheel/full Python inventory then all remaining gates.
 - stage119 on74d14b0: deterministic late Failed/cancellation regression red
   then green; exact wire keeps original retirement, foreign generation rejects.
   Rust pinned child one attempt, PythonLegacy unchanged; lost-pin case passed

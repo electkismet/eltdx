@@ -75,7 +75,7 @@ pub fn mac_numeric_value<'py>(_py: Python<'py>,integer: bool,value: Bound<'py,Py
 }
 #[pyfunction]
 pub fn mac_numeric_default(py: Python<'_>,integer: bool) -> PyResult<Py<PyAny>> {
-    let result = if integer {0.into_pyobject(py)?.into_any()} else {0.0.into_pyobject(py)?.into_any()};
+    let result = if integer {0_i32.into_pyobject(py)?.into_any()} else {0.0_f64.into_pyobject(py)?.into_any()};
     Ok(result.unbind())
 }
 
@@ -290,7 +290,7 @@ fn describe<'py>(r: &Reader<'py>,kind: &Bound<'py,PyAny>) -> PyResult<[Bound<'py
     else if kind.eq(20)? {
         let direction = if a.eq(0)? {"涨"} else {"跌"};
         let alternate = if r.size()?.ge(10)? {exact(r.module.getattr("struct")?.call_method1("unpack_from",("<Bff",&r.body,1))?,3)?}
-            else {vec![r.n(0)?,0.0.into_pyobject(r.py)?.into_any(),0.0.into_pyobject(r.py)?.into_any()]};
+            else {vec![r.n(0)?,0.0_f64.into_pyobject(r.py)?.into_any(),0.0_f64.into_pyobject(r.py)?.into_any()]};
         let pattern = if alternate[0].eq(1)? {"逼近{}停"} else if alternate[0].eq(2)? {"封{}停板"}
             else if alternate[0].eq(4)? {"封{}大减"} else if alternate[0].eq(5)? {"打开{}停"} else {"涨跌停({})"};
         desc = r.format(pattern,&[r.s(direction)?])?;
@@ -387,7 +387,7 @@ fn json<'py>(r: &Reader<'py>,kind: &str) -> PyResult<Py<PyAny>> {
         let mut values = Vec::with_capacity(6);
         for (row,index) in [(&today,0),(&today,1),(&today,2),(&today,3),(&five,4),(&five,3)] {
             values.push(if r.len(row)?.gt(index)? {r.module.getattr("_to_float")?.call1((row.get_item(index)?,))?}
-                else {0.0.into_pyobject(r.py)?.into_any()});
+                else {0.0_f64.into_pyobject(r.py)?.into_any()});
         }
         return Ok(model!(r,"CapitalFlowData","date" => "","main_in" => &values[0],"main_out" => &values[1],
             "main_net" => r.binary("sub",&values[0],&values[1])?,"small_in" => &values[2],"small_out" => &values[3],
@@ -406,7 +406,7 @@ fn json<'py>(r: &Reader<'py>,kind: &str) -> PyResult<Py<PyAny>> {
         for (key,index) in [("close",4),("pre_close",5)] {
             kwargs.set_item(key,if len.gt(index)? && row.get_item(index)?.is_truthy()? {
                 r.module.getattr("_to_float")?.call1((row.get_item(index)?,))?
-            } else {0.0.into_pyobject(r.py)?.into_any()})?;
+            } else {0.0_f64.into_pyobject(r.py)?.into_any()})?;
         }
         results.append(constructor.call((),Some(&kwargs))?)?;
     }

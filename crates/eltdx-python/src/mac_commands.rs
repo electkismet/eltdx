@@ -9,7 +9,7 @@ fn assign<'py>(command: &Bound<'py,PyAny>,args: &Bound<'py,PyTuple>,fields: &[(&
     for &(name,index) in fields {command.setattr(name,args.get_item(index)?)?;} Ok(())
 }
 fn ymd<'py>(py: Python<'py>,value: Bound<'py,PyAny>) -> PyResult<Bound<'py,PyAny>> {
-    if value.is_none() {return Ok(0.into_pyobject(py)?.into_any());}
+    if value.is_none() {return Ok(0_i32.into_pyobject(py)?.into_any());}
     let op = py.import("operator")?;
     let year = op.getattr("mul")?.call1((value.getattr("year")?,10000))?;
     let month = op.getattr("mul")?.call1((value.getattr("month")?,100))?;
@@ -39,7 +39,7 @@ pub fn mac_command_init<'py>(py: Python<'py>,kind: &str,command: Bound<'py,PyAny
         "minute" | "multi_minute" | "transactions" => {
             if kind == "multi_minute" {
                 let days = args.get_item(3)?;
-                if !(1.into_pyobject(py)?.le(&days)? && days.le(command.getattr("MAX_DAYS")?)?) {
+                if !(1_i32.into_pyobject(py)?.le(&days)? && days.le(command.getattr("MAX_DAYS")?)?) {
                     let constructor = builtin(&module,"ValueError")?;
                     let maximum = "{:}".into_pyobject(py)?.call_method1("format",(command.getattr("MAX_DAYS")?,))?;
                     let days = "{:}".into_pyobject(py)?.call_method1("format",(days,))?;
@@ -91,10 +91,10 @@ fn pack<'py>(py: Python<'py>,command: &Bound<'py,PyAny>,module: &Bound<'py,PyAny
             let int = builtin(module,"int")?; int.call1((command.getattr(name)?,))?
         } else if let Some(name) = field.strip_prefix("gbk:") {command.getattr(name)?.call_method1("encode",("gbk",))?}
         else {match field {
-            "#0" => 0.into_pyobject(py)?.into_any(),"#1" => 1.into_pyobject(py)?.into_any(),
-            "#20" => 20.into_pyobject(py)?.into_any(),"#30" => 30.into_pyobject(py)?.into_any(),
-            "#40" => 40.into_pyobject(py)?.into_any(),"#50" => 50.into_pyobject(py)?.into_any(),
-            "#200" => 200.into_pyobject(py)?.into_any(),"#empty" => PyBytes::new(py,b"").into_any(),
+            "#0" => 0_i32.into_pyobject(py)?.into_any(),"#1" => 1_i32.into_pyobject(py)?.into_any(),
+            "#20" => 20_i32.into_pyobject(py)?.into_any(),"#30" => 30_i32.into_pyobject(py)?.into_any(),
+            "#40" => 40_i32.into_pyobject(py)?.into_any(),"#50" => 50_i32.into_pyobject(py)?.into_any(),
+            "#200" => 200_i32.into_pyobject(py)?.into_any(),"#empty" => PyBytes::new(py,b"").into_any(),
             "#bar0" => layout::BARS_FLAGS[0].into_pyobject(py)?.into_any(),
             "#bar1" => layout::BARS_FLAGS[1].into_pyobject(py)?.into_any(),
             "#bar2" => layout::BARS_FLAGS[2].into_pyobject(py)?.into_any(),

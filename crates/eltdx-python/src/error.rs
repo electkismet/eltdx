@@ -61,6 +61,7 @@ pub fn from_sdk(_py: Python<'_>, error: eltdx::Error) -> PyErr {
         K::ForkedProcess | K::Cancelled | K::CancelUnconfirmed | K::PinLost | K::Io | K::Internal => {
             "Internal"
         }
+        _ => "Internal",
     };
     let mut context = error.context().to_vec();
     if error.kind() == K::InvalidArgument

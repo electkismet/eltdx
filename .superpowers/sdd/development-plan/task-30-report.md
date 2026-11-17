@@ -199,3 +199,19 @@ on the saved checkpoint for whole-command exit0. Original compile/type/IO/move
 failures retained in stage119-runtime. WSL Ubuntu22.04 task-specific Rust1.89
 install03 passed, no Linux behavior result yet. Full feature/MSRV/compatibility/
 consumer/package/docs/stress/performance/production evidence still required.
+
+## Unified validation stage120: Windows combined pass and binding compilation
+
+Clean1d616698971172621eca9f64bb41adf4ebb1f6c8 Windows1.89/full combined SDK,
+runtime and protocol test command exited0. SDK lib232 pass1 ignored,30 docs,
+7 serde; protocol98/runtime129/deadline5/pin1 and all regular targets passed.
+Ignored stress and remaining matrices are not accepted. Python binding check01
+failed52 compile errors; explicit numeric/closure types, PyO3 interface and
+error-layer repairs reduced check02 to3, check03 exited0 on recorded dirty diff.
+KeyboardInterrupt cleanup now distinguishes confirmed result, SDK unconfirmed
+retirement and channel failure; actual Python behavior still requires wheel.
+Linux01 failed crates.io config connection timeouts;02 uses task-specific cache
+copied from existing Windows registry and locked/offline full tests, running
+at this checkpoint. Logs stage120-matrix. Next wheel build/isolated consumer,
+full Python inventory/contracts/loopback, remaining feature/Loom/platform/package/
+stress/performance gates. Goal active unlimited; no release or agents.

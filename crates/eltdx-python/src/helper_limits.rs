@@ -14,10 +14,10 @@ pub fn shortline_limit_ratio(py: Python<'_>, code: Bound<'_, PyAny>, name: Bound
     let name = name.str()?.call_method0("strip")?.call_method0("upper")?;
     if name.call_method1("startswith", (("N", "C"),))?.is_truthy()? { return Ok(py.None()); }
     if name.call_method1("startswith", (("ST", "*ST", "SST", "S*ST"),))?.is_truthy()? {
-        return Ok(5.0.into_pyobject(py)?.into_any().unbind());
+        return Ok(5.0_f64.into_pyobject(py)?.into_any().unbind());
     }
     let symbol = code.get_item(pyo3::types::PySlice::new(py, 2, isize::MAX, 1))?;
-    let value = if code.call_method1("startswith", ("bj",))?.is_truthy()? { 30.0 }
+    let value: f64 = if code.call_method1("startswith", ("bj",))?.is_truthy()? { 30.0 }
         else if code.call_method1("startswith", ("sh688",))?.is_truthy()?
             || (code.call_method1("startswith", ("sz",))?.is_truthy()?
                 && symbol.call_method1("startswith", ("30",))?.is_truthy()?) { 20.0 }
@@ -89,7 +89,7 @@ pub fn shortline_ladder_level(py: Python<'_>, stat: Bound<'_, PyAny>, stats_date
     target: Bound<'_, PyAny>, previous: Bound<'_, PyAny>, status: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
     if !status.eq("sealed")? || stat.is_none() { return Ok(py.None()); }
     let prior = stat.getattr("limit_up_streak_days")?;
-    let prior = if prior.is_truthy()? { prior } else { 0.into_pyobject(py)?.into_any() };
+    let prior = if prior.is_truthy()? { prior } else { 0_i32.into_pyobject(py)?.into_any() };
     let prior = py.import("builtins")?.getattr("int")?.call1((prior,))?.unbind();
     let same = stats_date.eq(target)?;
     let previous = if same { false } else { stats_date.eq(previous)? };
@@ -102,9 +102,9 @@ pub fn shortline_ladder_level(py: Python<'_>, stat: Bound<'_, PyAny>, stats_date
 #[pyfunction]
 fn ladder_key(py: Python<'_>, row: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
     let level = row.getattr("ladder_level")?;
-    let level = if level.is_truthy()? { level } else { 0.into_pyobject(py)?.into_any() };
+    let level = if level.is_truthy()? { level } else { 0_i32.into_pyobject(py)?.into_any() };
     let seal = row.getattr("seal_amount")?;
-    let seal = if seal.is_truthy()? { seal } else { 0.0.into_pyobject(py)?.into_any() };
+    let seal = if seal.is_truthy()? { seal } else { 0.0_f64.into_pyobject(py)?.into_any() };
     let negate = py.import("operator")?.getattr("neg")?;
     Ok((negate.call1((level,))?, negate.call1((seal,))?, row.getattr("full_code")?)
         .into_pyobject(py)?.into_any().unbind())
@@ -128,7 +128,7 @@ pub fn helper_ladder(py: Python<'_>, table: Bound<'_, PyAny>, include_touched: B
     let rows = if count.is_none() { rows.into_any() } else {
         if count.le(0)? { return Err(pyo3::exceptions::PyValueError::new_err("count must be positive or None")); }
         let slice = py.import("builtins")?.getattr("slice")?.call1((py.None(), count))?;
-        rows.get_item(slice)?
+        rows.as_any().get_item(slice)?
     };
     Ok(py.import("builtins")?.getattr("tuple")?.call1((rows,))?.unbind())
 }

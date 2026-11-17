@@ -91,7 +91,7 @@ fn pack<'py>(py: Python<'py>,command: &Bound<'py,PyAny>,module: &Bound<'py,PyAny
     let method = module.getattr("struct")?.getattr("pack")?;
     let mut args = vec![fmt.into_pyobject(py)?.into_any()];
     for name in names {
-        args.push(match *name { "#0" => 0.into_pyobject(py)?.into_any(), "#1" => 1.into_pyobject(py)?.into_any(),
+        args.push(match *name { "#0" => 0_i32.into_pyobject(py)?.into_any(), "#1" => 1_i32.into_pyobject(py)?.into_any(),
             name => command.getattr(name)? });
     }
     method.call1(PyTuple::new(py,args)?)

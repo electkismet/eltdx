@@ -112,7 +112,7 @@ pub fn subscription_dispatch(py: Python<'_>, owner: Bound<'_, PyAny>, rows: Boun
         if !row.is_instance(&record_type)? { continue; }
         if owner.getattr("_filter_codes")?.is_truthy()?
             && !owner.getattr("_code_set")?.contains(row.getattr("full_code")?)? { continue; }
-        let total = add(&owner.getattr("_dispatched")?, &1.into_pyobject(py)?.into_any())?;
+        let total = add(&owner.getattr("_dispatched")?, &1_i32.into_pyobject(py)?.into_any())?;
         owner.setattr("_dispatched", total)?;
         owner.call_method1("_invoke_callback", (row,))?;
         count += 1;
@@ -123,7 +123,7 @@ pub fn subscription_dispatch(py: Python<'_>, owner: Bound<'_, PyAny>, rows: Boun
 #[pyfunction]
 pub fn subscription_run_once(py: Python<'_>, owner: Bound<'_, PyAny>, timeout: Bound<'_, PyAny>,
     clock: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
-    let zero = 0.into_pyobject(py)?.into_any();
+    let zero = 0_i32.into_pyobject(py)?.into_any();
     if owner.getattr("_stopped")?.is_truthy()? { return Ok(zero.unbind()); }
     let mut effective = if timeout.is_none() { owner.getattr("_timeout")? } else { timeout };
     if !effective.is_none() && effective.lt(0)? {
@@ -159,7 +159,7 @@ pub fn subscription_run_once(py: Python<'_>, owner: Bound<'_, PyAny>, timeout: B
     }
     let outcome = owner.call_method1("_poll_once", (effective,))?;
     if !outcome.get_item(0)?.is_truthy()? { return Ok(dispatched.unbind()); }
-    let total = add(&owner.getattr("_frames")?, &1.into_pyobject(py)?.into_any())?;
+    let total = add(&owner.getattr("_frames")?, &1_i32.into_pyobject(py)?.into_any())?;
     owner.setattr("_frames", total)?;
     let frame = outcome.get_item(1)?;
     if frame.is_none() { return Ok(dispatched.unbind()); }

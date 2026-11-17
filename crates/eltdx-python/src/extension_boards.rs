@@ -26,8 +26,8 @@ impl SummaryValues {
                 match self.kind {
                     SummaryKind::Money|SummaryKind::Volume => {
                         let convert = builtin(module,if matches!(self.kind,SummaryKind::Money) { "float" } else { "int" })?;
-                        let default = if matches!(self.kind,SummaryKind::Money) { 0.0.into_pyobject(py)?.into_any() }
-                            else { 0.into_pyobject(py)?.into_any() };
+                        let default = if matches!(self.kind,SummaryKind::Money) { 0.0_f64.into_pyobject(py)?.into_any() }
+                            else { 0_i32.into_pyobject(py)?.into_any() };
                         let mut value = row.getattr("fields")?.call_method1("get",(self.field,&default))?;
                         if !value.is_truthy()? { value = default; }
                         Ok(Some(convert.call1((value,))?.unbind()))
@@ -35,14 +35,14 @@ impl SummaryValues {
                     SummaryKind::Up|SummaryKind::Down => {
                         let convert = builtin(module,"float")?;
                         let mut close = row.getattr("fields")?.call_method1("get",("close",0.0))?;
-                        if !close.is_truthy()? { close = 0.0.into_pyobject(py)?.into_any(); }
+                        if !close.is_truthy()? { close = 0.0_f64.into_pyobject(py)?.into_any(); }
                         let close = convert.call1((close,))?;
                         let convert = builtin(module,"float")?;
                         let mut previous = row.getattr("fields")?.call_method1("get",("pre_close",0.0))?;
-                        if !previous.is_truthy()? { previous = 0.0.into_pyobject(py)?.into_any(); }
+                        if !previous.is_truthy()? { previous = 0.0_f64.into_pyobject(py)?.into_any(); }
                         let previous = convert.call1((previous,))?;
                         let include = if matches!(self.kind,SummaryKind::Up) { close.gt(previous)? } else { close.lt(previous)? };
-                        Ok(if include { Some(1.into_pyobject(py)?.into_any().unbind()) } else { None })
+                        Ok(if include { Some(1_i32.into_pyobject(py)?.into_any().unbind()) } else { None })
                     }
                 }
             })();
@@ -124,7 +124,7 @@ impl MetricKey {
         let convert = builtin(self.module.bind(py),"float")?;
         let value = if self.default {
             let mut value = row.call_method1("get",(self.field.bind(py),0.0))?;
-            if !value.is_truthy()? { value = 0.0.into_pyobject(py)?.into_any(); } value
+            if !value.is_truthy()? { value = 0.0_f64.into_pyobject(py)?.into_any(); } value
         } else { row.get_item(self.field.bind(py))? };
         Ok(convert.call1((value,))?.unbind())
     }
@@ -164,7 +164,7 @@ pub fn mac_board_ranking<'py>(py: Python<'py>,client: Bound<'py,PyAny>,args: Bou
                 |price,_| op.getattr("sub")?.call1((price,board.getattr("pre_close")?)),
                 |change,base| op.getattr("truediv")?.call1((change,base)),
                 |change| op.getattr("mul")?.call1((change,100)))?
-        } else { 0.0.into_pyobject(py)?.into_any() };
+        } else { 0.0_f64.into_pyobject(py)?.into_any() };
         changes.set_item(board.getattr("code")?,value)?;
     }
     let rows = PyList::empty(py);
@@ -219,7 +219,7 @@ pub fn mac_board_change_ranking<'py>(py: Python<'py>,client: Bound<'py,PyAny>,ar
         })();
         let bars = match fetched {
             Ok(bars) => bars,Err(error) => {
-                if error.matches(py,module.getattr("TransportError")?) { continue; } return Err(error);
+                if error.matches(py,module.getattr("TransportError")?)? { continue; } return Err(error);
             }
         };
         let sorted = builtin(&module,"sorted")?; let kwargs = PyDict::new(py); kwargs.set_item("key",&bar_key)?;

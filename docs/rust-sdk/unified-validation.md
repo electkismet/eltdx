@@ -72,3 +72,13 @@ HQ Rust RequestPermit的pinned提交使用一次物理尝试，沿用原authoriz
 合并命令为 `cargo +1.89.0 test -p eltdx -p eltdx-runtime -p eltdx-protocol --no-default-features --features eltdx/full --locked --no-fail-fast`。attempt01暴露两个runtime integration用例的IO错误未转换和SubmissionOptions移动后复用；修正后attempt02完成：SDK所有常规target和30 doctest通过、protocol98通过、runtime lib129与deadline5通过；整条命令仍exit101，唯一失败pin_handoff fixture只accept未回复HQ握手。补完整握手后又实测即时broker缓存断言返回旧0；pool_diagnostics源码明确读取25ms周期缓存。用实时source_identity检查已交付pin取消后仍有效、下一pin排队、原pin关闭失效和下一pin交付/释放替代不可靠的缓存断言，pin-handoff-attempt03 exit0（1项）。这不是放弃独占/释放合同，验证改为运行时实时身份与排队行为。完整合并命令尚需检查点后获得同候选exit0，警告及ignored压力仍待。
 
 WSL实际Ubuntu22.04，任务专用 `/root/.cache/eltdx-sdk-validation/` 下安装Rust/Cargo1.89，install attempt03 exit0，先前Windows到WSL参数转义与CRLF脚本失败保留；没有更改默认用户toolchain或PATH。工具安装不是Linux行为验证。后续继续Windows完整/feature/Loom、Linux真实执行、PyO3/Python、独立消费者/包/文档/压力/性能与生产协议证据，整体目标仍未验收。
+
+## stage120：Windows full合并通过与Python绑定编译修复
+
+干净来源 `1d616698971172621eca9f64bb41adf4ebb1f6c8`，Windows/MSVC Rust1.89的 `cargo +1.89.0 test -p eltdx -p eltdx-runtime -p eltdx-protocol --no-default-features --features eltdx/full --locked --no-fail-fast` 实际exit0。记录 `artifacts/unified/stage120-matrix/windows-full-attempt01.*`：SDK lib232通过/1 ignored，30 doctest、7 serde合同，以及protocol98、runtime129、deadline5、pin_handoff1通过，其他普通integration target同样没有失败。这里不把未独立汇总的全目标用例计数相加；ignored压力没有执行。仍有warning，没有据此声明clippy/fmt或minimal/default/feature矩阵通过。
+
+同一干净来源的Python绑定 `cargo +1.89.0 check -p eltdx-python --locked` attempt01实际exit101，共52个编译错误。根因包括PyO3泛型转换前未确定的数值类型、matches返回Result、Bound/未绑定对象不同签名、list切片和Python比较落到Rust trait、移除的downcast、闭包错误类型推断及跨层错误转换。补明确小整数i32/浮点f64、闭包PyResult、当前PyO3接口；不改变Python小常量的值。attempt02剩3个同类变量推断错误，补width/ratio/value类型后attempt03实际exit0。所有失败、源码diff/hash与新结果都独立保留，未覆盖。当前只是编译通过，实际wheel和兼容行为还待验证。
+
+`run_legacy` 原取消分支把外层mpsc RecvError当作SDK错误，且内层CancelUnconfirmed被忽略。现在分别保留：确认取消/已返回正常结果不增加KeyboardInterrupt cause；SDK CancelUnconfirmed附原SDK错误，通道断开/锁失效附RuntimeError并报告无法确认。真实中断与资源回收仍须由安装候选的Python回环用例验证，不由check推定。
+
+Linux实际首轮 `linux-full-attempt01` exit101，crates.io config.json连接连续超时，没有得到编译或测试结果。attempt02在同一WSL Ubuntu22.04/Rust1.89独立target中，用rsync复制Windows现有registry缓存到任务专用CARGO_HOME，然后 `--locked --offline` 执行相同full合并集合；本检查点尚在运行，未填passed。无系统全局代理、工具链或默认PATH更改。继续实际wheel/完整Python库存和矩阵/消费者/包/压力性能，不减少验收范围。

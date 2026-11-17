@@ -53,8 +53,8 @@ pub fn shortline_indicator(py: Python<'_>, code: Bound<'_, PyAny>, quote: Bound<
     let mut count = get(&stat, "limit_up_count_in_stat_days")?;
     let stat_date = callback(&scope, "_row_stats_date")?.call1((&stat, &stat2))?;
     if limit_status.eq("sealed")? && stat_date.eq(context.getattr("previous_trade_date")?)? {
-        if !days.is_truthy()? { days = 0.into_pyobject(py)?.into_any(); }
-        if !count.is_truthy()? { count = 0.into_pyobject(py)?.into_any(); }
+        if !days.is_truthy()? { days = 0_i32.into_pyobject(py)?.into_any(); }
+        if !count.is_truthy()? { count = 0_i32.into_pyobject(py)?.into_any(); }
         days = op.getattr("add")?.call1((days, 1))?;
         count = op.getattr("add")?.call1((count, 1))?;
     }

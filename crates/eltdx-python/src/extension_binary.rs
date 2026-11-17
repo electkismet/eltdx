@@ -93,8 +93,8 @@ pub fn ex_datetime_decode<'py>(py: Python<'py>,kind: &str,category: Bound<'py,Py
         for _ in 0..4 { items.push(iter.next().transpose()?.ok_or_else(||
             pyo3::exceptions::PyValueError::new_err(format!("not enough values to unpack (expected 4, got {})",items.len())))?); }
         if iter.next().transpose()?.is_some() { return Err(pyo3::exceptions::PyValueError::new_err("too many values to unpack (expected 4)")); }
-        let result = [items[0].clone(),items[1].clone(),items[2].clone(),15.into_pyobject(py)?.into_any(),
-            0.into_pyobject(py)?.into_any(),items[3].clone()];
+        let result = [items[0].clone(),items[1].clone(),items[2].clone(),15_i32.into_pyobject(py)?.into_any(),
+            0_i32.into_pyobject(py)?.into_any(),items[3].clone()];
         return Ok(PyTuple::new(py,result)?.into_any().unbind());
     }
     let (fmt,context,count) = if kind == "minute" { ("<HH","minute datetime",2) } else { ("<I","day datetime",1) };

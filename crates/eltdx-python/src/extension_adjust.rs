@@ -15,7 +15,7 @@ pub fn mac_forward_factor<'py>(py: Python<'py>, close: Bound<'py,PyAny>, cash: B
 {
     if close.le(0)? { return nan(&module); }
     let op = py.import("operator")?;
-    let denominator = forward_denominator_with(&close,&stock,&rights,1.0.into_pyobject(py)?.into_any(),
+    let denominator = forward_denominator_with(&close,&stock,&rights,1.0_f64.into_pyobject(py)?.into_any(),
         |left,right| op.getattr("add")?.call1((left,right)),
         |left,right| op.getattr("mul")?.call1((left,right)))?;
     if denominator.eq(0)? { return nan(&module); }

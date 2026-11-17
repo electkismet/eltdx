@@ -8,7 +8,7 @@ use pyo3::types::PyDict;
 pub(super) fn builtin<'py>(scope: &Bound<'py, PyDict>, name: &str) -> PyResult<Bound<'py, PyAny>> {
     if let Some(value) = scope.get_item(name)? { return Ok(value); }
     if let Some(builtins) = scope.get_item("__builtins__")? {
-        if let Ok(values) = builtins.downcast::<PyDict>() {
+        if let Ok(values) = builtins.cast::<PyDict>() {
             return values.get_item(name)?.ok_or_else(|| pyo3::exceptions::PyNameError::new_err(name.to_owned()));
         }
         return builtins.getattr(name);

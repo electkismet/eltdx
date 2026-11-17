@@ -354,7 +354,7 @@ pub fn board_parse(py: Python<'_>, service: Bound<'_, PyAny>, scope: Bound<'_, P
     for (code, fields) in definitions.iter() {
         let category = fields.get_item(2)?;
         let category = if category.call_method0("isdigit")?.is_truthy()? { py.import("builtins")?.getattr("int")?.call1((category,))? }
-            else { 4.into_pyobject(py)?.into_any() };
+            else { 4_i32.into_pyobject(py)?.into_any() };
         let name = fields.get_item(0)?.call_method0("strip")?;
         let name = if name.is_truthy()? { name } else { code.clone() };
         let declared = if fields.len()? > 3 { fields.get_item(3)? } else { py.None().into_bound(py) };
@@ -396,7 +396,7 @@ pub fn board_members(py: Python<'_>, service: Bound<'_, PyAny>, board: Bound<'_,
             }
         }
         if !expected.is_none(py) {
-            let count = py.import("builtins")?.getattr("set")?.call1((&members,))?.len()?.into_pyobject(py)?;
+            let count = py.import("builtins")?.getattr("set")?.call1((&members,))?.len()?.into_pyobject(py)?.into_any();
             if !count.eq(expected.bind(py))? {
                 return Err(pyo3::exceptions::PyValueError::new_err(format!("incomplete board membership: {}", code.str()?.to_str()?)));
             }
@@ -451,7 +451,7 @@ pub fn board_read_text(py: Python<'_>, path: Bound<'_, PyAny>) -> PyResult<Py<Py
 
 #[pyfunction]
 pub fn board_read_json(py: Python<'_>, path: Bound<'_, PyAny>, json: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
-    let result = (|| {
+    let result: PyResult<Py<PyAny>> = (|| {
         let options = PyDict::new(py); options.set_item("encoding", "utf-8")?;
         let value = json.call_method1("loads", (path.call_method("read_text", (), Some(&options))?,))?;
         if value.is_instance_of::<PyDict>() { Ok(value.unbind()) } else { Ok(PyDict::new(py).into_any().unbind()) }
@@ -467,7 +467,7 @@ pub fn board_read_json(py: Python<'_>, path: Bound<'_, PyAny>, json: Bound<'_, P
 pub fn board_read_security(py: Python<'_>, service: Bound<'_, PyAny>, json: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
     let file = path(&service, "security_list.json")?;
     if !file.call_method0("exists")?.is_truthy()? { return Ok(py.None()); }
-    let result = (|| {
+    let result: PyResult<Py<PyAny>> = (|| {
         let options = PyDict::new(py); options.set_item("encoding", "utf-8")?;
         let rows = json.call_method1("loads", (file.call_method("read_text", (), Some(&options))?,))?;
         let result = PyDict::new(py);

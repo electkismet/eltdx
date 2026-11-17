@@ -63,7 +63,7 @@ fn observe<'py>(py: Python<'py>, item: &Bound<'py, PyAny>, row: &Bound<'py, PyAn
             }
             ThemeUpdate::Level => {
                 level = row.getattr("ladder_level")?;
-                if !level.is_truthy()? { level = 0.into_pyobject(py)?.into_any(); }
+                if !level.is_truthy()? { level = 0_i32.into_pyobject(py)?.into_any(); }
             }
             ThemeUpdate::Highest => {
                 let maximum = builtin(scope, "max")?;
@@ -78,14 +78,14 @@ fn observe<'py>(py: Python<'py>, item: &Bound<'py, PyAny>, row: &Bound<'py, PyAn
             ThemeUpdate::Seal => {
                 let previous = item.get_item("total_seal_amount")?;
                 let mut value = row.getattr("seal_amount")?;
-                if !value.is_truthy()? { value = 0.0.into_pyobject(py)?.into_any(); }
+                if !value.is_truthy()? { value = 0.0_f64.into_pyobject(py)?.into_any(); }
                 item.set_item("total_seal_amount", op.getattr("iadd")?.call1((previous, value))?)?;
             }
             ThemeUpdate::Leader => {
                 let leader = item.get_item("leader")?;
                 let replace = if leader.is_none() { true } else {
                     let mut previous = leader.getattr("ladder_level")?;
-                    if !previous.is_truthy()? { previous = 0.into_pyobject(py)?.into_any(); }
+                    if !previous.is_truthy()? { previous = 0_i32.into_pyobject(py)?.into_any(); }
                     op.getattr("gt")?.call1((&level, previous))?.is_truthy()?
                 };
                 if replace { item.set_item("leader", row)?; }

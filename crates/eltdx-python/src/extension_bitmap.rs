@@ -107,7 +107,7 @@ fn wire_integer<'py>(py: Python<'py>, bytes: &[u8]) -> PyResult<Bound<'py, PyAny
 pub fn mac_build_bitmap(py: Python<'_>, fields: Bound<'_, PyAny>, width: Bound<'_, PyAny>,
     module: Bound<'_, PyAny>) -> PyResult<Py<PyAny>>
 {
-    if !(1.into_pyobject(py)?.le(&width)? && width.le(module.getattr("BITMAP_SIZE")?)?) {
+    if !(1_i32.into_pyobject(py)?.le(&width)? && width.le(module.getattr("BITMAP_SIZE")?)?) {
         let error = builtin(&module,"ValueError")?;
         let maximum = formatted(&module.getattr("BITMAP_SIZE")?,"")?;
         let width = formatted(&width,"")?;

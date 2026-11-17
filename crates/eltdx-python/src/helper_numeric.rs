@@ -31,7 +31,7 @@ pub fn shortline_scalar(py: Python<'_>, kind: &str, left: Bound<'_, PyAny>, righ
             if kind == "percent" { op.getattr("mul")?.call1((value.bind(py), 100.0))? } else { value.into_bound(py) }
         }
         "change" => {
-            let excluded = PyTuple::new(py, [py.None(), 0.into_pyobject(py)?.into_any().unbind()])?;
+            let excluded = PyTuple::new(py, [py.None(), 0_i32.into_pyobject(py)?.into_any().unbind()])?;
             if excluded.contains(&right)? { return Ok(py.None()); }
             let difference = op.getattr("sub")?.call1((float.call1((left,))?, float.call1((&right,))?))?;
             let value = op.getattr("truediv")?.call1((difference, float.call1((right,))?))?;

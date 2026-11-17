@@ -122,7 +122,7 @@ pub fn helper_market_stat(py: Python<'_>, client: Bound<'_, PyAny>, codes: Bound
     // This positional association is part of the existing Python contract.
     let first = quotes.get_item(0)?;
     let count = |price: Bound<'_, PyAny>| -> PyResult<Py<PyAny>> {
-        let value = product(py, price, 10.into_pyobject(py)?.into_any())?;
+        let value = product(py, price, 10_i32.into_pyobject(py)?.into_any())?;
         Ok(py.import("builtins")?.getattr("round")?.call1((value,))?.unbind())
     };
     let up = count(first.getattr("last_price")?)?;
@@ -132,9 +132,9 @@ pub fn helper_market_stat(py: Python<'_>, client: Bound<'_, PyAny>, codes: Bound
     let cap = if quotes.len()? > 1 { product(py, quotes.get_item(1)?.getattr("last_price")?, 1e10_f64.into_pyobject(py)?.into_any())? }
         else { 0.0_f64.into_pyobject(py)?.into_any().unbind() };
     let limit_down = if quotes.len()? > 2 { count(quotes.get_item(2)?.getattr("open_price")?)? }
-        else { 0.into_pyobject(py)?.into_any().unbind() };
+        else { 0_i32.into_pyobject(py)?.into_any().unbind() };
     let limit_up = if quotes.len()? > 2 { count(quotes.get_item(2)?.getattr("last_price")?)? }
-        else { 0.into_pyobject(py)?.into_any().unbind() };
+        else { 0_i32.into_pyobject(py)?.into_any().unbind() };
     let op = py.import("operator")?.getattr("sub")?;
     let remaining = op.call1((total.bind(py), up.bind(py)))?;
     let remaining = op.call1((remaining, down.bind(py)))?;

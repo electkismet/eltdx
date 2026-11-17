@@ -18,7 +18,7 @@ pub fn mac_ex_goods_items<'py>(py: Python<'py>,infos: Bound<'py,PyAny>,module: B
         let numeric = match numeric {
             Ok(value) => value,Err(error) => {
                 let classes = PyTuple::new(py,[builtin(&module,"TypeError")?,builtin(&module,"ValueError")?])?;
-                if !error.matches(py,classes) { return Err(error); }
+                if !error.matches(py,classes)? { return Err(error); }
                 PyList::empty(py).into_any()
             }
         };
@@ -88,7 +88,7 @@ pub fn mac_ex_goods_list<'py>(py: Python<'py>,client: Bound<'py,PyAny>,market: B
 fn lower_bound<'py>(py: Python<'py>,client: &Bound<'py,PyAny>,market: &Bound<'py,PyAny>,
     total: &Bound<'py,PyAny>,greater: bool) -> PyResult<Bound<'py,PyAny>>
 {
-    let op = py.import("operator")?; let mut lo = 0.into_pyobject(py)?.into_any(); let mut hi = total.clone();
+    let op = py.import("operator")?; let mut lo = 0_i32.into_pyobject(py)?.into_any(); let mut hi = total.clone();
     while lo.lt(&hi)? {
         py.check_signals()?;
         let mid = op.getattr("floordiv")?.call1((op.getattr("add")?.call1((&lo,&hi))?,2))?;
@@ -121,7 +121,7 @@ pub fn mac_ex_instruments<'py>(py: Python<'py>,client: Bound<'py,PyAny>,market: 
     let execute = client.getattr("_execute")?; let total = execute.call1((module.getattr("GetExInstrumentCountCmd")?.call0()?,))?;
     let minimum = builtin(&module,"min")?;
     let page = minimum.call1((builtin(&module,"max")?.call1((&count,1))?,1000))?;
-    let collected = PyList::empty(py); let mut skipped = 0.into_pyobject(py)?.into_any(); let mut pos = bounds[0].clone();
+    let collected = PyList::empty(py); let mut skipped = 0_i32.into_pyobject(py)?.into_any(); let mut pos = bounds[0].clone();
     let op = py.import("operator")?;
     while pos.lt(&total)? && builtin(&module,"len")?.call1((&collected,))?.lt(&count)? {
         py.check_signals()?; let batch = client.call_method1("_info_page",(&pos,&page))?;

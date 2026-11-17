@@ -1,6 +1,6 @@
 # T01–T30 最终要求与证据索引
 
-本页把开发计划R01–R12关联到实际源码、验证入口和必须保留的运行证据。它是验收导航，不能凭表格或脚本存在判定完成。当前全部新实现仍待统一执行；最终候选SHA、工具链、平台、产物和退出码没有填入通过值。未验证、失败、缺失、平台未具备、生产样本未取到必须分别记录。
+本页把开发计划R01–R12关联到实际源码、验证入口和必须保留的运行证据。它是验收导航，不能凭表格或脚本存在判定完成。统一执行已在stage115开放，Windows Rust1.89/full合并集合已于stage120通过；各次候选、平台、命令和具体范围见[统一验证记录](unified-validation.md)。整体最终候选和完整交付矩阵仍未验收。未验证、失败、缺失、平台未具备、生产样本未取到必须分别记录。
 
 ## 要求逐项追踪
 
@@ -44,7 +44,7 @@
 
 ## 当前明确缺口
 
-- 统一验证尚未开始，所有新门禁的通过证据缺失；source-complete不等于compiled/tested/accepted。
+- 统一验证已开始；Windows full通过和Python绑定check通过仅证明各自记录的范围。Python实际兼容、其他feature/平台/包/压力性能门禁仍待，source-complete不等于整体验收。
 - MAC-EX生产LoginReplyRules默认与optional MAC setup的响应identity/order/fence仍无独立证明。合成成功/拒绝字节只允许在显式合成profile使用。
 - category22没有独立非空生产样本，未知涨跌停规则仍返回Unknown；不影响已独立实现的HQ0x0FFC与F10历史资金流归属。
 - 注册表名称/同版本源码身份、全部新依赖lock/API/MSRV/license、跨平台镜像与实际wheel支持仍需真实执行。

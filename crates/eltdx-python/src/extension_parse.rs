@@ -64,7 +64,7 @@ fn append_model<'py>(py: Python<'py>,module: &Bound<'py,PyAny>,results: &Bound<'
 pub fn ex_response_parse<'py>(py: Python<'py>,kind: &str,command: Bound<'py,PyAny>,
     body: Bound<'py,PyAny>,module: Bound<'py,PyAny>) -> PyResult<Py<PyAny>> {
     if kind == "count" {
-        if length(&module,&body)?.lt(23)? { return Ok(0.into_pyobject(py)?.into_any().unbind()); }
+        if length(&module,&body)?.lt(23)? { return Ok(0_i32.into_pyobject(py)?.into_any().unbind()); }
         let value = exact(module.getattr("unpack_from")?.call1(("<I",body,19,"ex instrument count"))?,1)?;
         return Ok(builtin(&module,"int")?.call1((&value[0],))?.unbind());
     }
@@ -80,7 +80,7 @@ pub fn ex_response_parse<'py>(py: Python<'py>,kind: &str,command: Bound<'py,PyAn
         _ => return Err(pyo3::exceptions::PyValueError::new_err("unknown private EX response")),
     };
     if length(&module,&body)?.lt(width)? { return Ok(PyList::empty(py).into_any().unbind()); }
-    let zero = 0.into_pyobject(py)?.into_any();
+    let zero = 0_i32.into_pyobject(py)?.into_any();
     let values = unpack(py,&module,fmt,&body,&zero,width,count)?;
     let method = if history { module.getattr(helper)?.getattr("_parse_records")? } else { command.getattr("_parse_records")? };
     Ok(method.call1((body,width,&values[count-1]))?.unbind())
@@ -88,10 +88,10 @@ pub fn ex_response_parse<'py>(py: Python<'py>,kind: &str,command: Bound<'py,PyAn
 
 fn directory_parse<'py>(py: Python<'py>,kind: &str,body: &Bound<'py,PyAny>,module: &Bound<'py,PyAny>) -> PyResult<Py<PyAny>> {
     let results = PyList::empty(py); let info = kind == "info";
-    let width = if info {6} else {2};
+    let width: i32 = if info {6} else {2};
     if length(module,body)?.lt(width)? { return Ok(results.into_any().unbind()); }
     let count = if info {
-        unpack(py,module,"<IH",body,&0.into_pyobject(py)?.into_any(),6,2)?[1].clone()
+        unpack(py,module,"<IH",body,&0_i32.into_pyobject(py)?.into_any(),6,2)?[1].clone()
     } else { exact(module.getattr("struct")?.call_method1("unpack_from",("<H",body,0))?,1)?[0].clone() };
     let mut pos = width.into_pyobject(py)?.into_any();
     for item in builtin(module,"range")?.call1((count,))?.try_iter()? {
@@ -148,7 +148,7 @@ pub fn ex_records_parse<'py>(py: Python<'py>,kind: &str,body: Bound<'py,PyAny>,m
             append.call1((constructor.call((),Some(&kwargs))?,))?;
         } else {
             let mut second = op.getattr("mod")?.call1((&values[4],10000))?;
-            if second.gt(59)? { second = 0.into_pyobject(py)?.into_any(); }
+            if second.gt(59)? { second = 0_i32.into_pyobject(py)?.into_any(); }
             let append = results.getattr("append")?; let constructor = module.getattr("ExTransactionRecord")?;
             let kwargs = PyDict::new(py);
             kwargs.set_item("hour",op.getattr("floordiv")?.call1((&values[0],60))?)?;
@@ -166,7 +166,7 @@ pub fn ex_records_parse<'py>(py: Python<'py>,kind: &str,body: Bound<'py,PyAny>,m
 fn bars_parse<'py>(py: Python<'py>,kind: &str,command: &Bound<'py,PyAny>,body: &Bound<'py,PyAny>,
     module: &Bound<'py,PyAny>) -> PyResult<Py<PyAny>> {
     let range = kind == "range"; let results = PyList::empty(py);
-    let mut pos = (if range {12} else {18}).into_pyobject(py)?.into_any();
+    let mut pos = (if range {12_i32} else {18_i32}).into_pyobject(py)?.into_any();
     if short(py,module,body,&pos,2)? { return Ok(results.into_any().unbind()); }
     let count = unpack(py,module,"<H",body,&pos,2,1)?[0].clone(); pos = advance(py,&pos,2)?;
     for item in builtin(module,"range")?.call1((count,))?.try_iter()? {
@@ -202,8 +202,8 @@ fn bars_parse<'py>(py: Python<'py>,kind: &str,command: &Bound<'py,PyAny>,body: &
 
 fn quote_parse<'py>(py: Python<'py>,body: &Bound<'py,PyAny>,module: &Bound<'py,PyAny>) -> PyResult<Py<PyAny>> {
     if length(module,body)?.lt(150)? { return Ok(py.None()); }
-    let identity = unpack(py,module,"<B9s",body,&0.into_pyobject(py)?.into_any(),10,2)?;
-    let values = unpack(py,module,layout::QUOTE_FORMAT,body,&14.into_pyobject(py)?.into_any(),136,34)?;
+    let identity = unpack(py,module,"<B9s",body,&0_i32.into_pyobject(py)?.into_any(),10,2)?;
+    let values = unpack(py,module,layout::QUOTE_FORMAT,body,&14_i32.into_pyobject(py)?.into_any(),136,34)?;
     let code = text(py,&identity[1],"utf-8")?;
     let constructor = module.getattr("ExInstrumentQuote")?; let kwargs = PyDict::new(py);
     kwargs.set_item("market",&identity[0])?; kwargs.set_item("code",code)?;
@@ -216,8 +216,8 @@ fn quotes_parse<'py>(py: Python<'py>,command: &Bound<'py,PyAny>,body: &Bound<'py
     module: &Bound<'py,PyAny>) -> PyResult<Py<PyAny>> {
     let results = PyList::empty(py);
     if length(module,body)?.lt(2)? { return Ok(results.into_any().unbind()); }
-    let count = unpack(py,module,"<H",body,&0.into_pyobject(py)?.into_any(),2,1)?[0].clone();
-    let mut pos = 2.into_pyobject(py)?.into_any();
+    let count = unpack(py,module,"<H",body,&0_i32.into_pyobject(py)?.into_any(),2,1)?[0].clone();
+    let mut pos = 2_i32.into_pyobject(py)?.into_any();
     for item in builtin(module,"range")?.call1((count,))?.try_iter()? {
         item?; py.check_signals()?;
         if short(py,module,body,&pos,10)? { break; }

@@ -47,7 +47,7 @@ pub fn extension_single<'py>(py: Python<'py>,client: Bound<'py,PyAny>,domain: &s
         if kind == "ticks" { values.push(args.get_item(3)?); }
         constructor.call(PyTuple::new(py,values)?,None)?
     } else if domain == "mac" && kind == "unusual" {
-        let mut count = args.get_item(2)?; if !count.is_truthy()? { count = 600.into_pyobject(py)?.into_any(); }
+        let mut count = args.get_item(2)?; if !count.is_truthy()? { count = 600_i32.into_pyobject(py)?.into_any(); }
         constructor.call1((args.get_item(0)?,args.get_item(1)?,count))?
     } else if let Some(selected) = selected { constructor.call1((args.get_item(0)?,selected))? }
     else if domain == "mac_ex" && kind == "bars" {
@@ -177,7 +177,7 @@ pub fn hk_transaction_pages<'py>(py: Python<'py>,execute: Bound<'py,PyAny>,args:
 {
     let date = args.get_item(2)?;
     let ymd = if date.is_none() { date } else { module.getattr("_to_ymd")?.call1((date,))? };
-    let results = PyList::empty(py); let mut fetched = 0.into_pyobject(py)?.into_any(); let mut offset = args.get_item(3)?;
+    let results = PyList::empty(py); let mut fetched = 0_i32.into_pyobject(py)?.into_any(); let mut offset = args.get_item(3)?;
     let count = if all { py.None().into_bound(py) } else { args.get_item(4)? };
     let op = py.import("operator")?;
     let mut pages = if all { Some(builtin(&module,"range")?.call1((module.getattr("_HK_TRANSACTION_MAX_PAGES")?,))?.try_iter()?) } else { None };

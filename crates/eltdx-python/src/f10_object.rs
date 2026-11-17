@@ -79,13 +79,13 @@ pub fn f10_object_request<'py>(py: Python<'py>, client: Bound<'py, PyAny>, metho
                             // str is resolved before evaluating the conditional.
                             let convert = builtin(&module, "str")?;
                             let value = get(&inputs, "page")?;
-                            let value = if value.ne(0)? { value } else { (-1).into_pyobject(py)?.into_any() };
+                            let value = if value.ne(0)? { value } else { (-1_i32).into_pyobject(py)?.into_any() };
                             convert.call1((value,))
                         }
                         "adjusted_size" => {
                             let convert = builtin(&module, "str")?;
                             let value = get(&inputs, "page_size")?;
-                            let value = if value.ne(20)? { value } else { 5.into_pyobject(py)?.into_any() };
+                            let value = if value.ne(20)? { value } else { 5_i32.into_pyobject(py)?.into_any() };
                             convert.call1((value,))
                         }
                         _ => unreachable!(),
@@ -102,12 +102,12 @@ pub fn f10_object_request<'py>(py: Python<'py>, client: Bound<'py, PyAny>, metho
                     "indicator" | "period" => Ok("0".into_pyobject(py)?.into_any()),
                     "page" => {
                         let page = get(&inputs, "page")?;
-                        if page.ne(0)? { Ok(page) } else { Ok(1.into_pyobject(py)?.into_any()) }
+                        if page.ne(0)? { Ok(page) } else { Ok(1_i32.into_pyobject(py)?.into_any()) }
                     }
                     "page_size" => {
                         let convert = builtin(&module, "str")?;
                         let value = get(&inputs, "page_size")?;
-                        let value = if value.ne(20)? { value } else { 300.into_pyobject(py)?.into_any() };
+                        let value = if value.ne(20)? { value } else { 300_i32.into_pyobject(py)?.into_any() };
                         convert.call1((value,))
                     }
                     _ => unreachable!(),

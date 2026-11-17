@@ -47,9 +47,10 @@ pub fn security_pages(
     market: String,
     page_size: usize,
 ) -> PyResult<Vec<Py<PyAny>>> {
-    let market = hq_market(Market::normalize(&market).map_err(|source| {
-        Error::new(ErrorKind::InvalidArgument, format!("{source}"))
-    })?)
+    let market = Market::normalize(&market).map_err(|source| {
+        error::from_sdk(py, Error::new(ErrorKind::InvalidArgument, format!("{source}")))
+    })?;
+    let market = hq_market(market)
     .map_err(|sdk_error| error::from_sdk(py, sdk_error))?;
     let pages = run_legacy(py, move |token| {
         let operation = executor.begin_operation(
@@ -394,9 +395,14 @@ where
                     .map(|receiver| receiver.recv())
             });
             match cleanup {
+                Some(Ok(Err(cleanup_error))) if cleanup_error.kind() == ErrorKind::CancelUnconfirmed => {
+                    signal_error.set_cause(py, Some(error::from_sdk(py, cleanup_error)));
+                }
                 Some(Ok(_)) => {}
-                Some(Err(error)) => {
-                    signal_error.set_cause(py, Some(error::from_sdk(py, error)));
+                Some(Err(channel_error)) => {
+                    signal_error.set_cause(py, Some(PyRuntimeError::new_err(format!(
+                        "native SDK service cancellation could not be confirmed: {channel_error}",
+                    ))));
                 }
                 None => {
                     signal_error.set_cause(

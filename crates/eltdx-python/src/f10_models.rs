@@ -50,7 +50,7 @@ struct ModelValues { iterator: Py<PyIterator>, mode: String }
 impl ModelValues {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> { slf }
     fn __next__(&self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
-        let result = (|| {
+        let result: PyResult<Option<Py<PyAny>>> = (|| {
             let mut iterator = self.iterator.bind(py).clone();
             loop {
                 let Some(row) = iterator.next() else { return Ok(None); };
@@ -180,7 +180,7 @@ struct OverviewTopics { row: Py<PyAny>, index: usize }
 impl OverviewTopics {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> { slf }
     fn __next__(&mut self, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
-        let result = (|| {
+        let result: PyResult<Option<Py<PyAny>>> = (|| {
         while let Some(&(name, count)) = collection::OVERVIEW_TOPICS.get(self.index) {
             self.index += 1;
             let row = self.row.bind(py);

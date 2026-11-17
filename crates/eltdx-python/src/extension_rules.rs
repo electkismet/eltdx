@@ -36,10 +36,10 @@ pub fn mac_price_limits<'py>(py: Python<'py>,market: Bound<'py,PyAny>,code: Boun
     if module.getattr("_is_index_like")?.call1((&market,&code,&name))?.is_truthy()? { return absent(); }
     let window = module.getattr("get_no_limit_window_days")?.call1((market,&code,name))?;
     // Keep 0 < listed_days (and reflected custom comparison), once.
-    let positive = if listed_days.is_none() {false} else {0.into_pyobject(py)?.lt(&listed_days)?};
+    let positive = if listed_days.is_none() {false} else {0_i32.into_pyobject(py)?.lt(&listed_days)?};
     if positive && listed_days.le(window)? { return absent(); }
     let leading = code.get_item(py.get_type::<PySlice>().call1((py.None(),3))?)?;
-    let ratio = if module.getattr("_CHINEXT_CODES")?.contains(leading)? {0.20}
+    let ratio: f64 = if module.getattr("_CHINEXT_CODES")?.contains(leading)? {0.20}
         else if code.call_method1("startswith",("688",))?.is_truthy()? {0.20}
         else if prefix(py,&code,&["43","83","87","92"])? {0.30}
         else if upper_name.contains("ST")? {0.05} else {0.10};

@@ -54,7 +54,7 @@ pub fn helper_daily_shares(py: Python<'_>, helper: Bound<'_, PyAny>, codes: Boun
                     |left, right| Ok::<_, PyErr>(multiply.call1((left.bind(py), right.bind(py)))?.unbind()))?;
                 round.call1((value.bind(py), 6))?.unbind()
             };
-        let sources = eltdx::__python_compat::share_source_names(!total.is_none(), !circulating.is_none(), !free_float.is_none());
+        let sources = eltdx::__python_compat::share_source_names(!total.is_none(), !circulating.is_none(), !free_float.is_none(py));
         let kwargs = PyDict::new(py);
         kwargs.set_item("full_code", code)?; kwargs.set_item("trade_date", &stats_date)?;
         kwargs.set_item("total_shares", total)?; kwargs.set_item("circulating_shares", circulating)?;
