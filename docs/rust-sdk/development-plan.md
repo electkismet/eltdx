@@ -530,6 +530,7 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 - [ ] 新增 `crates/eltdx/tests/extended_loopback.rs`，通过公开EX/MAC客户端覆盖各profile握手、半包、切换和释放；运行 `cargo test -p eltdx --features ex,mac --test extended_loopback --locked`。
 
 ### T27：扩展 Python 迁移与全能力核对
+2026-11-17第十六段源码恢复点（stage103，基础0d5ac47）：EX/MAC transport probe/registry/调度收集/结果/排序/ping迁native，共17入口。原Python锁/异常/线程池适配保留，strict与legacy共享rank尾遍历但去重策略各自保留。新增21个Python函数（1参数化）/1个Rust用例，十五份合同329函数全部未执行。owner/generation、模型/导出/清单/consumer仍待，之后T28–T30/T19及统一验证；25/2/3不变，active无限额。
 2026-11-17第十五段源码恢复点（stage102，基础6f1904c）：EX/MAC/MAC-EX全部client管理入口迁native，共11绑定；保留except活动context、各自constructor捕获范围/连接替换顺序/失败重试/主机与缓存语义。新增31个Python函数（2参数化），十四份合同308函数全未执行。实际transport probe/rank、owner/generation、模型/导出/清单/consumer仍待，随后T28–T30/T19及统一验证；25/2/3不变，目标active无额度限制。
 2026-11-17第十四段源码恢复点（stage101，基础8ba1708）：EX/MAC socket构造/收包/connect/setup/改头/exchange/finish/close策略迁native，原Python锁与异常适配保留，未引入strict新限额或login证据。新增21个Python函数（6参数化）/1个Rust源码用例，十三份合同277函数，全未执行。owner/generation/client管理/probe/models/清单/consumer继续；25/2/3不变，全部执行验证延期。
 

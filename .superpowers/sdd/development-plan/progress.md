@@ -1,6 +1,16 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage103: base0d5ac47. EX/MAC transport discovery,
+  probe registry/collect/cleanup/rank/ping now native via17 entry functions;
+  Python explicit lock/with/except/finally and socket/executor adapters retain
+  original lifetime, error-context and dynamic hooks. Shared rank-tail traversal
+  preserves strict dedup versus legacy duplicate semantics. Added21 Python
+  function sources(1 parametrized)/1 Rust case; fifteen files329 functions,
+  none executed. Read task-27-report Stage16. Next owner/generation, models/
+  exports, manifest and installed-wheel consumer, then T28-T30/T19 source closure
+  and unified verification.25/2/3 unchanged, active unlimited, no verification/
+  agents/publication/controller edits.
 - Latest recovery2026-11-17 stage102: base6f1904c. Three extension client
   constructors/best-host/ping entry/properties/selection/connect/close/aliases/
   execution and EX probe-seed-refresh management now native via11 bindings.

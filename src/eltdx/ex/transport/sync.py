@@ -37,7 +37,26 @@ DEFAULT_PROBE_WORKERS: int = 16
 
 
 def _first_host() -> str:
-    return DEFAULT_EX_HOSTS[0]
+    from eltdx._native_abi import load_native
+    return load_native().extension_probe_default("first", _MODULES[__name__])
+
+
+def _native_probe_values(values):
+    # Preserve generator protocol for custom sorted adapters.
+    yield from values
+
+
+def _native_probe_latency(result):
+    from eltdx._native_abi import load_native
+    return load_native().extension_probe_key(result, _MODULES[__name__])
+
+
+def _native_probe_future_result(future, host):
+    from eltdx._native_abi import load_native
+    try:
+        return future.result()
+    except Exception as exc:
+        return load_native().extension_probe_error(host, exc, False, _MODULES[__name__])
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,7 +78,8 @@ def default_probe_command() -> "BaseCommand[Any]":
     因此市场列表是区分「是否真正供数」的最佳探活命令。
     """
 
-    return GetExMarketsCmd()
+    from eltdx._native_abi import load_native
+    return load_native().extension_probe_default("command", _MODULES[__name__])
 
 
 class _ProbeRegistry:
@@ -74,27 +94,29 @@ class _ProbeRegistry:
     __slots__ = ("_lock", "_connections")
 
     def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._connections: list[ExTdxConnection] = []
+        from eltdx._native_abi import load_native
+        load_native().extension_registry_init(self, _MODULES[__name__])
 
     def add(self, connection: ExTdxConnection) -> None:
         with self._lock:
-            self._connections.append(connection)
+            from eltdx._native_abi import load_native
+            load_native().extension_registry_change("add", self, connection)
 
     def discard(self, connection: ExTdxConnection) -> None:
         with self._lock:
             try:
-                self._connections.remove(connection)
+                from eltdx._native_abi import load_native
+                load_native().extension_registry_change("discard", self, connection)
             except ValueError:
                 pass
 
     def abort_all(self) -> None:
         """关闭所有在途连接；幂等，可由任意线程调用。"""
 
+        from eltdx._native_abi import load_native
         with self._lock:
-            connections, self._connections = self._connections, []
-        for connection in connections:
-            connection.close()
+            connections = load_native().extension_registry_take(self)
+        load_native().extension_registry_abort(connections)
 
 
 def probe_ex_host(
@@ -112,24 +134,17 @@ def probe_ex_host(
     ``registry`` 非空时会把连接登记进去，使调用方可以中断本次探活。
     """
 
-    started = time.monotonic()
-    conn = ExTdxConnection(host, port, timeout, mac_ex_mode=mac_ex_mode)
-    if registry is not None:
-        registry.add(conn)
-    try:
-        conn.connect()
-        conn.execute(command_factory())
-    except (EltdxError, OSError) as exc:
-        return ExHostProbe(host=host, ok=False, error=f"{type(exc).__name__}: {exc}")
-    finally:
-        if registry is not None:
-            registry.discard(conn)
-        conn.close()
-    return ExHostProbe(
-        host=host,
-        ok=True,
-        latency_ms=round((time.monotonic() - started) * 1000.0, 2),
+    from eltdx._native_abi import load_native
+    started, conn = load_native().extension_probe_begin(
+        "ex", (host, port, timeout, mac_ex_mode, registry), _MODULES[__name__]
     )
+    try:
+        load_native().extension_probe_run(conn, command_factory, False)
+    except (EltdxError, OSError) as exc:
+        return load_native().extension_probe_error(host, exc, True, _MODULES[__name__])
+    finally:
+        load_native().extension_probe_close(conn, registry)
+    return load_native().extension_probe_success("ex", started, host, _MODULES[__name__])
 
 
 def probe_ex_hosts(
@@ -156,43 +171,19 @@ def probe_ex_hosts(
     「不可用」），需要完整排名时请保持默认的 ``False``。
     """
 
-    candidates = load_ex_hosts() if hosts is None else list(hosts)
-    if not candidates:
+    from eltdx._native_abi import load_native
+    prepared = load_native().extension_probe_prepare("ex", hosts, max_workers, _MODULES[__name__])
+    if prepared is None:
         return []
-
-    workers = min(max(1, int(max_workers)), len(candidates))
-    by_host: dict[str, ExHostProbe] = {}
-    registry = _ProbeRegistry()
-    pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="eltdx-ex-probe")
+    candidates, by_host, registry, pool = prepared
     try:
-        futures = {
-            pool.submit(
-                probe_ex_host,
-                host,
-                port,
-                timeout,
-                command_factory=command_factory,
-                mac_ex_mode=mac_ex_mode,
-                registry=registry,
-            ): host
-            for host in candidates
-        }
-        for future in as_completed(futures):
-            host = futures[future]
-            try:
-                result = future.result()
-            except Exception as exc:  # pragma: no cover - 探活本身不应抛
-                result = ExHostProbe(host=host, ok=False, error=type(exc).__name__)
-            by_host[host] = result
-            if stop_after_first and result.ok:
-                # 先中断在途连接再退出：否则 shutdown 要么等满超时，要么留下野线程。
-                registry.abort_all()
-                break
+        load_native().extension_probe_collect(
+            "ex", candidates, by_host, registry, pool,
+            (port, timeout, command_factory, mac_ex_mode, stop_after_first), _MODULES[__name__],
+        )
     finally:
-        registry.abort_all()
-        pool.shutdown(wait=True, cancel_futures=True)
-
-    return [by_host.get(host, ExHostProbe(host=host, ok=False, error="not probed")) for host in candidates]
+        load_native().extension_probe_cleanup(registry, pool)
+    return load_native().extension_probe_finish("ex", candidates, by_host, _MODULES[__name__])
 
 
 def rank_ex_hosts(
@@ -206,14 +197,8 @@ def rank_ex_hosts(
     会话再也回不到它；排在后面既不影响首选，又留了退路。
     """
 
-    ordered = candidates if candidates is not None else [result.host for result in results]
-    healthy = sorted(
-        (result for result in results if result.ok and result.latency_ms is not None),
-        key=lambda result: result.latency_ms if result.latency_ms is not None else float("inf"),
-    )
-    healthy_hosts = [result.host for result in healthy]
-    healthy_set = set(healthy_hosts)
-    return healthy_hosts + [host for host in ordered if host not in healthy_set]
+    from eltdx._native_abi import load_native
+    return load_native().extension_probe_rank(results, candidates, _MODULES[__name__])
 
 
 def ping_ex_host(
@@ -231,12 +216,10 @@ def ping_ex_host(
     ``mac_ex_mode=True`` 时按 MAC-EX 会话探活：跳过 EX 92B 握手，改用登录/业务命令。
     """
 
-    result = probe_ex_host(
-        host, port, timeout, command_factory=command_factory, mac_ex_mode=mac_ex_mode
+    from eltdx._native_abi import load_native
+    return load_native().extension_probe_ping(
+        False, (host, port, timeout, command_factory, mac_ex_mode), _MODULES[__name__]
     )
-    if not result.ok or result.latency_ms is None:
-        return None
-    return result.latency_ms / 1000.0
 
 
 def ping_ex_all(
@@ -252,18 +235,10 @@ def ping_ex_all(
     ``mac_ex_mode=True`` 时按 MAC-EX 会话探活：跳过 EX 92B 握手，改用登录命令。
     """
 
-    results = probe_ex_hosts(
-        hosts, port, timeout, command_factory=command_factory, mac_ex_mode=mac_ex_mode
+    from eltdx._native_abi import load_native
+    return load_native().extension_probe_ping(
+        True, (hosts, port, timeout, command_factory, mac_ex_mode), _MODULES[__name__]
     )
-    healthy = sorted(
-        (result for result in results if result.ok and result.latency_ms is not None),
-        key=lambda result: result.latency_ms if result.latency_ms is not None else float("inf"),
-    )
-    return [
-        (result.host, result.latency_ms / 1000.0)
-        for result in healthy
-        if result.latency_ms is not None
-    ]
 
 
 def _recv_exact_sock(sock: socket.socket, n: int) -> bytes:

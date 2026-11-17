@@ -191,18 +191,21 @@ def ping_mac_host(
     # 局部导入：transport 位于 commands 之下，避免模块级导入顺序耦合。
     from .commands import ServerInfoCmd
 
-    started = time.monotonic()
-    connection = MacConnection(host, port, timeout, socket_factory=socket_factory)
+    from eltdx._native_abi import load_native
+    started, connection = load_native().extension_probe_begin(
+        "mac", (host, port, timeout, socket_factory), _MODULES[__name__]
+    )
     try:
-        connection.connect()
-        session = connection.execute(ServerInfoCmd())
-        if not session.today:
+        if not load_native().extension_probe_run(connection, ServerInfoCmd, True):
             return None
     except (OSError, EltdxError):
         return None
     finally:
-        connection.close()
-    return time.monotonic() - started
+        load_native().extension_probe_close(connection, None)
+    return load_native().extension_probe_success("mac", started, host, _MODULES[__name__])
+
+
+_native_probe_pair_latency = lambda item: item[1]
 
 
 def ping_mac_all(
@@ -217,23 +220,16 @@ def ping_mac_all(
     探测失败的主机不会出现在结果里；全部失败时返回空列表。
     """
 
-    candidates = [str(h) for h in hosts] if hosts else list(MAC_HOSTS)
-    if not candidates:
+    from eltdx._native_abi import load_native
+    prepared = load_native().extension_probe_prepare("mac", hosts, None, _MODULES[__name__])
+    if prepared is None:
         return []
-    results: list[tuple[str, float]] = []
-    with ThreadPoolExecutor(max_workers=len(candidates)) as pool:
-        futures = {
-            pool.submit(
-                ping_mac_host, h, port, timeout, socket_factory=socket_factory
-            ): h
-            for h in candidates
-        }
-        for future in as_completed(futures):
-            latency = future.result()
-            if latency is not None:
-                results.append((futures[future], latency))
-    results.sort(key=lambda item: item[1])
-    return results
+    candidates, results, registry, manager = prepared
+    with manager as pool:
+        load_native().extension_probe_collect(
+            "mac", candidates, results, registry, pool, (port, timeout, socket_factory), _MODULES[__name__]
+        )
+    return load_native().extension_probe_finish("mac", candidates, results, _MODULES[__name__])
 
 
 __all__ = [

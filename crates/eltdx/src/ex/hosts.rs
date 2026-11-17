@@ -116,7 +116,10 @@ pub fn rank_endpoints(candidates: &[SocketAddr], probes: &[HostProbe]) -> Vec<So
     ready.sort_by_key(|probe| probe.latency);
     let mut result = Vec::with_capacity(candidates.len());
     for probe in ready { if !result.contains(&probe.endpoint) { result.push(probe.endpoint); } }
-    for &endpoint in candidates { if !result.contains(&endpoint) { result.push(endpoint); } }
+    let _: std::result::Result<(),std::convert::Infallible> = super::legacy::append_rank_tail_with(
+        &mut result, candidates.iter().copied().map(Ok),
+        |out,endpoint| Ok(out.contains(endpoint)),
+        |out,endpoint| {out.push(endpoint);Ok(())});
     result
 }
 

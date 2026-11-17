@@ -1,4 +1,40 @@
 # T27 implementation report
+## Stage 16 — transport discovery, registry and ranking (2026-11-17, stage103)
+
+Base0d5ac47. Added extension_probe.rs with17 entry functions for EX/MAC
+probe setup/execute/close, candidate preparation, pool submit/collect/cleanup,
+result projection, ranking, ping and the in-flight EX registry. Python keeps
+explicit with/try/except/finally adapters, ThreadPoolExecutor and real socket
+objects. Native traversal does not adopt strict8-worker caps or total deadlines.
+All actual network and thread-pool execution remains unperformed in this stage.
+
+Preserves EX None-vs-empty candidates, bounded-by-input legacy worker formula,
+constructor/registry.add outside try, round-ms after finally, future exception
+class-only results, duplicate-host last result, eager default ExHostProbe for
+each output, early abort plus finally abort, shutdown(wait/cancel_futures),
+BaseException propagation and shutdown ordering. Registry extraction happens
+inside the original Python lock and close traversal happens outside it. MAC
+keeps falsey-host defaults, str iteration, one worker per candidate, local
+ServerInfoCmd import, nonempty today requirement, finally close before final
+timing, propagation of future errors through the pool context and stable
+completion-order ties. EX healthy iterator retains generator/PEP479 behavior.
+
+Shared ex::legacy::append_rank_tail_with is used by strict rank_endpoints
+and the Python rank tail, preserving distinct duplicate policies. Added21
+public Python test-function sources(1 parametrized) and1 shared Rust case.
+Fifteen extension contract files total329 public Python function sources;
+none collected/compiled/executed. Static reads/diffs only, no verification.
+
+Files: crates/eltdx-python/src/{extension_probe.rs,lib.rs},
+crates/eltdx/src/ex/{legacy.rs,hosts.rs}, src/eltdx/{ex/transport/sync.py,
+mac/transport.py}, tests/test_native_extension_probe_contract.py and recovery
+docs/mirrors. Counts25 source-complete/2 partial(T19/T27)/3 unstarted(T28-T30).
+Next: native owner/generation lifecycle and explicit custom transport scope;
+model/enum/preset/export inventory; real public-symbol/source/fixture manifest;
+installed-wheel nonempty extension consumer; then T28-T30/T19 source closure
+and unified verification. Existing MAC-EX production login and optional-frame
+association evidence gaps are unchanged. Goal active unlimited, no agents,
+publication or controller-state edits.
 ## Stage 15 — EX/MAC/MAC-EX client management (2026-11-17, stage102)
 
 Base6f1904c. Added extension_management.rs with11 native entry functions;
