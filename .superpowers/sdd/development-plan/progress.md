@@ -2,6 +2,22 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage84: base29256d1. Completed same-source MAC
+  download_file/download_complete source using existing DownloadCursor and
+  one held lease. Accepted metadata/chunk pins endpoint+generation; pinned
+  work cannot reconnect/failover, initial unaccepted work may. Metadata size
+  is a hint; only short/empty and matching absolute EOF proves Complete.
+  Byte/chunk caps return LimitReached/continuation; cap0 performs no I/O;
+  strict requires start0. Prefix/raw/source/error evidence and decoded/output
+  allocation accounting retained. Added17 public extended_downloads function
+  sources, including initial failover, forbidden fallback, cancellation/close
+  half-header, deadline and memory gates, all unexecuted. MAC23/23 source
+  connected, MAC-EX6/13; T26 still partial. Counts23 complete source/3 partial/
+  4 unstarted. Next MAC-EX catalog/cache/unique macro resolution/remaining7
+  methods and broader lifecycle, T25 source coverage, T27-T30, then final
+  unified verification/production handshake evidence. Active unlimited goal;
+  no execution checks, agents or publication. Read task-26-report Stage3.
+
 - Latest recovery2026-11-17 stage83: QFQ commit95721fc. Authored MAC
   board_summary/board_ranking/board_change_ranking, private-field public DTOs,
   all-member and full-candidate six-metric stable ranking, optional top None,

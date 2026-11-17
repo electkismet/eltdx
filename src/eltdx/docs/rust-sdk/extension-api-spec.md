@@ -685,6 +685,8 @@ T27旧Python策略仍保留两位round、零前收排行按0、缺字段按旧�
 
 download采用30000B chunk、index从1、offset按实际字节递增；未知expected_size先取meta。短块/空块是该协议的EOF证据；到配置max_bytes但没有EOF为LimitReached并给next_offset。已知size读满仍需已验证EOF证据才能Complete；size未满提前空块不能声称完整，带ExpectedSizeMismatch错误。整次下载固定同一来源并校验meta/响应，途中换host要失败或从0重启显式新操作，不能拼接不同文件。Python原filesize<=0取meta、短块终止且可能返回部分bytearray保持；Rust DownloadResult和strict下载不得反向改旧返回类型。
 
+stage84源码明确：整段持有既有session lease；首个有效metadata或chunk后固定endpoint+connection generation，后续一次物理失败即终止，不重连同host或切换。首个有效响应之前可沿用授权failover。metadata hash/offset/flag未知字段原样保留，不声称校验。实际EOF的绝对位置必须等于size，否则ExpectedSizeMismatch；起始位置超过metadata size的错误明确eof_observed=false。max_chunks与byte cap均返回LimitReached；max_bytes=0无setup/meta/connect。download_file允许start_offset续传，Complete只证明所返后缀抵达一致EOF；download_complete要求offset0且Complete才返完整文件。最终diagnostics.latest_meta保留所有接受的原始来源与prefix，后续失败附ChunkFailed；所有分配/读取共享父期限与字节。实现与17个测试函数源码均未执行，待全项目源码写完统一验证。
+
 ### 4.4 返回字段与单位
 
 | 模型 | 全部业务字段 | 单位/缺失规则 |

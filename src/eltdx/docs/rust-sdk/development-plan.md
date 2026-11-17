@@ -508,6 +508,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T26：扩展组合服务与目录缓存
 
+2026-11-17第三段源码恢复点（stage84，基础29256d1）：同源MAC download_file/download_complete已写，MAC23/23方法现有源码。一个lease沿用共享DownloadCursor，首个metadata/chunk接受后固定endpoint/generation、禁止重连/failover；short/empty且绝对size一致才能Complete，full cap仍LimitReached。cap0不联网，strict要求offset0，普通续传只返后缀；输出/独立解码分配计父字节，原prefix/raw/来源与失败证据保留。新增extended_downloads17个公开函数源码，全未执行。T26仍部分，继续MAC-EX目录fallback/有界缓存/宏观唯一解析/余下7入口及生命周期，T25余下覆盖、T27–T30和最后统一验证；23/3/4不变，active无限额。
+
 2026-11-17第二段源码恢复点（stage83，基础95721fc）：新增公开board_summary/board_ranking/board_change_ranking与私有字段返回模型，MAC现22/23方法有实现源码。全成员/全候选金额成交量聚合、稳定六指标排序/None全候选、缺失和非有限诊断、目标日期向旧分页/不同交易日窗口、原始来源和返回目录行映射已写；所有子请求共享父页/输入记录/字节/期限，bar投影复用同一bars_page，百分比复用共享算术。新增extended_boards16个公开函数源码，均未执行。T26仍部分：同源下载、MAC-EX目录/缓存/宏观及余下方法/回环仍待完成；23源码完整/3部分/4未开始不变，全部验证继续延期。
 
 2026-11-17第一段源码恢复点（stage82）：已接入MAC/MAC-EX QFQ异常→None重取→显式XDXR provider→纯本地修复；父期限/取消/额外尝试/字节/worker清理和原始多来源meta贯通。无provider/事件/有效因子与仍坏有明确诊断及strict错误，源数据重取/provider失败不吞。新增extended_services 13个、extended_loopback 7个公开函数用例源码，全部未执行。T26仍部分，目录/缓存/宏观唯一解析、板块聚合/排行/N日及同源下载尚未实现；总计23源码完整/3部分/4未开始。后续验收复选框仍全部未通过，全部T01–T30源码完成后统一执行。

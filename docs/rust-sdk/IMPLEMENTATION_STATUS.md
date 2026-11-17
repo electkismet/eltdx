@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第八十四段恢复点：板块组合已提交`29256d1`。本段写完MAC同源download_file/download_complete：沿用共享DownloadCursor与整段lease，首个有效metadata/chunk固定endpoint和generation，后续禁止重连和failover；元数据大小仅为提示，短/空块与一致绝对EOF才能Complete。byte/chunk cap给LimitReached和准确续传位置，cap0不联网；strict要求start0，续传普通入口只返回后缀。保留原prefix/raw/来源/失败证据，输出与独立解码分配提前计入父字节。新增extended_downloads17个公开函数源码，全部未执行。MAC现23/23方法有源码，MAC-EX仍6/13；T26仍需目录fallback/缓存/宏观唯一解析/余下7入口及生命周期覆盖，随后T25余下源码、T27–T30和最终统一验证。23源码完整/3部分/4未开始不变；目标active无限额，无代理或发布。恢复先读task-26-report第三段。
+
 2026-11-17第八十三段恢复点：QFQ组合已提交95721fc。本段新增板块全成员汇总、六指标稳定排行、历史目标向旧分页与完整N日窗口源码，以及BoardSummary/BoardRank/BoardChangeRank/NamedNativeField返回模型；None可取全候选，缺失/非有限指标排后，重复源日期保留原始记录但不冒充交易日，所有目录/成员/历史共用父页/记录/字节/期限。bar解码/投影抽为同一bars_page，百分比共用现有算术。新增extended_boards16个公开函数源码（含取消/关闭半帧），全部未执行。MAC现22/23方法接入；下一步同源文件下载、MAC-EX目录/缓存/宏观及其余方法，再T27–T30。23源码完整/3部分/4未开始不变；目标active无限额，所有执行验证继续延期。恢复先读task-26-report第二段。
 
 2026-11-17第八十二段恢复点：辅助工具阶段已提交`0ec8907`。T26首段接入MAC/MAC-EX完整QFQ修复编排：异常后重取None，再调用显式provider、共享纯算法并保留事件证据；无可用来源/事件/因子或仍坏保留原QFQ且有具体诊断，strict报错，重取/提供者错误和取消/期限不吞。提供者复用注册worker、串行门及parent期限/字节/可选物理尝试授权；不合作阻塞清理未确认时报CancelUnconfirmed并保留门至真实退出。聚合保留所有原始来源，仅将raw行引用选择为返回序列。新增13个组合和7个公开生命周期/回环函数源码，全部未执行。T26目录/缓存/板块排行/同源下载、T25剩余覆盖/生产握手证据、T27–T30继续；23源码完整/3部分/4未开始。目标active且无额度上限，禁止提前执行验证。恢复先读task-26-report第一段。
@@ -153,11 +155,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | stage83：基于95721fc，板块汇总/六指标排行/N日完整窗口、返回模型/原始来源/父保护源码已写；新增extended_boards16个未执行函数源码。MAC现22/23方法接入。 |
+| 最新检查点 | stage84：基于29256d1，同源文件下载、EOF/大小/续传/strict/限额与17个未执行函数源码已写。MAC23/23、MAC-EX6/13方法接入；T26仍部分。 |
 | 当前阶段 | T01–T18及T20–T24源码完成；T19/T25/T26部分；T27–T30未开始。23完整源码/3部分/4未开始，尚未统一编译或测试。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |
-| 下一步 | T26同源下载、MAC-EX目录/缓存/宏观唯一解析及余下方法/回环；补T25剩余覆盖，再完成T27–T30。生产握手证据留明确验收项，全部源码完成后统一执行。 |
+| 下一步 | T26 MAC-EX目录/缓存/宏观唯一解析及余下7方法/回环；补T25剩余覆盖，再完成T27–T30。生产握手证据留明确验收项，全部源码完成后统一执行。 |
 
 ## 阶段进度
 
@@ -167,7 +169,7 @@
 | P1 | T04–T10 SDK基础、runtime、metadata | T04–T09 静态审阅完成；T10 Stage B 与 fix1 已通过限定静态复审，最终验证延期 | 按用户要求暂不运行 |
 | P2 | T11–T18 HQ与Python首批迁移 | T11–T18实现源码完成；HQ桥/证据/consumer源码具备；兼容和可用版本验收全部待最终执行 | 按用户要求暂不运行 |
 | P3 | T19–T23 F10、offline、financial | T20–T23源码完成，含Python兼容/跨源helper/manifest/consumer；T19依赖/平台验收待最终执行 | 按用户要求暂不运行 |
-| P4 | T24–T27 EX、MAC、Python迁移 | T24源码范围完成；T25两类owner/分页/富模型/HK/工具已接入；T26 QFQ及板块汇总/排行/N日源码已写，目录/下载待续；T27未开始，生产握手证据仍待取得 | 按用户要求暂不运行 |
+| P4 | T24–T27 EX、MAC、Python迁移 | T24源码范围完成；T25两类owner/分页/富模型/HK/工具已接入；T26 QFQ/板块汇总/排行/N日/同源下载源码已写，MAC-EX目录待续；T27未开始，生产握手证据仍待取得 | 按用户要求暂不运行 |
 | P5 | T28–T30消费者、打包、完整交付文档 | 未开始 | 待所有实现代码完成后统一执行 |
 
 ## 依赖与冲突预审

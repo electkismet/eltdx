@@ -303,12 +303,19 @@ pub fn file_meta(body: &[u8]) -> Result<FileMeta> {
         hash: view.array(9)?, tail: body[41..].to_vec() })
 }
 pub fn download_chunk(body: &[u8], requested: u32) -> Result<DownloadChunk> {
+    download_chunk_with(body,requested,|_| Ok(()))
+}
+/// The composed downloader charges the independent decoded output before it
+/// is allocated. Validation and preservation of the unknown prefix stay here.
+pub(crate) fn download_chunk_with(body: &[u8], requested: u32,
+    before_allocate: impl FnOnce(usize) -> Result<()>) -> Result<DownloadChunk> {
     if requested == 0 || requested > 30_000 {
         return Err(Error::new(ErrorKind::InvalidArgument, "MAC download chunk size must be in 1..=30000").with_context("domain", "mac"));
     }
     let view = View::new(body, "0x1217");
     let prefix = view.array(0)?;
     if body.len() - 8 > requested as usize { return Err(protocol("MAC download response exceeds requested chunk size")); }
+    before_allocate(body.len()-8)?;
     Ok(DownloadChunk { prefix, bytes: body[8..].to_vec() })
 }
 fn json_rows(body: &[u8]) -> Result<Vec<Vec<Value>>> {

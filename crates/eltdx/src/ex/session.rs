@@ -82,6 +82,12 @@ impl Session {
         self.state.lock().map_err(|_| poisoned())?.latest_meta = Some(meta);
         Ok(())
     }
+    /// Read only while holding the complete-exchange lease when establishing
+    /// a source-sensitive multi-request composition.
+    pub fn connection_identity(&self) -> Result<Option<(super::hosts::Endpoint,u64)>> {
+        let state = self.state.lock().map_err(|_| poisoned())?;
+        Ok(state.connection.as_ref().map(|connection| (connection.endpoint,connection.generation)))
+    }
     pub fn take(&self) -> Result<Option<Connection>> {
         let mut state = self.state.lock().map_err(|_| poisoned())?;
         if self.stopped.load(Ordering::Acquire) { return Err(closed()); }

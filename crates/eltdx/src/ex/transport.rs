@@ -20,6 +20,9 @@ pub(crate) enum Work {
     /// Already checked profile command bytes, admitted only through the same
     /// owner/operation worker. This is not a public raw socket bypass.
     Encoded(Bytes),
+    /// An existing exact connection is required. No reconnect or failover is
+    /// permitted after a source-sensitive composition accepted its first reply.
+    PinnedEncoded { wire: Bytes, source: (SocketAddr,u64) },
 }
 pub(crate) struct WireReply { pub frame: Option<Frame>, pub endpoint: SocketAddr, pub generation: u64 }
 
@@ -29,6 +32,16 @@ pub(crate) async fn execute(
 ) -> Result<(WireReply, Connection)> {
     control.check(TimeoutPhase::Startup)?;
     let mut existing = session.take()?;
+    let pinned = match work { Work::PinnedEncoded { source,.. } => Some(*source),_ => None };
+    if let Some(source) = pinned {
+        if existing.as_ref().is_none_or(|connection| (connection.endpoint,connection.generation) != source) {
+            return Err(Error::new(ErrorKind::Protocol,"pinned extension source is no longer the established connection")
+                .with_context("reason","SourceChanged"));
+        }
+    }
+    // A failed pinned request retires this socket and aborts the composition.
+    // Reconnecting the same host would create a different unverified snapshot.
+    let maximum_attempts = if pinned.is_some() { 1 } else { maximum_attempts };
     if matches!(work, Work::Connect) {
         if let Some(ready) = existing.take() {
             return Ok((WireReply { frame: None, endpoint: ready.endpoint, generation: ready.generation }, ready));
@@ -105,7 +118,7 @@ async fn attempt(
         Work::Request(request) => Some(request.wire().clone()),
         Work::Range(query) => Some(super::commands::bars_range_request(query,
             sequence.as_ref().ok_or_else(|| Error::new(ErrorKind::Internal, "range request lacks sequence lease"))?).wire().clone()),
-        Work::Encoded(wire) => Some(wire.clone()),
+        Work::Encoded(wire) | Work::PinnedEncoded { wire,.. } => Some(wire.clone()),
     };
     let frame = if let Some(request) = request {
         write(&mut stream, &request, TimeoutPhase::Send, control).await?;

@@ -125,6 +125,28 @@ management!(MacClient, MacClientBuilder, MacConfig, "mac");
 management!(MacExClient, MacExClientBuilder, MacExConfig, "mac-ex");
 
 impl MacClient {
+    pub fn download_file(&self, query: &DownloadFileQuery, options: &OperationOptions) -> Result<crate::types::DownloadResult> {
+        self.download_entry(query,options,false)
+    }
+    /// Returns a complete file only after an observed EOF and consistent size.
+    /// The starting offset must be zero; download_file supports resumed suffixes.
+    pub fn download_complete(&self, query: &DownloadFileQuery, options: &OperationOptions) -> Result<bytes::Bytes> {
+        self.download_entry(query,options,true).map(|result| result.data)
+    }
+    fn download_entry(&self, query: &DownloadFileQuery, options: &OperationOptions, strict: bool) -> Result<crate::types::DownloadResult> {
+        let context = self.inner.context(Instant::now(),if strict { "mac.download_complete" } else { "mac.download_file" },options)?;
+        if strict && query.options().start_offset() != 0 {
+            return Err(context.annotate(super::query::invalid("MAC complete-file download requires starting offset zero"),TimeoutPhase::Admission,None));
+        }
+        let result = super::download::file(&self.inner,&context,query)
+            .map_err(|error| context.annotate(error,TimeoutPhase::Aggregate,None).with_context("domain","mac"))?;
+        if strict && result.completion != crate::types::DownloadCompletion::Complete {
+            return Err(context.annotate(crate::Error::new(ErrorKind::LimitExceeded,"MAC file download reached a limit before EOF")
+                .with_context("reason","LimitReached").with_context("next_offset",format!("{}",result.next_offset.unwrap_or(query.options().start_offset()))),
+                TimeoutPhase::Aggregate,None));
+        }
+        context.finish()?; Ok(result)
+    }
     /// Every member page contributes to one total deadline and shared limits.
     pub fn board_summary(&self, query: &BoardSummaryQuery, options: &OperationOptions) -> Result<super::BoardSummary> {
         let mut context = self.inner.context(Instant::now(),"mac.board_summary",options)?;

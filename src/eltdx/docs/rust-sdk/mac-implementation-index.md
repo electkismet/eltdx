@@ -1,6 +1,6 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前T25/T26部分实现，本地工具已提交`0ec8907`，QFQ组合已提交`95721fc`，板块组合源码检查点为stage83。
+当前T25/T26部分实现，板块组合已提交`29256d1`，同源下载源码检查点为stage84；MAC23/23、MAC-EX6/13方法已有源码。
 **MAC模块/两类公开客户端已在源码登记；没有编译、测试、联网或安装证据，尚未验收可用。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
@@ -14,6 +14,7 @@
 | `mac/util.rs` | 纯本地逐事件f64前复权、逐事件证据/跳过原因、原始bits保留、parent边界；8个内部用例源码 |
 | `mac/services.rs` | QFQ异常/None重取/显式provider/strict/降级及共享meta，owner worker与parent预算/取消/清理；其余组合待实现 |
 | `mac/boards.rs` | 全成员汇总、六指标稳定排行/None全候选、完整N日/向旧分页/重复日期证据；共享父保护和全部原始来源；私有字段返回模型 |
+| `mac/download.rs` | 同一lease/endpoint/generation、共享DownloadCursor、size hint与短空EOF、cap/续传/strict、完整原始与失败证据 |
 | `advanced/mac.rs` | 受限请求/精确16B头/同一frame解压及DEBUG位图，无socket入口 |
 | `mac/commands.rs` | 单一请求布局、quote/bar/transaction/kline-offset及login原始请求/仅首字节rewrite |
 | `mac/responses.rs` | 私有字段/只读getter、源identity/float/未知单位、图/快照/板块/商品/文件/JSON响应 |
@@ -27,7 +28,7 @@
 | `mac/config.rs` | 独立MAC/MAC-EX配置、数字endpoint默认值及共同受控传输限额；纯build |
 | `mac/profile.rs` | 三步setup/严格optional fence及独立login，复用现有frame/write/read实现 |
 | `mac/session.rs` | 独立owner/session、现有门与worker/授权/取消清理、meta/raw及共享探测调度 |
-| `mac/client.rs` | 两类builder/管理/探测/关闭；MAC22/23、MAC-EX6/13入口源码已接入；剩余组合仍待实现 |
+| `mac/client.rs` | 两类builder/管理/探测/关闭；MAC23/23、MAC-EX6/13入口源码已接入；MAC-EX剩余组合仍待实现 |
 | `mac/quote.rs` | checked MAC身份、名称源字节、bit字段/未知位和逐响应meta的公开Quote |
 | `mac/market_data.rs` | 富Bar/Transaction、精确秒级/跨日/原始时间、七个float bits、独立f64有效OHLC/逐事件证据、HK原价/count presence/来源和共享meta |
 | `mac/collect.rs` | 80/700/1000/1800分页、整页前插、raw行排列、复用aggregate_meta/HK现有EX解码和all严格终止 |
@@ -38,6 +39,7 @@
 | `crates/eltdx/tests/mac_helpers.rs` | 6个字段视图/别名/unknown/debug/请求/头/有界zlib/板块转换函数源码，全部未执行 |
 | `crates/eltdx/tests/extended_services.rs` | 13个QFQ修复/降级/strict/来源/字节/额外次数/原始行映射公开函数源码，全部未执行 |
 | `crates/eltdx/tests/extended_boards.rs` | 16个全成员/全候选/六指标/原始行/缺失/非有限/目标历史/重复日期/共享限额/取消关闭公开函数源码，全部未执行 |
+| `crates/eltdx/tests/extended_downloads.rs` | 17个size/EOF/cap/strict/续传/raw/初始failover与后续禁止换源/取消关闭/期限/字节公开函数源码，全部未执行 |
 | `crates/eltdx/tests/extended_loopback.rs` | 7个MAC/MAC-EX真实owner入口、取消/关闭/期限/阻塞回调门保留/换源公开函数源码，全部未执行 |
 | `crates/eltdx/tests/support/extension_peer.rs` | std-only手写请求/响应及明确合成setup辅助，不作生产登录证据 |
 
@@ -47,7 +49,7 @@ serde_json，未引入第二网络/解压栈。三组原path包含用例已改�
 
 ## MAC全部23个方法的归属
 
-全部query已写。22/23方法已有独立client/profile接线；download_file组合仍待实现。
+全部query已写。23/23方法已有独立client/profile接线；尚未编译/执行或验收。
 Quote/Bar/Transaction/BoardInfo/Unusual带逐响应共享meta；PageResult带聚合meta；
 其他返回的最近响应meta可通过diagnostics.latest_meta读取。全部未验证。
 
@@ -74,7 +76,7 @@ Quote/Bar/Transaction/BoardInfo/Unusual带逐响应共享meta；PageResult带聚
 | kline_offsets | 0x124A混合端序、query/owner/meta | 最终统一验证；returned不是EOF |
 | file_meta | 0x1215/70B名称/41B结果、query/owner | 最终统一验证；hash算法未知 |
 | download_chunk | 0x1217/8B prefix、index>=1/size/query/owner | 最终统一验证 |
-| download_file | 基础meta/chunk | T26固定同源/完整性/上限/EOF组合 |
+| download_file | metadata/chunk共享cursor/整段lease/固定generation、EOF/size/cap/续传；strict完整文件 | 最终统一验证；T27保持旧部分bytearray |
 | goods | 0x2562/48B记录、checked count<=1000/PageResult/未知全局总数 | 最终统一验证 |
 
 ## MAC-EX全部13个方法的归属
@@ -140,7 +142,7 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
    覆盖取消/半包/close/failover等，均未执行。fields/util/advanced辅助接口源码
    已补；T26首段已接显式provider及parent上下文的网络QFQ编排，尚未执行验收。
    继续余下简单入口覆盖与源码收尾；生产握手缺口仍须在最终证据阶段解决。
-5. T26继续目录/fallback/缓存、聚合/排行、同源下载及余下公开入口；T27兼容迁移。
+5. T26 QFQ、聚合/排行/N日、同源下载源码已写；继续MAC-EX目录/fallback/缓存/唯一宏观解析及余下7入口，再T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
 详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint6，

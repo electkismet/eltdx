@@ -7,6 +7,7 @@ mod session;
 mod quote;
 mod market_data;
 mod boards;
+mod download;
 pub(crate) mod collect;
 pub mod config;
 pub mod bitmap;

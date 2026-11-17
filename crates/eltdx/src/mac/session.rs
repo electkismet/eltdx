@@ -67,6 +67,12 @@ impl MacOwner {
         let wire = if self.domain == Domain::MacEx { super::commands::rewrite_mac_ex_head(&request.wire)? } else { request.wire };
         Ok(Work::Encoded(Bytes::from(wire)))
     }
+    pub fn pinned_mac_work(&self, request: super::commands::MacRequest, source: (Endpoint,u64)) -> Result<Work> {
+        match self.mac_work(request)? {
+            Work::Encoded(wire) => Ok(Work::PinnedEncoded { wire,source }),
+            _ => Err(Error::new(ErrorKind::Internal,"MAC source pin requires an encoded command")),
+        }
+    }
     pub fn exchange<T: Send + 'static>(&self, context: &OperationContext, work: Work, command: u16,
         decode: impl FnOnce(Bytes,RawPolicy) -> Result<Decoded<T>> + Send + 'static) -> Result<Reply<T>> {
         self.exchange_with_purpose(context,work,command,ChildPurpose::Required,decode)

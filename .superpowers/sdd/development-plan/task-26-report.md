@@ -1,5 +1,82 @@
 # T26 implementation report
 
+## Stage 3 — exact-source bounded downloads (2026-11-17, stage84)
+
+Base29256d1. Added mac/download.rs and tests/extended_downloads.rs; changed
+mac/{mod,client,session,decode}.rs and shared ex/{session,transport}.rs. All23
+named MAC public methods now have implementation sources. MAC-EX remains6/13.
+T26 and T25 stay partial; totals remain23 source-complete/3 partial/4 unstarted.
+Every source and fixture is uncompiled and unexecuted. No dependency, network,
+test/collection/build/check/clippy/doctest/AST/format/diff-check execution. No
+agents, push, tags, publication or merge. Goal remains active without a quota.
+
+MacClient::download_file admits one operation and holds the existing full
+session lease across metadata and chunks. It reuses the shared
+resource_legacy::DownloadCursor, commands and strict response decoder. Unknown
+expected_size first requests metadata offset0. Metadata size is a hint; the
+unknown offset/flag/hash association is not validated or called a digest proof.
+Explicit expected size skips metadata. Explicit start beyond size is a local
+InvalidArgument; start beyond discovered metadata size is ExpectedSizeMismatch
+with eof_observed=false. Neither condition invents a short/empty response.
+
+The first accepted metadata/chunk establishes exact endpoint and connection
+generation. Session::connection_identity is read under the existing lease.
+Every later internal Work::PinnedEncoded must find that same ready socket,
+and uses at most one physical attempt. Loss never reconnects the same host or
+fails over. Initial work can use existing retry/failover authorization before
+accepting a source. No duplicate socket loop, session, clock, runtime or retry
+mechanism. Response stamps are cross-checked against the ready source and
+owner generation before concatenating any bytes.
+
+Output is bounded by max_bytes, max_chunks and parent bytes/deadline. Output
+reservation is charged before sending; independent decoded chunk allocation
+is charged before allocation using download_chunk_with, which shares all
+validation with public download_chunk. Header/body transport accounting is
+unchanged. Index starts1, offset advances actual bytes; conversions/additions
+are checked. A cap-sized final request may be smaller than the normal chunk.
+A full cap-sized response still is not EOF. Cap0 returns empty LimitReached
+and next=start without a lease, setup, metadata or connect.
+
+Only an actual short/empty chunk establishes Complete; even exact metadata
+size or metadata0 needs a protocol EOF reply. Observed absolute EOF position
+must match explicit/discovered size, or Protocol/reason ExpectedSizeMismatch.
+Full byte/chunk caps return LimitReached and exact next_offset. Resumed
+download_file returns a suffix: Complete means that suffix reached consistent
+absolute EOF, not that preceding bytes are included. Strict download_complete
+requires start0, rejects LimitReached with LimitExceeded/reason/continuation,
+and otherwise returns bytes. This resolves the complete-file/range boundary.
+
+Final diagnostics.latest_meta aggregates accepted payloads/frames/stamps,
+unknown8B chunk prefixes and offset8 chunk ranges; empty chunks have no row.
+FileSizeHint, ObservedEof, LimitReached and ExpectedSizeMismatch report actual
+evidence. Failed later reads preserve accepted aggregate provenance plus
+ChunkFailed without changing original error kind/cause. Lease rejection
+retires the socket; workers/cancellation/close/cleanup use existing machinery.
+No Python changed; T27 must keep partial bytearray, filesize<=0 metadata,
+size-based stop and per-wire compatibility semantics.
+
+extended_downloads.rs has17 authored public test functions, all unexecuted:
+45000=30000+15000 raw/source evidence; exact60000 plus third empty; exact-size
+byte cap/strict error; cap0 no connect; strict nonzero start; max_chunks cap;
+early/late short and empty size mismatch; metadata0 plus empty; resume absolute
+continuation/cap-sized final request; resumed suffix EOF; explicit/discovered
+bad starts without fake EOF; metadata40B/chunk7B/over-request replies; accepted
+meta/chunk forbids fallback despite wire-attempt3; initial failover then exact
+replacement source; channel-gated cancellation/close in half-header; parent
+absolute deadline; output budget before chunk send. Fixtures use literal
+command lengths/offsets and std-only peers. Synthetic setup is not production
+handshake evidence. No test was compiled, collected or executed.
+
+Continue all T26 MAC-EX goods-unavailable EX count/global-directory fallback,
+bounded market-range validation/scan, source/profile/generation snapshot
+caches/refresh/old handles, actual code/name/desc, market38 exact unique macro
+resolution, source-ordered quote_list min(count,80), remaining7 methods and
+broader EX/directory/ranking lifecycle sources. Then T25 simple-method/schema
+coverage, full T27 Python migrations and T28-T30 consumers/CI/package/docs
+before unified execution verification. Production MAC-EX login/default and
+optional setup boundary evidence remains an explicit final-phase gap.
+Read this stage first on recovery; full objective remains active/unlimited.
+
 ## Stage 2 — full board compositions (2026-11-17, stage83)
 
 Base95721fc. Added mac/boards.rs and tests/extended_boards.rs; updated
