@@ -939,7 +939,8 @@ fn parse_core_with_adapter(
             adapter.field_count(&header, fields)?;
         }
     }
-    if header.report_size % 4 != 0 || (adapter.is_none() && fields > options.max_fields_per_record)
+    if !header.report_size.is_multiple_of(4)
+        || (adapter.is_none() && fields > options.max_fields_per_record)
     {
         return Err(malformed(
             "financial report_size is unaligned or exceeds field limit",
@@ -1045,7 +1046,7 @@ fn parse_core_with_adapter(
                 .map_err(|_| malformed("financial field allocation failed"))?;
             for chunk in data[start..end].chunks(16 * 1024) {
                 dat_checkpoint(options, boundary, &mut adapter)?;
-                for bytes in chunk.chunks_exact(4) {
+                for bytes in chunk.as_chunks::<4>().0 {
                     values.push(WireFloat::from_bits(bars::u32_at(bytes, 0)));
                 }
             }

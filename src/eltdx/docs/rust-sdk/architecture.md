@@ -296,6 +296,8 @@ T14源码实现采用共享 `ConnectionLimit` permit约束物理连接，默认c
 
 单一普通HQ endpoint已天然固定来源，stage128使分页与显式续读复用原池，避免pool1/max_connections1为同源分页额外占用连接；多endpoint仍使用独立固定来源池。此优化不合并ordinary/auction/money-flow的所有权。局部运行证据见[统一验证stage128](unified-validation.md)。
 
+在Rust1.100增加`Atomic::try_update`建议时，所有fetch_update调用仍须遵守仓库MSRV1.89；此API尚不可用于最低支持版本。源码在具体调用点有窄deprecated说明，避免工作区lint抑制或无意抬高MSRV。
+
 ### 9.2 EX/MAC
 
 EX 固定 setup、MAC 三步握手、MAC-EX 登录及 head flag 区分为协议 profile。先独立实现串行会话驱动，不把不同握手硬套进 HQ Supervisor。帧读取/解压等公共实现只有在黄金字节与故障测试证明等价后再提取复用。

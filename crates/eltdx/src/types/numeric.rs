@@ -422,7 +422,7 @@ impl Quantity {
         }
         let mut factor = shares_per_lot.get();
         let mut exponent = 0;
-        while factor > 1 && factor % 10 == 0 {
+        while factor > 1 && factor.is_multiple_of(10) {
             factor /= 10;
             exponent += 1;
         }

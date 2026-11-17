@@ -167,7 +167,7 @@ fn stress_inflight_cancel_then_recovery_never_crosses_identity() -> Case {
                 .wire(connection.identity(), request.msg_id, request.msg_type)
                 .expect("warmup wire log");
         }
-        if id % 2 == 0 {
+        if id.is_multiple_of(2) {
             entered_tx.send(id).expect("cancel controller");
             assert_eq!(
                 release_rx

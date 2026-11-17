@@ -611,10 +611,7 @@ impl AdmissionQueue {
 
     fn remove_expired_front(&mut self, now: Instant) -> Result<Vec<WaitingPermit>, RuntimeError> {
         let mut expired = Vec::new();
-        loop {
-            let Some(request_id) = self.waiting.front().copied() else {
-                break;
-            };
+        while let Some(request_id) = self.waiting.front().copied() {
             let permit = self.waiting_permit(request_id)?;
             if !permit.deadline.is_elapsed_at(now) {
                 break;

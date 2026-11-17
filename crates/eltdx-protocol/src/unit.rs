@@ -712,10 +712,8 @@ fn split_period_suffix(value: &str) -> Option<(&str, &str)> {
         (number, "m")
     } else if let Some(number) = value.strip_suffix('d') {
         (number, "d")
-    } else if let Some(number) = value.strip_suffix('s') {
-        (number, "s")
     } else {
-        return None;
+        (value.strip_suffix('s')?, "s")
     };
     if number.is_empty() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
         None

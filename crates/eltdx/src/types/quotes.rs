@@ -7,18 +7,13 @@ use crate::types::{
     Amount, AmountUnit, NumericValue, Price, Quantity, QuantityUnit, Ratio, RatioUnit, SecurityId,
 };
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum QuoteCategory {
+    #[default]
     HqAShares,
     Wire(u16),
-}
-
-impl Default for QuoteCategory {
-    fn default() -> Self {
-        Self::HqAShares
-    }
 }
 
 impl QuoteCategory {
@@ -30,10 +25,11 @@ impl QuoteCategory {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum QuoteSort {
+    #[default]
     Code,
     Last,
     Amount,
@@ -51,12 +47,6 @@ pub enum QuoteSort {
     Drawdown,
     Attack,
     Wire(u16),
-}
-
-impl Default for QuoteSort {
-    fn default() -> Self {
-        Self::Code
-    }
 }
 
 impl QuoteSort {

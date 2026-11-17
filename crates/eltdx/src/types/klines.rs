@@ -70,10 +70,11 @@ impl KlinePeriod {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum AdjustMode {
+    #[default]
     None,
     Qfq,
     Hfq,
@@ -90,12 +91,6 @@ impl AdjustMode {
             Self::FixedQfq => eltdx_protocol::unit::AdjustMode::FixedQfq,
             Self::FixedHfq => eltdx_protocol::unit::AdjustMode::FixedHfq,
         }
-    }
-}
-
-impl Default for AdjustMode {
-    fn default() -> Self {
-        Self::None
     }
 }
 

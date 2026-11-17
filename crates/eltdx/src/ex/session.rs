@@ -149,6 +149,10 @@ impl Session {
             state.connection.take();
         }
     }
+    #[allow(
+        deprecated,
+        reason = "The renamed try_update API is unavailable on MSRV 1.89."
+    )]
     pub fn next_generation(&self) -> Result<u64> {
         self.next_generation
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {

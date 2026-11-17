@@ -151,6 +151,10 @@ fn release(current: &AtomicUsize, bytes: usize) -> bool {
     if bytes == 0 {
         return false;
     }
+    #[allow(
+        deprecated,
+        reason = "The renamed try_update API is unavailable on MSRV 1.89."
+    )]
     let result = current.fetch_update(Ordering::AcqRel, Ordering::Acquire, |value| {
         value.checked_sub(bytes)
     });

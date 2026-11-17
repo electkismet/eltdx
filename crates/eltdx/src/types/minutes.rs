@@ -31,18 +31,13 @@ impl MinuteQuery {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum AuxKind {
+    #[default]
     BuySellStrength,
     VolumeComparison,
-}
-
-impl Default for AuxKind {
-    fn default() -> Self {
-        Self::BuySellStrength
-    }
 }
 
 impl AuxKind {

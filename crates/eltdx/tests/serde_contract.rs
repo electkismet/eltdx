@@ -1,4 +1,3 @@
-#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "serde")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 

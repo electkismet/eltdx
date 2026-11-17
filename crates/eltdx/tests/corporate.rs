@@ -13,7 +13,9 @@ use std::sync::{Arc, Mutex};
 
 fn codes(request: &RequestFrame) -> Vec<String> {
     request.data[2..]
-        .chunks_exact(7)
+        .as_chunks::<7>()
+        .0
+        .iter()
         .map(|row| String::from_utf8(row[1..].to_vec()).unwrap())
         .collect()
 }

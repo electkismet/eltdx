@@ -48,8 +48,13 @@ fn metadata(stream: &mut TcpStream, size: u32) -> Case {
 fn chunk_request(stream: &mut TcpStream, index: u32, offset: u32, size: u32) -> Case {
     let body = request(stream, 0x1c, 0x1217)?;
     assert_eq!(body.len(), 112);
-    for (actual, expected) in body[..12].chunks_exact(4).zip([index, offset, size]) {
-        assert_eq!(u32::from_le_bytes(actual.try_into()?), expected);
+    for (actual, expected) in body[..12]
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .zip([index, offset, size])
+    {
+        assert_eq!(u32::from_le_bytes(*actual), expected);
     }
     assert_eq!(&body[12..23], b"fixture.dat");
     Ok(())

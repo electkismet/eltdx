@@ -419,6 +419,10 @@ impl OperationContext {
         extras: Option<usize>,
         cleanup_timeout: Duration,
     ) -> Result<Self> {
+        #[allow(
+            deprecated,
+            reason = "The renamed try_update API is unavailable on MSRV 1.89."
+        )]
         let id = NEXT_OPERATION
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| {
                 next.checked_add(1)

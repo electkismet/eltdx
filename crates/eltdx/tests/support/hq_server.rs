@@ -378,7 +378,9 @@ pub fn finance(rows: &[(&str, f32, f32, f32)]) -> Vec<u8> {
 
 pub fn finance_codes(request: &RequestFrame) -> Vec<String> {
     request.data[2..]
-        .chunks_exact(7)
+        .as_chunks::<7>()
+        .0
+        .iter()
         .map(|row| String::from_utf8(row[1..7].to_vec()).unwrap())
         .collect()
 }
@@ -517,14 +519,18 @@ pub fn category_window(request: &RequestFrame) -> (u16, u16) {
 
 pub fn snapshot_codes(request: &RequestFrame) -> Vec<String> {
     request.data[10..]
-        .chunks_exact(7)
+        .as_chunks::<7>()
+        .0
+        .iter()
         .map(|row| String::from_utf8(row[1..].to_vec()).unwrap())
         .collect()
 }
 
 pub fn refresh_requests(request: &RequestFrame) -> Vec<(String, u32)> {
     request.data[2..]
-        .chunks_exact(11)
+        .as_chunks::<11>()
+        .0
+        .iter()
         .map(|row| {
             (
                 String::from_utf8(row[1..7].to_vec()).unwrap(),

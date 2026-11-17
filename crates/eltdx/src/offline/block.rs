@@ -94,8 +94,11 @@ pub mod python_legacy {
     impl DatRecord<'_> {
         pub fn codes(&self) -> impl Iterator<Item = &[u8]> {
             self.code_bytes
-                .chunks_exact(7)
+                .as_chunks::<7>()
+                .0
+                .iter()
                 .take(usize::from(self.count).min(400))
+                .map(|code| code.as_slice())
         }
     }
     pub fn dat_record(bytes: &[u8], offset: usize) -> Option<DatRecord<'_>> {
@@ -109,7 +112,9 @@ pub mod python_legacy {
     }
     pub fn config_records(bytes: &[u8]) -> impl Iterator<Item = (&[u8], &[u8])> {
         bytes
-            .chunks_exact(120)
+            .as_chunks::<120>()
+            .0
+            .iter()
             .map(|record| (&record[..50], &record[50..]))
     }
     pub fn visit_codes<E>(

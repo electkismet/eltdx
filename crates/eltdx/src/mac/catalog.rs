@@ -635,12 +635,12 @@ pub(crate) fn page<T: CatalogRow>(
         .map_err(crate::services::allocation_error)?;
     rows.try_reserve_exact(end - start_index)
         .map_err(crate::services::allocation_error)?;
-    for index in start_index..end {
+    for (index, row) in snapshot.rows.iter().enumerate().take(end).skip(start_index) {
         if (index - start_index) % 256 == 0 {
             context.check_boundary(TimeoutPhase::Aggregate)?;
         }
         selected.push(index);
-        rows.push(snapshot.rows[index].clone());
+        rows.push(row.clone());
     }
     let meta = snapshot.meta.clone().with_raw_row_selection(&selected)?;
     let consumed =

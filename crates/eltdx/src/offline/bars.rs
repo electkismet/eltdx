@@ -93,7 +93,7 @@ pub(crate) fn read_records<T>(
     }
     let retain = options.raw() != RawPolicy::Omit;
     let mut rows = Vec::new();
-    for (index, record) in data.chunks_exact(32).enumerate() {
+    for (index, record) in data.as_chunks::<32>().0.iter().enumerate() {
         cancelled(options.cancel())?;
         let mut bytes = [0_u8; 32];
         bytes.copy_from_slice(record);
@@ -330,7 +330,7 @@ pub mod python_legacy {
         mut emit: impl FnMut(Record) -> std::result::Result<(), E>,
         boundary: &mut impl FnMut() -> std::result::Result<(), E>,
     ) -> std::result::Result<(), E> {
-        for bytes in data.chunks_exact(32) {
+        for bytes in data.as_chunks::<32>().0 {
             boundary()?;
             let mut raw = [0; 32];
             raw.copy_from_slice(bytes);

@@ -216,7 +216,10 @@ fn parse_security_list_payload_body(
     }
 
     let mut items = Vec::with_capacity(count);
-    for record in payload[2..expected_length].chunks_exact(CODE_RECORD_SIZE) {
+    for record in payload[2..expected_length]
+        .as_chunks::<CODE_RECORD_SIZE>()
+        .0
+    {
         let code = decode_security_code(&record[..6])?;
         let unknown0_raw = exact_four(&record[24..28], "security unknown0")?;
         let previous_close_raw = exact_four(&record[29..33], "security previous close")?;

@@ -134,7 +134,7 @@ fn parse_server_datetime(payload: &[u8]) -> Option<DateTimeParts> {
 
 fn parse_session_minutes(payload: &[u8]) -> Result<Vec<String>, ProtocolError> {
     let mut values = Vec::with_capacity(8);
-    for chunk in payload.chunks_exact(2).take(8) {
+    for chunk in payload.as_chunks::<2>().0.iter().take(8) {
         let minute = little_u16(chunk)?;
         values.push(format!("{:02}:{:02}", minute / 60, minute % 60));
     }

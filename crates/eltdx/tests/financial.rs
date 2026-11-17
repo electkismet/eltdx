@@ -772,7 +772,7 @@ impl python_legacy::DatCallbacks for DatVisitor {
         Ok(())
     }
     fn field_count(&mut self, header: &financial::FinancialHeader, _: u32) -> eltdx::Result<()> {
-        if header.report_size() % 4 != 0 {
+        if !header.report_size().is_multiple_of(4) {
             return Err(eltdx::Error::new(
                 ErrorKind::ResourceFormat,
                 "unaligned visitor header",

@@ -105,7 +105,7 @@ fn quote_request(stream: &mut TcpStream, expected: &[&str]) -> Case {
         u16::from_le_bytes(body[20..22].try_into()?),
         u16::try_from(expected.len())?
     );
-    for (row, code) in body[22..].chunks_exact(24).zip(expected) {
+    for (row, code) in body[22..].as_chunks::<24>().0.iter().zip(expected) {
         assert_eq!(u16::from_le_bytes(row[..2].try_into()?), 38);
         assert_eq!(&row[2..2 + code.len()], code.as_bytes());
     }

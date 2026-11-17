@@ -1222,7 +1222,7 @@ mod tests {
     }
 
     fn bytes_from_hex(value: &str) -> Result<Vec<u8>, ProtocolError> {
-        if value.len() % 2 != 0 {
+        if !value.len().is_multiple_of(2) {
             return Err(ProtocolError::invalid_data("test hex", "odd hex length"));
         }
         let mut output = Vec::with_capacity(value.len() / 2);

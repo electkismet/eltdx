@@ -147,3 +147,11 @@ registry-observation实际读取三名称均404，保留HTTP响应/hash与UTC；
 pagination-green-attempt01首次已完成扫描，但新增显式cursor测试误用默认1600大小续读原page_size1游标，实际InvalidArgument；修正测试保持原page_size1后green02为6通过。测试逐请求断言0/1/2扫描和0/1显式续读均为同一物理连接身份。原外部最小消费者consumer-loopback-green-attempt01实际exit0；HQ七target回归hq-regression-attempt01为59通过，SDK/full/all-targets严格Clippy也exit0，均为记录dirty diff的局部证据。归档来源尚未重打包，完整新候选矩阵仍待，不能据局部通过称正式归档流程通过。
 
 接续：先修Rust1.100新增strict lint且保持MSRV1.89，再在干净提交跑完整归档consumer、两平台矩阵/32feature/Loom与受影响Python产物，之后运行默认两平台原生压力和84trial性能。记录的失败/命令/日志/hash位于artifacts/unified/stage128-single-endpoint，统一验收继续，目标active无额度限制。
+
+## Stage129：1.100严格lint与MSRV兼容修正
+
+2026年11月17日。stage129第一次Linux当前stable严格Clippy（attempt01）确定了固定宽度`chunks_exact`、Option末支及其余稳定lint；Rust1.89协议测试98通过。将固定数组读取改`as_chunks`、Option分支用`?`、固定周期用`is_multiple_of`；range-loop改带来源索引的迭代器，枚举手写默认改语言内置derive，测试fixture与重复属性同步清理。try_update虽是1.100新建议，但独立rustc probe证实该API在1.89为unstable，因此保留`fetch_update`语义并只在五个精确调用点注明MSRV限制，未全局屏蔽deprecated。失败attempt01/02/03/04和试验编译错误均保留。
+
+完成这些修改后，Linux当前stable1.100 full/all-target strict Clippy attempt05实际exit0；Windows MSRV1.89 full/all-target strict Clippy attempt03实际exit0。MSRV full合并SDK/runtime/protocol测试在较早stage129 diff attempt01实际exit0（SDK lib232通过/1 ignored，全部常规集成目标、protocol98、runtime130、deadline5、pin1、30 doctest通过）；其中当前diff的严格lint没有改变业务算法。Windows MSRV及1.100整平台矩阵、Linux MSRV/current-stable full已在最终修订diff运行中，结果以其JSON/日志为准；旧stage129 diff不自动代表最新diff。归档attempt01因未提交工作树被脚本正确拒绝，没有生成任何crate archive。
+
+当前strict lint / Rust1.89 full测试通过。正式archive/外部consumer、两种stable 32-feature矩阵、Loom、候选wheel与本机Python全套、无Python环境、两平台原生压力和84trial性能仍未完成。不得把局部严格lint/full test扩大为统一验收。

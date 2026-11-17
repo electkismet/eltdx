@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026年11月17日stage129恢复点：提交ec09a40修复单endpoint目录分页复用池，TDD红测先复现max_connections=1第二页LimitExceeded，green后codes6/HQ七target59通过，原外部loopback断言通过。Rust1.89/full合并所有常规目标、30 doctest、protocol/runtime、serde通过；MSRV strict Clippy通过。官方当前stable1.100 Linux strict Clippy通过；新lint已修并用Rust1.89验证MSRV。Windows MSRV/current-stable platform和两平台/full正在新diff上运行。archive首次因要求干净提交而未开始；待保存本轮lint修复后新目录重跑。T30实际压力0次、84trial性能0次。详情见unified-validation stage129；目标active无限额。
+
 2026年11月17日stage128恢复点：T01–T30源码范围完成，整体仍未验收。干净7f1f491的Linux/full通过；Windows/MSRV功能、五种strict docs、Clippy/fmt通过，整条platform因外部单连接断言失败；官方当前stable1.100的两平台功能通过、strict lint失败。已用pool1/max_connections1确定性复现并修正单endpoint分页额外建池，codes6/HQ七target59及原外部最小consumer通过，SDK/MSRV严格lint通过；归档须重新生成。sdist实际重建已exit0。见统一验证stage127–128。下一步stable lint/MSRV兼容和完整交付，再实际默认压力与84trial性能（目前均未运行）；目标active无限额。
 
 2026年11月17日stage126恢复点：db82b29的Linux/full、Windows32feature+default/full、release wheel、完整Python3046/276/103、隔离wheel consumer与文档三门禁通过。Windows full唯一失败为误用缓存租约快照，改为实时后续请求/pin/close检查后deadline5项与runtime严格Clippy通过；首次错误的关闭后broker断言失败也保留。归档验证实测workspace patch不足，目录源探针成功，正式脚本已修正待干净候选重跑。旧基线独立release构建成功；sdist构建/inspect通过，重建仍在session64112运行。详见统一验证stage126。继续交付矩阵、实际压力/性能与新候选证据；目标active无限额。

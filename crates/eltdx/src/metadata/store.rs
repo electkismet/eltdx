@@ -659,6 +659,10 @@ impl MetadataStore {
         })?;
         for candidate in candidates {
             let (key, _, records) = candidate.into_records()?;
+            #[allow(
+                deprecated,
+                reason = "The renamed try_update API is unavailable on MSRV 1.89."
+            )]
             let version = self
                 .inner
                 .next_version
@@ -754,6 +758,10 @@ impl MetadataStore {
             ));
         }
         let now = self.inner.clock.unix_seconds()?;
+        #[allow(
+            deprecated,
+            reason = "The renamed try_update API is unavailable on MSRV 1.89."
+        )]
         let waiter_id = self
             .inner
             .next_waiter
@@ -1018,6 +1026,10 @@ impl StoreInner {
         {
             return Err(flight.source_timeout_error());
         }
+        #[allow(
+            deprecated,
+            reason = "The renamed try_update API is unavailable on MSRV 1.89."
+        )]
         let version = self
             .next_version
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |next| {

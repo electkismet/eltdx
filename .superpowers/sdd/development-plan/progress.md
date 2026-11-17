@@ -1,5 +1,17 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
+- Recovery2026-11-17 stage129: checkpoint ec09a40 fixed one-endpoint pagination
+  to reuse the base pool. A real TDD red test proved max_connections=1 failed
+  on page2; green codes6, HQ regression59 and the original external loopback
+  passed. Strict Clippy passes on MSRV1.89 and current stable1.100 Linux. New
+  stable lints use MSRV-compatible as_chunks/is_multiple_of/derive/iteration;
+  fetch_update remains under precise local deprecated notes because a rustc
+  probe confirms try_update is still unstable on1.89. MSRV full merged tests
+  exit0. Final Windows platform matrices and Linux full are running at the
+  current diff. Archive run was correctly rejected while dirty and must restart
+  after commit. Stress0/performance84trials0. Read unified-validation stage129;
+  goal active/unlimited. No publish/push/tag/merge.
+
 ## Setup
 - stage120 on clean1d61669: Windows1.89 full combined SDK/runtime/protocol
   actual exit0, SDK lib232 pass1 ignored/30 docs/7 serde, protocol98/runtime129/

@@ -414,7 +414,7 @@ fn run_cases(cases: Vec<Case>) -> TestResult {
 }
 fn response_bytes(index: usize) -> Vec<u8> {
     format!(r#"{{"ErrorCode":{},"HitCache":false,"ResultSets":[{{"ColName":["marker","duplicate","duplicate","unknown"],"Content":[[{index},1,2,{{"future":true}}]]}},{{"ColName":["news"],"Content":[["新闻"]]}}]}}"#,
-        if index % 2 == 0 { 0 } else { 17 }).into_bytes()
+        if index.is_multiple_of(2) { 0 } else { 17 }).into_bytes()
 }
 
 #[test]
