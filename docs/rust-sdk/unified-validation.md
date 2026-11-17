@@ -374,3 +374,9 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 与 Stage148 Windows 归档比对：三包文件清单一致，`src/` 内容逐字节一致；两份 `Cargo.toml.orig` 和三份 `LICENSE` 只有 LF/CRLF 差异。解析两端归档内的锁文件后确认，runtime 和 SDK 唯一的结构差异是各自下层依赖的 checksum，且与各平台实际归档一致。`archive-comparison.json` SHA256 `bdd407dae1800d2721efcd15409b9cbc8c9ecebf4d8eddf767a86810e624e45b`；`lock-comparison.json` SHA256 `e3b7f7ab9f4bd967a9351f34210cecaa40ec660306c2e711e3f675071c37d386`。发布及身份校验须使用相同换行设置的干净检出，以公开 registry 实际 checksum 为准。
 
 另核对 Stage150 保存的上交所接口规范 §2.8–2.9，定位开市前经 MDGW、ztDisk 分发的现货产品基础信息文件和第二批价格更新。具体所需记录见[决策记录](decision-register.md)；本轮未取得交易所当日文件。
+
+## Stage153：MAC-EX 跨小时成功样本
+
+在干净检查点 `051c11f10e8516b24319e19b86e4a123236dbbdc` 上，用 Stage148 的 Windows wheel（SHA256 `974e9ae5a45a988bee6f51fe964fdc5730041d7c280a14fff71d9066e5a1023e`）对两台已知公开主站各建立一次正常会话。2026-11-17 22:04 UTC，两次登录、商品总数查询及关闭均成功，均返回 110651。`artifacts/unified/stage153-mac-ex-hour-apart-attempt01/result.json` SHA256 `5f858e8dfd440a15569f857d2455849f82d1f4c575156ae325f38f14b254f417`；同目录保留原始帧、解压数据、命令和日志。
+
+离线校验逐主站与 Stage145 首批样本对照，两轮相隔约 4160 秒。登录帧头和解压长度 299 均未变；零基偏移 57、58、60 是仅有的载荷差异。将偏移 53–60 按小端年份、月、日、分、时、固定零字节、秒解读为 UTC+8 时间时，与各次采集起点误差均小于 5 秒。`verified.json` SHA256 `00e14d2199e6c3dfa1ca5010461d344cfa3eee51407c49f579e7430a1a775df1`。这为跨小时成功响应中的候选时钟字段提供依据；未跨日、未覆盖其他网络条件，无独立服务端拒绝样本，仍不能启用默认生产登录规则。Rust 与 Python 产品代码未改。

@@ -59,7 +59,7 @@
 ## 后续工作
 
 - 发布平台：对程序候选 `f2703c1` 或其后仅更新文档的提交运行macOS平台和归档工作流。获得公开分支推送授权后，推送候选分支触发macOS Rust任务，再对同一SHA手动运行 `Publish`，验证macOS Intel/ARM及Linux原生arm64 wheel和sdist。手动运行不上传PyPI，也不创建GitHub Release；留存 run ID、SHA、产物散列和安装结果。x64隔离消费和ARM模拟重建见[统一验证记录](unified-validation.md)。
-- 生产协议：取得跨时段的MAC-EX登录成功样本及独立失败样本，确认时钟字段与响应身份后再确定可长期使用的规则。另补可选setup的身份/顺序/fence、category22非空路径和交易所当日涨跌停价；未验证含义继续保持Unknown。
+- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的登录成功样本，确认候选时钟差异符合观测；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选setup的身份/顺序/fence、category22非空路径和交易所当日涨跌停价；未验证含义继续保持Unknown。
 - 注册表：在本机配置获授权的crates.io发布凭据后，核对包名、版本和账号权限，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前重新查询，404仅代表该时间点的查询结果。
 
 R01–R12首轮逐项审计是stage135时点的历史快照，后续更新以本节状态和[统一验证记录](unified-validation.md)为准，不再复制一份逐行“部分”表。已有Windows Python矩阵、Windows/Linux压力与性能、以及stage138归档结果分别保留在对应阶段记录中。
