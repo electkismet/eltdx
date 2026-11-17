@@ -4243,6 +4243,15 @@ impl RuntimeCore {
                 same_attempt_possible,
                 reply,
             } => {
+                // Cancellation may already own this exact wire's retirement
+                // while a response error is queued. Keep that terminal cause
+                // and let the Slot confirm retirement instead of retrying it.
+                if self.retirements.contains_key(&wire.request_id)
+                    && self.pending.get(&wire.request_id).is_some_and(|pending| pending.wire == Some(wire))
+                {
+                    let _ = reply.send(Ok(FailureAction::Retire));
+                    return Ok(());
+                }
                 let mut error = error;
                 if let Some(attempt) = self.supervisor.request_attempt_count(wire.request_id) {
                     error = error.with_context("attempt", attempt.to_string());
@@ -7126,6 +7135,62 @@ mod tests {
     }
 
     #[test]
+    fn late_slot_failure_preserves_existing_exact_cancellation_retirement() -> Result<(), RuntimeError> {
+        for exact in [true, false] {
+            let request_id = RequestId::new(220)?;
+            let (mut core, runtime, _reservation_result) = pin_reservation_runtime(request_id)?;
+            let reserved = core.pin_reservations.remove(&request_id).expect("reservation");
+            let admission = reserved.admission;
+            let receiver = track_operation_request(&mut core, admission, None);
+            let now = std::time::Instant::now();
+            let attempt = core.supervisor.begin_request_attempt(request_id, now)?;
+            let generation = crate::slot::GenerationId::new(1)?;
+            let wire = crate::request::RequestWireIdentity {
+                engine_epoch: attempt.engine_epoch, request_id, lease_id: attempt.lease_id,
+                slot_id: attempt.slot_id, generation: Some(generation), message: None,
+            };
+            core.supervisor.transition_request(request_id, crate::request::RequestState::Connecting, Some(wire))?;
+            core.pending.get_mut(&request_id).expect("pending").wire = Some(wire);
+            let root = RuntimeError::connection_closed("cancel winner");
+            assert!(matches!(core.supervisor.begin_retry(wire, root.clone(), false, now),
+                Some(crate::request::RetryDecision::RetireThenTerminal(_))));
+            core.retirements.insert(request_id, super::RetirementPlan::Terminal {
+                kind: crate::request::TerminalKind::Cancelled, error: root,
+            });
+            let reported = if exact { wire } else { crate::request::RequestWireIdentity {
+                generation: Some(crate::slot::GenerationId::new(9)?), ..wire
+            }};
+            let (reply, received) = tokio::sync::oneshot::channel();
+            let handled = runtime.block_on(core.handle_slot_event(super::SlotEvent::Failed {
+                wire: reported, error: RuntimeError::connection_closed("late response failure"),
+                retryable: true, same_attempt_possible: false, reply,
+            }));
+            let replied = runtime.block_on(received).expect("failure action");
+            if exact {
+                handled?;
+                assert!(matches!(replied?, super::FailureAction::Retire));
+            } else {
+                assert!(handled.is_err(), "a foreign generation cannot use an existing retirement");
+                assert!(replied.is_err());
+            }
+            assert!(matches!(core.retirements.get(&request_id), Some(super::RetirementPlan::Terminal {
+                kind: crate::request::TerminalKind::Cancelled, ..
+            })));
+            runtime.block_on(core.handle_retired(crate::slot::ReconnectAck {
+                engine_epoch: wire.engine_epoch, slot_id: wire.slot_id, request_id,
+                retired_generation: generation, next_generation: crate::slot::GenerationId::new(2)?,
+                next_endpoint_index: 0, endpoints_remaining_in_attempt: 1,
+            }))?;
+            let error = receiver.try_recv().expect("cancelled request terminal").expect_err("cancel wins");
+            assert!(error.to_string().contains("cancel winner"));
+            assert!(core.pending.is_empty());
+            assert!(core.retirements.is_empty());
+            assert!(!core.closing);
+        }
+        Ok(())
+    }
+
+    #[test]
     fn configuration_freezes_all_bounded_runtime_capacities() -> Result<(), RuntimeError> {
         let config = config(4, 256)?;
         assert_eq!(config.pool_size(), 4);
@@ -7369,7 +7434,7 @@ mod tests {
             slot_id: crate::slot::SlotId::new(0),
             reservation_request_id: RequestId::new(43)?,
         };
-        let (sender, receiver) = std_mpsc::sync_channel(1);
+        let (sender, receiver) = std_mpsc::sync_channel::<Result<super::PinDelivery, RuntimeError>>(1);
         drop(receiver);
         let result = sender.send(Ok(super::PinDelivery {
             identity: Some(identity),
@@ -7521,7 +7586,7 @@ mod tests {
             .get(&request_id)
             .map(|reservation| Arc::clone(&reservation.result.terminal))
             .ok_or_else(|| RuntimeError::internal("pin reservation has no result state"))?;
-        runtime.block_on(core.complete_pin_reservation(request_id))??;
+        assert!(runtime.block_on(core.complete_pin_reservation(request_id))?.is_none());
         let confirmation = Arc::new(super::Completion::new());
         core.control.request_pin_cancel(
             request_id,
@@ -7612,7 +7677,7 @@ mod tests {
         let request_id = RequestId::new(49)?;
         let (mut core, runtime, receiver) = pin_reservation_runtime(request_id)?;
         drop(receiver);
-        runtime.block_on(core.complete_pin_reservation(request_id))??;
+        assert!(runtime.block_on(core.complete_pin_reservation(request_id))?.is_none());
 
         assert_eq!(core.supervisor.active_count(), 0);
         assert_eq!(core.supervisor.pin_count(), 0);

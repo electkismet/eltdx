@@ -23,6 +23,7 @@ pub struct Server {
 pub struct Connection {
     writer: Arc<Mutex<TcpStream>>,
     push_id: Arc<AtomicU32>,
+    disconnected: Arc<AtomicBool>,
     identity: usize,
 }
 
@@ -34,6 +35,7 @@ impl Connection {
     }
 
     pub fn disconnect(&self) -> io::Result<()> {
+        self.disconnected.store(true, Ordering::Release);
         self.writer.lock().map_err(|_| io::Error::other("fixture writer poisoned"))?
             .shutdown(Shutdown::Both)
     }
@@ -95,7 +97,8 @@ impl Server {
                             Err(error) => { failure.get_or_insert(error); break; }
                         };
                         let connection = Connection { writer: Arc::new(Mutex::new(writer)),
-                            push_id: Arc::new(AtomicU32::new(0x7000_0000)), identity };
+                            push_id: Arc::new(AtomicU32::new(0x7000_0000)),
+                            disconnected: Arc::new(AtomicBool::new(false)), identity };
                         let handler = Arc::clone(&handler);
                         let stop = Arc::clone(&worker_stop);
                         worker_active.fetch_add(1, Ordering::SeqCst);
@@ -104,9 +107,10 @@ impl Server {
                             struct Active(Arc<AtomicUsize>);
                             impl Drop for Active { fn drop(&mut self) { self.0.fetch_sub(1, Ordering::SeqCst); } }
                             let _active = Active(active);
-                            while !stop.load(Ordering::Acquire) {
+                            while !stop.load(Ordering::Acquire) && !connection.disconnected.load(Ordering::Acquire) {
                                 let request = match read_request(&mut stream) {
                                     Ok(request) => request,
+                                    Err(_) if connection.disconnected.load(Ordering::Acquire) => return Ok(()),
                                     Err(error) if matches!(error.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) => continue,
                                     Err(error) if matches!(error.kind(), io::ErrorKind::UnexpectedEof | io::ErrorKind::ConnectionReset
                                         | io::ErrorKind::ConnectionAborted | io::ErrorKind::NotConnected) => return Ok(()),
@@ -117,6 +121,7 @@ impl Server {
                                     0x0004 => vec![0; 10],
                                     _ => handler(&request, &connection),
                                 } };
+                                if connection.disconnected.load(Ordering::Acquire) { return Ok(()); }
                                 if let Err(error) = connection.write(&response(&request, &payload)) {
                                     if matches!(error.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::NotConnected
                                         | io::ErrorKind::ConnectionReset | io::ErrorKind::ConnectionAborted) { return Ok(()); }

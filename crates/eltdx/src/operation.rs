@@ -191,9 +191,18 @@ impl RequestPermit {
     }
 
     pub(crate) fn into_submission(self, request: &CommandRequest) -> SubmissionOptions {
+        self.into_submission_policy(request, false)
+    }
+
+    pub(crate) fn into_pinned_submission(self, request: &CommandRequest) -> SubmissionOptions {
+        self.into_submission_policy(request, true)
+    }
+
+    fn into_submission_policy(self, request: &CommandRequest, pinned: bool) -> SubmissionOptions {
         let (options, retry) = match self.profile {
             ExecutionProfile::RustPublic { deadline, wire_attempts } =>
-                (SubmissionOptions::new(deadline), rust_retry_policy(request, wire_attempts)),
+                (SubmissionOptions::new(deadline), rust_retry_policy(request,
+                    if pinned { NonZeroU32::new(1).expect("one fixed-source attempt") } else { wire_attempts })),
             ExecutionProfile::PythonLegacy { request_timeout } =>
                 (SubmissionOptions::legacy_after_startup(request_timeout),
                  eltdx_runtime::request::RetryPolicy::ordinary(request.retry_safe())),

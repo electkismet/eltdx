@@ -156,7 +156,10 @@ async fn read_frame_inner(stream: &mut TcpStream, limits: FrameLimits, phase: Ti
         let length = control.wait(phase, async { stream.read(&mut buffer[..maximum]).await.map_err(connection) }).await?;
         if length == 0 {
             return Err(if received == 0 { Error::new(ErrorKind::Connection, "EX peer closed before a response") }
-                else { super::protocol("EX peer closed inside a declared frame").with_context("received_bytes", format!("{received}")) });
+                else { Error::new(ErrorKind::Connection, "extension peer closed inside a declared frame")
+                    .with_context("received_bytes", format!("{received}"))
+                    .with_source(std::io::Error::new(std::io::ErrorKind::UnexpectedEof,
+                        "connection ended before the declared frame was received")) });
         }
         control.sponsor.record_bytes(length)?;
         let consumed = accumulator.push(&buffer[..length])?;

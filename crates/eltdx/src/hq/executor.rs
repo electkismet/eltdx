@@ -339,7 +339,10 @@ impl HqExecutor {
         let command = request.command_code();
         let permit = context.begin_child_scoped(purpose, recovery, probe_scope)?;
         let child_id = permit.child_id;
-        let options = permit.into_submission(&request);
+        // A pinned source cannot survive retirement of its exact TCP generation.
+        // Python's historical execution profile keeps its existing policy.
+        let options = if pin.is_some() { permit.into_pinned_submission(&request) }
+            else { permit.into_submission(&request) };
         let pending = match pin {
             Some(pin) => pin.begin_execute_raw_with_options(request, options),
             None => engine.begin_execute_raw_with_options(request, options),

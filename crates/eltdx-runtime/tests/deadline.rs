@@ -97,12 +97,12 @@ fn elapsed_deadline_does_not_start_or_connect_the_engine() -> Result<(), Runtime
     let options = SubmissionOptions::new(Instant::now());
 
     let error = engine
-        .begin_execute_raw_with_options(request(), options)
+        .begin_execute_raw_with_options(request(), options.clone())
         .err()
         .ok_or_else(|| RuntimeError::internal("an elapsed deadline was accepted"))?;
 
     assert!(matches!(error, RuntimeError::Timeout { .. }));
-    assert!(engine.begin_pin_with_options(options).is_err());
+    assert!(engine.begin_pin_with_options(options.clone()).is_err());
     assert!(engine.begin_connect_with_options(options).is_err());
     assert!(matches!(listener.accept(), Err(error) if error.kind() == io::ErrorKind::WouldBlock));
     assert_eq!(engine.pool_diagnostics()?.state.as_str(), "STOPPED");

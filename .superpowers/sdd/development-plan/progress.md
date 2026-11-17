@@ -1,6 +1,16 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- stage119 on74d14b0: deterministic late Failed/cancellation regression red
+  then green; exact wire keeps original retirement, foreign generation rejects.
+  Rust pinned child one attempt, PythonLegacy unchanged; lost-pin case passed
+  primary2/fallback0 after deliberate-disconnect fixture stops writing. Partial
+  extension EOF is Connection with UnexpectedEof source; five targets107 pass.
+  Combined full attempt02 SDK all regular targets/30 docs, protocol98/runtime129
+  and deadline5 pass, overall101 only pin_handoff. Missing fixture handshake
+  added, cached25ms broker assertions replaced by live source/queue/release;
+  final pin case pass1. Need same-checkpoint combined exit0. WSL Rust1.89 task
+  install passed, Linux tests not run. Logs stage119-runtime. Continue all gates.
 - stage118 on59888d8: F10 four targets67 tests pass after accepted socket
   blocking; EX15/boards16/catalog32/loopback14 pass after terminal-reset EOF
   and bounded request-count fixtures. Lifecycle3 pass, latest lib232 pass1

@@ -181,3 +181,21 @@ normal cancellation has existing_retirement=true and duplicate begin_retry
 fails Internal; pinned download sends fallback1 request after primary2. These
 need deterministic red regressions, production fixes and full regression,
 not relaxed assertions. No whole/Python/platform/package/stress acceptance.
+
+## Unified validation stage119: production lifecycle and fixed-source repairs
+
+Base74d14b0. Runtime late Failed after cancellation now preserves an existing
+exact-wire retirement; deterministic red/green includes rejection of foreign
+generation and preservation of original cancelled terminal. Rust pinned child
+has one wire attempt on the same authorization/deadline, PythonLegacy unchanged.
+Lost-pin public test now passes primary2/fallback0; fixture deliberate shutdown
+no longer writes a reply. Partial extension EOF is Connection/UnexpectedEof,
+complete malformed replies remain Protocol; five affected targets107 pass.
+Combined full attempt02 SDK regular targets/30 doctests, protocol98/runtime129
+and deadline5 pass, but overall101 due to pin_handoff fixture missing handshake.
+Handshake added and cached25ms broker assertions replaced with real-time pin
+identity, queuing and release; pin case attempt03 passes1. Re-run full combined
+on the saved checkpoint for whole-command exit0. Original compile/type/IO/move
+failures retained in stage119-runtime. WSL Ubuntu22.04 task-specific Rust1.89
+install03 passed, no Linux behavior result yet. Full feature/MSRV/compatibility/
+consumer/package/docs/stress/performance/production evidence still required.
