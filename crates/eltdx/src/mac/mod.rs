@@ -11,6 +11,7 @@ pub mod decode;
 pub mod enums;
 pub mod query;
 pub mod ex_query;
+pub mod handshake;
 pub(crate) mod pagination;
 
 pub use bitmap::{FieldId, FieldSelection, PresetField};

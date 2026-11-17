@@ -2,6 +2,17 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage78: query/pagination committed538b01d.
+  Authored mac/handshake.rs exact optional identities/ordered fence tracker
+  and bounded disjoint login reply evidence with5 unexecuted private functions.
+  Production association/login patterns are still absent. Default all-replies
+  may reject optional hosts; missing login evidence fails Protocol/Handshake.
+  This is NOT a deliverable default policy: resolve real protocol evidence in
+  final allowed evidence phase before accepting T25/MAC-EX. Continue independent
+  owner/config/profile/client/meta/raw/probe sources thenT26–T30 now; no need
+  to repeat538b01d. Read task-25-report checkpoint3. Counts23/2/5, active goal
+  without token cap, all execution verification deferred, no agents/publication.
+
 - Latest recovery2026-11-17 stage77: base80de370; completed retained MAC
   enums/query edits plus canonical EX identity conversions, ex_query and checked
   pagination. All23 MAC queries and all query-bearing MAC-EX entries have source;

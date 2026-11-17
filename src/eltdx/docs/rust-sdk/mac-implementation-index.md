@@ -1,6 +1,6 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前为T25部分实现，基线`80de370`后的Stage B查询与分页源码检查点stage77。
+当前为T25部分实现，查询/分页已提交`538b01d`，后续为握手证据源码检查点stage78。
 **没有编译、测试、联网或安装证据；没有注册可用的公开MAC客户端。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
@@ -18,6 +18,7 @@
 | `mac/query.rs` | 全部标准MAC查询构造/默认值，u32总目标、窄字段/bitmap/下载范围校验 |
 | `mac/ex_query.rs` | canonical EX身份、全部MAC-EX查询、1800/1000页、50/90000 cap、macro默认 |
 | `mac/pagination.rs` | 单一checked分页进度、实际wire行推进、短/空证据和满保护上限拒绝；列表追加/K线前插 |
+| `mac/handshake.rs` | 明确optional回复/fence身份、终态tracker和正/负login证据；不虚构生产ACK；5个内部用例源码 |
 | `crates/eltdx/tests/mac_wire.rs` | 7个原Stage A函数源码，未执行 |
 | `crates/eltdx/tests/mac_responses.rs` | 14个简单响应/边界函数源码，未执行 |
 | `crates/eltdx/tests/mac_queries.rs` | 10个查询/默认/编码/身份边界函数源码；另pagination内部6个函数，全部未执行 |
@@ -107,10 +108,13 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
 2. 实现标准MAC三阶段OptionalReply及MAC-EX独立login profile；复用T24框架。
    源码只有“登录体>=2B”启发式，缺少生产成功/否定payload证据；不能编造ACK。
    可选setup的静默超时不证明响应边界，必须防晚到setup被当业务响应。
+   纯证据策略/tracker已写：默认要求全部setup回复；显式optional只在已声明的
+   有序fence确认后结束。缺生产login规则时Protocol/Handshake拒绝，而不是
+   误报成功。这仍不是可交付的默认登录方案，最终允许的证据阶段必须补齐。
 3. 接入独立MacClient/MacExClient、lazy builder/管理/探测/关闭、同一个操作预算。
 4. 接入分页/meta/raw，补真实公开client回环fixture源码后登记模块。
 5. T26完成目录/fallback/缓存、聚合/排行、复权、同源下载及all-pages；T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
-详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint2。
+详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint3。
 实现源码完整不等于执行验收通过，当前任务总数仍23完成源码/2部分/5未开始。

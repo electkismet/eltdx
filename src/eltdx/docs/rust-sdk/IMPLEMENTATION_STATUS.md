@@ -143,7 +143,7 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | T25 stage77查询/枚举/身份转换/checked分页源码已写；上个提交80de370；客户端/profile仍待实现，全部执行验证延期 |
+| 最新检查点 | T25查询/枚举/身份转换/分页已提交538b01d；stage78纯握手证据源码已写；生产判定/客户端/profile仍待完成，全部执行验证延期 |
 | 当前阶段 | T01–T18及T20–T24源码完成；T19/T25部分；23完整源码/2部分/5未开始。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | 不运行 pytest 或 collection；不运行 cargo test/build/check/clippy/doctest、网络验证、AST 编译脚本或 `git diff --check` |

@@ -178,3 +178,52 @@ source/2 partial/5 unstarted. MAC client/profile/root registration are still
 missing; T25 is partial. Next: owner/profile negotiation with explicit setup
 boundary and login verification evidence, shared T24 worker integration,
 simple public methods/meta/raw/management; then T26–T30 and final validation.
+
+## Stage B checkpoint 3 — explicit handshake evidence (2026-11-17, stage78)
+
+Query/pagination checkpoint committed `538b01d`; no reconstruction is needed.
+Authored pure `mac/handshake.rs`, registered only with the existing unregistered
+MAC groundwork. It does not yet perform negotiation or create any client.
+
+Source inspection reconfirmed the three literal standard-MAC setup packets and
+that Python swallows setup socket/transport failures; login0x2454 only checks
+len(body)>=2 and its caller ignores that bool. There are no independent
+production response association or positive/negative login payloads in the
+current evidence inventory. No new network probe was run to fill that gap.
+
+ResponseIdentity supplies exact magic/sequence/method expectations as explicit
+caller assertions. OptionalSetupBoundary requires disjoint optional identities
+and a mandatory fence identity, an evidence label and an ordered-response
+contract supplied by the caller. Optional steps form a deferred suffix: a
+Required reply may not consume a pending optional frame. Its bounded tracker
+consumes each optional reply at most once, accepts absence only when the exact
+fence arrives, and makes unknown/duplicate/post-fence use terminal. A future
+profile must still strictly decode the fence business response and validate
+today before publishing a socket. The pure tracker is not proof that actual
+production servers obey the supplied ordering assertion.
+
+MacSetupPolicy's conservative source-only default requires all3 complete
+replies. Silent timeout is a handshake failure, not OptionalReply evidence.
+OptionalWithFence supports an evidence-backed profile rather than guessing
+response associations. This default may reject real hosts that omit a reply;
+production optional-boundary fixtures remain an acceptance gap and must be
+resolved in the final allowed evidence phase. Do not claim full host support.
+
+LoginReplyRules holds bounded, disjoint exact complete positive/negative
+payloads and an evidence label, with a redacted Debug implementation. Unknown
+payloads, including arbitrary>=2B payloads, cannot pass require_accepted;
+missing rules also fail Protocol/Handshake. Authored fixtures use explicitly
+synthetic positive/negative strings; they establish no production ACK/status
+bytes. This is a preparation seam, not a final usable default login policy:
+the final evidence pass must supply a production classifier before accepting
+the public default MAC-EX path. Do not falsely mark T25 complete or advertise
+authentication based on Python leniency. T27 keeps the old Python behavior.
+
+Authored5 private source functions for optional absence/exact fence,
+unknown/duplicate/post-terminal responses, overlapping/interleaved rules,
+positive/negative/unknown login decisions and invalid/absent evidence. No test
+or other execution verification occurred. Current source totals remain23/2/5;
+goal active, no token cap, no agents/publication. Next implementation remains
+owner/config/profile transport reuse, then all simple APIs/meta/raw/probes,
+T26/T27 and T28–T30; response evidence is explicitly unresolved rather than
+an excuse to skip independent remaining source work.
