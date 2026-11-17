@@ -14,6 +14,7 @@ pub struct Server {
     stop: Arc<AtomicBool>,
     worker: Option<JoinHandle<io::Result<()>>>,
     accepted: Arc<AtomicUsize>,
+    active: Arc<AtomicUsize>,
 }
 
 /// A separately owned fixture writer. Test channels can publish unsolicited
@@ -22,9 +23,11 @@ pub struct Server {
 pub struct Connection {
     writer: Arc<Mutex<TcpStream>>,
     push_id: Arc<AtomicU32>,
+    identity: usize,
 }
 
 impl Connection {
+    pub fn identity(&self) -> usize { self.identity }
     pub fn push(&self, msg_type: u16, payload: &[u8]) -> io::Result<()> {
         let message = self.push_id.fetch_add(1, Ordering::Relaxed);
         self.write(&framed_response(message, msg_type, payload))
@@ -62,20 +65,44 @@ impl Server {
         let worker_stop = Arc::clone(&stop);
         let accepted = Arc::new(AtomicUsize::new(0));
         let worker_accepted = Arc::clone(&accepted);
+        let active = Arc::new(AtomicUsize::new(0));
+        let worker_active = Arc::clone(&active);
         let handler = Arc::new(handler);
         let worker = thread::spawn(move || {
-            let mut connections = Vec::new();
+            let mut connections: Vec<JoinHandle<io::Result<()>>> = Vec::new();
+            let mut failure = None;
             while !worker_stop.load(Ordering::Acquire) {
+                let mut index = 0;
+                while index < connections.len() {
+                    if connections[index].is_finished() {
+                        let result = connections.swap_remove(index).join()
+                            .unwrap_or_else(|_| Err(io::Error::other("fixture connection panicked")));
+                        if let Err(error) = result { failure.get_or_insert(error); }
+                    } else { index += 1; }
+                }
+                if failure.is_some() { break; }
                 match listener.accept() {
                     Ok((mut stream, _)) => {
-                        worker_accepted.fetch_add(1, Ordering::SeqCst);
-                        stream.set_read_timeout(Some(Duration::from_millis(100)))?;
-                        stream.set_write_timeout(Some(Duration::from_secs(2)))?;
-                        let connection = Connection { writer: Arc::new(Mutex::new(stream.try_clone()?)),
-                            push_id: Arc::new(AtomicU32::new(0x7000_0000)) };
+                        let identity = worker_accepted.fetch_add(1, Ordering::SeqCst) + 1;
+                        let prepared = (|| -> io::Result<TcpStream> {
+                            stream.set_read_timeout(Some(Duration::from_millis(100)))?;
+                            stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+                            stream.try_clone()
+                        })();
+                        let writer = match prepared {
+                            Ok(writer) => writer,
+                            Err(error) => { failure.get_or_insert(error); break; }
+                        };
+                        let connection = Connection { writer: Arc::new(Mutex::new(writer)),
+                            push_id: Arc::new(AtomicU32::new(0x7000_0000)), identity };
                         let handler = Arc::clone(&handler);
                         let stop = Arc::clone(&worker_stop);
+                        worker_active.fetch_add(1, Ordering::SeqCst);
+                        let active = Arc::clone(&worker_active);
                         connections.push(thread::spawn(move || -> io::Result<()> {
+                            struct Active(Arc<AtomicUsize>);
+                            impl Drop for Active { fn drop(&mut self) { self.0.fetch_sub(1, Ordering::SeqCst); } }
+                            let _active = Active(active);
                             while !stop.load(Ordering::Acquire) {
                                 let request = match read_request(&mut stream) {
                                     Ok(request) => request,
@@ -99,18 +126,25 @@ impl Server {
                         }));
                     }
                     Err(error) if error.kind() == io::ErrorKind::WouldBlock => thread::sleep(Duration::from_millis(1)),
-                    Err(error) => return Err(error),
+                    Err(error) => { failure.get_or_insert(error); break; }
                 }
             }
+            // Reap every child even after the first error. Detached fixture
+            // workers would contaminate the resource measurements themselves.
+            worker_stop.store(true, Ordering::Release);
             for connection in connections {
-                connection.join().map_err(|_| io::Error::new(io::ErrorKind::Other, "fixture connection panicked"))??;
+                if let Err(error) = connection.join()
+                    .unwrap_or_else(|_| Err(io::Error::other("fixture connection panicked"))) {
+                    failure.get_or_insert(error);
+                }
             }
-            Ok(())
+            failure.map_or(Ok(()), Err)
         });
-        Ok(Self { address, stop, worker: Some(worker), accepted })
+        Ok(Self { address, stop, worker: Some(worker), accepted, active })
     }
 
     pub fn connection_count(&self) -> usize { self.accepted.load(Ordering::SeqCst) }
+    pub fn active_connection_count(&self) -> usize { self.active.load(Ordering::SeqCst) }
 
     pub fn finish(mut self) -> io::Result<()> {
         self.stop.store(true, Ordering::Release);

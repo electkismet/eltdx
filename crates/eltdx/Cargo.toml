@@ -9,7 +9,7 @@ description = "Independent synchronous Rust SDK for TDX market data and local fo
 readme = "README.md"
 keywords = ["tdx", "market-data", "finance", "protocol"]
 categories = ["api-bindings", "network-programming"]
-include = ["Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "src/**", "examples/**"]
+include = ["Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "src/**", "examples/**", "tests/support/hq_server.rs", "tests/support/stress_log.rs"]
 
 [features]
 default = []

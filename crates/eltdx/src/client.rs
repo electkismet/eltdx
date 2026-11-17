@@ -272,3 +272,7 @@ pub(crate) fn configured_hosts(config: &ClientConfig) -> Vec<String> {
     config.endpoints().map(|endpoints| endpoints.iter().map(ToString::to_string).collect())
         .unwrap_or_else(|| crate::hosts::DEFAULT_7709_HOSTS.iter().map(|host| (*host).to_owned()).collect())
 }
+
+#[cfg(test)]
+#[path = "stress_internal.rs"]
+mod stress_internal;
