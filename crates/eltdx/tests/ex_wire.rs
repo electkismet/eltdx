@@ -77,6 +77,23 @@ fn plain_frame(
 }
 
 #[test]
+fn instrument_count_accepts_the_observed_ex_data_server_layout() -> TestResult {
+    let reply = hex("54 44 58 5f 44 53 00 00 00 00 00 6a 70 1d 00 03 00 00 00 72 b2 01 00 df 00 00 00 00 32 58 01")?;
+    assert_eq!(
+        *decode_instrument_count(reply.clone().into())?.value(),
+        111218
+    );
+    assert!(decode_instrument_count(Bytes::copy_from_slice(&reply[..30])).is_err());
+    let mut bad_marker = reply.clone();
+    bad_marker[0] = 0;
+    assert!(decode_instrument_count(bad_marker.into()).is_err());
+    let mut too_long = reply;
+    too_long.push(0);
+    assert!(decode_instrument_count(too_long.into()).is_err());
+    Ok(())
+}
+
+#[test]
 fn eleven_request_goldens_and_native_defaults() -> TestResult {
     assert_eq!(
         markets_request().wire().as_ref(),

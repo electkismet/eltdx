@@ -352,11 +352,6 @@ fn global_goods_count_accepts_the_observed_mac_ex_dataserver_layout() -> Case {
     client.close()?;
     join(task)?;
     assert_eq!(result?, 110651);
-    assert!(
-        eltdx::ex::commands::decode_instrument_count(Bytes::from_static(&DATA_SERVER_REPLY))
-            .is_err()
-    );
-
     let (endpoint, task) = peer(|mut stream| {
         login(&mut stream)?;
         assert!(request(&mut stream, 1, 0x23f0)?.is_empty());

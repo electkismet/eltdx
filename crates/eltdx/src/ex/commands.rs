@@ -240,16 +240,11 @@ pub fn decode_markets(body: Bytes) -> Result<Decoded<Vec<MarketInfo>>> {
 }
 pub fn decode_instrument_count(body: Bytes) -> Result<Decoded<u32>> {
     let value = u32_at(&body, 19)?;
-    exact_payload(&body, 23)?;
-    Ok(finish(value, Vec::new(), Vec::new()))
-}
-#[cfg(feature = "mac")]
-pub(crate) fn decode_mac_ex_instrument_count(body: Bytes) -> Result<Decoded<u32>> {
-    // The MAC-EX data-server variant carries an opaque eight-byte trailer.
-    if body.len() == 31 && body.starts_with(b"TDX_DS\0") {
-        return Ok(finish(u32_at(&body, 19)?, Vec::new(), Vec::new()));
+    // The data-server variant observed on EX and MAC-EX has an opaque trailer.
+    if !(body.len() == 31 && body.starts_with(b"TDX_DS\0")) {
+        exact_payload(&body, 23)?;
     }
-    decode_instrument_count(body)
+    Ok(finish(value, Vec::new(), Vec::new()))
 }
 pub fn decode_instruments(body: Bytes) -> Result<Decoded<Vec<InstrumentInfo>>> {
     let count = counted(&body, 6, 4, 64)?;
