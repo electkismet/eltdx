@@ -334,6 +334,44 @@ fn global_goods_count_is_the_direct_ex_count_without_market_scan() -> Case {
 }
 
 #[test]
+fn global_goods_count_accepts_the_observed_mac_ex_dataserver_layout() -> Case {
+    // The 0x23f0 body captured on both public MAC-EX hosts has eight extra
+    // bytes after the count. Those bytes are not part of the count value.
+    const DATA_SERVER_REPLY: [u8; 31] = [
+        0x54, 0x44, 0x58, 0x5f, 0x44, 0x53, 0, 0, 0, 0, 0, 0x8c, 0x44, 0x17, 0, 2, 0, 0, 0, 0x3b,
+        0xb0, 1, 0, 0xdd, 0, 0, 0, 0, 0xc1, 2, 1,
+    ];
+    let (endpoint, task) = peer(|mut stream| {
+        login(&mut stream)?;
+        assert!(request(&mut stream, 1, 0x23f0)?.is_empty());
+        frame(&mut stream, &DATA_SERVER_REPLY)?;
+        eof(&mut stream)
+    })?;
+    let client = builder(endpoint)?.build()?;
+    let result = client.goods_count(&GoodsCountQuery::new(), &OperationOptions::default());
+    client.close()?;
+    join(task)?;
+    assert_eq!(result?, 110651);
+    assert!(
+        eltdx::ex::commands::decode_instrument_count(Bytes::from_static(&DATA_SERVER_REPLY))
+            .is_err()
+    );
+
+    let (endpoint, task) = peer(|mut stream| {
+        login(&mut stream)?;
+        assert!(request(&mut stream, 1, 0x23f0)?.is_empty());
+        frame(&mut stream, &DATA_SERVER_REPLY[..30])?;
+        eof(&mut stream)
+    })?;
+    let client = builder(endpoint)?.with_auto_failover(false).build()?;
+    let result = client.goods_count(&GoodsCountQuery::new(), &OperationOptions::default());
+    client.close()?;
+    join(task)?;
+    assert_eq!(result.unwrap_err().kind(), ErrorKind::Protocol);
+    Ok(())
+}
+
+#[test]
 fn final_count_change_rejects_a_moving_directory_instead_of_caching_it() -> Case {
     let (endpoint, task) = peer(|mut stream| {
         login(&mut stream)?;

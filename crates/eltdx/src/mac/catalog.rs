@@ -68,7 +68,7 @@ pub(crate) fn global_count(
         encoded(request.wire().clone(), None),
         request.command(),
         ChildPurpose::Page,
-        |body, _| ex_commands::decode_instrument_count(body),
+        |body, _| ex_commands::decode_mac_ex_instrument_count(body),
     )?;
     accepted_key(
         owner,
