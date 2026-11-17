@@ -1,4 +1,28 @@
 # T27 implementation report
+## Stage 21 — complete extension capability source mapping (2026-11-17, stage108)
+
+Base5bb5f34. Authored extension_migration_sources.tsv with50 explicit rows:
+12 EX,24 MAC and14 MAC-EX records including each connection. Expanded the
+migration manifest with real public Rust type/method paths, Python/binding
+sources, raw file SHA256, Python/Rust contract nodes and fixture references.
+Shared inventory fixes owner/legacy/layout/bitmap/routing/services/models/
+exports and installed-wheel consumer source identities. Authoritative catalog
+counts, frozen source_revision and planned/unimplemented acceptance states
+are unchanged; new evidence is source_only_unverified, never a passing result.
+
+Updated t27-migration-index with complete source scope, alias/management/helper
+mapping, deliberate passive/object/exception/I/O adapters and exit conditions.
+T27 implementation/test/consumer/mapping sources are now complete. Counts26
+source-complete/1 partial(T19)/3 unstarted(T28-T30). T27 execution acceptance
+remains open, as do production MAC-EX login and optional MAC setup evidence.
+No tests, collection, dependency resolution, build/check/compiler/AST/format,
+network, installation or equivalent verification was performed. Ordinary
+source review/Git diff only. Goal active without quota; no agents/publication.
+
+Next: T28 independent Rust extension consumer and executable feature/MSRV/
+platform/no-Python matrix sources; T29 package metadata/version/isolated
+wheel consumption; T30 stress/performance/maintenance/coverage sources and
+T19 final source handoff. Only then start unified verification and repairs.
 ## Stage 20 — standalone nonempty extension wheel consumer (2026-11-17, stage107)
 
 Base1c28931. Extended the actual standalone consumer at

@@ -1,6 +1,12 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage108: base5bb5f34. T27 source complete with50
+  explicit catalog mappings, real Rust/Python/native paths, hashes and authored
+  Python/Rust contract/fixture nodes. Acceptance status/counts remain unchanged;
+  no execution.26 source-complete/1 partial(T19)/3 unstarted(T28-T30). Next
+  T28 Rust extension consumer/matrix, then T29/T30/T19 and unified validation.
+  Read task-27-report Stage21; goal active unlimited, no agents/publication.
 - Latest recovery2026-11-17 stage107: base1c28931. Added standalone installed
   wheel extension consumer sources: actual EX/MAC/MAC-EX TCP with nonempty
   values, exact literal requests, fragmented replies, double close/peer EOF.

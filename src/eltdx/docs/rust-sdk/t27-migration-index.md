@@ -1,6 +1,6 @@
 # T27：EX、MAC、MAC-EX 迁移与兼容边界
 
-本索引记录已写入的源码及保留的 Python 适配边界。T27 尚在进行；所有编译、测试收集、运行、安装和网络验证均等待 T01–T30 全部实现源码完成。以下映射和用例是待执行证据，不是验收结果。
+本索引记录已写入的源码及保留的 Python 适配边界。T27 的实现、用例、消费夹具和逐项映射源码已写齐；所有编译、测试收集、运行、安装和网络验证均等待 T01–T30 全部实现源码完成。以下映射和用例是待执行证据，不是验收结果。
 
 ## 两个独立产品入口
 
@@ -22,7 +22,7 @@ Python 对象约定包括可替换的模块函数、类、socket、锁、executo
 | 主机来源、显式保存、候选排序、探活 | `ex/config.rs`、`ex/legacy.rs` | `extension_hosts.rs`、`extension_probe.rs`，原文件上下文、线程池与 socket 适配 |
 | 连接、重试、关闭、代次、结果提交 | `session.rs`、`__python_compat/extension.rs`，各协议客户端 owner | `extension_management.rs`、`extension_transport.rs`、`extension_lifecycle.rs` |
 
-各分段的确切文件和公开调用记录见 `.superpowers/sdd/development-plan/task-27-report.md`。迁移清单、消费者及生命周期最后一轮源码复查尚待完成；本页不提升能力矩阵的已验证状态。
+各分段的确切文件和公开调用记录见 `.superpowers/sdd/development-plan/task-27-report.md`。本页不提升能力矩阵的已验证状态。
 
 ## 模型、枚举与字段对象库存
 
@@ -60,8 +60,18 @@ FieldBit 的 93、94、136、139 保留个股 canonical 名 `BID2_VOLUME`、`ASK
 
 `tests/test_native_extension_objects_contract.py` 覆盖原字段运算、反向运算、不支持操作的 NotImplemented、live isinstance/constructor、动态转发、容器回调、repr 求值、四个别名、预设顺序、23 个业务 dataclass、帧/探活对象、默认容器、pickle、市场枚举身份与包级导出。`crates/eltdx/tests/mac_routing.rs` 从独立字面量核对全部字段、别名、预设、市场路由和请求标志。
 
-其余已写测试源码覆盖请求/响应、分页、目录、板块、复权、日期、帧、主机、探活、传输、管理与生命周期。T27 完整索引与清单将继续补齐实际 Rust 符号、来源 hash、fixture 和可收集节点，最终统一执行后才记录通过、失败和真实平台结果。
+其余已写测试源码覆盖请求/响应、分页、目录、板块、复权、日期、帧、主机、探活、传输、管理与生命周期。完整清单已记录实际 Rust 符号、来源 hash、fixture 和待收集节点，最终统一执行后才记录通过、失败和真实平台结果。
 
 ## 独立 wheel 消费者源码
 
 `tests/consumers/python-wheel/consumer.py` 仅导入 stdlib 和已安装公开 eltdx 包。扩展部分使用三个独立本地 TCP 连接和字面量请求预期：EX 的 92 字节 setup、非空市场/目录/报价与 raw；MAC 三次 setup、未知字段槽跨越/AH-code 及服务器日期/时段；MAC-EX 登录及默认七字段非空报价。所有响应分片发送，各连接必须显式 close、再次 close 并观测对端 EOF。合成登录仅验证 Python 原行为，不解决严格 Rust 生产默认登录规则缺口。实际隔离安装和运行待 T28/T29 统一验证。
+
+## 全部目录记录的逐项源码映射
+
+`tests/contracts/manifests/extension_migration_sources.tsv` 是可逐行审阅的映射源：EX 的 11 个业务入口加连接、MAC 的 23 个业务入口加连接、MAC-EX 的 13 个业务入口加连接，共 50 行。每行绑定实际 Rust 文件/类型/方法、Python 入口文件、native 绑定文件、Python 合同节点和 Rust 行为节点。三个 MAC 别名保留原公开转发路径，其实际业务入口与同名目标共用绑定；管理、配置、对象和生命周期按上表及 shared inventory 关联，不伪装成新增 wire 命令。
+
+`rust_sdk_migration.json` 中这 50 项的 `authored_evidence` 保存完整公开路径、直接来源文件 SHA256、用例/fixture 来源和保留适配的原因及退出条件。`extension_source_inventory.shared_source_sha256` 另外固定共用 owner、布局、位图、路由、分页/复权/下载、模型/枚举/再导出和独立 wheel consumer。哈希记录的是该源码检查点的文件字节；后续修改须追加新检查点，不能将旧 hash 宣称为新候选版本证据。
+
+逐项源码归类为：业务编排已迁入 Rust native 入口；Python 对象、注入、异常活动作用域和同步上下文按本文有意保留适配；category22 等实验能力维持原矩阵标签；生产登录规则及可选 setup 帧证据继续列为未验证缺口。为避免将源码当成验收，原权威目录的 `planned` / `unimplemented` 状态、26 wire / 25 registry / 124 capabilities / 37 fixtures 计数和冻结 source_revision 均不因本段写作提升。新字段统一为 `source_only_unverified`，最终运行后才能按门禁更新验收状态。
+
+下一阶段 T28 补独立 Rust EX/MAC/MAC-EX 消费者及 feature/MSRV/平台矩阵；T29 补包版本和内容验证；T30 补压力、性能、维护和最终覆盖材料。T19 的依赖故障验证继续在全源码完成后执行。当前不能据此承诺任何平台编译成功、已安装兼容或生产服务器登录成功。

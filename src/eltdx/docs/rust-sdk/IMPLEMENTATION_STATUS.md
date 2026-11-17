@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026-11-17第一百零八段恢复点：基础5bb5f34。T27全部50项目录逐行绑定Rust类型/方法、Python/native文件、SHA256和Python/Rust用例/fixture来源；shared inventory记录共用owner/算法/模型/导出。原验收状态/26wire/25registry/124capability/37fixture与冻结revision不变，新证据均source_only_unverified。T27源码范围完成，26源码完整/1部分(T19)/3未开始(T28–T30)，所有执行验收仍未进行。下一步T28独立Rust扩展consumer/feature与平台矩阵，再T29/T30/T19和统一验证；active无限额。恢复读task-27-report Stage21。
+
 2026-11-17第一百零七段恢复点：基础1c28931。独立installed-wheel consumer补齐三个真实TCP回环源码：EX92B setup/市场/计数/目录/五档与raw，MAC三步setup/非空报价/未知槽/AH/交易日与时段，MAC-EX登录/七字段默认/改头；都要求close两次与peer EOF。尚未启动/安装/运行，合成ACK不作生产证据。下一步T27全能力manifest与实际符号/hash/fixture/nodes，随后T28–T30/T19全部源码和统一验证。25/2/3不变，active无限额。恢复读task-27-report Stage20。
 
 2026-11-17第一百零六段恢复点：基础bcc4637。修正MAC临时建连中断且custom关闭失败的持久引用，私有队列独立于退役/替换代次；显式close重试、失败保留、避免重复/重入。EX/MAC shutdown属性读取纳入finally清理。新增6个Python函数（1参数化）源码，全部未执行。下一步完整manifest及非空EX/MAC/MAC-EX wheel consumer，再T28–T30/T19源码收尾和统一验证。25/2/3不变，active无限额。恢复读task-27-report Stage19。

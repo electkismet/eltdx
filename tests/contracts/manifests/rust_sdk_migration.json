@@ -11,9 +11,19 @@
     "state": "source_only_unverified",
     "rust": "tests/consumers/rust-sdk/src/main.rs",
     "rust_fixture": "tests/consumers/rust-sdk/src/server.rs",
-    "rust_modes": ["tests/consumers/rust-sdk/src/f10.rs", "tests/consumers/rust-sdk/src/offline.rs", "tests/consumers/rust-sdk/src/financial.rs"],
+    "rust_modes": [
+      "tests/consumers/rust-sdk/src/f10.rs",
+      "tests/consumers/rust-sdk/src/offline.rs",
+      "tests/consumers/rust-sdk/src/financial.rs"
+    ],
     "python_wheel": "tests/consumers/python-wheel/consumer.py",
-    "requirements": "Copy outside the checkout; Rust environment has no Python, wheel environment has no Rust build tools. Package/feature/MSRV/platform execution is deferred to final validation."
+    "requirements": "Copy outside the checkout; Rust environment has no Python, wheel environment has no Rust build tools. Package/feature/MSRV/platform execution is deferred to final validation.",
+    "python_extension_entry": "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+    "python_extension_protocols": [
+      "EX",
+      "MAC",
+      "MAC-EX"
+    ]
   },
   "supplemental_domain_evidence": [
     {
@@ -3636,7 +3646,13 @@
     {
       "id": "ex-connection",
       "source_files": [
-        "docs/extended/ex-连接与主机.md"
+        "docs/extended/ex-连接与主机.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_management.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3651,12 +3667,54 @@
       "catalog_protocol": "连接管理 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::connect",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::connect",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient(...)",
+        "binding_source": "crates/eltdx-python/src/extension_management.rs",
+        "source_sha256": {
+          "docs/extended/ex-连接与主机.md": "08705df60f16d64e4f045662a13759a830577ce8a5fa299667cee6d8ccb40080",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_management.rs": "2e5ef811f702a3cd8020e3a74349d7de83bdcd1fb93ecf68c3bdef7f79cd0504",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_lifecycle_contract.py::test_native_extension_close_retires_handle_and_reconnect_gets_new_generation"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::lazy_configuration_clone_close_and_no_reopen"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-markets",
       "source_files": [
-        "docs/extended/ex-get_markets.md"
+        "docs/extended/ex-get_markets.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3671,12 +3729,54 @@
       "catalog_protocol": "0x23F4 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::markets",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::markets",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_markets(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_markets.md": "8fc31c35b731f1f13cb84cc30883154366745e92a4b77f874da3b1d50dfa9143",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_markets_skip_only_zero_category_and_market_and_keep_raw"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-count",
       "source_files": [
-        "docs/extended/ex-get_instrument_count.md"
+        "docs/extended/ex-get_instrument_count.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3691,12 +3791,54 @@
       "catalog_protocol": "0x23F0 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::instrument_count",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::instrument_count",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_instrument_count(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_instrument_count.md": "47b2bf3af63ad57ce9a559f897371634dc793e3dec48e12aa5ecda5484cc3e19",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_count_keeps_guarded_hook_int_and_original_values"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-info",
       "source_files": [
-        "docs/extended/ex-get_instrument_info.md"
+        "docs/extended/ex-get_instrument_info.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3711,12 +3853,54 @@
       "catalog_protocol": "0x23F5 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::instruments",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::instruments",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_instrument_info(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_instrument_info.md": "9100154b34d4459fc2babd7a4d7c05d6f28edf30238ba2dd8a2f470e60111376",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_instruments_keep_gbk_replace_right_trim_raw_and_complete_prefix"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-quote",
       "source_files": [
-        "docs/extended/ex-get_instrument_quote.md"
+        "docs/extended/ex-get_instrument_quote.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3731,12 +3915,54 @@
       "catalog_protocol": "0x23FA / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::quote",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::quote",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_instrument_quote(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_instrument_quote.md": "402a1da38c43eac638e0ecba14f430ca8659a62e268c60ac3ebd194154737eab",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_quote_projects_every_slot_unknown_gaps_nonfinite_and_raw_prefix"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-quotes",
       "source_files": [
-        "docs/extended/ex-get_instrument_quote_list.md"
+        "docs/extended/ex-get_instrument_quote_list.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3751,12 +3977,54 @@
       "catalog_protocol": "0x2400 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::quote_list",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::quote_list",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_instrument_quote_list(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_instrument_quote_list.md": "2b8c6865a6d2c472785bc7383e38b952835068cfd434cb20e58a0703256305f1",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_futures_quote_list_preserves_original_34_target_bug_and_short_prefix"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-bars",
       "source_files": [
-        "docs/extended/ex-get_instrument_bars.md"
+        "docs/extended/ex-get_instrument_bars.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3771,12 +4039,54 @@
       "catalog_protocol": "0x23FF / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::bars",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::bars",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_instrument_bars(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_instrument_bars.md": "d60c559c7dbc1c143e31ce7bb8b3e92643bf255d23a4ffb10bd2f69d8dc013b8",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_bars_keep_position_float_reinterpretation_and_numeric_prefix"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-history-bars",
       "source_files": [
-        "docs/extended/ex-get_history_instrument_bars_range.md"
+        "docs/extended/ex-get_history_instrument_bars_range.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3791,12 +4101,54 @@
       "catalog_protocol": "0x240D / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::bars_range",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::bars_range",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_history_instrument_bars_range(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_history_instrument_bars_range.md": "14f7f92cb4b499443d9cc68439aa20bd8373865487011f56cd45a14ad72b1071",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_range_keeps_overridden_date_time_settlement_and_complete_prefix"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-minute",
       "source_files": [
-        "docs/extended/ex-get_minute_time_data.md"
+        "docs/extended/ex-get_minute_time_data.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3811,12 +4163,54 @@
       "catalog_protocol": "0x240B / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::minutes",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::minutes",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_minute_time_data(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_minute_time_data.md": "158444702d4568fb31d9d904d99fe103e29d26d224ce2912781bf4823f73b597",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_minutes_keep_unvalidated_clock_native_units_and_prefix"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-history-minute",
       "source_files": [
-        "docs/extended/ex-get_history_minute_time_data.md"
+        "docs/extended/ex-get_history_minute_time_data.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3831,12 +4225,54 @@
       "catalog_protocol": "0x240C / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::history_minutes",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::history_minutes",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_history_minute_time_data(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_history_minute_time_data.md": "b6aa7dadffa5229eb345bf7744da9189a65e657672856c165d250a65fd8bd1c5",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_history_uses_live_today_class_helper_and_today_uses_self"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-trades",
       "source_files": [
-        "docs/extended/ex-get_transaction_data.md"
+        "docs/extended/ex-get_transaction_data.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3851,12 +4287,54 @@
       "catalog_protocol": "0x23FC / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::transactions",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::transactions",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_transaction_data(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_transaction_data.md": "2ed1974fbc1d85c3a06325514edb7579146f8adfaa5b9714b9f9c02b0e9a2d36",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_transactions_keep_seconds_coercion_signed_interest_raw_and_prefix"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "ex-history-trades",
       "source_files": [
-        "docs/extended/ex-get_history_transaction_data.md"
+        "docs/extended/ex-get_history_transaction_data.md",
+        "crates/eltdx/src/ex/client.rs",
+        "src/eltdx/ex/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/ex/commands.rs",
+        "crates/eltdx-python/src/extension_commands.rs",
+        "crates/eltdx-python/src/extension_parse.rs"
       ],
       "feature": "ex",
       "stage": "P4",
@@ -3871,12 +4349,54 @@
       "catalog_protocol": "0x2406 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::ex::ExClient::history_transactions",
+        "rust_symbol": "crates/eltdx/src/ex/client.rs::ExClient::history_transactions",
+        "actual_feature": "ex",
+        "python_entry": "ExTdxClient.get_history_transaction_data(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/ex-get_history_transaction_data.md": "0d8ace2ccbe13c9e2b1f86dfb273a43ada624853f723f964180d606dae1c9f89",
+          "crates/eltdx/src/ex/client.rs": "0ebbe2f6d4f2af896d57bb0aacc64c1f484123d0c16f786a7ec3d1798476b23c",
+          "src/eltdx/ex/client.py": "81af7c4af8d33c60ed5a4c4b719020f138df8893ab87079efcadba5653126747",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/ex/commands.rs": "59066f2213703ab18108ad78d9d037cc3ba7da72bfd4f5df9a94a37b2e66540f",
+          "crates/eltdx-python/src/extension_commands.rs": "076c9d73fba42762485cbb24b6f9833e4a6b176a03aaf93258399a562f8a77cb",
+          "crates/eltdx-python/src/extension_parse.rs": "5c06ae07ca8a5390f8898457e96303e3492a9a19a88e949ca9ebb96bdbfe6a34"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_parse_contract.py::test_native_ex_historical_transactions_keep_shared_class_hook_error_identity"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/ex_session.rs::eleven_typed_methods_share_one_ready_socket_and_keep_native_values"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/ex_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-connection",
       "source_files": [
-        "docs/extended/mac-连接与主机.md"
+        "docs/extended/mac-连接与主机.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_management.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -3891,12 +4411,54 @@
       "catalog_protocol": "连接管理 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::connect",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::connect",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient(...)",
+        "binding_source": "crates/eltdx-python/src/extension_management.rs",
+        "source_sha256": {
+          "docs/extended/mac-连接与主机.md": "f001a4a57330da265b5a4332af3db92b0dfab8032324de4481a3d5f398ed1ad6",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_management.rs": "2e5ef811f702a3cd8020e3a74349d7de83bdcd1fb93ecf68c3bdef7f79cd0504",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_management_contract.py::test_native_mac_management_success_publishes_before_previous_close"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::builders_are_lazy_clones_share_close_and_other_owners_remain_independent"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-quotes",
       "source_files": [
-        "docs/extended/mac-get_stock_quotes.md"
+        "docs/extended/mac-get_stock_quotes.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -3911,12 +4473,54 @@
       "catalog_protocol": "0x122B / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::quotes",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::quotes",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_stock_quotes(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_stock_quotes.md": "2b2ba1f53b91d24c648aadd50f2a3e27463c4d113a4849220e375ebfa1fdd5d8",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_quotes_keep_unknown_slot_width_prefix_and_decode_policy"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::required_setup_nonempty_quotes_bits_meta_and_close_use_the_public_entry"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-ranking",
       "source_files": [
-        "docs/extended/mac-get_stock_quotes_list.md"
+        "docs/extended/mac-get_stock_quotes_list.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_client.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -3931,12 +4535,54 @@
       "catalog_protocol": "0x122C / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::quote_list",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::quote_list",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_stock_quotes_list(...)",
+        "binding_source": "crates/eltdx-python/src/extension_client.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_stock_quotes_list.md": "f573e92732c6df0b28d5c974f516b39b37d35b995425dc4d4ce64fb42c2c2a6c",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_client.rs": "b30ccf08ecb9b30c1afa77ddb478aab9b993d19e9ccb2e45548a7b01fb5e945d",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_client_contract.py::test_extension_quote_pages_keep_remainder_server_order_and_live_category"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::quote_list_requests_eighty_then_twenty_and_keeps_duplicate_occurrences"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-bars",
       "source_files": [
-        "docs/extended/mac-get_stock_kline.md"
+        "docs/extended/mac-get_stock_kline.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_client.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -3951,12 +4597,54 @@
       "catalog_protocol": "0x122E / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::bars",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::bars",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_stock_kline(...)",
+        "binding_source": "crates/eltdx-python/src/extension_client.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_stock_kline.md": "8f7a3faa87dc4d14c1372a9dfd89a7b38cb41421c8c26627e8f860fba21559d9",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_client.rs": "b30ccf08ecb9b30c1afa77ddb478aab9b993d19e9ccb2e45548a7b01fb5e945d",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_client_contract.py::test_extension_kline_qfq_refetch_and_fallback_keep_hook_order_and_seven_args"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_services.rs::repair_keeps_original_refetch_and_provider_evidence_but_selects_only_returned_raw_rows"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-minute",
       "source_files": [
-        "docs/extended/mac-get_tick_chart.md"
+        "docs/extended/mac-get_tick_chart.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -3971,12 +4659,54 @@
       "catalog_protocol": "0x122D / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::tick_chart",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::tick_chart",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_tick_chart(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_tick_chart.md": "83be91b7f7af6f4708b76fa8d449dcdaef2790219f51793c0bbcabfeefc8d39a",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_single_tick_chart_wraps_minutes_and_maps_snapshot"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::tick_chart_and_sampling_keep_source_bits_and_have_distinct_request_shapes"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-tick-charts",
       "source_files": [
-        "docs/extended/mac-get_tick_charts.md"
+        "docs/extended/mac-get_tick_charts.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -3991,12 +4721,54 @@
       "catalog_protocol": "0x123E / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::tick_charts",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::tick_charts",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_tick_charts(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_tick_charts.md": "e93c1839ae4ed67dac85ce7c0b1cba2f1b1d9beed56dd5b767af6ef29d651263",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_multiday_ticks_keep_short_oldest_then_full_day_order"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::multiday_chart_keeps_short_first_day_and_requested_date_day_count"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-chart-sampling",
       "source_files": [
-        "docs/extended/mac-get_chart_sampling.md"
+        "docs/extended/mac-get_chart_sampling.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4011,12 +4783,54 @@
       "catalog_protocol": "0x254D / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::chart_sampling",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::chart_sampling",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_chart_sampling(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_chart_sampling.md": "3707a5a9e10ff8d134b16867dfb10ca3626fa8ba0243473a012294990d4f4c5b",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_sampling_requires_every_declared_price_and_keeps_nonfinite"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::tick_chart_and_sampling_keep_source_bits_and_have_distinct_request_shapes"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-trades",
       "source_files": [
-        "docs/extended/mac-get_transactions.md"
+        "docs/extended/mac-get_transactions.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_client.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4031,12 +4845,54 @@
       "catalog_protocol": "0x122F / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::transactions",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::transactions",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_transactions(...)",
+        "binding_source": "crates/eltdx-python/src/extension_client.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_transactions.md": "a637d72e690b6d61113d045beac6b71800ecdeab857c966ecd14cb9f1b7b4c0f",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_client.rs": "b30ccf08ecb9b30c1afa77ddb478aab9b993d19e9ccb2e45548a7b01fb5e945d",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_client_contract.py::test_extension_transactions_initial_short_page_still_continues_and_returns_first_object"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::mac_transactions_advance_by_wire_count_and_keep_provided_count_and_nature"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-symbol-info",
       "source_files": [
-        "docs/extended/mac-get_symbol_info.md"
+        "docs/extended/mac-get_symbol_info.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4051,12 +4907,54 @@
       "catalog_protocol": "0x122A / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::symbol_info",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::symbol_info",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_symbol_info(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_symbol_info.md": "e86ec14bc3c62953a0181e57d65de7020d2e6fbb1579a24f2da5cec42613dc23",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_symbol_snapshot_uses_hhmmss_and_original_extra_offsets"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::snapshot_auction_and_server_dates_keep_native_fields_and_distinct_clocks"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-boards",
       "source_files": [
-        "docs/extended/mac-get_board_list.md"
+        "docs/extended/mac-get_board_list.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_client.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4071,12 +4969,54 @@
       "catalog_protocol": "0x1231 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::boards",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::boards",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_board_list(...)",
+        "binding_source": "crates/eltdx-python/src/extension_client.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_board_list.md": "1d8fc0740222a01cb7eac1b196afa644e4859264d424074673891432f69e7109",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_client.rs": "b30ccf08ecb9b30c1afa77ddb478aab9b993d19e9ccb2e45548a7b01fb5e945d",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_client_contract.py::test_extension_board_list_initial_short_page_preserves_first_result_identity"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::boards_require_empty_followup_after_a_short_page_and_keep_leader_identity"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-board-members",
       "source_files": [
-        "docs/extended/mac-get_board_members.md"
+        "docs/extended/mac-get_board_members.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_client.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4091,12 +5031,54 @@
       "catalog_protocol": "0x122C / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::board_members",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::board_members",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_board_members(...)",
+        "binding_source": "crates/eltdx-python/src/extension_client.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_board_members.md": "02ca097076489108d661990e2c6d3cb2f76b556c84d99f162e6c20824eff109f",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_client.rs": "b30ccf08ecb9b30c1afa77ddb478aab9b993d19e9ccb2e45548a7b01fb5e945d",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_client_contract.py::test_extension_members_convert_once_even_for_zero_count_and_preserve_options"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::board_category_alias_differs_from_constituent_alias_and_changed_total_is_unknown"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-belong-board",
       "source_files": [
-        "docs/extended/mac-get_belong_board.md"
+        "docs/extended/mac-get_belong_board.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4111,12 +5093,54 @@
       "catalog_protocol": "0x1218 / head_flag=1 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::belonging_boards",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::belonging_boards",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_belong_board(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_belong_board.md": "06d661fa6f8c4ab0f89a190d1be6b270476a85b50aa9d531d18b0307a0a26807",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_belonging_json_only_accepts_nine_or_thirteen_fields"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::belonging_boards_and_flow_use_distinct_heads_tags_and_opaque_prefix"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-board-summary",
       "source_files": [
-        "docs/extended/mac-get_board_summary.md"
+        "docs/extended/mac-get_board_summary.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_boards.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4131,12 +5155,54 @@
       "catalog_protocol": "0x122C / 本地聚合 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::board_summary",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::board_summary",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_board_summary(...)",
+        "binding_source": "crates/eltdx-python/src/extension_boards.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_board_summary.md": "b050c1fce86f4758887cdaeff55f8006811f5681e9dacd5db0721e66504ed932",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_boards.rs": "d8ae83e558a23c88e4028b1a588bae92f4314c2ea13e38e4a3598e25b60281ae",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_boards_contract.py::test_extension_board_summary_keeps_original_members_order_defaults_and_output_shape"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_boards.rs::summary_collects_all_members_preserves_units_unknown_slots_and_exact_u64_volume"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_boards.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-board-ranking",
       "source_files": [
-        "docs/extended/mac-get_board_ranking.md"
+        "docs/extended/mac-get_board_ranking.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_boards.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4151,12 +5217,54 @@
       "catalog_protocol": "0x1231 + 0x122C / 本地聚合 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::board_ranking",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::board_ranking",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_board_ranking(...)",
+        "binding_source": "crates/eltdx-python/src/extension_boards.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_board_ranking.md": "e3836333f75a59ea3a4dd9879872164c834a96d0bd95d0d87de824a2f1cc17f1",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_boards.rs": "d8ae83e558a23c88e4028b1a588bae92f4314c2ea13e38e4a3598e25b60281ae",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_boards_contract.py::test_extension_board_ranking_money_collects_every_candidate_before_truncation"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_boards.rs::money_ranking_aggregates_the_third_candidate_before_top_two_and_keeps_stable_ties"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_boards.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-board-change-ranking",
       "source_files": [
-        "docs/extended/mac-get_board_change_ranking.md"
+        "docs/extended/mac-get_board_change_ranking.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_boards.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4171,12 +5279,54 @@
       "catalog_protocol": "0x1231 + 0x122E / 本地计算 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::board_change_ranking",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::board_change_ranking",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_board_change_ranking(...)",
+        "binding_source": "crates/eltdx-python/src/extension_boards.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_board_change_ranking.md": "83960293f4d389741afb92f4f441f74f3c5ee1200cc493b90cd570346ecbbc8e",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_boards.rs": "d8ae83e558a23c88e4028b1a588bae92f4314c2ea13e38e4a3598e25b60281ae",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_boards_contract.py::test_extension_board_history_keeps_short_window_duplicate_dates_and_last_eligible_occurrence"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_boards.rs::historical_target_reads_older_pages_requires_full_intervals_and_keeps_missing_evidence"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_boards.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-capital-flow",
       "source_files": [
-        "docs/extended/mac-get_capital_flow.md"
+        "docs/extended/mac-get_capital_flow.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4191,12 +5341,54 @@
       "catalog_protocol": "0x1218 / head_flag=2 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::capital_flow",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::capital_flow",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_capital_flow(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_capital_flow.md": "fdbec641d3cda9d9534ef5466757640d50e50568c6ce1b57c8dd8be898d45c8d",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_capital_json_retains_original_column_order_and_missing_zeros"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::belonging_boards_and_flow_use_distinct_heads_tags_and_opaque_prefix"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-auction",
       "source_files": [
-        "docs/extended/mac-get_auction.md"
+        "docs/extended/mac-get_auction.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4211,12 +5403,54 @@
       "catalog_protocol": "0x123D / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::auction",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::auction",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_auction(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_auction.md": "d769f9376563dc8f5a8c7034f6e9e2b0877aa10b667baf0a3cf69ff16fe8fc9c",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_auction_keeps_signed_unmatched_complete_prefix_and_seconds"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::snapshot_auction_and_server_dates_keep_native_fields_and_distinct_clocks"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-unusual",
       "source_files": [
-        "docs/extended/mac-get_unusual.md"
+        "docs/extended/mac-get_unusual.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4231,12 +5465,54 @@
       "catalog_protocol": "0x1237 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::unusual",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::unusual",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_unusual(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_unusual.md": "371ac1d2a484c04845064c56910106706dce38d585bb725bb16af93043f73cd4",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_unusual_preserves_second_model_pass_and_declared_text_offset"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::unusual_short_reply_remains_unknown_and_does_not_issue_an_implicit_next_page"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-server-info",
       "source_files": [
-        "docs/extended/mac-get_server_info.md"
+        "docs/extended/mac-get_server_info.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4251,12 +5527,54 @@
       "catalog_protocol": "0x120F / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::server_info",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::server_info",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_server_info(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_server_info.md": "ffc841d6bd0e71d5fb4ca836cc8e61c25d65301d17b1c7f444ea58698ea23e76",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_server_keeps_short_default_and_both_session_tables"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::snapshot_auction_and_server_dates_keep_native_fields_and_distinct_clocks"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-kline-offset",
       "source_files": [
-        "docs/extended/mac-get_kline_offset.md"
+        "docs/extended/mac-get_kline_offset.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4271,12 +5589,54 @@
       "catalog_protocol": "0x124A / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::kline_offsets",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::kline_offsets",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_kline_offset(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_kline_offset.md": "56f366c54dd89413e3e27d3316e497ac327d19c87f8c538abbe7fb5ce7c3a220",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_kline_offsets_preserve_big_then_little_endian_and_extra_tail"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::file_meta_chunk_and_offsets_keep_separate_layouts_and_original_payloads"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-file-meta",
       "source_files": [
-        "docs/extended/mac-get_file_meta.md"
+        "docs/extended/mac-get_file_meta.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4291,12 +5651,54 @@
       "catalog_protocol": "0x1215 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::file_meta",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::file_meta",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_file_meta(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_file_meta.md": "0bd2a7aa2b96e0b2f452a73fbdac5cdc5c325898a211ee2965f97fbab182974d",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_file_meta_keeps_signed_flag_and_ascii_replacement"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::file_meta_chunk_and_offsets_keep_separate_layouts_and_original_payloads"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-download-file-chunk",
       "source_files": [
-        "docs/extended/mac-download_file_chunk.md"
+        "docs/extended/mac-download_file_chunk.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4311,12 +5713,54 @@
       "catalog_protocol": "0x1217 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::download_chunk",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::download_chunk",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.download_file_chunk(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-download_file_chunk.md": "f23a2e17e3f570c872b1236b01bbb379c9d498e4dca5bd81f77b2f50e2fc44d4",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_download_response_retains_original_slice_type"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::file_meta_chunk_and_offsets_keep_separate_layouts_and_original_payloads"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-download-file",
       "source_files": [
-        "docs/extended/mac-download_file.md"
+        "docs/extended/mac-download_file.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_client.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4331,12 +5775,54 @@
       "catalog_protocol": "0x1215 + 0x1217 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::download_file",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::download_file",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.download_file(...)",
+        "binding_source": "crates/eltdx-python/src/extension_client.rs",
+        "source_sha256": {
+          "docs/extended/mac-download_file.md": "4c80611cc5d2d5f03868e7846e29ef38a081de04e733e7c05a5083f0c498ee14",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_client.rs": "b30ccf08ecb9b30c1afa77ddb478aab9b993d19e9ccb2e45548a7b01fb5e945d",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_client_contract.py::test_extension_download_keeps_metadata_short_prefix_and_chunk_numbering"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_downloads.rs::metadata_size_and_short_second_chunk_return_complete_and_keep_all_raw_sources"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_downloads.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "mac-get-goods-list",
       "source_files": [
-        "docs/extended/mac-get_goods_list.md"
+        "docs/extended/mac-get_goods_list.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/mac/client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac",
       "stage": "P4",
@@ -4351,12 +5837,54 @@
       "catalog_protocol": "0x2562 / 7709",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacClient::goods",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacClient::goods",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacClient.get_goods_list(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/mac-get_goods_list.md": "ae98de53ce17c22b23995640e788df2c81ed989aa0b3576d8921a8266afb191a",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/mac/client.py": "d778a8ab34068b5c07b313f77fe116dca5022e846264101d3fde8c1c69204ef6",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_mac_parse_contract.py::test_native_mac_goods_set_total_before_record_error_and_keep_code_vector"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::native_goods_single_page_keeps_opaque_slots_and_never_claims_unproven_eof"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-connection",
       "source_files": [
-        "docs/extended/macex-连接与主机.md"
+        "docs/extended/macex-连接与主机.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_management.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4371,12 +5899,54 @@
       "catalog_protocol": "连接管理 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::connect",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacExClient::connect",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient(...)",
+        "binding_source": "crates/eltdx-python/src/extension_management.rs",
+        "source_sha256": {
+          "docs/extended/macex-连接与主机.md": "16b34be10d0ac4e6753b824158a2b956e0ee4b283c37b6f1e80dbbdd1b5f8806",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_management.rs": "2e5ef811f702a3cd8020e3a74349d7de83bdcd1fb93ecf68c3bdef7f79cd0504",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_management_contract.py::test_native_mac_ex_management_false_login_is_legacy_success"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::mac_ex_uses_login_then_head_rewrite_without_the_ex_setup_packet"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-instruments",
       "source_files": [
-        "docs/extended/macex-instruments.md"
+        "docs/extended/macex-instruments.md",
+        "crates/eltdx/src/mac/ex_services.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_catalog.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4391,12 +5961,54 @@
       "catalog_protocol": "0x23F0 + 0x23F5 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::instruments",
+        "rust_symbol": "crates/eltdx/src/mac/ex_services.rs::MacExClient::instruments",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.instruments(...)",
+        "binding_source": "crates/eltdx-python/src/extension_catalog.rs",
+        "source_sha256": {
+          "docs/extended/macex-instruments.md": "b351e57b09dafc087f7c2faee184a2610fa67f74bcf7c85526f601186dc3b33d",
+          "crates/eltdx/src/mac/ex_services.rs": "613c70133f2b6a01c0687f07842785a542218a79cf0de85b60715565756c7929",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_catalog.rs": "777e21af24a1222f2fbbd9c75c570795fda1300916e2b25bde7ae1a84236d6e9",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_catalog_contract.py::test_extension_instruments_use_market_relative_start_and_keep_original_dtos"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_catalogs.rs::sorted_global_scan_keeps_market_relative_rows_true_bounds_and_full_provenance"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_catalogs.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-goods-count",
       "source_files": [
-        "docs/extended/macex-goods_count.md"
+        "docs/extended/macex-goods_count.md",
+        "crates/eltdx/src/mac/ex_services.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_catalog.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4411,12 +6023,54 @@
       "catalog_protocol": "0x23F0 / 0x2562 / 0x23F5 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::goods_count",
+        "rust_symbol": "crates/eltdx/src/mac/ex_services.rs::MacExClient::goods_count",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.goods_count(...)",
+        "binding_source": "crates/eltdx-python/src/extension_catalog.rs",
+        "source_sha256": {
+          "docs/extended/macex-goods_count.md": "f7d06f3badc3baa595411c022569e024d850ccefd1a3fe5cd2f81cee121eec16",
+          "crates/eltdx/src/mac/ex_services.rs": "613c70133f2b6a01c0687f07842785a542218a79cf0de85b60715565756c7929",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_catalog.rs": "777e21af24a1222f2fbbd9c75c570795fda1300916e2b25bde7ae1a84236d6e9",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_catalog_contract.py::test_extension_goods_count_retains_native_total_then_ex_bounds_and_global_path"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_catalogs.rs::global_goods_count_is_the_direct_ex_count_without_market_scan"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_catalogs.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-goods-list",
       "source_files": [
-        "docs/extended/macex-goods_list.md"
+        "docs/extended/macex-goods_list.md",
+        "crates/eltdx/src/mac/ex_services.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_catalog.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4431,12 +6085,54 @@
       "catalog_protocol": "0x2562 / 0x23F5 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::goods",
+        "rust_symbol": "crates/eltdx/src/mac/ex_services.rs::MacExClient::goods",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.goods_list(...)",
+        "binding_source": "crates/eltdx-python/src/extension_catalog.rs",
+        "source_sha256": {
+          "docs/extended/macex-goods_list.md": "95853bea98909d343afcedb7a1f9e025c4606c76a56083d93df0cdfaae063871",
+          "crates/eltdx/src/mac/ex_services.rs": "613c70133f2b6a01c0687f07842785a542218a79cf0de85b60715565756c7929",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_catalog.rs": "777e21af24a1222f2fbbd9c75c570795fda1300916e2b25bde7ae1a84236d6e9",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_catalog_contract.py::test_extension_goods_fallback_keeps_page_relative_index_single_float_and_nonfinite"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_catalogs.rs::empty_native_goods_fallback_preserves_actual_code_name_description_and_raw"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_catalogs.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-quotes",
       "source_files": [
-        "docs/extended/macex-goods_quotes.md"
+        "docs/extended/macex-goods_quotes.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4451,12 +6147,54 @@
       "catalog_protocol": "0x122B / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::quotes",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacExClient::quotes",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.goods_quotes(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/macex-goods_quotes.md": "fd441306d6f905ba79f8b2e0198cb750a2a1ecdd9338dde2b5648a42b9b2ecbb",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_query_contract.py::test_extension_mac_quotes_do_not_replace_none_and_mac_ex_keeps_own_seven_fields"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::mac_ex_uses_login_then_head_rewrite_without_the_ex_setup_packet"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-goods-quotes-list",
       "source_files": [
-        "docs/extended/macex-goods_quotes_list.md"
+        "docs/extended/macex-goods_quotes_list.md",
+        "crates/eltdx/src/mac/ex_services.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4471,12 +6209,54 @@
       "catalog_protocol": "0x2562 / 0x23F5 + 0x122B / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::quote_list",
+        "rust_symbol": "crates/eltdx/src/mac/ex_services.rs::MacExClient::quote_list",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.goods_quotes_list(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/macex-goods_quotes_list.md": "eda91db911bad5bbe2ad810352330a30878d18095224813a706e627517b256e2",
+          "crates/eltdx/src/mac/ex_services.rs": "613c70133f2b6a01c0687f07842785a542218a79cf0de85b60715565756c7929",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_query_contract.py::test_extension_mac_ex_quote_list_caps_80_ignores_sort_and_extracts_all_before_filtering"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_catalogs.rs::source_order_quote_list_exposes_80_truncation_and_directory_continuation"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_catalogs.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-bars",
       "source_files": [
-        "docs/extended/macex-goods_kline.md"
+        "docs/extended/macex-goods_kline.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4491,12 +6271,54 @@
       "catalog_protocol": "0x122E / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::bars",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacExClient::bars",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.goods_kline(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/macex-goods_kline.md": "bfddf921a5bfc4df1d1e1bc16c104acf0345467330e039df6ac4e8bc32f2d526",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_query_contract.py::test_extension_mac_ex_bars_keep_single_page_keyword_layout"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_catalogs.rs::macro_bars_resolves_before_sending_checked_identity_and_retains_both_sources"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_catalogs.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-minute",
       "source_files": [
-        "docs/extended/macex-goods_tick_chart.md"
+        "docs/extended/macex-goods_tick_chart.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4511,12 +6333,54 @@
       "catalog_protocol": "0x122D / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::tick_chart",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacExClient::tick_chart",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.goods_tick_chart(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/macex-goods_tick_chart.md": "204ff32cc43c02dff1b43d9f4594330d192777566b0f4ece1f52fa0a68e8e3dc",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_query_contract.py::test_extension_single_entries_keep_original_arguments_single_request_and_result_identity"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::mac_ex_shared_chart_and_sampling_use_the_same_login_owner_and_head_rewrite"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-goods-chart-sampling",
       "source_files": [
-        "docs/extended/macex-goods_chart_sampling.md"
+        "docs/extended/macex-goods_chart_sampling.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4531,12 +6395,54 @@
       "catalog_protocol": "0x254D / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::chart_sampling",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacExClient::chart_sampling",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.goods_chart_sampling(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/macex-goods_chart_sampling.md": "840816464f9d6adf4264ca8eed5b0d569e255a9693f77326afa0d27ff97eaa67",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_query_contract.py::test_extension_single_entries_keep_original_arguments_single_request_and_result_identity"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_simple_services.rs::mac_ex_shared_chart_and_sampling_use_the_same_login_owner_and_head_rewrite"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_simple_services.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-trades",
       "source_files": [
-        "docs/extended/macex-goods_transaction.md"
+        "docs/extended/macex-goods_transaction.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4551,12 +6457,54 @@
       "catalog_protocol": "0x122F / 0x23FC / 0x2406 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::transactions",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacExClient::transactions",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.goods_transaction(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/macex-goods_transaction.md": "ede46f911f8613338931ec789671b4bc926b2101c1fa351c7b7cde6b4084fe40",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_query_contract.py::test_extension_mac_ex_transactions_preserve_custom_route_fetch_and_common_command"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::hk_today_and_history_use_ex_commands_with_native_price_and_absent_trade_count"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-goods-transaction-all",
       "source_files": [
-        "docs/extended/macex-goods_transaction_all.md"
+        "docs/extended/macex-goods_transaction_all.md",
+        "crates/eltdx/src/mac/client.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_query.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4571,12 +6519,54 @@
       "catalog_protocol": "0x23FC / 0x2406 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::all_transactions",
+        "rust_symbol": "crates/eltdx/src/mac/client.rs::MacExClient::all_transactions",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.goods_transaction_all(...)",
+        "binding_source": "crates/eltdx-python/src/extension_query.rs",
+        "source_sha256": {
+          "docs/extended/macex-goods_transaction_all.md": "72c473da014183b7dd2407aa28ffd2812e1ade0964892406b76aad9412c9603b",
+          "crates/eltdx/src/mac/client.rs": "cdaf5fd261e95119d712a7b810bb5260fa13733eafa51bfe613ca647130374aa",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_query.rs": "5e665361ef955791e733d1fed608a5a56b0d28f368fe2f7eac7ddeb2daeb4917",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_query_contract.py::test_extension_hk_all_retains_50_page_prefix_and_no_strict_limit_error"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/mac_session.rs::hk_futures_stay_on_mac_command_and_full_all_cap_cannot_succeed"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/mac_session.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-macro-indicators",
       "source_files": [
-        "docs/extended/macex-macro_indicators.md"
+        "docs/extended/macex-macro_indicators.md",
+        "crates/eltdx/src/mac/ex_services.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_catalog.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4591,12 +6581,54 @@
       "catalog_protocol": "0x2562 / 市场38 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::macro_indicators",
+        "rust_symbol": "crates/eltdx/src/mac/ex_services.rs::MacExClient::macro_indicators",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.macro_indicators(...)",
+        "binding_source": "crates/eltdx-python/src/extension_catalog.rs",
+        "source_sha256": {
+          "docs/extended/macex-macro_indicators.md": "8a2015e3293d24abe77dd83cee62c66312463b88607c527f5a9789e5c223c5bd",
+          "crates/eltdx/src/mac/ex_services.rs": "613c70133f2b6a01c0687f07842785a542218a79cf0de85b60715565756c7929",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_catalog.rs": "777e21af24a1222f2fbbd9c75c570795fda1300916e2b25bde7ae1a84236d6e9",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_catalog_contract.py::test_extension_macro_indicators_keep_first_result_and_last_duplicate_cached_object"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_catalogs.rs::macro_quote_resolution_is_exact_case_sensitive_unique_and_preserves_duplicates"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_catalogs.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-macro-quotes",
       "source_files": [
-        "docs/extended/macex-macro_quotes.md"
+        "docs/extended/macex-macro_quotes.md",
+        "crates/eltdx/src/mac/ex_services.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_catalog.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4611,12 +6643,54 @@
       "catalog_protocol": "0x122B / 市场38 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::macro_quotes",
+        "rust_symbol": "crates/eltdx/src/mac/ex_services.rs::MacExClient::macro_quotes",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.macro_quotes(...)",
+        "binding_source": "crates/eltdx-python/src/extension_catalog.rs",
+        "source_sha256": {
+          "docs/extended/macex-macro_quotes.md": "bfbcedf78d4c161bd5eb25966251dbe1c5afdeef84c250358d3764065fdbe07b",
+          "crates/eltdx/src/mac/ex_services.rs": "613c70133f2b6a01c0687f07842785a542218a79cf0de85b60715565756c7929",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_catalog.rs": "777e21af24a1222f2fbbd9c75c570795fda1300916e2b25bde7ae1a84236d6e9",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_catalog_contract.py::test_extension_macro_quotes_preserve_input_order_duplicates_fields_and_no_extra_batch_limit"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_catalogs.rs::macro_quotes_eighty_plus_one_batches_keep_requested_occurrences_and_raw_mappings"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_catalogs.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     },
     {
       "id": "macex-macro-kline",
       "source_files": [
-        "docs/extended/macex-macro_kline.md"
+        "docs/extended/macex-macro_kline.md",
+        "crates/eltdx/src/mac/ex_services.rs",
+        "src/eltdx/ex/mac_client.py",
+        "crates/eltdx-python/src/extension_catalog.rs",
+        "crates/eltdx/src/mac/commands.rs",
+        "crates/eltdx-python/src/mac_commands.rs",
+        "crates/eltdx-python/src/mac_parse.rs"
       ],
       "feature": "mac_ex",
       "stage": "P4",
@@ -4631,7 +6705,43 @@
       "catalog_protocol": "0x122E / 市场38 / 7727",
       "rust_protocol_status": "none",
       "public_sdk_status": "unimplemented",
-      "sdk_evidence": []
+      "sdk_evidence": [],
+      "authored_evidence": {
+        "state": "source_only_unverified",
+        "source_checkpoint": "5bb5f34",
+        "rust_entry": "eltdx::mac::MacExClient::macro_bars",
+        "rust_symbol": "crates/eltdx/src/mac/ex_services.rs::MacExClient::macro_bars",
+        "actual_feature": "mac (implies ex)",
+        "python_entry": "MacExClient.macro_kline(...)",
+        "binding_source": "crates/eltdx-python/src/extension_catalog.rs",
+        "source_sha256": {
+          "docs/extended/macex-macro_kline.md": "3866a379782c2c94311de699b38008ad3e6692c30b29a2d8feb3af577e9ba9ca",
+          "crates/eltdx/src/mac/ex_services.rs": "613c70133f2b6a01c0687f07842785a542218a79cf0de85b60715565756c7929",
+          "src/eltdx/ex/mac_client.py": "ccf52266267cb36341844f6d0fcae4a02161c30182d3c0455b4231bc3b9ad42b",
+          "crates/eltdx-python/src/extension_catalog.rs": "777e21af24a1222f2fbbd9c75c570795fda1300916e2b25bde7ae1a84236d6e9",
+          "crates/eltdx/src/mac/commands.rs": "efc53b7cd99aa6bb9de693704e31902fa8f8c37b31288d351266a95776e43858",
+          "crates/eltdx-python/src/mac_commands.rs": "a468ef6f53b314d3d5fb7e1a0bab9aec682690e5f7b0d601256056afb71516a7",
+          "crates/eltdx-python/src/mac_parse.rs": "330294abdff619053be17b58a34df217bc8418e7f7d044888781d14b28f5eac3"
+        },
+        "contract_nodes": [
+          "tests/test_native_extension_catalog_contract.py::test_extension_macro_kline_captures_method_before_resolution_and_preserves_all_options"
+        ],
+        "rust_nodes": [
+          "crates/eltdx/tests/extended_catalogs.rs::macro_bars_resolves_before_sending_checked_identity_and_retains_both_sources"
+        ],
+        "fixture_sources": [
+          "tests/consumers/python-wheel/consumer.py::exercise_extensions",
+          "crates/eltdx/tests/extended_catalogs.rs"
+        ],
+        "compatibility_index": "docs/rust-sdk/t27-migration-index.md",
+        "temporary_adapter": {
+          "scope": "Original Python DTO/enum identity, dynamic socket/struct/model/codec/host hooks, active exception scopes, legacy per-request timing and collection policy.",
+          "reason": "Preserve the frozen Python interface without requiring Python in the Rust SDK. Strict Rust validation, total deadlines and resource limits do not replace legacy facade behavior.",
+          "exit_condition": "Only remove an adapter after its dynamic object, exception, timeout and lifecycle contracts have equivalent public support and passing final differential evidence."
+        },
+        "validation": "Authored source only. No compile/test/collection/consumer execution. Production login and optional-frame association remain separate evidence requirements.",
+        "shared_source_hashes": "extension_source_inventory.shared_source_sha256"
+      }
     }
   ],
   "catalog_source_path": "docs/assets/interface-catalog-data.js",
@@ -5332,5 +7442,61 @@
     "frozen_static_baseline": "path must occur in baseline-python-api.json modules",
     "migration_manifest": "record_id must resolve to a record with a valid migration status and path must occur in that record source_files",
     "compatibility_contract": "test_reference must resolve to an exact pytest node; imports at test-module scope or within that node must import the corresponding eltdx Python module"
+  },
+  "extension_source_inventory": {
+    "state": "source_only_unverified",
+    "mapping_source": "tests/contracts/manifests/extension_migration_sources.tsv",
+    "checkpoint": "5bb5f34",
+    "status_policy": "Retain planned/unimplemented status until final execution evidence exists; authored_evidence records actual source progress. Authoritative catalog counts are unchanged.",
+    "python_models": "tests/test_native_extension_objects_contract.py",
+    "lifecycle": "tests/test_native_extension_lifecycle_contract.py",
+    "index": "docs/rust-sdk/t27-migration-index.md",
+    "production_gaps": [
+      "No proven production MAC-EX LoginReplyRules default.",
+      "Optional MAC setup frames need independently proven order/identity/fence.",
+      "Synthetic loopback ACK is not production evidence."
+    ],
+    "shared_source_sha256": {
+      "crates/eltdx/src/session.rs": "fcf0b3234a2f92f1a657c03ebd0d8c3e324d3f905fc5644721597780d4e62dab",
+      "crates/eltdx/src/__python_compat/extension.rs": "1fdeffa6aa4cf3298ed06de491b2621c9c183db0db7e31e8604d923405001cea",
+      "crates/eltdx/src/ex/layout.rs": "269976a76ad2f1a8d9cc086fde3a06e0e5b52cc90517aeb36d909727781043b0",
+      "crates/eltdx/src/ex/legacy.rs": "3c0a925e8868e6ea14dca37affc3f3d1aed2fe8922ac50cd30946e8ec84f2417",
+      "crates/eltdx/src/mac/layout.rs": "d8ea12590fb4fabce53de378945372dac373c230248ec7996789b6154f784fcd",
+      "crates/eltdx/src/mac/bitmap.rs": "a9135710d5784bb144943ce35deed65209f9ca3930ec4337513e5d02eb1a4c28",
+      "crates/eltdx/src/mac/python_legacy.rs": "e61b2eabcdbf82536e629f33b1ae55a630df317fe1a5cdf5b7ec6a002d684c2f",
+      "crates/eltdx/src/mac/routing.rs": "d55e3d72d5928a5a6d687facdb2a5985762ab2bcd762c284f4aa7169b34da2be",
+      "crates/eltdx/src/mac/session.rs": "b4e9771b40807c6f88a2d73a8f27659d0cc2e627baea2eefa8a61e26819ba762",
+      "crates/eltdx/src/mac/profile.rs": "a0b1e391648039776ac44849daec6ad4b5be65ed00c9128228c756bc6e246e61",
+      "crates/eltdx/src/mac/handshake.rs": "3bf9d2b072e24db8682a48d2adfe6a78de5485ac55694fd30e09afbdc11d3240",
+      "crates/eltdx/src/mac/boards.rs": "6ef90c5d6e440e763ca5ff29aefba51e2d9a23b143e213afe52c6c79ccc5ed5f",
+      "crates/eltdx/src/mac/download.rs": "be87d1529670535216600dc0df8edd1019e0b65b4c160ce615ba3b144672229f",
+      "crates/eltdx/src/mac/services.rs": "1eff550d6de3b252030289181a3e72b4aa876c13431ef18cd32ed5ba645cade1",
+      "crates/eltdx/src/services/resource_legacy.rs": "ce17a5b27a6c44bd089c2c8a12f1ce21bc8cd6ef4371d539360179e9482b7332",
+      "crates/eltdx-python/src/extension_management.rs": "2e5ef811f702a3cd8020e3a74349d7de83bdcd1fb93ecf68c3bdef7f79cd0504",
+      "crates/eltdx-python/src/extension_lifecycle.rs": "496bb23e838ca1016375f740dfad2a11045104b840eb49126de76879df44280f",
+      "crates/eltdx-python/src/extension_transport.rs": "7f4b8242eb1479f4a51393fe88bafb4237e93db41c6a10f6bda9120977da7526",
+      "crates/eltdx-python/src/extension_frame.rs": "ba2faeb512aa349ae56a53ba0865e614639f4f02dedd77cb856b898b2fb53e20",
+      "crates/eltdx-python/src/extension_probe.rs": "0fc81ab37e5c97ea19fe79b95626353af09e0b85bdf7bf6bbd8fa84103639826",
+      "crates/eltdx-python/src/extension_rules.rs": "8ffbc7eb19f2727bf28433bdb056a3b844a90494c6419fc2deb0fb55d0edb1b8",
+      "crates/eltdx-python/src/extension_bitmap.rs": "2c3ca2e7eaf9465d6f30a26a27adf0570d59e42b603ae758d63e6c08178c0199",
+      "crates/eltdx-python/src/extension_adjust.rs": "1f104f3db476ca6448343ddc1ab53fd30a413363f9140728a24d9caf10e47078",
+      "src/eltdx/ex/models.py": "3c4e9fbd4f3f4b8a77953f1086ff413a61ed7495b5cc6521fdaa3075622800b3",
+      "src/eltdx/ex/enums.py": "6f7ffa33aa323cc18b9247f70ba48ae320dd0b055322423fe156f39cb9b0454a",
+      "src/eltdx/ex/hosts.py": "f0e3a63c6f3f32082dfd9ddba18e027be859a47373ef902aebda631d2af95554",
+      "src/eltdx/ex/frame.py": "35489a17947b14ca799d0d8238a5e83e18e843daedbda8c323898d7ae1f918f4",
+      "src/eltdx/ex/transport/sync.py": "a927b48f67a46608e1682bf31dc4eef2ca76c30af85e68f6bc2074259bc8c0dc",
+      "src/eltdx/mac/commands.py": "d172e88d28b661ffd2f39dcea906d9646ab47ee6cc29729c96107c8ab5a18441",
+      "src/eltdx/mac/bitmap.py": "a2c31f29420f6678d7c54ab8352f1d13ce9295afc950eef925b07b7b48b58924",
+      "src/eltdx/mac/models.py": "b4f30ae6574df8a5b9fe616247a0f56ee3a0c78b48bf67f9219f0523d2d78274",
+      "src/eltdx/mac/enums.py": "d32e0f232ca005801debf2f1d4dae21b119ebbe33e2095d360b7934f598b8b9e",
+      "src/eltdx/mac/transport.py": "96c0554f91415f13dfa98c8394c59224188d4eb7b82701fc80e7011b66c9b4ba",
+      "src/eltdx/mac/codec.py": "f866587ea01dc8270c58a1f0f1e7028e935fb44203ed61e8191280675bbeceeb",
+      "src/eltdx/mac/adjust.py": "4619dcd6878282df9c13ee90d905d341aac373e8306c7d9c5dfd3b07c5f45a3d",
+      "src/eltdx/ex/mac_models.py": "10cd236f5ae3a79bf210ffa7998bbcea6288ae59b09e0b8e7536da3660b99a14",
+      "src/eltdx/ex/mac_commands.py": "145a685f90a6444be328ce4b12fe3457afa8fb81f3d165d5f516e4fd5f17f92e",
+      "src/eltdx/ex/_hk_transaction.py": "69ac2ad67d56c178c9f994eb6c1a13be3d30bd284de940287f8e441a284e0bd4",
+      "tests/consumers/python-wheel/consumer.py": "9d9df1301ea6b61fef72a1d287a020b5bf6ee8cf590b43e2731504f1f5b8af38",
+      "tests/contracts/manifests/extension_migration_sources.tsv": "5c2e0dc16713a761ae5e47fd39de0e33fdf91a2d63945f69127f7d68261174c7"
+    }
   }
 }
