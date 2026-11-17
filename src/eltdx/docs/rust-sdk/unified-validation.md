@@ -286,3 +286,11 @@ macOS runner入口已在本地准备：向公开仓库的 `codex/rust-sdk-implem
 从该归档解包，在 WSL2 隔离的 `quay.io/pypa/manylinux2014_x86_64` 文件系统内以 Rust 1.89.0、CPython 3.10.22、glibc 2.17 和 GCC 10.2.1 离线运行 `maturin build --release --locked --compatibility manylinux2014`。镜像摘要 `sha256:e6a785657009c612fe2a85fa933051d03a50ba62b1c5e47d62abcab546a2e423`，锁文件 SHA256 `214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`。生成的 `eltdx-3.3.5-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl` SHA256 `49ecdcce3427ab67cd534b20942c42f9c13137be0f12b84612018fea5ef4452d`。构建成功后的首次离线 MCP 冒烟因无法下载可选依赖返回1，保留 `stage142-manylinux-rebuild-attempt01/result.json`（SHA256 `0e70b62227f3e9fcd8f542f112fbda77bb2014080e5377c9aa256048924b78ff`）。
 
 对同一 wheel，CPython 3.10.22、3.14.10 均通过无索引二进制安装、`pip check`、本地非空公开 API 查询与关闭。两版本也各自通过带 MCP 的 `verify_wheel_matrix.py --single-wheel`，仅依赖安装阶段使用 PyPI。四个验证进程均 exit 0，见 `stage142-manylinux-consumer-attempt01/exits.txt` 与 `result.json`（SHA256 `d71d581ea2b3ca39233e2818dcd360592f20f67b0dad6fd47d90bb715f9cde8a`）。这一证据覆盖 Linux x64 发布标签及 sdist 重建；无编译器镜像证据仍由 stage140 提供。Linux arm64、macOS、公开 crates.io 发布及生产协议证据仍待取得。
+
+## Stage144：带证券状态与日期的交易规则证据
+
+在源码提交 `0f7b2dad4afa325f039e5f255ca900d1016ffc2f` 上读取了交易所及官方披露平台的公开资料。`artifacts/unified/stage144-exchange-status-attempt01/` 和 `stage144-exchange-status-attempt02/` 分别保留请求响应、时间、HTTP 状态、原始文件及散列。两次下载中保留的上交所网页没有计入五份证券边界公告。用 pypdf 逐页检查了纳入的五份 PDF，共 18 处核对，复验文件 `stage144-exchange-status-attempt02/verified-notices.json` SHA256 `4cead22131f482203315cdf68d1cedc929f383d5464eb964e8f3790a939a5206`。
+
+[决策记录](decision-register.md)列出沪深风险警示、创业板上市前五个交易日、北交所上市首日和退市整理首日等已核对案例。仍缺交易日历、逐日状态以及与昨收或除权参考价对应的交易所实际涨跌停价样本。未扩大 `UnknownRule` 的生产规则范围，也未取得 MAC-EX 登录/可选 setup 或 category 22 非空协议数据。历史记录中 category 22 在 18 个曾可达主站都返回空；稳定历史资金流仍走 F10。
+
+同一候选的 GitHub `git push --dry-run origin HEAD:refs/heads/codex/rust-sdk-implementation` 确认能创建新分支，没有实际推送。仓库启用了 Actions；候选 push 工作流仅运行 macOS Rust 1.89/stable 平台与归档任务，分支上的 `Publish` 手动运行可以产生发布审计用 wheel/sdist（含原生 Linux arm64 及 macOS 两种架构），不会走 tag 专属 PyPI 上传。当前没有已配置的本地 crates.io 凭据，GitHub 仓库也没有配置发布用的仓库级 secret。macOS runner 和 registry 发布仍没有执行证据。

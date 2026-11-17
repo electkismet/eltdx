@@ -1149,3 +1149,9 @@ pagination-green-attempt01首次已完成扫描，但新增显式cursor测试误
 续记：本轮确认progress.md本身受Git版本控制，须与恢复点提交。对照Linux performance results和wheel-build报告，发现统一验证文档的Linux native哈希误抄Windows值，已更正为a0af568a32a3fcf24c58e433d61afa97337b56b572dfff65e35cd458ff0a4f57；原始性能数据无改动。最终更正文档的metadata/MkDocs/site links/diff-check命令和真实时间、退出码、文件hash保存在stage135-docs-attempt06/results.json。前一段“工作区干净”指追加本恢复记录之前的8e4a7ca检查点，后续须提交本记录并复核Git状态。
 
 Windows/Linux各84个性能run及raw复验已完成，候选a3cc4c2317f4714b0e80de29d8f899aef664a59b、基线af471f1adf38757f6aa0188968db8110eb23f6ad；合成loopback候选慢约0.17–0.21ms，不外推生产。五份主文档及镜像同步，R01–R12首轮结论与缺口写入final-acceptance，文档恢复提交8e4a7ca1196bc239095dc72903ad81cf919d0e76。attempt02错误fragment失败保留，修正后attempt04及提交后attempt05的metadata/MkDocs strict/site links/diff-check均exit0，日志hash见artifacts/unified/stage135-docs-attempt04/results.json与stage135-docs-attempt05/results.json。源码未改，提交后工作区干净。仍缺macOS、其他Python版本、物理隔离镜像、生产MAC/setup/category22和权威规则、registry身份与发布后消费。goal active、remainingTokens=null，不push/tag/发布/合并。
+
+## Stage144：交易规则证据与发布续点
+
+Stage140–142 的工具链隔离、公开 registry 验证入口及 manylinux2014 x64 产物已记录在 `docs/rust-sdk/unified-validation.md`。Stage143 的 aarch64 复建会话 `87556` 已进入 QEMU Rust1.89 离线编译，以 `artifacts/unified/stage143-arm64-build-attempt01/result.json` 和实际 wheel 为准；恢复时先查进程和结果，避免重复启动。不要把模拟 ARM 运行当成原生 runner。
+
+Stage144 在 `0f7b2da` 查到五个具体证券的挂牌、风险状态或退市整理公告，逐页核验 18 处，已补统一账本、最终验收和决策记录。未修改运行时代码，生产规则仍保持 `UnknownRule`，待对应交易日和实际价格字段。MAC-EX及category22仍缺生产样本。GitHub分支推送 dry-run 成功，未推送；后续以授权 runner 或经确认的候选分支执行 macOS 和原生 arm64。crates.io发布已在目标范围内，尚缺本机发布凭据，三包未实际上传。整体目标继续，额度不设上限。
