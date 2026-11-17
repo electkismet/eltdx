@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use eltdx::__python_compat::{LegacyBarTime, LegacyExecutor, LegacyPushReader};
 use eltdx_protocol::CommandResponse;
 use eltdx_runtime::diagnostics::{
     ActorSnapshot, BrokerSnapshot, PoolDiagnostics, TransportDiagnostics,
@@ -10,16 +11,20 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyTuple};
 use pyo3::IntoPyObjectExt;
 
-use crate::{error, request, response};
+use crate::{error, request, response, service};
 
 #[pyclass(name = "NativeEngine", module = "eltdx._native", frozen)]
 pub struct NativeEngine {
     engine: Engine,
+    legacy: LegacyExecutor,
+    raw_push: LegacyPushReader,
+    namespace: String,
 }
 
 #[pyclass(name = "NativePin", module = "eltdx._native", frozen)]
 pub struct NativePin {
     pin: PinHandle,
+    legacy: LegacyExecutor,
 }
 
 #[pymethods]
@@ -46,6 +51,7 @@ impl NativeEngine {
     // immediately groups them into EngineConfigOptions below.
     #[allow(clippy::too_many_arguments)]
     fn new(
+        py: Python<'_>,
         hosts: Vec<String>,
         timeout: f64,
         pool_size: usize,
@@ -61,6 +67,7 @@ impl NativeEngine {
         push_queue_size: usize,
         push_queue_bytes: usize,
     ) -> PyResult<Self> {
+        let namespace = format!("python:7709:{}", hosts.join(","));
         let config = EngineConfig::new(
             hosts,
             timeout,
@@ -81,7 +88,23 @@ impl NativeEngine {
         )
         .map_err(error::from_runtime)?;
         let engine = Engine::new(config).map_err(error::from_runtime)?;
-        Ok(Self { engine })
+        let request_timeout = duration("timeout", timeout)?;
+        let legacy = LegacyExecutor::new(
+            engine.clone(),
+            request_timeout,
+            request_timeout,
+            CANCEL_CONFIRM_TIMEOUT,
+        )
+        .map_err(|sdk_error| error::from_sdk(py, sdk_error))?;
+        let raw_push = legacy
+            .claim_raw_push_reader()
+            .map_err(error::from_runtime)?;
+        Ok(Self {
+            engine,
+            legacy,
+            raw_push,
+            namespace,
+        })
     }
 
     fn connect(&self, py: Python<'_>) -> PyResult<()> {
@@ -169,6 +192,208 @@ impl NativeEngine {
         response::to_python(py, result)
     }
 
+    fn sdk_snapshots(&self, py: Python<'_>, codes: Vec<String>) -> PyResult<Py<PyAny>> {
+        service::snapshots(py, self.legacy.clone(), self.namespace.clone(), codes)
+    }
+
+    fn sdk_security_pages(
+        &self,
+        py: Python<'_>,
+        market: String,
+        page_size: usize,
+    ) -> PyResult<Vec<Py<PyAny>>> {
+        service::security_pages(
+            py,
+            self.legacy.clone(),
+            self.namespace.clone(),
+            market,
+            page_size,
+        )
+    }
+
+    #[pyo3(signature = (command, payload, *, collect=false, max_pages=None, bar_time="start"))]
+    fn sdk_bars(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+        collect: bool,
+        max_pages: Option<usize>,
+        bar_time: &str,
+    ) -> PyResult<Py<PyAny>> {
+        // Reuse the existing extractor to retain input aliases, bool handling,
+        // overflow messages and the order in which request fields are checked.
+        let request = request::from_python(py, command, Some(payload))?;
+        let alignment = match bar_time {
+            "start" => LegacyBarTime::Start,
+            "end" => LegacyBarTime::End,
+            other => {
+                let representation = pyo3::types::PyString::new(py, other)
+                    .repr()?
+                    .to_str()?
+                    .to_owned();
+                LegacyBarTime::DeferredInvalid(format!(
+                    "bar_time 必须是 'start' 或 'end'，得到: {representation}"
+                ))
+            }
+        };
+        service::bars(
+            py,
+            self.legacy.clone(),
+            request,
+            collect,
+            max_pages,
+            alignment,
+        )
+    }
+
+    fn sdk_minutes(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        let original_code = payload
+            .get_item("code")?
+            .ok_or_else(|| pyo3::exceptions::PyValueError::new_err("minute code is required"))?
+            .extract::<String>()?;
+        service::minutes(
+            py,
+            self.legacy.clone(),
+            self.namespace.clone(),
+            request,
+            original_code,
+        )
+    }
+
+    fn sdk_security_request(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::directory(py, self.legacy.clone(), request)
+    }
+
+    fn sdk_quotes(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::quotes(py, self.legacy.clone(), request, None)
+    }
+
+    fn sdk_trades(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::trades(py, self.legacy.clone(), request)
+    }
+
+    fn sdk_auction(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::auction(py, self.legacy.clone(), request)
+    }
+
+    fn sdk_money_flow(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::money_flow(py, self.legacy.clone(), request)
+    }
+
+    fn sdk_corporate(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::corporate(py, self.legacy.clone(), request)
+    }
+
+    fn sdk_special_limits(
+        &self,
+        py: Python<'_>,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, 0x0452, Some(payload))?;
+        service::special_limits(py, self.legacy.clone(), request)
+    }
+
+    fn sdk_resource(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::resource(py, self.legacy.clone(), request, None)
+    }
+
+    #[pyo3(signature = (command, payload, *, collect=false, opening=false, max_pages=None, bulk=false))]
+    fn sdk_trade_read(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+        collect: bool,
+        opening: bool,
+        max_pages: Option<usize>,
+        bulk: bool,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::trade_read(
+            py,
+            self.legacy.clone(),
+            request,
+            collect,
+            opening,
+            max_pages,
+            bulk,
+        )
+    }
+
+    fn sdk_suspended(&self, py: Python<'_>, payload: &Bound<'_, PyDict>) -> PyResult<Vec<String>> {
+        let request = request::from_python(py, 0x053e, Some(payload))?;
+        service::suspended(py, self.legacy.clone(), request)
+    }
+
+    fn sdk_session(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::session(py, self.legacy.clone(), request)
+    }
+
+    fn sdk_company_info(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::company_info(py, self.legacy.clone(), request)
+    }
+
     fn pin(&self, py: Python<'_>) -> PyResult<NativePin> {
         let mut pending = py
             .detach(|| self.engine.begin_pin())
@@ -190,7 +415,12 @@ impl NativeEngine {
                 return Err(signal_error);
             }
             match polled {
-                PendingPoll::Ready(pin) => return Ok(NativePin { pin }),
+                PendingPoll::Ready(pin) => {
+                    return Ok(NativePin {
+                        pin,
+                        legacy: self.legacy.clone(),
+                    })
+                }
                 PendingPoll::Pending => {}
             }
         }
@@ -208,7 +438,7 @@ impl NativeEngine {
                 .saturating_duration_since(now)
                 .min(SIGNAL_POLL_INTERVAL);
             let result = py
-                .detach(|| self.engine.poll_push(wait))
+                .detach(|| self.raw_push.poll_push(wait))
                 .map_err(error::from_runtime)?;
             py.check_signals()?;
             if let Some(item) = result {
@@ -223,7 +453,7 @@ impl NativeEngine {
     #[pyo3(signature = (parse=false))]
     fn drain_pushes(&self, py: Python<'_>, parse: bool) -> PyResult<Vec<Py<PyAny>>> {
         let items = py
-            .detach(|| self.engine.drain_pushes())
+            .detach(|| self.raw_push.drain_pushes())
             .map_err(error::from_runtime)?;
         items
             .into_iter()
@@ -259,6 +489,28 @@ impl NativeEngine {
 
 #[pymethods]
 impl NativePin {
+    fn sdk_resource(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        service::resource(py, self.legacy.clone(), request, Some(self.pin.clone()))
+    }
+
+    fn sdk_quotes(
+        &self,
+        py: Python<'_>,
+        command: u16,
+        payload: &Bound<'_, PyDict>,
+    ) -> PyResult<Py<PyAny>> {
+        let request = request::from_python(py, command, Some(payload))?;
+        // The Python subscription resolver runs before pin acquisition. Never
+        // submit cold metadata through the ordinary pool while it is reserved.
+        service::quotes(py, self.legacy.clone(), request, Some(self.pin.clone()))
+    }
+
     #[pyo3(signature = (command, payload=None))]
     fn execute(
         &self,

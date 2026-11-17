@@ -1,4 +1,28 @@
 use crate::commands::{
+    auctions::parse_auction_series_payload_with_context,
+    corporate::{
+        parse_capital_changes_payload_with_context, parse_finance_batch_payload_with_context,
+    },
+    delisted_bars::parse_delisted_klines_payload_with_context,
+    history_fund_flow::parse_history_fund_flow_payload_with_context,
+    klines::parse_klines_payload_with_context,
+    limits::parse_special_limits_payload_with_context,
+    minutes::{
+        parse_historical_intraday_payload_with_context, parse_intraday_aux_payload_with_context,
+        parse_recent_intraday_payload_with_context, parse_sparkline_payload_with_context,
+        parse_today_intraday_payload_with_context,
+    },
+    money_flow::parse_money_flow_payload_with_context,
+    quotes::{
+        parse_category_quotes_payload_with_context, parse_legacy_quotes_payload_with_context,
+        parse_refresh_stream_payload_with_context, parse_snapshots_payload_with_context,
+    },
+    resources::parse_file_content_payload_with_context,
+    security::parse_security_list_payload_with_context,
+    session::{parse_handshake_payload_with_context, parse_heartbeat_payload_with_context},
+    trades::{parse_historical_ticks_payload_with_context, parse_today_ticks_payload_with_context},
+};
+use crate::commands::{
     auctions::{parse_auction_series_payload, AuctionSeries},
     corporate::{
         parse_capital_changes_payload, parse_company_info_category_payload,
@@ -32,8 +56,10 @@ use crate::commands::{
         TodayTicksRequest, TradePage,
     },
 };
+use crate::context::ParseOptions;
 use crate::error::ProtocolError;
 use crate::request::CommandRequest;
+use bytes::Bytes;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum CommandResponse {
@@ -147,6 +173,126 @@ impl CommandResponse {
             }
             CommandRequest::MoneyFlow(request) => {
                 parse_money_flow_payload(payload, request).map(Self::MoneyFlow)
+            }
+        }
+    }
+    /// Decodes using only the caller's immutable precision source.
+    ///
+    /// Retained page payloads share `payload`. For vector response variants the
+    /// caller (the SDK adapter) retains that one payload alongside record ranges.
+    pub fn parse_with_context(
+        request: CommandRequest,
+        payload: Bytes,
+        options: &ParseOptions<'_>,
+    ) -> Result<Self, ProtocolError> {
+        match request {
+            CommandRequest::Heartbeat(_) => {
+                parse_heartbeat_payload_with_context(payload.clone(), options).map(Self::Heartbeat)
+            }
+            CommandRequest::Handshake(_) => {
+                parse_handshake_payload_with_context(payload.clone(), options).map(Self::Handshake)
+            }
+            CommandRequest::CapitalChanges(request) => {
+                parse_capital_changes_payload_with_context(payload.clone(), request, options)
+                    .map(Self::CapitalChanges)
+            }
+            CommandRequest::FinanceBatch(request) => {
+                parse_finance_batch_payload_with_context(payload.clone(), request, options)
+                    .map(Self::FinanceBatch)
+            }
+            CommandRequest::CompanyInfoCategory(_) => {
+                parse_company_info_category_payload(&payload).map(Self::CompanyInfoCategory)
+            }
+            CommandRequest::CompanyInfoContent(_) => {
+                parse_company_info_content_payload(&payload).map(Self::CompanyInfoContent)
+            }
+            CommandRequest::BlockMeta(_) => parse_block_meta_payload(&payload).map(Self::BlockMeta),
+            CommandRequest::SecurityList(request) => {
+                parse_security_list_payload_with_context(payload.clone(), request.market, options)
+                    .map(Self::SecurityList)
+            }
+            CommandRequest::SecurityCount(_) => {
+                parse_security_count_payload(&payload).map(Self::SecurityCount)
+            }
+            CommandRequest::SpecialLimits(request) => {
+                parse_special_limits_payload_with_context(payload.clone(), request, options)
+                    .map(Self::SpecialLimits)
+            }
+            CommandRequest::IntradayAux(request) => {
+                parse_intraday_aux_payload_with_context(payload.clone(), request, options)
+                    .map(Self::IntradayAux)
+            }
+            CommandRequest::DelistedKlines(request) => {
+                parse_delisted_klines_payload_with_context(payload.clone(), request, options)
+                    .map(Self::DelistedKlines)
+            }
+            CommandRequest::Klines(request) => {
+                // Category 22 shares the 0x052d frame but returns the historical
+                // money-flow series rather than OHLC bars.
+                if request.period.raw == HISTORY_FUND_FLOW_CATEGORY {
+                    parse_history_fund_flow_payload_with_context(payload.clone(), request, options)
+                        .map(Self::HistoryFundFlow)
+                } else {
+                    parse_klines_payload_with_context(payload.clone(), request, options)
+                        .map(Self::Klines)
+                }
+            }
+            CommandRequest::TodayIntraday(request) => {
+                parse_today_intraday_payload_with_context(payload.clone(), request, options)
+                    .map(Self::TodayIntraday)
+            }
+            CommandRequest::LegacyQuotes(request) => {
+                parse_legacy_quotes_payload_with_context(payload.clone(), &request.codes, options)
+                    .map(Self::LegacyQuotes)
+            }
+            CommandRequest::RefreshStream(request) => {
+                let requested_codes = request.requested_codes();
+                parse_refresh_stream_payload_with_context(
+                    payload.clone(),
+                    &requested_codes,
+                    options,
+                )
+                .map(Self::RefreshStream)
+            }
+            CommandRequest::CategoryQuotes(request) => {
+                parse_category_quotes_payload_with_context(payload.clone(), request, options)
+                    .map(Self::CategoryQuotes)
+            }
+            CommandRequest::Snapshots(request) => {
+                parse_snapshots_payload_with_context(payload.clone(), &request.codes, options)
+                    .map(Self::Snapshots)
+            }
+            CommandRequest::AuctionSeries(request) => {
+                parse_auction_series_payload_with_context(payload.clone(), request, options)
+                    .map(Self::AuctionSeries)
+            }
+            CommandRequest::FileContent(request) => {
+                parse_file_content_payload_with_context(payload.clone(), request, options)
+                    .map(Self::FileContent)
+            }
+            CommandRequest::HistoricalIntraday(request) => {
+                parse_historical_intraday_payload_with_context(payload.clone(), request, options)
+                    .map(Self::HistoricalIntraday)
+            }
+            CommandRequest::TodayTicks(request) => {
+                parse_today_ticks_payload_with_context(payload.clone(), request, options)
+                    .map(Self::TodayTicks)
+            }
+            CommandRequest::HistoricalTicks(request) => {
+                parse_historical_ticks_payload_with_context(payload.clone(), request, options)
+                    .map(Self::HistoricalTicks)
+            }
+            CommandRequest::Sparkline(request) => {
+                parse_sparkline_payload_with_context(payload.clone(), request, options)
+                    .map(Self::Sparkline)
+            }
+            CommandRequest::RecentIntraday(request) => {
+                parse_recent_intraday_payload_with_context(payload.clone(), request, options)
+                    .map(Self::RecentIntraday)
+            }
+            CommandRequest::MoneyFlow(request) => {
+                parse_money_flow_payload_with_context(payload.clone(), request, options)
+                    .map(Self::MoneyFlow)
             }
         }
     }

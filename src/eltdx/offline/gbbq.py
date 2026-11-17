@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from sys import modules as _MODULES
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -307,58 +308,6 @@ def read_gbbq(filepath: str | Path) -> list[GbbqRecord]:
     if len(content) < 4:
         return []
 
-    (count,) = struct.unpack("<I", content[:4])
-    results: list[GbbqRecord] = []
-    data_offset = 4
+    from eltdx._native_abi import load_native
 
-    for _ in range(count):
-        clear_data = bytearray()
-        # 每条记录解密 3 轮，每轮 8 字节
-        for _round in range(3):
-            (eax,) = struct.unpack("<I", _BIN_KEYS[0x44 : 0x44 + 4])
-            (ebx,) = struct.unpack("<I", content[data_offset : data_offset + 4])
-            num = (eax ^ ebx) & _MASK32
-            (numold,) = struct.unpack("<I", content[data_offset + 4 : data_offset + 8])
-
-            for j in range(0x40, 0x04 - 1, -4):
-                ebx = (num & 0xFF0000) >> 16
-                (eax,) = struct.unpack("<I", _BIN_KEYS[ebx * 4 + 0x448 : ebx * 4 + 0x448 + 4])
-                ebx = num >> 24
-                (eax_add,) = struct.unpack("<I", _BIN_KEYS[ebx * 4 + 0x48 : ebx * 4 + 0x48 + 4])
-                eax = (eax + eax_add) & _MASK32
-                ebx = (num & 0xFF00) >> 8
-                (eax_xor,) = struct.unpack("<I", _BIN_KEYS[ebx * 4 + 0x848 : ebx * 4 + 0x848 + 4])
-                eax = (eax ^ eax_xor) & _MASK32
-                ebx = num & 0xFF
-                (eax_add,) = struct.unpack("<I", _BIN_KEYS[ebx * 4 + 0xC48 : ebx * 4 + 0xC48 + 4])
-                eax = (eax + eax_add) & _MASK32
-                (eax_xor,) = struct.unpack("<I", _BIN_KEYS[j : j + 4])
-                eax = (eax ^ eax_xor) & _MASK32
-                ebx = num
-                num = (numold ^ eax) & _MASK32
-                numold = ebx
-
-            (numold_op,) = struct.unpack("<I", _BIN_KEYS[:4])
-            numold = (numold ^ numold_op) & _MASK32
-            clear_data.extend(struct.pack("<II", numold, num))
-            data_offset += 8
-
-        # 追加剩余 5 字节
-        clear_data.extend(content[data_offset : data_offset + 5])
-
-        v1, v2, v3, v4, v5, v6, v7, v8 = struct.unpack("<B7sIBffff", clear_data)
-        results.append(
-            GbbqRecord(
-                market=v1,
-                code=v2.rstrip(b"\x00").decode("utf-8"),
-                datetime=v3,
-                category=v4,
-                hongli_panqianliutong=v5,
-                peigujia_qianzongguben=v6,
-                songgu_qianzongguben=v7,
-                peigu_houzongguben=v8,
-            )
-        )
-        data_offset += 5
-
-    return results
+    return load_native().offline_gbbq(content, _MODULES[__name__])

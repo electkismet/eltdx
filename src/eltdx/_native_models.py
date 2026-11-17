@@ -314,14 +314,28 @@ def trade_batch_from_dto(dto: Any):
     from eltdx.models.trade_batch import TradeBatch
 
     tag, payload = _tuple(dto, "response", 2)
-    if tag != "historical_ticks":
+    if tag not in {"historical_ticks", "historical_trade_batch"}:
         raise TypeError("trade batch requires a historical_ticks response")
     fields = _tuple(payload, "trade page", 9)
-    ticks = _flat_records(fields[5], "trade ticks", _TRADE_TICK_STRIDE)
+    if tag == "historical_trade_batch":
+        blocks = tuple(_flat_records(block, "trade ticks", _TRADE_TICK_STRIDE)
+                       for block in _tuple(fields[5], "trade blocks"))
+    else:
+        blocks = (_flat_records(fields[5], "trade ticks", _TRADE_TICK_STRIDE),)
     return TradeBatch(
-        fields[0], fields[1], fields[2], fields[3], fields[4], (ticks,),
+        fields[0], fields[1], fields[2], fields[3], fields[4], blocks,
         _date(fields[6]), fields[7], fields[8],
     )
+
+
+def trade_opening_from_dto(dto: Any):
+    if dto is None:
+        return None
+    tag, payload = _tuple(dto, "response", 2)
+    if tag != "trade_tick":
+        raise TypeError("trade opening requires a trade_tick response")
+    fields = _tuple(payload, "trade tick", _TRADE_TICK_STRIDE)
+    return _trade_tick_at(fields, 0)
 
 
 def response_from_dto(dto: Any) -> Any:
@@ -465,6 +479,23 @@ def response_from_dto(dto: Any) -> Any:
     raise ValueError(f"unsupported native response tag: {tag}")
 
 
+def legacy_snapshot_batch_from_dto(dto: Any) -> tuple[list[QuoteSnapshot | None], tuple[str, ...]]:
+    """Convert ordered snapshot occurrences returned by the Rust compatibility service."""
+    tag, payload = _tuple(dto, "legacy snapshot batch", 2)
+    if tag != "legacy_snapshots":
+        raise TypeError("native DTO must be a legacy_snapshots response")
+    items, missing, _recovered = _tuple(payload, tag, 3)
+    converted = []
+    for item in _list(items, tag):
+        converted.append(
+            None if item is None else _quote_snapshot_at(_tuple(item, tag, _SNAPSHOT_STRIDE), 0)
+        )
+    missing_codes = _tuple(missing, "missing snapshot codes")
+    if any(not isinstance(code, str) for code in missing_codes):
+        raise TypeError("native missing snapshot codes must be strings")
+    return converted, missing_codes
+
+
 def push_frame_from_dto(dto: Any) -> tuple[int, int, int, str, ResponseFrame, bool]:
     """Convert the metadata-bearing native push DTO without parsing it."""
 
@@ -475,4 +506,8 @@ def push_frame_from_dto(dto: Any) -> tuple[int, int, int, str, ResponseFrame, bo
     return epoch, slot_id, generation, connected_host, _response_frame(frame), parse
 
 
-__all__ = ["push_frame_from_dto", "response_from_dto"]
+__all__ = [
+    "legacy_snapshot_batch_from_dto",
+    "push_frame_from_dto",
+    "response_from_dto",
+]

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "policy_id": "normalization_v1",
+  "source_revision": "af471f1adf38757f6aa0188968db8110eb23f6ad",
+  "decisions": {
+    "rust_security_id": "strict_hq_identity_with_private_fields_and_explicit_hq_market",
+    "python_aliases": "preserve_existing_string_coercion_prefix_and_market_alias_behavior",
+    "metadata_lookup": "key_by_normalized_identity_and_owner_context",
+    "extension_markets": "never_coerce_ex_mac_or_f10_identity_into_hq_security_id"
+  },
+  "cases": [
+    {
+      "case_id": "bare_sh_fund",
+      "input": "510300",
+      "python_compat": {"normalized_security_id": "sh510300", "decimal_prefetch_markets": ["bj", "sh", "sz"]},
+      "rust": {"security_id": "sh510300", "metadata_market": "sh"},
+      "evidence": {"level": "source_and_regression_contract", "sources": ["src/eltdx/protocol/unit.py::normalize_code", "src/eltdx/client.py::_ensure_decimals", "tests/test_protocol_unit.py::test_five_prefix_is_shanghai_funds"]}
+    },
+    {
+      "case_id": "bare_beijing_code",
+      "input": "430047",
+      "python_compat": {"normalized_security_id": "bj430047", "decimal_prefetch_markets": ["bj", "sh", "sz"]},
+      "rust": {"security_id": "bj430047", "metadata_market": "bj"},
+      "evidence": {"level": "source_and_regression_contract", "sources": ["src/eltdx/protocol/unit.py::normalize_code", "src/eltdx/client.py::_ensure_decimals", "tests/test_protocol_unit.py::test_normalize_code_infers_market_by_segment"]}
+    },
+    {
+      "case_id": "integer_alias",
+      "input": 600000,
+      "python_compat": {"normalized_security_id": "sh600000", "normalizer_coerces_input_to_string": true},
+      "rust": {"security_id": "sh600000", "string_constructor_accepts_non_string": false, "typed_constructor": "SecurityId::new(HqMarket::Shanghai, \"600000\")"},
+      "evidence": {"level": "source_review_and_api_contract", "sources": ["src/eltdx/protocol/unit.py::normalize_code", "docs/rust-sdk/public-api.md#81-identity-and-date"]}
+    },
+    {
+      "case_id": "explicit_prefix_precedence",
+      "input": ["sh120001", "sz120001", "SH600000"],
+      "python_compat": {"normalized_security_ids": ["sh120001", "sz120001", "sh600000"]},
+      "rust": {"normalized_security_ids": ["sh120001", "sz120001", "sh600000"], "invalid_or_unknown_prefix": "InvalidArgument"},
+      "evidence": {"level": "source_and_regression_contract", "sources": ["src/eltdx/protocol/unit.py::normalize_code", "tests/test_f10_extended.py::test_normalize_code_explicit_prefix_wins"]}
+    },
+    {
+      "case_id": "market_aliases_and_host_default",
+      "input": {"markets": ["0", "sha", "北交所"], "hosts": ["example.com", "[::1]"]},
+      "python_compat": {"market_aliases": ["sz", "sh", "bj"], "hosts": ["example.com:7709", "[::1]:7709"]},
+      "rust": {"string_market_alias_constructor": false, "market_values": ["Shenzhen", "Shanghai", "Beijing"], "explicit_socket_address_has_port": true},
+      "evidence": {"level": "source_review_and_api_contract", "sources": ["src/eltdx/protocol/unit.py::normalize_market", "src/eltdx/hosts.py::normalize_host", "docs/rust-sdk/public-api.md#31-builder-and-defaults"]}
+    },
+    {
+      "case_id": "extension_identity",
+      "input": {"protocol": "EX", "market_id": 31, "code": "00700"},
+      "python_compat": {"type": "EX market/code pair"},
+      "rust": {"security_id": null, "type": "domain_specific_extension_identity"},
+      "evidence": {"level": "api_boundary_contract", "sources": ["docs/rust-sdk/extension-api-spec.md#63-local-types"]}
+    }
+  ],
+  "metadata_inference_notes": [
+    "_ensure_decimals does not infer bare 5xxxxx or 4xxxxx codes and falls back to requesting all three HQ markets when no market was inferred.",
+    "normalize_code recognizes Shanghai 5xxxxx funds and Beijing 4xxxxx codes; the two Python paths therefore do not share one market-inference policy.",
+    "Bare 019xxx and several overlapping bond prefixes require separate identity evidence; do not infer the price-decimal lookup market from a generic first digit.",
+    "The Rust SDK resolves precision from the normalized SecurityId and one immutable owner-scoped metadata snapshot; it does not read the legacy process-global protocol decimal registry."
+  ]
+}

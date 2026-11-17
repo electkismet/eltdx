@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import struct
+import sys
 import zipfile
 from pathlib import Path
 
@@ -25,6 +26,12 @@ MAX_HISTORY_REPORT_FIELDS = 4096
 # float 列表 —— 18 KB 的构造样本即可产生约 8M 个 float（约 31 MB 峰值内存）。
 # 正常全市场财报约 5 千只 × 数百字段 ≈ 1.6M，留一倍余量取 4M。
 MAX_HISTORY_TOTAL_FLOATS = 4 * 1024 * 1024
+
+# An explicit struct override keeps the original Python protocol below. Exact
+# bytes with the standard codec use the same DAT traversal as the Rust SDK.
+_NATIVE_STRUCT = struct
+_NATIVE_CALCSIZE = struct.calcsize
+_NATIVE_UNPACK = struct.unpack
 
 
 def read_dat_from_zip(
@@ -46,36 +53,11 @@ def read_dat_from_zip(
             或解压后长度超出 ``max_dat_bytes``。
     """
 
-    infos = archive.infolist()
-    if len(infos) > max_entries:
-        raise ResourceFormatError(f"zip 条目过多: {len(infos)} > {max_entries}（{source}）")
+    from eltdx._native_abi import load_native
 
-    dat_infos = [info for info in infos if info.filename.endswith(".dat")]
-    if not dat_infos:
-        raise ResourceFormatError(f"zip 中未找到 .dat 文件: {source}")
-
-    names = [info.filename for info in dat_infos]
-    duplicates = sorted({name for name in names if names.count(name) > 1})
-    if duplicates:
-        raise ResourceFormatError(f"zip 中存在重复的 .dat 文件名: {duplicates}（{source}）")
-
-    info = dat_infos[0]
-    if info.flag_bits & 0x1:
-        raise ResourceFormatError(f"zip 条目已加密: {info.filename}")
-    if info.file_size > max_dat_bytes:
-        raise ResourceFormatError(
-            f"{info.filename} 解压后超出上限 {max_dat_bytes} 字节"
-            f"（声明 {info.file_size} 字节，{source}）"
-        )
-    # 传 ZipInfo 而非文件名：读的一定是刚校验过的那个条目。
-    data = archive.read(info)
-    if len(data) > max_dat_bytes:
-        # 声明与实际不符（被构造过的 zip）：按实际长度再兜一次。
-        raise ResourceFormatError(
-            f"{info.filename} 实际解压长度 {len(data)} 超出上限 "
-            f"{max_dat_bytes} 字节（{source}）"
-        )
-    return data
+    return load_native().financial_zip_member(
+        archive, max_dat_bytes, max_entries, source, sys.modules[__name__]
+    )
 
 
 def parse_financial_file_list(data: bytes) -> list[tuple[str, str, int]]:
@@ -89,6 +71,11 @@ def parse_financial_file_list(data: bytes) -> list[tuple[str, str, int]]:
 
     if not data:
         return []
+    if type(data) is bytes:
+        from eltdx._native_abi import load_native
+
+        return load_native().financial_file_list(data, int)
+    # Preserve explicitly customized bytes/decode objects at the Python edge.
     text = data.decode("utf-8", errors="replace").strip()
     results: list[tuple[str, str, int]] = []
     for line in text.split("\n"):
@@ -143,6 +130,16 @@ def parse_financial_dat(
     header_size = struct.calcsize(header_fmt)
     if len(data) < header_size:
         return []
+
+    if (
+        type(data) is bytes
+        and struct is _NATIVE_STRUCT
+        and struct.calcsize is _NATIVE_CALCSIZE
+        and struct.unpack is _NATIVE_UNPACK
+    ):
+        from eltdx._native_abi import load_native
+
+        return load_native().financial_dat(data, report_date, sys.modules[__name__])
 
     header = struct.unpack(header_fmt, data[:header_size])
     max_count = header[2]
@@ -210,12 +207,9 @@ def parse_financial_dat(
 def _read_from_zip(zip_path: Path) -> bytes:
     """从 zip 中提取第一个 ``.dat`` 文件内容（带体积 / 条目 / 解压后大小限额）。"""
 
-    size = zip_path.stat().st_size
-    if size > MAX_HISTORY_ZIP_BYTES:
-        raise ResourceFormatError(
-            f"历史财务 zip 超出体积上限 {MAX_HISTORY_ZIP_BYTES} 字节: "
-            f"{zip_path}（实际 {size} 字节）"
-        )
+    from eltdx._native_abi import load_native
+
+    load_native().financial_zip_path_guard(zip_path, sys.modules[__name__])
     try:
         with zipfile.ZipFile(zip_path, "r") as archive:
             # 显式传限额（而不是依赖 read_dat_from_zip 的默认参数）：
@@ -244,23 +238,6 @@ def read_history_financial(filepath: str | Path) -> list[FinancialRecord]:
         ResourceFormatError: 文件格式非法。
     """
 
-    filepath = Path(filepath)
-    if not filepath.is_file():
-        raise FileNotFoundError(f"历史财务数据文件不存在: {filepath}")
+    from eltdx._native_abi import load_native
 
-    if filepath.suffix.lower() == ".zip":
-        data = _read_from_zip(filepath)
-    else:
-        data = filepath.read_bytes()
-
-    results: list[FinancialRecord] = []
-    for code, market_byte, report_date, fields in parse_financial_dat(data):
-        results.append(
-            FinancialRecord(
-                code=code,
-                market_id=market_byte,
-                report_date=report_date,
-                fields=tuple(fields),
-            )
-        )
-    return results
+    return load_native().financial_read_local(filepath, sys.modules[__name__])

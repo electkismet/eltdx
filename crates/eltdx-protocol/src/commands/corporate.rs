@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 use std::collections::HashMap;
 
@@ -164,6 +165,7 @@ pub struct CapitalChangeRecord {
     pub c3_value: f64,
     pub c4_value: f64,
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -178,6 +180,8 @@ pub struct CapitalChangeBlock {
 #[derive(Clone, Debug, PartialEq)]
 pub struct CapitalChangeBatch {
     pub request: CapitalChangesRequest,
+    /// Original declaration, which some servers encode as a last index.
+    pub declared_blocks: u16,
     pub blocks: Vec<CapitalChangeBlock>,
     pub raw_payload: Bytes,
 }
@@ -226,6 +230,7 @@ pub struct FinanceRecord {
     pub mei_gu_jing_zi_chan_raw_float: f32,
     pub bao_liu_2_raw_float: f32,
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -238,6 +243,23 @@ pub struct FinanceBatch {
 pub fn parse_capital_changes_payload(
     payload: &[u8],
     request: CapitalChangesRequest,
+) -> Result<CapitalChangeBatch, ProtocolError> {
+    parse_capital_changes_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_capital_changes_payload_with_context(
+    payload: Bytes,
+    request: CapitalChangesRequest,
+    options: &ParseOptions<'_>,
+) -> Result<CapitalChangeBatch, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_capital_changes_payload_body(&payload, request, &context)
+}
+
+fn parse_capital_changes_payload_body(
+    payload: &[u8],
+    request: CapitalChangesRequest,
+    context: &ParseContext<'_>,
 ) -> Result<CapitalChangeBatch, ProtocolError> {
     check_payload(payload, "capital changes")?;
     if payload.len() < 2 {
@@ -276,7 +298,10 @@ pub fn parse_capital_changes_payload(
         let mut record_offset = header_end;
         while record_offset < records_end {
             let end = record_offset.saturating_add(CAPITAL_CHANGE_RECORD_SIZE);
-            records.push(parse_capital_change_record(&payload[record_offset..end])?);
+            records.push(parse_capital_change_record(
+                &payload[record_offset..end],
+                context,
+            )?);
             record_offset = end;
         }
         blocks.push(CapitalChangeBlock {
@@ -296,14 +321,32 @@ pub fn parse_capital_changes_payload(
     }
     Ok(CapitalChangeBatch {
         request,
+        declared_blocks: reported_block_count,
         blocks,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
 pub fn parse_finance_batch_payload(
     payload: &[u8],
     request: FinanceBatchRequest,
+) -> Result<FinanceBatch, ProtocolError> {
+    parse_finance_batch_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_finance_batch_payload_with_context(
+    payload: Bytes,
+    request: FinanceBatchRequest,
+    options: &ParseOptions<'_>,
+) -> Result<FinanceBatch, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_finance_batch_payload_body(&payload, request, &context)
+}
+
+fn parse_finance_batch_payload_body(
+    payload: &[u8],
+    request: FinanceBatchRequest,
+    context: &ParseContext<'_>,
 ) -> Result<FinanceBatch, ProtocolError> {
     check_payload(payload, "finance batch")?;
     if payload.len() < 2 {
@@ -358,10 +401,10 @@ pub fn parse_finance_batch_payload(
                 format!("finance batch missing record: index={index}, count={record_count}, payload_len={}", payload.len()),
             ));
         }
-        let parsed = parse_finance_record(record).map_err(|error| {
+        let parsed = parse_finance_record(record, context).map_err(|error| {
             ProtocolError::invalid_data("finance batch", format!(
                 "finance batch invalid record: index={index}, count={record_count}, payload_len={}, head_hex={}, reason={error}",
-                payload.len(), encode_hex(&record[..32]),
+                payload.len(), context.record_hex(&record[..32]),
             ))
         })?;
         let key = (parsed.market_id, parsed.code.clone());
@@ -378,11 +421,14 @@ pub fn parse_finance_batch_payload(
     Ok(FinanceBatch {
         request,
         records,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
-fn parse_capital_change_record(record: &[u8]) -> Result<CapitalChangeRecord, ProtocolError> {
+fn parse_capital_change_record(
+    record: &[u8],
+    context: &ParseContext<'_>,
+) -> Result<CapitalChangeRecord, ProtocolError> {
     if record.len() != CAPITAL_CHANGE_RECORD_SIZE {
         return Err(ProtocolError::invalid_data(
             "capital changes",
@@ -442,11 +488,15 @@ fn parse_capital_change_record(record: &[u8]) -> Result<CapitalChangeRecord, Pro
         c2_value,
         c3_value,
         c4_value,
-        record_hex: encode_hex(record),
+        record_hex: context.record_hex(record),
+        record_range: context.record_range(record),
     })
 }
 
-fn parse_finance_record(record: &[u8]) -> Result<FinanceRecord, ProtocolError> {
+fn parse_finance_record(
+    record: &[u8],
+    context: &ParseContext<'_>,
+) -> Result<FinanceRecord, ProtocolError> {
     if record.len() != FINANCE_RECORD_SIZE {
         return Err(ProtocolError::invalid_data(
             "finance batch",
@@ -516,7 +566,7 @@ fn parse_finance_record(record: &[u8]) -> Result<FinanceRecord, ProtocolError> {
         market_id,
         market: Market::from_id(i64::from(market_id)).ok(),
         code,
-        finance_info_raw: Bytes::copy_from_slice(info),
+        finance_info_raw: context.business_bytes(info),
         liu_tong_gu_ben_raw_float,
         province_raw,
         industry_raw,
@@ -554,7 +604,8 @@ fn parse_finance_record(record: &[u8]) -> Result<FinanceRecord, ProtocolError> {
         wei_fen_li_run_raw_float,
         mei_gu_jing_zi_chan_raw_float,
         bao_liu_2_raw_float,
-        record_hex: encode_hex(record),
+        record_hex: context.record_hex(record),
+        record_range: context.record_range(record),
     })
 }
 
@@ -621,16 +672,6 @@ fn check_payload(payload: &[u8], resource: &'static str) -> Result<(), ProtocolE
     Ok(())
 }
 
-fn encode_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(data.len().saturating_mul(2));
-    for byte in data {
-        output.push(char::from(DIGITS[usize::from(*byte >> 4)]));
-        output.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
-    }
-    output
-}
-
 pub const TYPE_COMPANY_INFO_CATEGORY: u16 = 0x02cf;
 pub const TYPE_COMPANY_INFO_CONTENT: u16 = 0x02d0;
 pub const COMPANY_INFO_NAME_SIZE: usize = 64;
@@ -680,6 +721,35 @@ pub struct CompanyInfoContentRequest {
 }
 
 impl CompanyInfoContentRequest {
+    /// Strict callers can supply bytes encoded by their source-compatible GBK
+    /// policy. The existing text constructor keeps its legacy encoding policy.
+    pub fn from_encoded_filename(
+        market: Market,
+        code: &str,
+        filename: Vec<u8>,
+        offset: u32,
+        length: u32,
+    ) -> Result<Self, ProtocolError> {
+        let code = normalize_numeric_code(code)?;
+        if filename.is_empty()
+            || filename.len() > COMPANY_INFO_CONTENT_FILENAME_SIZE
+            || filename.contains(&0)
+            || length == 0
+            || offset.checked_add(length).is_none()
+        {
+            return Err(ProtocolError::invalid_argument(
+                "company info",
+                "invalid encoded filename or byte range",
+            ));
+        }
+        Ok(Self {
+            market,
+            code,
+            filename,
+            offset,
+            length,
+        })
+    }
     pub fn new(
         market: Market,
         code: &str,
@@ -816,6 +886,11 @@ pub fn parse_company_info_category_payload(
 }
 
 pub fn parse_company_info_content_payload(payload: &[u8]) -> Result<String, ProtocolError> {
+    Ok(decode_gbk_text(company_info_content_bytes(payload)?))
+}
+
+/// A bounded business byte slice, independent of the legacy lossy text policy.
+pub fn company_info_content_bytes(payload: &[u8]) -> Result<&[u8], ProtocolError> {
     check_payload(payload, "company info content")?;
     if payload.len() < COMPANY_INFO_CONTENT_HEADER_SIZE {
         return Err(ProtocolError::invalid_data(
@@ -838,9 +913,7 @@ pub fn parse_company_info_content_payload(payload: &[u8]) -> Result<String, Prot
             "truncated company info content payload",
         ));
     }
-    Ok(decode_gbk_text(
-        &payload[COMPANY_INFO_CONTENT_HEADER_SIZE..end],
-    ))
+    Ok(&payload[COMPANY_INFO_CONTENT_HEADER_SIZE..end])
 }
 
 fn normalize_numeric_code(value: &str) -> Result<String, ProtocolError> {

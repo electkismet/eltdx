@@ -1,0 +1,35 @@
+//! Source request layout registry. Native byte codecs and the Python facade
+//! share flags, tags and field layouts without sharing input-validation policy.
+pub const HEAD_FLAG: u8 = 0x1c;
+pub const STANDARD_HEAD_FLAG: u8 = 0x0c;
+pub const REQUEST_HEADER_SIZE: usize = 10;
+pub const RESPONSE_HEADER_SIZE: usize = 16;
+pub const BARS_FORMAT: &str = "<H22sHHIHHbbbbH4s";
+pub const BARS_FLAGS: [u8; 4] = [1, 1, 0, 1];
+pub const MINUTE_FORMAT: &str = "<H22sI5H";
+pub const MULTI_MINUTE_FORMAT: &str = "<H22sIHH6x";
+pub const TRANSACTIONS_FORMAT: &str = "<H22sIIH10x";
+pub const INFO_FORMAT: &str = "<H22sI12x";
+pub const BOARDS_FORMAT: &str = "<HHBBHH8x";
+pub const BOARD_MEMBERS_FORMAT: &str = "<I9xHIHBB";
+pub const JSON_FORMAT: &str = "<H8s16x21s";
+pub const AUCTION_FORMAT: &str = "<H22sII10x";
+pub const UNUSUAL_FORMAT: &str = "<HH2xH2xH5H";
+pub const OFFSETS_FORMAT: &str = "<II5x";
+pub const SAMPLING_FORMAT: &str = "<H22sHH9x";
+pub const GOODS_FORMAT: &str = "<HII";
+pub const BELONG_TAG: &[u8; 10] = b"Stock_GLHQ";
+pub const CAPITAL_TAG: &[u8; 10] = b"Stock_ZJLX";
+pub const SERVER_PREFIX: [u8; 4] = [4, 0, 0x2d, 0x31];
+pub const SERVER_MARKER: [u8; 4] = [0, 0x27, 6, 0x0e];
+pub const TRANSACTION_RECORD_FORMAT: &str = "<IfIIH";
+pub const TRANSACTION_RECORD_SIZE: usize = 18;
+pub const AUCTION_RECORD_FORMAT: &str = "<IfIi";
+pub const AUCTION_RECORD_SIZE: usize = 16;
+pub const INFO_CORE_FORMAT: &str = "<III5ffIfII";
+pub const INFO_EXTRA_FORMAT: &str = "<HIf20xI3f";
+pub const BOARD_RECORD_FORMAT: &str = "<H6s16s44sfffH6s16s44sfff";
+pub const BOARD_RECORD_SIZE: usize = 160;
+pub const GOODS_RECORD_FORMAT: &str = "<H23sHIBfffHH";
+pub const GOODS_RECORD_SIZE: usize = 48;
+pub const CHART_TAIL_FORMAT: &str = "<44sBHf5x2I5ffIf12s2fI";

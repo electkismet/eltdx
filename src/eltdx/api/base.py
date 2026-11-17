@@ -6,7 +6,13 @@ import weakref
 from typing import Any
 
 from eltdx.protocol.commands import command_code
-from eltdx.transport import Transport
+from eltdx.transport import PooledSocketTransport, SocketTransport, Transport
+
+
+_NATIVE_EXECUTE = {
+    SocketTransport: SocketTransport.execute,
+    PooledSocketTransport: PooledSocketTransport.execute,
+}
 
 
 def _weak_callback(callback: Any) -> Any:
@@ -40,10 +46,32 @@ def _weak_callback(callback: Any) -> Any:
 class ApiBase:
     """Base class for capability-specific APIs."""
 
-    def __init__(self, transport: Transport, *, price_resolver=None, metadata_sink=None) -> None:
+    def __init__(
+        self,
+        transport: Transport,
+        *,
+        price_resolver=None,
+        metadata_sink=None,
+        native_services: bool = False,
+    ) -> None:
         self._transport = transport
         self._price_resolver = _weak_callback(price_resolver)
         self._metadata_sink = _weak_callback(metadata_sink)
+        self._native_services = native_services
+
+    @property
+    def _native_services(self) -> bool:
+        if not self._native_services_requested:
+            return False
+        original = _NATIVE_EXECUTE.get(type(self._transport))
+        # Re-evaluate on each call: users can replace or restore execute on an
+        # existing instance or class after the API has already been created.
+        # Explicit custom native adapters retain their opt-in behavior.
+        return original is None or getattr(self._transport.execute, "__func__", None) is original
+
+    @_native_services.setter
+    def _native_services(self, enabled: bool) -> None:
+        self._native_services_requested = enabled
 
     def _execute(self, command_name: str, **payload: Any) -> Any:
         return self._transport.execute(command_code(command_name), payload)

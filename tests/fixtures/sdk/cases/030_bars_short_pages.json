@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "case_id": "COMP-030/bars-short-pages",
+  "source_type": "synthetic",
+  "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+  "request": {
+    "service": "klines.all_pages",
+    "code": "sz000001",
+    "page_size": 3,
+    "max_pages": null
+  },
+  "response": {
+    "pages": [
+      {"offset": 0, "count": 2, "times": ["09:40", "09:45"], "raw": "P0"},
+      {"offset": 2, "count": 2, "times": ["09:30", "09:35"], "raw": "P1"},
+      {"offset": 4, "count": 0, "times": [], "raw": "P2"}
+    ]
+  },
+  "expected": {
+    "python_compat": {
+      "request_offsets": [0, 2, 4],
+      "times": ["09:30", "09:35", "09:40", "09:45"],
+      "raw_payload": "",
+      "page_raws": ["P0", "P1", "P2"]
+    },
+    "rust": {
+      "request_offsets": [0, 2, 4],
+      "times": ["09:30", "09:35", "09:40", "09:45"],
+      "page_provenance": [1, 1, 0, 0],
+      "complete": true
+    }
+  },
+  "evidence_level": "frozen_python_contract",
+  "spec_refs": ["docs/rust-sdk/compatibility-cases.md#COMP-030", "docs/rust-sdk/hq-api-spec.md"]
+}

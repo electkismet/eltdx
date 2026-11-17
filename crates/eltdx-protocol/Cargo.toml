@@ -3,8 +3,11 @@ name = "eltdx-protocol"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license-file.workspace = true
+license-file = "LICENSE"
 repository.workspace = true
+description = "TDX wire protocol codecs and source-native response models"
+readme = "README.md"
+include = ["Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "src/**"]
 
 [dependencies]
 bytes.workspace = true

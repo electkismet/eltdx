@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import date, time
+from sys import modules as _MODULES
 from typing import TypeVar
 
 from eltdx.ex.commands.base import BaseCommand
@@ -44,13 +45,17 @@ SyncExecute = Callable[[BaseCommand[_T]], _T]
 def is_hk_stock_market(market: int) -> bool:
     """判断给定市场代码是否属于港股股票类（需走 ex 协议取逐笔成交）。"""
 
-    return market in HK_STOCK_MARKETS
+    from eltdx._native_abi import load_native
+
+    return load_native().hk_is_stock(market, _MODULES[__name__])
 
 
 def _to_ymd(query_date: date) -> int:
     """date → YYYYMMDD int。"""
 
-    return query_date.year * 10000 + query_date.month * 100 + query_date.day
+    from eltdx._native_abi import load_native
+
+    return load_native().hk_to_ymd(query_date)
 
 
 def _build_cmd(
@@ -62,21 +67,17 @@ def _build_cmd(
 ) -> BaseCommand[list[ExTransactionRecord]]:
     """根据是否有日期构建对应的 ex 协议命令。"""
 
-    if ymd is None:
-        return GetExTransactionDataCmd(market, code, offset, page_size)
-    return GetExHistoryTransactionDataCmd(market, code, ymd, offset, page_size)
+    from eltdx._native_abi import load_native
+
+    return load_native().hk_build_command((market, code, ymd, offset, page_size), _MODULES[__name__])
 
 
 def _map_record(rec: ExTransactionRecord) -> MacTransaction:
     """把 ExTransactionRecord 映射为与 A 股一致的 MacTransaction（price ÷1000 港元）。"""
 
-    return MacTransaction(
-        time=time(rec.hour, rec.minute, rec.second),
-        price=rec.price / _HK_PRICE_DIVISOR,
-        vol=rec.volume,
-        trade_count=0,
-        bs_flag=rec.nature,
-    )
+    from eltdx._native_abi import load_native
+
+    return load_native().hk_map_record(rec, _MODULES[__name__])
 
 
 def _fetch_hk_transactions_sync(
@@ -89,21 +90,12 @@ def _fetch_hk_transactions_sync(
 ) -> list[MacTransaction]:
     """同步获取港股逐笔成交（自动分页）。"""
 
-    ymd = _to_ymd(query_date) if query_date is not None else None
-    results: list[MacTransaction] = []
-    fetched = 0
-    offset = start
-    while fetched < count:
-        page_size = min(count - fetched, _HK_TRANSACTION_PAGE_SIZE)
-        batch = execute_fn(_build_cmd(market, code, ymd, offset, page_size))
-        if not batch:
-            break
-        results.extend(_map_record(r) for r in batch)
-        fetched += len(batch)
-        offset += len(batch)
-        if len(batch) < page_size:
-            break
-    return results
+    from eltdx._native_abi import load_native
+
+    return load_native().hk_transaction_pages(
+        execute_fn, (market, code, query_date, start, count), False,
+        lambda values: (value for value in values), _MODULES[__name__],
+    )
 
 
 def _fetch_all_hk_transactions_sync(
@@ -115,18 +107,12 @@ def _fetch_all_hk_transactions_sync(
 ) -> list[MacTransaction]:
     """同步获取港股某日全部逐笔成交（翻页至末页）。"""
 
-    ymd = _to_ymd(query_date) if query_date is not None else None
-    results: list[MacTransaction] = []
-    offset = start
-    for _ in range(_HK_TRANSACTION_MAX_PAGES):
-        batch = execute_fn(_build_cmd(market, code, ymd, offset, _HK_TRANSACTION_PAGE_SIZE))
-        if not batch:
-            break
-        results.extend(_map_record(r) for r in batch)
-        offset += len(batch)
-        if len(batch) < _HK_TRANSACTION_PAGE_SIZE:
-            break
-    return results
+    from eltdx._native_abi import load_native
+
+    return load_native().hk_transaction_pages(
+        execute_fn, (market, code, query_date, start), True,
+        lambda values: (value for value in values), _MODULES[__name__],
+    )
 
 
 __all__ = [

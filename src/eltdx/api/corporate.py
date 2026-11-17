@@ -13,9 +13,19 @@ from eltdx.protocol.constants import (
     MAX_CAPITAL_CHANGE_CODES,
 )
 from eltdx.protocol.unit import normalize_code
+from eltdx.protocol.commands import command_code
+from eltdx.transport import PooledSocketTransport, SocketTransport
+from eltdx.transport.native import native_module
 
 from .base import ApiBase
-from ._batch import recover_batch
+from ._batch import recover_batch, _recover_finance_native
+from . import _batch
+
+
+_NATIVE_CORPORATE_EXECUTE = {
+    SocketTransport: SocketTransport.execute,
+    PooledSocketTransport: PooledSocketTransport.execute,
+}
 
 
 FINANCE_FIELD_ALIASES = {
@@ -27,6 +37,14 @@ FINANCE_FIELD_ALIASES = {
 
 
 class CorporateApi(ApiBase):
+    def _execute(self, command_name: str, **payload: Any) -> Any:
+        execute = self._transport.execute
+        if (self._native_services and command_name in ("capital_changes", "finance_batch")
+                and type(self._transport) in _NATIVE_CORPORATE_EXECUTE
+                and getattr(execute, "__func__", None) is _NATIVE_CORPORATE_EXECUTE[type(self._transport)]):
+            execute = self._transport.sdk_corporate
+        return execute(command_code(command_name), payload)
+
     def capital_changes(
         self,
         code: str | Sequence[str],
@@ -41,10 +59,7 @@ class CorporateApi(ApiBase):
         codes = [normalize_code(item) for item in code]
         if not codes:
             raise ValueError("codes must not be empty")
-        chunks = [
-            codes[index : index + batch_size]
-            for index in range(0, len(codes), batch_size)
-        ]
+        chunks = native_module().batch_chunks(codes, batch_size)
 
         if len(chunks) == 1:
             responses = [
@@ -63,19 +78,7 @@ class CorporateApi(ApiBase):
                     )
                 )
 
-        blocks = []
-        raw_payloads = []
-        for response in responses:
-            if isinstance(response, CapitalChangeBlock):
-                blocks.append(response)
-                if response.raw_payload:
-                    raw_payloads.append(response.raw_payload)
-            elif isinstance(response, CapitalChangeBatch):
-                blocks.extend(response.blocks)
-                raw_payloads.extend(response.raw_payloads)
-            else:
-                return response
-        return CapitalChangeBatch(tuple(blocks), tuple(raw_payloads))
+        return native_module().assemble_capital(responses, CapitalChangeBlock, CapitalChangeBatch)
 
     def adjustment_factors(
         self,
@@ -86,26 +89,18 @@ class CorporateApi(ApiBase):
         batch_size: int = DEFAULT_CAPITAL_CHANGE_BATCH_SIZE,
     ):
         changes = self.capital_changes(code, batch_size=batch_size)
-        if isinstance(changes, CapitalChangeBatch):
-            return AdjustmentFactorBatch(
-                tuple(
-                    build_adjustment_factor_response(
-                        block,
-                        anchor_date=anchor_date,
-                        start_date=start_date,
-                    )
-                    for block in changes.blocks
-                )
-            )
-        if not isinstance(changes, CapitalChangeBlock):
-            return changes
-        return build_adjustment_factor_response(
-            changes,
-            anchor_date=anchor_date,
-            start_date=start_date,
+        return native_module().adjustment_batch(
+            changes, anchor_date, start_date, build_adjustment_factor_response,
+            CapitalChangeBlock, CapitalChangeBatch, AdjustmentFactorBatch,
         )
 
     def _capital_changes_chunk(self, codes: list[str], *, include_raw: bool):
+        if self._native_services and type(self) is CorporateApi:
+            return native_module().collect_capital(
+                codes,
+                lambda part: self._execute("capital_changes", codes=part, include_raw=include_raw),
+                CapitalChangeBlock, CapitalChangeBatch,
+            )
         remaining = codes
         blocks = []
         raw_payloads = []
@@ -152,15 +147,21 @@ class CorporateApi(ApiBase):
         on_missing: str = "raise",
     ):
         code_list = [codes] if isinstance(codes, str) else list(codes)
-        batch = recover_batch(
+        recovery = (_recover_finance_native
+                    if self._native_services and type(self) is CorporateApi
+                    and _batch._RECOVERY_REQUESTS == 32 else recover_batch)
+        recovery_kwargs = {} if recovery is _recover_finance_native else {"kind": "finance"}
+        batch = recovery(
             code_list,
             lambda part: self._execute("finance_batch", codes=part, include_raw=include_raw),
-            kind="finance", on_missing=on_missing,
+            on_missing=on_missing, **recovery_kwargs,
         )
         if fields is None:
             return batch
         if not hasattr(batch, "records"):
             return batch
+        if self._native_services and _select_finance_fields is _ORIGINAL_FINANCE_SELECTOR:
+            return native_module().project_finance_fields(batch.records, fields, FINANCE_FIELD_ALIASES)
         return [_select_finance_fields(record, fields) for record in batch.records]
 
 
@@ -179,3 +180,6 @@ def _validate_capital_change_batch_size(value: int) -> None:
         raise ValueError("batch_size must be an integer")
     if value <= 0 or value > MAX_CAPITAL_CHANGE_CODES:
         raise ValueError(f"batch_size must be between 1 and {MAX_CAPITAL_CHANGE_CODES}")
+
+
+_ORIGINAL_FINANCE_SELECTOR = _select_finance_fields

@@ -12,11 +12,25 @@ from eltdx.models import FileContentChunk, TdxStatsResource
 from eltdx.protocol.constants import DEFAULT_FILE_CHUNK_SIZE, MAX_FILE_CHUNK_SIZE
 from eltdx.stats import MAX_STATS_ZIP_BYTES, parse_tdx_stats_archive
 from eltdx.transport import Transport
+from eltdx.transport import SocketTransport, PooledSocketTransport
+from eltdx.transport.pool import PinnedTransportProxy
+from eltdx.transport.native import native_module
+from eltdx.protocol.commands import command_code
 
 from .base import ApiBase
 
+_NATIVE_RESOURCE_EXECUTE = {kind: kind.execute for kind in
+                            (SocketTransport, PooledSocketTransport, PinnedTransportProxy)}
+
 
 class ResourceApi(ApiBase):
+    def _execute(self, command_name, **payload):
+        execute = self._transport.execute
+        if (self._native_services and type(self._transport) in _NATIVE_RESOURCE_EXECUTE
+                and getattr(execute, "__func__", None) is _NATIVE_RESOURCE_EXECUTE[type(self._transport)]):
+            execute = self._transport.sdk_resource
+        return execute(command_code(command_name), payload)
+
     def read(self, path: str, *, offset: int = 0, size: int = DEFAULT_FILE_CHUNK_SIZE):
         """Read one byte range from a file exposed by the TDX server."""
 
@@ -41,7 +55,13 @@ class ResourceApi(ApiBase):
             max_bytes = _bounded_int(max_bytes, "max_bytes", minimum=0, maximum=0xFFFFFFFF)
 
         with _pinned_transport(self._transport) as transport:
-            reader = ResourceApi(transport)
+            reader = ResourceApi(transport, native_services=self._native_services)
+            if (self._native_services and type(self) is ResourceApi
+                    and type(transport) in _NATIVE_RESOURCE_EXECUTE
+                    and getattr(transport.execute, "__func__", None) is _NATIVE_RESOURCE_EXECUTE[type(transport)]
+                    and ResourceApi.read is _ORIGINAL_RESOURCE_READ):
+                return native_module().download_resource(reader, path, chunk_size, max_bytes,
+                                                         FileContentChunk, ProtocolError, TransportError)
             expected_host: str | None = None
             offset = 0
             chunks: list[bytes] = []
@@ -101,6 +121,9 @@ def _bounded_int(value: object, name: str, *, minimum: int, maximum: int) -> int
             f"file content {name} must be between {minimum} and {maximum}"
         )
     return number
+
+
+_ORIGINAL_RESOURCE_READ = ResourceApi.read
 
 
 @contextmanager

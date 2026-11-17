@@ -1,10 +1,11 @@
-"""扩展行情响应帧编解码（16 字节帧头 + zlib，纯 Python 实现）。"""
+"""扩展行情响应帧编解码（16 字节帧头 + zlib，native 兼容策略）。"""
 
 from __future__ import annotations
 
 import struct
 import zlib
 from dataclasses import dataclass
+from sys import modules as _MODULES
 
 from eltdx.exceptions import ProtocolError
 from eltdx.protocol.decompress import (
@@ -32,19 +33,14 @@ class FrameHeader:
 def parse_header(buf: bytes) -> FrameHeader:
     """解析 16 字节响应帧头。"""
 
-    if len(buf) < HEADER_SIZE:
-        raise ProtocolError(f"响应帧头长度不足: 需要 {HEADER_SIZE}，实际 {len(buf)}")
+    from eltdx._native_abi import load_native
+    load_native().ex_frame_header_prepare(buf, _MODULES[__name__])
+    # Preserve custom struct hooks and Python's active except context.
     try:
-        magic, seq_id, method, zipsize, unzipsize = struct.unpack_from(_HEADER_FMT, buf, 0)
+        values = load_native().extension_frame_header_values("ex", buf, _MODULES[__name__])
     except struct.error as e:  # pragma: no cover - 长度已校验
-        raise ProtocolError(f"响应帧头解析失败: {e}") from e
-    return FrameHeader(
-        magic=magic,
-        seq_id=seq_id,
-        method=method,
-        zipsize=zipsize,
-        unzipsize=unzipsize,
-    )
+        raise load_native().extension_frame_error("header", e, _MODULES[__name__]) from e
+    return load_native().extension_frame_header_model("ex", values, _MODULES[__name__])
 
 
 def decompress_body(header: FrameHeader, raw_body: bytes) -> bytes:
@@ -55,28 +51,24 @@ def decompress_body(header: FrameHeader, raw_body: bytes) -> bytes:
     截断，避免异常压缩体造成过量内存分配。
     """
 
-    if len(raw_body) != header.zipsize:
-        raise ProtocolError(f"响应 body 长度不符: header={header.zipsize}, actual={len(raw_body)}")
-    if header.zipsize == header.unzipsize:
-        body = raw_body
-    else:
+    from eltdx._native_abi import load_native
+    if load_native().extension_body_input("ex", header, raw_body, _MODULES[__name__]):
         try:
             body = decompress_limited(raw_body, MAX_FRAME_UNZIPPED_BYTES)
         except DecompressLimitError as exc:
-            raise ProtocolError(f"响应 body 解压超限: {exc}") from exc
+            raise load_native().extension_frame_error("ex_limit", exc, _MODULES[__name__]) from exc
         except zlib.error as e:
-            raise ProtocolError(f"响应 body zlib 解压失败: {e}") from e
-    if len(body) != header.unzipsize:
-        raise ProtocolError(f"响应 body 解压长度不符: header={header.unzipsize}, actual={len(body)}")
-    return body
+            raise load_native().extension_frame_error("ex_zlib", e, _MODULES[__name__]) from e
+    else:
+        body = raw_body
+    return load_native().extension_body_output("ex", header, body, _MODULES[__name__])
 
 
 def encode_header(*, seq_id: int, method: int, zipsize: int, unzipsize: int | None = None) -> bytes:
     """构造 16 字节响应帧头（测试/工具用）。"""
 
-    if unzipsize is None:
-        unzipsize = zipsize
-    return struct.pack(_HEADER_FMT, _MAGIC, seq_id, method, zipsize, unzipsize)
+    from eltdx._native_abi import load_native
+    return load_native().ex_frame_encode(seq_id, method, zipsize, unzipsize, _MODULES[__name__])
 
 
 __all__ = ["HEADER_SIZE", "FrameHeader", "parse_header", "decompress_body", "encode_header"]

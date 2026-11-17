@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "policy_id": "units_v1",
+  "source_revision": "af471f1adf38757f6aa0188968db8110eb23f6ad",
+  "decisions": {
+    "raw_values": "preserve_wire_integer_or_float_bits_and_record_scale_provenance",
+    "unknown_units": "represent_as_unknown_without_guessing_from_field_names",
+    "amount_conversion": "field_and_protocol_specific_no_global_volume_or_amount_multiplier"
+  },
+  "cases": [
+    {
+      "case_id": "hq_equity_tick",
+      "input": {"protocol": "HQ", "code": "sh600000", "price_acc_raw": 125528, "price_scale": 100, "volume_raw": 23, "volume_unit": "hand"},
+      "python_compat": {"price": 1255.28, "volume": 23, "trade_amount_yuan_formula": "price * volume * 100"},
+      "rust": {"raw_value_preserved": true, "price_cny": 1255.28, "quantity_shares": 2300, "trade_amount_cny": 2887144.0, "amount_unit": "CNY"},
+      "evidence": {"level": "source_plus_independent_arithmetic", "sources": ["crates/eltdx-protocol/src/commands/trades.rs::parse_tick_records", "src/eltdx/models/trade.py::TradeTick.trade_amount_yuan"], "independent_oracle": true, "scope": "synthetic ordinary-price scale and explicit 100-shares-per-hand arithmetic; not an oracle for every mixed-asset volume or status8 quantity"}
+    },
+    {
+      "case_id": "hq_equity_kline",
+      "input": {"protocol": "HQ", "code": "sz000001", "volume_wire_value": 2000, "volume_wire_unit": "share", "amount_raw": 123456},
+      "python_compat": {"volume_wire_value": 2000, "volume_lots": 20, "amount_unit": "CNY"},
+      "rust": {"raw_value_preserved": true, "quantity_shares": 2000, "volume_lots": 20, "amount_unit": "CNY", "amount_scale_inferred_from_volume": false},
+      "evidence": {"level": "source_and_existing_field_contract", "sources": ["src/eltdx/docs/FIELD_REFERENCE.md#普通股票与可转债K线", "crates/eltdx-protocol/src/commands/klines.rs"]}
+    },
+    {
+      "case_id": "hq_convertible_bond_kline",
+      "input": {"protocol": "HQ", "code": "sh113692", "volume_wire_value": 2, "volume_wire_unit": "hand", "shares_per_hand": 10},
+      "python_compat": {"volume_lots": 2},
+      "rust": {"raw_value_preserved": true, "volume_lots": 2, "quantity_unit": "bond_hand", "divide_by_100": false},
+      "evidence": {"level": "source_and_hand_derived", "sources": ["tests/test_protocol_unit.py::test_convertible_kline_volume_lots_are_bond_lots_not_stock_hundreds", "src/eltdx/docs/FIELD_REFERENCE.md#普通股票与可转债K线"], "independent_oracle": true}
+    },
+    {
+      "case_id": "hk_transaction",
+      "input": {"protocol": "EX_HK_TRANSACTION", "wire_price": 125528, "wire_scale": 1000},
+      "python_compat": {"price_hkd": 125.528},
+      "rust": {"raw_value_preserved": true, "price_hkd": 125.528, "unit": "HKD"},
+      "evidence": {"level": "source_review", "sources": ["src/eltdx/ex/_hk_transaction.py::_map_hk_transaction", "src/eltdx/ex/models.py::ExTransactionRecord"]}
+    },
+    {
+      "case_id": "unknown_amount",
+      "input": {"protocol": "extension_native_field", "field": "amount", "wire_value": 1000},
+      "python_compat": {"value": 1000, "documented_unit": null},
+      "rust": {"raw_value_preserved": true, "value": 1000, "unit": "unknown"},
+      "evidence": {"level": "api_contract", "sources": ["docs/rust-sdk/extension-api-spec.md#57-units"], "independent_oracle": false}
+    }
+  ],
+  "field_rules": [
+    {"field_family": "Ratio", "rule": "keep_fraction_and_percentage_points_as_distinct_units"},
+    {"field_family": "wire_float32", "rule": "preserve_bits_and_do_not_replace_non_finite_values_with_zero"},
+    {"field_family": "market_stat_amount", "rule": "retain_source_value_until_that_specific_field_unit_is_evidenced"}
+  ]
+}

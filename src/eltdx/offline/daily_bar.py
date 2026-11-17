@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import struct
+import sys
 from pathlib import Path
 
 from .models import DailyBar
@@ -15,6 +16,7 @@ from .paths import market_to_exchange, resolve_vipdoc
 
 # struct 格式：日期 开 高 低 收 额(float) 量(int) 保留(int)
 _DAILY_FMT = struct.Struct("<IIIIIfII")
+_NATIVE_DAILY_FMT = _DAILY_FMT
 
 # 证券类型 → (价格系数, 量系数)
 _SECURITY_COEFFICIENTS: dict[str, tuple[float, float]] = {
@@ -38,40 +40,17 @@ def detect_security_type(filename: str) -> str:
     ``"UNKNOWN"``（而非默认深市 A 股），避免把基金/ETF/债券误判为股票。
     """
 
-    base = Path(filename).name.lower()
-    exchange = base[:2]
-    code_head = base[2:4]
+    from eltdx._native_abi import load_native
 
-    if exchange == "sz":
-        if code_head in ("00", "30"):
-            return "SZ_A_STOCK"
-        if code_head == "20":
-            return "SZ_B_STOCK"
-        if code_head == "39":
-            return "SZ_INDEX"
-        if code_head in ("15", "16", "17", "18"):
-            return "SZ_FUND"
-        if code_head in ("10", "11", "12", "13", "14"):
-            return "SZ_BOND"
-    elif exchange == "sh":
-        if code_head in ("60", "68"):
-            return "SH_A_STOCK"
-        if code_head == "90":
-            return "SH_B_STOCK"
-        if code_head in ("00", "88", "99"):
-            return "SH_INDEX"
-        if code_head in ("50", "51", "52", "53", "55", "56", "58"):
-            return "SH_FUND"
-        if code_head in ("01", "10", "11", "12", "13", "14", "20"):
-            return "SH_BOND"
-
-    return "UNKNOWN"
+    return load_native().offline_security_type(filename, sys.modules[__name__])
 
 
 def security_coefficients(filename: str) -> tuple[float, float]:
     """返回文件名对应证券类型的 ``(价格系数, 量系数)``。"""
 
-    return _SECURITY_COEFFICIENTS.get(detect_security_type(filename), (0.01, 0.01))
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_security_coefficients(filename, sys.modules[__name__])
 
 
 def read_daily_bar(filepath: str | Path) -> list[DailyBar]:
@@ -100,6 +79,13 @@ def read_daily_bar(filepath: str | Path) -> list[DailyBar]:
         return []
 
     price_coeff, vol_coeff = security_coefficients(filepath.name)
+    if type(data) is bytes and _DAILY_FMT is _NATIVE_DAILY_FMT:
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_decode_bars(
+            data, "daily", sys.modules[__name__], (price_coeff, vol_coeff)
+        )
+    # Explicitly replaced Struct/buffer objects keep their original protocol.
     results: list[DailyBar] = []
     record_size = _DAILY_FMT.size
     # 上界写成 len(data) - record_size + 1，确保只遍历完整记录。
@@ -133,15 +119,10 @@ def encode_daily_bar(bar: DailyBar, price_coeff: float, vol_coeff: float) -> byt
         vol_coeff: 成交量系数（A 股 0.01，指数 1.0 等）。
     """
 
-    return _DAILY_FMT.pack(
-        bar.date_int,
-        int(round(bar.open / price_coeff)),
-        int(round(bar.high / price_coeff)),
-        int(round(bar.low / price_coeff)),
-        int(round(bar.close / price_coeff)),
-        bar.amount,
-        int(round(bar.volume / vol_coeff)),
-        bar.adjust_flag,
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_encode_bar(
+        bar, "daily", sys.modules[__name__], price_coeff, vol_coeff
     )
 
 
@@ -152,6 +133,6 @@ def find_daily_bar_file(
 ) -> Path:
     """根据市场和代码定位日线文件路径。"""
 
-    vipdoc_path = resolve_vipdoc(vipdoc)
-    exchange = market_to_exchange(market)
-    return vipdoc_path / exchange / "lday" / f"{exchange}{code}.day"
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_find_bar(market, code, vipdoc, sys.modules[__name__], "lday", "day")

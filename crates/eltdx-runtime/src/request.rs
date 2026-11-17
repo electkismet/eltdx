@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::deadline::Deadline;
 use crate::error::{RuntimeError, TimeoutPhase};
@@ -611,10 +611,7 @@ impl AdmissionQueue {
 
     fn remove_expired_front(&mut self, now: Instant) -> Result<Vec<WaitingPermit>, RuntimeError> {
         let mut expired = Vec::new();
-        loop {
-            let Some(request_id) = self.waiting.front().copied() else {
-                break;
-            };
+        while let Some(request_id) = self.waiting.front().copied() {
             let permit = self.waiting_permit(request_id)?;
             if !permit.deadline.is_elapsed_at(now) {
                 break;
@@ -718,6 +715,28 @@ pub struct RequestWireIdentity {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RequestDeadlinePolicy {
+    Absolute(Deadline),
+    LegacyAfterStartup(Duration),
+}
+
+impl RequestDeadlinePolicy {
+    pub(crate) const fn absolute_deadline(self) -> Option<Deadline> {
+        match self {
+            Self::Absolute(deadline) => Some(deadline),
+            Self::LegacyAfterStartup(_) => None,
+        }
+    }
+
+    pub(crate) fn resolve_after_startup(self) -> Result<Deadline, RuntimeError> {
+        match self {
+            Self::Absolute(deadline) => Ok(deadline),
+            Self::LegacyAfterStartup(timeout) => Deadline::after(timeout),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RequestCleanupCandidate {
     pub ownership: Admission,
     pub state: RequestState,
@@ -750,7 +769,8 @@ pub struct TerminalBatch {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RetryPolicy {
     retry_safe: bool,
-    max_attempts: u8,
+    max_attempts: u32,
+    strict_failures: bool,
 }
 
 impl RetryPolicy {
@@ -758,6 +778,7 @@ impl RetryPolicy {
         Self {
             retry_safe,
             max_attempts: 2,
+            strict_failures: false,
         }
     }
 
@@ -765,6 +786,15 @@ impl RetryPolicy {
         Self {
             retry_safe: false,
             max_attempts: 1,
+            strict_failures: false,
+        }
+    }
+
+    pub const fn rust_public(retry_safe: bool, max_attempts: std::num::NonZeroU32) -> Self {
+        Self {
+            retry_safe,
+            max_attempts: max_attempts.get(),
+            strict_failures: true,
         }
     }
 
@@ -772,7 +802,7 @@ impl RetryPolicy {
         self.retry_safe
     }
 
-    pub const fn max_attempts(self) -> u8 {
+    pub const fn max_attempts(self) -> u32 {
         self.max_attempts
     }
 }
@@ -789,8 +819,8 @@ pub struct RequestAttempt {
     pub request_id: RequestId,
     pub lease_id: LeaseId,
     pub slot_id: SlotId,
-    pub attempt_number: u8,
-    pub attempts_including_current: u8,
+    pub attempt_number: u32,
+    pub attempts_including_current: u32,
     pub deadline: Deadline,
     pub total_deadline: Deadline,
     pub expected_generation: Option<GenerationId>,
@@ -807,7 +837,7 @@ pub enum RetryStopReason {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RetryRetirement {
     pub wire: RequestWireIdentity,
-    pub failed_attempt: u8,
+    pub failed_attempt: u32,
     pub error: RuntimeError,
 }
 
@@ -833,7 +863,7 @@ enum RetirementIntent {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct AttemptRecord {
     policy: RetryPolicy,
-    attempts_started: u8,
+    attempts_started: u32,
     attempt_deadline: Option<Deadline>,
     business_bytes_sent: bool,
     last_failure: Option<RuntimeError>,
@@ -1051,7 +1081,12 @@ impl RequestTracker {
             return None;
         }
 
-        let reason = if !retryable {
+        let rejected_failure = record.attempt.policy.strict_failures
+            && !matches!(
+                &error,
+                RuntimeError::ConnectionClosed { .. } | RuntimeError::Timeout { .. }
+            );
+        let reason = if !retryable || rejected_failure {
             Some(RetryStopReason::NotRetryable)
         } else if record.attempt.attempts_started >= record.attempt.policy.max_attempts {
             Some(RetryStopReason::AttemptsExhausted)
@@ -1201,6 +1236,28 @@ impl RequestTracker {
         Some(wire)
     }
 
+    /// A reconnect acknowledgement already proves retirement. If the retry's
+    /// deadline elapsed while waiting for it, permit only this request's terminal
+    /// reducer, without attempting another connect or losing the old identity.
+    pub fn abort_retry_after_retirement(
+        &mut self,
+        acknowledgement: ReconnectAck,
+    ) -> Option<RequestWireIdentity> {
+        let record = self.records.get_mut(&acknowledgement.request_id)?;
+        let wire = record.wire?;
+        if record.state != RequestState::Retrying
+            || record.attempt.retirement_intent != Some(RetirementIntent::Retry)
+            || wire.engine_epoch != acknowledgement.engine_epoch
+            || wire.slot_id != acknowledgement.slot_id
+            || wire.generation != Some(acknowledgement.retired_generation)
+            || acknowledgement.next_generation == acknowledgement.retired_generation
+        {
+            return None;
+        }
+        record.attempt.retirement_intent = None;
+        Some(wire)
+    }
+
     pub fn continue_connect_after_reconnect(
         &mut self,
         acknowledgement: ReconnectAck,
@@ -1255,7 +1312,7 @@ impl RequestTracker {
         }))
     }
 
-    pub fn attempt_count(&self, request_id: RequestId) -> Option<u8> {
+    pub fn attempt_count(&self, request_id: RequestId) -> Option<u32> {
         self.records
             .get(&request_id)
             .map(|record| record.attempt.attempts_started)
@@ -1581,7 +1638,12 @@ fn start_attempt(
     }
     let deadline = owner.deadline.fair_slice_at(
         now,
-        usize::from(attempts_including_current),
+        usize::try_from(attempts_including_current).map_err(|_| {
+            RuntimeError::invalid_argument(
+                "OverflowError",
+                "wire attempt count exceeds platform capacity",
+            )
+        })?,
         TimeoutPhase::Retry,
     )?;
     let attempt_number = record

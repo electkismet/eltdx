@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from sys import modules as _MODULES
 from typing import Any
 
 # ---------------------------------------------------------------------------
@@ -618,34 +619,27 @@ _SCOPE_PARAM_INDEX: dict[str, int] = {
 def _scope(entry: str, request_body: Any) -> str | None:
     """从请求 ``Params`` 取 section（默认索引 0，个别 Entry 见 _SCOPE_PARAM_INDEX）。"""
 
-    if not isinstance(request_body, Mapping):
-        return None
-    params = request_body.get("Params")
-    if not isinstance(params, Sequence) or isinstance(params, (str, bytes, bytearray)):
-        return None
-    index = _SCOPE_PARAM_INDEX.get(entry, 0)
-    if index >= len(params):
-        return None
-    return str(params[index])
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_field_scope(
+        entry, request_body, None, True, _MODULES[__name__]
+    )
 
 
 def _split_duplicate_suffix(field: str) -> tuple[str, int | None]:
-    base, separator, suffix = field.rpartition("__")
-    if separator and suffix.isdigit() and int(suffix) >= 2:
-        return base, int(suffix)
-    return field, None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_duplicate_suffix(field, _MODULES[__name__])
 
 
 def labels_for(entry: str, request_body: Any) -> dict[str, str]:
     """返回该 Entry+scope 下已知的字段中文映射；未知 scope 返回空 dict。"""
 
-    scope = _scope(entry, request_body)
-    if scope is None:
-        return {}
-    labels = FIELD_LABELS.get((entry, scope))
-    if labels is None:
-        labels = FIELD_LABELS.get((entry, _WILDCARD))
-    return dict(labels or {})
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_field_labels(
+        entry, request_body, None, "international", _MODULES[__name__]
+    )
 
 
 def describe_fields(
@@ -655,27 +649,19 @@ def describe_fields(
 ) -> tuple[dict[str, str], list[str]]:
     """把响应字段拆成「已知中文」与「未映射（保留原名）」两部分。"""
 
-    known = labels_for(entry, request_body)
-    labels: dict[str, str] = {}
-    unmapped: list[str] = []
-    for field in fields:
-        base, duplicate_index = _split_duplicate_suffix(field)
-        label = known.get(field) or known.get(base)
-        if label is None:
-            unmapped.append(field)
-            continue
-        if duplicate_index is not None:
-            label = f"{label}（{duplicate_index}）"
-        labels[field] = label
-    return labels, unmapped
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_describe_fields(
+        entry, request_body, fields, None, "international", _MODULES[__name__]
+    )
 
 
 def is_mg_hk_entry(entry: str) -> bool:
     """是否美股/港股/新三板 F10 Entry（走 page2 网关）。"""
 
-    return entry.startswith(
-        ("CWServ.skef10_mg_", "CWServ.skef10_hk_", "CWServ.skef10_sb_")
-    )
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_international_entry(entry)
 
 
 __all__ = [

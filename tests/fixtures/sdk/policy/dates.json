@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "policy_id": "dates_v1",
+  "source_revision": "af471f1adf38757f6aa0188968db8110eb23f6ad",
+  "decisions": {
+    "trading_date": "validate_gregorian_date_only_market_open_day_is_calendar_service_data",
+    "time_zone": "preserve_source_zone_or_unknown_never_assume_utc",
+    "rust_default_today": "injected_clock_or_server_session_not_host_local_date",
+    "derived_bar_end": "preserve_real_date_rollover_in_rust"
+  },
+  "cases": [
+    {
+      "case_id": "gregorian_date_is_not_market_calendar_validation",
+      "input": "2026-10-25",
+      "python_compat": {"valid_date": true, "is_workday_without_client": false, "calendar_source": "weekday_only"},
+      "rust": {"valid": true, "trading_day_claimed": false, "calendar_lookup_required_for_market_status": true},
+      "evidence": {"level": "source_and_api_contract", "sources": ["src/eltdx/workday.py::normalize", "src/eltdx/workday.py::is_workday", "docs/rust-sdk/extension-api-spec.md#121-dates"]}
+    },
+    {
+      "case_id": "hq_exchange_local_time",
+      "input": {"protocol": "HQ", "trading_date": "2026-10-12", "local_time": "09:30:00"},
+      "python_compat": {"timezone": "+08:00", "zone_name": "Shanghai", "encoded_utc": false},
+      "rust": {"kind": "exchange_local_datetime", "offset": "+08:00", "utc_conversion_implicit": false},
+      "evidence": {"level": "source_and_model_contract", "sources": ["src/eltdx/protocol/unit.py::SHANGHAI_TZ", "src/eltdx/protocol/unit.py::decode_kline_datetime", "tests/contracts/test_native_models_contract.py"]}
+    },
+    {
+      "case_id": "mac_source_local_time",
+      "input": {"protocol": "MAC", "trading_date": "2026-10-12", "seconds_since_midnight": 34201},
+      "python_compat": {"time": "09:30:01", "datetime_timezone": null, "seconds_preserved": true},
+      "rust": {"kind": "source_local_datetime", "timezone": "unknown", "time": "09:30:01", "seconds_preserved": true},
+      "evidence": {"level": "source_review", "sources": ["src/eltdx/mac/commands.py::_combine_bar_datetime", "src/eltdx/mac/models.py::MacBar"]}
+    },
+    {
+      "case_id": "bar_end_crosses_midnight",
+      "input": {"source_datetime": "2026-10-12T23:58:00", "period_minutes": 5, "bar_time": "end"},
+      "python_compat": {"hq_derived_time": "2026-10-12T00:03:00", "ex_derived_time": "00:03 same source date", "mac_derived_datetime": "2026-10-13T00:03:00"},
+      "rust": {"derived_datetime": "2026-10-13T00:03:00", "derived_date": "2026-10-13", "source_datetime_preserved": true},
+      "evidence": {"level": "source_review", "sources": ["src/eltdx/_bar_time.py::align_time_bars", "src/eltdx/_bar_time.py::align_hour_minute_bars", "src/eltdx/_bar_time.py::align_datetime_bars"], "spec_ref": "docs/rust-sdk/compatibility-cases.md#COMP-053"}
+    },
+    {
+      "case_id": "period_eight_is_domain_specific",
+      "input": {"wire_value": 8, "parameter": 13, "mac_times": 3},
+      "python_compat": {"hq_minutes": 13, "ex_minutes": 3, "mac_minutes": 15},
+      "rust": {"minutes": {"hq_parameter_13": 13, "ex_category_8": 3, "mac_five_minute_times_3": 15}},
+      "evidence": {"level": "source_and_existing_regression_contract", "sources": ["src/eltdx/_bar_time.py::kline_period_minutes", "src/eltdx/_bar_time.py::category_to_minutes", "src/eltdx/_bar_time.py::period_to_minutes", "tests/test_bar_time.py"]}
+    },
+    {
+      "case_id": "implicit_today_source",
+      "input": null,
+      "python_compat": {"date_source": "host_local_date.today", "normalizer": "yyyymmdd(None)"},
+      "rust": {"date_source": "injected_clock_or_server_session", "uses_host_local_date": false},
+      "evidence": {"level": "source_and_api_contract", "sources": ["src/eltdx/protocol/unit.py::yyyymmdd", "docs/rust-sdk/public-api.md#81-identity-and-date"]}
+    }
+  ]
+}

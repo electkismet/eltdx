@@ -12,6 +12,25 @@ from eltdx.protocol.unit import normalize_code
 _RECOVERY_REQUESTS = 32
 
 
+def _recover_finance_native(codes, query, *, on_missing):
+    """Adapt Python callbacks/exceptions to the shared native recovery tree."""
+    from eltdx.transport.native import native_module
+
+    if on_missing not in ("raise", "skip"):
+        raise ValueError("on_missing must be 'raise' or 'skip'")
+    native = native_module()
+    responses, missing, recovered = native.recover_finance(
+        codes, query, FinanceBatch, normalize_code, ProtocolError
+    )
+    if missing:
+        if on_missing == "raise":
+            raise MissingCodesError(missing)
+        warnings.warn("batch skipped missing codes: " + ", ".join(missing), MissingCodesWarning, stacklevel=3)
+    if not recovered:
+        return responses[0]
+    return native.assemble_finance(codes, responses, normalize_code, FinanceBatch, deque)
+
+
 def recover_batch(codes, query, *, kind, on_missing):
     """Validate the policy, isolate missing singles, and never return corrupt rows."""
     if on_missing not in ("raise", "skip"):

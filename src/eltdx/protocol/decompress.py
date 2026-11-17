@@ -12,6 +12,7 @@ max_length)`` 在**产出过程中**截断，异常响应无法造成过量内�
 from __future__ import annotations
 
 import zlib
+from sys import modules as _MODULES
 
 __all__ = ["MAX_FRAME_UNZIPPED_BYTES", "decompress_limited", "DecompressLimitError"]
 
@@ -43,14 +44,5 @@ def decompress_limited(data: bytes, max_length: int = MAX_FRAME_UNZIPPED_BYTES) 
         这里显式要求 ``eof`` 为真，使行为与 :func:`zlib.decompress` 一致。
     """
 
-    decompressor = zlib.decompressobj()
-    output = decompressor.decompress(data, max_length)
-    # unconsumed_tail 非空 = 还有输入没消费完 = 输出已经超限了。
-    if decompressor.unconsumed_tail or decompressor.unused_data:
-        raise DecompressLimitError(
-            f"解压输出超过上限 {max_length} 字节，已中止（声明长度不匹配或响应异常）"
-        )
-    # 流未走到结束标记：数据被截断。与 zlib.decompress 的错误文案保持一致。
-    if not decompressor.eof:
-        raise zlib.error("Error -5 while decompressing data: incomplete or truncated stream")
-    return output
+    from eltdx._native_abi import load_native
+    return load_native().extension_decompress_limited(data, max_length, _MODULES[__name__])

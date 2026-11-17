@@ -682,6 +682,12 @@ impl Supervisor {
         self.pins.len()
     }
 
+    pub(crate) fn pin_is_open(&self, pin: PinIdentity) -> bool {
+        self.state == EngineState::Running
+            && self.active_epoch == Some(pin.engine_epoch)
+            && self.pins.state(pin) == Some(crate::pin::PinState::Open)
+    }
+
     pub fn claim_heartbeat(
         &mut self,
         request_id: RequestId,
@@ -870,6 +876,21 @@ impl Supervisor {
         decision
     }
 
+    /// Cancellation can join an already retiring attempt without starting a
+    /// second retirement. The exact wire remains owned until its acknowledgement.
+    pub(crate) fn cancel_retiring_request(&mut self, identity: RequestWireIdentity) -> bool {
+        if self.state != EngineState::Running
+            || self
+                .lifecycle_retirements
+                .contains_key(&identity.request_id)
+            || !self.requests.begin_terminal_retirement(identity)
+        {
+            self.record_stale();
+            return false;
+        }
+        true
+    }
+
     pub fn finish_retry_retirement(
         &mut self,
         acknowledgement: ReconnectAck,
@@ -937,6 +958,25 @@ impl Supervisor {
             self.record_stale();
         }
         identity
+    }
+
+    pub fn abort_retry_after_retirement(
+        &mut self,
+        acknowledgement: ReconnectAck,
+    ) -> Option<RequestWireIdentity> {
+        if self.state != EngineState::Running
+            || self
+                .lifecycle_retirements
+                .contains_key(&acknowledgement.request_id)
+        {
+            self.record_stale();
+            return None;
+        }
+        let wire = self.requests.abort_retry_after_retirement(acknowledgement);
+        if wire.is_none() {
+            self.record_stale();
+        }
+        wire
     }
 
     pub fn continue_connect_after_reconnect(
@@ -1144,7 +1184,7 @@ impl Supervisor {
         Ok(true)
     }
 
-    pub fn request_attempt_count(&self, request_id: RequestId) -> Option<u8> {
+    pub fn request_attempt_count(&self, request_id: RequestId) -> Option<u32> {
         self.requests.attempt_count(request_id)
     }
 
@@ -2155,6 +2195,7 @@ mod tests {
         raw[12..14].copy_from_slice(&1_u16.to_le_bytes());
         raw[14..16].copy_from_slice(&1_u16.to_le_bytes());
         Ok(PushFrame {
+            receive_sequence: 1,
             engine_epoch: epoch,
             slot_id: SlotId::new(0),
             generation: GenerationId::new(1)?,

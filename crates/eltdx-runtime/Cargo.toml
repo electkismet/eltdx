@@ -3,15 +3,18 @@ name = "eltdx-runtime"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-license-file.workspace = true
+license-file = "LICENSE"
 repository.workspace = true
+description = "TDX transport engine, bounded request dispatch and resource lifecycle"
+readme = "README.md"
+include = ["Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "src/**"]
 
 [features]
 loom = ["dep:loom"]
 
 [dependencies]
 bytes.workspace = true
-eltdx-protocol = { path = "../eltdx-protocol" }
+eltdx-protocol = { path = "../eltdx-protocol", version = "=3.3.5" }
 loom = { workspace = true, optional = true }
 rand.workspace = true
 socket2.workspace = true

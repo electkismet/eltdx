@@ -6,6 +6,9 @@
 
 use std::sync::Arc;
 
+use eltdx::__python_compat::{
+    LegacyBarSeries, LegacySnapshotBatch, LegacySnapshotState, LegacyTradeRead,
+};
 use eltdx_protocol::commands::{
     auctions::{AuctionPoint, AuctionSeries},
     corporate::{
@@ -583,6 +586,35 @@ fn quote_snapshots<'py>(py: Python<'py>, values: &[QuoteSnapshot]) -> PyResult<O
     tuple(py, fields)
 }
 
+pub fn legacy_snapshot_batch_to_python(
+    py: Python<'_>,
+    batch: &LegacySnapshotBatch,
+) -> PyResult<Py<PyAny>> {
+    let mut items = Vec::with_capacity(batch.items.len());
+    let mut missing = Vec::new();
+    for item in &batch.items {
+        match &item.state {
+            LegacySnapshotState::Present { row, .. } => {
+                items.push(quote_snapshots(py, std::slice::from_ref(row))?);
+            }
+            LegacySnapshotState::Missing => {
+                items.push(none(py));
+                missing.push(any(py, item.requested.full_code())?);
+            }
+            LegacySnapshotState::Unmatched => continue,
+        }
+    }
+    let payload = tuple(
+        py,
+        vec![
+            list(py, items)?,
+            tuple(py, missing)?,
+            any(py, batch.recovered)?,
+        ],
+    )?;
+    tagged(py, "legacy_snapshots", payload)
+}
+
 fn market_id_name(value: u8) -> &'static str {
     match value {
         0 => "sz",
@@ -1119,6 +1151,14 @@ fn minute_aux_point<'py>(
 }
 
 fn klines<'py>(py: Python<'py>, value: &KlineSeries) -> PyResult<Obj> {
+    klines_with_request_count(py, value, usize::from(value.request.count))
+}
+
+fn klines_with_request_count<'py>(
+    py: Python<'py>,
+    value: &KlineSeries,
+    request_count: usize,
+) -> PyResult<Obj> {
     let req = &value.request;
     tuple(
         py,
@@ -1130,7 +1170,7 @@ fn klines<'py>(py: Python<'py>, value: &KlineSeries) -> PyResult<Obj> {
             any(py, req.period.parameter)?,
             any(py, req.period.name())?,
             any(py, req.start)?,
-            any(py, req.count)?,
+            any(py, request_count)?,
             any(py, req.adjust as u16)?,
             any(py, req.adjust.as_str())?,
             any(py, req.anchor_date_raw)?,
@@ -1198,6 +1238,14 @@ fn delisted_klines<'py>(
     py: Python<'py>,
     value: &eltdx_protocol::commands::delisted_bars::DelistedKlineSeries,
 ) -> PyResult<Obj> {
+    delisted_klines_with_request_count(py, value, usize::from(value.request.count))
+}
+
+fn delisted_klines_with_request_count<'py>(
+    py: Python<'py>,
+    value: &eltdx_protocol::commands::delisted_bars::DelistedKlineSeries,
+    request_count: usize,
+) -> PyResult<Obj> {
     tuple(
         py,
         vec![
@@ -1208,7 +1256,7 @@ fn delisted_klines<'py>(
             any(py, 1_u16)?,
             any(py, "day")?,
             any(py, value.request.start)?,
-            any(py, value.request.count)?,
+            any(py, request_count)?,
             any(py, 0_u16)?,
             any(py, "none")?,
             any(py, 0_u32)?,
@@ -1224,6 +1272,23 @@ fn delisted_klines<'py>(
             raw_payload(py, value.request.include_raw, &value.raw_payload),
         ],
     )
+}
+
+pub fn legacy_bar_series_to_python(py: Python<'_>, value: &LegacyBarSeries) -> PyResult<Obj> {
+    let payload = match &value.response {
+        CommandResponse::Klines(series) => {
+            klines_with_request_count(py, series, value.request_count)?
+        }
+        CommandResponse::DelistedKlines(series) => {
+            delisted_klines_with_request_count(py, series, value.request_count)?
+        }
+        _ => {
+            return Err(PyValueError::new_err(
+                "native bar service returned a non-OHLC response",
+            ))
+        }
+    };
+    tagged(py, "klines", payload)
 }
 fn today_intraday<'py>(
     py: Python<'py>,
@@ -1439,6 +1504,14 @@ fn today_ticks<'py>(
     py: Python<'py>,
     value: &TradePage<eltdx_protocol::commands::trades::TodayTicksRequest>,
 ) -> PyResult<Obj> {
+    today_ticks_with_count(py, value, usize::from(value.request.count))
+}
+
+fn today_ticks_with_count(
+    py: Python<'_>,
+    value: &TradePage<eltdx_protocol::commands::trades::TodayTicksRequest>,
+    count: usize,
+) -> PyResult<Obj> {
     let req = &value.request;
     tuple(
         py,
@@ -1447,7 +1520,7 @@ fn today_ticks<'py>(
             any(py, req.code.market().id())?,
             any(py, req.code.number())?,
             any(py, req.start)?,
-            any(py, req.count)?,
+            any(py, count)?,
             trade_ticks(py, &value.ticks, req.include_raw)?,
             none(py),
             value
@@ -1461,6 +1534,14 @@ fn historical_ticks<'py>(
     py: Python<'py>,
     value: &TradePage<eltdx_protocol::commands::trades::HistoricalTicksRequest>,
 ) -> PyResult<Obj> {
+    historical_ticks_with_count(py, value, usize::from(value.request.count))
+}
+
+fn historical_ticks_with_count(
+    py: Python<'_>,
+    value: &TradePage<eltdx_protocol::commands::trades::HistoricalTicksRequest>,
+    count: usize,
+) -> PyResult<Obj> {
     let req = &value.request;
     tuple(
         py,
@@ -1469,7 +1550,7 @@ fn historical_ticks<'py>(
             any(py, req.code.market().id())?,
             any(py, req.code.number())?,
             any(py, req.start)?,
-            any(py, req.count)?,
+            any(py, count)?,
             trade_ticks(py, &value.ticks, req.include_raw)?,
             date(py, Some(req.trading_date))?,
             value
@@ -1478,6 +1559,89 @@ fn historical_ticks<'py>(
             raw_payload(py, req.include_raw, &value.raw_payload),
         ],
     )
+}
+
+pub fn legacy_trade_read_to_python(
+    py: Python<'_>,
+    value: &LegacyTradeRead,
+    bulk: bool,
+) -> PyResult<Obj> {
+    if value.opening_only {
+        let include_raw = match &value.response {
+            CommandResponse::TodayTicks(page) => page.request.include_raw,
+            CommandResponse::HistoricalTicks(page) => page.request.include_raw,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "native trade read returned nontrade data",
+                ))
+            }
+        };
+        return match &value.opening {
+            None => Ok(py.None()),
+            Some(tick) => tagged(
+                py,
+                "trade_tick",
+                trade_ticks(py, std::slice::from_ref(tick), include_raw)?,
+            ),
+        };
+    }
+    if bulk {
+        let CommandResponse::HistoricalTicks(page) = &value.response else {
+            return Err(PyValueError::new_err(
+                "trade batch only supports historical ticks",
+            ));
+        };
+        let mut offset = 0_usize;
+        let mut blocks = Vec::with_capacity(value.page_lengths.len());
+        for &length in &value.page_lengths {
+            let end = offset
+                .checked_add(length)
+                .ok_or_else(|| PyValueError::new_err("trade block range overflow"))?;
+            let rows = page
+                .ticks
+                .get(offset..end)
+                .ok_or_else(|| PyValueError::new_err("trade block exceeds aggregate rows"))?;
+            blocks.push(trade_ticks(py, rows, page.request.include_raw)?);
+            offset = end;
+        }
+        if offset != page.ticks.len() {
+            return Err(PyValueError::new_err("trade blocks omit aggregate rows"));
+        }
+        return tagged(
+            py,
+            "historical_trade_batch",
+            tuple(
+                py,
+                vec![
+                    any(py, page.request.code.market().as_str())?,
+                    any(py, page.request.code.market().id())?,
+                    any(py, page.request.code.number())?,
+                    any(py, page.request.start)?,
+                    any(py, value.request_count)?,
+                    tuple(py, blocks)?,
+                    date(py, Some(page.request.trading_date))?,
+                    page.price_base_raw_f32
+                        .map_or_else(|| Ok(none(py)), |base| any(py, f64::from(base)))?,
+                    raw_payload(py, page.request.include_raw, &page.raw_payload),
+                ],
+            )?,
+        );
+    }
+    match &value.response {
+        CommandResponse::TodayTicks(page) => tagged(
+            py,
+            "today_ticks",
+            today_ticks_with_count(py, page, value.request_count)?,
+        ),
+        CommandResponse::HistoricalTicks(page) => tagged(
+            py,
+            "historical_ticks",
+            historical_ticks_with_count(py, page, value.request_count)?,
+        ),
+        _ => Err(PyValueError::new_err(
+            "native trade read returned nontrade data",
+        )),
+    }
 }
 fn sparkline<'py>(py: Python<'py>, value: &SparklineSeries) -> PyResult<Obj> {
     let req = &value.request;

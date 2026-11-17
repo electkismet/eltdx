@@ -89,6 +89,14 @@ def test_constructor_probes_both_host_groups_once_without_connecting(
             self.connect()
             return payload
 
+        def sdk_auction(self, command, payload):
+            assert command == 0x056A
+            return self.execute(command, payload)
+
+        def sdk_money_flow(self, command, payload):
+            assert command == 0x0FFC
+            return self.execute(command, payload)
+
         def close(self):
             self.connected = False
 

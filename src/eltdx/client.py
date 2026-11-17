@@ -226,15 +226,26 @@ class TdxClient:
         # 必须在构造各 API 之前完成排序：MoneyFlowApi 需要 _dedicated_hosts 作为
         # 空数据故障转移的候选主机列表（构造期取值，之后不再刷新）。
         self._prepare_host_rankings()
-        self.session = SessionApi(self.transport)
-        self.codes = CodeApi(self.transport, metadata_sink=self._cache_security_rows)
-        self.quotes = QuoteApi(self.transport, price_resolver=self._normalize_prices)
-        self.resources = ResourceApi(self.transport)
-        self.bars = BarApi(self.transport)
-        self.delisted_bars = DelistedBarApi(self.transport)
-        self.minutes = MinuteApi(self.transport, price_resolver=self._normalize_prices)
+        native_services = type(self.transport) in (PooledSocketTransport, SocketTransport)
+        self.session = SessionApi(self.transport, native_services=native_services)
+        self.codes = CodeApi(
+            self.transport,
+            metadata_sink=self._cache_security_rows,
+            native_services=native_services,
+        )
+        self.quotes = QuoteApi(
+            self.transport,
+            price_resolver=self._normalize_prices,
+            native_services=native_services,
+        )
+        self.resources = ResourceApi(self.transport, native_services=native_services)
+        self.bars = BarApi(self.transport, native_services=native_services)
+        self.delisted_bars = DelistedBarApi(self.transport, native_services=native_services)
+        self.minutes = MinuteApi(self.transport, price_resolver=self._normalize_prices,
+                                 native_services=native_services)
         self.money_flow = MoneyFlowApi(
             self.transport,
+            native_services=native_services,
             transport_factory=(
                 self._build_money_flow_transport
                 if isinstance(self.transport, PooledSocketTransport)
@@ -243,18 +254,19 @@ class TdxClient:
             f10_factory=self._provide_f10_client,
             candidate_hosts=self._dedicated_hosts,
         )
-        self.trades = TradeApi(self.transport)
+        self.trades = TradeApi(self.transport, native_services=native_services)
         self.auctions = AuctionApi(
             self.transport,
+            native_services=native_services,
             transport_factory=(
                 self._build_dedicated_market_transport
                 if isinstance(self.transport, PooledSocketTransport)
                 else None
             ),
         )
-        self.corporate = CorporateApi(self.transport)
-        self.company_info = CompanyInfoApi(self.transport)
-        self.limits = LimitApi(self.transport)
+        self.corporate = CorporateApi(self.transport, native_services=native_services)
+        self.company_info = CompanyInfoApi(self.transport, native_services=native_services)
+        self.limits = LimitApi(self.transport, native_services=native_services)
         self.workdays = WorkdayService(self)
         self.f10 = F10Client(timeout=self.timeout)
         self.helpers = HelperApi(self)

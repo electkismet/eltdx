@@ -7,10 +7,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 
 from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE
+from eltdx.protocol.commands import command_code
 from eltdx.protocol.unit import normalize_code
+from eltdx.transport.native import native_module
 
 from .base import ApiBase
-from .bars import _batch_workers, _validate_batch_size
+from .bars import _batch_workers, _native_bar_arguments, _native_page_limit, _validate_batch_size
 
 
 class DelistedBarApi(ApiBase):
@@ -54,11 +56,18 @@ class DelistedBarApi(ApiBase):
                 )
 
             with ThreadPoolExecutor(max_workers=workers) as executor:
-                results: dict[str, object] = {}
-                for offset in range(0, len(codes), workers):
-                    chunk = codes[offset : offset + workers]
-                    results.update(zip(chunk, executor.map(query, chunk)))
-                return results
+                return native_module().map_batches(executor, codes, query, workers)
+
+        if self._native_services and type(all_pages) is bool and _native_bar_arguments(
+            start, include_raw, max_pages if all_pages else None, "start"
+        ):
+            return self._transport.sdk_bars(
+                command_code("delisted_bars"),
+                dict(code=code, start=start, count=page_size if all_pages else count,
+                     include_raw=include_raw),
+                collect=bool(all_pages),
+                max_pages=_native_page_limit(max_pages) if all_pages else None,
+            )
 
         if not all_pages:
             return self._get_page(code, start=start, count=count, include_raw=include_raw)

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from datetime import date as _date
+from sys import modules as _MODULES
 from types import TracebackType
 from typing import TypeVar
 
@@ -70,6 +71,32 @@ _TRANSACTION_PAGE_SIZE = 1000
 XdxrProvider = Callable[[int, str], "Sequence[XdxrEvent] | None"]
 
 
+def _native_connect_attempt(client, domain, target):
+    """Only connect failures are caught; the caller constructs the connection."""
+    from eltdx._native_abi import load_native
+
+    native = load_native()
+    try:
+        conn = native.extension_client_connect_one(domain, client, target, _MODULES[__name__])
+    except TransportError as exc:
+        native.extension_client_connect_failed(domain, client, target, exc, _MODULES[__name__])
+        return False, exc
+    return True, conn
+
+
+def _native_execute_attempt(client, domain, command):
+    from eltdx._native_abi import load_native
+
+    try:
+        result = client._conn.execute(command)
+    except TransportError as exc:
+        return load_native().extension_client_recover(
+            client=client, domain=domain, command=command, cause=exc,
+            module=_MODULES[__name__], assert_enabled=__debug__,
+        )
+    return True, result, False
+
+
 def convert_board_code(board_symbol: str) -> int:
     """将用户可见的板块代码转换为服务器协议代码。
 
@@ -84,21 +111,9 @@ def convert_board_code(board_symbol: str) -> int:
         其他      -> int(N)
     """
 
-    s = board_symbol.strip()
-    if s.startswith("US"):
-        return 30000 + int(s[2:])
-    if s.startswith("HK"):
-        return 20000 + int(s[2:])
-    if len(s) == 6:
-        if s.startswith("88"):
-            return int(s) - 880000 + 20000
-        if s.startswith("399"):
-            return int(s) - 399000 + 30000
-        if s.startswith("899"):
-            return int(s) - 899000 + 32000
-        if s.startswith("000"):
-            return 31000 + int(s)
-    return int(s)
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_board_code(board_symbol, _MODULES[__name__])
 
 
 class MacClient:
@@ -129,20 +144,11 @@ class MacClient:
         socket_factory: SocketFactory | None = None,
         xdxr_provider: XdxrProvider | None = None,
     ) -> None:
-        if hosts is not None:
-            self._hosts = [str(h) for h in hosts]
-        elif host is not None:
-            self._hosts = [host]
-        else:
-            self._hosts = list(MAC_HOSTS)
-        if not self._hosts:
-            raise ValueError("至少需要一个 host")
-        self._port = port if port is not None else MAC_PORT
-        self._timeout = timeout if timeout is not None else MAC_TIMEOUT
-        self._socket_factory = socket_factory
-        self._xdxr_provider = xdxr_provider
-        self._host_index = 0
-        self._conn: MacConnection | None = None
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_init(
+            "mac", self, (host, port, timeout, hosts, socket_factory, xdxr_provider), _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------ #
     # 连接管理
@@ -152,13 +158,17 @@ class MacClient:
     def host(self) -> str:
         """当前选中的服务器地址。"""
 
-        return self._hosts[self._host_index]
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("mac", "host", self, _MODULES[__name__])
 
     @property
     def hosts(self) -> list[str]:
         """候选服务器地址列表（只读副本）。"""
 
-        return list(self._hosts)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("mac", "hosts", self, _MODULES[__name__])
 
     @staticmethod
     def ping_all(
@@ -172,7 +182,9 @@ class MacClient:
         服务器信息响应，因此端口开放但非 MAC 行情的主机不会被计入。
         """
 
-        return ping_mac_all(hosts, port if port is not None else MAC_PORT, timeout)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_ping("mac", (hosts, port, timeout), _MODULES[__name__])
 
     @classmethod
     def from_best_host(
@@ -193,13 +205,11 @@ class MacClient:
         参数比缺少它更容易误导。
         """
 
-        ranked = ping_mac_all(hosts, port if port is not None else MAC_PORT, ping_timeout)
-        candidates = [str(h) for h in hosts] if hosts else list(MAC_HOSTS)
-        best = ranked[0][0] if ranked else (candidates[0] if candidates else None)
-        if best is None:
-            raise ValueError("hosts 不能为空")
-        ordered = [best] + [h for h in candidates if h != best]
-        return cls(best, port, timeout, hosts=ordered)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_best(
+            "mac", cls, (hosts, port, timeout, ping_timeout), _MODULES[__name__]
+        )
 
     def connect(self) -> None:
         """连接服务器：按候选列表逐个尝试，成功即记录为当前主机。
@@ -208,43 +218,23 @@ class MacClient:
         泄漏上一条 socket，也不会出现「重连失败反而把可用连接关掉」的窗口。
         """
 
-        last_exc: TransportError | None = None
-        for offset in range(len(self._hosts)):
-            idx = (self._host_index + offset) % len(self._hosts)
-            conn = MacConnection(
-                self._hosts[idx],
-                self._port,
-                self._timeout,
-                socket_factory=self._socket_factory,
-            )
-            try:
-                conn.connect()
-            except TransportError as exc:
-                last_exc = exc
-                conn.close()
-                continue
-            # 接管新连接，并释放被替换掉的旧连接。
-            # 顺序很关键：先让 self._conn 指向新连接，再关旧的 —— 旧连接必须在
-            # 新连接确认可用之后才关，否则重连失败会把还能用的连接弄丢。
-            previous = self._conn
-            self._host_index = idx
-            self._conn = conn
-            if previous is not None and previous is not conn:
-                previous.close()
-            return
-        raise last_exc or TransportError("无可用 MAC 服务器")
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_connect("mac", self, _MODULES[__name__])
 
     def close(self) -> None:
         """关闭当前连接（幂等）。"""
 
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac", "close", self, _MODULES[__name__])
 
     def disconnect(self) -> None:
         """``close()`` 的别名。"""
 
-        self.close()
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac", "disconnect", self, _MODULES[__name__])
 
     def ensure_connected(self) -> None:
         """验证连接存活，断线则自动重建。
@@ -255,11 +245,14 @@ class MacClient:
         候选列表的下一台并重试一次，因此这里不需要单独的 ``_reconnect``。
         """
 
-        self._execute(KlineOffsetCmd(0, 1))
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac", "ensure", self, _MODULES[__name__])
 
     def __enter__(self) -> "MacClient":
-        self.connect()
-        return self
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("mac", "enter", self, _MODULES[__name__])
 
     def __exit__(
         self,
@@ -267,22 +260,16 @@ class MacClient:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        self.close()
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac", "exit", self, _MODULES[__name__])
 
     def _execute(self, cmd) -> object:
         """执行命令；传输失败时切换到下一台主机重试一次。"""
 
-        if self._conn is None:
-            self.connect()
-        assert self._conn is not None
-        try:
-            return self._conn.execute(cmd)
-        except TransportError:
-            self.close()
-            self._host_index = (self._host_index + 1) % len(self._hosts)
-            self.connect()
-            assert self._conn is not None
-            return self._conn.execute(cmd)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_execute("mac", self, cmd, _MODULES[__name__], __debug__)
 
     # ------------------------------------------------------------------ #
     # 报价
@@ -300,7 +287,9 @@ class MacClient:
             fields: 字段选择，默认 :attr:`PresetField.COMMON`。
         """
 
-        return self._execute(SymbolQuotesCmd(stocks, fields))  # type: ignore[return-value]
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "quotes", (stocks, fields), None, _MODULES[__name__])
 
     def get_stock_quotes_list(
         self,
@@ -324,38 +313,12 @@ class MacClient:
             fields: 请求字段集合，默认 ``PresetField.BASIC + PresetField.VOLUME``。
         """
 
-        if fields is None:
-            fields = PresetField.BASIC + PresetField.VOLUME
-        all_quotes: list[MacQuoteField] = []
-        fetched = 0
-        offset = start
+        from eltdx._native_abi import load_native
 
-        while fetched < count:
-            # 每页按**剩余条数**请求：固定用 _BOARD_MEMBERS_PAGE_SIZE 会让最后一页
-            # 超量（count=100 → 两页各 80 → 返回 160 条）。
-            page_size = min(count - fetched, _BOARD_MEMBERS_PAGE_SIZE)
-            batch = self._execute(
-                BoardMembersQuotesCmd(
-                    board_code=int(category),
-                    sort_type=sort_type,
-                    start=offset,
-                    page_size=page_size,
-                    sort_order=sort_order,
-                    fields=fields,
-                    exclude_flags=exclude_flags,
-                )
-            )
-            if not batch:
-                break
-            # 服务端已按 sort_type/sort_order 排好序，跨页直接顺序拼接。
-            # 注意不要像 _fetch_kline_pages 那样前插 —— 那是为 K 线倒序返回准备的。
-            all_quotes.extend(batch)
-            fetched += len(batch)
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-
-        return all_quotes
+        return load_native().mac_page_query(
+            self, "quotes", (category, start, count, sort_type, sort_order, exclude_flags, fields),
+            _MODULES[__name__],
+        )
 
     # ------------------------------------------------------------------ #
     # K 线（支持复权）
@@ -373,30 +336,11 @@ class MacClient:
     ) -> list[MacBar]:
         """分页拉取指定复权类型的 K 线（返回 oldest -> newest 的 MacBar 列表）。"""
 
-        all_bars: list[MacBar] = []
-        fetched = 0
-        offset = start
-        while fetched < count:
-            page_size = min(count - fetched, _KLINE_PAGE_SIZE)
-            bars = self._execute(
-                SymbolBarCmd(
-                    market=market,
-                    code=code,
-                    period=period,
-                    times=times,
-                    start=offset,
-                    count=page_size,
-                    fq=fq,
-                )
-            )
-            if not bars:
-                break
-            all_bars = bars + all_bars
-            fetched += len(bars)
-            offset += len(bars)
-            if len(bars) < page_size:
-                break
-        return all_bars
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_page_query(
+            self, "bars", (market, code, period, start, count, times, fq), _MODULES[__name__]
+        )
 
     def _local_recompute_qfq(
         self,
@@ -410,15 +354,9 @@ class MacClient:
         价格时返回 ``None``，调用方降级返回服务端原始结果。
         """
 
-        if self._xdxr_provider is None:
-            return None
-        events = self._xdxr_provider(market, code)
-        if not events:
-            return None
-        out = apply_forward_adjust(bars, events)
-        if has_bad_prices(out):
-            return None
-        return out
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_local_recompute(self, bars, market, code, _MODULES[__name__])
 
     def get_stock_kline(
         self,
@@ -449,21 +387,10 @@ class MacClient:
                 ``11:30``）。仅对分钟级周期生效；日线及以上不受影响。
         """
 
-        bars = self._fetch_kline_pages(market, code, period, start, count, times, adjust)
+        from eltdx._native_abi import load_native
 
-        if adjust == Adjust.QFQ and bars and has_bad_prices(bars):
-            none_bars = self._fetch_kline_pages(
-                market, code, period, start, count, times, Adjust.NONE
-            )
-            if none_bars:
-                recomputed = self._local_recompute_qfq(none_bars, market, code)
-                if recomputed is not None:
-                    bars = recomputed
-
-        return align_datetime_bars(
-            bars,
-            delta_minutes=period_to_minutes(period, times),
-            bar_time=bar_time,
+        return load_native().mac_stock_kline(
+            self, (market, code, period, start, count, times, adjust), bar_time, _MODULES[__name__]
         )
 
     # ------------------------------------------------------------------ #
@@ -484,7 +411,9 @@ class MacClient:
             date: 查询日期（``YYYYMMDD`` 整数），``None`` 表示今天。
         """
 
-        return self._execute(SymbolTickChartCmd(market, code, _ymd_to_date(date)))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "tick", (market, code, date), None, _MODULES[__name__])
 
     def get_tick_charts(
         self,
@@ -502,12 +431,16 @@ class MacClient:
             days: 天数。
         """
 
-        return self._execute(TickChartsCmd(market, code, _ymd_to_date(date), days))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "ticks", (market, code, date, days), None, _MODULES[__name__])
 
     def get_chart_sampling(self, market: int, code: str) -> list[float]:
         """获取分时缩略采样价格点（240 个点）。"""
 
-        return self._execute(ChartSamplingCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "sampling", (market, code), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 逐笔成交
@@ -531,27 +464,11 @@ class MacClient:
             date: 查询日期（``YYYYMMDD``），``None`` 表示今天。
         """
 
-        query_date = _ymd_to_date(date)
-        all_items = self._execute(
-            SymbolTransactionCmd(
-                market, code, query_date, start, min(count, _TRANSACTION_PAGE_SIZE)
-            )
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_page_query(
+            self, "transactions", (market, code, count, start, date), _MODULES[__name__]
         )
-        fetched = len(all_items)
-        offset = start + fetched
-        while fetched < count:
-            page_size = min(count - fetched, _TRANSACTION_PAGE_SIZE)
-            batch = self._execute(
-                SymbolTransactionCmd(market, code, query_date, offset, page_size)
-            )
-            if not batch:
-                break
-            all_items.extend(batch)
-            fetched += len(batch)
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-        return all_items
 
     # ------------------------------------------------------------------ #
     # 个股信息
@@ -560,7 +477,9 @@ class MacClient:
     def get_symbol_info(self, market: int, code: str) -> MacSymbolInfo:
         """获取个股简要特征快照。"""
 
-        return self._execute(SymbolInfoCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "symbol", (market, code), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 板块
@@ -578,20 +497,9 @@ class MacClient:
             count: 请求总数。
         """
 
-        all_items = self._execute(BoardListCmd(board_type, 0, min(count, 150)))
-        fetched = len(all_items)
-        offset = fetched
-        while fetched < count:
-            page_size = min(count - fetched, 150)
-            batch = self._execute(BoardListCmd(board_type, offset, page_size))
-            if not batch:
-                break
-            all_items.extend(batch)
-            fetched += len(batch)
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-        return all_items
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_page_query(self, "boards", (board_type, count), _MODULES[__name__])
 
     def get_board_members(
         self,
@@ -613,37 +521,19 @@ class MacClient:
             exclude_flags: 过滤标志列表。
         """
 
-        board_code = convert_board_code(board_symbol)
-        all_quotes: list[MacQuoteField] = []
-        fetched = 0
-        offset = 0
-        while fetched < count:
-            page_size = min(count - fetched, _BOARD_MEMBERS_PAGE_SIZE)
-            batch = self._execute(
-                BoardMembersQuotesCmd(
-                    board_code=board_code,
-                    sort_type=sort_type,
-                    start=offset,
-                    page_size=page_size,
-                    sort_order=sort_order,
-                    fields=fields,
-                    exclude_flags=exclude_flags,
-                )
-            )
-            if not batch:
-                break
-            # 顺序拼接，保留服务端的跨页排序（整页前插会把第 2 页排到最前）。
-            all_quotes.extend(batch)
-            fetched += len(batch)
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-        return all_quotes
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_page_query(
+            self, "members", (board_symbol, count, sort_type, sort_order, fields, exclude_flags),
+            _MODULES[__name__],
+        )
 
     def get_belong_board(self, market: int, code: str) -> list[BelongBoardInfo]:
         """获取个股所属板块列表。"""
 
-        return self._execute(SymbolBelongBoardCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "belong", (market, code), None, _MODULES[__name__])
 
     def get_board_summary(
         self,
@@ -660,53 +550,12 @@ class MacClient:
         """
 
         from .bitmap import FieldBit
+        from eltdx._native_abi import load_native
 
-        fields = (
-            PresetField.BASIC
-            + FieldBit.AMOUNT
-            + FieldBit.MAIN_NET_AMOUNT
-            + FieldBit.MAIN_NET_3D_AMOUNT
-            + FieldBit.MAIN_NET_5D_AMOUNT
+        return load_native().mac_board_summary(
+            self, board_symbol, sort_type, sort_order, FieldBit,
+            lambda values: (value for value in values), _MODULES[__name__],
         )
-        members = self.get_board_members(
-            board_symbol,
-            sort_type=sort_type,
-            sort_order=sort_order,
-            fields=fields,
-        )
-
-        def _f(field: str) -> float:
-            return float(sum(float(q.fields.get(field, 0.0) or 0.0) for q in members))
-
-        amount = _f("amount")
-        main_net_amount = _f("main_net_amount")
-        main_net_3d = _f("main_net_3d_amount")
-        main_net_5d = _f("main_net_5d_amount")
-        vol = int(sum(int(q.fields.get("vol", 0) or 0) for q in members))
-        up_count = sum(
-            1
-            for q in members
-            if float(q.fields.get("close", 0.0) or 0.0)
-            > float(q.fields.get("pre_close", 0.0) or 0.0)
-        )
-        down_count = sum(
-            1
-            for q in members
-            if float(q.fields.get("close", 0.0) or 0.0)
-            < float(q.fields.get("pre_close", 0.0) or 0.0)
-        )
-
-        return {
-            "member_count": len(members),
-            "amount": amount,
-            "vol": vol,
-            "main_net_amount": main_net_amount,
-            "main_net_3d": main_net_3d,
-            "main_net_5d": main_net_5d,
-            "up_count": up_count,
-            "down_count": down_count,
-            "members": members,
-        }
 
     def get_board_ranking(
         self,
@@ -740,52 +589,20 @@ class MacClient:
             这是拿到正确排名的必要代价，不是可以优化掉的。
         """
 
-        valid_sort = {"change_pct", "amount", "main_net_amount", "vol"}
-        if sort_by not in valid_sort:
-            raise ValueError(f"sort_by 必须是 {valid_sort} 之一， got {sort_by!r}")
+        from eltdx._native_abi import load_native
 
-        boards = self.get_board_list(board_type)
-        if not boards:
-            return []
-
-        change_by_code: dict[str, float] = {}
-        for board in boards:
-            pre = board.pre_close if board.pre_close else float("nan")
-            change_by_code[board.code] = (
-                (board.price - board.pre_close) / pre * 100 if pre == pre else 0.0
-            )
-
-        rows: list[dict[str, object]] = []
-        if sort_by == "change_pct":
-            # 涨跌幅不需要额外请求即可排序：先截断再聚合，避免无谓的网络开销。
-            ordered = sorted(
-                boards,
-                key=lambda b: change_by_code[b.code],
-                reverse=not ascending,
-            )[:top_n]
-            rows = [self._board_row(board, change_by_code[board.code]) for board in ordered]
-            return rows
-
-        # 其余指标只有聚合成分股后才知道，必须对**全部**板块求值再排序。
-        rows = [self._board_row(board, change_by_code[board.code]) for board in boards]
-        rows.sort(key=lambda row: float(row.get(sort_by, 0.0) or 0.0), reverse=not ascending)
-        return rows[:top_n]
+        return load_native().mac_board_ranking(
+            self, (board_type, top_n, sort_by, ascending),
+            lambda changes: lambda board: changes[board.code],
+            lambda project: lambda value: project(value), _MODULES[__name__],
+        )
 
     def _board_row(self, board: BoardInfo, change_pct: float) -> dict[str, object]:
         """聚合单个板块的成分股数据，产出排行榜的一行。"""
 
-        summary = self.get_board_summary(board.code)
-        return {
-            "code": board.code,
-            "name": board.name,
-            "change_pct": round(change_pct, 2),
-            "amount": summary["amount"],
-            "vol": summary["vol"],
-            "main_net_amount": summary["main_net_amount"],
-            "up_count": summary["up_count"],
-            "down_count": summary["down_count"],
-            "member_count": summary["member_count"],
-        }
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_board_row(self, board, change_pct, _MODULES[__name__])
 
     def get_board_change_ranking(
         self,
@@ -800,60 +617,13 @@ class MacClient:
         对每个板块获取日 K 线，计算指定日期前 N 个交易日的涨跌幅并排行。
         """
 
-        if days < 1:
-            raise ValueError(f"days 必须 >= 1，got {days}")
+        from eltdx._native_abi import load_native
 
-        boards = self.get_board_list(board_type)
-        if not boards:
-            return []
-
-        fetch_count = days + 10  # 缓冲节假日
-        target = _ymd_to_date(target_date)
-
-        rows: list[dict[str, object]] = []
-        for board in boards:
-            try:
-                bars = self.get_stock_kline(
-                    market=board.market,
-                    code=board.code,
-                    period=Period.DAILY,
-                    count=fetch_count,
-                    adjust=Adjust.NONE,
-                )
-            except TransportError:
-                continue
-            bars = sorted(bars, key=lambda bar: bar.datetime)
-            if len(bars) < 2:
-                continue
-
-            if target is not None:
-                eligible = [i for i, bar in enumerate(bars) if bar.datetime.date() <= target]
-                if not eligible:
-                    continue
-                end_pos = eligible[-1]
-            else:
-                end_pos = len(bars) - 1
-
-            start_pos = max(0, end_pos - days)
-            close_end = bars[end_pos].close
-            close_start = bars[start_pos].close
-            if close_start == 0:
-                continue
-
-            rows.append(
-                {
-                    "code": board.code,
-                    "name": board.name,
-                    "close_end": close_end,
-                    "close_start": close_start,
-                    "change_pct": round((close_end - close_start) / close_start * 100, 2),
-                }
-            )
-
-        rows.sort(key=lambda row: float(row["change_pct"]), reverse=not ascending)
-        if top_n is not None:
-            rows = rows[:top_n]
-        return rows
+        return load_native().mac_board_change_ranking(
+            self, (board_type, target_date, days, top_n, ascending),
+            lambda bar: bar.datetime, lambda project: lambda value: project(value),
+            _MODULES[__name__],
+        )
 
     # ------------------------------------------------------------------ #
     # 资金流向 / 集合竞价 / 异动
@@ -862,12 +632,16 @@ class MacClient:
     def get_capital_flow(self, market: int, code: str) -> CapitalFlowData | None:
         """获取个股资金流向（无数据时返回 ``None``）。"""
 
-        return self._execute(SymbolCapitalFlowCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "capital", (market, code), None, _MODULES[__name__])
 
     def get_auction(self, market: int, code: str) -> list[AuctionItem]:
         """获取集合竞价数据。"""
 
-        return self._execute(SymbolAuctionCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "auction", (market, code), None, _MODULES[__name__])
 
     def get_unusual(
         self,
@@ -877,7 +651,9 @@ class MacClient:
     ) -> list[UnusualItem]:
         """获取市场异动数据（``count=0`` 时使用默认值 600）。"""
 
-        return self._execute(UnusualCmd(market, start, count or 600))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "unusual", (market, start, count), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 服务器信息 / K 线偏移
@@ -886,7 +662,9 @@ class MacClient:
     def get_server_info(self) -> ServerSession:
         """获取服务器交易时段信息。"""
 
-        return self._execute(ServerInfoCmd())
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "server", (), None, _MODULES[__name__])
 
     def get_kline_offset(
         self,
@@ -895,7 +673,9 @@ class MacClient:
     ) -> KlineOffsetInfo:
         """获取 K 线数据偏移信息。"""
 
-        return self._execute(KlineOffsetCmd(offset, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "offset", (offset, count), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 文件操作
@@ -904,7 +684,9 @@ class MacClient:
     def get_file_meta(self, filename: str) -> FileMeta:
         """查询远程文件元信息。"""
 
-        return self._execute(FileListCmd(filename))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "file_meta", (filename,), None, _MODULES[__name__])
 
     def download_file_chunk(
         self,
@@ -915,28 +697,16 @@ class MacClient:
     ) -> bytes:
         """下载远程文件的一个分片。"""
 
-        return self._execute(FileDownloadCmd(filename, index, offset, size))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "file_chunk", (filename, index, offset, size), None, _MODULES[__name__])
 
     def download_file(self, filename: str, filesize: int = 0) -> bytearray:
         """下载完整远程文件（``filesize=0`` 时自动探测大小）。"""
 
-        if filesize <= 0:
-            filesize = self._execute(FileListCmd(filename)).size
+        from eltdx._native_abi import load_native
 
-        full_data = bytearray()
-        chunk_size = 30000
-        pos = 0
-        idx = 1
-        while pos < filesize:
-            chunk = self._execute(FileDownloadCmd(filename, idx, pos, chunk_size))
-            if not chunk:
-                break
-            full_data.extend(chunk)
-            pos += len(chunk)
-            idx += 1
-            if len(chunk) < chunk_size:
-                break
-        return full_data
+        return load_native().mac_download_file(self, filename, filesize, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 扩展市场
@@ -950,7 +720,9 @@ class MacClient:
     ) -> list[GoodsItem]:
         """获取扩展市场（期货/期权等）商品列表。"""
 
-        return self._execute(GoodsListCmd(market, start, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "goods", (market, start, count), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # easy_tdx 语义别名
@@ -964,9 +736,9 @@ class MacClient:
 def _ymd_to_date(value: int | None) -> _date | None:
     """将 ``YYYYMMDD`` 整数转换为 :class:`datetime.date`（``None`` 透传）。"""
 
-    if value is None:
-        return None
-    return _date(value // 10000, (value % 10000) // 100, value % 100)
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_ymd_date(value, _MODULES[__name__])
 
 
 __all__ = ["MacClient", "convert_board_code"]

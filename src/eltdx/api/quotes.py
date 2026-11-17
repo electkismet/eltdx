@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable, Sequence
 from typing import Any
+
+from eltdx.exceptions import MissingCodesError, MissingCodesWarning
+from eltdx.protocol.commands import command_code
 
 from .base import ApiBase
 from ._batch import recover_batch
@@ -13,6 +17,29 @@ from .subscription import ErrorCallback, QuoteCallback, QuoteSubscription
 class QuoteApi(ApiBase):
     def get_snapshots(self, codes: str | Sequence[str], *, on_missing: str = "raise"):
         code_list = [codes] if isinstance(codes, str) else list(codes)
+        if (
+            self._native_services
+            and code_list
+            and all(isinstance(code, str) for code in code_list)
+        ):
+            if on_missing not in ("raise", "skip"):
+                raise ValueError("on_missing must be 'raise' or 'skip'")
+            resolver = self._price_resolver() if self._price_resolver is not None else None
+            if resolver is not None:
+                resolver("snapshots", None, code_list)
+            items, missing = self._transport.sdk_snapshots(code_list)
+            result = [item for item in items if item is not None]
+            if resolver is not None:
+                result = resolver("snapshots", result, code_list)
+            if missing:
+                if on_missing == "raise":
+                    raise MissingCodesError(missing)
+                warnings.warn(
+                    "batch skipped missing codes: " + ", ".join(missing),
+                    MissingCodesWarning,
+                    stacklevel=2,
+                )
+            return result
         return recover_batch(
             code_list,
             lambda part: self._execute_priced("snapshots", codes=part, price_codes=part),
@@ -23,7 +50,7 @@ class QuoteApi(ApiBase):
         """Query the old-style batch quote interface (0x053E)."""
 
         code_list = [codes] if isinstance(codes, str) else list(codes)
-        return self._execute_priced("legacy_quotes", codes=code_list, price_codes=code_list)
+        return self._query_priced("legacy_quotes", codes=code_list, price_codes=code_list)
 
     def get_depth(self, codes: str | Sequence[str]):
         """Refresh five-level quote depth through native 0x0547."""
@@ -39,7 +66,7 @@ class QuoteApi(ApiBase):
         count: int = 80,
         ascending: bool = False,
     ):
-        return self._execute_priced(
+        return self._query_priced(
             "category_quotes",
             price_codes=None,
             category=category,
@@ -53,7 +80,16 @@ class QuoteApi(ApiBase):
         """Refresh up to 100 codes in one 0x0547 request."""
 
         code_list = None if codes is None else ([codes] if isinstance(codes, str) else list(codes))
-        return self._execute_priced("refresh_stream", codes=code_list or [], cursors=dict(cursors or {}), price_codes=code_list or [])
+        return self._query_priced("refresh_stream", codes=code_list or [], cursors=dict(cursors or {}), price_codes=code_list or [])
+
+    def _query_priced(self, name, *, price_codes, **payload):
+        if not self._native_services:
+            return self._execute_priced(name, price_codes=price_codes, **payload)
+        resolver = self._price_resolver() if self._price_resolver is not None else None
+        if resolver is not None:
+            resolver(name, None, price_codes)
+        result = self._transport.sdk_quotes(command_code(name), payload)
+        return result if resolver is None else resolver(name, result, price_codes)
 
     def poll_push(self, *, timeout: float | None = 0.0, parse: bool = False):
         poll = getattr(self._transport, "poll_push", None)

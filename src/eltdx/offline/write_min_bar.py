@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 import struct
 from .alignment import ensure_aligned_for_append
@@ -27,23 +28,20 @@ __all__ = [
 
 
 def _last_datetime(filepath: str | Path, fmt_size: int) -> tuple[int, int, int, int, int] | None:
-    filepath = Path(filepath)
-    if not filepath.is_file():
-        return None
-    size = filepath.stat().st_size
     # 先按记录长度向下对齐：写盘中断留下的残尾会让 ``seek(size - fmt_size)``
     # 落在错误偏移上，读出一个「伪末条」的日期时间。读取侧对残尾是容忍的
     # （能读多少读多少），但末条必须是**真实**的最后一条完整记录。
-    size -= size % fmt_size
-    if size < fmt_size:
+    from eltdx._native_abi import load_native
+
+    native = load_native()
+    plan = native.offline_last_record_plan(filepath, fmt_size, sys.modules[__name__], True)
+    if plan is None:
         return None
+    filepath, offset, size = plan
     with filepath.open("rb") as handle:
-        handle.seek(size - fmt_size)
-        last_record = handle.read(fmt_size)
-    date_num, time_num = struct.unpack_from("<HH", last_record, 0)
-    year, month, day = _decode_tdx_date(date_num)
-    hour, minute = _decode_tdx_time(time_num)
-    return (year, month, day, hour, minute)
+        handle.seek(offset)
+        last_record = handle.read(size)
+    return native.offline_last_record_value(last_record, None, sys.modules[__name__], True)
 
 
 def get_last_min_bar_datetime(
@@ -74,18 +72,16 @@ def _append(
     # 校验先于读末条时间：残尾文件上 ``_last_datetime`` 读出的是对齐边界上的伪末条，
     # 若它恰好不小于所有待写 bar，``new_bars`` 会为空而把残尾静默留下。``last_dt_fn``
     # 是惰性传入的，确保校验通过后才真正去读盘。
-    ensure_aligned_for_append(filepath, record_size, kind)
+    from eltdx._native_abi import load_native
 
-    last_dt = last_dt_fn()
-    new_bars = (
-        [bar for bar in bars if bar.datetime_key > last_dt]
-        if last_dt is not None
-        else list(bars)
+    native = load_native()
+    filepath, new_bars = native.offline_prepare_append(
+        filepath, bars, last_dt_fn, record_size, kind, sys.modules[__name__], True
     )
     if not new_bars:
         return 0
     with filepath.open("ab") as handle:
-        handle.write(b"".join(encode(bar) for bar in new_bars))
+        handle.write(native.offline_encode_batch(new_bars, encode, None))
     return len(new_bars)
 
 

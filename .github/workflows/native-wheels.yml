@@ -174,9 +174,82 @@ jobs:
           path: dist/*.tar.gz
           if-no-files-found: error
 
+  installed-linux:
+    name: Clean Python ${{ matrix.python }} wheel consumer (${{ matrix.arch }})
+    needs: wheel-linux
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.14']
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+        arch: [x86_64, aarch64]
+    runs-on: ${{ matrix.runner }}
+    container: python:${{ matrix.python }}-slim-bookworm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: wheel-linux-${{ matrix.arch }}
+          path: wheelhouse
+      - name: Install only the binary wheel and call public APIs outside checkout
+        run: >-
+          python scripts/verification/consume_python_wheel.py
+          --implementation-complete --require-no-toolchain-image
+          --wheelhouse wheelhouse --output artifacts/wheel-consumer
+          --candidate "${{ github.sha }}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: installed-linux-${{ matrix.arch }}-${{ matrix.python }}
+          path: artifacts/wheel-consumer
+          if-no-files-found: error
+
+  installed-desktop:
+    name: Installed Python ${{ matrix.python }} consumer (${{ matrix.platform }})
+    needs: [wheel-windows, wheel-macos]
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.14']
+        platform: [windows-x86_64, macos-x86_64, macos-arm64]
+        include:
+          - platform: windows-x86_64
+            runner: windows-2025
+          - platform: macos-x86_64
+            runner: macos-15-intel
+          - platform: macos-arm64
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: wheel-${{ matrix.platform }}
+          path: wheelhouse
+      - name: Consume with no build tool available to the process
+        run: >-
+          python scripts/verification/consume_python_wheel.py
+          --implementation-complete --wheelhouse wheelhouse
+          --output artifacts/wheel-consumer --candidate "${{ github.sha }}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: installed-${{ matrix.platform }}-${{ matrix.python }}
+          path: artifacts/wheel-consumer
+          if-no-files-found: error
+
   aggregate:
     name: Aggregate exact 5+1 artifacts
-    needs: [wheel-windows, wheel-linux, wheel-macos, sdist]
+    needs: [wheel-windows, wheel-linux, wheel-macos, sdist, installed-linux, installed-desktop]
     runs-on: ubuntu-24.04
     outputs:
       artifact-name: release-dist

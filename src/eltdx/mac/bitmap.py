@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from enum import Enum, IntEnum
+from sys import modules as _MODULES
 from typing import TypeAlias
 
 # ── 统一的字段选择类型 ──
@@ -34,7 +35,9 @@ class FieldBit(IntEnum):
     def field_name(self) -> str:
         """返回英文字段名（小写），用于 dict 列名等。"""
 
-        return self.name.lower()
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("name", self, None, _MODULES[__name__])
 
     # ── 基础字段 (0x00-0x07) ──
     PRE_CLOSE = 0x00, "<f", "昨收"
@@ -203,10 +206,9 @@ FIELD_BITMAP_MAP: dict[int, tuple[str, str, str]] = {
 def _post_ah_code(value: int, market: int = 0) -> str:
     """A/H 股代码补齐位数（沪深北 5 位，其他 6 位）。"""
 
-    if not value:
-        return ""
-    width = 5 if market in (0, 1) else 6
-    return str(value).zfill(width)
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_post_ah_code(value, market, _MODULES[__name__])
 
 
 FIELD_POSTPROCESS: dict[int, object] = {
@@ -340,17 +342,17 @@ class PresetField(Enum):
     ALL = tuple(FieldBit)
 
     def __add__(self, other: object) -> "FieldSelection":
-        if isinstance(other, FieldBit | PresetField | FieldSelection):
-            return FieldSelection(self, other)
-        return NotImplemented
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_operator(self, other, True, False, _MODULES[__name__])
 
     def __or__(self, other: object) -> "FieldSelection":
         return self.__add__(other)
 
     def __radd__(self, other: object) -> "FieldSelection":
-        if isinstance(other, FieldBit | FieldSelection):
-            return FieldSelection(other, self)
-        return NotImplemented
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_operator(self, other, True, True, _MODULES[__name__])
 
     def __ror__(self, other: object) -> "FieldSelection":
         return self.__radd__(other)
@@ -362,66 +364,60 @@ class FieldSelection:
     __slots__ = ("_fields",)
 
     def __init__(self, *parts: "FieldBit | PresetField | FieldSelection") -> None:
-        seen: set[FieldBit] = set()
-        result: list[FieldBit] = []
-        for part in parts:
-            if isinstance(part, PresetField):
-                source: Iterable[FieldBit] = part.value
-            elif isinstance(part, FieldBit):
-                source = (part,)
-            else:
-                source = part._fields
-            for bit in source:
-                if bit not in seen:
-                    seen.add(bit)
-                    result.append(bit)
-        self._fields: tuple[FieldBit, ...] = tuple(result)
+        from eltdx._native_abi import load_native
+
+        self._fields: tuple[FieldBit, ...] = load_native().mac_field_selection(
+            parts, _MODULES[__name__]
+        )
 
     def __add__(self, other: object) -> "FieldSelection":
-        if isinstance(other, FieldBit | PresetField | FieldSelection):
-            return FieldSelection(self, other)
-        return NotImplemented
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_operator(self, other, False, False, _MODULES[__name__])
 
     def __or__(self, other: object) -> "FieldSelection":
         return self.__add__(other)
 
     def __radd__(self, other: object) -> "FieldSelection":
-        if isinstance(other, FieldBit | PresetField):
-            return FieldSelection(other, self)
-        return NotImplemented
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_operator(self, other, False, True, _MODULES[__name__])
 
     def __ror__(self, other: object) -> "FieldSelection":
         return self.__radd__(other)
 
     def __iter__(self) -> Iterator[FieldBit]:
-        return iter(self._fields)
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("iter", self, None, _MODULES[__name__])
 
     def __len__(self) -> int:
-        return len(self._fields)
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("len", self, None, _MODULES[__name__])
 
     def __bool__(self) -> bool:
-        return bool(self._fields)
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("bool", self, None, _MODULES[__name__])
 
     def __contains__(self, item: object) -> bool:
-        return item in self._fields
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("contains", self, item, _MODULES[__name__])
 
     def __repr__(self) -> str:
-        names = [bit.name for bit in self._fields]
-        return f"FieldSelection([{', '.join(names)}])"
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("repr", self, None, _MODULES[__name__])
 
 
 def normalize_fields(fields: "Fields") -> FieldSelection:
     """将任意字段选择形式归一化为 :class:`FieldSelection`。"""
 
-    if fields is None:
-        return FieldSelection()
-    if isinstance(fields, FieldSelection):
-        return fields
-    if isinstance(fields, PresetField):
-        return FieldSelection(*fields.value)
-    if isinstance(fields, FieldBit):
-        return FieldSelection(fields)
-    return FieldSelection(*fields)
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_normalize_fields(fields, _MODULES[__name__])
 
 
 def build_bitmap(
@@ -463,21 +459,9 @@ def build_bitmap(
         ValueError: 选中了超出 ``width * 8`` 的字段位，或 ``width`` 非法。
     """
 
-    if not 1 <= width <= BITMAP_SIZE:
-        raise ValueError(f"width must be between 1 and {BITMAP_SIZE}, got {width}")
-    if isinstance(fields, PresetField) and fields is PresetField.DEBUG:
-        return bytearray(b"\xff" * width)
-    selection = normalize_fields(fields)
-    limit = width * 8
-    bitmap_int = 0
-    for bit in selection:
-        if bit.value >= limit:
-            raise ValueError(
-                f"字段 {bit.name}(0x{bit.value:02X}) 超出 {width} 字节位图"
-                f"（最多 {limit} 位，即 0..{limit - 1}）"
-            )
-        bitmap_int |= 1 << bit.value
-    return bytearray(bitmap_int.to_bytes(width, "little"))
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_build_bitmap(fields, width, _MODULES[__name__])
 
 
 def build_exclude_flags(exclude_flags: int = 0) -> bytes:
@@ -489,7 +473,9 @@ def build_exclude_flags(exclude_flags: int = 0) -> bytes:
     0x122B 没有这块控制区，其 20 字节位图全部是字段位。
     """
 
-    return exclude_flags.to_bytes(CONTROL_SIZE, "little")
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_exclude_flags(exclude_flags, _MODULES[__name__])
 
 
 #: 合法字段位的上界（不含）。实测字段位为 0–150，位 151–159 是保留区
@@ -512,25 +498,17 @@ def iter_set_bits(bitmap_bytes: bytes) -> Iterator[tuple[int, FieldBit | None, s
     凭空多出一个槽位，把所有字段整体推错。
     """
 
-    bitmap_int = _field_bits(bitmap_bytes)
-    slot = 0
-    while bitmap_int:
-        lowbit = bitmap_int & -bitmap_int
-        bit_pos = lowbit.bit_length() - 1
-        bitmap_int ^= lowbit
-        field = FieldBit._value2member_map_.get(bit_pos)
-        if isinstance(field, FieldBit):
-            yield slot, field, field.fmt
-        else:
-            yield slot, None, None
-        slot += 1
+    from eltdx._native_abi import load_native
+
+    yield from load_native().mac_bit_slots(bitmap_bytes, _MODULES[__name__])
 
 
 def _field_bits(bitmap_bytes: bytes) -> int:
     """取出位图里**合法字段位**的部分，屏蔽 151–159 保留区。"""
 
-    mask = (1 << FIELD_BIT_LIMIT) - 1
-    return int.from_bytes(bitmap_bytes, "little") & mask
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_field_bits(bitmap_bytes, _MODULES[__name__])
 
 
 def count_set_bits(bitmap_bytes: bytes) -> int:
@@ -539,7 +517,9 @@ def count_set_bits(bitmap_bytes: bytes) -> int:
     保留位（151–159）不计入。
     """
 
-    return _field_bits(bitmap_bytes).bit_count()
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_count_bits(bitmap_bytes, _MODULES[__name__])
 
 
 def get_active_fields(bitmap_bytes: bytes) -> list[tuple[FieldBit, str]]:
@@ -551,7 +531,9 @@ def get_active_fields(bitmap_bytes: bytes) -> list[tuple[FieldBit, str]]:
         与 :func:`count_set_bits`。
     """
 
-    return [(field, fmt) for _, field, fmt in iter_set_bits(bitmap_bytes) if field is not None]
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_active_fields(bitmap_bytes, _MODULES[__name__])
 
 
 __all__ = [

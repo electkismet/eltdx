@@ -5,12 +5,15 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from datetime import date, datetime
+import math
 from typing import Any
 
 from eltdx.protocol.constants import MAX_TRADE_PAGE_SIZE
 from eltdx.protocol.unit import normalize_code
 from eltdx.protocol.commands import command_code
 from eltdx.models import TradeBatch, TradePage
+from eltdx.transport.native import native_module
 
 from .base import ApiBase
 
@@ -35,7 +38,7 @@ class TradeApi(ApiBase):
                 ),
                 batch_size,
             )
-        return self._execute("today_ticks", code=code, start=start, count=count, include_raw=include_raw)
+        return self._query("today_ticks", code=code, start=start, count=count, include_raw=include_raw)
 
     def history(
         self,
@@ -61,7 +64,7 @@ class TradeApi(ApiBase):
                 ),
                 batch_size,
             )
-        return self._execute(
+        return self._query(
             "historical_ticks",
             code=code,
             trading_date=trading_date,
@@ -144,6 +147,8 @@ class TradeApi(ApiBase):
         payload = dict(code=code, trading_date=trading_date, start=start,
                        count=count, include_raw=include_raw)
         bulk_execute = getattr(self._transport, "execute_trade_batch", None)
+        if self._native_services:
+            bulk_execute = self._transport.sdk_trade_batch
         if callable(bulk_execute):
             result = bulk_execute(command_code("historical_ticks"), payload)
             if not isinstance(result, TradeBatch):
@@ -177,6 +182,8 @@ class TradeApi(ApiBase):
             )
         payload = dict(code=code, start=start, count=count, include_raw=include_raw)
         bulk_execute = getattr(self._transport, "execute_trade_batch", None)
+        if self._native_services:
+            bulk_execute = self._transport.sdk_trade_batch
         if callable(bulk_execute):
             result = bulk_execute(command_code("today_ticks"), payload)
             if not isinstance(result, TradeBatch):
@@ -248,6 +255,12 @@ class TradeApi(ApiBase):
                     include_raw=include_raw,
                 ),
                 batch_size,
+            )
+        if self._native_collect_arguments(code, trading_date, page_size, include_raw, max_pages, bulk=True):
+            return self._transport.sdk_trade_read(
+                command_code("historical_ticks"),
+                dict(code=code, trading_date=trading_date, start=0, count=page_size, include_raw=include_raw),
+                collect=True, opening=False, max_pages=_native_page_limit(max_pages), bulk=True,
             )
         start = 0
         pages: list[TradeBatch] = []
@@ -326,19 +339,23 @@ class TradeApi(ApiBase):
     ) -> dict[str, Any]:
         normalized = _normalize_codes(codes)
         workers = _batch_workers(self._transport, len(normalized), batch_size)
-        results: dict[str, Any] = {}
         with ThreadPoolExecutor(max_workers=workers) as executor:
             # Submit only one worker-sized chunk at a time so large code lists
             # do not fill the transport's pending-request queue.
-            for start in range(0, len(normalized), workers):
-                chunk = normalized[start : start + workers]
-                results.update(zip(chunk, executor.map(query, chunk)))
+            results = native_module().map_batches(executor, normalized, query, workers)
         return results
+
+    def _query(self, name: str, **payload):
+        if self._native_services:
+            return self._transport.sdk_trades(command_code(name), payload)
+        return self._execute(name, **payload)
 
     def _find_opening_match(self, code: str, trading_date, *, page_size: int, max_pages: int | None, include_raw: bool):
         _validate_page_size(page_size)
         if max_pages is not None and max_pages <= 0:
             raise ValueError("max_pages must be positive or None")
+        if self._native_collect_arguments(code, trading_date, page_size, include_raw, max_pages):
+            return self._native_read(code, trading_date, page_size, max_pages, include_raw, opening=True)
         start = 0
         pages = 0
         while True:
@@ -357,6 +374,8 @@ class TradeApi(ApiBase):
         _validate_page_size(page_size)
         if max_pages is not None and max_pages <= 0:
             raise ValueError("max_pages must be positive or None")
+        if self._native_collect_arguments(code, trading_date, page_size, include_raw, max_pages):
+            return self._native_read(code, trading_date, page_size, max_pages, include_raw, opening=False)
         start = 0
         pages = 0
         first_page = None
@@ -378,6 +397,44 @@ class TradeApi(ApiBase):
             if max_pages is not None and pages >= max_pages:
                 raise RuntimeError("trade pagination reached max_pages before an empty page")
             start += page.count
+
+    def _native_collect_arguments(self, code, trading_date, page_size, include_raw, max_pages, *, bulk=False):
+        # Replaced page methods and custom objects retain their per-page Python
+        # evaluation/extension behavior; ordinary calls use the shared pager.
+        methods = ("history_batch",) if bulk else ("today", "history")
+        return (self._native_services and type(self) is TradeApi
+                and type(code) is str
+                and type(trading_date) in (type(None), str, int, bool, date, datetime)
+                and type(page_size) in (int, bool)
+                and type(include_raw) is bool
+                and type(max_pages) in (type(None), int, bool, float)
+                and all(name not in self.__dict__
+                        and getattr(TradeApi, name) is _NATIVE_TRADE_PAGE_METHODS[name]
+                        for name in methods))
+
+    def _native_read(self, code, trading_date, page_size, max_pages, include_raw, *, opening):
+        payload = dict(code=code, start=0, count=page_size, include_raw=include_raw)
+        name = "today_ticks"
+        if trading_date is not None:
+            name = "historical_ticks"
+            payload["trading_date"] = trading_date
+        return self._transport.sdk_trade_read(command_code(name), payload, collect=not opening,
+                                               opening=opening, max_pages=_native_page_limit(max_pages))
+
+
+_NATIVE_TRADE_PAGE_METHODS = {
+    name: getattr(TradeApi, name) for name in ("today", "history", "history_batch")
+}
+
+
+def _native_page_limit(value):
+    if value is None:
+        return None
+    if type(value) is float:
+        if not math.isfinite(value):
+            return None
+        value = math.ceil(value)
+    return int(value) if value <= 65536 else None
 
 
 def _validate_page_size(value: int) -> None:

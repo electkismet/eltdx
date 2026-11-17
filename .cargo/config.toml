@@ -1,0 +1,3 @@
+[resolver]
+# Keep fresh lock resolution within the workspace's declared Rust MSRV.
+incompatible-rust-versions = "fallback"

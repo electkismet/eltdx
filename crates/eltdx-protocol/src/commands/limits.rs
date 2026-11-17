@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 
 use crate::error::ProtocolError;
@@ -37,6 +38,7 @@ pub struct SpecialLimitRecord {
     pub lower_price_raw_f32: f32,
     pub lower_price_raw: [u8; 4],
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -49,6 +51,23 @@ pub struct SpecialLimitPage {
 pub fn parse_special_limits_payload(
     payload: &[u8],
     request: SpecialLimitsRequest,
+) -> Result<SpecialLimitPage, ProtocolError> {
+    parse_special_limits_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_special_limits_payload_with_context(
+    payload: Bytes,
+    request: SpecialLimitsRequest,
+    options: &ParseOptions<'_>,
+) -> Result<SpecialLimitPage, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_special_limits_payload_body(&payload, request, &context)
+}
+
+fn parse_special_limits_payload_body(
+    payload: &[u8],
+    request: SpecialLimitsRequest,
+    context: &ParseContext<'_>,
 ) -> Result<SpecialLimitPage, ProtocolError> {
     if payload.len() > MAX_RESPONSE_PAYLOAD_SIZE {
         return Err(ProtocolError::LimitExceeded {
@@ -105,24 +124,15 @@ pub fn parse_special_limits_payload(
             upper_price_raw,
             lower_price_raw_f32: little_f32(&lower_price_raw)?,
             lower_price_raw,
-            record_hex: encode_hex(record),
+            record_hex: context.record_hex(record),
+            record_range: context.record_range(record),
         });
     }
     Ok(SpecialLimitPage {
         request,
         records,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
-}
-
-fn encode_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(data.len().saturating_mul(2));
-    for byte in data {
-        output.push(char::from(DIGITS[usize::from(*byte >> 4)]));
-        output.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
-    }
-    output
 }
 
 #[cfg(test)]

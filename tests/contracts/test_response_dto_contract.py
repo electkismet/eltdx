@@ -38,6 +38,9 @@ EXPECTED_TAGS = {
     "historical_intraday",
     "today_ticks",
     "historical_ticks",
+    "historical_trade_batch",
+    "trade_tick",
+    "legacy_snapshots",
     "sparkline",
     "recent_intraday",
     "money_flow",
@@ -247,7 +250,9 @@ def test_trade_tick_repeated_objects_are_shared_and_response_local() -> None:
     )[0]
     assert "last_time_label: Option<(u16, Arc<str>)>" in parser_body
     assert "last_record: Option<(&[u8], Arc<str>)>" in parser_body
-    assert parser_body.count("Arc::clone(") == 4
+    for shared in ("previous_label", "&label", "previous_hex", "&hex", "empty"):
+        assert f"Arc::clone({shared})" in parser_body
+    assert 'let omitted_hex = (!context.is_legacy()).then(|| Arc::<str>::from(""));' in parser_body
     tests_body = trades_source.split("#[cfg(test)]", 1)[1]
     assert tests_body.count("Arc::ptr_eq(") == 2
 

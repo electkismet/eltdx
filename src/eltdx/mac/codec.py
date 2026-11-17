@@ -20,6 +20,7 @@ from __future__ import annotations
 import struct
 import zlib
 from dataclasses import dataclass
+from sys import modules as _MODULES
 
 from ..exceptions import ProtocolError
 from ..protocol.decompress import (
@@ -63,16 +64,8 @@ def build_mac_request(
         完整请求帧（10 字节头 + 2 字节 msg_id + body）。
     """
 
-    inner = struct.pack("<H", msg_id) + body
-    header = struct.pack(
-        _MAC_HEADER_FMT,
-        head_flag,
-        _MAC_CUSTOMIZE,
-        _MAC_VERSION,
-        len(inner),
-        len(inner),
-    )
-    return header + inner
+    from eltdx._native_abi import load_native
+    return load_native().mac_frame_request(msg_id, body, head_flag, _MODULES[__name__])
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,10 +82,9 @@ class MacFrameHeader:
 def parse_mac_header(buf: bytes | bytearray) -> MacFrameHeader:
     """解析 16 字节响应帧头。"""
 
-    magic, seq_id, method, zipsize, unzipsize = unpack_from(
-        _RESP_HEADER_FMT, buf, 0, "mac frame header"
-    )
-    return MacFrameHeader(magic, seq_id, method, zipsize, unzipsize)
+    from eltdx._native_abi import load_native
+    values = load_native().extension_frame_header_values("mac", buf, _MODULES[__name__])
+    return load_native().extension_frame_header_model("mac", values, _MODULES[__name__])
 
 
 def decompress_mac_body(header: MacFrameHeader, raw_body: bytes) -> bytes:
@@ -107,25 +99,18 @@ def decompress_mac_body(header: MacFrameHeader, raw_body: bytes) -> bytes:
         过量内存分配。加上限后在产出过程中就截断。
     """
 
-    if len(raw_body) != header.zipsize:
-        raise ProtocolError(
-            f"mac frame body 长度不符: header={header.zipsize}, actual={len(raw_body)}"
-        )
-    if header.zipsize == header.unzipsize:
-        body = raw_body
-    else:
+    from eltdx._native_abi import load_native
+    if load_native().extension_body_input("mac", header, raw_body, _MODULES[__name__]):
+        # Keep the custom decompressor and active Python exception adapters.
         try:
             body = decompress_limited(raw_body, MAX_FRAME_UNZIPPED_BYTES)
         except DecompressLimitError as exc:
-            raise ProtocolError(f"mac frame body 解压超限: {exc}") from exc
+            raise load_native().extension_frame_error("mac_limit", exc, _MODULES[__name__]) from exc
         except zlib.error as exc:
-            raise ProtocolError(f"mac frame body zlib 解压失败: {exc}") from exc
-
-    if len(body) != header.unzipsize:
-        raise ProtocolError(
-            f"mac frame body 解压长度不符: header={header.unzipsize}, actual={len(body)}"
-        )
-    return body
+            raise load_native().extension_frame_error("mac_zlib", exc, _MODULES[__name__]) from exc
+    else:
+        body = raw_body
+    return load_native().extension_body_output("mac", header, body, _MODULES[__name__])
 
 
 __all__ = [

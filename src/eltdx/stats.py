@@ -25,8 +25,23 @@ def parse_tdx_stats_archive(payload: bytes, *, source_path: str = "zhb.zip") -> 
     """Parse ``tdxstat.cfg`` and ``tdxstat2.cfg`` from a TDX ``zhb.zip`` payload."""
 
     stat_payload, stat2_payload = _read_stats_members(payload)
-    stat_rows = list(_parse_stat_rows(_decode_lines(stat_payload)))
-    stat2_rows = list(_parse_stat2_rows(_decode_lines(stat2_payload)))
+    if (type(stat_payload) is bytes and type(stat2_payload) is bytes
+            and _decode_lines is _ORIGINAL_DECODE_LINES
+            and _parse_stat_rows is _ORIGINAL_PARSE_STAT_ROWS
+            and _parse_stat2_rows is _ORIGINAL_PARSE_STAT2_ROWS
+            and _float_value is _ORIGINAL_FLOAT_VALUE and _int_value is _ORIGINAL_INT_VALUE
+            and _text_value is _ORIGINAL_TEXT_VALUE):
+        from eltdx.transport.native import native_module
+
+        rows, rows2 = native_module().stats_members(stat_payload, stat2_payload)
+        stat_rows = [TdxStatRow(int(market), code, day, *floats,
+                               *(None if value is None else int(value) for value in integers))
+                     for market, code, day, floats, integers in rows]
+        stat2_rows = [TdxStat2Row(int(market), code, day, *values)
+                      for market, code, day, values in rows2]
+    else:
+        stat_rows = list(_parse_stat_rows(_decode_lines(stat_payload)))
+        stat2_rows = list(_parse_stat2_rows(_decode_lines(stat2_payload)))
     if not stat_rows or not stat2_rows:
         raise ResourceFormatError(
             "TDX stats resource contains no usable rows in tdxstat.cfg or tdxstat2.cfg"
@@ -174,3 +189,10 @@ def _int_value(value: str) -> int | None:
 
 
 __all__ = ["parse_tdx_stats_archive"]
+
+_ORIGINAL_DECODE_LINES = _decode_lines
+_ORIGINAL_PARSE_STAT_ROWS = _parse_stat_rows
+_ORIGINAL_PARSE_STAT2_ROWS = _parse_stat2_rows
+_ORIGINAL_FLOAT_VALUE = _float_value
+_ORIGINAL_INT_VALUE = _int_value
+_ORIGINAL_TEXT_VALUE = _text_value

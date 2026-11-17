@@ -1,0 +1,78 @@
+name: Paired Rust Python release measurements
+
+on:
+  workflow_dispatch:
+    inputs:
+      implementation-complete:
+        description: All T01-T30 sources complete and correctness verification passed
+        type: boolean
+        required: true
+        default: false
+      baseline:
+        description: Frozen pre-migration source commit
+        required: true
+        default: af471f1
+
+permissions:
+  contents: read
+
+jobs:
+  paired:
+    if: inputs.implementation-complete
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.baseline }}
+          path: artifacts/perf-baseline-source
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: rustup toolchain install 1.89.0 --profile minimal
+      - run: python -m pip install 'maturin>=1.14,<2' psutil==7.2.2
+      - name: Build actual frozen baseline release wheel
+        run: >-
+          python scripts/verification/rust_sdk_performance.py build-wheel --implementation-complete
+          --source-root artifacts/perf-baseline-source --output artifacts/perf-baseline-build
+      - name: Build actual candidate release wheel
+        run: >-
+          python scripts/verification/rust_sdk_performance.py build-wheel --implementation-complete
+          --output artifacts/perf-candidate-build
+      - name: Run fixed paired workloads with isolated installations
+        run: >-
+          python scripts/verification/rust_sdk_performance.py run --implementation-complete
+          --baseline-build artifacts/perf-baseline-build/wheel-build.json
+          --candidate-build artifacts/perf-candidate-build/wheel-build.json
+          --output artifacts/performance
+      - name: Re-read raw samples and build evidence
+        run: >-
+          python scripts/verification/rust_sdk_performance.py verify --implementation-complete
+          --output artifacts/performance
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: paired-performance-${{ matrix.os }}
+          path: |
+            artifacts/performance/performance-*.json
+            artifacts/performance/*.ndjson
+            artifacts/performance/*-wire.json
+            artifacts/performance/*-peer-errors.json
+            artifacts/performance/*.log
+            artifacts/performance/fixture.dat
+            artifacts/performance/Cargo.lock
+            artifacts/performance/measure_candidate.rs
+            artifacts/performance/worker.py
+            artifacts/performance/measurement-bin*
+            artifacts/performance/scripts
+            artifacts/performance/provenance
+            artifacts/perf-baseline-build/wheel-build.json
+            artifacts/perf-baseline-build/*.log
+            artifacts/perf-candidate-build/wheel-build.json
+            artifacts/perf-candidate-build/*.log
+          if-no-files-found: error

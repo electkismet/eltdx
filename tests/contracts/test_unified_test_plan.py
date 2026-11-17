@@ -280,3 +280,29 @@ def test_external_evidence_is_content_addressed(tmp_path: Path) -> None:
         unified_test.ExternalEvidenceRequired, match="changed or is missing"
     ):
         unified_test._check_gate(step, state)
+
+
+
+def _pytest_node_collects(root: Path, node_id: str) -> bool:
+    previous = Path.cwd()
+    try:
+        os.chdir(root)
+        result = pytest.main(["--collect-only", "-q", node_id], plugins=[])
+    finally:
+        os.chdir(previous)
+    return result == pytest.ExitCode.OK
+
+
+def test_every_unified_pytest_node_resolves_and_regression_target_is_current() -> None:
+    root = Path(unified_test.ROOT)
+    nodes = [
+        argument
+        for round_spec in unified_test.ROUNDS
+        for step in round_spec.steps
+        for argument in step.argv
+        if "::" in argument
+    ]
+    assert nodes
+    assert all(_pytest_node_collects(root, node) for node in nodes), nodes
+    assert "tests/native/test_differential.py::test_differential_matrix_covers_all_commands" in nodes
+    assert "test_differential_matrix_covers_all_22_commands" not in "\n".join(nodes)

@@ -7,6 +7,7 @@ so labels must always be resolved with both the Entry and its request scope.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from sys import modules as _MODULES
 from typing import Any
 
 from .fields_mg_hk import is_mg_hk_entry as _is_mg_hk_entry
@@ -784,12 +785,11 @@ def field_labels_for(
     this exact scope. Callers must preserve the raw field names in that case.
     """
 
-    if _is_mg_hk_entry(entry):
-        return _mg_hk_labels_for(entry, request_body)
-    scope = _field_scope(entry, request_body, metadata=metadata)
-    if scope is None:
-        return {}
-    return dict(_FIELD_LABELS.get((entry, scope), {}))
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_field_labels(
+        entry, request_body, metadata, "labels", _MODULES[__name__]
+    )
 
 
 def field_notes_for(
@@ -800,10 +800,11 @@ def field_notes_for(
 ) -> dict[str, str]:
     """Return caveats for fields whose shape needs extra interpretation."""
 
-    scope = _field_scope(entry, request_body, metadata=metadata)
-    if scope is None:
-        return {}
-    return dict(_FIELD_NOTES.get((entry, scope), {}))
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_field_labels(
+        entry, request_body, metadata, "notes", _MODULES[__name__]
+    )
 
 
 def describe_fields(
@@ -815,21 +816,11 @@ def describe_fields(
 ) -> tuple[dict[str, str], list[str]]:
     """Split response field keys into known labels and explicit unknowns."""
 
-    known = field_labels_for(entry, request_body, metadata=metadata)
-    labels: dict[str, str] = {}
-    unmapped: list[str] = []
-    for field in fields:
-        base, duplicate_index = _split_duplicate_suffix(field)
-        label = known.get(field)
-        if label is None:
-            label = known.get(base)
-        if label is None:
-            unmapped.append(field)
-            continue
-        if duplicate_index is not None:
-            label = f"{label}（{duplicate_index}）"
-        labels[field] = label
-    return labels, unmapped
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_describe_fields(
+        entry, request_body, fields, metadata, "labels", _MODULES[__name__]
+    )
 
 
 def describe_field_notes(
@@ -841,23 +832,17 @@ def describe_field_notes(
 ) -> dict[str, str]:
     """Return only the scoped notes that apply to fields in one result set."""
 
-    known = field_notes_for(entry, request_body, metadata=metadata)
-    notes: dict[str, str] = {}
-    for field in fields:
-        base, _ = _split_duplicate_suffix(field)
-        note = known.get(field)
-        if note is None:
-            note = known.get(base)
-        if note is not None:
-            notes[field] = note
-    return notes
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_describe_fields(
+        entry, request_body, fields, metadata, "notes", _MODULES[__name__]
+    )
 
 
 def _split_duplicate_suffix(field: str) -> tuple[str, int | None]:
-    base, separator, suffix = field.rpartition("__")
-    if separator and suffix.isdigit() and int(suffix) >= 2:
-        return base, int(suffix)
-    return field, None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_duplicate_suffix(field, _MODULES[__name__])
 
 
 def _field_scope(
@@ -866,23 +851,11 @@ def _field_scope(
     *,
     metadata: Mapping[str, Any] | None,
 ) -> str | None:
-    param_index = _SCOPE_PARAM_INDEX.get(entry)
-    if param_index is None or not isinstance(request_body, Mapping):
-        return None
-    params = request_body.get("Params")
-    if not isinstance(params, Sequence) or isinstance(
-        params, (str, bytes, bytearray)
-    ):
-        return None
-    if param_index >= len(params):
-        return None
-    scope = str(params[param_index])
-    if entry == "CWServ.tdxf10_gg_cwfx" and scope in {"zcfzb", "lyb", "xjllb"}:
-        industry_type = metadata.get("nhytype") if metadata else None
-        if industry_type is None:
-            return None
-        scope = f"{scope}:{industry_type}"
-    return scope
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_field_scope(
+        entry, request_body, metadata, False, _MODULES[__name__]
+    )
 
 
 __all__ = [

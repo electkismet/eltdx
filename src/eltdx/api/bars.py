@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+import math
 
 from eltdx._bar_time import (
     BAR_TIME_START,
@@ -12,7 +13,9 @@ from eltdx._bar_time import (
     kline_period_minutes,
 )
 from eltdx.protocol.constants import MAX_KLINE_PAGE_SIZE
+from eltdx.protocol.commands import command_code
 from eltdx.protocol.unit import NON_OHLC_PERIOD_ALIASES, normalize_code
+from eltdx.transport.native import native_module
 
 from .base import ApiBase
 
@@ -82,11 +85,21 @@ class BarApi(ApiBase):
                 )
 
             with ThreadPoolExecutor(max_workers=workers) as executor:
-                results: dict[str, object] = {}
-                for offset in range(0, len(codes), workers):
-                    chunk = codes[offset : offset + workers]
-                    results.update(zip(chunk, executor.map(query, chunk)))
-                return results
+                return native_module().map_batches(executor, codes, query, workers)
+
+        if self._native_services and type(all_pages) is bool and _native_bar_arguments(
+            start, include_raw, max_pages if all_pages else None, bar_time
+        ):
+            return self._transport.sdk_bars(
+                command_code("klines"),
+                dict(code=code, period=period, start=start,
+                     count=page_size if all_pages else count, adjust=adjust,
+                     anchor_date=anchor_date, kind=_resolve_kline_kind(code, kind),
+                     include_raw=include_raw),
+                collect=bool(all_pages),
+                max_pages=_native_page_limit(max_pages) if all_pages else None,
+                bar_time=bar_time,
+            )
 
         if not all_pages:
             return self._get_page(
@@ -174,6 +187,32 @@ class BarApi(ApiBase):
 def _validate_page_size(value: int) -> None:
     if value <= 0 or value > MAX_KLINE_PAGE_SIZE:
         raise ValueError(f"page size must be between 1 and {MAX_KLINE_PAGE_SIZE}")
+
+
+def _native_bar_arguments(start, include_raw, max_pages, bar_time) -> bool:
+    # Temporary adapter for objects with custom comparison/index/truth methods.
+    # Their repeated evaluation used to happen once per wire request. Ordinary
+    # builtin arguments take the shared Rust business path, including floats
+    # accepted by BarApi's historical max_pages comparison.
+    return (
+        type(start) in (int, bool)
+        and type(include_raw) is bool
+        and type(max_pages) in (type(None), int, bool, float)
+        and type(bar_time) is str
+    )
+
+
+def _native_page_limit(value) -> int | None:
+    if value is None:
+        return None
+    if type(value) is float:
+        if not math.isfinite(value):
+            # pages >= nan/+inf was always false in the former loop.
+            return None
+        value = math.ceil(value)
+    # No history can issue more than 65536 nonempty u16-offset pages. A larger
+    # caller cap is unreachable; the original next-request range error wins.
+    return int(value) if value <= 65536 else None
 
 
 def _normalize_codes(codes: Sequence[str]) -> list[str]:

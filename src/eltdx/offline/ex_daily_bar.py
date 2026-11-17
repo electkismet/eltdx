@@ -18,12 +18,17 @@
 from __future__ import annotations
 
 import struct
+import sys
 from pathlib import Path
 
 from .models import ExDailyBar
 
 # 日期(4B) 开(4Bf) 高 低 收 额(4B) 量(4B) 结算价(4Bf)
 _EX_DAILY_FMT = struct.Struct("<IffffIIf")
+_NATIVE_EX_DAILY_FMT = _EX_DAILY_FMT
+_NATIVE_STRUCT = struct
+_NATIVE_UNPACK = struct.unpack
+_NATIVE_PACK = struct.pack
 
 
 def read_ex_daily_bar(filepath: str | Path) -> list[ExDailyBar]:
@@ -49,6 +54,17 @@ def read_ex_daily_bar(filepath: str | Path) -> list[ExDailyBar]:
     data = filepath.read_bytes()
     if len(data) < _EX_DAILY_FMT.size:
         return []
+    if (
+        type(data) is bytes
+        and _EX_DAILY_FMT is _NATIVE_EX_DAILY_FMT
+        and struct is _NATIVE_STRUCT
+        and struct.unpack is _NATIVE_UNPACK
+        and struct.pack is _NATIVE_PACK
+    ):
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_decode_bars(data, "ex", sys.modules[__name__], None)
+    # Explicit codec or buffer replacements keep their Python hooks.
 
     results: list[ExDailyBar] = []
     record_size = _EX_DAILY_FMT.size
@@ -80,13 +96,6 @@ def read_ex_daily_bar(filepath: str | Path) -> list[ExDailyBar]:
 def encode_ex_daily_bar(bar: ExDailyBar) -> bytes:
     """将 :class:`ExDailyBar` 编码为 32 字节扩展市场 ``.day`` 记录。"""
 
-    return _EX_DAILY_FMT.pack(
-        bar.date_int,
-        bar.open,
-        bar.high,
-        bar.low,
-        bar.close,
-        bar.amount,
-        bar.volume,
-        bar.settlement,
-    )
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_encode_bar(bar, "ex", sys.modules[__name__], None, None)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from sys import modules as _MODULES
+
 from eltdx.ex._binary import unpack_from
 from eltdx.ex.commands.base import BaseCommand
 
@@ -12,15 +14,13 @@ class GetExInstrumentCountCmd(BaseCommand[int]):
     def build_request(self) -> bytes:
         """构造请求包。"""
 
-        return bytes.fromhex("01 03 48 66 00 01 02 00 02 00 f0 23")
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_build("count", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> int:
         """解析商品总数响应。"""
 
-        if len(body) < 23:
-            return 0
-        (count,) = unpack_from("<I", body, 19, "ex instrument count")
-        return int(count)
-
+        from eltdx._native_abi import load_native
+        return load_native().ex_response_parse("count", self, body, _MODULES[__name__])
 
 __all__ = ["GetExInstrumentCountCmd"]

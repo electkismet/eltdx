@@ -1,0 +1,2319 @@
+{
+  "schema_version": 1,
+  "source_revision": "af471f1adf38757f6aa0188968db8110eb23f6ad",
+  "review": "Additive Rust SDK adapters only; frozen source baseline remains unchanged. Existing imported bindings, signatures, defaults, aliases, fields and exports remain checked.",
+  "modules": {
+    "src/eltdx/_bar_time.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/_native_models.py": {
+      "functions": [
+        {
+          "name": "trade_opening_from_dto",
+          "async": false,
+          "signature": "trade_opening_from_dto(dto: Any)",
+          "parameters": [
+            {
+              "name": "dto",
+              "kind": "positional_or_keyword",
+              "annotation": "Any",
+              "has_default": false,
+              "default_expr": null
+            }
+          ],
+          "returns": null,
+          "decorators": []
+        },
+        {
+          "name": "legacy_snapshot_batch_from_dto",
+          "async": false,
+          "signature": "legacy_snapshot_batch_from_dto(dto: Any) -> tuple[list[QuoteSnapshot | None], tuple[str, ...]]",
+          "parameters": [
+            {
+              "name": "dto",
+              "kind": "positional_or_keyword",
+              "annotation": "Any",
+              "has_default": false,
+              "default_expr": null
+            }
+          ],
+          "returns": "tuple[list[QuoteSnapshot | None], tuple[str, ...]]",
+          "decorators": []
+        }
+      ],
+      "all": {
+        "before": {
+          "expression": "['push_frame_from_dto', 'response_from_dto']",
+          "literal_names": [
+            "push_frame_from_dto",
+            "response_from_dto"
+          ]
+        },
+        "after": {
+          "expression": "['legacy_snapshot_batch_from_dto', 'push_frame_from_dto', 'response_from_dto']",
+          "literal_names": [
+            "legacy_snapshot_batch_from_dto",
+            "push_frame_from_dto",
+            "response_from_dto"
+          ]
+        }
+      }
+    },
+    "src/eltdx/api/auctions.py": {
+      "imports": [
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "PooledSocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "SocketTransport",
+          "asname": null
+        }
+      ],
+      "constructors": {
+        "AuctionApi": {
+          "before": {
+            "name": "__init__",
+            "async": false,
+            "signature": "__init__(self, transport: Transport, *, transport_factory: Callable[[], Transport] | None=None) -> None",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport",
+                "kind": "positional_or_keyword",
+                "annotation": "Transport",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport_factory",
+                "kind": "keyword_only",
+                "annotation": "Callable[[], Transport] | None",
+                "has_default": true,
+                "default_expr": "None"
+              }
+            ],
+            "returns": "None",
+            "decorators": []
+          },
+          "after": {
+            "name": "__init__",
+            "async": false,
+            "signature": "__init__(self, transport: Transport, *, transport_factory: Callable[[], Transport] | None=None, native_services: bool=False) -> None",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport",
+                "kind": "positional_or_keyword",
+                "annotation": "Transport",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport_factory",
+                "kind": "keyword_only",
+                "annotation": "Callable[[], Transport] | None",
+                "has_default": true,
+                "default_expr": "None"
+              },
+              {
+                "name": "native_services",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": true,
+                "default_expr": "False"
+              }
+            ],
+            "returns": "None",
+            "decorators": []
+          }
+        }
+      }
+    },
+    "src/eltdx/api/bars.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "math",
+          "asname": null
+        },
+        {
+          "source": "eltdx.protocol.commands",
+          "level": 0,
+          "name": "command_code",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/base.py": {
+      "imports": [
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "PooledSocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "SocketTransport",
+          "asname": null
+        }
+      ],
+      "constructors": {
+        "ApiBase": {
+          "before": {
+            "name": "__init__",
+            "async": false,
+            "signature": "__init__(self, transport: Transport, *, price_resolver=None, metadata_sink=None) -> None",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport",
+                "kind": "positional_or_keyword",
+                "annotation": "Transport",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "price_resolver",
+                "kind": "keyword_only",
+                "annotation": null,
+                "has_default": true,
+                "default_expr": "None"
+              },
+              {
+                "name": "metadata_sink",
+                "kind": "keyword_only",
+                "annotation": null,
+                "has_default": true,
+                "default_expr": "None"
+              }
+            ],
+            "returns": "None",
+            "decorators": []
+          },
+          "after": {
+            "name": "__init__",
+            "async": false,
+            "signature": "__init__(self, transport: Transport, *, price_resolver=None, metadata_sink=None, native_services: bool=False) -> None",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport",
+                "kind": "positional_or_keyword",
+                "annotation": "Transport",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "price_resolver",
+                "kind": "keyword_only",
+                "annotation": null,
+                "has_default": true,
+                "default_expr": "None"
+              },
+              {
+                "name": "metadata_sink",
+                "kind": "keyword_only",
+                "annotation": null,
+                "has_default": true,
+                "default_expr": "None"
+              },
+              {
+                "name": "native_services",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": true,
+                "default_expr": "False"
+              }
+            ],
+            "returns": "None",
+            "decorators": []
+          }
+        }
+      }
+    },
+    "src/eltdx/api/codes.py": {
+      "imports": [
+        {
+          "source": "eltdx.models.security",
+          "level": 0,
+          "name": "SecurityCode",
+          "asname": null
+        },
+        {
+          "source": "eltdx.protocol.commands",
+          "level": 0,
+          "name": "command_code",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/company_info.py": {
+      "imports": [
+        {
+          "source": "eltdx.protocol.commands",
+          "level": 0,
+          "name": "command_code",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/corporate.py": {
+      "imports": [
+        {
+          "source": "eltdx.protocol.commands",
+          "level": 0,
+          "name": "command_code",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "PooledSocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "SocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        },
+        {
+          "source": "_batch",
+          "level": 1,
+          "name": "_recover_finance_native",
+          "asname": null
+        },
+        {
+          "source": null,
+          "level": 1,
+          "name": "_batch",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/delisted_bars.py": {
+      "imports": [
+        {
+          "source": "eltdx.protocol.commands",
+          "level": 0,
+          "name": "command_code",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        },
+        {
+          "source": "bars",
+          "level": 1,
+          "name": "_native_bar_arguments",
+          "asname": null
+        },
+        {
+          "source": "bars",
+          "level": 1,
+          "name": "_native_page_limit",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/limits.py": {
+      "imports": [
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "SocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "PooledSocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/minutes.py": {
+      "imports": [
+        {
+          "source": "eltdx.protocol.commands",
+          "level": 0,
+          "name": "command_code",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/money_flow.py": {
+      "imports": [
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "PooledSocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "SocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        }
+      ],
+      "constructors": {
+        "MoneyFlowApi": {
+          "before": {
+            "name": "__init__",
+            "async": false,
+            "signature": "__init__(self, transport, *, transport_factory=None, f10_factory=None, candidate_hosts: Sequence[str]=()) -> None",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport_factory",
+                "kind": "keyword_only",
+                "annotation": null,
+                "has_default": true,
+                "default_expr": "None"
+              },
+              {
+                "name": "f10_factory",
+                "kind": "keyword_only",
+                "annotation": null,
+                "has_default": true,
+                "default_expr": "None"
+              },
+              {
+                "name": "candidate_hosts",
+                "kind": "keyword_only",
+                "annotation": "Sequence[str]",
+                "has_default": true,
+                "default_expr": "()"
+              }
+            ],
+            "returns": "None",
+            "decorators": []
+          },
+          "after": {
+            "name": "__init__",
+            "async": false,
+            "signature": "__init__(self, transport, *, transport_factory=None, f10_factory=None, candidate_hosts: Sequence[str]=(), native_services: bool=False) -> None",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "transport_factory",
+                "kind": "keyword_only",
+                "annotation": null,
+                "has_default": true,
+                "default_expr": "None"
+              },
+              {
+                "name": "f10_factory",
+                "kind": "keyword_only",
+                "annotation": null,
+                "has_default": true,
+                "default_expr": "None"
+              },
+              {
+                "name": "candidate_hosts",
+                "kind": "keyword_only",
+                "annotation": "Sequence[str]",
+                "has_default": true,
+                "default_expr": "()"
+              },
+              {
+                "name": "native_services",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": true,
+                "default_expr": "False"
+              }
+            ],
+            "returns": "None",
+            "decorators": []
+          }
+        }
+      }
+    },
+    "src/eltdx/api/quotes.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "warnings",
+          "asname": null
+        },
+        {
+          "source": "eltdx.exceptions",
+          "level": 0,
+          "name": "MissingCodesError",
+          "asname": null
+        },
+        {
+          "source": "eltdx.exceptions",
+          "level": 0,
+          "name": "MissingCodesWarning",
+          "asname": null
+        },
+        {
+          "source": "eltdx.protocol.commands",
+          "level": 0,
+          "name": "command_code",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/resources.py": {
+      "imports": [
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "SocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport",
+          "level": 0,
+          "name": "PooledSocketTransport",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport.pool",
+          "level": 0,
+          "name": "PinnedTransportProxy",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        },
+        {
+          "source": "eltdx.protocol.commands",
+          "level": 0,
+          "name": "command_code",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/session.py": {
+      "imports": [
+        {
+          "source": "eltdx.protocol.commands",
+          "level": 0,
+          "name": "command_code",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/subscription.py": {
+      "imports": [
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/api/trades.py": {
+      "imports": [
+        {
+          "source": "datetime",
+          "level": 0,
+          "name": "date",
+          "asname": null
+        },
+        {
+          "source": "datetime",
+          "level": 0,
+          "name": "datetime",
+          "asname": null
+        },
+        {
+          "source": null,
+          "level": 0,
+          "name": "math",
+          "asname": null
+        },
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/ex/_binary.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/_hk_transaction.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/client.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/get_history_bars_range.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/get_instrument_bars.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/get_instrument_count.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/get_instrument_info.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/get_instrument_quote.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/get_instrument_quote_list.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/get_markets.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/get_minute_time.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/get_transaction.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/commands/login.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/datetime_.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/frame.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/hosts.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/mac_client.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/ex/transport/sync.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/f10/client.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/f10/fields.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/f10/fields_mg_hk.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/f10/models.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/f10/news.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/financial.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "sys",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/mac/_binary.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/mac/adjust.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/mac/bitmap.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/mac/client.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/mac/codec.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/mac/commands.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/mac/price_rules.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/mac/transport.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/offline/alignment.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "sys",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/offline/block.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/offline/daily_bar.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "sys",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/offline/ex_daily_bar.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "sys",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/offline/gbbq.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/offline/history_financial.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "sys",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/offline/min_bar.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "sys",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/offline/paths.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/offline/write_daily.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "sys",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/offline/write_ex_daily.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "sys",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/offline/write_min_bar.py": {
+      "imports": [
+        {
+          "source": null,
+          "level": 0,
+          "name": "sys",
+          "asname": null
+        }
+      ]
+    },
+    "src/eltdx/protocol/decompress.py": {
+      "imports": [
+        {
+          "source": "sys",
+          "level": 0,
+          "name": "modules",
+          "asname": "_MODULES"
+        }
+      ]
+    },
+    "src/eltdx/transport/pool.py": {
+      "imports": [
+        {
+          "source": "eltdx._native_models",
+          "level": 0,
+          "name": "legacy_snapshot_batch_from_dto",
+          "asname": null
+        }
+      ],
+      "methods": {
+        "PinnedTransportProxy": [
+          {
+            "name": "sdk_quotes",
+            "async": false,
+            "signature": "sdk_quotes(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_resource",
+            "async": false,
+            "signature": "sdk_resource(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          }
+        ],
+        "PooledSocketTransport": [
+          {
+            "name": "sdk_snapshots",
+            "async": false,
+            "signature": "sdk_snapshots(self, codes: Sequence[str])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "codes",
+                "kind": "positional_or_keyword",
+                "annotation": "Sequence[str]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_security_pages",
+            "async": false,
+            "signature": "sdk_security_pages(self, market: str, page_size: int)",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "market",
+                "kind": "positional_or_keyword",
+                "annotation": "str",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "page_size",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_bars",
+            "async": false,
+            "signature": "sdk_bars(self, command: int, payload: dict[str, Any], *, collect: bool, max_pages: int | None, bar_time: str='start')",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "collect",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "max_pages",
+                "kind": "keyword_only",
+                "annotation": "int | None",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "bar_time",
+                "kind": "keyword_only",
+                "annotation": "str",
+                "has_default": true,
+                "default_expr": "'start'"
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_minutes",
+            "async": false,
+            "signature": "sdk_minutes(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_security_request",
+            "async": false,
+            "signature": "sdk_security_request(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_select_codes",
+            "async": false,
+            "signature": "sdk_select_codes(self, rows, selection: str)",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "rows",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "selection",
+                "kind": "positional_or_keyword",
+                "annotation": "str",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_quotes",
+            "async": false,
+            "signature": "sdk_quotes(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_suspended",
+            "async": false,
+            "signature": "sdk_suspended(self, codes)",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "codes",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_trades",
+            "async": false,
+            "signature": "sdk_trades(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_auction",
+            "async": false,
+            "signature": "sdk_auction(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_money_flow",
+            "async": false,
+            "signature": "sdk_money_flow(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_corporate",
+            "async": false,
+            "signature": "sdk_corporate(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_special_limits",
+            "async": false,
+            "signature": "sdk_special_limits(self, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_resource",
+            "async": false,
+            "signature": "sdk_resource(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_trade_batch",
+            "async": false,
+            "signature": "sdk_trade_batch(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_trade_read",
+            "async": false,
+            "signature": "sdk_trade_read(self, command: int, payload: dict[str, Any], *, collect: bool, opening: bool, max_pages: int | None, bulk: bool=False)",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "collect",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "opening",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "max_pages",
+                "kind": "keyword_only",
+                "annotation": "int | None",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "bulk",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": true,
+                "default_expr": "False"
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_session",
+            "async": false,
+            "signature": "sdk_session(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_company_info",
+            "async": false,
+            "signature": "sdk_company_info(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          }
+        ]
+      }
+    },
+    "src/eltdx/transport/socket.py": {
+      "imports": [
+        {
+          "source": "eltdx._native_models",
+          "level": 0,
+          "name": "legacy_snapshot_batch_from_dto",
+          "asname": null
+        }
+      ],
+      "methods": {
+        "SocketTransport": [
+          {
+            "name": "sdk_snapshots",
+            "async": false,
+            "signature": "sdk_snapshots(self, codes: Sequence[str])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "codes",
+                "kind": "positional_or_keyword",
+                "annotation": "Sequence[str]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_security_pages",
+            "async": false,
+            "signature": "sdk_security_pages(self, market: str, page_size: int)",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "market",
+                "kind": "positional_or_keyword",
+                "annotation": "str",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "page_size",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_bars",
+            "async": false,
+            "signature": "sdk_bars(self, command: int, payload: dict[str, Any], *, collect: bool, max_pages: int | None, bar_time: str='start')",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "collect",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "max_pages",
+                "kind": "keyword_only",
+                "annotation": "int | None",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "bar_time",
+                "kind": "keyword_only",
+                "annotation": "str",
+                "has_default": true,
+                "default_expr": "'start'"
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_minutes",
+            "async": false,
+            "signature": "sdk_minutes(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_security_request",
+            "async": false,
+            "signature": "sdk_security_request(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_select_codes",
+            "async": false,
+            "signature": "sdk_select_codes(self, rows, selection: str)",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "rows",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "selection",
+                "kind": "positional_or_keyword",
+                "annotation": "str",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_quotes",
+            "async": false,
+            "signature": "sdk_quotes(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_suspended",
+            "async": false,
+            "signature": "sdk_suspended(self, codes)",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "codes",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_trades",
+            "async": false,
+            "signature": "sdk_trades(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_auction",
+            "async": false,
+            "signature": "sdk_auction(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_money_flow",
+            "async": false,
+            "signature": "sdk_money_flow(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_corporate",
+            "async": false,
+            "signature": "sdk_corporate(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_resource",
+            "async": false,
+            "signature": "sdk_resource(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_special_limits",
+            "async": false,
+            "signature": "sdk_special_limits(self, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_trade_batch",
+            "async": false,
+            "signature": "sdk_trade_batch(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_trade_read",
+            "async": false,
+            "signature": "sdk_trade_read(self, command: int, payload: dict[str, Any], *, collect: bool, opening: bool, max_pages: int | None, bulk: bool=False)",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "collect",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "opening",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "max_pages",
+                "kind": "keyword_only",
+                "annotation": "int | None",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "bulk",
+                "kind": "keyword_only",
+                "annotation": "bool",
+                "has_default": true,
+                "default_expr": "False"
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_session",
+            "async": false,
+            "signature": "sdk_session(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          },
+          {
+            "name": "sdk_company_info",
+            "async": false,
+            "signature": "sdk_company_info(self, command: int, payload: dict[str, Any])",
+            "parameters": [
+              {
+                "name": "self",
+                "kind": "positional_or_keyword",
+                "annotation": null,
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "command",
+                "kind": "positional_or_keyword",
+                "annotation": "int",
+                "has_default": false,
+                "default_expr": null
+              },
+              {
+                "name": "payload",
+                "kind": "positional_or_keyword",
+                "annotation": "dict[str, Any]",
+                "has_default": false,
+                "default_expr": null
+              }
+            ],
+            "returns": null,
+            "decorators": []
+          }
+        ]
+      }
+    },
+    "src/eltdx/workday.py": {
+      "imports": [
+        {
+          "source": "eltdx.transport.native",
+          "level": 0,
+          "name": "native_module",
+          "asname": null
+        }
+      ]
+    }
+  }
+}

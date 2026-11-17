@@ -1,7 +1,9 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{DEFAULT_CODE_PAGE_SIZE, MAX_CODE_PAGE_SIZE, MAX_RESPONSE_PAYLOAD_SIZE};
 use crate::unit::{decode_gbk_text, little_f32, little_u16, register_security_decimal, Market};
+use bytes::Bytes;
 
 pub const TYPE_SECURITY_LIST: u16 = 0x044d;
 pub const TYPE_SECURITY_COUNT: u16 = 0x044e;
@@ -136,6 +138,7 @@ pub struct SecurityCode {
     pub category: SecurityCategory,
     pub category_reason: &'static str,
     pub board: SecurityBoard,
+    pub record_range: RecordRange,
 }
 
 impl SecurityCode {
@@ -174,6 +177,23 @@ pub fn parse_security_list_payload(
     payload: &[u8],
     market: Market,
 ) -> Result<Vec<SecurityCode>, ProtocolError> {
+    parse_security_list_payload_body(payload, market, &ParseContext::legacy(payload))
+}
+
+pub fn parse_security_list_payload_with_context(
+    payload: Bytes,
+    market: Market,
+    options: &ParseOptions<'_>,
+) -> Result<Vec<SecurityCode>, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_security_list_payload_body(&payload, market, &context)
+}
+
+fn parse_security_list_payload_body(
+    payload: &[u8],
+    market: Market,
+    context: &ParseContext<'_>,
+) -> Result<Vec<SecurityCode>, ProtocolError> {
     ensure_payload_bound(payload, "security list")?;
     if payload.len() < 2 {
         return Err(ProtocolError::invalid_data(
@@ -196,14 +216,19 @@ pub fn parse_security_list_payload(
     }
 
     let mut items = Vec::with_capacity(count);
-    for record in payload[2..expected_length].chunks_exact(CODE_RECORD_SIZE) {
+    for record in payload[2..expected_length]
+        .as_chunks::<CODE_RECORD_SIZE>()
+        .0
+    {
         let code = decode_security_code(&record[..6])?;
         let unknown0_raw = exact_four(&record[24..28], "security unknown0")?;
         let previous_close_raw = exact_four(&record[29..33], "security previous close")?;
         let unknown3_raw = exact_four(&record[33..37], "security unknown3")?;
         let (category, category_reason) = classify_security_details(market, &code);
         let board = classify_board(market, &code, category);
-        register_security_decimal(&format!("{}{}", market.as_str(), code), record[28]);
+        if context.is_legacy() {
+            register_security_decimal(&format!("{}{}", market.as_str(), code), record[28]);
+        }
         items.push(SecurityCode {
             market,
             code,
@@ -218,6 +243,7 @@ pub fn parse_security_list_payload(
             category,
             category_reason,
             board,
+            record_range: context.record_range(record),
         });
     }
     Ok(items)

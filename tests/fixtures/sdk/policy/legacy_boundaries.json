@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "policy_id": "legacy_boundaries_v1",
+  "source_revision": "af471f1adf38757f6aa0188968db8110eb23f6ad",
+  "decision": "new_rust_may_correct_documented_defects_but_python_projection_changes_require_separate_approval",
+  "cases": [
+    {
+      "case_id": "today_bulk_native_transport",
+      "input": {"command": "today_ticks", "transport": "SocketTransport or PooledSocketTransport"},
+      "python_compat": {"error_type": "ValueError", "error_message": "trade batch only supports historical ticks", "custom_transport_path_remains_usable": true},
+      "rust": {"status": "supported", "uses_same_owner_and_operation_policy": true},
+      "evidence": {"level": "python_source_and_test_contract", "sources": ["src/eltdx/transport/socket.py", "src/eltdx/transport/pool.py", "tests/test_trade_batch.py::test_old_and_bulk_requests_can_share_transport_concurrently"], "spec_ref": "docs/rust-sdk/compatibility-cases.md#COMP-016"}
+    },
+    {
+      "case_id": "financial_zip_multiple_dat_names",
+      "input": {"fixture_ref": "tests/fixtures/sdk/cases/042_financial_zip_dat.json", "entries": [{"name": "A.dat", "data": "b'A'"}, {"name": "B.dat", "data": "b'B'"}]},
+      "python_compat": {"selected_member": "A.dat", "selection": "first_case_sensitive_dat_entry", "duplicate_same_name": "ResourceFormatError"},
+      "rust": {"without_selector": "ambiguous", "with_selector_A.dat": "select_explicit_member", "duplicate_same_name": "ResourceFormatError"},
+      "evidence": {"level": "python_source_and_frozen_contract", "sources": ["src/eltdx/offline/history_financial.py::read_dat_from_zip"], "spec_ref": "docs/rust-sdk/compatibility-cases.md#COMP-042", "independent_oracle": false}
+    },
+    {
+      "case_id": "market_stat_missing_middle_identity",
+      "input": {"requested": ["sh880005", "sh880001", "sh880006"], "returned": [{"id": "sh880005", "last": 10, "open": 20, "low": 3, "high": 40}, {"id": "sh880006", "last": 7, "open": 2}]},
+      "python_compat": {"up_count": 100, "down_count": 200, "neutral_count": 30, "total_count": 400, "total_market_cap": 70000000000.0, "limit_up_count": 0, "limit_down_count": 0, "known_issue": "positional_projection_uses_880006_as_880001"},
+      "rust": {"missing_identity": "sh880001", "status": "missing_data", "total_market_cap": null, "uses_response_position_as_identity": false},
+      "evidence": {"level": "hand_constructed_identity_case", "sources": ["src/eltdx/helpers/market.py::fetch_market_stat"], "spec_ref": "docs/rust-sdk/compatibility-cases.md#COMP-027", "independent_oracle": true}
+    },
+    {
+      "case_id": "finance_failure_cache",
+      "input": {"requested_codes": ["sh600000"], "attempts": [{"result": "timeout"}, {"result": "valid_record"}]},
+      "python_compat": {"first_projection": "empty_or_none_fields", "second_projection": "cached_empty_result", "finance_requests_after_two_calls": 1, "failure_swallowed": true},
+      "rust": {"failure_is_complete_cache_entry": false, "cache_state_after_timeout": "failed", "later_retry_allowed": true},
+      "evidence": {"level": "python_source_and_frozen_contract", "sources": ["src/eltdx/helpers/core.py::HelperService._finance_map"], "spec_ref": "docs/rust-sdk/compatibility-cases.md#COMP-025", "independent_oracle": false}
+    },
+    {
+      "case_id": "max_pages_none",
+      "input": {"non_empty_pages": 3, "terminal_page": "empty"},
+      "python_compat": {"adds_implicit_page_cap": false, "termination": "first_confirmed_empty_page"},
+      "rust": {"unbounded_collect_allowed": false, "requires_finite_page_options": true},
+      "evidence": {"level": "frozen_compatibility_contract", "sources": ["src/eltdx/api/trades.py::all_history_batch", "docs/rust-sdk/compatibility-cases.md#COMP-011"], "independent_oracle": false}
+    },
+    {
+      "case_id": "request_deadline_scope",
+      "input": {"request_timeout_seconds": 8, "page_durations_seconds": [5, 5], "startup_seconds": 6, "first_request_seconds": 3},
+      "python_compat": {"deadline_scope": "each_request_after_startup", "two_page_result": "success_at_about_10_seconds", "startup_plus_request_result": "success_at_about_9_seconds"},
+      "rust": {"deadline_scope": "whole_operation", "two_page_result": "timeout_at_8_seconds", "startup_plus_request_result": "timeout_at_8_seconds"},
+      "evidence": {"level": "frozen_clock_and_executor_contract", "spec_refs": ["docs/rust-sdk/compatibility-cases.md#COMP-006", "docs/rust-sdk/compatibility-cases.md#COMP-007", "docs/rust-sdk/compatibility-cases.md#COMP-008"], "independent_oracle": false}
+    },
+    {
+      "case_id": "recovery_and_retry_budgets",
+      "input": {"python_recovery_extra_requests": 32, "rust_operation_extra_attempt_budget": 2, "wire_attempt_limit_including_first": 2},
+      "python_compat": {"recovery_budget_scope": "legacy_domain_specific", "exhaustion_error": "ProtocolError"},
+      "rust": {"recovery_budget_scope": "shared_operation", "exhaustion_error": "LimitExceeded"},
+      "evidence": {"level": "frozen_attempt_accounting_contract", "spec_refs": ["docs/rust-sdk/compatibility-cases.md#COMP-009", "docs/rust-sdk/compatibility-cases.md#COMP-010"]}
+    }
+  ]
+}

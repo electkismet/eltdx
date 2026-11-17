@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "case_id": "COMP-042/financial-zip-dat-selection",
+  "source_type": "synthetic",
+  "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+  "request": {
+    "operation": "select-dat-from-zip",
+    "selector": null,
+    "archive_cases": ["different_names", "duplicate_name"]
+  },
+  "response": {
+    "encoding": "zip_members",
+    "different_names": [
+      {"name": "A.dat", "data_hex": "41"},
+      {"name": "B.dat", "data_hex": "42"}
+    ],
+    "duplicate_name": [
+      {"name": "A.dat", "data_hex": "41"},
+      {"name": "A.dat", "data_hex": "42"}
+    ]
+  },
+  "expected": {
+    "python_compat": {
+      "different_names": {"selected": "A.dat", "data_hex": "41", "decompressed_entries": 1},
+      "duplicate_name": {"error": "ResourceFormatError", "decompressed_entries": 0}
+    },
+    "rust": {
+      "different_names_without_selector": {"error": "AmbiguousResource", "decompressed_entries": 0},
+      "different_names_with_selector_A": {"selected": "A.dat", "data_hex": "41", "decompressed_entries": 1},
+      "duplicate_name": {"error": "ResourceFormat", "decompressed_entries": 0}
+    }
+  },
+  "evidence_level": "frozen_python_contract",
+  "spec_refs": ["docs/rust-sdk/compatibility-cases.md#COMP-042", "docs/rust-sdk/extension-api-spec.md"]
+}

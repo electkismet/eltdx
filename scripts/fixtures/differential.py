@@ -18,6 +18,27 @@ from scripts.fixtures.canonical import (
 REQUIRED_CASE_FILES = frozenset(
     {"request.json", "request.bin", "response.bin", "expected.json", "metadata.json"}
 )
+SDK_REQUIRED_FIELDS = frozenset(
+    {
+        "schema_version",
+        "case_id",
+        "source_type",
+        "source_revision",
+        "request",
+        "response",
+        "expected",
+        "evidence_level",
+        "spec_refs",
+    }
+)
+SDK_SOURCE_TYPES = frozenset({"capture", "synthetic", "reference"})
+SDK_EVIDENCE_LEVELS = frozenset(
+    {
+        "independent_protocol_calculation",
+        "frozen_python_contract",
+        "protocol_regression_input",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,8 +56,91 @@ class DifferentialCase:
     metadata: dict[str, Any]
 
 
+@dataclass(frozen=True, slots=True)
+class SdkFixture:
+    root: Path
+    case_id: str
+    source_type: str
+    source_revision: str
+    request: Any
+    response: Any
+    expected: dict[str, Any]
+    evidence_level: str
+    spec_refs: tuple[str, ...]
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _decode_sdk_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        if "$type" in value:
+            return from_canonical(value)
+        return {key: _decode_sdk_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_decode_sdk_value(item) for item in value]
+    return value
+
+
+def discover_sdk_cases(fixtures_root: Path) -> list[SdkFixture]:
+    """Load language-neutral SDK contract fixtures without importing either SDK."""
+
+    cases = []
+    for fixture_path in sorted((fixtures_root / "cases").glob("*.json")):
+        raw = _load_json(fixture_path)
+        missing = SDK_REQUIRED_FIELDS - set(raw)
+        if missing:
+            raise ValueError(
+                f"incomplete SDK fixture {fixture_path}: missing {', '.join(sorted(missing))}"
+            )
+        if raw["schema_version"] != 1:
+            raise ValueError(f"unsupported SDK fixture schema in {fixture_path}")
+        if raw["source_type"] not in SDK_SOURCE_TYPES:
+            raise ValueError(f"unsupported SDK fixture source type in {fixture_path}")
+        if raw["evidence_level"] not in SDK_EVIDENCE_LEVELS:
+            raise ValueError(f"unsupported SDK fixture evidence level in {fixture_path}")
+        if not isinstance(raw["source_revision"], str) or not raw["source_revision"]:
+            raise ValueError(f"SDK fixture has no source revision: {fixture_path}")
+        if not isinstance(raw["request"], dict) or not isinstance(raw["response"], dict):
+            raise TypeError(f"SDK fixture request/response must be objects: {fixture_path}")
+        expected = raw["expected"]
+        if not isinstance(expected, dict) or set(expected) != {"python_compat", "rust"}:
+            raise ValueError(f"SDK fixture must define Python and Rust results: {fixture_path}")
+        if not isinstance(raw["spec_refs"], list) or not raw["spec_refs"]:
+            raise ValueError(f"SDK fixture has no specification references: {fixture_path}")
+        case_id = raw["case_id"]
+        if not isinstance(case_id, str) or not case_id:
+            raise ValueError(f"SDK fixture has no case_id: {fixture_path}")
+        cases.append(
+            SdkFixture(
+                root=fixture_path.parent,
+                case_id=case_id,
+                source_type=raw["source_type"],
+                source_revision=raw["source_revision"],
+                request=_decode_sdk_value(raw["request"]),
+                response=_decode_sdk_value(raw["response"]),
+                expected={
+                    name: _decode_sdk_value(value)
+                    for name, value in expected.items()
+                },
+                evidence_level=raw["evidence_level"],
+                spec_refs=tuple(raw["spec_refs"]),
+            )
+        )
+    if len({case.case_id for case in cases}) != len(cases):
+        raise ValueError(f"duplicate SDK fixture case_id under {fixtures_root}")
+    return cases
+
+
+def assert_sdk_case(case: SdkFixture, actual: Any, *, profile: str) -> None:
+    """Compare one SDK result with the frozen profile projection for a case."""
+
+    if profile not in case.expected:
+        raise ValueError(f"unknown SDK fixture profile {profile!r} for {case.case_id}")
+    assert_exact(
+        case.expected[profile], actual, label=f"{case.case_id} {profile} result"
+    )
 
 
 def discover_cases(fixtures_root: Path) -> list[DifferentialCase]:

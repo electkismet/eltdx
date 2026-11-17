@@ -7,7 +7,7 @@
 * ``tdxfin/gpcwYYYYMMDD.zip``  —— 某一报告期的财报压缩包，内含一个 ``.dat``
 
 下载复用 :class:`eltdx.api.resources.ResourceApi` 的 ``download_file``（其底层即
-``0x06B9`` GetReportFileCmd），解析为纯 Python（:mod:`zipfile` + :mod:`struct`）。
+``0x06B9`` GetReportFileCmd）；DAT 解析复用 Rust 核心，ZIP 保留 Python 编解码适配。
 
 鸭子类型（duck typing）要求：:func:`list_archive_files` 与 :func:`download_records`
 只要求 ``client`` 暴露 ``client.resources.download_file(path) -> bytes``。任何具备该
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import io
 import re
+import sys
 import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -78,11 +79,9 @@ def list_archive_files(client: object) -> list[FinancialFileInfo]:
         :class:`FinancialFileInfo` 列表。
     """
 
-    data = client.resources.download_file(FINANCIAL_LIST_PATH)  # type: ignore[attr-defined]
-    return [
-        FinancialFileInfo(filename=filename, hash=digest, filesize=filesize)
-        for filename, digest, filesize in parse_financial_file_list(data)
-    ]
+    from eltdx._native_abi import load_native
+
+    return load_native().financial_list_archives(client, sys.modules[__name__])
 
 
 def download_archive(client: object, filename: str) -> bytes:
@@ -99,9 +98,9 @@ def download_archive(client: object, filename: str) -> bytes:
         分配进内存再报错，限额形同虚设。
     """
 
-    return client.resources.download_file(  # type: ignore[attr-defined]
-        filename, max_bytes=MAX_FINANCIAL_ZIP_BYTES
-    )
+    from eltdx._native_abi import load_native
+
+    return load_native().financial_download_archive(client, filename, sys.modules[__name__])
 
 
 def download_records(client: object, filename: str) -> list[FinancialRecord]:
@@ -118,16 +117,12 @@ def download_records(client: object, filename: str) -> list[FinancialRecord]:
         ResourceFormatError: zip 非法、超出解压限额，或其中不存在 ``.dat`` 文件。
     """
 
-    zip_bytes = download_archive(client, filename)
-    if not zip_bytes:
-        return []
+    from eltdx._native_abi import load_native
 
-    # 传输层已按 max_bytes 截断；这里是兜底（例如自定义 client 忽略了该参数）。
-    if len(zip_bytes) > MAX_FINANCIAL_ZIP_BYTES:
-        raise ResourceFormatError(
-            f"财报 zip 超出压缩体积上限 {MAX_FINANCIAL_ZIP_BYTES} 字节: {filename} "
-            f"(实际 {len(zip_bytes)} 字节)"
-        )
+    native = load_native()
+    zip_bytes = native.financial_archive_payload(client, filename, sys.modules[__name__])
+    if zip_bytes is None:
+        return []
 
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as archive:
@@ -142,20 +137,7 @@ def download_records(client: object, filename: str) -> list[FinancialRecord]:
     except zipfile.BadZipFile as exc:
         raise ResourceFormatError(f"无效的财报 zip 文件: {filename}") from exc
 
-    match = _REPORT_DATE_RE.search(Path(filename).name)
-    report_date = int(match.group(1)) if match else 0
-
-    records: list[FinancialRecord] = []
-    for code, market_byte, rdate, fields in parse_financial_dat(dat_data, report_date):
-        records.append(
-            FinancialRecord(
-                code=code,
-                market_id=market_byte,
-                report_date=rdate,
-                fields=tuple(fields),
-            )
-        )
-    return records
+    return native.financial_finish_records(dat_data, filename, sys.modules[__name__])
 
 
 def open_calc_client(host: str | None = None, *, timeout: float = 8.0) -> TdxClient:

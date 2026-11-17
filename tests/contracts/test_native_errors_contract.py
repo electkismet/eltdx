@@ -72,6 +72,19 @@ class NativeError(Exception):
     """Test double matching the private PyO3 exception name and payload."""
 
 
+def test_controlled_raw_push_overflow_preserves_cumulative_count_and_projection() -> None:
+    from eltdx.exceptions import PushOverflowError
+    from eltdx.transport.native import call_native
+
+    message = "7709 push buffer overflow; 17 frame(s) dropped"
+    private = NativeError("PushOverflow", message, [("dropped_total", "17")])
+    with pytest.raises(PushOverflowError) as raised:
+        call_native(_raise_native, private)
+    assert str(raised.value) == message
+    assert raised.value._native_context == {"dropped_total": "17"}
+    assert raised.value.__cause__ is None
+
+
 def _raise_native(error: BaseException) -> None:
     raise error
 

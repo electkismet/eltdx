@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from sys import modules as _MODULES
 from pathlib import Path
 from threading import get_ident
 from typing import Any, Iterable, Mapping
@@ -74,6 +75,11 @@ MAC_EX_HOSTS: tuple[str, ...] = (
 _HOST_SPLIT = re.compile(r"[,;\s]+")
 
 
+def _native_host_values(values):
+    # Retain the generator expression's iteration and PEP 479 boundary.
+    return (value for value in values)
+
+
 def normalize_ex_host(value: Any) -> str | None:
     """把配置项规整成裸主机名/IP；非法项返回 ``None``。
 
@@ -83,25 +89,15 @@ def normalize_ex_host(value: Any) -> str | None:
     这里明确拒绝而不是静默丢弃端口，免得用户以为端口生效了。
     """
 
-    if not isinstance(value, str):
-        return None
-    text = value.strip()
-    if not text or any(character.isspace() for character in text):
-        return None
-    if text.startswith("["):
-        end = text.find("]")
-        if end == -1 or text[end + 1 :].strip():
-            return None
-        return text
-    if ":" in text or "/" in text or len(text) > 253:
-        return None
-    return text
+    from eltdx._native_abi import load_native
+    return load_native().ex_host_normalize(value, _MODULES[__name__])
 
 
 def ex_server_file_path() -> Path:
     """用户配置文件路径 ``<data_dir>/ex_servers.json``。"""
 
-    return data_dir() / EX_SERVER_FILE
+    from eltdx._native_abi import load_native
+    return load_native().ex_hosts_path(_MODULES[__name__])
 
 
 def parse_ex_hosts(values: Iterable[Any], *, source: str) -> list[str]:
@@ -111,50 +107,33 @@ def parse_ex_hosts(values: Iterable[Any], *, source: str) -> list[str]:
     自己的配置生效了，实际一直在用包内列表。
     """
 
-    hosts: list[str] = []
-    for raw in values:
-        host = normalize_ex_host(raw)
-        if host is None:
-            raise ValueError(
-                f"{source} 中的主机项无效: {raw!r}；只接受裸主机名/IP"
-                f"（例如 '203.0.113.10'），端口由 ExTdxClient(port=) 指定，默认 {DEFAULT_EX_PORT}"
-            )
-        if host not in hosts:
-            hosts.append(host)
-    return hosts
+    from eltdx._native_abi import load_native
+    return load_native().ex_hosts_parse(values, source, _MODULES[__name__])
 
 
 def load_ex_hosts_from_env(env: Mapping[str, str] | None = None) -> list[str]:
     """读取 ``ELTDX_EX_HOSTS``；未设置或为空返回 ``[]``。"""
 
-    environ = os.environ if env is None else env
-    text = environ.get(EX_HOSTS_ENV)
-    if not text or not text.strip():
-        return []
-    parts = [part for part in _HOST_SPLIT.split(text.strip()) if part]
-    return parse_ex_hosts(parts, source=EX_HOSTS_ENV)
+    from eltdx._native_abi import load_native
+    return load_native().ex_hosts_env(env, _MODULES[__name__])
 
 
 def load_ex_hosts_from_file(path: str | os.PathLike[str] | None = None) -> list[str]:
     """读取用户配置文件；文件不存在返回 ``[]``，内容非法抛 ``ValueError``。"""
 
-    target = Path(path) if path is not None else ex_server_file_path()
+    from eltdx._native_abi import load_native
+    target = load_native().ex_hosts_target(path, _MODULES[__name__])
     try:
         raw = target.read_text(encoding="utf-8")
     except FileNotFoundError:
         return []
     except OSError as exc:
-        raise ValueError(f"无法读取扩展行情主机配置 {target}: {exc}") from exc
+        raise load_native().ex_hosts_error("read", target, exc, _MODULES[__name__]) from exc
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise ValueError(f"扩展行情主机配置不是合法 JSON（{target}）: {exc}") from exc
-    if not isinstance(data, dict):
-        raise ValueError(f"扩展行情主机配置顶层必须是对象（{target}）")
-    hosts = data.get("hosts")
-    if not isinstance(hosts, list):
-        raise ValueError(f"扩展行情主机配置缺少 hosts 数组（{target}）")
-    return parse_ex_hosts(hosts, source=str(target))
+        raise load_native().ex_hosts_error("json", target, exc, _MODULES[__name__]) from exc
+    return load_native().ex_hosts_file_data(data, target, _MODULES[__name__])
 
 
 def load_ex_hosts(
@@ -164,13 +143,8 @@ def load_ex_hosts(
 ) -> list[str]:
     """解析生效的扩展行情主机列表：环境变量 > 用户配置 > 包内默认。"""
 
-    from_env = load_ex_hosts_from_env(env)
-    if from_env:
-        return from_env
-    from_file = load_ex_hosts_from_file(path)
-    if from_file:
-        return from_file
-    return list(DEFAULT_EX_HOSTS)
+    from eltdx._native_abi import load_native
+    return load_native().ex_hosts_select(env, path, _MODULES[__name__])
 
 
 def save_ex_hosts(
@@ -180,22 +154,11 @@ def save_ex_hosts(
 ) -> Path:
     """把主机列表原子写入用户配置文件，返回写入路径。"""
 
-    normalized = parse_ex_hosts(list(hosts), source="save_ex_hosts")
-    if not normalized:
-        raise ValueError("hosts 不能为空")
-    target = Path(path) if path is not None else ex_server_file_path()
-    target.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "schema_version": EX_SERVER_SCHEMA_VERSION,
-        "hosts": normalized,
-    }
-    temporary = target.with_name(f".{target.name}.{os.getpid()}.{get_ident()}.tmp")
+    from eltdx._native_abi import load_native
+    target, payload, temporary = load_native().ex_hosts_save_prepare(hosts, path, _MODULES[__name__])
     try:
         with temporary.open("w", encoding="utf-8") as stream:
-            json.dump(payload, stream, ensure_ascii=False, indent=2)
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
+            load_native().ex_hosts_save_write(stream, payload, _MODULES[__name__])
         try:
             temporary.chmod(0o600)
         except OSError:

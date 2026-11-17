@@ -6,7 +6,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from eltdx._native_models import push_frame_from_dto, response_from_dto, trade_batch_from_dto
+from eltdx._native_models import (
+    legacy_snapshot_batch_from_dto,
+    push_frame_from_dto,
+    response_from_dto,
+    trade_batch_from_dto,
+)
 from eltdx.hosts import DEFAULT_HOSTS, resolve_hosts, unique_hosts
 from eltdx.transport.native import call_native, native_module
 
@@ -209,6 +214,86 @@ class SocketTransport:
 
     def execute(self, command: int, payload: dict[str, Any] | None = None) -> Any:
         dto = call_native(self._native().execute, command, payload or {})
+        return response_from_dto(dto)
+
+    def sdk_snapshots(self, codes: Sequence[str]):
+        dto = call_native(self._native().sdk_snapshots, list(codes))
+        return legacy_snapshot_batch_from_dto(dto)
+
+    def sdk_security_pages(self, market: str, page_size: int):
+        dtos = call_native(self._native().sdk_security_pages, market, page_size)
+        return [response_from_dto(dto) for dto in dtos]
+
+    def sdk_bars(self, command: int, payload: dict[str, Any], *, collect: bool,
+                 max_pages: int | None, bar_time: str = "start"):
+        dto = call_native(self._native().sdk_bars, command, payload, collect=collect,
+                          max_pages=max_pages, bar_time=bar_time)
+        return response_from_dto(dto)
+
+    def sdk_minutes(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_minutes, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_security_request(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_security_request, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_select_codes(self, rows, selection: str):
+        return call_native(native_module().select_security_rows, rows, selection)
+
+    def sdk_quotes(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_quotes, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_suspended(self, codes):
+        return call_native(self._native().sdk_suspended, {"codes": codes})
+
+    def sdk_trades(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_trades, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_auction(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_auction, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_money_flow(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_money_flow, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_corporate(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_corporate, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_resource(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_resource, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_special_limits(self, payload: dict[str, Any]):
+        return response_from_dto(call_native(self._native().sdk_special_limits, payload))
+
+    def sdk_trade_batch(self, command: int, payload: dict[str, Any]):
+        if command != 0x0FC6:
+            raise ValueError("trade batch only supports historical ticks")
+        dto = call_native(self._native().sdk_trades, command, payload)
+        return trade_batch_from_dto(dto)
+
+    def sdk_trade_read(self, command: int, payload: dict[str, Any], *, collect: bool,
+                       opening: bool, max_pages: int | None, bulk: bool = False):
+        if bulk and command != 0x0FC6:
+            raise ValueError("trade batch only supports historical ticks")
+        dto = call_native(self._native().sdk_trade_read, command, payload,
+                          collect=collect, opening=opening, max_pages=max_pages, bulk=bulk)
+        if opening:
+            from eltdx._native_models import trade_opening_from_dto
+            return trade_opening_from_dto(dto)
+        return trade_batch_from_dto(dto) if bulk else response_from_dto(dto)
+
+    def sdk_session(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_session, command, payload)
+        return response_from_dto(dto)
+
+    def sdk_company_info(self, command: int, payload: dict[str, Any]):
+        dto = call_native(self._native().sdk_company_info, command, payload)
         return response_from_dto(dto)
 
     def execute_trade_batch(self, command: int, payload: dict[str, Any] | None = None):

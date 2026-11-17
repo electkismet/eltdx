@@ -26,6 +26,7 @@ from typing import Any
 
 from eltdx.models.quote import QuoteRefreshPage, QuoteRefreshRecord
 from eltdx.protocol.unit import normalize_code
+from eltdx.transport.native import native_module
 
 from .base import ApiBase
 
@@ -144,18 +145,12 @@ class QuoteSubscription:
         """
 
         self._prepare_connections()
-        pages = []
         try:
-            for index in range(len(self._groups)):
-                pages.append(self._refresh_group(index))
+            pages = native_module().subscription_activation_pages(self)
         except BaseException:
             self._release_connections()
             raise
-        if len(pages) == 1:
-            return pages[0]
-        return QuoteRefreshPage(
-            self._codes, tuple(record for page in pages for record in page.records), b""
-        )
+        return native_module().subscription_combine(self, pages, QuoteRefreshPage)
 
     def _prepare_connections(self) -> None:
         if self._group_apis:
@@ -176,7 +171,15 @@ class QuoteSubscription:
                 resolver("refresh_stream", None, list(self._codes))
             stack = ExitStack()
             try:
-                apis = [type(self._api)(stack.enter_context(pin())) for _ in self._groups]
+                apis = native_module().subscription_group_apis(self, stack, pin)
+                # Standard subscriptions use the same Rust refresh service on
+                # their existing pins; custom API/transport subclasses keep
+                # the original execute extension point.
+                from eltdx.transport.pool import PinnedTransportProxy
+                from .quotes import QuoteApi
+
+                if type(self._api) is QuoteApi and self._api._native_services:
+                    native_module().subscription_enable_native(apis, PinnedTransportProxy)
             except BaseException:
                 stack.close()
                 raise
@@ -188,26 +191,14 @@ class QuoteSubscription:
         self._next_renew = [None] * len(self._groups)
 
     def _remember(self, records: Sequence[Any]) -> None:
-        for record in records:
-            if isinstance(record, QuoteRefreshRecord) and record.full_code in self._cursors:
-                code = record.full_code
-                # The server cursor is a time of day, not a monotonic sequence.
-                # Follow the most recently received value, including a new
-                # session's lower morning time. A stale record may replay
-                # some increments, but must not suppress a new session.
-                self._cursors[code] = record.update_time_raw
+        native_module().subscription_remember(self, records, QuoteRefreshRecord)
 
     def _refresh_group(self, index: int):
         codes = self._groups[index]
         try:
-            page = self._group_apis[index].refresh(
-                list(codes), cursors={code: self._cursors[code] for code in codes}
-            )
-            self._remember(getattr(page, "records", ()) or ())
-            return page
+            return native_module().subscription_refresh(self, index, codes)
         finally:
-            interval = self._reactivate_interval
-            self._next_renew[index] = None if interval is None else time.monotonic() + interval
+            native_module().subscription_schedule(self, index, time)
 
     def _release_connections(self) -> None:
         stack, self._pin_stack = self._pin_stack, None
@@ -233,30 +224,20 @@ class QuoteSubscription:
         续期、轮询和用户回调的异常交给 ``on_error``；未设置时向上抛出。
         """
 
-        if self._stopped:
-            return 0
-        effective = self._timeout if timeout is None else timeout
-        if effective is not None and effective < 0:
-            raise ValueError("timeout 必须 >= 0")
-        dispatched = 0
-        for index, due in enumerate(self._next_renew):
-            if self._stopped:
-                return dispatched
-            if due is not None and time.monotonic() >= due:
-                try:
-                    page = self._refresh_group(index)
-                except Exception as exc:
-                    if self._on_error is None:
-                        raise
-                    self._on_error(exc)
-                else:
-                    dispatched += self._dispatch(getattr(page, "records", ()) or ())
-        if self._stopped:
-            return dispatched
-        due_times = [due for due in self._next_renew if due is not None]
-        if due_times:
-            until_renew = max(0.0, min(due_times) - time.monotonic())
-            effective = until_renew if effective is None else min(effective, until_renew)
+        return native_module().subscription_run_once(self, timeout, time)
+
+    def _renew_once(self, index):
+        # Keep the active Python exception visible to user error handlers.
+        try:
+            page = self._refresh_group(index)
+        except Exception as exc:
+            if self._on_error is None:
+                raise
+            self._on_error(exc)
+            return False, None
+        return True, page
+
+    def _poll_once(self, effective):
         try:
             frame = self._poll_api.poll_push(timeout=effective, parse=True)
         except Exception as exc:  # noqa: BLE001 - 与 _dispatch 一致，统一走 on_error
@@ -264,11 +245,8 @@ class QuoteSubscription:
                 raise  # 未设置兜底时保留向上抛错的行为
             self._on_error(exc)
             # 轮询错误按暂时性处理：本轮结束、不计帧，run() 继续下一轮。
-            return dispatched
-        self._frames += 1
-        if frame is None:
-            return dispatched
-        return dispatched + self._dispatch(getattr(frame, "records", ()) or ())
+            return False, None
+        return True, frame
 
     def run(self, *, duration: float | None = None, reactivate_interval: float | None = None) -> None:
         """阻塞轮询并派发，直到 ``stop()``、达到 ``duration`` 或 KeyboardInterrupt。
@@ -282,17 +260,7 @@ class QuoteSubscription:
                 raise ValueError("reactivate_interval 必须 > 0")
             self._reactivate_interval = reactivate_interval
         try:
-            page = self.activate()
-            self._dispatch(getattr(page, "records", ()) or ())
-            deadline = None if duration is None else time.monotonic() + duration
-            while not self._stopped:
-                timeout = self._timeout
-                if deadline is not None:
-                    remaining = max(0.0, deadline - time.monotonic())
-                    timeout = remaining if timeout is None else min(timeout, remaining)
-                self.run_once(timeout=timeout)
-                if deadline is not None and time.monotonic() >= deadline:
-                    break
+            native_module().subscription_run(self, duration, time)
         except KeyboardInterrupt:
             self.stop()
             raise
@@ -302,22 +270,15 @@ class QuoteSubscription:
     # ------------------------------------------------------------------ 内部
 
     def _dispatch(self, records: Sequence[Any]) -> int:
-        self._remember(records)
-        count = 0
-        for record in records:
-            if not isinstance(record, QuoteRefreshRecord):
-                continue
-            if self._filter_codes and record.full_code not in self._code_set:
-                continue
-            self._dispatched += 1
-            try:
-                self._callback(record)
-            except Exception as exc:  # noqa: BLE001 - 统一走 on_error 兜底
-                if self._on_error is None:
-                    raise
-                self._on_error(exc)
-            count += 1
-        return count
+        return native_module().subscription_dispatch(self, records, QuoteRefreshRecord)
+
+    def _invoke_callback(self, record):
+        try:
+            self._callback(record)
+        except Exception as exc:  # noqa: BLE001 - 保留用户异常上下文
+            if self._on_error is None:
+                raise
+            self._on_error(exc)
 
     def __repr__(self) -> str:  # pragma: no cover - 诊断用
         return (

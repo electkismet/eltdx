@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import socket
 import time
+from sys import modules as _MODULES
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Protocol, TypeVar
@@ -54,7 +55,8 @@ SocketFactory = Callable[[int, int], SocketLike]
 
 
 def _default_socket_factory(family: int, type_: int) -> SocketLike:
-    return socket.socket(family, type_)
+    from eltdx._native_abi import load_native
+    return load_native().extension_socket_factory(family, type_, _MODULES[__name__])
 
 
 def _safe_close(sock: SocketLike) -> None:
@@ -64,16 +66,33 @@ def _safe_close(sock: SocketLike) -> None:
         pass
 
 
+def _native_signal_close(sock):
+    """Retire only the resource held by the interrupted native operation."""
+    try:
+        shutdown = getattr(sock, "shutdown", None)
+        if shutdown is not None:
+            try:
+                shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+    finally:
+        _safe_close(sock)
+
+
 def _recv_exact(sock: SocketLike, n: int) -> bytes:
     """循环 ``recv`` 直到读满 ``n`` 字节；连接被关闭时抛 :class:`ConnectionClosedError`。"""
 
-    buf = bytearray()
-    while len(buf) < n:
-        chunk = sock.recv(n - len(buf))
-        if not chunk:
-            raise ConnectionClosedError("连接被服务器关闭")
-        buf.extend(chunk)
-    return bytes(buf)
+    from eltdx._native_abi import load_native
+    return load_native().extension_recv_exact("mac", sock, n, _MODULES[__name__])
+
+
+def _native_setup_response(connection):
+    # The except block retains the legacy setup-response error boundary.
+    from eltdx._native_abi import load_native
+    try:
+        load_native().mac_setup_response(connection, _MODULES[__name__])
+    except (OSError, TransportError):
+        pass
 
 
 class MacConnection:
@@ -94,61 +113,71 @@ class MacConnection:
         socket_factory: SocketFactory | None = None,
         setup_commands: tuple[bytes, ...] = SETUP_COMMANDS,
     ) -> None:
-        self.host = host
-        self.port = port
-        self.timeout = timeout
-        self._socket_factory: SocketFactory = socket_factory or _default_socket_factory
-        self._setup_commands = setup_commands
-        self._sock: SocketLike | None = None
+        from eltdx._native_abi import load_native
+        load_native().extension_connection_init("mac", self, (host, port, timeout, socket_factory, setup_commands), _MODULES[__name__])
 
     @property
     def connected(self) -> bool:
         """当前是否已建立连接。"""
 
-        return self._sock is not None
+        from eltdx._native_abi import load_native
+        return load_native().extension_socket_connected(self)
 
     def connect(self) -> None:
         """建立 TCP 连接并完成三步握手。"""
 
-        sock = self._socket_factory(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(self.timeout)
+        from eltdx._native_abi import load_native
+        sock = load_native().extension_socket_prepare("mac", self, _MODULES[__name__])
         try:
-            sock.connect((self.host, self.port))
-        except OSError as exc:
+            operation = load_native().extension_attempt_begin(sock)
+        except BaseException:
             _safe_close(sock)
-            raise TransportError(f"无法连接 {self.host}:{self.port}: {exc}") from exc
-        self._sock = sock
+            raise
         try:
-            self._send_setup()
-        except Exception:
-            _safe_close(sock)
-            self._sock = None
+            try:
+                load_native().extension_socket_connect("mac", self, sock, _MODULES[__name__])
+            except OSError as exc:
+                _safe_close(sock)
+                raise load_native().extension_transport_error("mac_connect", self, exc, _MODULES[__name__]) from exc
+            load_native().extension_attempt_publish(self, operation, _MODULES[__name__])
+            try:
+                self._send_setup()
+            except Exception:
+                _safe_close(sock)
+                self._sock = None
+                load_native().extension_generation_retire(self)
+                raise
+            load_native().extension_operation_finish(operation, None, _MODULES[__name__])
+        except BaseException as exc:
+            load_native().extension_operation_failed(operation, self, exc, _MODULES[__name__])
             raise
 
     def close(self) -> None:
         """关闭连接（幂等）。"""
 
-        if self._sock is not None:
-            _safe_close(self._sock)
-            self._sock = None
+        from eltdx._native_abi import load_native
+        load_native().extension_connection_close("mac", self, _MODULES[__name__])
 
     def execute(self, cmd: "BaseCommand[T]") -> T:
         """执行一条命令：发送请求、接收并解压响应、返回解析结果。"""
 
-        if self._sock is None:
-            raise TransportError("未连接，请先调用 connect()")
-        request = cmd.build_request()
+        from eltdx._native_abi import load_native
+        operation = load_native().extension_operation_begin(self, None, _MODULES[__name__])
         try:
-            self._sock.sendall(request)
-            header_buf = self._recv_exact(HEADER_SIZE)
-            header = parse_mac_header(header_buf)
-            raw_body = self._recv_exact(header.zipsize)
-        except socket.timeout as exc:
-            raise ResponseTimeoutError(f"请求超时: {exc}") from exc
-        except OSError as exc:
-            raise ConnectionClosedError(f"通信错误: {exc}") from exc
-        body = decompress_mac_body(header, raw_body)
-        return cmd.parse_response(body)
+            request = load_native().extension_request_prepare("mac", self, cmd, _MODULES[__name__])
+            load_native().extension_operation_check(operation, _MODULES[__name__])
+            try:
+                header, raw_body = load_native().extension_exchange("mac", self, None, request, _MODULES[__name__])
+            except socket.timeout as exc:
+                raise load_native().extension_transport_error("mac_timeout", self, exc, _MODULES[__name__]) from exc
+            except OSError as exc:
+                raise load_native().extension_transport_error("mac_io", self, exc, _MODULES[__name__]) from exc
+            load_native().extension_operation_check(operation, _MODULES[__name__])
+            result = load_native().extension_response_finish("mac", cmd, header, raw_body, _MODULES[__name__])
+            return load_native().extension_operation_finish(operation, result, _MODULES[__name__])
+        except BaseException as exc:
+            load_native().extension_operation_failed(operation, self, exc, _MODULES[__name__])
+            raise
 
     def __enter__(self) -> "MacConnection":
         self.connect()
@@ -165,20 +194,12 @@ class MacConnection:
     def _send_setup(self) -> None:
         """按序发送握手命令并丢弃响应（部分服务器握手无响应，忽略其错误）。"""
 
-        for cmd_bytes in self._setup_commands:
-            assert self._sock is not None
-            self._sock.sendall(cmd_bytes)
-            try:
-                hdr_buf = self._recv_exact(HEADER_SIZE)
-                hdr = parse_mac_header(hdr_buf)
-                if hdr.zipsize > 0:
-                    self._recv_exact(hdr.zipsize)
-            except (OSError, TransportError):
-                pass
+        from eltdx._native_abi import load_native
+        load_native().mac_setup_commands(self, _MODULES[__name__], __debug__)
 
     def _recv_exact(self, n: int) -> bytes:
-        assert self._sock is not None
-        return _recv_exact(self._sock, n)
+        from eltdx._native_abi import load_native
+        return load_native().extension_connection_receive("mac", self, n, _MODULES[__name__], __debug__)
 
 
 def ping_mac_host(
@@ -202,18 +223,21 @@ def ping_mac_host(
     # 局部导入：transport 位于 commands 之下，避免模块级导入顺序耦合。
     from .commands import ServerInfoCmd
 
-    started = time.monotonic()
-    connection = MacConnection(host, port, timeout, socket_factory=socket_factory)
+    from eltdx._native_abi import load_native
+    started, connection = load_native().extension_probe_begin(
+        "mac", (host, port, timeout, socket_factory), _MODULES[__name__]
+    )
     try:
-        connection.connect()
-        session = connection.execute(ServerInfoCmd())
-        if not session.today:
+        if not load_native().extension_probe_run(connection, ServerInfoCmd, True):
             return None
     except (OSError, EltdxError):
         return None
     finally:
-        connection.close()
-    return time.monotonic() - started
+        load_native().extension_probe_close(connection, None)
+    return load_native().extension_probe_success("mac", started, host, _MODULES[__name__])
+
+
+_native_probe_pair_latency = lambda item: item[1]
 
 
 def ping_mac_all(
@@ -228,23 +252,16 @@ def ping_mac_all(
     探测失败的主机不会出现在结果里；全部失败时返回空列表。
     """
 
-    candidates = [str(h) for h in hosts] if hosts else list(MAC_HOSTS)
-    if not candidates:
+    from eltdx._native_abi import load_native
+    prepared = load_native().extension_probe_prepare("mac", hosts, None, _MODULES[__name__])
+    if prepared is None:
         return []
-    results: list[tuple[str, float]] = []
-    with ThreadPoolExecutor(max_workers=len(candidates)) as pool:
-        futures = {
-            pool.submit(
-                ping_mac_host, h, port, timeout, socket_factory=socket_factory
-            ): h
-            for h in candidates
-        }
-        for future in as_completed(futures):
-            latency = future.result()
-            if latency is not None:
-                results.append((futures[future], latency))
-    results.sort(key=lambda item: item[1])
-    return results
+    candidates, results, registry, manager = prepared
+    with manager as pool:
+        load_native().extension_probe_collect(
+            "mac", candidates, results, registry, pool, (port, timeout, socket_factory), _MODULES[__name__]
+        )
+    return load_native().extension_probe_finish("mac", candidates, results, _MODULES[__name__])
 
 
 __all__ = [

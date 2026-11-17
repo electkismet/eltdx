@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use bytes::Bytes;
 
 use crate::error::ProtocolError;
@@ -5,7 +6,7 @@ use crate::frame::RequestFrame;
 use crate::limits::{MAX_COMMAND_ITEMS, MAX_REFRESH_CODES, MAX_RESPONSE_PAYLOAD_SIZE};
 use crate::unit::{
     consume_price, consume_varint, decode_k, get_volume, little_f32, little_u16, little_u32,
-    milli_to_float, price_divisor, Market, NormalizedCode,
+    milli_to_float, Market, NormalizedCode,
 };
 
 pub const TYPE_LEGACY_QUOTES: u16 = 0x053e;
@@ -202,8 +203,26 @@ pub struct QuoteLevel {
     pub price_delta_raw: i64,
 }
 
+/// Exact wire price before legacy integer division or f64 conversion.
+/// `wire_denominator * divisor` is the CNY denominator for each integer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct QuotePriceRaw {
+    pub current: i64,
+    pub last_close: i64,
+    pub open: i64,
+    pub high: i64,
+    pub low: i64,
+    pub wire_denominator: u16,
+    pub divisor: u16,
+    /// Decimal returned by the captured source, including an audited fallback
+    /// if that source provides one. This does not itself assert verification.
+    /// None is possible only for the legacy prefix/default fallback.
+    pub metadata_decimal: Option<u8>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuoteSnapshot {
+    pub price_raw: QuotePriceRaw,
     pub market_id: u8,
     pub code: String,
     pub active1: u16,
@@ -226,10 +245,12 @@ pub struct QuoteSnapshot {
     pub buy_levels: Vec<QuoteLevel>,
     pub sell_levels: Vec<QuoteLevel>,
     pub tail_raw: Bytes,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LegacyQuote {
+    pub price_raw: QuotePriceRaw,
     pub market: Market,
     pub code: String,
     pub active1: u16,
@@ -256,10 +277,12 @@ pub struct LegacyQuote {
     pub rise_speed_raw: Option<i16>,
     pub active2: Option<u16>,
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CategoryQuoteRecord {
+    pub price_raw: QuotePriceRaw,
     pub market_id: u8,
     pub code: String,
     pub active1: u16,
@@ -282,6 +305,8 @@ pub struct CategoryQuoteRecord {
     pub open_amount: f64,
     pub bid1: f64,
     pub ask1: f64,
+    pub bid1_delta_raw: i64,
+    pub ask1_delta_raw: i64,
     pub bid_vol1: i64,
     pub ask_vol1: i64,
     pub status_or_sort_raw: u16,
@@ -298,6 +323,7 @@ pub struct CategoryQuoteRecord {
     pub extra_meta_raw: [u8; 24],
     pub tail_raw: [u8; 56],
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -310,6 +336,7 @@ pub struct CategoryQuotePage {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct QuoteRefreshRecord {
+    pub price_raw: QuotePriceRaw,
     pub market_id: u8,
     pub code: String,
     pub active: u16,
@@ -333,6 +360,7 @@ pub struct QuoteRefreshRecord {
     pub sell_levels: Vec<QuoteLevel>,
     pub tail_raw: Bytes,
     pub record_hex: String,
+    pub record_range: RecordRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -347,6 +375,23 @@ pub fn parse_snapshots_payload(
     payload: &[u8],
     requested_codes: &[NormalizedCode],
 ) -> Result<Vec<QuoteSnapshot>, ProtocolError> {
+    parse_snapshots_payload_body(payload, requested_codes, &ParseContext::legacy(payload))
+}
+
+pub fn parse_snapshots_payload_with_context(
+    payload: Bytes,
+    requested_codes: &[NormalizedCode],
+    options: &ParseOptions<'_>,
+) -> Result<Vec<QuoteSnapshot>, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_snapshots_payload_body(&payload, requested_codes, &context)
+}
+
+fn parse_snapshots_payload_body(
+    payload: &[u8],
+    requested_codes: &[NormalizedCode],
+    context: &ParseContext<'_>,
+) -> Result<Vec<QuoteSnapshot>, ProtocolError> {
     ensure_payload_bound(payload, "snapshots")?;
     if payload.len() < 4 {
         return Err(ProtocolError::invalid_data(
@@ -355,11 +400,17 @@ pub fn parse_snapshots_payload(
         ));
     }
     let count = usize::from(little_u16(&payload[2..4])?);
+    if !context.legacy_quote_layout() {
+        return parse_strict_snapshot_records(&payload[4..], count, requested_codes, context);
+    }
     if count == 0 && payload.len() != 4 {
         return Err(ProtocolError::invalid_data(
             "snapshots",
             "unexpected trailing empty snapshot bytes",
         ));
+    }
+    if count == 0 {
+        return Ok(Vec::new());
     }
     if count > 0 && requested_codes.len() < count {
         return Err(ProtocolError::invalid_data(
@@ -390,7 +441,7 @@ pub fn parse_snapshots_payload(
         let number = parse_ascii_digits(&record[1..7], "snapshot")?;
         let returned = NormalizedCode { market, number };
         if returned != requested_codes[0] {
-            parse_snapshot_record(record, &returned)?;
+            parse_snapshot_record(record, &returned, context)?;
             return Err(ProtocolError::invalid_data(
                 "snapshot",
                 format!(
@@ -400,17 +451,34 @@ pub fn parse_snapshots_payload(
             ));
         }
     }
-    let records = split_snapshot_records(&payload[4..], &requested_codes[..count])?;
+    let records = split_snapshot_records(&payload[4..], requested_codes)?;
     records
         .iter()
-        .zip(&requested_codes[..count])
-        .map(|(record, code)| parse_snapshot_record(record, code))
+        .zip(requested_codes)
+        .map(|(record, code)| parse_snapshot_record(record, code, context))
         .collect()
 }
 
 pub fn parse_legacy_quotes_payload(
     payload: &[u8],
     requested_codes: &[NormalizedCode],
+) -> Result<Vec<LegacyQuote>, ProtocolError> {
+    parse_legacy_quotes_payload_body(payload, requested_codes, &ParseContext::legacy(payload))
+}
+
+pub fn parse_legacy_quotes_payload_with_context(
+    payload: Bytes,
+    requested_codes: &[NormalizedCode],
+    options: &ParseOptions<'_>,
+) -> Result<Vec<LegacyQuote>, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_legacy_quotes_payload_body(&payload, requested_codes, &context)
+}
+
+fn parse_legacy_quotes_payload_body(
+    payload: &[u8],
+    requested_codes: &[NormalizedCode],
+    context: &ParseContext<'_>,
 ) -> Result<Vec<LegacyQuote>, ProtocolError> {
     ensure_payload_bound(payload, "legacy quotes")?;
     if payload.len() < 4 {
@@ -435,6 +503,7 @@ pub fn parse_legacy_quotes_payload(
             offset,
             count - index - 1,
             next_marker.as_ref().map(|marker| marker.as_slice()),
+            context,
         )?;
         offset = next;
         records.push(record);
@@ -455,6 +524,23 @@ pub fn parse_category_quotes_payload(
     payload: &[u8],
     request: CategoryQuotesRequest,
 ) -> Result<CategoryQuotePage, ProtocolError> {
+    parse_category_quotes_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_category_quotes_payload_with_context(
+    payload: Bytes,
+    request: CategoryQuotesRequest,
+    options: &ParseOptions<'_>,
+) -> Result<CategoryQuotePage, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_category_quotes_payload_body(&payload, request, &context)
+}
+
+fn parse_category_quotes_payload_body(
+    payload: &[u8],
+    request: CategoryQuotesRequest,
+    context: &ParseContext<'_>,
+) -> Result<CategoryQuotePage, ProtocolError> {
     ensure_payload_bound(payload, "category quotes")?;
     if payload.len() < 4 {
         return Err(ProtocolError::invalid_data(
@@ -473,7 +559,7 @@ pub fn parse_category_quotes_payload(
     let mut offset = 4;
     let mut records = Vec::with_capacity(count);
     for _ in 0..count {
-        let (record, next) = parse_category_quote_record(payload, offset)?;
+        let (record, next) = parse_category_quote_record(payload, offset, context)?;
         offset = next;
         records.push(record);
     }
@@ -490,13 +576,34 @@ pub fn parse_category_quotes_payload(
         request,
         header,
         records,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
 pub fn parse_refresh_stream_payload(
     raw_payload: &[u8],
     requested_codes: &[NormalizedCode],
+) -> Result<QuoteRefreshPage, ProtocolError> {
+    parse_refresh_stream_payload_body(
+        raw_payload,
+        requested_codes,
+        &ParseContext::legacy(raw_payload),
+    )
+}
+
+pub fn parse_refresh_stream_payload_with_context(
+    raw_payload: Bytes,
+    requested_codes: &[NormalizedCode],
+    options: &ParseOptions<'_>,
+) -> Result<QuoteRefreshPage, ProtocolError> {
+    let context = ParseContext::new(&raw_payload, options);
+    parse_refresh_stream_payload_body(&raw_payload, requested_codes, &context)
+}
+
+fn parse_refresh_stream_payload_body(
+    raw_payload: &[u8],
+    requested_codes: &[NormalizedCode],
+    context: &ParseContext<'_>,
 ) -> Result<QuoteRefreshPage, ProtocolError> {
     ensure_payload_bound(raw_payload, "refresh stream")?;
     if requested_codes.len() > MAX_REFRESH_CODES {
@@ -526,27 +633,47 @@ pub fn parse_refresh_stream_payload(
         return Ok(QuoteRefreshPage {
             requested_codes: requested_codes.to_vec(),
             records: Vec::new(),
-            decoded_payload: Bytes::from(decoded),
-            raw_payload: Bytes::copy_from_slice(raw_payload),
+            decoded_payload: if context.is_legacy() {
+                Bytes::from(decoded)
+            } else {
+                Bytes::new()
+            },
+            raw_payload: context.payload(raw_payload),
         });
     }
+    let refresh_context = context.refresh_view(&decoded);
     let raw_records = split_refresh_records(&decoded[2..], requested_codes, count)?;
     let records = raw_records
         .iter()
-        .map(|record| parse_refresh_record(record))
+        .map(|record| parse_refresh_record(record, &refresh_context))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(QuoteRefreshPage {
         requested_codes: requested_codes.to_vec(),
         records,
-        decoded_payload: Bytes::from(decoded),
-        raw_payload: Bytes::copy_from_slice(raw_payload),
+        decoded_payload: if context.is_legacy() {
+            Bytes::from(decoded)
+        } else {
+            Bytes::new()
+        },
+        raw_payload: context.payload(raw_payload),
     })
 }
 
 fn parse_snapshot_record(
     record: &[u8],
     expected_code: &NormalizedCode,
+    context: &ParseContext<'_>,
 ) -> Result<QuoteSnapshot, ProtocolError> {
+    let (mut row, consumed) = parse_snapshot_record_prefix(record, expected_code, context)?;
+    row.tail_raw = context.business_bytes(&record[consumed..]);
+    Ok(row)
+}
+
+fn parse_snapshot_record_prefix(
+    record: &[u8],
+    expected_code: &NormalizedCode,
+    context: &ParseContext<'_>,
+) -> Result<(QuoteSnapshot, usize), ProtocolError> {
     if record.len() < 9 {
         return Err(ProtocolError::invalid_data(
             "snapshot",
@@ -575,7 +702,8 @@ fn parse_snapshot_record(
     offset = next;
     let (open_amount_raw, next) = consume_varint(record, offset)?;
     offset = next;
-    let divisor = i64::from(price_divisor(expected_code));
+    let precision = context.precision(expected_code)?;
+    let divisor = i64::from(precision.divisor);
     let (bid_delta, next) = consume_price(record, offset)?;
     offset = next;
     let (ask_delta, next) = consume_price(record, offset)?;
@@ -586,38 +714,52 @@ fn parse_snapshot_record(
     offset = next;
     let bid_milli = scaled_price(prices.current_milli, bid_delta, divisor)?;
     let ask_milli = scaled_price(prices.current_milli, ask_delta, divisor)?;
-    Ok(QuoteSnapshot {
-        market_id,
-        code,
-        active1,
-        last_price: milli_to_float(floor_div(prices.current_milli, divisor)?),
-        pre_close_price: milli_to_float(floor_div(prices.last_close_milli, divisor)?),
-        open_price: milli_to_float(floor_div(prices.open_milli, divisor)?),
-        high_price: milli_to_float(floor_div(prices.high_milli, divisor)?),
-        low_price: milli_to_float(floor_div(prices.low_milli, divisor)?),
-        time_raw,
-        unknown_after_time_raw,
-        total_hand,
-        current_hand,
-        amount: get_volume(amount_raw),
-        amount_raw,
-        inside_dish,
-        outer_disc,
-        unknown_after_outer_raw,
-        open_amount_raw,
-        open_amount_yuan: checked_scale(open_amount_raw, 100)? as f64,
-        buy_levels: vec![QuoteLevel {
-            price: milli_to_float(bid_milli),
-            volume: bid_volume,
-            price_delta_raw: bid_delta,
-        }],
-        sell_levels: vec![QuoteLevel {
-            price: milli_to_float(ask_milli),
-            volume: ask_volume,
-            price_delta_raw: ask_delta,
-        }],
-        tail_raw: Bytes::copy_from_slice(&record[offset..]),
-    })
+    Ok((
+        QuoteSnapshot {
+            price_raw: QuotePriceRaw {
+                current: prices.current_milli,
+                last_close: prices.last_close_milli,
+                open: prices.open_milli,
+                high: prices.high_milli,
+                low: prices.low_milli,
+                wire_denominator: 1000,
+                divisor: divisor as u16,
+                metadata_decimal: precision.decimal,
+            },
+            market_id,
+            code,
+            active1,
+            last_price: milli_to_float(floor_div(prices.current_milli, divisor)?),
+            pre_close_price: milli_to_float(floor_div(prices.last_close_milli, divisor)?),
+            open_price: milli_to_float(floor_div(prices.open_milli, divisor)?),
+            high_price: milli_to_float(floor_div(prices.high_milli, divisor)?),
+            low_price: milli_to_float(floor_div(prices.low_milli, divisor)?),
+            time_raw,
+            unknown_after_time_raw,
+            total_hand,
+            current_hand,
+            amount: get_volume(amount_raw),
+            amount_raw,
+            inside_dish,
+            outer_disc,
+            unknown_after_outer_raw,
+            open_amount_raw,
+            open_amount_yuan: checked_scale(open_amount_raw, 100)? as f64,
+            buy_levels: vec![QuoteLevel {
+                price: milli_to_float(bid_milli),
+                volume: bid_volume,
+                price_delta_raw: bid_delta,
+            }],
+            sell_levels: vec![QuoteLevel {
+                price: milli_to_float(ask_milli),
+                volume: ask_volume,
+                price_delta_raw: ask_delta,
+            }],
+            tail_raw: Bytes::new(),
+            record_range: context.record_range(record),
+        },
+        offset,
+    ))
 }
 
 fn parse_legacy_quote_record(
@@ -625,6 +767,7 @@ fn parse_legacy_quote_record(
     mut offset: usize,
     remaining_records: usize,
     next_marker: Option<&[u8]>,
+    context: &ParseContext<'_>,
 ) -> Result<(LegacyQuote, usize), ProtocolError> {
     let start = offset;
     if payload.len() < offset.saturating_add(9) {
@@ -647,7 +790,9 @@ fn parse_legacy_quote_record(
         market,
         number: code.clone(),
     };
-    let price_scale = 100.0 * f64::from(price_divisor(&normalized));
+    let precision = context.precision(&normalized)?;
+    let divisor = precision.divisor;
+    let price_scale = 100.0 * f64::from(divisor);
     let (close_raw, next) = consume_varint(payload, offset)?;
     offset = next;
     let (pre_close_diff_raw, next) = consume_varint(payload, offset)?;
@@ -739,6 +884,16 @@ fn parse_legacy_quote_record(
     }
     Ok((
         LegacyQuote {
+            price_raw: QuotePriceRaw {
+                current: close_raw,
+                last_close: checked_add(close_raw, pre_close_diff_raw)?,
+                open: checked_add(close_raw, open_diff_raw)?,
+                high: checked_add(close_raw, high_diff_raw)?,
+                low: checked_add(close_raw, low_diff_raw)?,
+                wire_denominator: 100,
+                divisor,
+                metadata_decimal: precision.decimal,
+            },
             market,
             code,
             active1,
@@ -764,7 +919,8 @@ fn parse_legacy_quote_record(
             tail_metrics_raw,
             rise_speed_raw,
             active2,
-            record_hex: encode_hex(&payload[start..offset]),
+            record_hex: context.record_hex(&payload[start..offset]),
+            record_range: context.record_range(&payload[start..offset]),
         },
         offset,
     ))
@@ -773,6 +929,7 @@ fn parse_legacy_quote_record(
 fn parse_category_quote_record(
     payload: &[u8],
     mut offset: usize,
+    context: &ParseContext<'_>,
 ) -> Result<(CategoryQuoteRecord, usize), ProtocolError> {
     let start = offset;
     if payload.len() < offset.saturating_add(9) {
@@ -839,7 +996,8 @@ fn parse_category_quote_record(
         market,
         number: code.clone(),
     };
-    let divisor = i64::from(price_divisor(&normalized));
+    let precision = context.precision(&normalized)?;
+    let divisor = i64::from(precision.divisor);
     let status_or_sort_raw = little_u16(&tail[..2])?;
     let rise_speed_raw = i16::from_le_bytes(exact_array(&tail[2..4], "rise speed")?);
     let short_turnover_raw = i16::from_le_bytes(exact_array(&tail[4..6], "turnover")?);
@@ -852,6 +1010,16 @@ fn parse_category_quote_record(
     let active2 = little_u16(&tail[54..56])?;
     Ok((
         CategoryQuoteRecord {
+            price_raw: QuotePriceRaw {
+                current: close_raw,
+                last_close: checked_add(close_raw, pre_close_diff)?,
+                open: checked_add(close_raw, open_diff)?,
+                high: checked_add(close_raw, high_diff)?,
+                low: checked_add(close_raw, low_diff)?,
+                wire_denominator: 100,
+                divisor: divisor as u16,
+                metadata_decimal: precision.decimal,
+            },
             market_id,
             code,
             active1,
@@ -874,6 +1042,8 @@ fn parse_category_quote_record(
             open_amount: checked_scale(open_amount_raw, 100)? as f64,
             bid1: quote_price(checked_add(close_raw, bid1_diff)?, divisor)?,
             ask1: quote_price(checked_add(close_raw, ask1_diff)?, divisor)?,
+            bid1_delta_raw: bid1_diff,
+            ask1_delta_raw: ask1_diff,
             bid_vol1,
             ask_vol1,
             status_or_sort_raw,
@@ -889,13 +1059,17 @@ fn parse_category_quote_record(
             depth,
             extra_meta_raw,
             tail_raw: tail,
-            record_hex: encode_hex(&payload[start..offset]),
+            record_hex: context.record_hex(&payload[start..offset]),
+            record_range: context.record_range(&payload[start..offset]),
         },
         offset,
     ))
 }
 
-fn parse_refresh_record(record: &[u8]) -> Result<QuoteRefreshRecord, ProtocolError> {
+fn parse_refresh_record(
+    record: &[u8],
+    context: &ParseContext<'_>,
+) -> Result<QuoteRefreshRecord, ProtocolError> {
     if record.len() < 9 {
         return Err(ProtocolError::invalid_data(
             "refresh quote",
@@ -930,7 +1104,8 @@ fn parse_refresh_record(record: &[u8]) -> Result<QuoteRefreshRecord, ProtocolErr
         market,
         number: code.clone(),
     };
-    let divisor = i64::from(price_divisor(&normalized));
+    let precision = context.precision(&normalized)?;
+    let divisor = i64::from(precision.divisor);
     let mut buy_levels = Vec::with_capacity(5);
     let mut sell_levels = Vec::with_capacity(5);
     for _ in 0..5 {
@@ -954,6 +1129,16 @@ fn parse_refresh_record(record: &[u8]) -> Result<QuoteRefreshRecord, ProtocolErr
         });
     }
     Ok(QuoteRefreshRecord {
+        price_raw: QuotePriceRaw {
+            current: prices.current_milli,
+            last_close: prices.last_close_milli,
+            open: prices.open_milli,
+            high: prices.high_milli,
+            low: prices.low_milli,
+            wire_denominator: 1000,
+            divisor: divisor as u16,
+            metadata_decimal: precision.decimal,
+        },
         market_id,
         code,
         active,
@@ -975,8 +1160,9 @@ fn parse_refresh_record(record: &[u8]) -> Result<QuoteRefreshRecord, ProtocolErr
         open_amount_yuan: checked_scale(open_amount_raw, 10)? as f64,
         buy_levels,
         sell_levels,
-        tail_raw: Bytes::copy_from_slice(&record[offset..]),
-        record_hex: encode_hex(record),
+        tail_raw: context.business_bytes(&record[offset..]),
+        record_hex: context.record_hex(record),
+        record_range: context.record_range(record),
     })
 }
 
@@ -984,6 +1170,9 @@ fn split_snapshot_records<'a>(
     data: &'a [u8],
     codes: &[NormalizedCode],
 ) -> Result<Vec<&'a [u8]>, ProtocolError> {
+    // T11 can select context-specific identity ordering in the caller and feed
+    // the resulting slices to parse_snapshot_record; the field algorithm stays
+    // shared with the legacy request-order splitter.
     if codes.is_empty() {
         return Ok(Vec::new());
     }
@@ -1002,6 +1191,168 @@ fn split_snapshot_records<'a>(
         search_from = position + marker.len();
     }
     Ok(slice_at_starts(data, &starts))
+}
+
+fn parse_strict_snapshot_records(
+    data: &[u8],
+    count: usize,
+    requested_codes: &[NormalizedCode],
+    context: &ParseContext<'_>,
+) -> Result<Vec<QuoteSnapshot>, ProtocolError> {
+    if count == 0 {
+        if !data.is_empty() {
+            return Err(ProtocolError::invalid_data(
+                "snapshots",
+                "unexpected trailing empty snapshot bytes",
+            ));
+        }
+        return Ok(Vec::new());
+    }
+    if count > requested_codes.len() {
+        return Err(ProtocolError::invalid_data(
+            "snapshots",
+            "snapshot response count exceeds request code count",
+        ));
+    }
+    let mut remaining = std::collections::HashMap::<NormalizedCode, usize>::new();
+    for code in requested_codes {
+        *remaining.entry(code.clone()).or_default() += 1;
+    }
+    let mut rows = Vec::with_capacity(count);
+    let mut start = 0_usize;
+    for (index, requested_code) in requested_codes.iter().take(count).enumerate() {
+        let marker_error = || {
+            ProtocolError::invalid_data(
+                "snapshot",
+                format!("snapshot record marker not found: {}", requested_code),
+            )
+        };
+        let Some((relative, code)) = find_snapshot_identity(&data[start..], 0) else {
+            return Err(marker_error());
+        };
+        if relative != 0 {
+            return Err(marker_error());
+        }
+        let Some(available) = remaining.get_mut(&code) else {
+            return Err(ProtocolError::invalid_data(
+                "snapshot",
+                format!("unexpected snapshot identity: {code}"),
+            ));
+        };
+        if *available == 0 {
+            return Err(ProtocolError::invalid_data(
+                "snapshot",
+                format!("excess duplicate snapshot identity: {code}"),
+            ));
+        }
+        *available -= 1;
+        // Consume every required scalar before searching the unknown tail for
+        // another identity. A malformed scalar can never become missing data.
+        let (mut row, consumed) = parse_snapshot_record_prefix(&data[start..], &code, context)?;
+        let tail_start = start
+            .checked_add(consumed)
+            .ok_or_else(|| ProtocolError::invalid_data("snapshot", "record offset overflow"))?;
+        let next = find_next_snapshot_record(data, tail_start, &remaining, context)?;
+        let end = if index + 1 < count {
+            next.ok_or_else(marker_error)?
+        } else {
+            if next.is_some() {
+                return Err(ProtocolError::invalid_data(
+                    "snapshot",
+                    "unexpected extra requested snapshot identity in response tail",
+                ));
+            }
+            data.len()
+        };
+        row.tail_raw = context.business_bytes(&data[tail_start..end]);
+        row.record_range = context.record_range(&data[start..end]);
+        rows.push(row);
+        start = end;
+    }
+    if count != requested_codes.len() {
+        return Err(ProtocolError::invalid_data(
+            "snapshots",
+            format!(
+                "snapshot response count mismatch: expected {}, got {count}",
+                requested_codes.len()
+            ),
+        ));
+    }
+    Ok(rows)
+}
+
+fn find_next_snapshot_record(
+    data: &[u8],
+    from: usize,
+    remaining: &std::collections::HashMap<NormalizedCode, usize>,
+    context: &ParseContext<'_>,
+) -> Result<Option<usize>, ProtocolError> {
+    let Some(last_start) = data.len().checked_sub(7) else {
+        return Ok(None);
+    };
+    let mut malformed_candidate = None;
+    for start in from..=last_start {
+        let Some(code) = snapshot_identity_at(data, start) else {
+            continue;
+        };
+        match remaining.get(&code).copied() {
+            Some(count) if count != 0 => {
+                match parse_snapshot_record_prefix(&data[start..], &code, context) {
+                    Ok(_) => return Ok(Some(start)),
+                    Err(error) => {
+                        if malformed_candidate.is_none() {
+                            malformed_candidate = Some(error);
+                        }
+                    }
+                }
+            }
+            expected_count => match parse_snapshot_record_prefix(&data[start..], &code, context) {
+                Ok(_) => {
+                    let message = if expected_count.is_some() {
+                        format!("excess duplicate snapshot identity: {code}")
+                    } else {
+                        format!("unexpected snapshot identity: {code}")
+                    };
+                    return Err(ProtocolError::invalid_data("snapshot", message));
+                }
+                Err(error) => {
+                    if malformed_candidate.is_none() {
+                        malformed_candidate = Some(error);
+                    }
+                }
+            },
+        }
+    }
+    if let Some(error) = malformed_candidate {
+        return Err(error);
+    }
+    Ok(None)
+}
+
+fn find_snapshot_identity(data: &[u8], from: usize) -> Option<(usize, NormalizedCode)> {
+    let last_start = data.len().checked_sub(7)?;
+    for start in from..=last_start {
+        if let Some(code) = snapshot_identity_at(data, start) {
+            return Some((start, code));
+        }
+    }
+    None
+}
+
+fn snapshot_identity_at(data: &[u8], start: usize) -> Option<NormalizedCode> {
+    let record = data.get(start..start.checked_add(7)?)?;
+    let market = match record[0] {
+        0 => crate::unit::Market::Shenzhen,
+        1 => crate::unit::Market::Shanghai,
+        2 => crate::unit::Market::Beijing,
+        _ => return None,
+    };
+    let digits = &record[1..];
+    if !digits.iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    let number = std::str::from_utf8(digits).ok()?.to_owned();
+    Some(NormalizedCode { market, number })
 }
 
 fn split_refresh_records<'a>(
@@ -1221,16 +1572,6 @@ fn scaled_price(current_milli: i64, delta: i64, divisor: i64) -> Result<i64, Pro
 
 fn quote_price(raw: i64, divisor: i64) -> Result<f64, ProtocolError> {
     Ok(milli_to_float(floor_div(checked_scale(raw, 10)?, divisor)?))
-}
-
-fn encode_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(data.len() * 2);
-    for byte in data {
-        output.push(char::from(DIGITS[usize::from(*byte >> 4)]));
-        output.push(char::from(DIGITS[usize::from(*byte & 0x0f)]));
-    }
-    output
 }
 
 #[cfg(test)]

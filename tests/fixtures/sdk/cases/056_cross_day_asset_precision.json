@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "case_id": "COMP-056/cross-day-asset-precision",
+  "source_type": "synthetic",
+  "source_revision": "e36c71e595bafa8d10d9cfc7a9c98b59b97f4fcd",
+  "request": {
+    "bar_time": "end",
+    "period_minutes": 5,
+    "source_date": "2026-11-16",
+    "source_time": "23:58",
+    "assets": [
+      {"kind": "etf", "code": "sh510300", "price_f32_le_hex": "0000a03f"},
+      {"kind": "bond", "code": "sh113000", "price_f32_le_hex": "00001e41"}
+    ]
+  },
+  "response": {
+    "hq_ex_time_source": {"date": "2026-11-16", "time": "23:58"},
+    "mac_time_source": {"date": "2026-11-16", "time": "23:58", "duration_minutes": 5},
+    "asset_prices": [
+      {"kind": "etf", "code": "sh510300", "f32_le_hex": "0000a03f"},
+      {"kind": "bond", "code": "sh113000", "f32_le_hex": "00001e41"}
+    ]
+  },
+  "expected": {
+    "python_compat": {
+      "hq_end_datetime": "2026-11-16T00:03:00",
+      "ex_end_datetime": "2026-11-16T00:03:00",
+      "mac_end_datetime": "2026-11-17T00:03:00",
+      "prices": [{"kind": "etf", "value": 1.25}, {"kind": "bond", "value": 9.875}]
+    },
+    "rust": {
+      "source_date": "2026-11-16",
+      "source_time": "23:58",
+      "derived_end_datetime": "2026-11-17T00:03:00",
+      "prices": [
+        {"kind": "etf", "value": 1.25, "raw_f32_le_hex": "0000a03f"},
+        {"kind": "bond", "value": 9.875, "raw_f32_le_hex": "00001e41"}
+      ],
+      "market_specific_rescaling_applied": false
+    }
+  },
+  "evidence_level": "independent_protocol_calculation",
+  "spec_refs": ["docs/rust-sdk/compatibility-cases.md#COMP-056", "docs/rust-sdk/hq-api-spec.md", "docs/rust-sdk/extension-api-spec.md"]
+}

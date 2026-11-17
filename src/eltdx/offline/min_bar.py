@@ -8,6 +8,7 @@ OHLC 为 ``float32``，无需系数转换。日期为 2 字节压缩日期，时
 from __future__ import annotations
 
 import struct
+import sys
 from pathlib import Path
 
 from .models import MinBar
@@ -18,6 +19,8 @@ _MIN_FMT = struct.Struct("<HHIIIIfII")
 
 # .lc1/.lc5 文件：日期(2B) 时间(2B) 开(4Bf) 高 低 收 额(4Bf) 量(4B) 保留(4B)
 _LC_MIN_FMT = struct.Struct("<HHfffffII")
+_NATIVE_MIN_FMT = _MIN_FMT
+_NATIVE_LC_MIN_FMT = _LC_MIN_FMT
 
 
 def _decode_tdx_date(num: int) -> tuple[int, int, int]:
@@ -52,6 +55,17 @@ def _read_bars(
 ) -> list[MinBar]:
     if len(data) < fmt.size:
         return []
+    if (
+        type(data) is bytes
+        and type(integer_prices) is bool
+        and ((fmt is _NATIVE_MIN_FMT and integer_prices) or (fmt is _NATIVE_LC_MIN_FMT and not integer_prices))
+    ):
+        from eltdx._native_abi import load_native
+
+        return load_native().offline_decode_bars(
+            data, "five" if integer_prices else "lc", sys.modules[__name__], None
+        )
+    # Custom buffer/Struct/flag objects retain the original callback protocol.
     results: list[MinBar] = []
     # 只遍历完整记录，忽略末尾残尾（TDX 写盘中断会留下截断文件）。
     for offset in range(0, len(data) - fmt.size + 1, fmt.size):
@@ -115,33 +129,17 @@ def read_5min_bar(filepath: str | Path) -> list[MinBar]:
 def encode_min_bar(bar: MinBar) -> bytes:
     """将 :class:`MinBar` 编码为 32 字节 ``.lc1`` / ``.lc5`` 记录。"""
 
-    return _LC_MIN_FMT.pack(
-        _encode_tdx_date(bar.year, bar.month, bar.day),
-        _encode_tdx_time(bar.hour, bar.minute),
-        bar.open,
-        bar.high,
-        bar.low,
-        bar.close,
-        bar.amount,
-        int(round(bar.volume)),
-        bar.reserved,
-    )
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_encode_bar(bar, "lc", sys.modules[__name__], None, None)
 
 
 def encode_5min_bar(bar: MinBar) -> bytes:
     """将 :class:`MinBar` 编码为 32 字节 ``.5`` 记录（OHLC 整数 × 100）。"""
 
-    return _MIN_FMT.pack(
-        _encode_tdx_date(bar.year, bar.month, bar.day),
-        _encode_tdx_time(bar.hour, bar.minute),
-        int(round(bar.open * 100)),
-        int(round(bar.high * 100)),
-        int(round(bar.low * 100)),
-        int(round(bar.close * 100)),
-        bar.amount,
-        int(round(bar.volume)),
-        bar.reserved,
-    )
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_encode_bar(bar, "five", sys.modules[__name__], None, None)
 
 
 def find_lc1_bar_file(
@@ -156,9 +154,9 @@ def find_lc1_bar_file(
     ``.lc1`` 文件。
     """
 
-    vipdoc_path = resolve_vipdoc(vipdoc)
-    exchange = market_to_exchange(market)
-    return vipdoc_path / exchange / "minline" / f"{exchange}{code}.lc1"
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_find_bar(market, code, vipdoc, sys.modules[__name__], "minline", "lc1")
 
 
 def find_lc5_bar_file(
@@ -168,9 +166,9 @@ def find_lc5_bar_file(
 ) -> Path:
     """根据市场和代码定位 ``.lc5`` 分钟线文件路径。"""
 
-    vipdoc_path = resolve_vipdoc(vipdoc)
-    exchange = market_to_exchange(market)
-    return vipdoc_path / exchange / "fzline" / f"{exchange}{code}.lc5"
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_find_bar(market, code, vipdoc, sys.modules[__name__], "fzline", "lc5")
 
 
 def find_5min_bar_file(
@@ -180,6 +178,6 @@ def find_5min_bar_file(
 ) -> Path:
     """根据市场和代码定位 ``.5`` 分钟线文件路径。"""
 
-    vipdoc_path = resolve_vipdoc(vipdoc)
-    exchange = market_to_exchange(market)
-    return vipdoc_path / exchange / "fzline" / f"{exchange}{code}.5"
+    from eltdx._native_abi import load_native
+
+    return load_native().offline_find_bar(market, code, vipdoc, sys.modules[__name__], "fzline", "5")

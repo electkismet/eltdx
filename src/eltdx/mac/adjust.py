@@ -1,4 +1,4 @@
-"""本地前复权（QFQ）重算（纯 Python，零第三方依赖）。
+"""本地前复权（QFQ）重算（共享 Rust 核心，零第三方 Python 依赖）。
 
 通达信 MAC 服务端在 QFQ 模式下，对长期重度除权股票的深层历史页会返回
 负价格（上游缺陷）。本模块用 NONE（未复权）K 线 + XDXR（除权除息）记录在
@@ -29,6 +29,7 @@ from bisect import bisect_left
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
+from sys import modules as _MODULES
 
 from .models import MacBar
 
@@ -66,15 +67,11 @@ def compute_forward_factor(
         返回 ``nan``。
     """
 
-    if cum_close <= 0:
-        return float("nan")
-    denom = cum_close * (1.0 + songzhuangu + peigu)
-    if denom == 0:
-        return float("nan")
-    factor = (cum_close - fenhong + peigujia * peigu) / denom
-    if not math.isfinite(factor):
-        return float("nan")
-    return float(factor)
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_forward_factor(
+        cum_close, fenhong, peigujia, songzhuangu, peigu, _MODULES[__name__]
+    )
 
 
 def apply_forward_adjust(
@@ -88,68 +85,20 @@ def apply_forward_adjust(
     或异常时返回原列表的浅拷贝。
     """
 
-    ordered = sorted(bars, key=lambda bar: bar.datetime)
-    if not ordered:
-        return list(ordered)
+    from eltdx._native_abi import load_native
 
-    events = [
-        event
-        for event in xdxr_events
-        if event.category == 1
-        and any((event.fenhong, event.peigujia, event.songzhuangu, event.peigu))
-    ]
-    if not events:
-        return list(ordered)
-
-    dates = [bar.datetime.date() for bar in ordered]
-    opens = [bar.open for bar in ordered]
-    highs = [bar.high for bar in ordered]
-    lows = [bar.low for bar in ordered]
-    closes = [bar.close for bar in ordered]
-
-    for event in sorted(events, key=lambda item: item.date):
-        idx = bisect_left(dates, event.date)
-        cum_idx = idx - 1
-        if cum_idx < 0 or cum_idx >= len(ordered):
-            continue
-        factor = compute_forward_factor(
-            closes[cum_idx],
-            event.fenhong,
-            event.peigujia,
-            event.songzhuangu,
-            event.peigu,
-        )
-        if not math.isfinite(factor):
-            continue
-        for i in range(cum_idx + 1):
-            opens[i] *= factor
-            highs[i] *= factor
-            lows[i] *= factor
-            closes[i] *= factor
-
-    return [
-        MacBar(
-            datetime=bar.datetime,
-            open=opens[i],
-            high=highs[i],
-            low=lows[i],
-            close=closes[i],
-            vol=bar.vol,
-            amount=bar.amount,
-            float_shares=bar.float_shares,
-        )
-        for i, bar in enumerate(ordered)
-    ]
+    return load_native().mac_apply_forward(
+        bars, xdxr_events, lambda bar: bar.datetime, lambda item: item.date,
+        _MODULES[__name__],
+    )
 
 
 def has_bad_prices(bars: Sequence[MacBar]) -> bool:
     """检测 QFQ 结果是否含非法价格（``<=0`` 或非有限值）。"""
 
-    for bar in bars:
-        for value in (bar.open, bar.high, bar.low, bar.close):
-            if not math.isfinite(value) or value <= 0:
-                return True
-    return False
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_bad_prices(bars, _MODULES[__name__])
 
 
 __all__ = [

@@ -559,22 +559,39 @@ pub fn milli_to_float(value: i64) -> f64 {
 }
 
 pub fn price_divisor(code: &NormalizedCode) -> u16 {
+    legacy_price_precision(code).0
+}
+
+pub(crate) fn legacy_price_precision(code: &NormalizedCode) -> (u16, Option<u8>) {
     if let Some(decimal) = security_decimal(code) {
-        return match decimal {
+        let divisor = match decimal {
             0..=2 => 1,
             3 => 10,
             4 => 100,
             _ => 10_u16.saturating_pow(u32::from(decimal - 2)),
         };
+        return (divisor, Some(decimal));
     }
     if PRICING_ETF_PREFIXES
         .iter()
         .any(|prefix| code.number.starts_with(prefix))
     {
-        10
+        (10, None)
     } else {
-        1
+        (1, None)
     }
+}
+
+/// Explicit decoders reject an unrepresentable scale instead of saturating it.
+pub(crate) fn checked_price_divisor(decimal: u8) -> Result<u16, ProtocolError> {
+    10_u16
+        .checked_pow(u32::from(decimal.saturating_sub(2)))
+        .ok_or_else(|| {
+            ProtocolError::invalid_data(
+                "price precision",
+                "security decimal exceeds supported scale",
+            )
+        })
 }
 
 pub fn get_volume(value: u32) -> f64 {
@@ -695,10 +712,8 @@ fn split_period_suffix(value: &str) -> Option<(&str, &str)> {
         (number, "m")
     } else if let Some(number) = value.strip_suffix('d') {
         (number, "d")
-    } else if let Some(number) = value.strip_suffix('s') {
-        (number, "s")
     } else {
-        return None;
+        (value.strip_suffix('s')?, "s")
     };
     if number.is_empty() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
         None

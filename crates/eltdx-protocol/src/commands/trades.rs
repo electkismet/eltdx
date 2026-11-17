@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions, RecordRange};
 use std::{borrow::Cow, sync::Arc};
 
 use bytes::Bytes;
@@ -174,6 +175,7 @@ pub struct TradeTick {
     pub trade_datetime: Option<DateTimeParts>,
     pub price: f64,
     pub price_milli: i64,
+    pub price_denominator: u16,
     pub volume: i64,
     pub order_count: i64,
     pub status_raw: i64,
@@ -183,6 +185,7 @@ pub struct TradeTick {
     pub unknown_tail_raw: Option<i64>,
     pub reserved_zero: Option<i64>,
     pub record_hex: Arc<str>,
+    pub record_range: RecordRange,
     pub event_kind: TradeEventKind,
     pub auction_matched_volume: Option<i64>,
     pub auction_unmatched_signed_volume: Option<i64>,
@@ -201,6 +204,23 @@ pub fn parse_today_ticks_payload(
     payload: &[u8],
     request: TodayTicksRequest,
 ) -> Result<TradePage<TodayTicksRequest>, ProtocolError> {
+    parse_today_ticks_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_today_ticks_payload_with_context(
+    payload: Bytes,
+    request: TodayTicksRequest,
+    options: &ParseOptions<'_>,
+) -> Result<TradePage<TodayTicksRequest>, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_today_ticks_payload_body(&payload, request, &context)
+}
+
+fn parse_today_ticks_payload_body(
+    payload: &[u8],
+    request: TodayTicksRequest,
+    context: &ParseContext<'_>,
+) -> Result<TradePage<TodayTicksRequest>, ProtocolError> {
     check_payload(payload, "today ticks")?;
     if payload.len() < 2 {
         return Err(ProtocolError::invalid_data(
@@ -218,6 +238,7 @@ pub fn parse_today_ticks_payload(
         None,
         TickTailKind::Unknown,
         &request.code,
+        context,
     )?;
     ensure_consumed(payload, offset, "today ticks")?;
     Ok(TradePage {
@@ -225,13 +246,30 @@ pub fn parse_today_ticks_payload(
         ticks,
         price_base_raw_f32: None,
         price_base_raw_bytes: None,
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
 pub fn parse_historical_ticks_payload(
     payload: &[u8],
     request: HistoricalTicksRequest,
+) -> Result<TradePage<HistoricalTicksRequest>, ProtocolError> {
+    parse_historical_ticks_payload_body(payload, request, &ParseContext::legacy(payload))
+}
+
+pub fn parse_historical_ticks_payload_with_context(
+    payload: Bytes,
+    request: HistoricalTicksRequest,
+    options: &ParseOptions<'_>,
+) -> Result<TradePage<HistoricalTicksRequest>, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_historical_ticks_payload_body(&payload, request, &context)
+}
+
+fn parse_historical_ticks_payload_body(
+    payload: &[u8],
+    request: HistoricalTicksRequest,
+    context: &ParseContext<'_>,
 ) -> Result<TradePage<HistoricalTicksRequest>, ProtocolError> {
     check_payload(payload, "historical ticks")?;
     if payload.len() < 6 {
@@ -255,6 +293,7 @@ pub fn parse_historical_ticks_payload(
         Some(trading_date),
         TickTailKind::Reserved,
         &request.code,
+        context,
     )?;
     ensure_consumed(payload, offset, "historical ticks")?;
     Ok(TradePage {
@@ -262,7 +301,7 @@ pub fn parse_historical_ticks_payload(
         ticks,
         price_base_raw_f32: Some(price_base_raw_f32),
         price_base_raw_bytes: Some(price_base_raw_bytes),
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
@@ -272,6 +311,7 @@ enum TickTailKind {
     Reserved,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn parse_tick_records(
     payload: &[u8],
     mut offset: usize,
@@ -280,6 +320,7 @@ fn parse_tick_records(
     trading_date: Option<DateParts>,
     tail_kind: TickTailKind,
     code: &NormalizedCode,
+    context: &ParseContext<'_>,
 ) -> Result<(Vec<TradeTick>, usize), ProtocolError> {
     // Tick and quote precision are different wire contracts: convertible-bond
     // ticks carry milli-yuan even when the quote table advertises decimal=4.
@@ -290,6 +331,7 @@ fn parse_tick_records(
     let mut ticks = Vec::with_capacity(record_count);
     let mut last_time_label: Option<(u16, Arc<str>)> = None;
     let mut last_record: Option<(&[u8], Arc<str>)> = None;
+    let omitted_hex = (!context.is_legacy()).then(|| Arc::<str>::from(""));
     for index in 0..record_count {
         let record_start = offset;
         let time_end = offset.saturating_add(2);
@@ -337,14 +379,18 @@ fn parse_tick_records(
             }
         };
         let record = &payload[record_start..offset];
-        let record_hex = match &last_record {
-            Some((previous_record, previous_hex)) if *previous_record == record => {
-                Arc::clone(previous_hex)
-            }
-            _ => {
-                let hex: Arc<str> = Arc::from(encode_hex(record));
-                last_record = Some((record, Arc::clone(&hex)));
-                hex
+        let record_hex = if let Some(empty) = &omitted_hex {
+            Arc::clone(empty)
+        } else {
+            match &last_record {
+                Some((previous_record, previous_hex)) if *previous_record == record => {
+                    Arc::clone(previous_hex)
+                }
+                _ => {
+                    let hex: Arc<str> = Arc::from(encode_hex(record));
+                    last_record = Some((record, Arc::clone(&hex)));
+                    hex
+                }
             }
         };
         ticks.push(TradeTick {
@@ -355,6 +401,7 @@ fn parse_tick_records(
             trade_datetime,
             price,
             price_milli,
+            price_denominator: if convertible { 1000 } else { 100 },
             volume,
             order_count,
             status_raw,
@@ -370,6 +417,7 @@ fn parse_tick_records(
                 TickTailKind::Reserved => Some(tail_value),
             },
             record_hex,
+            record_range: context.record_range(record),
             event_kind,
             // The mixed trade commands preserve these wire fields as `volume`
             // and `order_count`, but do not establish auction quantity semantics.

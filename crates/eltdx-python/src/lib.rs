@@ -1,9 +1,64 @@
 #![forbid(unsafe_code)]
 
+mod bar_time;
+mod batch;
+mod calendar;
+mod corporate;
 mod error;
+mod extension_adjust;
+mod extension_binary;
+mod extension_bitmap;
+mod extension_boards;
+mod extension_catalog;
+mod extension_client;
+mod extension_commands;
+mod extension_frame;
+mod extension_hosts;
+mod extension_lifecycle;
+mod extension_management;
+mod extension_parse;
+mod extension_probe;
+mod extension_query;
+mod extension_rules;
+mod extension_transport;
+mod f10_collection;
+mod f10_fields;
+mod f10_models;
+mod f10_news;
+mod f10_object;
+mod f10_report;
+mod f10_request;
+mod f10_response;
+mod f10_values;
+mod helper_boards;
+mod helper_daily;
+mod helper_f10;
+mod helper_indicator;
+mod helper_limits;
+mod helper_market;
+mod helper_numeric;
+mod helper_profile;
+mod helper_shortline;
+mod helper_theme;
+mod helper_topics;
+mod helpers;
+mod limits;
+mod mac_commands;
+mod mac_parse;
+mod money_flow_history;
+mod offline_bars;
+mod offline_blocks;
+mod offline_financial;
+mod offline_gbbq;
+mod offline_paths;
+mod offline_write;
 mod protocol;
 mod request;
+mod resource;
 mod response;
+mod service;
+mod stats;
+mod subscription;
 mod transport;
 
 use pyo3::prelude::*;
@@ -14,10 +69,894 @@ pub const ABI_VERSION: u32 = 1;
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add("ABI_VERSION", ABI_VERSION)?;
     error::register(module)?;
+    module.add_class::<extension_lifecycle::NativeExtensionSession>()?;
+    module.add_class::<extension_lifecycle::NativeExtensionOperation>()?;
+    module.add_function(wrap_pyfunction!(
+        extension_lifecycle::extension_attempt_begin,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_lifecycle::extension_attempt_publish,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_lifecycle::extension_operation_begin,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_lifecycle::extension_operation_check,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_lifecycle::extension_operation_finish,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_lifecycle::extension_operation_failed,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_lifecycle::extension_generation_retire,
+        module
+    )?)?;
+    module.add_class::<extension_bitmap::MacBitSlots>()?;
+    module.add_function(wrap_pyfunction!(extension_bitmap::mac_board_code, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_bitmap::mac_field_selection,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_bitmap::mac_field_operator,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_bitmap::mac_field_value, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_bitmap::mac_normalize_fields,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_bitmap::mac_field_bits, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_bitmap::mac_count_bits, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_bitmap::mac_bit_slots, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_bitmap::mac_active_fields,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_bitmap::mac_build_bitmap,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_bitmap::mac_exclude_flags,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_bitmap::mac_post_ah_code,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_adjust::mac_forward_factor,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_adjust::mac_bad_prices, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_adjust::mac_apply_forward,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_client::mac_page_query, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_client::mac_local_recompute,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_client::mac_stock_kline, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_client::mac_download_file,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_boards::mac_board_summary,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_boards::mac_board_row, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_boards::mac_board_ranking,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_boards::mac_board_change_ranking,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_goods_items,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_first_code,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_goods_count,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_goods_list,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_market_bounds,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_instruments,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_macro_code,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_macro_indicators,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_macro_quotes,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_catalog::mac_ex_macro_kline,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_query::extension_single, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_query::mac_ex_quotes_list,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_query::mac_ex_transactions,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_query::hk_is_stock, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_query::hk_to_ymd, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_query::hk_build_command, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_query::hk_map_record, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_query::hk_transaction_pages,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(bar_time::bar_time_check, module)?)?;
+    module.add_function(wrap_pyfunction!(bar_time::bar_time_minutes, module)?)?;
+    module.add_function(wrap_pyfunction!(bar_time::bar_time_needed, module)?)?;
+    module.add_function(wrap_pyfunction!(bar_time::bar_time_align, module)?)?;
+    module.add_function(wrap_pyfunction!(bar_time::mac_ymd_date, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_commands::ex_command_init,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_commands::ex_command_build,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_commands::ex_command_sequence,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_commands::ex_login_parse,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(mac_commands::mac_command_init, module)?)?;
+    module.add_function(wrap_pyfunction!(mac_commands::mac_command_build, module)?)?;
+    module.add_function(wrap_pyfunction!(mac_parse::mac_response_parse, module)?)?;
+    module.add_function(wrap_pyfunction!(mac_parse::mac_numeric_value, module)?)?;
+    module.add_function(wrap_pyfunction!(mac_parse::mac_numeric_default, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        mac_parse::mac_unusual_description,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_hosts::ex_host_normalize,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_hosts::ex_hosts_parse, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_hosts::ex_hosts_env, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_hosts::ex_hosts_path, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_hosts::ex_hosts_target, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_hosts::ex_hosts_file_data,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_hosts::ex_hosts_error, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_hosts::ex_hosts_select, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_hosts::ex_hosts_save_prepare,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_hosts::ex_hosts_save_write,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_connection_init,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_socket_factory,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_socket_prepare,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_socket_connect,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_socket_assign,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_require_socket,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_socket_connected,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_connection_receive,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_connection_close,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_recv_exact,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_request_prepare,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_exchange,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_response_finish,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::extension_transport_error,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::mac_setup_commands,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_transport::mac_setup_response,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_init,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_best,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_ping,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_state,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_probe,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_connect_one,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_connect_failed,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_connect,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_reconnect,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_recover,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_management::extension_client_execute,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_key,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_default,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_registry_init,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_registry_change,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_registry_take,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_registry_abort,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_begin,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_run,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_close,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_error,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_success,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_prepare,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_collect,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_cleanup,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_finish,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_rank,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_probe::extension_probe_ping,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_binary::extension_require_bytes,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_binary::extension_prepare_unpack,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_binary::extension_unpack_error,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_binary::extension_slice_bytes,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_binary::ex_date_parts, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_binary::ex_datetime_decode,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_parse::ex_response_parse,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_parse::ex_records_parse, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_parse::ex_quote_list_record,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_rules::mac_index_like, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_rules::mac_no_limit_window,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_rules::mac_price_limits, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_rules::mac_combine_datetime,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_rules::mac_decode_gbk, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_frame::mac_frame_request,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_frame::ex_frame_header_prepare,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_frame::extension_frame_header_values,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_frame::extension_frame_header_model,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_frame::extension_frame_error,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_frame::extension_body_input,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_frame::extension_body_output,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(extension_frame::ex_frame_encode, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        extension_frame::extension_decompress_limited,
+        module
+    )?)?;
     module.add_function(wrap_pyfunction!(protocol::build_command_frame, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::decode_response, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::encode_request_frame, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::parse_command_response, module)?)?;
+    module.add_function(wrap_pyfunction!(service::select_security_rows, module)?)?;
+    module.add_function(wrap_pyfunction!(service::recover_money_flow, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        money_flow_history::money_flow_history,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(corporate::collect_capital, module)?)?;
+    module.add_function(wrap_pyfunction!(corporate::recover_finance, module)?)?;
+    module.add_function(wrap_pyfunction!(corporate::assemble_finance, module)?)?;
+    module.add_function(wrap_pyfunction!(corporate::project_finance_fields, module)?)?;
+    module.add_function(wrap_pyfunction!(corporate::adjustment_factors, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::calendar_window, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::calendar_days, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::calendar_contains, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::calendar_neighbor, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::weekday_range, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::weekday_neighbor, module)?)?;
+    module.add_function(wrap_pyfunction!(calendar::weekday, module)?)?;
+    module.add_function(wrap_pyfunction!(resource::download_resource, module)?)?;
+    module.add_function(wrap_pyfunction!(stats::stats_members, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_file_list,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(offline_financial::financial_dat, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_zip_member,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_project_records,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_list_archives,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_download_archive,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_filename_date,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_archive_payload,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_finish_records,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_read_local,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_financial::financial_zip_path_guard,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_paths::offline_detect_home,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_paths::offline_resolve_vipdoc,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_paths::offline_market_exchange,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_paths::offline_security_type,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_paths::offline_security_coefficients,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(offline_paths::offline_find_bar, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_paths::offline_industry, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_bars::offline_decode_bars, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_bars::offline_encode_bar, module)?)?;
+    module.add_function(wrap_pyfunction!(offline_bars::offline_model_date, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_bars::offline_model_datetime,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(offline_write::offline_alignment, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_write::offline_select_new_bars,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_write::offline_encode_batch,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_write::offline_last_record_plan,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_write::offline_last_record_value,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_write::offline_prepare_append,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(offline_gbbq::offline_gbbq, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_blocks::offline_block_category,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_blocks::offline_block_safe_leaf,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(offline_blocks::offline_block, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        offline_blocks::offline_customer_blocks,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(f10_response::f10_parse_response, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_response::f10_parse_table, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_response::f10_columns, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_response::f10_row_values, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_response::f10_column_name, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_response::f10_row_dict, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_call, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_params, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_prepare_request, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_code6, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_normalize_code, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_require_section, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_section_request, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_simple_endpoint, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_page_endpoint, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_input_endpoint, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_sector_endpoint, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_cache_list, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_cache_alias, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_request::f10_news_channels, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_report::f10_report, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_report::f10_shareholder_plans, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        f10_report::f10_business_composition,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        f10_report::f10_topic_compare_first,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(f10_object::f10_object_request, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_object::f10_object_alias, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_collection::f10_collect, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_collection::f10_ladder, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_collection::f10_ladder_alias, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_fields::f10_duplicate_suffix, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_fields::f10_field_scope, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_fields::f10_field_labels, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_fields::f10_describe_fields, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        f10_fields::f10_international_entry,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(f10_news::f10_news_name, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_news::f10_news_rows, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_values::f10_scalar, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_values::f10_first_value, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_values::f10_result_total, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_values::f10_latest_period, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_values::f10_date_text, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_values::f10_ladder_dates, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_values::f10_ladder_row, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_models::f10_infer_market, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_models::f10_model_identity, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_models::f10_model_sequence, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_models::f10_board_record_key, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_models::f10_ladder_counts, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_models::f10_ladder_rates, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_models::f10_market_overview, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_models::f10_raise_amount, module)?)?;
+    module.add_function(wrap_pyfunction!(f10_models::f10_ladder_status, module)?)?;
+    module.add_function(wrap_pyfunction!(limits::scan_special, module)?)?;
+    module.add_function(wrap_pyfunction!(helpers::helper_fund_flow, module)?)?;
+    module.add_function(wrap_pyfunction!(helpers::helper_full_quotes, module)?)?;
+    module.add_function(wrap_pyfunction!(helpers::helper_merge_depths, module)?)?;
+    module.add_function(wrap_pyfunction!(helpers::helper_rank, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_by_code, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_profile::helper_security_map,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_profile::helper_finance_map,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_profile, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::build_profile, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_profile::helper_turnover, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_profile::helper_market_value,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_profile::helper_daily_shares,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_dominant_date,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_aligned_stat2,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_validate_stats,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_stats_resource,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_shortline_get,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_shortline_security,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_shortline_finance,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_shortline_bars,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_shortline_rush,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_handshake,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_market_context,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_shortline_by_code,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_shortline::helper_shortline_row_date,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_numeric::shortline_scalar, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_numeric::shortline_locked, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_numeric::shortline_volume_ratio,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_indicator::shortline_indicator,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_limits::shortline_limit_ratio,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_limits::shortline_price_compare,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_limits::shortline_limit_status,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_limits::shortline_board_text,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_limits::shortline_ladder_level,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_limits::helper_ladder, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_limit_ratio, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_limit_rule, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_new_stock, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_limit_row, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::helper_daily_limits, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_daily::helper_capital_events,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_prior_close, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_daily::daily_reference_map, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_percentage, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_market_date, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_first_quote, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_market::helper_snapshot_batches,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_auction, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_market_stat, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_market::helper_today_flow, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_market::helper_latest_suspended,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_f10::helper_f10_cached, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_f10::helper_index_cached, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_topics::helper_stock_topics,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_topics::helper_topic_stocks,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_topics::helper_resolve_topic,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_topics::helper_build_stock_topic,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_topics::helper_build_topic_stock,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_topics::helper_topic_key, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_topics::helper_topic_pick, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_topics::helper_topic_scalar,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_theme::helper_theme_strength,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_quotes, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_boards::board_member_quotes,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_prepare, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_download, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_security, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_quote_row, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_date, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_boards::board_definition_paths,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_cache_ready, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_market, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_matches, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_infoharbor, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_parse, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_members, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_read_text, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_read_json, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_boards::board_read_security,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_boards::board_write_security,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_dbf_members, module)?)?;
+    module.add_function(wrap_pyfunction!(helper_boards::board_full_code, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        helper_boards::board_snapshot_batches,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(batch::batch_chunks, module)?)?;
+    module.add_function(wrap_pyfunction!(batch::map_batches, module)?)?;
+    module.add_function(wrap_pyfunction!(batch::assemble_capital, module)?)?;
+    module.add_function(wrap_pyfunction!(batch::map_money_flow, module)?)?;
+    module.add_function(wrap_pyfunction!(batch::adjustment_batch, module)?)?;
+    module.add_function(wrap_pyfunction!(
+        subscription::subscription_group_apis,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        subscription::subscription_enable_native,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        subscription::subscription_activation_pages,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        subscription::subscription_combine,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        subscription::subscription_remember,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        subscription::subscription_refresh,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        subscription::subscription_schedule,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        subscription::subscription_dispatch,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(
+        subscription::subscription_run_once,
+        module
+    )?)?;
+    module.add_function(wrap_pyfunction!(subscription::subscription_run, module)?)?;
     transport::register(module)?;
     Ok(())
 }

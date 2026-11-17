@@ -1,6 +1,7 @@
 """Market-wide statistics and intraday fund flow helpers.
 
-Both helpers are pure-Python compositions over existing public APIs:
+Both helpers compose existing public APIs; numeric classification is shared
+with the independent Rust SDK through the native compatibility boundary:
 ``0x053e`` legacy quotes for the market-statistic pseudo indices
 (880005/880001/880006) and ``0x0fc5`` today ticks for intraday fund flow.
 """
@@ -68,65 +69,25 @@ class FundFlow:
 def fetch_market_stat(client) -> MarketStat:
     """Fetch the breadth snapshot via one batched ``0x053e`` request."""
 
-    quotes = client.quotes.legacy(list(_MARKET_STAT_CODES))
-    if not quotes:
-        raise RuntimeError("无法获取市场统计指数 880005/880001/880006 行情")
-    q = quotes[0]
-    up = round(q.last_price * 10)
-    down = round(q.open_price * 10)
-    neutral = round(q.low_price * 10)
-    total = round(q.high_price * 10)
-    market_cap = quotes[1].last_price * 1e10 if len(quotes) > 1 else 0.0
-    limit_down = round(quotes[2].open_price * 10) if len(quotes) > 2 else 0
-    limit_up = round(quotes[2].last_price * 10) if len(quotes) > 2 else 0
-    return MarketStat(
-        up_count=up,
-        down_count=down,
-        neutral_count=neutral,
-        suspended_count=max(0, total - up - down - neutral),
-        total_count=total,
-        total_amount=q.amount,
-        total_volume=float(q.total_hand),
-        total_market_cap=market_cap,
-        limit_up_count=limit_up,
-        limit_down_count=limit_down,
-    )
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_market_stat(client, _MARKET_STAT_CODES, MarketStat)
 
 
 def classify_fund_flow(ticks: tuple[TradeTick, ...] | list[TradeTick]) -> FundFlow:
     """Aggregate one stock's today ticks into the four-bucket fund flow."""
 
-    stats = {
-        "super_in": 0.0,
-        "large_in": 0.0,
-        "medium_in": 0.0,
-        "small_in": 0.0,
-        "super_out": 0.0,
-        "large_out": 0.0,
-        "medium_out": 0.0,
-        "small_out": 0.0,
-    }
-    for tick in ticks:
-        if not tick.is_actual_trade:
-            continue
-        direction = "in" if tick.side == "buy" else "out" if tick.side == "sell" else None
-        if direction is None:
-            continue
-        amount = tick.price * tick.volume * 100.0
-        if amount > _SUPER_THRESHOLD:
-            stats[f"super_{direction}"] += amount
-        elif amount > _LARGE_THRESHOLD:
-            stats[f"large_{direction}"] += amount
-        elif amount > 40_000.0:
-            stats[f"medium_{direction}"] += amount
-        else:
-            stats[f"small_{direction}"] += amount
-    return FundFlow(**stats)
+    from eltdx.transport.native import native_module
+
+    values = native_module().helper_fund_flow(ticks, _SUPER_THRESHOLD, _LARGE_THRESHOLD)
+    names = ("super_in", "large_in", "medium_in", "small_in",
+             "super_out", "large_out", "medium_out", "small_out")
+    return FundFlow(**dict(zip(names, values)))
 
 
 def fetch_today_fund_flow(client, code: str) -> FundFlow:
     """Read all today ticks of one stock and classify them into fund flow."""
 
-    page = client.trades.all_today(code)
-    ticks = getattr(page, "ticks", page)
-    return classify_fund_flow(tuple(ticks or ()))
+    from eltdx.transport.native import native_module
+
+    return native_module().helper_today_flow(client, code, classify_fund_flow)

@@ -1,0 +1,601 @@
+{
+  "schema_version": 1,
+  "source_revision": "af471f1adf38757f6aa0188968db8110eb23f6ad",
+  "extraction": "runtime_import_reflection",
+  "modules": [
+    {
+      "module": "eltdx.protocol.frame",
+      "classes": [
+        {
+          "name": "RequestFrame",
+          "bases": [
+            "builtins.object"
+          ],
+          "mro": [
+            "eltdx.protocol.frame.RequestFrame",
+            "builtins.object"
+          ],
+          "signature": "(msg_id: 'int', msg_type: 'int', data: 'bytes' = b'', control: 'int' = 1) -> None",
+          "decorators": [
+            "dataclasses.dataclass"
+          ],
+          "dataclass": {
+            "is_dataclass": true,
+            "fields": [
+              {
+                "name": "msg_id",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "msg_type",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "data",
+                "type": "bytes",
+                "default": "b''",
+                "default_factory": null
+              },
+              {
+                "name": "control",
+                "type": "int",
+                "default": "1",
+                "default_factory": null
+              }
+            ]
+          },
+          "enum": null,
+          "fields": [],
+          "properties": []
+        },
+        {
+          "name": "ResponseFrame",
+          "bases": [
+            "builtins.object"
+          ],
+          "mro": [
+            "eltdx.protocol.frame.ResponseFrame",
+            "builtins.object"
+          ],
+          "signature": "(control: 'int', msg_id: 'int', msg_type: 'int', zip_length: 'int', length: 'int', data: 'bytes', raw: 'bytes', response_header_reserved: 'int' = 0) -> None",
+          "decorators": [
+            "dataclasses.dataclass"
+          ],
+          "dataclass": {
+            "is_dataclass": true,
+            "fields": [
+              {
+                "name": "control",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "msg_id",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "msg_type",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "zip_length",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "length",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "data",
+                "type": "bytes",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "raw",
+                "type": "bytes",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "response_header_reserved",
+                "type": "int",
+                "default": "0",
+                "default_factory": null
+              }
+            ]
+          },
+          "enum": null,
+          "fields": [],
+          "properties": []
+        }
+      ]
+    },
+    {
+      "module": "eltdx.protocol.commands.registry",
+      "classes": [
+        {
+          "name": "CommandSpec",
+          "bases": [
+            "builtins.object"
+          ],
+          "mro": [
+            "eltdx.protocol.commands.registry.CommandSpec",
+            "builtins.object"
+          ],
+          "signature": "(code: 'int', name: 'str', module: 'str', method: 'str', required_for_1_0: 'bool', document: 'str', retry_safe: 'bool' = False) -> None",
+          "decorators": [
+            "dataclasses.dataclass"
+          ],
+          "dataclass": {
+            "is_dataclass": true,
+            "fields": [
+              {
+                "name": "code",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "name",
+                "type": "str",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "module",
+                "type": "str",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "method",
+                "type": "str",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "required_for_1_0",
+                "type": "bool",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "document",
+                "type": "str",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "retry_safe",
+                "type": "bool",
+                "default": "False",
+                "default_factory": null
+              }
+            ]
+          },
+          "enum": null,
+          "fields": [],
+          "properties": [
+            {
+              "name": "hex",
+              "getter": "(self) -> 'str'"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "eltdx.models.enums",
+      "classes": [
+        {
+          "name": "Market",
+          "bases": [
+            "enum.IntEnum"
+          ],
+          "mro": [
+            "eltdx.models.enums.Market",
+            "enum.IntEnum",
+            "builtins.int",
+            "enum.ReprEnum",
+            "enum.Enum",
+            "builtins.object"
+          ],
+          "signature": "(*values)",
+          "decorators": [
+            "enum.Enum"
+          ],
+          "dataclass": {
+            "is_dataclass": false
+          },
+          "enum": {
+            "members": {
+              "SZ": 0,
+              "SH": 1,
+              "BJ": 2
+            }
+          },
+          "fields": [],
+          "properties": [
+            {
+              "name": "code",
+              "getter": "(self) -> 'str'"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "eltdx.models.kline",
+      "classes": [
+        {
+          "name": "KlineBar",
+          "bases": [
+            "builtins.object"
+          ],
+          "mro": [
+            "eltdx.models.kline.KlineBar",
+            "builtins.object"
+          ],
+          "signature": "(time: 'datetime', open: 'float', close: 'float', high: 'float', low: 'float', open_price_milli: 'int', close_price_milli: 'int', high_price_milli: 'int', low_price_milli: 'int', last_close_price_milli: 'int | None', volume_raw: 'int', amount_raw: 'int', volume_wire_value: 'float', volume_lots: 'float', amount: 'float', open_delta_raw: 'int', close_delta_raw: 'int', high_delta_raw: 'int', low_delta_raw: 'int', up_count: 'int | None' = None, down_count: 'int | None' = None, record_hex: 'str' = '') -> None",
+          "decorators": [
+            "dataclasses.dataclass"
+          ],
+          "dataclass": {
+            "is_dataclass": true,
+            "fields": [
+              {
+                "name": "time",
+                "type": "datetime",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "open",
+                "type": "float",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "close",
+                "type": "float",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "high",
+                "type": "float",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "low",
+                "type": "float",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "open_price_milli",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "close_price_milli",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "high_price_milli",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "low_price_milli",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "last_close_price_milli",
+                "type": "int | None",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "volume_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "amount_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "volume_wire_value",
+                "type": "float",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "volume_lots",
+                "type": "float",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "amount",
+                "type": "float",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "open_delta_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "close_delta_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "high_delta_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "low_delta_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "up_count",
+                "type": "int | None",
+                "default": "None",
+                "default_factory": null
+              },
+              {
+                "name": "down_count",
+                "type": "int | None",
+                "default": "None",
+                "default_factory": null
+              },
+              {
+                "name": "record_hex",
+                "type": "str",
+                "default": "''",
+                "default_factory": null
+              }
+            ]
+          },
+          "enum": null,
+          "fields": [],
+          "properties": []
+        },
+        {
+          "name": "KlineSeries",
+          "bases": [
+            "builtins.object"
+          ],
+          "mro": [
+            "eltdx.models.kline.KlineSeries",
+            "builtins.object"
+          ],
+          "signature": "(exchange: 'str', market_id: 'int', code: 'str', period_raw: 'int', period_param_raw: 'int', period_name: 'str', start: 'int', request_count: 'int', adjust_mode_raw: 'int', adjust_mode: 'str', anchor_date_raw: 'int', anchor_date: 'date | None', bars: 'tuple[KlineBar, ...]', raw_payload: 'bytes' = b'') -> None",
+          "decorators": [
+            "dataclasses.dataclass"
+          ],
+          "dataclass": {
+            "is_dataclass": true,
+            "fields": [
+              {
+                "name": "exchange",
+                "type": "str",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "market_id",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "code",
+                "type": "str",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "period_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "period_param_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "period_name",
+                "type": "str",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "start",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "request_count",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "adjust_mode_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "adjust_mode",
+                "type": "str",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "anchor_date_raw",
+                "type": "int",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "anchor_date",
+                "type": "date | None",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "bars",
+                "type": "tuple[KlineBar, ...]",
+                "default": null,
+                "default_factory": null
+              },
+              {
+                "name": "raw_payload",
+                "type": "bytes",
+                "default": "b''",
+                "default_factory": null
+              }
+            ]
+          },
+          "enum": null,
+          "fields": [],
+          "properties": [
+            {
+              "name": "full_code",
+              "getter": "(self) -> 'str'"
+            },
+            {
+              "name": "count",
+              "getter": "(self) -> 'int'"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module": "eltdx.ex.enums",
+      "classes": [
+        {
+          "name": "ExMarket",
+          "bases": [
+            "enum.IntEnum"
+          ],
+          "mro": [
+            "eltdx.ex.enums.ExMarket",
+            "enum.IntEnum",
+            "builtins.int",
+            "enum.ReprEnum",
+            "enum.Enum",
+            "builtins.object"
+          ],
+          "signature": "(*values)",
+          "decorators": [
+            "enum.Enum"
+          ],
+          "dataclass": {
+            "is_dataclass": false
+          },
+          "enum": {
+            "members": {
+              "TEMP_STOCK": 1,
+              "ZZ_FUTURES_OPTION": 4,
+              "DL_FUTURES_OPTION": 5,
+              "SH_FUTURES_OPTION": 6,
+              "CFFEX_OPTION": 7,
+              "SH_STOCK_OPTION": 8,
+              "SZ_STOCK_OPTION": 9,
+              "BASIC_FX": 10,
+              "CROSS_FX": 11,
+              "INTL_INDEX": 12,
+              "COMEX_FUTURES": 16,
+              "NYMEX_FUTURES": 17,
+              "CBOT_FUTURES": 18,
+              "HK_FINANCIAL_FUTURES": 23,
+              "HK_FINANCIAL_OPTIONS": 24,
+              "HK_STOCK_FUTURES": 25,
+              "HK_STOCK_OPTIONS": 26,
+              "HK_INDEX": 27,
+              "ZZ_FUTURES": 28,
+              "DL_FUTURES": 29,
+              "SH_FUTURES": 30,
+              "HK_MAIN_BOARD": 31,
+              "OPEN_END_FUND": 33,
+              "MONETARY_FUND": 34,
+              "MACRO_INDICATOR": 38,
+              "FUTURES_INDEX": 42,
+              "B_TO_H": 43,
+              "NEEQ": 44,
+              "SH_GOLD": 46,
+              "CFFEX_FUTURES": 47,
+              "HK_GEM": 48,
+              "HK_FUND": 49,
+              "TREASURY_VALUATION": 54,
+              "SUNSHINE_PRIVATE_FUND": 56,
+              "BROKER_COLLECTIVE_FINANCE": 57,
+              "BROKER_MONETARY_FINANCE": 58,
+              "MAIN_FUTURES_CONTRACT": 60,
+              "CSI_INDEX": 62,
+              "GZ_ARBITRAGE_FUTURES": 65,
+              "GZ_FUTURES": 66,
+              "GZ_OPTIONS": 67,
+              "RISK_CONTROL_INDEX": 68,
+              "HUAZHENG_INDEX": 69,
+              "EXTENDED_SECTOR_INDEX": 70,
+              "HK_STOCK_GGT": 71,
+              "GE_STOCK": 73,
+              "US_STOCK": 74,
+              "SG_STOCK": 78,
+              "MONEY_MARKET": 91,
+              "FUND_VALUATION": 93,
+              "HK_DARK_POOL": 98,
+              "CODE_MIRROR": 100,
+              "SZSE_INDEX": 102
+            }
+          },
+          "fields": [],
+          "properties": []
+        }
+      ]
+    }
+  ]
+}

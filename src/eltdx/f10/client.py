@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
+from sys import modules as _MODULES
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -127,15 +128,16 @@ class F10Client:
         encoded as ``{"Params": [...]}``, matching the CWServ convention.
         """
 
-        if body is not None and params is not None:
-            raise ValueError("pass either body or params, not both")
-        request_body = {"Params": list(params)} if params is not None else (body if body is not None else {})
-        return self._post(entry, request_body)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_call(self, entry, body, params, _MODULES[__name__])
 
     def params(self, entry: str, *params: Any) -> F10Response:
         """Call a CWServ Entry with a Params array."""
 
-        return self.call(entry, params=params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_params(self, entry, params)
 
     def limit_up_down_list(
         self,
@@ -151,29 +153,10 @@ class F10Client:
         market overview is fetched with ``Params=["2", start, end]``.
         """
 
-        selected_start, selected_end = _normalize_limit_board_dates(
-            start_date, end_date
-        )
-        body = {"Params": ["1", selected_start, selected_end]}
-        response = self._post(LIMIT_BOARD_LADDER_ENTRY, body)
-        summary_rows: tuple[dict[str, Any], ...] = ()
-        if include_summary:
-            summary = self._post(
-                LIMIT_BOARD_LADDER_ENTRY,
-                {"Params": ["2", selected_start, selected_end]},
-            )
-            summary_rows = summary.rows
+        from eltdx._native_abi import load_native
 
-        rows = tuple(_parse_limit_board_ladder_row(row) for row in response.rows)
-        return LimitBoardLadder(
-            entry=response.entry,
-            request_body=body,
-            error_code=response.error_code,
-            start_date=selected_start,
-            end_date=selected_end,
-            rows=rows,
-            summary=summary_rows,
-            raw=response.raw,
+        return load_native().f10_ladder(
+            self, start_date, end_date, include_summary, _MODULES[__name__]
         )
 
     def limit_board_ladder(
@@ -185,40 +168,52 @@ class F10Client:
     ) -> LimitBoardLadder:
         """Compatibility alias for :meth:`limit_up_down_list`."""
 
-        return self.limit_up_down_list(
-            start_date,
-            end_date,
-            include_summary=include_summary,
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_ladder_alias(self, start_date, end_date, include_summary)
 
     def stock_info(self, code: str) -> F10Response:
         """股票基础信息，通常用于页面初始化。"""
 
-        return self.params("CWServ.tdxf10_gg_comreq", "gpquery", _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "stock_info", code, None, _MODULES[__name__]
+        )
 
     def business_periods(self, code: str) -> F10Response:
         """主营构成可选报告期。"""
 
-        return self.params("CWServ.tdxf10_gg_comreq", "zygcfx", _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "business_periods", code, None, _MODULES[__name__]
+        )
 
     def topic_ids(self, code: str) -> F10Response:
         """股票关联题材 ID 列表。"""
 
-        return self.params("CWServ.tdxf10_gg_comreq", "rdtcgn", _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "topic_ids", code, None, _MODULES[__name__]
+        )
 
     def company_profile(self, code: str, section: str = "8") -> F10Response:
         """公司概况。section=8 为发行上市信息，section=9 为指数调入调出。"""
 
-        return self.params("CWServ.tdxf10_gg_gsgk", section, _code6(code), "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "company_profile", code, section, _MODULES[__name__]
+        )
 
     def business_composition(self, code: str, report_date: str | None = None) -> F10Response:
         """主营构成。report_date 不传时先取服务端给出的最新报告期。"""
 
-        code6 = _code6(code)
-        selected_date = report_date or _first_value(self.business_periods(code6), "T002")
-        if selected_date is None:
-            raise ProtocolError(f"no business composition report date for {code6}")
-        return self.business_report(code, "composition", report_date=str(selected_date))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_business_composition(self, code, report_date, _MODULES[__name__])
 
     def shareholders(
         self,
@@ -247,29 +242,13 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        page_text = str(page)
-        size_text = str(page_size)
-        date_text = report_date or ""
-        gdyj = "CWServ.tdxf10_gg_gdyj"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "count": (gdyj, (code6, "gdrs", filter1, filter2, page_text, page_text, size_text)),
-            "ranking": (gdyj, (code6, "thygdrs", filter1, filter2, page_text, page_text, size_text)),
-            "controller": (gdyj, (code6, "kggd", filter1, filter2, page_text, page_text, size_text)),
-            "top_circulating": (gdyj, (code6, "ltgd", filter1, filter2, page_text, page_text, size_text)),
-            "top": (gdyj, (code6, "sdgdbgq", filter1, filter2, page_text, page_text, size_text)),
-            "bonds": (gdyj, (code6, "sdzqcyr", filter1, filter2, page_text, page_text, size_text)),
-            "changes": (gdyj, (code6, "cgbd", filter1, filter2, page_text, page_text, size_text)),
-            "institutions": (gdyj, (code6, "jgcg", filter1, filter2, page_text, page_text, size_text)),
-            "institution_types": (gdyj, (code6, "jgcgz", filter1, date_text, page_text, page_text, size_text)),
-            "institution_holdings": (
-                "CWServ.tdxf10_gg_gdyj_jgcgmx",
-                (code6, kind, date_text, "99", page_text, page_text, size_text),
-            ),
-            "plan": (gdyj, (code6, "gdzjcjh", filter1, filter2, page_text, page_text, size_text)),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "shareholders", code, section,
+            {"report_date": report_date, "kind": kind, "filter1": filter1, "filter2": filter2,
+             "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def shareholder_change_plans(
         self,
@@ -282,13 +261,10 @@ class F10Client:
     ) -> F10Response:
         """股东增减持计划。"""
 
-        return self.shareholders(
-            code,
-            "plan",
-            page=page,
-            page_size=page_size,
-            filter1=filter1,
-            filter2=filter2,
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_shareholder_plans(
+            self, code, {"page": page, "page_size": page_size, "filter1": filter1, "filter2": filter2}
         )
 
     def capital_structure(
@@ -310,23 +286,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        gbjg = "CWServ.tdxf10_gg_gbjg"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "structure": (gbjg, (code6, "gbjg")),
-            "changes": (gbjg, (code6, "gbbd")),
-            "buyback": (gbjg, (code6, "gphg")),
-            "restricted": (gbjg, (code6, "xslt")),
-        }
-        _require_section(section, (*table, "restricted_detail"))
-        if section == "restricted_detail":
-            if not date:
-                raise ValueError(
-                    "capital_structure section 'restricted_detail' requires date (YYYYMMDD)"
-                )
-            return self.params("CWServ.tdxf10_gg_gbjg_xsjjmx", code6, _date_text(date))
-        entry, params = table[section]
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "capital_structure", code, section, {"date": date}, _MODULES[__name__]
+        )
 
     def business_report(
         self,
@@ -349,19 +313,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        date_text = "" if report_date is None else str(report_date)
-        jyfx = "CWServ.tdxf10_gg_jyfx"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "business": (jyfx, (code6, "zyyw", "")),
-            "composition": (jyfx, (code6, "zygc", date_text)),
-            "customers": (jyfx, (code6, "qwm", date_text)),
-            "suppliers": (jyfx, (code6, "qwmgys", date_text)),
-            "price": (jyfx, (code6, "cpjg", "")),
-            "changes": (jyfx, (code6, "0", date_text)),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "business_report", code, section, {"report_date": report_date}, _MODULES[__name__]
+        )
 
     def industry_analysis(
         self,
@@ -388,23 +344,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        hyfx = "CWServ.tdxf10_gg_hyfx"
-        kbgs = "CWServ.tdxf10_gg_kbgs"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "peers": (hyfx, ("cwgz", code6, arg or "000")),
-            "dividend_rank": (hyfx, ("fhrzb", code6, arg or "100")),
-            "scale": (hyfx, ("gsgm", code6, arg or "000")),
-            "valuation": (hyfx, ("gzsp", code6, arg or "011")),
-            "news": (hyfx, ("hyxw", code6, arg or "")),
-            "reports": (hyfx, ("hyyb", code6, arg or "")),
-            "market_share": (hyfx, ("scbx", code6, arg or "000")),
-            "summary": (hyfx, ("tot", code6, arg or "")),
-            "comparable": (kbgs, ("1", code6)),
-            "comparable_profile": (kbgs, ("0", code6)),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "industry_analysis", code, section, {"arg": arg}, _MODULES[__name__]
+        )
 
     def trading_report(
         self,
@@ -438,23 +382,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        jyds = "CWServ.tdxf10_gg_jyds"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "margin": (jyds, (code6, "rzrq", "")),
-            "margin_history": ("CWServ.tdxf10_gg_sj", ("rzrq_sj", code6, "0", code6)),
-            "block_trades": (jyds, (code6, "dzjy", "")),
-            "dragon_board": (jyds, (code6, "lgt", arg or "2")),
-            "northbound": (jyds, (code6, "islgt", "")),
-            "limit_down": (jyds, (code6, "dtfx", "")),
-            "limit_up": (jyds, (code6, "ztfx", "")),
-            "bonds": (jyds, (code6, "zrq", "")),
-            "main_force": (jyds, (code6, "zlpskcj", "")),
-            "reports": (jyds, (code6, "yxsbxx", "")),
-            "kcb": (jyds, (code6, "checkkcb", "")),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "trading_report", code, section, {"arg": arg}, _MODULES[__name__]
+        )
 
     def fund_report(
         self,
@@ -490,56 +422,12 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        page_text = str(page)
-        size_text = str(page_size)
-        date_text = date or ""
-        jj = "CWServ.skef10_jj_"
-        jjzl = f"{jj}jjzl"
-        gmfe = f"{jj}gmfe"
-        jzhb = f"{jj}jzhb"
-        tzzh = f"{jj}tzzh"
-        cgqk = f"{jj}cgqk"
-        xsxx = f"{jj}xsxx"
-        etfzj = f"{jj}etfzj"
-        if not date_text and section in _FUND_REPORT_PERIOD_ENTRIES:
-            date_text = _latest_report_period(
-                self.params(tzzh, _FUND_REPORT_PERIOD_ENTRIES[section], code6, "")
-            )
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "name": (f"{jj}idreq", ("name", code6)),
-            "managers": (jjzl, ("1", code6, "", page_text, page_text, size_text)),
-            "company": (jjzl, ("2", code6, "", page_text, page_text, size_text)),
-            "basic": (jjzl, ("4", code6, "", page_text, page_text, size_text)),
-            "seats": (jjzl, ("5", code6, arg, page_text, page_text, size_text)),
-            "scale": (gmfe, ("0", code6, "", "")),
-            "scale_history": (gmfe, (arg or "0", code6, "", date_text)),
-            "nav": (jzhb, ("0", code6, "0", "")),
-            "nav_period": (jzhb, ("1", code6, "0", "")),
-            "nav_rank": (jzhb, ("3", code6, "0", "")),
-            "dividends": (jzhb, ("5", code6, "0", "")),
-            "asset_allocation": (tzzh, ("zcpz", code6, "")),
-            "industry_allocation": (tzzh, ("hyfb", code6, date_text)),
-            "holdings_compare": (tzzh, ("cgjzd", code6, "")),
-            "holdings_rank": (tzzh, ("zjpz", code6, "")),
-            "holding_summary": (tzzh, ("jjxtzzh", code6, "")),
-            "bond_allocation": (tzzh, ("zczq", code6, date_text)),
-            "futures_allocation": (tzzh, ("ccqhmx", code6, date_text)),
-            "holdings": (cgqk, ("cgqkbgq", code6, "", "", "1", "1", "1")),
-            "holdings_detail": (cgqk, ("cgmxbgq", code6, "", "", "1", "1", "1")),
-            "holdings_changes": (cgqk, ("cyjjmxbgq", code6, "", "", "1", "1", "1")),
-            "fund_of_funds": (cgqk, ("sxjjzcbgq", code6, "", "", "1", "1", "1")),
-            "finance": (f"{jj}cwzk", (arg or "zcfzb", code6)),
-            "sales_info": (xsxx, ("0", code6)),
-            "sales_announcements": (xsxx, ("4", code6)),
-            "sales_news": (xsxx, ("5", code6)),
-            "etf": (etfzj, ("etfzjlx", code6, date_text or "3M")),
-            "margin": (etfzj, ("etfrzrq", code6, date_text or "3M")),
-            "ratings": (f"{jj}jjpj", (arg or "001", code6)),
-            "categories": (f"{jj}fxsy", (arg or "bgqzf", code6, "")),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "fund_report", code, section,
+            {"arg": arg, "date": date, "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------
     # 美股 mgf10 家族（Entry: CWServ.skef10_mg_*，网关 page2）
@@ -548,7 +436,11 @@ class F10Client:
     def mg_name(self, code: str) -> F10Response:
         """美股名称与市场类型（``skef10_mg_idreq``）。"""
 
-        return self.params("CWServ.skef10_mg_idreq", "name", _us_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_name", code, None, _MODULES[__name__]
+        )
 
     def mg_tips(self, code: str, section: str = "zxdt") -> F10Response:
         """美股最新提示（``skef10_mg_zxdt``）。
@@ -557,13 +449,20 @@ class F10Client:
         ``zysj`` 重要数据。
         """
 
-        _require_section(section, ("zxdt", "sypl", "gsgy", "zysj"))
-        return self.params("CWServ.skef10_mg_zxdt", section, _us_code(code), "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_tips", code, section, _MODULES[__name__]
+        )
 
     def mg_profile(self, code: str) -> F10Response:
         """美股公司概况（``skef10_mg_gsgk``）。"""
 
-        return self.params("CWServ.skef10_mg_gsgk", "001", _us_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_profile", code, None, _MODULES[__name__]
+        )
 
     def mg_finance(self, code: str, section: str = "zcfzb") -> F10Response:
         """美股财务分析（``skef10_mg_cwfx``）。
@@ -571,8 +470,11 @@ class F10Client:
         section: ``zcfzb`` 资产负债表 / ``lyb`` 利润表 / ``xjllb`` 现金流量表。
         """
 
-        _require_section(section, ("zcfzb", "lyb", "xjllb"))
-        return self.params("CWServ.skef10_mg_cwfx", section, _us_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_finance", code, section, _MODULES[__name__]
+        )
 
     def mg_finance_indicator(self, code: str, section: str = "jbzb") -> F10Response:
         """美股财务指标（``skef10_mg_cwzb``）。
@@ -581,23 +483,38 @@ class F10Client:
         ``yynl`` 盈利能力 / ``ccznl`` 偿债能力（内部映射到数字 ``001``~``005``）。
         """
 
-        _require_section(section, tuple(_MG_CWZB_SECTIONS))
-        return self.params("CWServ.skef10_mg_cwzb", _MG_CWZB_SECTIONS[section], _us_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_finance_indicator", code, section, _MODULES[__name__]
+        )
 
     def mg_business(self, code: str) -> F10Response:
         """美股经营分析（``skef10_mg_jyfx``）。"""
 
-        return self.params("CWServ.skef10_mg_jyfx", _us_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_business", code, None, _MODULES[__name__]
+        )
 
     def mg_industry(self, code: str) -> F10Response:
         """美股行业分析（``skef10_mg_hyfx``）。"""
 
-        return self.params("CWServ.skef10_mg_hyfx", "001", _us_code(code), "4", "1")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_industry", code, None, _MODULES[__name__]
+        )
 
     def mg_industry_compare(self, code: str) -> F10Response:
         """美股行业对比（``skef10_mg_hydb``）。"""
 
-        return self.params("CWServ.skef10_mg_hydb", "001", _us_code(code), "", "0", "0")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_industry_compare", code, None, _MODULES[__name__]
+        )
 
     def mg_dividend(self, code: str, section: str = "fh") -> F10Response:
         """美股分红融资（``skef10_mg_fhrz``）。
@@ -605,8 +522,11 @@ class F10Client:
         section: ``fh`` 分红 / ``cf`` 融资。
         """
 
-        _require_section(section, ("fh", "cf"))
-        return self.params("CWServ.skef10_mg_fhrz", _us_code(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_dividend", code, section, _MODULES[__name__]
+        )
 
     def mg_capital(self, code: str, section: str = "001", page: int = 1) -> F10Response:
         """美股股本结构（``skef10_mg_gbjg``）。
@@ -614,10 +534,11 @@ class F10Client:
         section: ``001`` 股本结构 / ``002`` 股本变动公告。
         """
 
-        _require_section(section, ("001", "002"))
-        if section == "001":
-            return self.params("CWServ.skef10_mg_gbjg", "001", _us_code(code), 1)
-        return self.params("CWServ.skef10_mg_gbjg", "002", _us_code(code), page)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_page_endpoint(
+            self, "mg_capital", code, section, {"page": page}, _MODULES[__name__]
+        )
 
     def mg_shareholders(
         self,
@@ -633,9 +554,11 @@ class F10Client:
         ``008``/``011``/``014`` 等）；``006`` 为股东权益主表，其余带分页。
         """
 
-        if section == "006":
-            return self.params("CWServ.skef10_mg_gbgd", "006", _us_code(code), 1, 10)
-        return self.params("CWServ.skef10_mg_gbgd", section, _us_code(code), page, page_size)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_page_endpoint(
+            self, "mg_shareholders", code, section, {"page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def mg_directors(self, code: str, section: str = "ds") -> F10Response:
         """美股董事高管（``skef10_mg_dsgg``）。
@@ -643,8 +566,11 @@ class F10Client:
         section: ``ds`` 董事 / ``gg`` 高管 / ``lrdjg`` 历任董监高。
         """
 
-        _require_section(section, ("ds", "gg", "lrdjg"))
-        return self.params("CWServ.skef10_mg_dsgg", _us_code(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_directors", code, section, _MODULES[__name__]
+        )
 
     def mg_market(
         self,
@@ -659,30 +585,47 @@ class F10Client:
         section: ``001`` 行情 / ``003`` 资金流向。
         """
 
-        _require_section(section, ("001", "003"))
-        if section == "001":
-            return self.params("CWServ.skef10_mg_schq", "001", _us_code(code), page, page_size)
-        return self.params("CWServ.skef10_mg_schq", "003", _us_code(code), 0, 0)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_page_endpoint(
+            self, "mg_market", code, section, {"page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def mg_announcements(self, code: str) -> F10Response:
         """美股公司公告（``skef10_mg_gsbd``）。"""
 
-        return self.params("CWServ.skef10_mg_gsbd", "gsgg", _us_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_announcements", code, None, _MODULES[__name__]
+        )
 
     def mg_rating(self, code: str, section: str = "001") -> F10Response:
         """美股公司评级（``skef10_mg_gspj``）。section: ``001``/``002``/``003``。"""
 
-        return self.params("CWServ.skef10_mg_gspj", section, _us_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_rating", code, section, _MODULES[__name__]
+        )
 
     def mg_topic(self, code: str) -> F10Response:
         """美股热点题材（``skef10_mg_rdtc``）。"""
 
-        return self.params("CWServ.skef10_mg_rdtc", "001", _us_code(code), "", "4", "1")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_topic", code, None, _MODULES[__name__]
+        )
 
     def mg_deep_analysis(self, code: str, section: str = "001") -> F10Response:
         """美股深度分析（``skef10_mg_sdfx``）。section: ``001``/``002``。"""
 
-        return self.params("CWServ.skef10_mg_sdfx", section, _us_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "mg_deep_analysis", code, section, _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------
     # 港股 hkf10 家族（Entry: CWServ.skef10_hk_*，网关 page2）
@@ -691,42 +634,74 @@ class F10Client:
     def hk_name(self, code: str) -> F10Response:
         """港股名称与市场类型（``skef10_hk_idreq``）。"""
 
-        return self.params("CWServ.skef10_hk_idreq", "name", _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_name", code, None, _MODULES[__name__]
+        )
 
     def hk_tips(self, code: str, section: str = "1") -> F10Response:
         """港股最新提示（``skef10_hk_zxts``）。section 为数字子标签 ``1``~``5``。"""
 
-        return self.params("CWServ.skef10_hk_zxts", section, _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_tips", code, section, _MODULES[__name__]
+        )
 
     def hk_events(self, code: str, section: str = "1") -> F10Response:
         """港股公司大事（``skef10_hk_gsds``）。section 为数字子标签 ``1``~``6``。"""
 
-        return self.params("CWServ.skef10_hk_gsds", section, _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_events", code, section, _MODULES[__name__]
+        )
 
     def hk_profile(self, code: str, section: str = "1") -> F10Response:
         """港股公司概况（``skef10_hk_gsgk``）。section 为数字子标签 ``1``~``6``。"""
 
-        return self.params("CWServ.skef10_hk_gsgk", section, _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_profile", code, section, _MODULES[__name__]
+        )
 
     def hk_related(self, code: str, section: str = "6") -> F10Response:
         """港股关联证券（``skef10_hk_glzq``）。section 为数字子标签（如 ``6``）。"""
 
-        return self.params("CWServ.skef10_hk_glzq", section, _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_related", code, section, _MODULES[__name__]
+        )
 
     def hk_executives(self, code: str, section: str = "1") -> F10Response:
         """港股高管资料（``skef10_hk_ggzl``）。section: ``1``/``2``/``3``。"""
 
-        return self.params("CWServ.skef10_hk_ggzl", section, _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_executives", code, section, _MODULES[__name__]
+        )
 
     def hk_capital(self, code: str, section: str = "1") -> F10Response:
         """港股股本结构（``skef10_hk_gbjg``）。section: ``1``/``2``/``3``。"""
 
-        return self.params("CWServ.skef10_hk_gbjg", section, _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_capital", code, section, _MODULES[__name__]
+        )
 
     def hk_shareholders(self, code: str, section: str = "1") -> F10Response:
         """港股股东持股（``skef10_hk_gdcg``）。section 为数字子标签 ``1``~``13``。"""
 
-        return self.params("CWServ.skef10_hk_gdcg", section, _hk_code(code), "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_shareholders", code, section, _MODULES[__name__]
+        )
 
     def hk_finance(self, code: str, section: str = "zcfzb") -> F10Response:
         """港股财务分析（``skef10_hk_cwfx``）。
@@ -735,8 +710,11 @@ class F10Client:
         （内部映射到数字 ``2``/``1``/``3``）。
         """
 
-        _require_section(section, tuple(_HK_CWFX_SECTIONS))
-        return self.params("CWServ.skef10_hk_cwfx", _HK_CWFX_SECTIONS[section], _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_finance", code, section, _MODULES[__name__]
+        )
 
     def hk_finance_indicator(self, code: str, section: str = "jbzb") -> F10Response:
         """港股财务指标（``skef10_hk_cwzb``）。
@@ -745,18 +723,29 @@ class F10Client:
         ``yynl`` 盈利能力 / ``ccznl`` 偿债能力（内部映射到数字 ``1``~``5``）。
         """
 
-        _require_section(section, tuple(_HK_CWZB_SECTIONS))
-        return self.params("CWServ.skef10_hk_cwzb", _HK_CWZB_SECTIONS[section], _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_finance_indicator", code, section, _MODULES[__name__]
+        )
 
     def hk_business(self, code: str, section: str = "1") -> F10Response:
         """港股经营分析（``skef10_hk_jyfx``）。section 为数字子标签。"""
 
-        return self.params("CWServ.skef10_hk_jyfx", section, _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_business", code, section, _MODULES[__name__]
+        )
 
     def hk_industry_compare(self, code: str, section: str = "1") -> F10Response:
         """港股行业比较（``skef10_hk_hybj``）。section: ``1``/``3``。"""
 
-        return self.params("CWServ.skef10_hk_hybj", section, _hk_code(code), "0", "0")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_industry_compare", code, section, _MODULES[__name__]
+        )
 
     def hk_market(self, code: str, section: str = "3") -> F10Response:
         """港股市场行情（``skef10_hk_schq``）。section 为数字子标签。
@@ -766,7 +755,11 @@ class F10Client:
         （子表为空或数据缺失）；默认取数据最全的 ``3``。
         """
 
-        return self.params("CWServ.skef10_hk_schq", section, _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_market", code, section, _MODULES[__name__]
+        )
 
     def hk_capital_flow(self, code: str, section: str = "001") -> F10Response:
         """港股资金流向（``skef10_hk_schq_zjlx``，市场行情页的资金流向表）。
@@ -774,17 +767,29 @@ class F10Client:
         实测（2026-10-22，00700）：``001`` 20 行，``003`` 空（图表数据）。
         """
 
-        return self.params("CWServ.skef10_hk_schq_zjlx", section, _hk_code(code), "0")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_capital_flow", code, section, _MODULES[__name__]
+        )
 
     def hk_news(self, code: str, section: str = "3") -> F10Response:
         """港股公司资讯（``skef10_hk_gszx``）。section: ``3``/``4``。"""
 
-        return self.params("CWServ.skef10_hk_gszx", section, _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_news", code, section, _MODULES[__name__]
+        )
 
     def hk_topic(self, code: str) -> F10Response:
         """港股热点题材（``skef10_hk_rdtc``）。"""
 
-        return self.params("CWServ.skef10_hk_rdtc", "001", _hk_code(code), "", "0", "0")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_topic", code, None, _MODULES[__name__]
+        )
 
     def hk_pepb_band(
         self,
@@ -796,19 +801,29 @@ class F10Client:
     ) -> F10Response:
         """港股深度分析·PE/PB band（``skef10_hk_sdfx_pepb_band``）。"""
 
-        return self.params(
-            "CWServ.skef10_hk_sdfx_pepb_band", "001", _hk_code(code), sjfw, tab_value, hqzq
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hk_pepb_band", code, None, {"sjfw": sjfw, "tab_value": tab_value, "hqzq": hqzq}, _MODULES[__name__]
         )
 
     def hk_valuation(self, code: str, item_id: str = "") -> F10Response:
         """港股深度分析·估值分析（``skef10_hk_sdfx_gzfx``）。"""
 
-        return self.params("CWServ.skef10_hk_sdfx_gzfx", _hk_code(code), item_id)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hk_valuation", code, None, {"item_id": item_id}, _MODULES[__name__]
+        )
 
     def hk_price_chart(self, code: str) -> F10Response:
         """港股深度分析·行情涨跌图（``skef10_hk_sdfx_hqzft``）。"""
 
-        return self.params("CWServ.skef10_hk_sdfx_hqzft", _hk_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hk_price_chart", code, None, _MODULES[__name__]
+        )
 
     def hk_analyst_forecast(self, code: str, start: str = "", end: str = "") -> F10Response:
         """港股深度分析·分析师盈利预测（``skef10_hk_sdfx_fxysyfx``）。
@@ -818,15 +833,10 @@ class F10Client:
         （今天往前 365 天 ~ 今天），近一年区间实测 53 行。
         """
 
-        if not start or not end:
-            today = date.today()
-            start = start or today.replace(year=today.year - 1).isoformat()
-            end = end or today.isoformat()
-        return self.params(
-            "CWServ.skef10_hk_sdfx_fxysyfx",
-            _hk_code(code),
-            start.strip().replace("-", ""),
-            end.strip().replace("-", ""),
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hk_analyst_forecast", code, None, {"start": start, "end": end}, _MODULES[__name__]
         )
 
     # ------------------------------------------------------------------
@@ -840,42 +850,74 @@ class F10Client:
     def sb_name(self, code: str) -> F10Response:
         """新三板名称与市场类型（``skef10_sb_idreq``）。"""
 
-        return self.params("CWServ.skef10_sb_idreq", "name", _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_name", code, None, _MODULES[__name__]
+        )
 
     def sb_profile(self, code: str, section: str = "001") -> F10Response:
         """新三板公司概况（``skef10_sb_gsgk``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_sb_gsgk", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_profile", code, section, _MODULES[__name__]
+        )
 
     def sb_tips(self, code: str, section: str = "001") -> F10Response:
         """新三板最新提示（``skef10_sb_zxts``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_sb_zxts", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_tips", code, section, _MODULES[__name__]
+        )
 
     def sb_events(self, code: str, section: str = "ydjy") -> F10Response:
         """新三板交易大事（``skef10_sb_jyds``）。section: ``ydjy`` 异动交易。"""
 
-        return self.params("CWServ.skef10_sb_jyds", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_events", code, section, _MODULES[__name__]
+        )
 
     def sb_capital(self, code: str, section: str = "gbjg") -> F10Response:
         """新三板股本结构（``skef10_sb_gbjg``）。section: ``gbjg`` 股本结构。"""
 
-        return self.params("CWServ.skef10_sb_gbjg", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_capital", code, section, _MODULES[__name__]
+        )
 
     def sb_shareholders(self, code: str, section: str = "sdgd") -> F10Response:
         """新三板股东研究（``skef10_sb_gdyj``）。section: ``sdgd`` 十大股东。"""
 
-        return self.params("CWServ.skef10_sb_gdyj", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_shareholders", code, section, _MODULES[__name__]
+        )
 
     def sb_compliance(self, code: str, section: str = "001") -> F10Response:
         """新三板合规运营（``skef10_sb_hgyy``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_sb_hgyy", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_compliance", code, section, _MODULES[__name__]
+        )
 
     def sb_dividend(self, code: str, section: str = "fh") -> F10Response:
         """新三板分红融资（``skef10_sb_fhrz``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_sb_fhrz", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_dividend", code, section, _MODULES[__name__]
+        )
 
     def sb_finance(self, code: str, section: str = "zcfzb") -> F10Response:
         """新三板财务分析（``skef10_sb_cwfx``）。
@@ -883,27 +925,47 @@ class F10Client:
         section: ``zcfzb`` 资产负债表 / ``xjllb`` 现金流量表。
         """
 
-        return self.params("CWServ.skef10_sb_cwfx", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_finance", code, section, _MODULES[__name__]
+        )
 
     def sb_business(self, code: str, section: str = "001") -> F10Response:
         """新三板经营分析（``skef10_sb_jyfx``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_sb_jyfx", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_business", code, section, _MODULES[__name__]
+        )
 
     def sb_major_events(self, code: str, section: str = "001") -> F10Response:
         """新三板重大事项（``skef10_sb_zdsx``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_sb_zdsx", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_major_events", code, section, _MODULES[__name__]
+        )
 
     def sb_news(self, code: str, section: str = "001") -> F10Response:
         """新三板公司资讯（``skef10_sb_gszx``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_sb_gszx", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_news", code, section, _MODULES[__name__]
+        )
 
     def sb_industry_compare(self, code: str, section: str = "hyxx") -> F10Response:
         """新三板行业比较（``skef10_sb_hybj``）。section: ``hyxx`` 行业信息。"""
 
-        return self.params("CWServ.skef10_sb_hybj", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "sb_industry_compare", code, section, _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------
     # 债券 zqf10 家族（Entry: CWServ.skef10_bond_*，网关 page2）
@@ -918,12 +980,20 @@ class F10Client:
     def bond_profile(self, code: str) -> F10Response:
         """可转债债券概况（``skef10_bond_kzz_zqgk``）。"""
 
-        return self.params("CWServ.skef10_bond_kzz_zqgk", "sdcyrbgq", _code6(code), "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "bond_profile", code, None, _MODULES[__name__]
+        )
 
     def bond_finance(self, code: str, section: str = "zcfzb") -> F10Response:
         """可转债财务分析（``skef10_bond_kzz_cwfx``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_bond_kzz_cwfx", section, _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "bond_finance", code, section, _MODULES[__name__]
+        )
 
     def bond_rating(self, code: str, section: str = "pjzst") -> F10Response:
         """可转债债券评级（``skef10_bond_kzz_zqpj``）。
@@ -931,7 +1001,11 @@ class F10Client:
         section: ``pjzst`` 评级状态 / ``fxjgzst`` 发行机构评级状态。
         """
 
-        return self.params("CWServ.skef10_bond_kzz_zqpj", section, _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "bond_rating", code, section, _MODULES[__name__]
+        )
 
     def bond_conversion(self, code: str, section: str = "zgjg") -> F10Response:
         """可转债转股情况（``skef10_bond_kzz_zg``）。
@@ -939,7 +1013,11 @@ class F10Client:
         section: ``zgjg`` 转股价格 / ``zgjgzs`` 转股结果 / ``zgqk`` 转股情况。
         """
 
-        return self.params("CWServ.skef10_bond_kzz_zg", section, _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "bond_conversion", code, section, _MODULES[__name__]
+        )
 
     def bond_rate(self, code: str, section: str = "zqll") -> F10Response:
         """可转债债券利率（``skef10_bond_kzz_zqll``）。
@@ -947,12 +1025,20 @@ class F10Client:
         section: ``zqll`` 债券利率 / ``zbz`` 转股价。
         """
 
-        return self.params("CWServ.skef10_bond_kzz_zqll", section, _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "bond_rate", code, section, _MODULES[__name__]
+        )
 
     def bond_announcements(self, code: str, section: str = "1") -> F10Response:
         """可转债资金资讯 / 公告（``skef10_bond_kzz_zjzx``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_bond_kzz_zjzx", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "bond_announcements", code, section, _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------
     # 债券 zqf10 家族·其余类型（国债 gz / 国债回购 gzhg / 企业债 qyz /
@@ -972,8 +1058,10 @@ class F10Client:
         section: ``zqgk`` 债券概况 / ``fxgk`` 发行概况。
         """
 
-        return self.params(
-            "CWServ.skef10_bond_gz_zjgk", section, _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "gz_profile", code, section, _MODULES[__name__]
         )
 
     def gz_interest(self, code: str, section: str = "fxqk") -> F10Response:
@@ -982,8 +1070,10 @@ class F10Client:
         section: ``fxqk`` 付息情况 / ``xjlfx`` 付息兑付。
         """
 
-        return self.params(
-            "CWServ.skef10_bond_gz_fxqk", section, _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "gz_interest", code, section, _MODULES[__name__]
         )
 
     def gz_market_data(self, code: str, section: str = "dzjy") -> F10Response:
@@ -992,8 +1082,10 @@ class F10Client:
         section: ``dzjy`` 大宗交易 / ``zsbl`` 招标比例。
         """
 
-        return self.params(
-            "CWServ.skef10_bond_gz_zjsj", section, _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "gz_market_data", code, section, _MODULES[__name__]
         )
 
     def gz_rating(self, code: str, section: str = "dfzf") -> F10Response:
@@ -1002,14 +1094,20 @@ class F10Client:
         section: ``dfzf`` 地方债评级。
         """
 
-        return self.params(
-            "CWServ.skef10_bond_gz_zjpj", section, _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "gz_rating", code, section, _MODULES[__name__]
         )
 
     def gz_finance(self, code: str) -> F10Response:
         """国债财务分析（``skef10_bond_gz_cwfx``）。"""
 
-        return self.params("CWServ.skef10_bond_gz_cwfx", "t", _bond_code(code), _bond_sc(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "gz_finance", code, None, _MODULES[__name__]
+        )
 
     def qyz_profile(self, code: str, section: str = "zqzl") -> F10Response:
         """企业债/公司债债券概况（``skef10_bond_qyz_zqgk``）。
@@ -1017,8 +1115,10 @@ class F10Client:
         section: ``zqzl`` 债券资料 / ``xtfhr`` 信托发行人 / ``fhrjbzl`` 发行人基本信息。
         """
 
-        return self.params(
-            "CWServ.skef10_bond_qyz_zqgk", section, _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "qyz_profile", code, section, _MODULES[__name__]
         )
 
     def qyz_interest(self, code: str, section: str = "fxqk") -> F10Response:
@@ -1027,15 +1127,19 @@ class F10Client:
         section: ``fxqk`` 付息情况 / ``xjlfx`` 付息兑付 / ``febd`` 份额变动。
         """
 
-        return self.params(
-            "CWServ.skef10_bond_qyz_xjlfx", section, _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "qyz_interest", code, section, _MODULES[__name__]
         )
 
     def qyz_guarantee(self, code: str) -> F10Response:
         """企业债/公司债债券担保（``skef10_bond_qyz_zqdb``）。"""
 
-        return self.params(
-            "CWServ.skef10_bond_qyz_zqdb", "dbsm", _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "qyz_guarantee", code, None, _MODULES[__name__]
         )
 
     def qyz_rating(self, code: str, section: str = "zjpjzst") -> F10Response:
@@ -1045,28 +1149,38 @@ class F10Client:
         ``fxjgpj`` 发行机构评级 / ``fxjgzst`` 发行机构评级状态。
         """
 
-        return self.params(
-            "CWServ.skef10_bond_qyz_zjpj", section, _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "qyz_rating", code, section, _MODULES[__name__]
         )
 
     def qyz_rate(self, code: str) -> F10Response:
         """企业债/公司债债券利率（``skef10_bond_qyz_zjlv``）。"""
 
-        return self.params(
-            "CWServ.skef10_bond_qyz_zjlv", "zqlv", _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "qyz_rate", code, None, _MODULES[__name__]
         )
 
     def qyz_review(self, code: str) -> F10Response:
         """公司债公司评述（``skef10_bond_qyz_gsps``）。"""
 
-        return self.params(
-            "CWServ.skef10_bond_qyz_gsps", _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "qyz_review", code, None, _MODULES[__name__]
         )
 
     def gzhg_info(self, code: str) -> F10Response:
         """国债回购债券信息（``skef10_bond_gzhg_zqxx``）。"""
 
-        return self.params("CWServ.skef10_bond_gzhg_zqxx", "zqgk", _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "gzhg_info", code, None, _MODULES[__name__]
+        )
 
     def gzhg_quotes(self, code: str, section: str = "bpzs") -> F10Response:
         """国债回购债券数据（``skef10_bond_gzhg_zqxx``）。
@@ -1075,20 +1189,28 @@ class F10Client:
         ``hgdpll`` 回购抵押利率。
         """
 
-        return self.params("CWServ.skef10_bond_gzhg_zqxx", section, _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "gzhg_quotes", code, section, _MODULES[__name__]
+        )
 
     def zczq_profile(self, code: str) -> F10Response:
         """ABS 债券概况（``skef10_bond_zczqh_zqgk``）。"""
 
-        return self.params(
-            "CWServ.skef10_bond_zczqh_zqgk", _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "zczq_profile", code, None, _MODULES[__name__]
         )
 
     def zczq_finance(self, code: str) -> F10Response:
         """ABS 财务分析（``skef10_bond_zczqh_cwfx``）。"""
 
-        return self.params(
-            "CWServ.skef10_bond_zczqh_cwfx", "t", _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "zczq_finance", code, None, _MODULES[__name__]
         )
 
     def zczq_rating(self, code: str, section: str = "pjzst") -> F10Response:
@@ -1097,21 +1219,29 @@ class F10Client:
         section: ``pjzst`` 评级状态 / ``fxjgzst`` 发行机构评级状态。
         """
 
-        return self.params(
-            "CWServ.skef10_bond_zczqh_zqpj", section, _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "zczq_rating", code, section, _MODULES[__name__]
         )
 
     def kjhz_profile(self, code: str) -> F10Response:
         """可交换债债券概况（``skef10_bond_kjhz_zqgk``）。"""
 
-        return self.params(
-            "CWServ.skef10_bond_kjhz_zqgk", _bond_code(code), _bond_sc(code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "kjhz_profile", code, None, _MODULES[__name__]
         )
 
     def kjhz_finance(self, code: str) -> F10Response:
         """可交换债财务分析（``skef10_bond_kjhz_cwfx``）。"""
 
-        return self.params("CWServ.skef10_bond_kjhz_cwfx", "t", _bond_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "kjhz_finance", code, None, _MODULES[__name__]
+        )
 
     def kjhz_interest(self, code: str, section: str = "fxqk") -> F10Response:
         """可交换债付息情况（``skef10_bond_kjhz_fxqk``）。
@@ -1119,12 +1249,20 @@ class F10Client:
         section: ``fxqk`` 付息情况 / ``xjlfx`` 付息兑付。
         """
 
-        return self.params("CWServ.skef10_bond_kjhz_fxqk", section, _bond_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "kjhz_interest", code, section, _MODULES[__name__]
+        )
 
     def kjhz_guarantee(self, code: str) -> F10Response:
         """可交换债债券担保（``skef10_bond_kjhz_zqdb``）。"""
 
-        return self.params("CWServ.skef10_bond_kjhz_zqdb", "dbsm", _bond_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "kjhz_guarantee", code, None, _MODULES[__name__]
+        )
 
     def kjhz_rating(self, code: str, section: str = "pjzst") -> F10Response:
         """可交换债债券评级（``skef10_bond_kjhz_zqpj``）。
@@ -1133,7 +1271,11 @@ class F10Client:
         ``fxjgpj`` 发行机构评级 / ``xypj`` 信用评级。
         """
 
-        return self.params("CWServ.skef10_bond_kjhz_zqpj", section, _bond_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "kjhz_rating", code, section, _MODULES[__name__]
+        )
 
     def kjhz_exchange(self, code: str, section: str = "jgtzzst") -> F10Response:
         """可交换债交换情况（``skef10_bond_kjhz_jhqk``）。
@@ -1142,7 +1284,11 @@ class F10Client:
         ``jhjgtz`` 交换价格。
         """
 
-        return self.params("CWServ.skef10_bond_kjhz_jhqk", section, _bond_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "kjhz_exchange", code, section, _MODULES[__name__]
+        )
 
     def kjhz_rate(self, code: str, section: str = "zqll") -> F10Response:
         """可交换债债券利率（``skef10_bond_kjhz_zqll``）。
@@ -1150,7 +1296,11 @@ class F10Client:
         section: ``zqll`` 债券利率 / ``zst`` 指数。
         """
 
-        return self.params("CWServ.skef10_bond_kjhz_zqll", section, _bond_code(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "kjhz_rate", code, section, _MODULES[__name__]
+        )
 
     def bond_terms(self, code: str, section: str = "hstk") -> F10Response:
         """债券条款（``skef10_bond_kzz_lltk``，可转债/可交换债共用）。
@@ -1159,12 +1309,20 @@ class F10Client:
         ``zqll`` 债券利率。
         """
 
-        return self.params("CWServ.skef10_bond_kzz_lltk", section, _code6(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "bond_terms", code, section, _MODULES[__name__]
+        )
 
     def bond_bulletin(self, code: str) -> F10Response:
         """债券公告 / 资讯（``skef10_bond_zjzx``，各类型通用）。"""
 
-        return self.params("CWServ.skef10_bond_zjzx", _bond_code(code), _bond_sc(code))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "bond_bulletin", code, None, _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------
     # 行业 hyf10 家族（Entry: CWServ.skef10_hy_*，网关 page2）
@@ -1183,28 +1341,38 @@ class F10Client:
         ``zszfb`` 指数分布。
         """
 
-        entry = {
-            "hqtj": "CWServ.skef10_hy_hqtj",
-            "hyzq": "CWServ.skef10_hy_hyzq",
-            "hygy": "CWServ.skef10_hy_hygy",
-            "zszfb": "CWServ.skef10_hy_zszfb",
-        }[section]
-        return self.params(entry, hy)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "hy_summary", hy, section, {}, _MODULES[__name__]
+        )
 
     def hy_stage_rise(self, hy: str, flag: str = "e") -> F10Response:
         """行业阶段涨幅（``skef10_hy_jdzf``）。"""
 
-        return self.params("CWServ.skef10_hy_jdzf", hy, flag)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hy_stage_rise", hy, None, {"flag": flag}, _MODULES[__name__]
+        )
 
     def hy_profile(self, hy: str) -> F10Response:
         """行业介绍（``skef10_hy_hyzl_hyjs``）。"""
 
-        return self.params("CWServ.skef10_hy_hyzl_hyjs", hy)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hy_profile", hy, None, _MODULES[__name__]
+        )
 
     def hy_commentary(self, hy: str, section: str = "001") -> F10Response:
         """行业评论库（``skef10_hy_hyzl_hyplk``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_hy_hyzl_hyplk", section, hy)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hy_commentary", hy, section, _MODULES[__name__]
+        )
 
     def hy_news(self, hy: str, section: str = "hydt") -> F10Response:
         """行业最新动态（``skef10_hy_zxdt``）。
@@ -1212,7 +1380,11 @@ class F10Client:
         section: ``hydt`` 行业动态 / ``hyzt`` 行业专题。
         """
 
-        return self.params("CWServ.skef10_hy_zxdt", section, hy)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hy_news", hy, section, _MODULES[__name__]
+        )
 
     def hy_members_rank(self, hy: str, section: str = "cwzkpm") -> F10Response:
         """行业成份股排名（5 个 Entry 共用 section 语义）。
@@ -1223,17 +1395,11 @@ class F10Client:
         ``zysrpm`` 主营收入排名。
         """
 
-        if section == "cwzkpm":
-            return self.params("CWServ.skef10_hy_hydw_cwzkpm", "002", hy, "", "e", "")
-        if section == "gsgmpm":
-            return self.params("CWServ.skef10_hy_hydw_gsgmpm", hy)
-        if section == "gzsppm":
-            return self.params("CWServ.skef10_hy_hydw_gzsppm", "01", hy, "o")
-        if section == "scbxpm":
-            return self.params("CWServ.skef10_hy_hydw_scbxpm", "scpm", "", hy)
-        if section == "zysrpm":
-            return self.params("CWServ.skef10_hy_hydw_zysrpm", "001", hy, "")
-        raise ValueError(f"unknown hy_members_rank section: {section!r}")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "hy_members_rank", hy, section, {}, _MODULES[__name__]
+        )
 
     def hy_capital_stats(self, hy: str, section: str = "001") -> F10Response:
         """行业板块资金统计（``skef10_hy_hysj_bxzjtj``）。
@@ -1241,12 +1407,20 @@ class F10Client:
         section: ``001`` 板块资金 / ``002`` 板块资金（另一种口径）。
         """
 
-        return self.params("CWServ.skef10_hy_hysj_bxzjtj", section, hy, "n" if section == "001" else "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "hy_capital_stats", hy, section, {}, _MODULES[__name__]
+        )
 
     def hy_fund_holdings(self, hy: str, section: str = "1") -> F10Response:
         """行业基金持仓（``skef10_hy_hysj_jjzb``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_hy_hysj_jjzb", section, hy, "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hy_fund_holdings", hy, section, _MODULES[__name__]
+        )
 
     def hy_capital_flow(self, hy: str, section: str = "001") -> F10Response:
         """行业资金流向（``skef10_hy_hysj_zjlx``）。
@@ -1254,27 +1428,47 @@ class F10Client:
         section: ``001`` 资金流向 / ``002`` 资金流向（另一种口径）。
         """
 
-        return self.params("CWServ.skef10_hy_hysj_zjlx", section, hy)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hy_capital_flow", hy, section, _MODULES[__name__]
+        )
 
     def hy_analyst_index(self, hy: str, section: str = "001") -> F10Response:
         """行业分析师指数（``skef10_hy_hyyj_fxszs``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_hy_hyyj_fxszs", section, hy, "", "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hy_analyst_index", hy, section, _MODULES[__name__]
+        )
 
     def hy_major_holders(self, hy: str) -> F10Response:
         """行业某名单（``skef10_hy_hyyj_hymzgd``）。"""
 
-        return self.params("CWServ.skef10_hy_hyyj_hymzgd", hy)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hy_major_holders", hy, None, _MODULES[__name__]
+        )
 
     def hy_rating_summary(self, hy: str, section: str = "001") -> F10Response:
         """行业评级汇总（``skef10_hy_hyyj_hypjhz``）。section 为子标签。"""
 
-        return self.params("CWServ.skef10_hy_hyyj_hypjhz", section, hy, "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hy_rating_summary", hy, section, _MODULES[__name__]
+        )
 
     def hy_index(self, hy: str) -> F10Response:
         """行业指数（``skef10_hy_idsy``）。"""
 
-        return self.params("CWServ.skef10_hy_idsy", "002", hy)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hy_index", hy, None, _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------
     # 期货 qhf10 家族（Entry: CWServ.qhf9_*，网关 page2）
@@ -1302,15 +1496,11 @@ class F10Client:
         ``index=True`` 走股指（``qhf9_gz_*``）Entry，否则商品（``qhf9_sp_*``）。
         """
 
-        prefix = "CWServ.qhf9_gz_ccbg_" if index else "CWServ.qhf9_sp_ccbg_"
-        suffix = {"cjcc": "cjcc", "cjjg": "cjjg", "jcgc": "jcgc", "ccjj": "ccjj", "ykfx": "ykfx"}[section]
-        d1 = date.strip().replace("-", "")
-        d2 = end_date.strip().replace("-", "")
-        if section in ("cjcc",):
-            return self.params(prefix + suffix, "1", code, d1)
-        if section == "cjjg":
-            return self.params(prefix + suffix, "1", code, d1, "")
-        return self.params(prefix + suffix, "1", code, d1, d2, "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_position_report", code, section, {"date": date, "end_date": end_date, "index": index}, _MODULES[__name__]
+        )
 
     def qh_basis_spread(self, code: str, section: str = "001", period: str = "1Y") -> F10Response:
         """期货基差价差分析（``qhf9_sp_jcjcfx``）。
@@ -1320,7 +1510,11 @@ class F10Client:
         ``006`` 跨品种价差。
         """
 
-        return self.params("CWServ.qhf9_sp_jcjcfx", section, code, period, "", "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "qh_basis_spread", code, section, {"period": period}, _MODULES[__name__]
+        )
 
     def qh_warehouse_receipt(self, code: str, *, date: str = "") -> F10Response:
         """期货仓单日报（``CWServ.qhf9_sp_ckrb_ckrb``）。
@@ -1328,7 +1522,11 @@ class F10Client:
         实测需传日期（``YYYYMMDD``），空日期返回 0 行。
         """
 
-        return self.params("CWServ.qhf9_sp_ckrb_ckrb", "1", code, date.strip().replace("-", ""))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "qh_warehouse_receipt", code, None, {"date": date}, _MODULES[__name__]
+        )
 
     def qh_inventory(self, code: str) -> F10Response:
         """期货库存报告（``CWServ.qhf9_sp_kcbg_kcbg``）。
@@ -1337,7 +1535,11 @@ class F10Client:
         调用前建议先用 ``params`` 直接试探。
         """
 
-        return self.params("CWServ.qhf9_sp_kcbg_kcbg", "1", code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "qh_inventory", code, None, _MODULES[__name__]
+        )
 
     def qh_variety_info(self, code: str, section: str = "pzjj") -> F10Response:
         """期货品种资料（``CWServ.qhf9_*_pzzl_*``）。
@@ -1346,13 +1548,11 @@ class F10Client:
         ``xgzq`` 相关证券（后两者为 ``[code]`` 单参）。
         """
 
-        if section == "pzjj":
-            return self.params("CWServ.qhf9_sp_pzzl_pzjj", code, "1")
-        entry = {
-            "hyjj": "CWServ.qhf9_sp_pzzl_hyjj",
-            "xgzq": "CWServ.qhf9_sp_pzzl_xgzq",
-        }[section]
-        return self.params(entry, code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_variety_info", code, section, {}, _MODULES[__name__]
+        )
 
     def qh_index_info(self, code: str, section: str = "zsgk") -> F10Response:
         """股指期货指数资料（``CWServ.qhf9_gz_zszl_*``）。
@@ -1361,7 +1561,11 @@ class F10Client:
         ``code`` 为指数代码（实测 ``399300`` 沪深300 可用，``000300`` 返回空）。
         """
 
-        return self.params("CWServ.qhf9_gz_zszl_" + section, "1" if section == "zsgk" else "2", code)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_index_info", code, section, {}, _MODULES[__name__]
+        )
 
     def qh_index_valuation(
         self, code: str = "000300", section: str = "dtpe", *, start: str = "", end: str = ""
@@ -1373,12 +1577,10 @@ class F10Client:
         为日期区间（``YYYYMMDD``）。
         """
 
-        return self.params(
-            "CWServ.qhf9_gz_zsgz_" + section,
-            "1",
-            code,
-            start.strip().replace("-", ""),
-            end.strip().replace("-", ""),
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_index_valuation", code, section, {"start": start, "end": end}, _MODULES[__name__]
         )
 
     def qh_weights(self, code: str = "399300", section: str = "zxcfg", *, date: str = "") -> F10Response:
@@ -1390,10 +1592,11 @@ class F10Client:
         ``date`` 为截止日期（``YYYYMMDD``，空为最新）。
         """
 
-        d = date.strip().replace("-", "")
-        if section == "cfghyfb":
-            return self.params("CWServ.qhf9_gz_cfg_cfghyfb", "1", code)
-        return self.params("CWServ.qhf9_gz_cfg_" + section, "1", code, d)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_sector_endpoint(
+            self, "qh_weights", code, section, {"date": date}, _MODULES[__name__]
+        )
 
     def market_report(
         self,
@@ -1447,41 +1650,12 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        section = _MARKET_REPORT_SECTION_ALIASES.get(section, section)
-        code_less = section in _MARKET_REPORT_CODELESS_SECTIONS
-        code6 = _code6(code) if (code or not code_less) else ""
-        page_text = str(page)
-        size_text = str(page_size)
-        bk = "CWServ.skef10_bk_"
-        zs = "CWServ.skef10_zs_"
-        dpzx = "CWServ.skef10_dpzx_"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "board_info": (f"{bk}getinfo", (code6,)),
-            "board_basics": (f"{bk}cpbd_jczl", ("001", code6, "")),
-            "board_description": (f"{bk}cpbd_jczl", ("002", code6, "")),
-            "board_trading": (f"{bk}cpbd_jczl", ("004", code6, "")),
-            "board_flow": (f"{bk}zjlx", (arg or "001_1", code6, "")),
-            "board_members": (f"{bk}scgl", (arg or "001", code6, page_text, size_text)),
-            "board_analysis": (f"{bk}sdfx", ("001", code6, "")),
-            "board_finance_compare": (f"{bk}ggdb_cwdb", (code6,)),
-            "board_candidates": (f"{bk}cfgsj", (arg or "001", code6)),
-            "board_trend": (f"{bk}ydfx", (code6,)),
-            "index_info": (f"{zs}getinfo", (code6,)),
-            "index_profile": (f"{zs}jbxx_zsgk", (code6,)),
-            "index_valuation": (f"{zs}jbxx_gzxx", ("001", code6, "", "")),
-            "index_tracking": (f"{zs}jbxx_gzbd", (code6, page_text, size_text)),
-            "index_flow": (f"{zs}zjdx", (arg or "004_1", code6, "", "", page_text, size_text)),
-            "index_flow_members": (f"{zs}cfgsj_cfgjcsj", (arg or "001", code6, page_text, size_text)),
-            "index_notices": (f"{zs}jrts", (arg or "001", code6, page_text, size_text)),
-            "market_basic": (f"{dpzx}jbxx", ("002", code6)),
-            "market_margin": (f"{dpzx}rzrq", ("001", code6)),
-            "market_margin_summary": (f"{dpzx}rzrq", ("002", code6)),
-            "market_margin_investors": (f"{dpzx}rzrq", ("003", arg or "1m")),
-            "market_new_shares": (f"{dpzx}xgfx", ("002",)),
-            "market_capital": (f"{dpzx}scgl", (arg or "004",)),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "market_report", code, section,
+            {"arg": arg, "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def index_members(
         self,
@@ -1509,32 +1683,11 @@ class F10Client:
             **服务端不返回成份权重**，需要权重请走通达信客户端。
         """
 
-        size = max(1, min(int(page_size), _MAX_PAGE_SIZE))
-        rows: list[IndexMember] = []
-        total: int | None = None
-        page = 1
-        while True:
-            response = self.market_report(code, "index_members", page=page, page_size=size)
-            table = response.first_table
-            batch = table.rows if table is not None else ()
-            if total is None:
-                total = _result_total(response)
-            for row in batch:
-                rows.append(
-                    IndexMember(
-                        code=_text(row.get("N001")),
-                        name=_text(row.get("N002")),
-                        market_id=_market_flag(row.get("N004")),
-                        join_date=row.get("N003"),
-                        raw=dict(row),
-                    )
-                )
-            if not all_pages or len(batch) < size or page >= max_pages:
-                break
-            if total is not None and len(rows) >= total:
-                break
-            page += 1
-        return IndexMemberTable(index_code=_code6(code), total=total, rows=tuple(rows))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_collect(
+            self, "index_members", code, all_pages, page_size, max_pages, _MODULES[__name__]
+        )
 
     def index_tracking_products(
         self,
@@ -1558,39 +1711,11 @@ class F10Client:
             服务端未标注含义，不做猜测，只保留在各行的 ``raw`` 里。
         """
 
-        size = max(1, min(int(page_size), _MAX_PAGE_SIZE))
-        rows: list[IndexTrackingProduct] = []
-        total: int | None = None
-        page = 1
-        while True:
-            response = self.market_report(code, "index_etfs", page=page, page_size=size)
-            table = response.first_table
-            batch = table.rows if table is not None else ()
-            if total is None:
-                total = _result_total(response)
-            for row in batch:
-                rows.append(
-                    IndexTrackingProduct(
-                        code=_text(row.get("N001")),
-                        name=_text(row.get("N002")),
-                        market_id=_int(row.get("sc")),
-                        scale_yuan=_float(row.get("N003")),
-                        change_pct=_float(row.get("N005")),
-                        amount_yuan=_float(row.get("N006")),
-                        inception_date=row.get("N008"),
-                        manager=_text(row.get("N009")),
-                        company=_text(row.get("N010")),
-                        nav=_float(row.get("N011")),
-                        fee_rate_pct=_float(row.get("N012")),
-                        raw=dict(row),
-                    )
-                )
-            if not all_pages or len(batch) < size or page >= max_pages:
-                break
-            if total is not None and len(rows) >= total:
-                break
-            page += 1
-        return IndexTrackingTable(index_code=_code6(code), total=total, rows=tuple(rows))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_collect(
+            self, "index_tracking_products", code, all_pages, page_size, max_pages, _MODULES[__name__]
+        )
 
     def board_members(
         self,
@@ -1619,46 +1744,11 @@ class F10Client:
             想完全绕开翻页，用 ``page_size=100``（默认）单页取全。
         """
 
-        size = max(1, min(int(page_size), _MAX_PAGE_SIZE))
-        rows: list[BoardMember] = []
-        seen: set[tuple] = set()
-        total: int | None = None
-        page = 1
-        while True:
-            response = self.market_report(code, "board_members", page=page, page_size=size)
-            table = response.first_table
-            batch = table.rows if table is not None else ()
-            if total is None:
-                total = _result_total(response)
-            added = 0
-            for row in batch:
-                item = BoardMember(
-                    code=_text(row.get("N001")),
-                    name=_text(row.get("N002")),
-                    market_id=_market_flag(row.get("sc")),
-                    dividend_plan=_text(row.get("N003")),
-                    progress=_text(row.get("N004")),
-                    announce_date=row.get("N005"),
-                    record_date=row.get("N006"),
-                    ex_date=row.get("N007"),
-                    report_period=row.get("N008"),
-                    raw=dict(row),
-                )
-                key = item.record_key
-                if key in seen:
-                    continue
-                seen.add(key)
-                rows.append(item)
-                added += 1
-            if not all_pages or not batch or len(batch) < size or page >= max_pages:
-                break
-            if total is not None and len(rows) >= total:
-                break
-            if added == 0:
-                # 整页都是已见记录：服务端页界在原地打滑，再翻也不会扩容。
-                break
-            page += 1
-        return BoardMemberTable(board_code=_code6(code), total=total, rows=tuple(rows))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_collect(
+            self, "board_members", code, all_pages, page_size, max_pages, _MODULES[__name__]
+        )
 
     def ipo_calendar(self) -> IpoCalendar:
         """近期新股列表（含申购日、发行价、募资额）。
@@ -1672,45 +1762,47 @@ class F10Client:
         **均为推断**，请用行内 ``raw`` 复核后再用于生产。
         """
 
-        response = self.market_report(section="ipo_calendar")
-        table = response.first_table
-        rows: list[IpoEntry] = []
-        for row in table.rows if table is not None else ():
-            rows.append(
-                IpoEntry(
-                    apply_date=row.get("N001"),
-                    code=_text(row.get("N002")),
-                    name=_text(row.get("N003")),
-                    market_id=_int(row.get("sc")),
-                    issue_pe=_float(row.get("N004")),
-                    extra_pct=_float(row.get("N005")),
-                    issue_price=_float(row.get("N006")),
-                    apply_limit=_float(row.get("N007")),
-                    raise_amount=_float(row.get("N008")),
-                    raw=dict(row),
-                )
-            )
-        return IpoCalendar(rows=tuple(rows))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_collect(
+            self, "ipo_calendar", None, None, None, None, _MODULES[__name__]
+        )
 
     def dividend_financing(self, code: str, section: str = "fh") -> F10Response:
         """分红融资类数据。section=fh 为分红方案历史。"""
 
-        return self.params("CWServ.tdxf10_gg_fhrz", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "dividend_financing", code, section, _MODULES[__name__]
+        )
 
     def allotment_dates(self, code: str) -> F10Response:
         """增发获配明细可选日期。"""
 
-        return self.params("CWServ.tdxf10_gg_fhrz_zfhpmx", "zfpg_bgq", _code6(code), "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "allotment_dates", code, None, _MODULES[__name__]
+        )
 
     def allotment_details(self, code: str, date: str) -> F10Response:
         """指定增发日期的获配机构明细。"""
 
-        return self.params("CWServ.tdxf10_gg_fhrz_zfhpmx", "zfpg", _code6(code), date)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "allotment_details", code, None, {"date": date}, _MODULES[__name__]
+        )
 
     def finance_report(self, code: str, report_type: str = "zcfzb") -> F10Response:
         """财务报表。report_type=zcfzb 为资产负债表。"""
 
-        return self.params("CWServ.tdxf10_gg_cwfx", _code6(code), report_type, "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "finance_report", code, None, {"report_type": report_type}, _MODULES[__name__]
+        )
 
     def finance_diagnosis(self, code: str, section: str = "zzyj", scope: str = "") -> F10Response:
         """财务诊断（增减异常）。
@@ -1720,24 +1812,39 @@ class F10Client:
         ``t0`` 为标志行（``isjr``），``t1`` 才是异常科目列表。
         """
 
-        return self.params("CWServ.tdxf10_gg_cwzd", section, _code6(code), scope)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "finance_diagnosis", code, section, {"scope": scope}, _MODULES[__name__]
+        )
 
     def stock_score(self, code: str, section: str = "pf", arg: str = "") -> F10Response:
         """个股总评。section=pf 为综合评分。"""
 
-        return self.params("CWServ.tdxf10_gg_ggzp", section, _code6(code), arg, "")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "stock_score", code, section, {"arg": arg}, _MODULES[__name__]
+        )
 
     def profit_forecast(self, code: str, section: str = "ylyctj") -> F10Response:
         """盈利预测评级统计。section=ylyctj 为盈利预测统计，ylycmx 为盈利预测明细，
         yzyq 为一致预期，tzpjtj 为投资评级统计，ycpjyjbg 为研报。"""
 
-        _require_section(section, ("ylyctj", "ylycmx", "yzyq", "tzpjtj", "ycpjyjbg"))
-        return self.params("CWServ.tdxf10_gg_ybpj", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "profit_forecast", code, section, _MODULES[__name__]
+        )
 
     def ranking_detail(self, code: str, section: str = "scpmdela") -> F10Response:
         """市场排名 / 行业排名明细。"""
 
-        return self.params("CWServ.tdxf10_gg_zxts_rqpm", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "ranking_detail", code, section, _MODULES[__name__]
+        )
 
     def governance(self, code: str, section: str = "gljy", arg: str = "") -> F10Response:
         """资本运作治理。section=gljy 为关联交易（数据最全）。
@@ -1748,25 +1855,36 @@ class F10Client:
         （多数公司 0 行，属数据缺失而非接口问题）。
         """
 
-        return self.params("CWServ.tdxf10_gg_zbyz", section, _code6(code), arg)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "governance", code, section, {"arg": arg}, _MODULES[__name__]
+        )
 
     def hot_topics(self, code: str, section: str = "zttzbkz") -> F10Response:
         """热点题材。section=zttzbkz 为板块题材。"""
 
-        return self.params("CWServ.tdxf10_gg_rdtc", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "hot_topics", code, section, _MODULES[__name__]
+        )
 
     def topic_compare(self, code: str, topic_id: str, section: str = "gndbzfsj", sort_by: str = "zdf") -> F10Response:
         """题材内对比排名。"""
 
-        return self.params("CWServ.tdxf10_gg_rdtc_gndb", section, _code6(code), str(topic_id), sort_by)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "topic_compare", code, section, {"topic_id": topic_id, "sort_by": sort_by}, _MODULES[__name__]
+        )
 
     def topic_compare_first(self, code: str, section: str = "gndbzfsj", sort_by: str = "zdf") -> F10Response:
         """用股票第一个题材 ID 查询题材内对比排名。"""
 
-        topic_id = _first_value(self.topic_ids(code), "t001")
-        if topic_id is None:
-            raise ProtocolError(f"no topic id for {_code6(code)}")
-        return self.topic_compare(code, str(topic_id), section=section, sort_by=sort_by)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_topic_compare_first(self, code, section, sort_by, _MODULES[__name__])
 
     def company_news(
         self,
@@ -1785,9 +1903,11 @@ class F10Client:
         ``page_size``。
         """
 
-        if section == "finance_review":
-            return self.params("CWServ.tdxf10_gg_cwfx_cbdp", _code6(code), str(page))
-        return self.params("CWServ.tdxf10_gg_gszx", _code6(code), section, keyword, str(rating), str(page), str(page_size))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_page_endpoint(
+            self, "company_news", code, section, {"keyword": keyword, "rating": rating, "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def digest(
         self,
@@ -1811,20 +1931,11 @@ class F10Client:
         返回模型：:class:`eltdx.f10.models.F10Response`。
         """
 
-        code6 = _code6(code)
-        zxts = "CWServ.tdxf10_gg_zxts"
-        table: dict[str, tuple[str, tuple[Any, ...]]] = {
-            "tips": (zxts, (code6, "zxts", "")),
-            "profile": (zxts, (code6, "gsgy", "")),
-            "events": (zxts, (code6, "gsds", "")),
-            "news": (zxts, (code6, "gsxw", "")),
-            "announcements": (zxts, (code6, "gsgg", "")),
-            "reports": (zxts, (code6, "gsyj", "")),
-            "roadshows": (zxts, (code6, "lyhd", "")),
-            "interaction": ("CWServ.tdxf10_gg_zxtstzzhd", (code6, "1", "1", str(page_size))),
-        }
-        entry, params = _section_request(section, table)
-        return self.params(entry, *params)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_report(
+            self, "digest", code, section, {"page_size": page_size}, _MODULES[__name__]
+        )
 
     def northbound_holding(
         self,
@@ -1837,44 +1948,48 @@ class F10Client:
     ) -> F10Response:
         """沪深股通持股变化。"""
 
-        return self.params(
-            "CWServ.tdxf10_gg_zlcc",
-            _code6(code),
-            section,
-            filter_value,
-            str(page),
-            str(page),
-            str(page_size),
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "northbound_holding", code, section, {"filter_value": filter_value, "page": page, "page_size": page_size}, _MODULES[__name__]
         )
 
     def detail(self, detail_type: str, record_id: str | int) -> F10Response:
         """按记录 ID 查询详情正文。"""
 
-        return self.params("CWServ.tdxf10_gg_idreq", detail_type, str(record_id))
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "detail", None, None, {"detail_type": detail_type, "record_id": record_id}, _MODULES[__name__]
+        )
 
     def cache_list(self, code: str, kind: str = "gg") -> F10Response:
         """新闻 / 公告 / 路演缓存列表。kind=xw、gg、ly。"""
 
-        if kind not in {"xw", "gg", "ly"}:
-            raise ValueError("kind must be one of: xw, gg, ly")
-        market_id, _, code6 = split_code(code)
-        body = {"action": "get", "key": f"{kind}:{market_id}_{code6}", "bin": "1", "qsid": DEFAULT_QSID}
-        return self.call("CWSearch.tzx_rcache", body)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_cache_list(self, code, kind, _MODULES[__name__])
 
     def announcements(self, code: str) -> F10Response:
         """公告列表。"""
 
-        return self.cache_list(code, "gg")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_cache_alias(self, "announcements", code)
 
     def news(self, code: str) -> F10Response:
         """新闻列表。"""
 
-        return self.cache_list(code, "xw")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_cache_alias(self, "news", code)
 
     def roadshows(self, code: str) -> F10Response:
         """路演列表。"""
 
-        return self.cache_list(code, "ly")
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_cache_alias(self, "roadshows", code)
 
     # ------------------------------------------------------------------
     # 市场资讯（通达信 7615「资讯」页；枚举与字段说明见 eltdx.f10.news）
@@ -1884,7 +1999,10 @@ class F10Client:
 
         频道号用于 :meth:`channel_news`；分组见 :data:`eltdx.f10.news.NEWS_CHANNEL_GROUPS`。
         """
-        return sorted(NEWS_CHANNEL_LABELS.items())
+
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_news_channels(_MODULES[__name__])
 
     def market_news(
         self,
@@ -1899,9 +2017,11 @@ class F10Client:
         （默认 ``HEADLINES`` 要闻速递）。新闻行在响应 ``result_sets[1].rows``，
         可用 :func:`eltdx.f10.news.extract_news_rows` 提取。
         """
-        return self.call(
-            "CWServ.tdxi_zxxwsy",
-            {"Params": [str(int(tab)), str(page), str(page_size)]},
+
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "market_news", None, None, {"tab": tab, "page": page, "page_size": page_size}, _MODULES[__name__]
         )
 
     def channel_news(
@@ -1918,10 +2038,13 @@ class F10Client:
         Params = ``[query1(常为 "1"), 频道号, page, page_size, keyword]``；
         频道号见 :class:`eltdx.f10.news.NewsChannel`。新闻行在 ``result_sets[1].rows``。
         """
-        return self.call(
-            "CWServ.tdxi_zxxwnews",
-            {"Params": [str(query1), str(int(channel)), str(page), str(page_size), keyword]},
+
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_input_endpoint(
+            self, "channel_news", None, None, {"channel": channel, "page": page, "page_size": page_size, "query1": query1, "keyword": keyword}, _MODULES[__name__]
         )
+
     def theme_market(
         self,
         code: str,
@@ -1934,19 +2057,13 @@ class F10Client:
     ) -> F10Response:
         """题材概念行情。req_id=200743 为相关板块。"""
 
-        payload = {
-            "ReqId": str(req_id),
-            "setcode": split_code(code)[0],
-            "code": _code6(code),
-            "Page": page,
-            "PageSize": str(page_size),
-            "modname": "mod_tcihq.dll",
-        }
-        if str(req_id) in {"200740", "200742", "200745", "200747"}:
-            payload["zq_num"] = str(zq_num)
-        if extra:
-            payload.update(extra)
-        return self.call("HQServ.hq_nlp_tcihq", [payload])
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_request(
+            self, "theme_market", code,
+            {"req_id": req_id, "page": page, "page_size": page_size, "zq_num": zq_num, "extra": extra},
+            _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------
     # 个股总评（ggzp）与深度分析（sdfx）页面的语义化封装
@@ -1967,9 +2084,9 @@ class F10Client:
         ``days`` 为回看天数（客户端默认 60）。
         """
 
-        return self.theme_market(
-            code, 200740, page_size=page_size, zq_num=days
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_stage_gain", code, {"days": days, "page_size": page_size})
 
     def stock_main_funds(
         self, code: str, *, days: int | str = 30, page_size: int = 10
@@ -1980,9 +2097,9 @@ class F10Client:
         主力流入/流出/净额/占比（口径随服务端）。
         """
 
-        return self.theme_market(
-            code, 200742, page_size=page_size, zq_num=days
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_main_funds", code, {"days": days, "page_size": page_size})
 
     def stock_industry_rank(
         self, code: str, *, days: int | str = 30, page_size: int = 10
@@ -1994,9 +2111,9 @@ class F10Client:
         ``t1`` 为行业指数近期走势（``N001`` 日期 / ``N002`` 点位）。
         """
 
-        return self.theme_market(
-            code, 200745, page_size=page_size, zq_num=days
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_industry_rank", code, {"days": days, "page_size": page_size})
 
     def stock_industry_pct_rank(
         self, code: str, *, days: int | str = 30, page_size: int = 10
@@ -2007,9 +2124,9 @@ class F10Client:
         ``[排名, setcode, code, name, 涨跌幅]``。
         """
 
-        return self.theme_market(
-            code, 200747, page_size=page_size, zq_num=days
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_industry_pct_rank", code, {"days": days, "page_size": page_size})
 
     def stock_board_member_quotes(
         self,
@@ -2027,15 +2144,12 @@ class F10Client:
         ``N004`` / ``N005`` 涨跌幅与量比。
         """
 
-        payload = {
-            "ReqId": "200744",
-            "setcode": str(board_market),
-            "code": _code6(board_code),
-            "Page": page,
-            "PageSize": str(page_size),
-            "modname": "mod_tcihq.dll",
-        }
-        return self.call("HQServ.hq_nlp_tcihq", [payload])
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_request(
+            self, "stock_board_member_quotes", board_code,
+            {"board_market": board_market, "page": page, "page_size": page_size}, _MODULES[__name__]
+        )
 
     def stock_valuation_percentile(
         self,
@@ -2051,8 +2165,10 @@ class F10Client:
         ``t1`` 每行：``DATE`` 日期、``value`` 估值、``bfw`` 百分位。
         """
 
-        return self.valuation(
-            code, 200192, page=page, page_size=page_size, extra={"Type": kind}
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(
+            self, "stock_valuation_percentile", code, {"kind": kind, "page": page, "page_size": page_size}
         )
 
     def stock_pepb_percentile(
@@ -2074,12 +2190,11 @@ class F10Client:
         ``t1`` 为区间统计（``TotalNum`` / ``Min`` / ``Mid``）。
         """
 
-        return self.valuation(
-            code,
-            200124,
-            page=page,
-            page_size=page_size,
-            extra={"sjfw": window, "zb": indicator, "hqzq": period},
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(
+            self, "stock_pepb_percentile", code,
+            {"indicator": indicator, "window": window, "period": period, "page": page, "page_size": page_size}
         )
 
     def stock_history_trend(self, code: str) -> F10Response:
@@ -2088,7 +2203,9 @@ class F10Client:
         ``t0`` 每行一个年度（``N001`` 年份、``N002~N014`` 年度涨跌幅与估值）。
         """
 
-        return self.valuation(code, 200135)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_alias(self, "stock_history_trend", code, {})
 
     def stock_finance_weights(self, code: str, section: str = "zcfzb") -> F10Response:
         """财务指标权重（``CWServ.tdxf10_gg_zxtscwbq``，最新提示页）。
@@ -2097,7 +2214,11 @@ class F10Client:
         实测部分 key 返回空——属数据缺失，调用前建议先取 ``digest``。
         """
 
-        return self.params("CWServ.tdxf10_gg_zxtscwbq", _code6(code), section)
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_simple_endpoint(
+            self, "stock_finance_weights", code, section, _MODULES[__name__]
+        )
 
     def valuation(
         self,
@@ -2110,67 +2231,17 @@ class F10Client:
     ) -> F10Response:
         """估值市场数据。req_id=200191 为估值表。"""
 
-        market_id, _, code6 = split_code(code)
-        req_id_text = str(req_id)
-        payload: dict[str, Any]
-        if req_id_text in {"200191", "200192"}:
-            payload = {
-                "ReqId": req_id_text,
-                "Code": f"{code6}|{market_id}",
-                "BeginDate": "0",
-                "EndDate": "0",
-                "Page": str(page),
-                "PageSize": str(page_size),
-                "modname": "mod_gpsj.dll",
-            }
-            if req_id_text == "200192":
-                payload.setdefault("Type", "0")
-                payload["Page"] = str(page if page != 0 else -1)
-                payload["PageSize"] = str(page_size if page_size != 20 else 5)
-        elif req_id_text == "200135":
-            payload = {
-                "ReqId": req_id_text,
-                "code": code6,
-                "setcode": str(market_id),
-                "modname": "mod_gpsj.dll",
-            }
-        elif req_id_text == "200124":
-            payload = {
-                "ReqId": req_id_text,
-                "code": code6,
-                "setcode": str(market_id),
-                "sjfw": "1Y",
-                "sdate": "",
-                "edate": "",
-                "zb": "0",
-                "hqzq": "0",
-                "cwppgz": 1,
-                "jglx": 0,
-                "Page": page if page != 0 else 1,
-                "PageSize": str(page_size if page_size != 20 else 300),
-                "modname": "mod_gpsj.dll",
-            }
-        else:
-            payload = {
-                "ReqId": req_id_text,
-                "code": code6,
-                "setcode": str(market_id),
-                "modname": "mod_gpsj.dll",
-            }
-        if extra:
-            payload.update(extra)
-        return self.call("HQServ.hq_nlp_gpsj", [payload])
+        from eltdx._native_abi import load_native
+
+        return load_native().f10_object_request(
+            self, "valuation", code,
+            {"req_id": req_id, "page": page, "page_size": page_size, "extra": extra}, _MODULES[__name__]
+        )
 
     def _post(self, entry: str, body: Any) -> F10Response:
-        if entry == LIMIT_BOARD_LADDER_ENTRY:
-            base_url = self.limit_board_ladder_base_url
-        elif entry.startswith(_MG_HK_ENTRY_PREFIXES) or entry.startswith(_QH_ENTRY_PREFIXES):
-            base_url = self.mg_hk_base_url
-        else:
-            base_url = self.base_url
-        url = f"{base_url}?{urlencode({'Entry': entry})}"
-        data = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        request = Request(url, data=data, headers=self.headers, method="POST")
+        from eltdx._native_abi import load_native
+
+        request = load_native().f10_prepare_request(self, entry, body, _MODULES[__name__])
         try:
             if self.prefer_ipv4:
                 with open_ipv4_first(request, timeout=self.timeout) as response:
@@ -2197,94 +2268,45 @@ class F10Client:
 def parse_tqlex_response(entry: str, request_body: Any, raw: Mapping[str, Any]) -> F10Response:
     """Parse a TQLEX JSON object into stable table models."""
 
-    result_sets_raw = raw.get("ResultSets") or ()
-    if not isinstance(result_sets_raw, Sequence) or isinstance(result_sets_raw, (str, bytes, bytearray)):
-        raise ProtocolError("TQLEX ResultSets must be an array")
+    from eltdx._native_abi import load_native
 
-    result_sets = tuple(_parse_result_set(item, index) for index, item in enumerate(result_sets_raw))
-    error_code_raw = raw.get("ErrorCode")
-    error_code = int(error_code_raw) if error_code_raw is not None else None
-    return F10Response(
-        entry=entry,
-        request_body=request_body,
-        error_code=error_code,
-        result_sets=result_sets,
-        raw=dict(raw),
-    )
+    return load_native().f10_parse_response(entry, request_body, raw, _MODULES[__name__])
 
 
 def _parse_result_set(raw: Any, table_index: int) -> F10ResultSet:
-    if not isinstance(raw, Mapping):
-        raise ProtocolError("TQLEX ResultSet must be an object")
-    columns = _columns(raw)
-    content = raw.get("Content") or ()
-    if not isinstance(content, Sequence) or isinstance(content, (str, bytes, bytearray)):
-        raise ProtocolError("TQLEX ResultSet Content must be an array")
+    from eltdx._native_abi import load_native
 
-    rows: list[dict[str, Any]] = []
-    row_cells: list[tuple[F10Cell, ...]] = []
-    for row in content:
-        values = _row_values(row)
-        cells = tuple(F10Cell(name=_column_name(columns, index), value=value, index=index) for index, value in enumerate(values))
-        row_cells.append(cells)
-        rows.append(_row_dict(cells))
-
-    return F10ResultSet(
-        key=raw.get("ResultSetKey") or f"table{table_index}",
-        columns=tuple(columns),
-        rows=tuple(rows),
-        row_cells=tuple(row_cells),
-        raw=dict(raw),
-    )
+    return load_native().f10_parse_table(raw, table_index, _MODULES[__name__])
 
 
 def _columns(raw: Mapping[str, Any]) -> list[str]:
-    if "ColName" in raw:
-        col_name = raw.get("ColName") or ()
-        if not isinstance(col_name, Sequence) or isinstance(col_name, (str, bytes, bytearray)):
-            raise ProtocolError("TQLEX ColName must be an array")
-        return [str(item) for item in col_name]
+    from eltdx._native_abi import load_native
 
-    if "ColDes" in raw:
-        col_des = raw.get("ColDes") or ()
-        if not isinstance(col_des, Sequence) or isinstance(col_des, (str, bytes, bytearray)):
-            raise ProtocolError("TQLEX ColDes must be an array")
-        names = []
-        for item in col_des:
-            if isinstance(item, Mapping):
-                names.append(str(item.get("Name", "")))
-            else:
-                names.append(str(item))
-        return names
-
-    return []
+    return load_native().f10_columns(raw, _MODULES[__name__])
 
 
 def _row_values(row: Any) -> list[Any]:
-    if isinstance(row, Sequence) and not isinstance(row, (str, bytes, bytearray)):
-        return list(row)
-    return [row]
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_row_values(row, _MODULES[__name__])
 
 
 def _column_name(columns: Sequence[str], index: int) -> str:
-    if index < len(columns) and columns[index]:
-        return columns[index]
-    return f"col_{index}"
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_column_name(columns, index)
 
 
 def _row_dict(cells: Sequence[F10Cell]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    counts: dict[str, int] = {}
-    for cell in cells:
-        count = counts.get(cell.name, 0)
-        counts[cell.name] = count + 1
-        key = cell.name if count == 0 else f"{cell.name}__{count + 1}"
-        result[key] = cell.value
-    return result
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_row_dict(cells, _MODULES[__name__])
 
 
 def _code6(code: str) -> str:
-    return split_code(code)[2]
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_code6(_MODULES[__name__], code)
 
 
 def _us_code(code: str) -> str:
@@ -2294,16 +2316,9 @@ def _us_code(code: str) -> str:
     美股代码含字母，可能带 ``-`` / ``.``（如 ``BRK-B``），不做长度强制。
     """
 
-    text = str(code).strip()
-    if "." in text:
-        text = text.split(".")[-1]
-    text = text.upper()
-    # 至少一个字母或数字（拒绝 "-" / "--" 这类纯符号），其余字符限字母数字与连字符
-    if not text or not any(c.isalnum() for c in text):
-        raise ProtocolError(f"invalid US code: {code!r}")
-    if not all(c.isalnum() or c == "-" for c in text):
-        raise ProtocolError(f"invalid US code: {code!r}")
-    return text
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_normalize_code(code, "us", _MODULES[__name__])
 
 
 def _hk_code(code: str) -> str:
@@ -2313,13 +2328,9 @@ def _hk_code(code: str) -> str:
     前导补零到 5 位。
     """
 
-    text = str(code).strip()
-    if "." in text:
-        text = text.split(".")[-1]
-    # 去前缀后必须全是数字（拒绝 "00700A" 这类混入字母的输入）
-    if not text.isdigit():
-        raise ProtocolError(f"invalid HK code: {code!r}")
-    return text.zfill(5)
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_normalize_code(code, "hk", _MODULES[__name__])
 
 
 def _bond_code(code: str) -> str:
@@ -2329,12 +2340,9 @@ def _bond_code(code: str) -> str:
     代码段高度重叠，如 ``110``/``113`` 沪深都有），仅取 6 位数字。
     """
 
-    text = str(code).strip()
-    if len(text) == 8 and text[:2] in MARKET_TO_ID:
-        text = text[2:]
-    if len(text) != 6 or not text.isdigit():
-        raise ProtocolError(f"invalid bond code: {code!r}")
-    return text
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_normalize_code(code, "bond", _MODULES[__name__])
 
 
 def _bond_sc(code: str) -> str:
@@ -2345,19 +2353,17 @@ def _bond_sc(code: str) -> str:
     前缀优先。
     """
 
-    text = str(code).strip().lower()
-    if len(text) == 8 and text[:2] in MARKET_TO_ID:
-        return "1" if text[:2] == "sh" else "0"
-    # 沪深重叠段（110/113/120/122/124 等）无法纯代码推断，默认沪市。
-    return "1"
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_normalize_code(code, "bond_market", _MODULES[__name__])
 
 
 def _require_section(section: str, valid: Sequence[str]) -> None:
     """Raise ``ValueError`` listing the valid ``section`` values."""
 
-    if section not in valid:
-        names = ", ".join(sorted(valid))
-        raise ValueError(f"unknown section: {section!r}; expected one of: {names}")
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_require_section(section, valid, _MODULES[__name__])
 
 
 def _section_request(
@@ -2366,42 +2372,35 @@ def _section_request(
 ) -> tuple[str, tuple[Any, ...]]:
     """Return the ``(entry, params)`` pair registered for ``section``."""
 
-    _require_section(section, tuple(table))
-    return table[section]
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_section_request(section, table, _MODULES[__name__])
 
 
 def _first_value(response: F10Response, field_name: str) -> Any | None:
-    for row in response.rows:
-        if field_name in row:
-            return row[field_name]
-    return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_first_value(response, field_name)
 
 
 def _text(value: Any) -> str | None:
     """把服务端标量转成字符串；空值、占位符一律返回 ``None``。"""
 
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "text", _MODULES[__name__])
 
 
 def _int(value: Any) -> int | None:
-    if value is None or value == "":
-        return None
-    try:
-        return int(str(value).strip())
-    except (TypeError, ValueError):
-        return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "int", _MODULES[__name__])
 
 
 def _float(value: Any) -> float | None:
-    if value is None or value == "":
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "float", _MODULES[__name__])
 
 
 def _market_flag(value: Any) -> int | None:
@@ -2411,35 +2410,25 @@ def _market_flag(value: Any) -> int | None:
     由 :class:`~eltdx.f10.models.IndexMember` 按代码号段回退推断。
     """
 
-    text = _text(value)
-    if text is None:
-        return None
-    return {"1": 1, "0": 0}.get(text)
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "market", _MODULES[__name__])
 
 
 def _result_total(response: F10Response) -> int | None:
     """分页接口把样本总数放在第二个 ResultSet（列名 ``zs``）里。"""
 
-    for table in response.result_sets:
-        if table.key == "table0":
-            continue
-        for row in table.rows:
-            for value in row.values():
-                if isinstance(value, int):
-                    return value
-                parsed = _int(value)
-                if parsed is not None:
-                    return parsed
-    return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_result_total(response, _MODULES[__name__])
 
 
 def _latest_report_period(response: F10Response) -> str:
     """从 ``*bgq`` 报告期列表里取最新报告期（首行 ``rq``）；为空时返回空串。"""
 
-    rows = response.rows
-    if not rows:
-        return ""
-    return str(rows[0].get("rq") or "")
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_latest_period(response, _MODULES[__name__])
 
 
 def _normalize_limit_board_dates(
@@ -2448,87 +2437,36 @@ def _normalize_limit_board_dates(
 ) -> tuple[str, str]:
     """Normalize optional dates to the gateway's ``YYYYMMDD`` format."""
 
-    start = _date_text(start_date)
-    end = _date_text(end_date)
-    if start is None and end is None:
-        today = date.today().strftime("%Y%m%d")
-        return today, today
-    if start is None:
-        start = end
-    if end is None:
-        end = start
-    assert start is not None and end is not None
-    if start > end:
-        raise ValueError("start_date must be on or before end_date")
-    return start, end
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_ladder_dates(start_date, end_date, _MODULES[__name__])
 
 
 def _date_text(value: str | int | date | None) -> str | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        value = value.date()
-    if isinstance(value, date):
-        return value.strftime("%Y%m%d")
-    text = str(value).strip().replace("-", "").replace("/", "")
-    if len(text) != 8 or not text.isdigit():
-        raise ValueError(f"invalid date: {value!r}")
-    try:
-        datetime.strptime(text, "%Y%m%d")
-    except ValueError as exc:
-        raise ValueError(f"invalid date: {value!r}") from exc
-    return text
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_date_text(value, _MODULES[__name__])
 
 
 def _parse_limit_board_ladder_row(row: Mapping[str, Any]) -> LimitBoardLadderRow:
-    limit_type = _as_int(row.get("ztlb"))
-    board_level = _as_int(row.get("lbts"))
-    return LimitBoardLadderRow(
-        trading_date=row.get("rq"),
-        trading_date_value=row.get("rqex"),
-        board_level=(
-            board_level
-            if limit_type == 1 and board_level is not None and board_level > 0
-            else None
-        ),
-        code=_as_text(row.get("ZQDM")),
-        market_id=_as_int(row.get("SC")),
-        limit_reason=row.get("ztyy"),
-        seal_amount=_as_number(row.get("fde")),
-        name=row.get("ZQJC"),
-        limit_reason_extra=row.get("ztyy2"),
-        limit_time=row.get("ztsj"),
-        broken_count=_as_int(row.get("kbcs")),
-        industry=row.get("sshy"),
-        limit_type=limit_type,
-        success_rate=row.get("cgl"),
-        highest_board_level=_as_int(row.get("zglb")),
-        raw=dict(row),
-    )
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_ladder_row(row, _MODULES[__name__])
 
 
 def _as_text(value: Any) -> str | None:
-    return None if value is None else str(value)
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "as_text", _MODULES[__name__])
 
 
 def _as_int(value: Any) -> int | None:
-    if value is None or value == "":
-        return None
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "as_int", _MODULES[__name__])
 
 
 def _as_number(value: Any) -> float | int | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, (int, float)):
-        return value
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    return int(number) if number.is_integer() else number
+    from eltdx._native_abi import load_native
+
+    return load_native().f10_scalar(value, "as_number", _MODULES[__name__])

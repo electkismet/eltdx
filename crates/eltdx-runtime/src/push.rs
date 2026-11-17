@@ -11,6 +11,8 @@ pub const DEFAULT_PUSH_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PushFrame {
+    /// Receive order within this exact TCP generation, independent of cursors.
+    pub receive_sequence: u64,
     pub engine_epoch: EngineEpoch,
     pub slot_id: SlotId,
     pub generation: GenerationId,
@@ -260,6 +262,7 @@ mod tests {
         raw[12..14].copy_from_slice(&length.to_le_bytes());
         raw[14..16].copy_from_slice(&length.to_le_bytes());
         Ok(PushFrame {
+            receive_sequence: u64::from(message),
             engine_epoch: epoch,
             slot_id: SlotId::new(0),
             generation: GenerationId::new(1)?,

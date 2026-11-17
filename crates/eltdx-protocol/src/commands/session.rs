@@ -1,3 +1,4 @@
+use crate::context::{ParseContext, ParseOptions};
 use bytes::Bytes;
 
 use crate::error::ProtocolError;
@@ -52,6 +53,21 @@ pub struct HeartbeatAck {
 }
 
 pub fn parse_handshake_payload(payload: &[u8]) -> Result<HandshakeInfo, ProtocolError> {
+    parse_handshake_payload_body(payload, &ParseContext::legacy(payload))
+}
+
+pub fn parse_handshake_payload_with_context(
+    payload: Bytes,
+    options: &ParseOptions<'_>,
+) -> Result<HandshakeInfo, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_handshake_payload_body(&payload, &context)
+}
+
+fn parse_handshake_payload_body(
+    payload: &[u8],
+    context: &ParseContext<'_>,
+) -> Result<HandshakeInfo, ProtocolError> {
     ensure_payload_bound(payload, "handshake")?;
     if payload.len() < HANDSHAKE_PAYLOAD_MIN_SIZE {
         return Err(ProtocolError::invalid_data(
@@ -72,13 +88,28 @@ pub fn parse_handshake_payload(payload: &[u8]) -> Result<HandshakeInfo, Protocol
         product_tag: decode_gbk_text(&payload[160..189]),
         unknown_time_1_raw: little_u32(&payload[46..50])?,
         unknown_time_2_raw: little_u32(&payload[54..58])?,
-        flags_raw: Bytes::copy_from_slice(&payload[58..68]),
-        tail_control_raw: Bytes::copy_from_slice(&payload[152..160]),
-        raw_payload: Bytes::copy_from_slice(payload),
+        flags_raw: context.business_bytes(&payload[58..68]),
+        tail_control_raw: context.business_bytes(&payload[152..160]),
+        raw_payload: context.payload(payload),
     })
 }
 
 pub fn parse_heartbeat_payload(payload: &[u8]) -> Result<HeartbeatAck, ProtocolError> {
+    parse_heartbeat_payload_body(payload, &ParseContext::legacy(payload))
+}
+
+pub fn parse_heartbeat_payload_with_context(
+    payload: Bytes,
+    options: &ParseOptions<'_>,
+) -> Result<HeartbeatAck, ProtocolError> {
+    let context = ParseContext::new(&payload, options);
+    parse_heartbeat_payload_body(&payload, &context)
+}
+
+fn parse_heartbeat_payload_body(
+    payload: &[u8],
+    context: &ParseContext<'_>,
+) -> Result<HeartbeatAck, ProtocolError> {
     ensure_payload_bound(payload, "heartbeat")?;
     if payload.len() < 10 {
         return Err(ProtocolError::invalid_data(
@@ -88,10 +119,10 @@ pub fn parse_heartbeat_payload(payload: &[u8]) -> Result<HeartbeatAck, ProtocolE
     }
     let server_date_raw = little_u32(&payload[6..10])?;
     Ok(HeartbeatAck {
-        reserved: Bytes::copy_from_slice(&payload[..6]),
+        reserved: context.business_bytes(&payload[..6]),
         server_date_raw,
         server_date: DateParts::from_yyyymmdd(server_date_raw),
-        raw_payload: Bytes::copy_from_slice(payload),
+        raw_payload: context.payload(payload),
     })
 }
 
@@ -103,7 +134,7 @@ fn parse_server_datetime(payload: &[u8]) -> Option<DateTimeParts> {
 
 fn parse_session_minutes(payload: &[u8]) -> Result<Vec<String>, ProtocolError> {
     let mut values = Vec::with_capacity(8);
-    for chunk in payload.chunks_exact(2).take(8) {
+    for chunk in payload.as_chunks::<2>().0.iter().take(8) {
         let minute = little_u16(chunk)?;
         values.push(format!("{:02}:{:02}", minute / 60, minute % 60));
     }
