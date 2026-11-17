@@ -508,6 +508,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T26：扩展组合服务与目录缓存
 
+2026-11-17第五段源码恢复点（stage86，基础27adc95）：T26实现/用例/交接源码范围完成。extended_loopback新增7个函数，共14；extended_catalogs新增6个，共32，涵盖EX真实公开入口92B握手/取消关闭/换源/排队超时、MAC-EX固定来源fallback、下载释放lease、换源缓存/独立owner和宏观80+1/raw。完整映射及Python旧转换差异见[t26-implementation-index.md](t26-implementation-index.md)。全部未编译、收集或运行，以下验收框保持未通过；生产登录证据仍待最终阶段。24源码完整/2部分（T19/T25）/4未开始（T27–T30），继续后续完整范围。
+
 2026-11-17第四段源码恢复点（stage85，基础b6b6860）：新增全部MAC-EX目录/宏观余下7入口与显式snapshot/cache刷新源码，13/13方法均有实现源。全局扫描/前后count/乱序完整过滤、同源goods fallback、actual code/name/desc、epoch/版本/来源有界缓存、宏观唯一匹配及80分批/identity重排/同源bar、logical-request父限额与克隆内存计账已写。新增26个public/6个cache/2个operation函数源码，全部未执行，详见catalog-implementation-index.md。T26仍部分，继续广域EX/MAC/MAC-EX生命周期和换源/多批源码覆盖、T25收尾及T27–T30；23/3/4不变，全部执行验证仍延期。
 
 2026-11-17第三段源码恢复点（stage84，基础29256d1）：同源MAC download_file/download_complete已写，MAC23/23方法现有源码。一个lease沿用共享DownloadCursor，首个metadata/chunk接受后固定endpoint/generation、禁止重连/failover；short/empty且绝对size一致才能Complete，full cap仍LimitReached。cap0不联网，strict要求offset0，普通续传只返后缀；输出/独立解码分配计父字节，原prefix/raw/来源与失败证据保留。新增extended_downloads17个公开函数源码，全未执行。T26仍部分，继续MAC-EX目录fallback/有界缓存/宏观唯一解析/余下7入口及生命周期，T25余下覆盖、T27–T30和最后统一验证；23/3/4不变，active无限额。

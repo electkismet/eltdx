@@ -430,3 +430,96 @@ fn unsupported_sort_and_invalid_macro_selectors_are_local_errors() -> Case {
     assert!(QuoteListQuery::new(market(38)).with_sort(eltdx::mac::SortType::ChangePct,eltdx::mac::SortOrder::Desc).is_err());
     assert!(MacroQuotesQuery::new(vec![]).is_err()); let _ = FieldSelection::empty(); Ok(())
 }
+
+#[test]
+fn a_source_replacement_invalidates_cached_goods_but_keeps_the_old_arc_readable() -> Case {
+    let (first,first_task) = peer(|mut stream| {
+        login(&mut stream)?; goods(&mut stream,38,0,600,&["X_A"])?;
+        request(&mut stream,1,0x23f0)?; Ok(())
+    })?;
+    let (second,second_task) = peer(|mut stream| {
+        login(&mut stream)?; count(&mut stream,999)?; goods(&mut stream,38,0,600,&["X_B"])?; eof(&mut stream)
+    })?;
+    let client = builder(first)?.with_endpoints(vec![first,second]).build()?;
+    let pages = PageOptions::new(600,8,100)?; let options = OperationOptions::default();
+    let old = client.goods_catalog(market(38),&pages,&options)?;
+    assert_eq!(client.goods_count(&GoodsCountQuery::new(),&options)?,999);
+    let next = client.goods_catalog(market(38),&pages,&options)?;
+    assert_eq!(old.endpoint(),first); assert_eq!(next.endpoint(),second); assert_ne!(old.generation(),next.generation());
+    assert_eq!(old.rows()[0].actual_code(),"X_A"); assert_eq!(next.rows()[0].actual_code(),"X_B");
+    assert!(next.version()>old.version()); client.close()?; join(first_task)?; join(second_task)
+}
+
+#[test]
+fn independent_owners_at_one_endpoint_never_share_catalogs_or_close_state() -> Case {
+    let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST,0))?; let endpoint = listener.local_addr()?;
+    let task = thread::spawn(move || -> Case {
+        let (mut first,_) = listener.accept()?; first.set_read_timeout(Some(Duration::from_secs(3)))?;
+        login(&mut first)?; goods(&mut first,38,0,600,&["X_A"])?;
+        let (mut second,_) = listener.accept()?; second.set_read_timeout(Some(Duration::from_secs(3)))?;
+        login(&mut second)?; goods(&mut second,38,0,600,&["X_B"])?; eof(&mut first)?; eof(&mut second)
+    });
+    let first = builder(endpoint)?.build()?; let second = builder(endpoint)?.build()?;
+    let pages = PageOptions::new(600,8,100)?; let options = OperationOptions::default();
+    let a = first.goods_catalog(market(38),&pages,&options)?; let b = second.goods_catalog(market(38),&pages,&options)?;
+    assert_ne!(a.owner_id(),b.owner_id()); assert_eq!(a.rows()[0].actual_code(),"X_A"); assert_eq!(b.rows()[0].actual_code(),"X_B");
+    first.close()?; assert!(Arc::ptr_eq(&b,&second.goods_catalog(market(38),&pages,&options)?)); second.close()?; join(task)
+}
+
+#[test]
+fn macro_quotes_eighty_plus_one_batches_keep_requested_occurrences_and_raw_mappings() -> Case {
+    let (endpoint,task) = peer(|mut stream| {
+        login(&mut stream)?; goods(&mut stream,38,0,600,&["X_A","X_B"])?;
+        let expected: Vec<_> = (0..80).map(|index| if index%2==0 { "X_A" } else { "X_B" }).collect();
+        quote_request(&mut stream,&expected)?; frame(&mut stream,&quote_body(&["X_B","X_A"])?)?;
+        quote_request(&mut stream,&["X_A"])?; frame(&mut stream,&quote_body(&["X_A"])?)?; eof(&mut stream)
+    })?;
+    let client = builder(endpoint)?.with_raw(RawPolicy::RetainPayload).build()?;
+    let codes: Vec<_> = (0..81).map(|index| MacroCode::new(if index%2==0 { "A" } else { "B" })).collect::<eltdx::Result<_>>()?;
+    let result = client.macro_quotes(&MacroQuotesQuery::new(codes)?,&OperationOptions::default())?;
+    assert_eq!(result.len(),81); assert_eq!(result[80].id().code().as_str(),"X_A");
+    let meta = result[80].meta(); assert_eq!(meta.sources().len(),3); let ranges = meta.raw().unwrap().row_ranges();
+    assert_eq!(ranges.len(),81); assert_eq!(ranges[0],(1,98,72)); assert_eq!(ranges[1],(1,26,72)); assert_eq!(ranges[80],(2,26,72));
+    client.close()?; join(task)
+}
+
+#[test]
+fn exact_display_name_collision_in_fallback_directory_is_ambiguous() -> Case {
+    let (endpoint,task) = peer(|mut stream| {
+        login(&mut stream)?; goods(&mut stream,38,0,600,&[])?;
+        scan(&mut stream,&[(38,"X_A","Same Name"),(38,"X_B","Same Name")],600)?; eof(&mut stream)
+    })?;
+    let client = builder(endpoint)?.build()?;
+    let error = client.macro_quotes(&selectors(&["Same Name"])?,&OperationOptions::default()).unwrap_err();
+    assert_eq!(error.kind(),ErrorKind::InvalidArgument); client.close()?; join(task)
+}
+
+#[test]
+fn empty_global_fallback_and_out_of_range_market_page_have_observed_end_without_quotes() -> Case {
+    for empty in [false,true] {
+        let (endpoint,task) = peer(move |mut stream| {
+            login(&mut stream)?;
+            if empty { goods(&mut stream,38,0,600,&[])?; scan(&mut stream,&[],600)?; }
+            else { goods(&mut stream,38,0,600,&["X_A","X_B"])?; }
+            eof(&mut stream)
+        })?;
+        let client = builder(endpoint)?.with_raw(RawPolicy::RetainPayload).build()?;
+        let result = client.quote_list(&QuoteListQuery::new(market(38)).with_start(30)?,&OperationOptions::default())?;
+        assert!(result.rows().is_empty()); assert_eq!(result.next_offset(),Some(30)); assert_eq!(result.server_total(),Some(if empty { 0 } else { 2 }));
+        assert_eq!(result.completion(),PageCompletion::EndOfData); assert!(result.meta().raw().unwrap().row_ranges().is_empty());
+        client.close()?; join(task)?;
+    }
+    Ok(())
+}
+
+#[test]
+fn source_bound_macro_bars_never_fails_over_after_its_directory_is_accepted() -> Case {
+    let unused = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST,0))?;
+    let (endpoint,task) = peer(|mut stream| {
+        login(&mut stream)?; goods(&mut stream,38,0,600,&["X_A"])?; request(&mut stream,1,0x122e)?; Ok(())
+    })?;
+    let client = builder(endpoint)?.with_endpoints(vec![endpoint,unused.local_addr()?]).build()?;
+    let query = MacroBarsQuery::new(MacroCode::new("A")?)?.with_count(1)?.with_adjust(eltdx::mac::MacAdjust::None);
+    assert_eq!(client.macro_bars(&query,&OperationOptions::default()).unwrap_err().kind(),ErrorKind::Connection);
+    no_connection(&unused)?; client.close()?; join(task)
+}

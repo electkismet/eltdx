@@ -32,6 +32,13 @@ pub fn frame(stream: &mut TcpStream, body: &[u8]) -> Case {
     for fragment in frame_bytes(body)?.chunks(7) { stream.write_all(fragment)?; }
     Ok(())
 }
+pub fn setup_ex(stream: &mut TcpStream) -> Case {
+    let mut expected = vec![1,1,0x48,0x65,0,1,0x52,0,0x52,0,0x54,0x24];
+    for _ in 0..8 { expected.extend_from_slice(&[0x1f,0x32,0xc6,0xe5,0xd5,0x3d,0xfb,0x41]); }
+    expected.extend_from_slice(&[0xcc,0xe1,0x6d,0xff,0xd5,0xba,0x3f,0xb8,0xcb,0xc5,0x7a,5,0x4f,0x77,0x48,0xea]);
+    assert_eq!(expected.len(),92); let mut actual = [0;92]; stream.read_exact(&mut actual)?;
+    assert_eq!(actual.as_slice(),expected.as_slice()); frame(stream,b"synthetic EX setup reply")
+}
 pub fn setup_mac(stream: &mut TcpStream) -> Case {
     for literal in ["0c0218930001030003000d0001","0c0218940001030003000d0002",
         "0c031899000120002000db0fd5d0c9ccd6a4a8af0000008fc22540130000d500c9ccbdf0d7ea00000002"] {

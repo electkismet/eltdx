@@ -2,6 +2,20 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage86: base27adc95. T26 source scope complete:
+  all23 MAC/all13 MAC-EX methods, bounded directory/cache/macro, QFQ, full
+  board aggregation/ranking/history and exact-source downloads have authored
+  implementation/fixture/handoff sources. Added7 actual public lifecycle
+  functions(extended_loopback14) and6 catalog functions(extended_catalogs32),
+  including EX92B setup, pending timeout, source replacement/owner isolation,
+  macro80+1 raw joins and pinned-source rejection. All unexecuted. Read
+  task-26-report Stage5 and t26-implementation-index.md. Counts24 source-
+  complete/2 partial(T19/T25)/4 unstarted(T27-T30). Next T25 remaining simple
+  method/schema coverage, fullT27 migration, T28-T30, then unified execution
+  and production-login evidence. Goal active without quota; no tests/build/
+  check/collection/dependencies/network/AST/format/diff-check, agents or
+  publication. Never copy strict Rust goods placeholders into legacy Python.
+
 - Latest recovery2026-11-17 stage85: base b6b6860. MAC-EX remaining7 named
   entry sources and explicit instrument/goods snapshot/refresh/clear APIs are
   authored, bringing named source counts to MAC23/23 and MAC-EX13/13.

@@ -1,6 +1,6 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前T25/T26部分实现，板块组合已提交`29256d1`，同源下载源码检查点为stage84；MAC23/23、MAC-EX6/13方法已有源码。
+当前T25部分、T26源码范围完成；板块组合`29256d1`、下载`b6b6860`、目录`27adc95`已提交，stage86补完整交接和生命周期源码；MAC23/23、MAC-EX13/13方法已有源码。
 **MAC模块/两类公开客户端已在源码登记；没有编译、测试、联网或安装证据，尚未验收可用。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
@@ -142,9 +142,9 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
    覆盖取消/半包/close/failover等，均未执行。fields/util/advanced辅助接口源码
    已补；T26首段已接显式provider及parent上下文的网络QFQ编排，尚未执行验收。
    继续余下简单入口覆盖与源码收尾；生产握手缺口仍须在最终证据阶段解决。
-5. T26 QFQ、聚合/排行/N日、同源下载及MAC-EX目录/fallback/缓存/唯一宏观解析七入口源码已写；继续广域生命周期/换源/多批用例源码与交接，再T27兼容迁移。
+5. T26 QFQ、聚合/排行/N日、同源下载及MAC-EX目录/fallback/缓存/唯一宏观解析七入口、广域生命周期/换源/多批用例源码与交接已写；参见[t26-implementation-index.md](t26-implementation-index.md)，后续T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
 详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint6，
-以及`.superpowers/sdd/development-plan/task-26-report.md`第一段。
-实现源码完整不等于执行验收通过，当前任务总数23完成源码/3部分/4未开始。
+以及`.superpowers/sdd/development-plan/task-26-report.md` Stage5。
+实现源码完整不等于执行验收通过，当前任务总数24完成源码/2部分/4未开始。

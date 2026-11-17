@@ -1,5 +1,53 @@
 # T26 implementation report
 
+## Stage 5 — task-wide source handoff (2026-11-17, stage86)
+
+Base27adc95. T26's implementation, authored fixture and source handoff scope
+is complete; every execution acceptance item remains deferred. Totals are
+24 source-complete/2 partial(T19/T25)/4 unstarted(T27-T30). This does not
+claim compilation, runtime correctness or production protocol acceptance.
+The full unlimited goal remains active, with T25 coverage next.
+
+Added seven public extended_loopback functions (now14): actual92B ExClient
+setup/nonempty directory/raw/shared close; cancellation and close in a partial
+frame; failover with repeated setup and distinct retained generations; queued
+timeout preserving the active exchange and next same-socket response; actual
+MAC-EX empty-goods EX fallback; cancellation in its pinned directory page;
+and a bounded MAC download releasing its lease for a subsequent bars call.
+The shared peer spells out the92B EX request independently. Synthetic setup
+replies remain synthetic evidence only. Channel observations order races;
+no sleep is used as a substitute for a protocol or lifecycle observation.
+
+Added six public extended_catalogs functions (now32): source replacement
+invalidates cached eligibility while old Arc remains readable; separate
+owners at one endpoint retain independent cache/close state;81 macro request
+occurrences split80+1 with actual reordered identity/raw joins; fallback
+display-name ambiguity; empty/beyond-end source order without a quote send;
+and macro bars refusing failover after accepting its directory source.
+All sources are uncompiled, uncollected and unexecuted.
+
+Bounded final source review covers the task brief, extension specification
+sections1/4.2/5 and its case matrix, all four prior stage reports/indexes,
+the new lifecycle sources, and Python MAC-EX _to_goods_items. Rust fallback
+keeps category, zero u/switch/c1/c2 and actual source info; its index is a
+complete market snapshot position. T27 must retain Python's page-relative
+enumerate index, code-or-name fallback, Python float conversion including
+nonfinite values, and variable-length numeric list. It must not project the
+strict fixed Rust placeholder array as the legacy Python list.
+
+Task-wide method/composition/fixture and compatibility handoff is saved in
+docs/rust-sdk/t26-implementation-index.md and its package mirror. Existing
+catalog and MAC indexes are updated. Production MAC optional-boundary and
+MAC-EX login rules still need final permitted evidence collection; no fake
+ACK/default or same-count directory atomicity claim was introduced.
+
+No tests/build/check/collection/clippy/doctests/dependency resolution or
+downloads/network/compiler/AST/format/diff checks ran. Ordinary source reads,
+edits and Git review only. This checkpoint bypasses verification hooks solely
+to preserve progress under the user's no-execution constraint. No agents,
+push, tag, publication or merge. Continue T25 source coverage, fullT27,
+T28-T30, then unified verification and all actual fixes.
+
 ## Stage 4 — source-scoped catalogs and macro consumers (2026-11-17, stage85)
 
 Base b6b6860. Added ex/catalog.rs, mac/catalog.rs, mac/ex_services.rs and

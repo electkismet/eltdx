@@ -2,8 +2,9 @@
 
 2026-11-17 stage85 source handoff. Every implementation and fixture below is
 uncompiled and unexecuted. This is source coverage, not acceptance evidence.
-T26 remains partial until the remaining lifecycle sources and final review;
-T25, T27–T30 and the final unified execution phase remain outstanding.
+Stage86 completes T26's source scope and final handoff; every execution
+acceptance item remains deferred. T25, T27–T30 and the final unified execution
+phase remain outstanding. See [task-wide handoff](t26-implementation-index.md).
 
 ## Public entry points and source ownership
 
@@ -120,20 +121,23 @@ Ordinary HQ/EX/Python legacy contexts do not opt into this new cap.
 
 ## Authored source evidence and remaining work
 
-`tests/extended_catalogs.rs` has26 authored public functions covering full
+`tests/extended_catalogs.rs` has32 authored public functions covering full
 sorted/absent/unsorted directories, native/fallback goods and exact raw rows,
 direct/market counts, changed/malformed/empty directories, total request and
 record gates, fallback extra budget, cache reuse/refresh/clear/in-flight
 invalidation/raw policy, macro duplicates/ambiguity/case/name/missing quote,
 80-row source-order truncation, monthly macro bars, preaccept failover,
 pinned-source loss, cancel/close half-frame and local entry/byte guards.
-Some functions contain several cases. Six private cache functions cover
+Stage86 additionally covers source replacement with retained old handles,
+independent owners at one endpoint,80+1 macro occurrences and raw joins,
+exact display-name ambiguity, empty/beyond-end pages without quote sends,
+and source-bound macro bars loss. Some functions contain several cases.
+Six private cache functions cover
 eviction/identity/epochs/retained handles/overflow; two OperationContext
 functions cover opt-in total-request admission. All are unexecuted.
 
-Remaining T26 work includes broader actual ExClient/MAC/MAC-EX lifecycle
-source coverage, cache source-replacement and multi-batch macro cases,
-bounded source review and task-wide handoff. T25 still needs its remaining
+The remaining lifecycle, source-replacement, multi-batch sources and bounded
+review are now recorded in the stage86 task-wide handoff. T25 still needs its remaining
 simple-method/schema source coverage. T27 must preserve Python's separate
 legacy cache/input/order/timeout/partial-result policies. T28–T30 still own
 consumer, platform, packaging and final documentation sources.

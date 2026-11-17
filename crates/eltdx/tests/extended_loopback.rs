@@ -3,7 +3,7 @@
 #![cfg(feature = "mac")]
 #[path = "support/extension_peer.rs"] mod wire;
 use std::io::Write;
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex, mpsc};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
@@ -13,6 +13,148 @@ use eltdx::{CancellationToken, ErrorKind, OperationOptions, TradingDate};
 use eltdx::mac::*;
 use eltdx::mac::handshake::LoginReplyRules;
 use wire::{Case, bars, bars_request, eof, frame, frame_bytes, join, peer, qfq, qfq_then_raw, setup_mac};
+
+fn ex_directory(offset: u32) -> Vec<u8> {
+    let mut body = vec![0;70]; body[..4].copy_from_slice(&offset.to_le_bytes()); body[4..6].copy_from_slice(&1_u16.to_le_bytes());
+    body[6] = 5; body[7] = 31; body[11..16].copy_from_slice(b"00700"); body[20..24].copy_from_slice(b"name");
+    body[37..41].copy_from_slice(b"desc"); body[69] = 0xa5; body
+}
+fn ex_page_request(stream: &mut TcpStream, start: u32) -> Case {
+    let body = wire::request(stream,1,0x23f5)?; assert_eq!(body.len(),6);
+    assert_eq!(u32::from_le_bytes(body[..4].try_into()?),start); assert_eq!(u16::from_le_bytes(body[4..].try_into()?),1); Ok(())
+}
+fn ex_page_query(start: u32) -> eltdx::Result<eltdx::ex::InstrumentsQuery> {
+    eltdx::ex::InstrumentsQuery::new(start).with_count(1)
+}
+fn catalog_rules() -> eltdx::Result<LoginReplyRules> {
+    LoginReplyRules::new(vec![Bytes::from_static(b"fixture login accepted")],
+        vec![Bytes::from_static(b"fixture login denied")],"synthetic lifecycle fixture only")
+}
+
+#[test]
+fn actual_ex_client_uses_its_92_byte_setup_nonempty_directory_raw_and_shared_close() -> Case {
+    let (endpoint,task) = peer(|mut stream| {
+        wire::setup_ex(&mut stream)?; ex_page_request(&mut stream,7)?;
+        frame(&mut stream,&ex_directory(7))?; ex_page_request(&mut stream,8)?;
+        frame(&mut stream,&ex_directory(8))?; eof(&mut stream)
+    })?;
+    let client = eltdx::ex::ExClient::builder().with_endpoints(vec![endpoint]).with_raw(eltdx::RawPolicy::RetainWire).build()?;
+    let first = client.instruments(&ex_page_query(7)?,&OperationOptions::default())?;
+    let second = client.instruments(&ex_page_query(8)?,&OperationOptions::default())?;
+    assert_eq!(first.rows()[0].code(),"00700"); assert_eq!(first.rows()[0].desc(),"desc");
+    assert_eq!(first.completion(),PageCompletion::RequestedCount);
+    assert_eq!(first.meta().source().session_id(),second.meta().source().session_id());
+    assert_eq!(first.meta().raw().unwrap().row_ranges(),&[(0,6,64)]);
+    assert_eq!(first.meta().raw().unwrap().wire_frames().unwrap().len(),1);
+    client.clone().close()?; assert_eq!(client.instruments(&ex_page_query(9)?,&OperationOptions::default()).unwrap_err().kind(),ErrorKind::Closed);
+    join(task)
+}
+
+#[test]
+fn actual_ex_cancel_and_close_during_half_frame_confirm_socket_retirement() -> Case {
+    for close in [false,true] {
+        let (observed,entered) = mpsc::channel();
+        let (endpoint,task) = peer(move |mut stream| {
+            wire::setup_ex(&mut stream)?; ex_page_request(&mut stream,0)?;
+            let bytes = frame_bytes(&ex_directory(0))?; stream.write_all(&bytes[..21])?; observed.send(())?; eof(&mut stream)
+        })?;
+        let client = eltdx::ex::ExClient::builder().with_endpoints(vec![endpoint]).build()?;
+        let token = CancellationToken::default(); let caller = client.clone(); let options = OperationOptions::default().with_cancellation(token.clone());
+        let call = thread::spawn(move || caller.instruments(&ex_page_query(0)?,&options));
+        entered.recv_timeout(Duration::from_secs(2))?; if close { client.close()?; } else { token.cancel(); }
+        assert_eq!(join_call(call)?.unwrap_err().kind(),if close { ErrorKind::Closed } else { ErrorKind::Cancelled });
+        client.close()?; join(task)?;
+    }
+    Ok(())
+}
+
+#[test]
+fn actual_ex_failover_repeats_setup_and_keeps_the_previous_snapshot_generation_distinct() -> Case {
+    let (first,first_task) = peer(|mut stream| {
+        wire::setup_ex(&mut stream)?; ex_page_request(&mut stream,0)?; frame(&mut stream,&ex_directory(0))?;
+        ex_page_request(&mut stream,1)?; Ok(())
+    })?;
+    let (second,second_task) = peer(|mut stream| {
+        wire::setup_ex(&mut stream)?; ex_page_request(&mut stream,1)?; frame(&mut stream,&ex_directory(1))?; eof(&mut stream)
+    })?;
+    let client = eltdx::ex::ExClient::builder().with_endpoints(vec![first,second]).build()?;
+    let old = client.instruments(&ex_page_query(0)?,&OperationOptions::default())?;
+    let new = client.instruments(&ex_page_query(1)?,&OperationOptions::default())?;
+    assert_eq!(old.meta().source().endpoint(),Some(first)); assert_eq!(new.meta().source().endpoint(),Some(second));
+    assert_ne!(old.meta().source().session_id(),new.meta().source().session_id());
+    assert_eq!(old.rows()[0].record_raw()[63],0xa5); client.close()?; join(first_task)?; join(second_task)
+}
+
+#[test]
+fn queued_ex_timeout_does_not_retire_the_active_exchange_or_consume_a_reply() -> Case {
+    let (observed,entered) = mpsc::channel(); let (resume,release) = mpsc::channel();
+    let (endpoint,task) = peer(move |mut stream| {
+        wire::setup_ex(&mut stream)?; ex_page_request(&mut stream,0)?; observed.send(())?;
+        release.recv_timeout(Duration::from_secs(2))?; frame(&mut stream,&ex_directory(0))?;
+        ex_page_request(&mut stream,2)?; frame(&mut stream,&ex_directory(2))?; eof(&mut stream)
+    })?;
+    let client = eltdx::ex::ExClient::builder().with_endpoints(vec![endpoint]).build()?;
+    let caller = client.clone(); let first = thread::spawn(move || caller.instruments(&ex_page_query(0)?,&OperationOptions::default()));
+    entered.recv_timeout(Duration::from_secs(2))?;
+    assert_eq!(client.instruments(&ex_page_query(1)?,&OperationOptions::default().with_timeout(Duration::from_millis(30))).unwrap_err().kind(),ErrorKind::Timeout);
+    resume.send(())?; let first = join_call(first)??;
+    let next = client.instruments(&ex_page_query(2)?,&OperationOptions::default())?;
+    assert_eq!(first.meta().source().session_id(),next.meta().source().session_id()); client.close()?; join(task)
+}
+
+#[test]
+fn actual_mac_ex_empty_goods_directory_fallback_retains_one_login_and_one_source() -> Case {
+    let (endpoint,task) = peer(|mut stream| {
+        wire::request(&mut stream,1,0x2454)?; frame(&mut stream,b"fixture login accepted")?;
+        wire::request(&mut stream,1,0x2562)?; frame(&mut stream,&[0,0])?;
+        let mut count = vec![0;23]; count[19..].copy_from_slice(&1_u32.to_le_bytes());
+        wire::request(&mut stream,1,0x23f0)?; frame(&mut stream,&count)?;
+        ex_page_request(&mut stream,0)?; frame(&mut stream,&ex_directory(0))?;
+        wire::request(&mut stream,1,0x23f0)?; frame(&mut stream,&count)?; eof(&mut stream)
+    })?;
+    let client = MacExClient::builder().with_endpoints(vec![endpoint]).with_login_reply_rules(catalog_rules()?).with_raw(eltdx::RawPolicy::RetainWire).build()?;
+    let rows = client.goods(&ex_query::GoodsQuery::new(eltdx::ex::ExMarketId::from_wire(31)),&OperationOptions::default())?;
+    assert_eq!(rows.rows()[0].actual_code(),"00700"); assert!(rows.rows()[0].is_derived());
+    assert_eq!(rows.meta().sources().len(),4); let generation = rows.meta().sources()[0].session_id();
+    for source in rows.meta().sources() { assert_eq!(source.endpoint(),Some(endpoint)); assert_eq!(source.session_id(),generation); }
+    client.close()?; join(task)
+}
+
+#[test]
+fn actual_mac_ex_directory_fallback_half_frame_cancel_never_reopens_or_switches_source() -> Case {
+    let (observed,entered) = mpsc::channel();
+    let unused = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST,0))?;
+    let (endpoint,task) = peer(move |mut stream| {
+        wire::request(&mut stream,1,0x2454)?; frame(&mut stream,b"fixture login accepted")?;
+        wire::request(&mut stream,1,0x2562)?; frame(&mut stream,&[0,0])?;
+        wire::request(&mut stream,1,0x23f0)?; let mut count = vec![0;23]; count[19..].copy_from_slice(&1_u32.to_le_bytes()); frame(&mut stream,&count)?;
+        ex_page_request(&mut stream,0)?; let body = frame_bytes(&ex_directory(0))?;
+        stream.write_all(&body[..25])?; observed.send(())?; eof(&mut stream)
+    })?;
+    let client = MacExClient::builder().with_endpoints(vec![endpoint,unused.local_addr()?]).with_login_reply_rules(catalog_rules()?).build()?;
+    let token = CancellationToken::default(); let caller = client.clone(); let options = OperationOptions::default().with_cancellation(token.clone());
+    let call = thread::spawn(move || caller.goods(&ex_query::GoodsQuery::new(eltdx::ex::ExMarketId::from_wire(31)),&options));
+    entered.recv_timeout(Duration::from_secs(2))?; token.cancel(); assert_eq!(join_call(call)?.unwrap_err().kind(),ErrorKind::Cancelled);
+    unused.set_nonblocking(true)?; assert_eq!(unused.accept().unwrap_err().kind(),std::io::ErrorKind::WouldBlock);
+    client.close()?; join(task)
+}
+
+#[test]
+fn bounded_mac_download_releases_its_lease_for_the_next_nonempty_business_query() -> Case {
+    let (endpoint,task) = peer(|mut stream| {
+        setup_mac(&mut stream)?; let body = wire::request(&mut stream,0x1c,0x1217)?;
+        assert_eq!(u32::from_le_bytes(body[8..12].try_into()?),4); let mut chunk = vec![0xa5;8]; chunk.extend_from_slice(b"data"); frame(&mut stream,&chunk)?;
+        bars_request(&mut stream,0x1c,0,0,1)?; frame(&mut stream,&bars(&[(20261117,10.0)])?)?; eof(&mut stream)
+    })?;
+    let client = MacClient::builder().with_endpoints(vec![endpoint]).build()?;
+    let options = eltdx::DownloadOptions::new().with_expected_size(Some(4))?.with_max_bytes(4)?
+        .with_chunk_size(std::num::NonZeroU32::new(4).unwrap())?;
+    let query = DownloadFileQuery::new(RemoteFileName::new("fixture.dat")?).with_options(options)?;
+    let result = client.download_file(&query,&OperationOptions::default())?;
+    assert_eq!(result.completion,eltdx::DownloadCompletion::LimitReached); assert_eq!(result.data.as_ref(),b"data");
+    let bars = client.bars(&BarsQuery::new(wire::id()?).with_count(1)?,&OperationOptions::default())?;
+    assert_eq!(bars.len(),1); assert_eq!(bars[0].close().value().as_f64(),10.0); client.close()?; join(task)
+}
 
 fn events() -> eltdx::Result<XdxrBatch> {
     Ok(XdxrBatch::new(vec![XdxrEvent { fenhong: 1.0,..XdxrEvent::new(TradingDate::new(2026,11,18)?) }]))
