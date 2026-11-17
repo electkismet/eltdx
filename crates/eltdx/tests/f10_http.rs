@@ -456,7 +456,14 @@ fn cancellation_timeout_and_close_during_response_confirm_connection_release() -
             read_request(&mut stream)?;
             stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n{")?;
             ready_tx.send(())?;
-            eof(&mut stream)
+            // Closing with unread response bytes can reset the socket.
+            match stream.read(&mut [0]) {
+                Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => Ok(()),
+                result => {
+                    assert_eq!(result?, 0, "client must retire its connection ({mode})");
+                    Ok(())
+                }
+            }
         })?;
         let client = client(server.url())?;
         let worker_client = client.clone();
