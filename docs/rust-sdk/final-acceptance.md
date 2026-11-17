@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | T01–T30实现 | 完成 | 计划内Rust SDK、Python兼容桥接、独立Rust入口及文档/示例源码已写齐。Stage145–148依据生产样本修正Rust MAC-EX、标准EX商品总数的31字节响应解析。 |
 | 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
-| 发布平台与隔离 | 已有 Linux x64、ARM 模拟和 Windows 证据；macOS、原生 ARM 待跑 | Stage140补齐两种工具链隔离；Stage142/143从sdist重建x64和arm64 manylinux2014 wheel。Stage148的Windows wheel在干净候选上通过Python 3.10/3.14独立消费。 |
+| 发布平台与隔离 | 已有 Linux x64、ARM 模拟和 Windows 证据；macOS、原生 ARM 待跑 | Stage149在含修复的干净候选上复验两种工具链隔离，并从sdist离线重建Linux x64 manylinux2014 wheel。Stage143的arm64 wheel来自旧候选的模拟环境。Stage148的Windows wheel通过Python 3.10/3.14独立消费。 |
 | 注册表发布与消费 | 未发布 | Stage148在干净候选实际查询三个名称均返回404；本地归档通过，先前的protocol Cargo发布dry-run也通过。缺少crates.io发布凭据；发布后仍需用不带patch的独立项目验证。 |
 | 生产协议验收 | 部分公开主站流程已验证 | 标准EX主站完成连接、查询52个市场与111218个商品、关闭，与Python实测一致。两台MAC-EX主站以即时完整登录样本完成独立Rust查询，三个普通MAC主站通过默认三步握手及业务查询。仍待可跨时段复用的MAC-EX登录规则、可选setup和category22非空证据。已核对五份带证券与日期的公告，尚缺交易所当日价格边界。 |
 
@@ -18,7 +18,7 @@
 
 | 要求 | 实现与源码交接 | 验证入口/核心观察 | 达成所需证据 |
 | --- | --- | --- | --- |
-| R01 两产品独立安装 | `crates/eltdx`；两个 `tests/consumers`；[T28索引](t28-verification-index.md) | 最新候选三crate归档和11种解包Rust consumer模式；Windows Python3.10–3.14独立wheel安装、pip check、非空公开API查询及close | 无Python的Rust物理隔离构建；无Rust工具的物理隔离wheel消费；公开registry身份及非Windows产物 |
+| R01 两产品独立安装 | `crates/eltdx`；两个 `tests/consumers`；[T28索引](t28-verification-index.md) | 最新候选三crate归档和11种解包Rust consumer模式；Windows Python3.10–3.14独立wheel消费；Stage149无Python的Rust消费者、无编译工具的Linux x64 wheel消费者均通过 | 公开registry身份及无patch消费；补齐macOS和原生ARM产物 |
 | R02 共用Rust业务 | HQ/F10/offline/EX/MAC桥接；[HQ](hq-implementation-index.md)、[T23](t23-migration-index.md)、[T27](t27-migration-index.md) | 旧Python样本/黄金输出、新Python native bridge、独立Rust结果；custom hook合同 | 完整能力清单逐项实际node/fixture/差异及结果；两端都调用新算法的比较不能充当独立oracle |
 | R03 owner/pin/pending | SDK session/operation，runtime engine/slot；任务T05–T07 | `lifecycle.rs`、`operation.rs`、runtime `pin_handoff.rs`；并发close/Drop与未确认清理 | 每个请求唯一归属和终态；旧generation迟到事件不能串线；超时不提前核销未回收资源 |
 | R04 整次期限 | operation sponsor/authorization，metadata与各组合服务 | runtime `deadline.rs`、SDK `operation.rs`、F10/扩展fixture；Python逐请求对照 | startup/queue/metadata/page/retry都消耗同一原始Rust期限；Python原逐页策略不被缩短；清理期限另报 |

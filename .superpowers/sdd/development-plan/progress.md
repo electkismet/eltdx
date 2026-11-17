@@ -1173,3 +1173,7 @@ Stage143会话 `87556` 已退出0。候选 `b9d5075` 的 manylinux2014 aarch64 w
 代码检查点 `f2703c1fa52abf3bc683a12e60e07f4c06807489` 统一处理 EX/MAC-EX 商品总数。原候选实盘的23/31字节失败、Python原始帧、旧解析红灯和修复成功结果均保留。干净候选的独立 EX consumer 对同一主站查到52个市场、111218个商品，与 Python 一致，正常关闭；Windows/Linux Rust 1.89 六组回归各113项通过；Windows 三crate归档24条命令通过，含11种解包consumer；Windows abi3 wheel 的 CPython 3.10.22/3.14.10 独立消费均通过。逐报告 SHA256 见 `docs/rust-sdk/unified-validation.md` Stage148。Linux attempt03 绑定旧候选，不能当成修复证据；04 是本次干净复验。
 
 接续：先取得公开候选分支的推送授权（或合适的现成runner），在同一候选完成 macOS Rust 1.89/stable、归档和 `Publish` 分支手动验证的 macOS/Linux ARM 产物消费。三个 crates.io 名称在 Stage148 再次实查404；取得发布凭据后按 protocol → runtime → SDK 顺序发布、逐包核对归档，再运行真实 `registry-consumer`，保留失败。生产仍缺长期 MAC-EX 登录、可选 MAC setup、实验 category 22 非空、交易所实际限价；没有新证据不启用默认规则。目标继续，无额度上限，不用重复已通过的 Stage148 范围。
+
+## Stage149：本候选工具链隔离复验
+
+从干净提交 `33d542d544579456b996f550fecdffdf87363bda` 生成 Git 归档和 sdist；无 Python 的固定镜像通过12种 Rust 消费和四组 feature 禁用/启用合同。manylinux2014 x64 在独立命名空间内从同一提交的 sdist 离线重建 wheel；无编译工具镜像离线安装、pip check、公开 API 查询与关闭均通过。内外层退出码、镜像、命令与哈希见 `docs/rust-sdk/unified-validation.md` Stage149。公开分支、Cargo 发布凭据和其余生产证据未变化；平台、发布和生产目标保持原范围。

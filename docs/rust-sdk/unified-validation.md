@@ -340,3 +340,15 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 | 公开注册表 | `stage148-registry-observation-attempt01/packages.json`（SHA256 `33a924bc83cd74ecbe4d8b6ddc34153cf681ca881e665340f53983932ff23f9a`）。2026-11-17 21:20:30–31 UTC，三个名称仍为404。本机没有 Cargo 发布凭据，未发布；404不证明命名权或发布权限。 |
 
 程序候选冻结在 `f2703c1`；后续文档提交只更新证据和接续说明。macOS 平台及归档任务沿候选分支 push 事件运行，`Publish` 可以对该分支手动运行 wheel/sdist 验证（包括 Linux 原生 ARM、macOS Intel/ARM），该触发方式不会上传 PyPI。仓库 Actions 已启用，无接入的自托管 runner；候选分支尚未公开。MAC-EX 可复用生产登录规则、MAC 可选 setup、category 22 非空数据和交易所实际限价仍缺相应生产证据。标准 EX 通过只覆盖本主站本次会话。
+
+## Stage149：当前候选的 Linux x64 发行与工具链隔离
+
+干净候选 `33d542d544579456b996f550fecdffdf87363bda` 包含 Stage148 的程序修复，工具链隔离复验使用 Git 源归档（SHA256 `7a36d706b1347a442fe78d24b96166b5d338f52c02114ab159e4e72a6fd4e348`）。三次运行使用固定 OCI 镜像展开的文件系统，WSL2 的独立 mount/PID/IPC/UTS/network 命名空间，隔离网络只启用 loopback；不挂载宿主的工具或源码目录。Rust 消费阶段只导入离线 Cargo registry 的索引和压缩依赖包。记录位于 `artifacts/unified/`：
+
+| 验证 | 结果与证据 |
+| --- | --- |
+| 无 Python 的 Rust 消费 | `stage149-tools/rust-attempt01.json`（SHA256 `5c89473e613a2ecc0ad7d652aeca22f4ffcd70121c826fcbaf0283c1f2b5a4cb`）。复用 Stage140 的 Rust 1.89 OCI 镜像，检查文件系统和 PATH 不存在 Python/pip/maturin；12次独立消费者运行成功，最小和 full 生产依赖无 Python 绑定。四个扩展模块在 feature 关闭时均确认 E0432、开启时编译成功。内外层均 exit 0；`stage149-isolated-rust-attempt01/consumer.log` SHA256 `0f6cfe27d4f338f5961a4b65a57c09fd577e9fd82c7a6e00357c1dc447542bb2`。 |
+| sdist 和 Linux x64 发布 wheel | `stage149-sdist-attempt01/result.json`（SHA256 `c767cd3ea0064962dba4bcf0a640534dea368076f7015f18263bd2e0c2d8d7b9`）。sdist SHA256 `58977a2ac01f0a1287db88ce9844e7a3787a8269f42850633895a43caf64a058`，归档检查含1438个文件、261份镜像一致的文档。`stage149-tools/manylinux-attempt01.json`（SHA256 `79a9225f8eb01edf0515757a86ea04197a4af8d126ea72a5081e17953da5ebc2`）记录在 Stage142 固定的 manylinux2014 镜像中用 Rust 1.89/maturin 1.15，从该 sdist 离线重建 cp310-abi3 wheel，exit 0。wheel SHA256 `9af2aa792efa8bce55758e51131673de5d2eafbd842018cf8f5d8a4674733632`。 |
+| 无编译工具的 Python 消费 | `stage149-isolated-python-attempt01/installed-wheel.json`（SHA256 `3b49692dc7502a45844718fea946e7367d7e3d39ba34dd6ccfb980ccf617adcc`）。Stage140 的 CPython 3.12.16 slim 镜像中确认没有 Rust/C 编译工具、Cargo 与 maturin；同一 wheel 的无索引二进制安装、`pip check`、非空公开 API 回环查询与关闭均 exit 0，内置扩展 SHA256 `312064aebd194c055dd5a7fae0a8f1b0ec5bd7a9c38786402b89abaef94d4b5b`。 |
+
+本轮补齐带 Stage148 修复的候选在 Linux x64 的工具链隔离证据，不表示物理主机隔离，也不覆盖 macOS、原生 ARM、公开 registry 或生产字段语义。公开候选分支仍不存在，本机发布凭据仍未配置；生产缺口沿用 Stage148。
