@@ -152,3 +152,17 @@ docs/rust-sdk/unified-validation.md and artifacts/unified/stage116-tooling.
 These are partial dirty-tree diagnostics, not whole-candidate acceptance. Whole
 Rust behavior, binding/Python, platforms/features/packages/docs/stress/performance
 remain. Commit this recovery then continue; do not mark the goal complete.
+
+## Unified validation stage117: full behavior failures and documentation
+
+Full SDK test on7ab55ba ended101 with14 failed targets. All30 full doctests and
+all7 serde contracts passed, but overall correctness did not. The lifecycle
+test process was stopped only after recording its exact binary/elapsed time;
+source diagnosis is an unconsumed lazy spawn iterator before a barrier. Fix
+the fixture then verify actual concurrent close. Windows accepted nonblocking
+sockets, reset-vs-EOF, invalid expected sum and retained operation context are
+also identified; catalog counts, price units, provenance and transport/pin
+failures still need evidence. Preserve every failure under stage117-correctness.
+Docs attempt01 exposed a stale mirror and links outside MkDocs; actual repairs
+gave metadata/MkDocs strict/pages checks exit0 in stage117-docs/attempt02.json.
+No task/goal acceptance claimed; continue corrections and full verification.

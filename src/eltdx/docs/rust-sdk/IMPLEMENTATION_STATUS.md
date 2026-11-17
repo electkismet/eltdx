@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026年11月17日stage117首轮行为结果：基于7ab55ba的full SDK统一测试实际exit101，共14个target失败；30项full doctest及7项Serde合同通过，不扩大为整体验收。lifecycle并发close用例超时后已记录并停止该精确测试进程，cargo继续完成；源码发现spawn藏在未消费的惰性map中，屏障前线程尚未启动，后续先修用例再验证真实并发close。Windows fixture accepted socket的非阻塞继承、EOF/reset差别、错误算术预期及活动context保留等已定位，价格/目录/provenance/断线重试继续逐项追踪。文档attempt01失败已保留；修正镜像与源码路径链接后metadata/MkDocs strict/pages links attempt02均exit0。原始日志在artifacts/unified/stage117-correctness及stage117-docs。30/30仅源码完整，Python/平台/包/压力性能和整体正确性仍待；目标active无限额，继续修复并保存恢复点。
+
 2026年11月17日stage116：全源码门槛已在b94d762记录，统一验证现已实际开始。Rust1.89/Windows首次lock暴露Loom传递依赖Rust1.95冲突，新增resolver fallback并重锁至兼容版本，Loom check已exit0；full feature全目标check在修正Hyper客户端API及测试编译问题后attempt04 exit0，仍有警告。F10头/encoded限额公开用例保留原失败后最终通过1项。原始日志在artifacts/unified/stage116-tooling，详见[统一验证](unified-validation.md)。尚未完成完整行为/绑定/Python兼容/平台/打包/文档/压力性能，目标active无限额，继续修复并验证。
 
 2026年11月17日stage115统一执行门槛：源码检查点23bf1c83718e83d20e9c5ba9b919e9dfac3e2db4已保存，Git工作区干净；root记录T01–T30全部源码范围写齐，开始统一验证。30项源码完成不等于验收完成，目前无新通过结果。下一步实际工具链/解释器与依赖lock准备，随后编译/合同/兼容/独立消费/包/文档及压力性能。真实运行记录追加至[统一验证记录](unified-validation.md)，失败必须保留并修正。目标active无限额，无发布或代理。

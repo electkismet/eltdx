@@ -1,6 +1,15 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- stage117 first full SDK behavior run on7ab55ba ended101 with14 failed
+  targets; all30 full doctests and7 serde contracts passed. Exact lifecycle
+  test process was recorded and stopped after a hang; lazy map had not spawned
+  any closers before the barrier. Windows blocking/closure fixture issues and
+  invalid arithmetic/context lifetime expectations are diagnosed; remaining
+  prices/catalog/provenance/failover/pin paths require tracing. Docs attempt01
+  failed, mirrors/source links repaired, metadata/strict MkDocs/pages attempt02
+  each exit0 on dirty docs candidate. Raw logs artifacts/unified/stage117-*.
+  No overall/Python/platform/package/stress acceptance. Continue repairs.
 - stage116 unified execution: actual Windows/MSVC Rust1.89/Python3.12 tools
   discovered; initial214-package lock allowed generator0.8.12/Windows0.100
   Rust1.95, reproduced by Loom check101. Added MSRV fallback config; new208-

@@ -477,7 +477,7 @@ impl CommandResponse {
 | EX 港股逐笔 | wire price 为 milli-HKD，公开价格为 HKD | 除数1000仅用于该来源字段；不套用 HQ tick 或普通 EX 原生整数价格。 |
 | 金额、比例、市场统计 | 逐字段保留已证实的 CNY、native、fraction 或 percentage-points | 例如市场统计指数880005计数缩放、880001市值×1e10只作用于对应来源字段；没有字段证据时单位为 Unknown。 |
 
-每个转换结果保留 wire 原值及 scale provenance。协议字段单位没有证据时，Rust 返回 Unknown 单位而不是用名称猜测；Python 的既有数值和属性投影继续按旧路径提供。独立示例与预期见 [units policy fixture](../../tests/fixtures/sdk/policy/units.json)。
+每个转换结果保留 wire 原值及 scale provenance。协议字段单位没有证据时，Rust 返回 Unknown 单位而不是用名称猜测；Python 的既有数值和属性投影继续按旧路径提供。独立示例与预期在仓库 `tests/fixtures/sdk/policy/units.json`，政策说明见[决策清单](decision-register.md)。
 
 复权价是计算结果，须带调整模式、anchor、因子来源/版本和 rounding 信息；不能改写原始价并丢失来源。对 Python 的兼容转换保持历史 float/整数表现，在新 Rust 类型之外完成。
 
@@ -530,7 +530,7 @@ Python 兼容 adapter 可以继续把已知字段投影为原来的字典形状�
 | 指数/板块 identity | daily/shortline 可能按10%；MAC可按指数分类为不适用 | 只有分类及规则都有证据后才可 `NoPriceLimit`，否则 `UnknownRule` |
 | 退市整理期 ST | 三个 Python 投影受各自 ST 判断影响；没有独立退市规则 profile | `UnknownRule` |
 
-旧 Python 的名称检查、IPO窗口、价格舍入方式在迁移期分别保留：daily/shortline 使用两位 `round(value + 1e-9)`，MAC 使用 `round(value + 1e-5)`。共享 Rust 算法不覆盖旧投影；已批准的 Rust profile 必须同时给出最小价格单位和明示舍入模式，不能从任一 Python 函数复制一个默认值。六个样本、各入口旧值和证据缺口记录在 [price-limit policy fixture](../../tests/fixtures/sdk/policy/price_limits.json)。取得有效日期的交易所/监管规则和边界样本后，才可按版本批准 profile 并改变 Rust 结果。
+旧 Python 的名称检查、IPO窗口、价格舍入方式在迁移期分别保留：daily/shortline 使用两位 `round(value + 1e-9)`，MAC 使用 `round(value + 1e-5)`。共享 Rust 算法不覆盖旧投影；已批准的 Rust profile 必须同时给出最小价格单位和明示舍入模式，不能从任一 Python 函数复制一个默认值。六个样本、各入口旧值和证据缺口记录在仓库 `tests/fixtures/sdk/policy/price_limits.json`，政策说明见[决策清单](decision-register.md)。取得有效日期的交易所/监管规则和边界样本后，才可按版本批准 profile 并改变 Rust 结果。
 
 #### 已知行为差异
 
@@ -543,7 +543,7 @@ Python 兼容 adapter 可以继续把已知字段投影为原来的字典形状�
 | 财务补充失败 | cache 区分成功空、失败和过期，失败不是完整的空缓存 | 保留吞掉单页异常并可能缓存空 tuple 的当前结果 | COMP-025，`legacy_boundaries.json` |
 | 页数与期限 | Rust complete collect 使用有限页数和整次 operation deadline | Python `max_pages=None` 继续到协议终止页；timeout、startup、prefetch、恢复请求按既有分层预算 | COMP-006–011，`legacy_boundaries.json` |
 
-以上是迁移隔离契约，不代表 Python 缺陷已修复。要调整 Python 表现需另列版本化变更并更新签名/行为基线。契约样本见 [legacy-boundary policy fixture](../../tests/fixtures/sdk/policy/legacy_boundaries.json)。
+以上是迁移隔离契约，不代表 Python 缺陷已修复。要调整 Python 表现需另列版本化变更并更新签名/行为基线。契约样本在仓库 `tests/fixtures/sdk/policy/legacy_boundaries.json`，政策说明见[决策清单](decision-register.md)。
 
 ## 9. 批量结果、缺失和分页
 
