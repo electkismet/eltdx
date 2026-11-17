@@ -19,6 +19,7 @@ if [[ -e "$destination" ]]; then
 fi
 mkdir -p "$destination/candidate" "$destination/consumer" "$destination/evidence"
 cp -R "$source_root/crates" "$destination/candidate/crates"
+cp -R "$source_root/.cargo" "$destination/candidate/.cargo"
 for source_file in Cargo.toml Cargo.lock rust-toolchain.toml LICENSE README.md; do
   cp "$source_root/$source_file" "$destination/candidate/$source_file"
 done

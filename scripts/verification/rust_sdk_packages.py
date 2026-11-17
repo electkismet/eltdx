@@ -205,6 +205,7 @@ def main() -> None:
             staging.mkdir()
             for name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "LICENSE", "README.md"):
                 shutil.copyfile(ROOT / name, staging / name)
+            shutil.copytree(ROOT / ".cargo", staging / ".cargo")
             shutil.copytree(ROOT / "crates", staging / "crates", ignore=shutil.ignore_patterns("target", "__pycache__"))
             staging_manifest = staging / "Cargo.toml"
             with staging_manifest.open("a", encoding="utf-8") as stream:

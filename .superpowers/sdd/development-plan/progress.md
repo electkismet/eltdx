@@ -1,6 +1,15 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- stage116 unified execution: actual Windows/MSVC Rust1.89/Python3.12 tools
+  discovered; initial214-package lock allowed generator0.8.12/Windows0.100
+  Rust1.95, reproduced by Loom check101. Added MSRV fallback config; new208-
+  package lock uses generator0.8.11, Loom check02 exit0. Full SDK all-target
+  check04 exit0 after client-only Hyper classification and test compilation
+  repairs; warnings remain. Public HTTP cap fixture has original failures and
+  final1-pass result. Logs artifacts/unified/stage116-tooling. No whole-suite,
+  Python/platform/package/docs/pressure acceptance yet. Commit repairs and
+  continue unified tests; canonical unified-validation.md has exact scope.
 - stage115 global source gate: root recorded all T01-T30 authored source
   deliverables complete at23bf1c83718e83d20e9c5ba9b919e9dfac3e2db4; clean
   Git status observed. Unified verification may now begin under the user's

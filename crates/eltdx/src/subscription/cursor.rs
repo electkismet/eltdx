@@ -146,8 +146,8 @@ mod tests {
     #[test]
     fn snapshot_fences_are_per_security_and_do_not_replace_server_cursors() {
         let identity = source(1, 0, 1);
-        let first = "sh600000".parse().unwrap();
-        let second = "sh600001".parse().unwrap();
+        let first: SecurityId = "sh600000".parse().unwrap();
+        let second: SecurityId = "sh600001".parse().unwrap();
         let mut cursors = CursorBook::new(identity, &[first.clone(), second.clone()]).unwrap();
         let mut activation = vec![update("sh600000", 93000), update("sh600001", 93001)];
         cursors.remember_ordered(identity, 2, &mut activation).unwrap();
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn snapshot_floor_identity_validation_is_atomic() {
         let identity = source(1, 0, 1);
-        let id = "sh600000".parse().unwrap();
+        let id: SecurityId = "sh600000".parse().unwrap();
         let mut cursors = CursorBook::new(identity, &[id.clone()]).unwrap();
         assert_eq!(cursors.snapshot_floors(&[(id, 10), ("sh600001".parse().unwrap(), 20)])
             .unwrap_err().kind(), ErrorKind::Protocol);

@@ -1,6 +1,6 @@
 #![cfg(feature = "f10")]
 
-use eltdx::f10::{EntryName, F10Client, Header, JsonNumber, JsonValue, ProxyUrl, Route};
+use eltdx::f10::{EntryName, F10Client, Header, JsonNumber, JsonValue, NewsChannel, ProxyUrl, Route};
 
 #[test]
 fn ordered_duplicate_members_and_large_numeric_text_roundtrip() -> eltdx::Result<()> {

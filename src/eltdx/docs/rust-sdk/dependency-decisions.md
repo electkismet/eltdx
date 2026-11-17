@@ -1,5 +1,27 @@
 # Rust SDK dependency decisions
 
+## Unified execution update — stage116
+
+The global source gate is recorded at b94d762, following source checkpoint23bf1c8.
+Actual Windows Rust1.89 resolution initially selected214 packages, including
+generator0.8.12 and Windows0.100 dependencies requiring Rust1.95; the Loom
+check reproduced that failure. Repository `.cargo/config.toml` now explicitly
+uses resolver.incompatible-rust-versions="fallback". Regeneration selected208
+compatible packages, including generator0.8.11, without changing direct pins.
+The actual locked Loom check and full-feature SDK all-target check returned0;
+warnings remain. This is partial compilation evidence, not license audit,
+cross-platform validity or behavior acceptance. Full logs and failed attempts
+are indexed in [unified validation](unified-validation.md). Historical source-
+stage statements below retain their original scope.
+
+Hyper1.12's TooLarge classification method is available only with its server
+feature, while this SDK selects client/http1. Response-head limits therefore
+also run in the existing bounded plaintext observer before delivery to Hyper;
+no server feature or error-message string matching was added. Exact/fragmented
+boundaries, informational heads and body exclusion have dedicated unit sources,
+and the public over-limit fixture's final diagnostic run passed. The complete
+HTTP matrix, platform behavior and dependency licenses still require execution.
+
 ## ZIP and CRC — T17, provisional source selection
 
 The default HQ SDK uses one private decoder, `archive::decode_selected`, for

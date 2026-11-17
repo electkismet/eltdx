@@ -368,7 +368,7 @@ def run(output: Path, toolchain: str) -> None:
     try:
         tracked = git("ls-files").splitlines()
         for name in tracked:
-            if name.startswith(("crates/", "scripts/verification/", "tests/fixtures/", "tests/contracts/")) or name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml"):
+            if name.startswith((".cargo/", "crates/", "scripts/verification/", "tests/fixtures/", "tests/contracts/")) or name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml"):
                 path = ROOT / name
                 if path.is_file():
                     report["source_files"][name] = dict(bytes_sha256=digest(path), git_blob=git("rev-parse", "HEAD:" + name))
@@ -426,7 +426,7 @@ def verify(directory: Path, candidate: str) -> dict:
     if report["source_tree"] != git("rev-parse", candidate + "^{tree}"):
         raise ValueError("Claimed source tree is not the candidate commit")
     wanted_sources = {name for name in git("ls-tree", "-r", "--name-only", candidate).splitlines()
-                      if name.startswith(("crates/", "scripts/verification/", "tests/fixtures/", "tests/contracts/"))
+                      if name.startswith((".cargo/", "crates/", "scripts/verification/", "tests/fixtures/", "tests/contracts/"))
                       or name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml")}
     if set(report["source_files"]) != wanted_sources:
         raise ValueError("Incomplete candidate source inventory")

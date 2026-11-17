@@ -277,7 +277,8 @@ fn encoded_chunked_body_and_response_header_caps_apply_while_reading() -> TestRe
             else { builder.with_max_encoded_bytes(NonZeroU64::new(14).ok_or("nonzero")?).build()? };
         // Request body must fit the encoded cap too.
         let query = CallQuery::new(EntryName::new("sample")?, RequestPayload::Body(JsonValue::Object(Vec::new())));
-        assert_eq!(client.call(&query, &OperationOptions::default()).unwrap_err().kind(), ErrorKind::LimitExceeded);
+        let error = client.call(&query, &OperationOptions::default()).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::LimitExceeded, "headers={headers}: {error:?}");
         client.close()?;
         server.finish()?;
     }

@@ -182,7 +182,7 @@ async fn post_once(config: &F10Config, url: &Url, body: Bytes,
         .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "HTTP framing budget overflow"))?;
     let cap = usize::try_from(config.max_encoded_bytes.get()).ok().and_then(|value| value.checked_add(overhead))
         .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "HTTP wire budget overflow"))?;
-    let capture = WireCapture::new(cap, retain_wire, control.clone());
+    let capture = WireCapture::new(cap, config.max_header_bytes.get(), retain_wire, control.clone());
     let stream = ObservedStream { stream, capture: Arc::clone(&capture), control: control.clone(),
         headers: Some(request_headers), generated: Vec::new(), pending: Vec::new(), written: 0 };
     let mut builder = http1::Builder::new();
@@ -273,6 +273,5 @@ fn ordered_headers(config: &F10Config, uri: &str, url: &Url, length: usize) -> R
 
 fn map_http(error: hyper::Error, capture: &Mutex<WireCapture>) -> Error {
     if let Ok(capture) = capture.lock() { if let Some(failure) = capture.failure() { return failure; } }
-    if error.is_parse_too_large() { return Error::new(ErrorKind::LimitExceeded, "F10 response headers exceed limit").with_source(error); }
     Error::new(ErrorKind::Protocol, "invalid or truncated F10 HTTP response").with_source(error)
 }

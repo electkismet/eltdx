@@ -1228,7 +1228,7 @@ mod tests {
             .expect("valid loopback engine config"),
         )
         .expect("engine constructs lazily");
-        engine.ensure_runtime().expect("runtime resource starts");
+        let pending_connect = engine.begin_connect().expect("runtime resource starts");
         owner.register_engine(engine).expect("engine is attached to owner");
         let barrier = Arc::new(Barrier::new(3));
         let mut closers = Vec::new();
@@ -1246,6 +1246,7 @@ mod tests {
         }
         assert!(owner.close().is_ok());
         assert!(owner.cleanup.state.lock().unwrap().worker.is_none(), "explicit close joins its cleanup controller");
+        drop(pending_connect);
     }
 
     #[test]

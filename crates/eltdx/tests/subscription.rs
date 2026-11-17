@@ -58,7 +58,7 @@ fn pinned_nonempty_refresh_preserves_identity_cursor_raw_and_releases_its_connec
     closed?;
     joined?;
     assert_eq!(page.requested().len(), 1);
-    assert_eq!(page.requested()[0].id(), &id);
+    assert_eq!(&page.requested()[0], &id);
     assert_eq!(page.updates().len(), 1);
     assert_eq!(page.updates()[0].id(), &id);
     assert_eq!(page.updates()[0].cursor(), 93001);

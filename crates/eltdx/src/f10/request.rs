@@ -62,7 +62,7 @@ impl ParamsQuery {
 
 /// Typed query extras preserve order, reject duplicate names, and cannot replace
 /// endpoint identity/pagination fields. Generic `CallQuery` remains unrestricted.
-pub(crate) fn merge_extra(target: &mut OrderedJsonObject, extra: &OrderedJsonObject, protected: &[&str]) -> Result<()> {
+pub(crate) fn merge_extra(target: &mut OrderedJsonObject, extra: &[(String, JsonValue)], protected: &[&str]) -> Result<()> {
     for (index, (name, _)) in extra.iter().enumerate() {
         if protected.contains(&name.as_str()) || target.iter().any(|(key, _)| key == name)
             || extra[..index].iter().any(|(key, _)| key == name) {

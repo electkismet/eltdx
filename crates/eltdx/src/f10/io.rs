@@ -12,6 +12,104 @@ pub(crate) trait Stream: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> Stream for T {}
 pub(crate) type BoxStream = Box<dyn Stream>;
 
+/// Enforce the response-head byte budget before Hyper receives the bytes.
+/// Hyper's client build does not expose its server-only TooLarge classifier.
+/// This observer only finds head boundaries; Hyper still validates HTTP syntax.
+#[derive(Debug)]
+struct HeaderBudget {
+    maximum: usize,
+    received: usize,
+    prefix: [u8; 12],
+    tail: [u8; 4],
+    active: bool,
+}
+
+impl HeaderBudget {
+    fn new(maximum: usize) -> Self {
+        Self { maximum, received: 0, prefix: [0; 12], tail: [0; 4], active: true }
+    }
+
+    fn record(&mut self, bytes: &[u8]) -> Result<()> {
+        for &byte in bytes {
+            if !self.active { break; }
+            if self.received == self.maximum {
+                return Err(Error::new(ErrorKind::LimitExceeded, "F10 response headers exceed limit"));
+            }
+            if self.received < self.prefix.len() { self.prefix[self.received] = byte; }
+            self.received += 1;
+            self.tail.rotate_left(1);
+            self.tail[3] = byte;
+            // Hyper also accepts LF-only line endings. Keep boundary counting
+            // consistent without inspecting or retaining the response body.
+            if self.tail == *b"\r\n\r\n" || self.tail[2..] == *b"\n\n" {
+                let informational = self.prefix.starts_with(b"HTTP/1.")
+                    && self.prefix[8] == b' ' && self.prefix[9] == b'1'
+                    && self.prefix[10].is_ascii_digit() && self.prefix[11].is_ascii_digit()
+                    && &self.prefix[9..12] != b"101";
+                self.active = informational;
+                self.received = 0;
+                self.prefix = [0; 12];
+                self.tail = [0; 4];
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod header_budget_tests {
+    use super::*;
+
+    #[test]
+    fn every_head_fragment_boundary_accepts_exact_limit_and_excludes_body() -> Result<()> {
+        for head in [b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n".as_slice(),
+            b"HTTP/1.1 200 OK\nContent-Length: 1000\n\n".as_slice()] {
+            for split in 0..=head.len() {
+                let mut budget = HeaderBudget::new(head.len());
+                budget.record(&head[..split])?;
+                budget.record(&head[split..])?;
+                budget.record(&[b'x'; 1000])?;
+                assert!(!budget.active);
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn unterminated_or_one_byte_oversize_head_returns_typed_limit() -> Result<()> {
+        let head = b"HTTP/1.1 200 OK\r\n\r\n";
+        let mut budget = HeaderBudget::new(head.len() - 1);
+        budget.record(&head[..head.len() - 1])?;
+        assert!(matches!(budget.record(&head[head.len() - 1..]),
+            Err(error) if error.kind() == ErrorKind::LimitExceeded));
+        let partial = b"HTTP/1.1 200 OK\r\n";
+        let mut unterminated = HeaderBudget::new(partial.len());
+        unterminated.record(partial)?;
+        assert!(matches!(unterminated.record(b"X"),
+            Err(error) if error.kind() == ErrorKind::LimitExceeded));
+        Ok(())
+    }
+
+    #[test]
+    fn informational_heads_each_have_a_budget_before_the_final_body() -> Result<()> {
+        let interim = b"HTTP/1.1 103 Early Hints\r\n\r\n";
+        let final_head = b"HTTP/1.1 200 OK\r\n\r\n";
+        let mut budget = HeaderBudget::new(interim.len());
+        for _ in 0..2 {
+            for byte in interim { budget.record(std::slice::from_ref(byte))?; }
+            assert!(budget.active);
+        }
+        budget.record(final_head)?;
+        budget.record(&[0; 1024])?;
+        assert!(!budget.active);
+        let mut oversized = HeaderBudget::new(interim.len());
+        oversized.record(interim)?;
+        assert!(matches!(oversized.record(b"HTTP/1.1 200 OK\r\nX-Large: too long\r\n\r\n"),
+            Err(error) if error.kind() == ErrorKind::LimitExceeded));
+        Ok(())
+    }
+}
+
 /// Bounded observation of the actual HTTP plaintext received from the peer,
 /// including status/headers, chunk framing and encoded body. TLS wrapping is
 /// below this observer; ciphertext is intentionally not presented as HTTP raw.
@@ -19,15 +117,18 @@ pub(crate) type BoxStream = Box<dyn Stream>;
 pub(crate) struct WireCapture {
     maximum: usize, received: usize, retain: bool, bytes: Vec<u8>, failure: Option<Error>,
     control: Control,
+    headers: HeaderBudget,
 }
 impl WireCapture {
-    pub fn new(maximum: usize, retain: bool, control: Control) -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Self { maximum, received: 0, retain, bytes: Vec::new(), failure: None, control }))
+    pub fn new(maximum: usize, header_maximum: usize, retain: bool, control: Control) -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Self { maximum, received: 0, retain, bytes: Vec::new(), failure: None, control,
+            headers: HeaderBudget::new(header_maximum) }))
     }
     pub fn take_bytes(&mut self) -> Vec<u8> { std::mem::take(&mut self.bytes) }
     pub fn failure(&self) -> Option<Error> { self.failure.clone() }
     fn record(&mut self, bytes: &[u8]) -> Result<()> {
         let result = (|| {
+            self.headers.record(bytes)?;
             self.received = self.received.checked_add(bytes.len())
                 .ok_or_else(|| Error::new(ErrorKind::LimitExceeded, "F10 wire byte counter overflow"))?;
             if self.received > self.maximum { return Err(Error::new(ErrorKind::LimitExceeded, "F10 HTTP framing and wire byte limit exceeded")); }

@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026年11月17日stage116：全源码门槛已在b94d762记录，统一验证现已实际开始。Rust1.89/Windows首次lock暴露Loom传递依赖Rust1.95冲突，新增resolver fallback并重锁至兼容版本，Loom check已exit0；full feature全目标check在修正Hyper客户端API及测试编译问题后attempt04 exit0，仍有警告。F10头/encoded限额公开用例保留原失败后最终通过1项。原始日志在artifacts/unified/stage116-tooling，详见[统一验证](unified-validation.md)。尚未完成完整行为/绑定/Python兼容/平台/打包/文档/压力性能，目标active无限额，继续修复并验证。
+
 2026年11月17日stage115统一执行门槛：源码检查点23bf1c83718e83d20e9c5ba9b919e9dfac3e2db4已保存，Git工作区干净；root记录T01–T30全部源码范围写齐，开始统一验证。30项源码完成不等于验收完成，目前无新通过结果。下一步实际工具链/解释器与依赖lock准备，随后编译/合同/兼容/独立消费/包/文档及压力性能。真实运行记录追加至[统一验证记录](unified-validation.md)，失败必须保留并修正。目标active无限额，无发布或代理。
 
 2026-11-17第一百一十四段恢复点：基础fd548ca。18个service和四个独立客户端普通调用示例、六份按feature收录的rustdoc include、精确非空回环对应已写；新增固定连接非空refresh与七组Serde合同及三个checked类型compile-fail，独立serde/f10文档门禁和六对include同步检查源码。T01–T30源码范围现为30完整/0部分/0未开始。尚未执行任何新测试/构建/check/依赖/网络/文档验证；保存此阶段后root记录全源码门槛，再准备真实lock和工具链进入统一验证。所有验收复选框保持未通过；实际生产登录/optional setup关联、注册表/平台/性能证据仍缺。目标保持active、无限额，无代理或发布。
@@ -214,11 +216,11 @@
 | 实施分支 | `codex/rust-sdk-implementation` |
 | 起始基线 | `af471f1adf38757f6aa0188968db8110eb23f6ad` |
 | 规格检查点 | `e36c71e` (`docs(rust-sdk): checkpoint implementation specification`) |
-| 最新检查点 | stage115：源码23bf1c8已提交，root记录全源码门槛，准备统一验证；尚无新运行结果。 |
-| 当前阶段 | T01–T30源码范围完成；统一验证开始，依赖/编译/兼容/平台/压力等实际证据待取得。 |
+| 最新检查点 | stage116：门槛b94d762后完成实际lock准备和首轮编译修正，局部通过与原失败均保留。 |
+| 当前阶段 | T01–T30源码范围完成；统一验证进行中，已取得Windows full全目标check与Loom check局部结果，其余验收未通过。 |
 | 已提交进度 | T01–T10 实现与静态审阅完成；T11 检查点 `6f5fadb`、`de9e74f`、`a38dc32`、`ddb5e89`、`73c9365`、`f6ff2b3`、`c0f005d`；T17 `cd6735b`/`bcd6a8f`；T21 `b6e4beb`；T22 `9b6c8fd`/`a64a4a6`；T24 `1220bf2`/`04f613a`；T25 `c87e5b0`/`78bf121`；全部验证延期 |
 | 测试约束 | stage115后允许按最终验收顺序统一执行；修复实际失败，不减API/feature/合同范围；不自动发布。 |
-| 下一步 | 发现真实工具链/依赖并更新lock，然后统一编译、合同/回环/兼容、独立消费/包/文档和压力性能。 |
+| 下一步 | 保存lock/首轮编译修正，继续完整Rust行为/边界回环、绑定/Python兼容、独立消费/包/feature平台/文档，再压力性能。 |
 
 ## 阶段进度
 

@@ -138,3 +138,17 @@ See docs/rust-sdk/unified-validation.md for subsequent actual run outcomes.
 Begin tool/lock preparation then correctness/compatibility/package/docs and
 pressure/performance; do not reduce scope or invent missing external evidence.
 Goal remains active without a token quota; no publishing or goal-state edits.
+
+## Unified validation stage116 — first real tooling and compilation
+
+After gateb94d762, actual Windows Rust1.89/Python3.12 tooling and dependency
+resolution ran. Initial lock/Loom MSRV failed at generator0.8.12/Windows0.100
+(requires1.95); resolver fallback regenerated a compatible208-package lock and
+Loom check02 exited0. Full SDK all-target check04 exited0 after actual API/test
+compilation repairs; warnings remain. Hyper's client-only missing classifier
+is replaced by bounded plaintext head observation, preserving LimitExceeded;
+public HTTP cap final diagnostic passed1 case after recorded failures. See
+docs/rust-sdk/unified-validation.md and artifacts/unified/stage116-tooling.
+These are partial dirty-tree diagnostics, not whole-candidate acceptance. Whole
+Rust behavior, binding/Python, platforms/features/packages/docs/stress/performance
+remain. Commit this recovery then continue; do not mark the goal complete.

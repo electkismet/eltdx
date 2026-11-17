@@ -81,7 +81,7 @@ fn finance_preserves_duplicate_occurrences_original_bits_and_field_order() {
         assert_eq!(request.msg_type, 0x0010); finance(&[("600000", 1.), ("600001", 2.), ("600000", 3.)])
     }).unwrap(); let client = client(&server); let input = ids(&["600000", "600000", "600001"]);
     let batch = client.corporate().finance(&input, &FinanceQuery::new(), &OperationOptions::default()).unwrap();
-    let shares = |index| { let BatchItemState::Present(row) = batch.items()[index].state() else { panic!() };
+    let shares = |index: usize| { let BatchItemState::Present(row) = batch.items()[index].state() else { panic!() };
         assert_eq!(row.values().len(), 31); let FinanceValue::Shares(value) = row.value(FinanceField::CirculatingShares).unwrap() else { panic!() };
         assert_eq!(value.unit(), QuantityUnit::Shares); assert_eq!(value.source_unit(), QuantityUnit::TenThousandShares);
         assert!(matches!(value.source_value(), NumericValue::F32(_))); value.value().as_f64() };
