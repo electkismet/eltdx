@@ -875,6 +875,19 @@ impl Supervisor {
         decision
     }
 
+    /// Cancellation can join an already retiring attempt without starting a
+    /// second retirement. The exact wire remains owned until its acknowledgement.
+    pub(crate) fn cancel_retiring_request(&mut self, identity: RequestWireIdentity) -> bool {
+        if self.state != EngineState::Running
+            || self.lifecycle_retirements.contains_key(&identity.request_id)
+            || !self.requests.begin_terminal_retirement(identity)
+        {
+            self.record_stale();
+            return false;
+        }
+        true
+    }
+
     pub fn finish_retry_retirement(
         &mut self,
         acknowledgement: ReconnectAck,

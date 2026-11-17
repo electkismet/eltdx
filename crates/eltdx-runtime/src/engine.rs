@@ -5048,6 +5048,28 @@ impl RuntimeCore {
         self.cancel_confirmations.insert(request_id, confirmation);
         let error = RuntimeError::connection_closed("request cancelled by caller")
             .with_context("request_id", request_id.get().to_string());
+        if self.has_lifecycle_retirement(request_id) {
+            // Owner close already retains this request until real retirement.
+            return Ok(());
+        }
+        if let Some(wire) = pending.wire {
+            if let Some(plan) = self.retirements.get(&request_id) {
+                if !self.supervisor.cancel_retiring_request(wire) {
+                    return Err(RuntimeError::internal("cancellation retirement wire was stale"));
+                }
+                if matches!(plan, RetirementPlan::Retry | RetirementPlan::ContinueEndpoint) {
+                    let plan = if let Some(pin) = pending.pin {
+                        RetirementPlan::PinnedTerminal { pin, kind: TerminalKind::Cancelled, error }
+                    } else {
+                        RetirementPlan::Terminal { kind: TerminalKind::Cancelled, error }
+                    };
+                    self.retirements.insert(request_id, plan);
+                }
+                // Preserve an existing terminal cause, prevent any new attempt,
+                // and confirm cancellation only after the queued retirement ack.
+                return Ok(());
+            }
+        }
         match (pending.admission, pending.wire, pending.dispatched) {
             (Admission::Waiting(permit), None, _) => {
                 let notification = if let Some(pin) = pending.pin {
@@ -7186,6 +7208,75 @@ mod tests {
             assert!(core.pending.is_empty());
             assert!(core.retirements.is_empty());
             assert!(!core.closing);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn late_cancellation_waits_for_failed_retry_and_endpoint_retirement() -> Result<(), RuntimeError> {
+        for pinned in [false, true] {
+            for mode in ["terminal", "retry", "endpoint"] {
+                let reservation_id = RequestId::new(230)?;
+                let (mut core, runtime, _reservation_result) = pin_reservation_runtime(reservation_id)?;
+                let reserved = core.pin_reservations.remove(&reservation_id).expect("reservation");
+                let crate::request::Admission::Active(lease) = reserved.admission else {
+                    panic!("active fixture reservation");
+                };
+                let now = std::time::Instant::now();
+                let request_id = RequestId::new(231)?;
+                let deadline = crate::deadline::Deadline::at(now + Duration::from_secs(2));
+                let pin = if pinned {
+                    Some(core.supervisor.open_pin(reservation_id)?)
+                } else {
+                    core.supervisor.terminal_active(wire_without_generation(lease),
+                        crate::request::TerminalKind::Failed,
+                        Some(RuntimeError::connection_closed("fixture releases reservation")), now)?;
+                    None
+                };
+                let policy = crate::request::RetryPolicy::ordinary(true);
+                let admission = if let Some(pin) = pin {
+                    core.supervisor.submit_pin(pin, request_id, deadline, policy, now)?
+                } else {
+                    core.supervisor.submit_with_retry_policy(request_id, deadline, policy, now)?
+                };
+                let receiver = track_operation_request(&mut core, admission, pin);
+                let attempt = core.supervisor.begin_request_attempt(request_id, now)?;
+                let generation = crate::slot::GenerationId::new(1)?;
+                let wire = crate::request::RequestWireIdentity {
+                    engine_epoch: attempt.engine_epoch, request_id, lease_id: attempt.lease_id,
+                    slot_id: attempt.slot_id, generation: Some(generation), message: None,
+                };
+                core.supervisor.transition_request(request_id, crate::request::RequestState::Connecting, Some(wire))?;
+                core.pending.get_mut(&request_id).expect("pending").wire = Some(wire);
+                let (reply, received) = tokio::sync::oneshot::channel();
+                runtime.block_on(core.handle_slot_event(super::SlotEvent::Failed {
+                    wire, error: RuntimeError::connection_closed("original failed attempt"),
+                    retryable: mode != "terminal", same_attempt_possible: mode == "endpoint", reply,
+                }))?;
+                assert!(matches!(runtime.block_on(received).expect("failure reply")?, super::FailureAction::Retire));
+                let foreign_wire = crate::request::RequestWireIdentity {
+                    generation: Some(crate::slot::GenerationId::new(9)?), ..wire
+                };
+                assert!(!core.supervisor.cancel_retiring_request(foreign_wire), "another generation cannot take ownership");
+                let confirmation = Arc::new(super::Completion::new());
+                runtime.block_on(core.cancel_request(request_id, Arc::clone(&confirmation)))?;
+                assert!(confirmation.wait(Duration::ZERO)?.is_none(), "cleanup must wait for actual retirement");
+                runtime.block_on(core.handle_retired(crate::slot::ReconnectAck {
+                    engine_epoch: wire.engine_epoch, slot_id: wire.slot_id, request_id,
+                    retired_generation: generation, next_generation: crate::slot::GenerationId::new(2)?,
+                    next_endpoint_index: 0, endpoints_remaining_in_attempt: 1,
+                }))?;
+                confirmation.wait(Duration::ZERO)?.expect("retirement acknowledged")?;
+                let error = receiver.try_recv().expect("terminal delivered").expect_err("cancel prevents retry");
+                let expected = if mode == "terminal" { "original failed attempt" } else { "request cancelled by caller" };
+                assert!(error.to_string().contains(expected), "{pinned}/{mode}: {error}");
+                assert!(core.pending.is_empty());
+                assert!(core.retirements.is_empty());
+                assert!(core.cancel_confirmations.is_empty());
+                assert!(!core.closing);
+                assert_eq!(core.supervisor.active_count(), usize::from(pinned));
+                assert!(core.slots.iter().all(Option::is_none), "cancellation must not start another attempt");
+            }
         }
         Ok(())
     }
