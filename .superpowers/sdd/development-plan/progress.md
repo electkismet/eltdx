@@ -1177,3 +1177,7 @@ Stage143会话 `87556` 已退出0。候选 `b9d5075` 的 manylinux2014 aarch64 w
 ## Stage149：本候选工具链隔离复验
 
 从干净提交 `33d542d544579456b996f550fecdffdf87363bda` 生成 Git 归档和 sdist；无 Python 的固定镜像通过12种 Rust 消费和四组 feature 禁用/启用合同。manylinux2014 x64 在独立命名空间内从同一提交的 sdist 离线重建 wheel；无编译工具镜像离线安装、pip check、公开 API 查询与关闭均通过。内外层退出码、镜像、命令与哈希见 `docs/rust-sdk/unified-validation.md` Stage149。公开分支、Cargo 发布凭据和其余生产证据未变化；平台、发布和生产目标保持原范围。
+
+## Stage150：实际涨停价单侧证据
+
+在 `7c55cd3` 上取得证监会通报与深交所历史规则和上市公告，使用独立未复权行情的前收盘价复算宏德股份三日涨停价，三个值与监管记载一致。原文、页面及 `verified.json` 散列见统一验证记录 Stage150。仅有上限样本，未取得交易所当日现货静态文件、两侧限价及参考价，仍返回 `UnknownRule`。发布和其余生产缺口继续保留。

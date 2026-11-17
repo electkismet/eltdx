@@ -352,3 +352,9 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 | 无编译工具的 Python 消费 | `stage149-isolated-python-attempt01/installed-wheel.json`（SHA256 `3b49692dc7502a45844718fea946e7367d7e3d39ba34dd6ccfb980ccf617adcc`）。Stage140 的 CPython 3.12.16 slim 镜像中确认没有 Rust/C 编译工具、Cargo 与 maturin；同一 wheel 的无索引二进制安装、`pip check`、非空公开 API 回环查询与关闭均 exit 0，内置扩展 SHA256 `312064aebd194c055dd5a7fae0a8f1b0ec5bd7a9c38786402b89abaef94d4b5b`。 |
 
 本轮补齐带 Stage148 修复的候选在 Linux x64 的工具链隔离证据，不表示物理主机隔离，也不覆盖 macOS、原生 ARM、公开 registry 或生产字段语义。公开候选分支仍不存在，本机发布凭据仍未配置；生产缺口沿用 Stage148。
+
+## Stage150：历史涨停价的独立交叉核验
+
+源码 `7c55cd37f9d1e21998cba03b811ca2ebfa0ae360`。`artifacts/unified/stage150-prices-attempt01/sources.json`（SHA256 `76c50bdb533c5528c945b15768c22273c6793f0bcf63cbf0aad76f3554da98c7`）记录公开监管通报、交易所上市公告和规则、接口规范及独立未复权日线的原文、时间、HTTP 状态与散列。使用 `stage150-tools/verify.py` 核对全部下载的散列、原文与日线，运行 exit 0；`verified.json` SHA256 `a301407744f4bcdc260d04612ace9e5f640a1aa5a24365f73be8ef3691ef8e48`。
+
+宏德股份 `sz301163` 上市于 2022-04-19。三个交易日（04-29、05-05、05-09）的前收盘分别为 41.95、50.34、57.10 元；以历史规则的 20% 和最小价位四舍五入复算，与证监会明确记载的当日涨停价 50.34、60.41、68.52 元逐笔一致。复核了深交所历史规则的前五交易日豁免和最小价位条款。北交所规范查实上下限及无限制标记；上交所所查规范段落的订单价格字段属于指定交易业务。具体来源和口径见[决策记录](decision-register.md)。这三笔是单侧历史实证，仍缺同日交易所现货静态文件的实际跌停价、参考价以及其他市场与特殊证券状态，不新增生产规则或修改 Python 兼容行为。
