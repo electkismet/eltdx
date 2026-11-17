@@ -76,7 +76,7 @@ pub(crate) fn quote_list(owner: &MacOwner, context: &OperationContext, plan: Lis
         let command = commands::board_members_request(plan.code,plan.sort.wire(),request.offset(),request.count(),
             plan.order.wire() as u8,plan.fields,plan.exclude.bits())?;
         let requested = request.count(); let field_context = plan.field_context;
-        owner.exchange(context,owner.mac_work(command)?,0x122c,move |body,_| {
+        owner.exchange_with_purpose(context,owner.mac_work(command)?,0x122c,ChildPurpose::Page,move |body,_| {
             let (total,rows,bitmap) = commands::decode_quote_rows(&body,field_context)?;
             let values = rows.into_iter().map(Quote::from_row).collect::<Result<Vec<_>>>()?;
             session::rows(values,requested,26,super::bitmap::quote_row_width(&bitmap)?)
@@ -93,20 +93,27 @@ pub(crate) fn bars_with_purpose(owner: &MacOwner, context: &OperationContext, qu
     let progress = Pagination::new(query.start(),Target::Count(query.count()),query.pages().clone(),maximum(700),u32::MAX,EndPolicy::EmptyOrShort)?;
     let mut first = true;
     collect(owner,context,progress,MergeOrder::PrependPages,|request| {
-        let command = commands::bars_request(query.id(),query.period(),query.times().get(),request.offset(),request.count(),query.adjust())?;
-        let query = query.clone(); let requested = request.count();
         let purpose = if first { first_purpose } else { ChildPurpose::Page }; first = false;
-        owner.exchange_with_purpose(context,owner.mac_work(command)?,0x122e,purpose,move |body,raw| {
-            let records = commands::decode_bars(&body,query.period())?;
-            let values = records.into_iter().enumerate().map(|(index,value)| {
-                let offset = 33+index*36;
-                Bar::from_record(value,&query,(raw != RawPolicy::Omit).then(|| body.slice(offset..offset+36)))
-            }).collect::<Result<Vec<_>>>()?;
-            let mut decoded = session::rows(values,requested,33,36)?;
-            if !query.period().has_known_semantics() { decoded.diagnostics.push(Diagnostic::new("mac","bar-time",EnrichmentStatus::Unavailable,None,
-                Some("explicit unknown wire period retains raw date/time without assigning calendar semantics".into()))); }
-            Ok(decoded.map(|rows| (None,rows)))
-        })
+        bars_page(owner,context,query,request.offset(),request.count(),purpose)
+            .map(|reply| Reply { value: (None,reply.value),meta: reply.meta,wire_count: reply.wire_count,response_offset: reply.response_offset })
+    })
+}
+/// The one complete MAC bar decode/projection used by ordinary collections,
+/// QFQ refetches and board history windows. No composite copies its layout.
+pub(crate) fn bars_page(owner: &MacOwner, context: &OperationContext, query: &BarsQuery,
+    offset: u32, requested: u16, purpose: ChildPurpose) -> Result<Reply<Vec<Bar>>> {
+    let command = commands::bars_request(query.id(),query.period(),query.times().get(),offset,requested,query.adjust())?;
+    let query = query.clone();
+    owner.exchange_with_purpose(context,owner.mac_work(command)?,0x122e,purpose,move |body,raw| {
+        let records = commands::decode_bars(&body,query.period())?;
+        let values = records.into_iter().enumerate().map(|(index,value)| {
+            let offset = 33+index*36;
+            Bar::from_record(value,&query,(raw != RawPolicy::Omit).then(|| body.slice(offset..offset+36)))
+        }).collect::<Result<Vec<_>>>()?;
+        let mut decoded = session::rows(values,requested,33,36)?;
+        if !query.period().has_known_semantics() { decoded.diagnostics.push(Diagnostic::new("mac","bar-time",EnrichmentStatus::Unavailable,None,
+            Some("explicit unknown wire period retains raw date/time without assigning calendar semantics".into()))); }
+        Ok(decoded)
     })
 }
 
@@ -118,7 +125,7 @@ pub(crate) fn boards(owner: &MacOwner, context: &OperationContext, query: &Board
         let offset = u16::try_from(request.offset()).map_err(|_| super::query::invalid("MAC board start exceeds u16"))?;
         let command = commands::board_list_request(query.board_type().wire(),offset,request.count())?;
         let requested = request.count();
-        owner.exchange(context,owner.mac_work(command)?,0x1231,move |body,_| {
+        owner.exchange_with_purpose(context,owner.mac_work(command)?,0x1231,ChildPurpose::Page,move |body,_| {
             let page = decode::boards(&body)?;
             // total_raw is retained by the pure BoardPage codec. Its relation
             // to paired_count is not established as a global board total.

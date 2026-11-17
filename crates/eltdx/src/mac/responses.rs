@@ -39,6 +39,7 @@ impl ResponseIdentity {
 pub struct NativeNumber<T> { value: T, meaning: FieldMeaning }
 impl<T> NativeNumber<T> {
     pub(crate) fn unknown(value: T) -> Self { Self { value, meaning: FieldMeaning::unknown() } }
+    pub(crate) fn with_meaning(value: T, meaning: FieldMeaning) -> Self { Self { value,meaning } }
     pub fn value(&self) -> &T { &self.value }
     pub fn meaning(&self) -> &FieldMeaning { &self.meaning }
 }

@@ -125,6 +125,29 @@ management!(MacClient, MacClientBuilder, MacConfig, "mac");
 management!(MacExClient, MacExClientBuilder, MacExConfig, "mac-ex");
 
 impl MacClient {
+    /// Every member page contributes to one total deadline and shared limits.
+    pub fn board_summary(&self, query: &BoardSummaryQuery, options: &OperationOptions) -> Result<super::BoardSummary> {
+        let mut context = self.inner.context(Instant::now(),"mac.board_summary",options)?;
+        board_limits(&mut context,query.pages(),self.config.transport.max_operation_bytes().get())?;
+        let result = super::boards::summary(&self.inner,&context,query)?;
+        context.finish()?; Ok(result)
+    }
+    /// Money/volume keys aggregate all candidates before a stable top-N. None
+    /// retains the full bounded ranking. Missing reference values sort last.
+    pub fn board_ranking(&self, query: &BoardRankingQuery, options: &OperationOptions) -> Result<Vec<super::BoardRank>> {
+        let mut context = self.inner.context(Instant::now(),"mac.board_ranking",options)?;
+        board_limits(&mut context,query.pages(),self.config.transport.max_operation_bytes().get())?;
+        let result = super::boards::ranking(&self.inner,&context,query)?;
+        context.finish()?; Ok(result)
+    }
+    /// Fetches each board's required history on this same operation. Missing
+    /// intervals are diagnosed; required I/O, cancellation and limits propagate.
+    pub fn board_change_ranking(&self, query: &BoardChangeRankingQuery, options: &OperationOptions) -> Result<Vec<super::BoardChangeRank>> {
+        let mut context = self.inner.context(Instant::now(),"mac.board_change_ranking",options)?;
+        board_limits(&mut context,query.pages(),self.config.transport.max_operation_bytes().get())?;
+        let result = super::boards::change_ranking(&self.inner,&context,query)?;
+        context.finish()?; Ok(result)
+    }
     /// Collects a checked target, retaining response order and duplicate rows.
     /// Board categories use board aliases; constituent lists use instrument
     /// meanings even though both commands share the same bitmap layout.
@@ -348,6 +371,11 @@ impl MacExClient {
     }
 }
 
+fn board_limits(context: &mut crate::operation::OperationContext, pages: &crate::PageOptions, bytes: usize) -> Result<()> {
+    context.set_work_limits(crate::operation::WorkLimits {
+        pages: NonZeroUsize::new(pages.max_pages()),records: Some(pages.max_records()),bytes: Some(bytes),
+    })
+}
 fn quotes(owner: &MacOwner, context: &crate::operation::OperationContext,
     ids: &[super::MacInstrumentId], fields: &super::FieldSelection) -> Result<Vec<super::Quote>> {
     let requested = u16::try_from(ids.len()).map_err(|_| super::query::invalid("MAC quote occurrences exceed wire range"))?;

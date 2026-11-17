@@ -508,6 +508,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T26：扩展组合服务与目录缓存
 
+2026-11-17第二段源码恢复点（stage83，基础95721fc）：新增公开board_summary/board_ranking/board_change_ranking与私有字段返回模型，MAC现22/23方法有实现源码。全成员/全候选金额成交量聚合、稳定六指标排序/None全候选、缺失和非有限诊断、目标日期向旧分页/不同交易日窗口、原始来源和返回目录行映射已写；所有子请求共享父页/输入记录/字节/期限，bar投影复用同一bars_page，百分比复用共享算术。新增extended_boards16个公开函数源码，均未执行。T26仍部分：同源下载、MAC-EX目录/缓存/宏观及余下方法/回环仍待完成；23源码完整/3部分/4未开始不变，全部验证继续延期。
+
 2026-11-17第一段源码恢复点（stage82）：已接入MAC/MAC-EX QFQ异常→None重取→显式XDXR provider→纯本地修复；父期限/取消/额外尝试/字节/worker清理和原始多来源meta贯通。无provider/事件/有效因子与仍坏有明确诊断及strict错误，源数据重取/provider失败不吞。新增extended_services 13个、extended_loopback 7个公开函数用例源码，全部未执行。T26仍部分，目录/缓存/宏观唯一解析、板块聚合/排行/N日及同源下载尚未实现；总计23源码完整/3部分/4未开始。后续验收复选框仍全部未通过，全部T01–T30源码完成后统一执行。
 
 **文件：** 新增 `src/mac/services.rs`、`src/ex/catalog.rs`；新增 `tests/extended_services.rs`。

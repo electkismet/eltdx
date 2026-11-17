@@ -640,7 +640,7 @@ Period: 5m=0、15m=1、30m=2、60m=3、Daily=4、Weekly=5、Monthly=6、1m=7、M
 | get_board_members | `board_members -> PageResult<Quote>` | board:BoardSymbol,count=100000,sort=ChangePct,order=Desc,fields=Common,exclude=0；每页80 |
 | get_belong_board | `belonging_boards -> Vec<BelongBoard>` | id |
 | get_board_summary | `board_summary -> BoardSummary` | board、sort=ChangePct、order=Desc |
-| get_board_ranking | `board_ranking -> Vec<BoardRank>` | board_type=Hy(0),top_n:NonZeroU32=50,sort:BoardRankKey=ChangePct,ascending=false |
+| get_board_ranking | `board_ranking -> Vec<BoardRank>` | board_type=Hy(0),top_n:Option<NonZeroU32>=Some(50),sort:BoardRankKey=ChangePct,ascending=false |
 | get_board_change_ranking | `board_change_ranking -> Vec<BoardChangeRank>` | board_type=Hy,target_date=None,days:NonZeroU32=20,top_n:Option<NonZeroU32>=None,ascending=false |
 | get_capital_flow | `capital_flow -> Option<CapitalFlow>` | id；合法无对象None，JSON破损报Protocol |
 | get_auction | `auction -> Vec<Auction>` | id；原协议请求500，返回服务顺序 |
@@ -674,6 +674,14 @@ QFQ出现非正或非有限OHLC时，原算法重取None bars，再可选XDXR本
 修复或降级时，聚合meta保留原QFQ、None及provider全部payload/frame/source顺序，主row_ranges只选择实际返回序列；修复按`AdjustmentResult::source_indices()`匹配稳定排序后的原记录，降级选原QFQ。所有返回行共享这一聚合meta，逐行record_raw仍指向该行实际采用的源36B记录；逐事件证据共享，原QFQ作为辅助证据不会伪装成修复后的源值。diagnostics.latest_meta也保存最终判定，包括strict失败。正常无需修复的路径继续使用原逐响应meta。
 
 board_summary从全部members聚合amount、vol、main_net_amount、main_net_3d、main_net_5d、up_count、down_count、member_count并保留members；不是直接服务端JSON的别名。0x1218 flag1为板块归属JSON，flag2为资金流JSON，跳过27B协议prefix后GBK解码，不当完整body都是JSON。ranking的money/amount/volume类必须先取全部候选聚合再topN，不能先按涨幅截前N；change_pct可用服务排序预截。days回报需要每块各取历史bar并说明缺历史的数据点，不能空历史当0%。相同sort值保持输入顺序作为稳定tie规则；top_n=None是全候选，受PageOptions保护。
+
+板块组合的`pages`同时规定目录页大小及整次操作的总页数/总输入记录上限；空目录终止页也计页，成员/历史请求不重新获得额度。金额/成交量排行另有`member_pages`（默认80/2000/160000），历史排行另有`history_pages`（默认700/200/140000）作为单板块更小保护；共用owner字节上限和原期限，辅助来源错误/取消/关闭/超限均传播。`BoardRankingQuery::with_top_n(Option<u32>)`明确支持None，Some(0)拒绝；本段统一此前表格NonZeroU32与本节None全候选的矛盾。
+
+`BoardSummary::missing_member_count(FieldId)`区分缺失/非法输入和源wire零；金额缺失只产生可追溯小计与MissingAggregateField诊断，不能把小计当完整排行指标。非有限原值及计算结果继续保留并诊断，不静默变零；缺失/非有限的排行指标在升降序中均排到已知值之后。成交量用checked u64求和和排序，金额保持源f32扩宽后的f64累加，不推断未知单位。所有成员及其合法未知bit都保留，extra以members[出现位置].字段或bit_N命名。
+
+Rust N日排行要求目标日或之前最近N个不同源日期间隔（至少N+1个日期）；目标较旧时继续向过去分页，不能只在最新days+10条中猜测。单页最多min(history_pages.page_size,days+10)，offset按全部wire记录推进。达到有证据的EOF仍不足窗口时跳过该板块并保留InsufficientBoardHistory，满保护上限仍需继续则报LimitExceeded。重复日期的全部记录/raw都保留，但不充当另一个交易日；端点采用稳定顺序中该日最后一条，并附DuplicateBoardHistoryDate。非正/非有限端点不参与排行且附InvalidBoardHistoryPrice，空结果也在diagnostics.latest_meta保留所有缺失证据。BoardChangeRank另有start_date/end_date，BoardRank/BoardChangeRank.source()保留原板块及独立leader身份；排名meta保留所有目录/成员/历史payload与来源，仅主row_ranges选择实际返回的目录记录顺序。
+
+T27旧Python策略仍保留两位round、零前收排行按0、缺字段按旧默认数值、历史TransportError跳过，以及不足N日时max(0,end-days)的短窗口；不得将这里Rust完整窗口/共享总保护/重复日期策略施加给Python。底层bar编解码与百分比算术继续共用现有实现，兼容投影另行执行旧策略。
 
 download采用30000B chunk、index从1、offset按实际字节递增；未知expected_size先取meta。短块/空块是该协议的EOF证据；到配置max_bytes但没有EOF为LimitReached并给next_offset。已知size读满仍需已验证EOF证据才能Complete；size未满提前空块不能声称完整，带ExpectedSizeMismatch错误。整次下载固定同一来源并校验meta/响应，途中换host要失败或从0重启显式新操作，不能拼接不同文件。Python原filesize<=0取meta、短块终止且可能返回部分bytearray保持；Rust DownloadResult和strict下载不得反向改旧返回类型。
 

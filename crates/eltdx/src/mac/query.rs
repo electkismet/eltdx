@@ -239,32 +239,37 @@ impl BoardSummaryQuery {
     pub fn with_pages(mut self, value: PageOptions) -> Result<Self> { validate_pages(&value,80)?; self.pages = value; Ok(self) }
 }
 #[derive(Clone, Debug)]
-pub struct BoardRankingQuery { board_type: BoardType, top_n: NonZeroU32, sort: BoardRankKey, ascending: bool, pages: PageOptions }
+pub struct BoardRankingQuery { board_type: BoardType, top_n: Option<NonZeroU32>, sort: BoardRankKey,
+    ascending: bool, pages: PageOptions, member_pages: PageOptions }
 impl Default for BoardRankingQuery {
-    fn default() -> Self { Self { board_type: BoardType::Hy, top_n: NonZeroU32::new(50).expect("positive"),
-        sort: BoardRankKey::ChangePct, ascending: false, pages: page_defaults(150,2000,160000) } }
+    fn default() -> Self { Self { board_type: BoardType::Hy, top_n: NonZeroU32::new(50),
+        sort: BoardRankKey::ChangePct, ascending: false, pages: page_defaults(150,2000,160000),
+        member_pages: page_defaults(80,2000,160000) } }
 }
 impl BoardRankingQuery {
     pub fn new() -> Self { Self::default() }
     pub const fn board_type(&self) -> BoardType { self.board_type }
-    pub const fn top_n(&self) -> NonZeroU32 { self.top_n }
+    pub const fn top_n(&self) -> Option<NonZeroU32> { self.top_n }
     pub const fn sort(&self) -> BoardRankKey { self.sort }
     pub const fn ascending(&self) -> bool { self.ascending }
     pub fn pages(&self) -> &PageOptions { &self.pages }
+    pub fn member_pages(&self) -> &PageOptions { &self.member_pages }
     pub fn with_board_type(mut self, value: BoardType) -> Self { self.board_type = value; self }
-    pub fn with_top_n(mut self, value: u32) -> Result<Self> { self.top_n = count(value)?; Ok(self) }
+    /// None retains every candidate after sorting, within the composite limits.
+    pub fn with_top_n(mut self, value: Option<u32>) -> Result<Self> { self.top_n = value.map(count).transpose()?; Ok(self) }
     pub fn with_sort(mut self, value: BoardRankKey) -> Self { self.sort = value; self }
     pub fn with_ascending(mut self, value: bool) -> Self { self.ascending = value; self }
     pub fn with_pages(mut self, value: PageOptions) -> Result<Self> { validate_pages(&value,150)?; self.pages = value; Ok(self) }
+    pub fn with_member_pages(mut self, value: PageOptions) -> Result<Self> { validate_pages(&value,80)?; self.member_pages = value; Ok(self) }
 }
 #[derive(Clone, Debug)]
 pub struct BoardChangeRankingQuery {
     board_type: BoardType, target_date: Option<TradingDate>, days: NonZeroU32,
-    top_n: Option<NonZeroU32>, ascending: bool, pages: PageOptions,
+    top_n: Option<NonZeroU32>, ascending: bool, pages: PageOptions, history_pages: PageOptions,
 }
 impl Default for BoardChangeRankingQuery {
     fn default() -> Self { Self { board_type: BoardType::Hy, target_date: None, days: NonZeroU32::new(20).expect("positive"),
-        top_n: None, ascending: false, pages: page_defaults(150,2000,160000) } }
+        top_n: None, ascending: false, pages: page_defaults(150,2000,160000), history_pages: page_defaults(700,200,140000) } }
 }
 impl BoardChangeRankingQuery {
     pub fn new() -> Self { Self::default() }
@@ -274,12 +279,17 @@ impl BoardChangeRankingQuery {
     pub const fn top_n(&self) -> Option<NonZeroU32> { self.top_n }
     pub const fn ascending(&self) -> bool { self.ascending }
     pub fn pages(&self) -> &PageOptions { &self.pages }
+    pub fn history_pages(&self) -> &PageOptions { &self.history_pages }
     pub fn with_board_type(mut self, value: BoardType) -> Self { self.board_type = value; self }
     pub fn with_target_date(mut self, value: Option<TradingDate>) -> Result<Self> { date_wire(value)?; self.target_date = value; Ok(self) }
-    pub fn with_days(mut self, value: u32) -> Result<Self> { self.days = count(value)?; Ok(self) }
+    pub fn with_days(mut self, value: u32) -> Result<Self> {
+        value.checked_add(10).ok_or_else(|| invalid("MAC board history day window plus buffer exceeds u32"))?;
+        self.days = count(value)?; Ok(self)
+    }
     pub fn with_top_n(mut self, value: Option<u32>) -> Result<Self> { self.top_n = value.map(count).transpose()?; Ok(self) }
     pub fn with_ascending(mut self, value: bool) -> Self { self.ascending = value; self }
     pub fn with_pages(mut self, value: PageOptions) -> Result<Self> { validate_pages(&value,150)?; self.pages = value; Ok(self) }
+    pub fn with_history_pages(mut self, value: PageOptions) -> Result<Self> { validate_pages(&value,700)?; self.history_pages = value; Ok(self) }
 }
 #[derive(Clone, Debug)]
 pub struct UnusualQuery { market: MacMarketId, start: u32, count: NonZeroU32, pages: PageOptions }

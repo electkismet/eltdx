@@ -1,6 +1,6 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前T25/T26部分实现，本地工具已提交`0ec8907`，QFQ组合源码检查点为stage82。
+当前T25/T26部分实现，本地工具已提交`0ec8907`，QFQ组合已提交`95721fc`，板块组合源码检查点为stage83。
 **MAC模块/两类公开客户端已在源码登记；没有编译、测试、联网或安装证据，尚未验收可用。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
@@ -13,6 +13,7 @@
 | `mac/fields.rs` | 16B/20B具名字段视图、上下文别名及唯一bitmap编码；未知位不从wire消失 |
 | `mac/util.rs` | 纯本地逐事件f64前复权、逐事件证据/跳过原因、原始bits保留、parent边界；8个内部用例源码 |
 | `mac/services.rs` | QFQ异常/None重取/显式provider/strict/降级及共享meta，owner worker与parent预算/取消/清理；其余组合待实现 |
+| `mac/boards.rs` | 全成员汇总、六指标稳定排行/None全候选、完整N日/向旧分页/重复日期证据；共享父保护和全部原始来源；私有字段返回模型 |
 | `advanced/mac.rs` | 受限请求/精确16B头/同一frame解压及DEBUG位图，无socket入口 |
 | `mac/commands.rs` | 单一请求布局、quote/bar/transaction/kline-offset及login原始请求/仅首字节rewrite |
 | `mac/responses.rs` | 私有字段/只读getter、源identity/float/未知单位、图/快照/板块/商品/文件/JSON响应 |
@@ -26,7 +27,7 @@
 | `mac/config.rs` | 独立MAC/MAC-EX配置、数字endpoint默认值及共同受控传输限额；纯build |
 | `mac/profile.rs` | 三步setup/严格optional fence及独立login，复用现有frame/write/read实现 |
 | `mac/session.rs` | 独立owner/session、现有门与worker/授权/取消清理、meta/raw及共享探测调度 |
-| `mac/client.rs` | 两类builder/管理/探测/关闭；MAC19/23、MAC-EX6/13入口源码已接入；剩余组合仍待实现 |
+| `mac/client.rs` | 两类builder/管理/探测/关闭；MAC22/23、MAC-EX6/13入口源码已接入；剩余组合仍待实现 |
 | `mac/quote.rs` | checked MAC身份、名称源字节、bit字段/未知位和逐响应meta的公开Quote |
 | `mac/market_data.rs` | 富Bar/Transaction、精确秒级/跨日/原始时间、七个float bits、独立f64有效OHLC/逐事件证据、HK原价/count presence/来源和共享meta |
 | `mac/collect.rs` | 80/700/1000/1800分页、整页前插、raw行排列、复用aggregate_meta/HK现有EX解码和all严格终止 |
@@ -36,6 +37,7 @@
 | `crates/eltdx/tests/mac_session.rs` | 19个公开入口/非空分页/秒级/raw/HK/lifecycle/取消/半包/换源/超量用例函数源码，全部未执行 |
 | `crates/eltdx/tests/mac_helpers.rs` | 6个字段视图/别名/unknown/debug/请求/头/有界zlib/板块转换函数源码，全部未执行 |
 | `crates/eltdx/tests/extended_services.rs` | 13个QFQ修复/降级/strict/来源/字节/额外次数/原始行映射公开函数源码，全部未执行 |
+| `crates/eltdx/tests/extended_boards.rs` | 16个全成员/全候选/六指标/原始行/缺失/非有限/目标历史/重复日期/共享限额/取消关闭公开函数源码，全部未执行 |
 | `crates/eltdx/tests/extended_loopback.rs` | 7个MAC/MAC-EX真实owner入口、取消/关闭/期限/阻塞回调门保留/换源公开函数源码，全部未执行 |
 | `crates/eltdx/tests/support/extension_peer.rs` | std-only手写请求/响应及明确合成setup辅助，不作生产登录证据 |
 
@@ -45,7 +47,7 @@ serde_json，未引入第二网络/解压栈。三组原path包含用例已改�
 
 ## MAC全部23个方法的归属
 
-全部query已写。19/23方法已有独立client/profile接线；下面表中的组合项仍待实现。
+全部query已写。22/23方法已有独立client/profile接线；download_file组合仍待实现。
 Quote/Bar/Transaction/BoardInfo/Unusual带逐响应共享meta；PageResult带聚合meta；
 其他返回的最近响应meta可通过diagnostics.latest_meta读取。全部未验证。
 
@@ -53,7 +55,7 @@ Quote/Bar/Transaction/BoardInfo/Unusual带逐响应共享meta；PageResult带聚
 |---|---|---|
 | quotes | 0x122B bitmap/rows及1..80 checked query/owner/meta/raw | 最终统一验证 |
 | quote_list | 0x122C rows、Category/SortType/FilterMask、80分页、board alias | 最终统一验证 |
-| bars | 0x122E四flag/36B记录、u32目标/700分页、秒级时间/整页前插/raw映射 | T26复权修复与最终验证 |
+| bars | 0x122E四flag/36B记录、u32目标/700分页、秒级时间/整页前插/raw映射及QFQ修复 | 最终统一验证 |
 | tick_chart | 0x122D18B tick +120B tail、checked id/date/owner | 最终统一验证 |
 | tick_charts | 0x123E14B tick/5日期/短首日、checked days/date/owner | 最终统一验证 |
 | chart_sampling | 0x254D count/float bits、owner/meta | 最终统一验证 |
@@ -62,9 +64,9 @@ Quote/Bar/Transaction/BoardInfo/Unusual带逐响应共享meta；PageResult带聚
 | boards | 0x1231配对160B记录、BoardType/分页；只以空页证明结束 | 最终统一验证 |
 | board_members | 0x122C bitmap/rows、BoardSymbol/80分页；Instrument alias | 最终统一验证 |
 | belonging_boards | 0x1218 flag1/27B prefix/GBK JSON、<=8B代码/owner | 最终统一验证 |
-| board_summary | 基础members/fields | T26全成员聚合 |
-| board_ranking | 基础boards/members | T26全候选聚合再稳定排序/topN |
-| board_change_ranking | 基础boards/bars | T26完整历史、缺历史诊断和稳定排序 |
+| board_summary | 基础members/fields及All目标/全成员聚合、缺失覆盖/未知槽/单位 | 最终统一验证 |
+| board_ranking | 完整候选目录、所有金额/成交量汇总后稳定排序；None全候选/未知排后 | 最终统一验证 |
+| board_change_ranking | 完整N个不同日期间隔、向旧分页、重复/缺历史证据及稳定排序 | 最终统一验证；T27保留旧短窗口 |
 | capital_flow | 0x1218 flag2独立双表/Presence、checked请求/owner | 最终统一验证，不能套Python默认0 |
 | auction | 0x123D16B有符号unmatched、checked id/固定500请求 | 最终统一验证 |
 | unusual | 0x1237记录/文本suffix、单页min目标/页限额/600，未满目标Unknown | 最终统一验证，无隐式EOF |

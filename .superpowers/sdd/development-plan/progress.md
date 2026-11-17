@@ -2,6 +2,21 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage83: QFQ commit95721fc. Authored MAC
+  board_summary/board_ranking/board_change_ranking, private-field public DTOs,
+  all-member and full-candidate six-metric stable ranking, optional top None,
+  missing/nonfinite diagnostics/native units/u64 volume, older target history
+  and complete distinct-date intervals with duplicate provenance. All directory,
+  member/history pages share parent page/record/byte/deadline limits. One common
+  bars_page and existing percentage arithmetic; raw payload order retained while
+  rank row references select actual returned board occurrences. Added16 public
+  extended_boards function sources including cancellation/close partial-frame,
+  all unexecuted. MAC22/23 now connected; T26 remains partial. Next same-source
+  downloads, MAC-EX catalog/cache/macro/all7 remaining methods and loopback,
+  T25 remaining coverage/real login evidence, fullT27-T30/final verification.
+  Counts23 source-complete/3 partial/4 unstarted, active unlimited. No agents,
+  publication or execution checks. Read task-26-report Stage2 next.
+
 - Latest recovery2026-11-17 stage82: helper base0ec8907. Authored MAC/MAC-EX
   QFQ composition, None refetch, explicit XdxrProvider/Batch/Context and parent
   source-attempt authorization, original-price fallback diagnostics and strict
