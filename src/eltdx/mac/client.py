@@ -540,53 +540,12 @@ class MacClient:
         """
 
         from .bitmap import FieldBit
+        from eltdx._native_abi import load_native
 
-        fields = (
-            PresetField.BASIC
-            + FieldBit.AMOUNT
-            + FieldBit.MAIN_NET_AMOUNT
-            + FieldBit.MAIN_NET_3D_AMOUNT
-            + FieldBit.MAIN_NET_5D_AMOUNT
+        return load_native().mac_board_summary(
+            self, board_symbol, sort_type, sort_order, FieldBit,
+            lambda values: (value for value in values), _MODULES[__name__],
         )
-        members = self.get_board_members(
-            board_symbol,
-            sort_type=sort_type,
-            sort_order=sort_order,
-            fields=fields,
-        )
-
-        def _f(field: str) -> float:
-            return float(sum(float(q.fields.get(field, 0.0) or 0.0) for q in members))
-
-        amount = _f("amount")
-        main_net_amount = _f("main_net_amount")
-        main_net_3d = _f("main_net_3d_amount")
-        main_net_5d = _f("main_net_5d_amount")
-        vol = int(sum(int(q.fields.get("vol", 0) or 0) for q in members))
-        up_count = sum(
-            1
-            for q in members
-            if float(q.fields.get("close", 0.0) or 0.0)
-            > float(q.fields.get("pre_close", 0.0) or 0.0)
-        )
-        down_count = sum(
-            1
-            for q in members
-            if float(q.fields.get("close", 0.0) or 0.0)
-            < float(q.fields.get("pre_close", 0.0) or 0.0)
-        )
-
-        return {
-            "member_count": len(members),
-            "amount": amount,
-            "vol": vol,
-            "main_net_amount": main_net_amount,
-            "main_net_3d": main_net_3d,
-            "main_net_5d": main_net_5d,
-            "up_count": up_count,
-            "down_count": down_count,
-            "members": members,
-        }
 
     def get_board_ranking(
         self,
@@ -620,52 +579,20 @@ class MacClient:
             这是拿到正确排名的必要代价，不是可以优化掉的。
         """
 
-        valid_sort = {"change_pct", "amount", "main_net_amount", "vol"}
-        if sort_by not in valid_sort:
-            raise ValueError(f"sort_by 必须是 {valid_sort} 之一， got {sort_by!r}")
+        from eltdx._native_abi import load_native
 
-        boards = self.get_board_list(board_type)
-        if not boards:
-            return []
-
-        change_by_code: dict[str, float] = {}
-        for board in boards:
-            pre = board.pre_close if board.pre_close else float("nan")
-            change_by_code[board.code] = (
-                (board.price - board.pre_close) / pre * 100 if pre == pre else 0.0
-            )
-
-        rows: list[dict[str, object]] = []
-        if sort_by == "change_pct":
-            # 涨跌幅不需要额外请求即可排序：先截断再聚合，避免无谓的网络开销。
-            ordered = sorted(
-                boards,
-                key=lambda b: change_by_code[b.code],
-                reverse=not ascending,
-            )[:top_n]
-            rows = [self._board_row(board, change_by_code[board.code]) for board in ordered]
-            return rows
-
-        # 其余指标只有聚合成分股后才知道，必须对**全部**板块求值再排序。
-        rows = [self._board_row(board, change_by_code[board.code]) for board in boards]
-        rows.sort(key=lambda row: float(row.get(sort_by, 0.0) or 0.0), reverse=not ascending)
-        return rows[:top_n]
+        return load_native().mac_board_ranking(
+            self, (board_type, top_n, sort_by, ascending),
+            lambda changes: lambda board: changes[board.code],
+            lambda project: lambda value: project(value), _MODULES[__name__],
+        )
 
     def _board_row(self, board: BoardInfo, change_pct: float) -> dict[str, object]:
         """聚合单个板块的成分股数据，产出排行榜的一行。"""
 
-        summary = self.get_board_summary(board.code)
-        return {
-            "code": board.code,
-            "name": board.name,
-            "change_pct": round(change_pct, 2),
-            "amount": summary["amount"],
-            "vol": summary["vol"],
-            "main_net_amount": summary["main_net_amount"],
-            "up_count": summary["up_count"],
-            "down_count": summary["down_count"],
-            "member_count": summary["member_count"],
-        }
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_board_row(self, board, change_pct, _MODULES[__name__])
 
     def get_board_change_ranking(
         self,
@@ -680,60 +607,13 @@ class MacClient:
         对每个板块获取日 K 线，计算指定日期前 N 个交易日的涨跌幅并排行。
         """
 
-        if days < 1:
-            raise ValueError(f"days 必须 >= 1，got {days}")
+        from eltdx._native_abi import load_native
 
-        boards = self.get_board_list(board_type)
-        if not boards:
-            return []
-
-        fetch_count = days + 10  # 缓冲节假日
-        target = _ymd_to_date(target_date)
-
-        rows: list[dict[str, object]] = []
-        for board in boards:
-            try:
-                bars = self.get_stock_kline(
-                    market=board.market,
-                    code=board.code,
-                    period=Period.DAILY,
-                    count=fetch_count,
-                    adjust=Adjust.NONE,
-                )
-            except TransportError:
-                continue
-            bars = sorted(bars, key=lambda bar: bar.datetime)
-            if len(bars) < 2:
-                continue
-
-            if target is not None:
-                eligible = [i for i, bar in enumerate(bars) if bar.datetime.date() <= target]
-                if not eligible:
-                    continue
-                end_pos = eligible[-1]
-            else:
-                end_pos = len(bars) - 1
-
-            start_pos = max(0, end_pos - days)
-            close_end = bars[end_pos].close
-            close_start = bars[start_pos].close
-            if close_start == 0:
-                continue
-
-            rows.append(
-                {
-                    "code": board.code,
-                    "name": board.name,
-                    "close_end": close_end,
-                    "close_start": close_start,
-                    "change_pct": round((close_end - close_start) / close_start * 100, 2),
-                }
-            )
-
-        rows.sort(key=lambda row: float(row["change_pct"]), reverse=not ascending)
-        if top_n is not None:
-            rows = rows[:top_n]
-        return rows
+        return load_native().mac_board_change_ranking(
+            self, (board_type, target_date, days, top_n, ascending),
+            lambda bar: bar.datetime, lambda project: lambda value: project(value),
+            _MODULES[__name__],
+        )
 
     # ------------------------------------------------------------------ #
     # 资金流向 / 集合竞价 / 异动

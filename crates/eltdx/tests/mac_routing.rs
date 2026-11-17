@@ -133,3 +133,14 @@ fn shared_board_plan_preserves_decision_short_circuit_and_error() {
     assert_eq!(seen,["US","HK","88","399","899"]);
     assert_eq!(board_code_plan::<&str>(|_| Ok(false),|| Err("custom length failure")),Err("custom length failure"));
 }
+
+#[test]
+fn shared_board_aggregate_registry_keeps_source_bits_and_legacy_names() {
+    use eltdx::mac::python_legacy::BOARD_MONEY_AGGREGATES;
+    assert_eq!(BOARD_MONEY_AGGREGATES,[(7,"amount","amount"),(56,"main_net_amount","main_net_amount"),
+        (111,"main_net_3d_amount","main_net_3d"),(112,"main_net_5d_amount","main_net_5d")]);
+    for (bit,_,_) in BOARD_MONEY_AGGREGATES {
+        let field = bitmap::definition(FieldId::new(bit).unwrap()).unwrap();
+        assert_eq!(field.kind,SlotKind::F32);
+    }
+}

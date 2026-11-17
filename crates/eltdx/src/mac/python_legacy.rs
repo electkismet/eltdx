@@ -1,6 +1,14 @@
 //! Shared paging arithmetic with caller-defined numeric/limit policy.
 //! This module contains no Python types or runtime dependency.
 
+/// Input bit, legacy quote field, and aggregate name. Both public surfaces
+/// use this registry; their missing-value and iteration policies differ.
+#[doc(hidden)]
+pub const BOARD_MONEY_AGGREGATES: [(u8,&str,&str);4] = [
+    (7,"amount","amount"),(56,"main_net_amount","main_net_amount"),
+    (111,"main_net_3d_amount","main_net_3d"),(112,"main_net_5d_amount","main_net_5d"),
+];
+
 #[doc(hidden)]
 pub fn remaining_page_with<T,E>(target: &T, consumed: &T,
     subtract: impl FnOnce(&T,&T) -> std::result::Result<T,E>,

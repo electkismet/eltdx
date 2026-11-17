@@ -87,7 +87,7 @@ impl BoardChangeRank {
 
 pub(crate) fn summary(owner: &MacOwner, context: &OperationContext, query: &BoardSummaryQuery) -> Result<BoardSummary> {
     let mut fields = FieldSelection::preset(PresetField::Basic);
-    for bit in [7,56,111,112] { fields.insert(FieldId::new(bit)?); }
+    for (bit,_,_) in super::python_legacy::BOARD_MONEY_AGGREGATES { fields.insert(FieldId::new(bit)?); }
     let members = collect::quote_list(owner,context,ListPlan {
         code: query.board().wire_code(),start: 0,target: Target::All,fields: &fields,
         sort: query.sort(),order: query.order(),exclude: super::FilterMask::empty(),
@@ -101,7 +101,7 @@ pub(crate) fn summary(owner: &MacOwner, context: &OperationContext, query: &Boar
 fn summarize(context: &OperationContext, members: Collection<Quote>) -> Result<BoardSummary> {
     let mut vol = 0_u64; let mut sums = [0.0_f64;4]; let mut missing = [0_usize;6];
     let mut nonfinite = [0_usize;4]; let mut up = 0_u32; let mut down = 0_u32;
-    let mut extra = Vec::new(); let bits = [7,56,111,112];
+    let mut extra = Vec::new(); let bits = super::python_legacy::BOARD_MONEY_AGGREGATES.map(|(bit,_,_)| bit);
     let member_count = u32::try_from(members.rows.len()).map_err(|_| limit("board member count exceeds u32"))?;
     for (index,quote) in members.rows.iter().enumerate() {
         if index % 256 == 0 { context.check_boundary(TimeoutPhase::Aggregate)?; }

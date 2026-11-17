@@ -1,5 +1,49 @@
 # T27 implementation report
 
+## Stage 4 — MAC board summary and both rankings (2026-11-17, stage91)
+
+Stage3 committed997ae40. Authored extension_boards.rs and four native
+entries, replacing Python get_board_summary, get_board_ranking, _board_row
+and get_board_change_ranking business bodies with thin delegates. Strict
+board aggregation and legacy summary now share BOARD_MONEY_AGGREGATES;
+both ranking projections reuse the existing shared percentage arithmetic.
+Pure Rust remains independent of Python and preserves its stricter missing,
+finite, interval, budget and source-evidence policies.
+
+Legacy summary retains the original member object, dictionary key order,
+four money passes followed by volume/up/down passes, captured outer float/
+int/sum, live per-element conversions and original lazy generators. The
+small Python generator and lambda shells contain only iteration/object
+access/call forwarding; the predicates, aggregation, selection and sorting
+decisions are native. Body StopIteration becomes RuntimeError with cause.
+Changes retain duplicate-code last-value semantics, zero/NaN references,
+stable sorting, original custom hooks and unrestricted Python slice end.
+Change ranking truncates before summaries; amount/volume/net ranking
+aggregates every candidate before truncation.
+
+History retains days validation before I/O, empty-board early return before
+target conversion, days+10 requests, TransportError-only skipping, stable
+datetime sorting, last eligible occurrence including duplicate source dates,
+short available intervals, zero-start skip, round2 and late top_n slicing.
+No strict complete-distinct-day or finite-price policy leaks into Python.
+
+Added tests/test_native_extension_boards_contract.py with15 public test
+function sources(one parametrized), and one shared registry Rust function.
+Three new extension contract files now contain61 Python public test function
+sources. All uncollected/uncompiled/unrun. Authored cases cover lazy/live
+seven-pass evaluation, captured conversions, generator causes, output and
+member identity, duplicates, pre/post aggregation, stable ties, None/negative/
+custom slice, validation order, dynamic sort lambdas, history errors/short
+windows/duplicate dates and custom enumerate indices. Runtime ABI, PyO3
+signatures and actual wheel behavior still await the final gate.
+
+Counts remain25 source-complete/2 partial(T19/T27)/3 unstarted(T28-T30).
+Next EX/MAC-EX business/catalog/macro/HK, commands/parser, transport/owner/
+generation/config, full manifest/export/adapter evidence and installed-wheel
+consumer. Then T28-T30/T19 source closure and unified verification/fixes.
+No verification execution, agents, publication or controller edits. Goal
+active without quota; recovery commit is source preservation, not acceptance.
+
 ## Stage 3 — MAC paging, QFQ and download orchestration (2026-11-17, stage90)
 
 Stage2 committed48b7f07. Added extension_client.rs and four native

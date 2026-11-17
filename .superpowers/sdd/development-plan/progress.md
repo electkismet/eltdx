@@ -2,6 +2,21 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage91: Stage3 committed997ae40. Authored
+  native MAC board summary/realtime/history rankings and _board_row; four
+  Python methods now delegate. Strict/legacy share money-field registry
+  and percentage arithmetic. Keep seven lazy live summary passes/original
+  members, last duplicate-code change, pretruncate change vs postaggregate
+  money, stable sorting/unrestricted slices, days validation/empty early
+  return, TransportError-only skip and shortened duplicate-date history.
+  Added15 Python function sources(one parametrized)/1 Rust registry case;
+  three new extension contract files contain61 functions, all unexecuted.
+  Read task-27-report Stage4. Next full EX/MAC-EX/catalog/macro/HK, commands/
+  parsers/transport/generation/config/manifest/consumer. Counts25 complete
+  source/2 partial/3 unstarted. Unlimited active goal; no tests/build/check/
+  collection/dependencies/network/compiler/AST/format/diff checks, agents,
+  publication or controller edits. Continue all source then unified checks.
+
 - Latest recovery2026-11-17 stage90: Stage2 committed48b7f07. Authored native
   MAC five-mode paging, QFQ refetch/provider/late alignment and whole-file
   download orchestration. Eight Python methods now delegate; strict and
