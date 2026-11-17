@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import struct
 from collections import OrderedDict
+from sys import modules as _MODULES
 
 from eltdx.ex.commands.base import BaseCommand
 
@@ -18,29 +19,14 @@ class GetExInstrumentQuoteListCmd(BaseCommand[list[OrderedDict[str, object]]]):
         start: int = 0,
         count: int = 80,
     ) -> None:
-        if category not in (2, 3):
-            raise ValueError(f"不支持的扩展行情类别: {category}")
-        if start < 0:
-            raise ValueError(f"start 必须 >= 0，当前: {start}")
-        if count <= 0:
-            raise ValueError(f"count 必须 > 0，当前: {count}")
-        self.market = market
-        self.category = category
-        self.start = start
-        self.count = count
+        from eltdx._native_abi import load_native
+        load_native().ex_command_init("quotes", self, (market, category, start, count), _MODULES[__name__])
 
     def build_request(self) -> bytes:
         """构造请求包。"""
 
-        header = bytes.fromhex("01 c1 06 0b 00 02 0b 00 0b 00 00 24")
-        return header + struct.pack(
-            "<BHHHH",
-            self.market,
-            0,
-            self.start,
-            self.count,
-            1,
-        )
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_build("quotes", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[OrderedDict[str, object]]:
         """解析商品列表行情响应。"""

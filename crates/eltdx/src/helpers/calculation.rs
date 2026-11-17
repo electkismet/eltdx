@@ -9,6 +9,19 @@ pub fn ymd_parts_with<T,E>(value: &T,
     Ok((year(value)?,month(value)?,day(value)?))
 }
 
+/// Packed EX dates have a caller-specific year operation (shift for minute
+/// stamps, floor division for range rows). Preserve all three evaluation steps.
+pub fn packed_date_parts_with<T,E>(value: &T,
+    year: impl FnOnce(&T) -> Result<T,E>,month: impl FnOnce(&T) -> Result<T,E>,
+    day: impl FnOnce(&T) -> Result<T,E>) -> Result<(T,T,T),E> {
+    Ok((year(value)?,month(value)?,day(value)?))
+}
+
+pub fn clock_parts_with<T,E>(value: &T,hour: impl FnOnce(&T) -> Result<T,E>,
+    minute: impl FnOnce(&T) -> Result<T,E>) -> Result<(T,T),E> {
+    Ok((hour(value)?,minute(value)?))
+}
+
 pub fn turnover_with<T, E>(volume: T, shares: &T,
     mut multiply_hundred: impl FnMut(T) -> Result<T, E>,
     divide: impl FnOnce(T, &T) -> Result<T, E>) -> Result<T, E> {
@@ -75,6 +88,31 @@ pub fn share_source_names(total: bool, circulating: bool, free_float: bool) -> V
 #[cfg(test)]
 mod source_cases {
     use super::*;
+
+    #[test]
+    fn packed_projection_preserves_unvalidated_components_and_error_identity() {
+        use std::cell::RefCell;
+        let steps = RefCell::new(Vec::new());
+        let raw = 22_u32*2048+1399;
+        let result = packed_date_parts_with::<_,&str>(&raw,
+            |raw| { steps.borrow_mut().push("year"); Ok((raw>>11)+2004) },
+            |raw| { steps.borrow_mut().push("month"); Ok((raw%2048)/100) },
+            |raw| { steps.borrow_mut().push("day"); Ok((raw%2048)%100) }).unwrap();
+        assert_eq!(result,(2026,13,99));
+        assert_eq!(*steps.borrow(),["year","month","day"]);
+        let failure = "month arithmetic";
+        assert_eq!(packed_date_parts_with::<_,&str>(&raw,|_| Ok(2026),|_| Err(failure),
+            |_| panic!("month failed")),Err(failure));
+    }
+
+    #[test]
+    fn clock_projection_has_no_implicit_day_wrap_and_stops_after_hour_error() {
+        for (raw,expected) in [(0,(0,0)),(59,(0,59)),(60,(1,0)),(1439,(23,59)),(1441,(24,1))] {
+            assert_eq!(clock_parts_with::<_,() >(&raw,|raw| Ok(raw/60),|raw| Ok(raw%60)),Ok(expected));
+        }
+        assert_eq!(clock_parts_with::<_,&str>(&1,|_| Err("hour arithmetic"),
+            |_| panic!("hour failed")),Err("hour arithmetic"));
+    }
 
     #[test]
     fn ymd_projection_keeps_order_and_stops_on_original_error() {

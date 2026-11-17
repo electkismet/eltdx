@@ -22,48 +22,48 @@ fn identity(id: &ExInstrumentId) -> Vec<u8> {
     let mut body = Vec::with_capacity(10);
     body.push(id.market().get()); body.extend_from_slice(&id.code().wire_bytes()); body
 }
-pub fn markets_request() -> Request { request([1,2,0x48,0x69,0,1,2,0,2,0,0xf4,0x23], &[]) }
-pub fn instrument_count_request() -> Request { request([1,3,0x48,0x66,0,1,2,0,2,0,0xf0,0x23], &[]) }
+pub fn markets_request() -> Request { request(super::layout::MARKETS, &[]) }
+pub fn instrument_count_request() -> Request { request(super::layout::COUNT, &[]) }
 pub fn instruments_request(query: &InstrumentsQuery) -> Request {
     let mut body = query.start().to_le_bytes().to_vec(); body.extend_from_slice(&query.count().get().to_le_bytes());
-    request([1,4,0x48,0x67,0,1,8,0,8,0,0xf5,0x23], &body)
+    request(super::layout::INFO, &body)
 }
 pub fn quote_request(query: &QuoteQuery) -> Request {
-    request([1,1,8,2,2,1,12,0,12,0,0xfa,0x23], &identity(query.id()))
+    request(super::layout::QUOTE, &identity(query.id()))
 }
 pub fn quote_list_request(query: &QuoteListQuery) -> Request {
     // Category affects response interpretation, not the source request layout.
     let mut body = vec![query.market().get(), 0, 0];
     body.extend_from_slice(&query.start().to_le_bytes()); body.extend_from_slice(&query.count().get().to_le_bytes());
     body.extend_from_slice(&1_u16.to_le_bytes());
-    request([1,0xc1,6,0x0b,0,2,11,0,11,0,0,0x24], &body)
+    request(super::layout::QUOTES, &body)
 }
 pub fn bars_request(query: &BarsQuery) -> Request {
     let mut body = identity(query.id()); body.extend_from_slice(&query.period().wire().to_le_bytes());
     body.extend_from_slice(&1_u16.to_le_bytes()); body.extend_from_slice(&query.start().to_le_bytes());
     body.extend_from_slice(&query.count().get().to_le_bytes());
-    request([1,1,8,0x6a,1,1,22,0,22,0,0xff,0x23], &body)
+    request(super::layout::BARS, &body)
 }
 pub fn bars_range_request(query: &BarsRangeQuery, sequence: &super::frame::SequenceLease<'_>) -> Request {
     let mut body = identity(query.id()); body.extend_from_slice(&7_u16.to_le_bytes());
     body.extend_from_slice(&encode_date(query.start_date()).to_le_bytes()); body.extend_from_slice(&encode_date(query.end_date()).to_le_bytes());
-    request([1,sequence.sequence(),0x38,0x92,0,1,22,0,22,0,0x0d,0x24], &body)
+    let mut header = super::layout::RANGE; header[1] = sequence.sequence(); request(header, &body)
 }
 pub fn minutes_request(query: &MinutesQuery) -> Request {
-    request([1,7,8,0,1,1,12,0,12,0,0x0b,0x24], &identity(query.id()))
+    request(super::layout::MINUTE, &identity(query.id()))
 }
 pub fn history_minutes_request(query: &HistoryMinutesQuery) -> Request {
     let mut body = encode_date(query.date()).to_le_bytes().to_vec(); body.extend_from_slice(&identity(query.id()));
-    request([1,1,0x30,0,1,1,16,0,16,0,0x0c,0x24], &body)
+    request(super::layout::HISTORY_MINUTE, &body)
 }
 pub fn transactions_request(query: &TransactionsQuery) -> Request {
     let mut body = identity(query.id()); body.extend_from_slice(&query.start().to_le_bytes()); body.extend_from_slice(&query.count().get().to_le_bytes());
-    request([1,1,8,0,3,1,18,0,18,0,0xfc,0x23], &body)
+    request(super::layout::TRANSACTIONS, &body)
 }
 pub fn history_transactions_request(query: &HistoryTransactionsQuery) -> Request {
     let mut body = encode_date(query.date()).to_le_bytes().to_vec(); body.extend_from_slice(&identity(query.id()));
     body.extend_from_slice(&query.start().to_le_bytes()); body.extend_from_slice(&query.count().get().to_le_bytes());
-    request([1,1,0x30,0,2,1,22,0,22,0,6,0x24], &body)
+    request(super::layout::HISTORY_TRANSACTIONS, &body)
 }
 
 fn slice(data: &[u8], offset: usize, len: usize) -> Result<&[u8]> {

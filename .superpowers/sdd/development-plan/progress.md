@@ -2,6 +2,20 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage95: basec48a967. Registered EX layout and
+  shared all11 request headers with strict Rust; EX constructors/builders,
+  class range sequence and MAC-EX login now native delegates. Both EX/MAC
+  binary guard/preparation/slice policy and EX datetime/date/clock helpers
+  migrated, preserving original live hooks/arbitrary values/validation and
+  capture/assignment order, UTF-8/struct errors, dynamic wrap, heuristic login,
+  except context/cause and nonvalidated dates. Explicit struct/except shell
+  remains the Python object adapter. Added22 Python functions(7 parametrized)
+  and2 Rust scalar functions; seven new contracts total140 Python functions,
+  all unexecuted. Read task-27-report Stage8. Next full EX/MAC parsers/commands/
+  codec/transport/owner/generation/config/manifest/consumer, then T28-T30/T19
+  source closure and unified verification.25/2/3 unchanged; unlimited active
+  goal, no verification execution, agents/publication/controller-state edits.
+
 - Latest recovery2026-11-17 stage94: basecbb78cd. All8 shared _bar_time
   functions and MAC _ymd_to_date now native delegates; public constants/
   tables stay object adapters. Strict EX/MAC and Python share YYYYMMDD

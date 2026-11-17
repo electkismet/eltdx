@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from sys import modules as _MODULES
 
 from eltdx.ex.commands.base import BaseCommand
 from eltdx.ex.models import ExInstrumentQuote
@@ -12,16 +13,14 @@ class GetExInstrumentQuoteCmd(BaseCommand[ExInstrumentQuote | None]):
     """获取单个商品的五档实时行情。"""
 
     def __init__(self, market: int, code: str) -> None:
-        if not code:
-            raise ValueError("code 不能为空")
-        self.market = market
-        self.code = code.encode("utf-8")
+        from eltdx._native_abi import load_native
+        load_native().ex_command_init("quote", self, (market, code), _MODULES[__name__])
 
     def build_request(self) -> bytes:
         """构造请求包。"""
 
-        header = bytes.fromhex("01 01 08 02 02 01 0c 00 0c 00 fa 23")
-        return header + struct.pack("<B9s", self.market, self.code)
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_build("quote", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> ExInstrumentQuote | None:
         """解析五档报价响应。"""

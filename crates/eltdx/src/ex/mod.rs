@@ -12,6 +12,7 @@ pub mod commands;
 pub mod config;
 pub mod frame;
 pub mod hosts;
+pub mod layout;
 pub mod models;
 pub mod query;
 pub mod time;

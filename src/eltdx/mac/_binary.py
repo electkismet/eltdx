@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import struct
+from sys import modules as _MODULES
 from typing import Any
 
 from ..exceptions import ProtocolError
@@ -20,14 +21,8 @@ def require_bytes(
 ) -> None:
     """确保从 ``pos`` 起至少还能读取 ``size`` 字节，否则抛出 :class:`ProtocolError`。"""
 
-    if pos < 0:
-        raise ProtocolError(f"{context}: 非法偏移 {pos}")
-    end = pos + size
-    if end > len(data):
-        remaining = max(len(data) - pos, 0)
-        raise ProtocolError(
-            f"{context}: 数据不足，需要 {size} 字节，偏移 {pos}，实际剩余 {remaining} 字节"
-        )
+    from eltdx._native_abi import load_native
+    load_native().extension_require_bytes(data, pos, size, context, _MODULES[__name__])
 
 
 def unpack_from(
@@ -38,11 +33,13 @@ def unpack_from(
 ) -> tuple[Any, ...]:
     """带边界检查的 ``struct.unpack_from``。"""
 
-    require_bytes(data, pos, struct.calcsize(fmt), context)
+    from eltdx._native_abi import load_native
+    load_native().extension_prepare_unpack(fmt, data, pos, context, _MODULES[__name__])
+    # Keep the struct buffer hook and active-exception semantics in Python.
     try:
         return struct.unpack_from(fmt, data, pos)
     except struct.error as exc:  # pragma: no cover - require_bytes 已覆盖大部分路径
-        raise ProtocolError(f"{context}: 解析失败: {exc}") from exc
+        raise load_native().extension_unpack_error(context, exc, _MODULES[__name__]) from exc
 
 
 def slice_bytes(
@@ -53,5 +50,5 @@ def slice_bytes(
 ) -> bytes:
     """带边界检查的切片读取。"""
 
-    require_bytes(data, pos, size, context)
-    return bytes(data[pos : pos + size])
+    from eltdx._native_abi import load_native
+    return load_native().extension_slice_bytes(data, pos, size, context, _MODULES[__name__])

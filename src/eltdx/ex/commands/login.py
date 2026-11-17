@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from sys import modules as _MODULES
 
 from eltdx.ex.commands.base import BaseCommand
 
@@ -34,14 +35,14 @@ class MacExLoginCmd(BaseCommand[bool]):
     def build_request(self) -> bytes:
         """构造登录请求包（head_flag=0x01）。"""
 
-        inner = struct.pack("<H", _MSG_ID) + _LOGIN_BODY
-        header = struct.pack(_HEADER_FMT, _HEAD_FLAG, 0, 1, len(inner), len(inner))
-        return header + inner
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_build("login", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> bool:
         """登录响应 body 非空即视为成功。"""
 
-        return len(body) >= 2
+        from eltdx._native_abi import load_native
+        return load_native().ex_login_parse(body, _MODULES[__name__])
 
 
 __all__ = ["MacExLoginCmd"]

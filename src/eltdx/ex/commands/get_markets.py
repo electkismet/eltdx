@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from sys import modules as _MODULES
 
 from eltdx.ex._binary import slice_bytes
 from eltdx.ex.commands.base import BaseCommand
@@ -15,7 +16,8 @@ class GetExMarketsCmd(BaseCommand[list[ExMarketInfo]]):
     def build_request(self) -> bytes:
         """构造请求包。"""
 
-        return bytes.fromhex("01 02 48 69 00 01 02 00 02 00 f4 23")
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_build("markets", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[ExMarketInfo]:
         """解析市场列表响应。"""

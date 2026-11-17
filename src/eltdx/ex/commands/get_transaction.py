@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from sys import modules as _MODULES
 
 from eltdx.ex.commands.base import BaseCommand
 from eltdx.ex.models import ExTransactionRecord
@@ -12,22 +13,14 @@ class GetExTransactionDataCmd(BaseCommand[list[ExTransactionRecord]]):
     """获取当日分笔成交数据。"""
 
     def __init__(self, market: int, code: str, start: int = 0, count: int = 1800) -> None:
-        if not code:
-            raise ValueError("code 不能为空")
-        if start < 0:
-            raise ValueError(f"start 必须 >= 0，当前: {start}")
-        if count <= 0:
-            raise ValueError(f"count 必须 > 0，当前: {count}")
-        self.market = market
-        self.code = code.encode("utf-8")
-        self.start = start
-        self.count = count
+        from eltdx._native_abi import load_native
+        load_native().ex_command_init("transactions", self, (market, code, start, count), _MODULES[__name__])
 
     def build_request(self) -> bytes:
         """构造请求包。"""
 
-        header = bytes.fromhex("01 01 08 00 03 01 12 00 12 00 fc 23")
-        return header + struct.pack("<B9siH", self.market, self.code, self.start, self.count)
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_build("transactions", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[ExTransactionRecord]:
         """解析当日分笔成交响应。"""
@@ -75,30 +68,14 @@ class GetExHistoryTransactionDataCmd(BaseCommand[list[ExTransactionRecord]]):
         start: int = 0,
         count: int = 1800,
     ) -> None:
-        if not code:
-            raise ValueError("code 不能为空")
-        if start < 0:
-            raise ValueError(f"start 必须 >= 0，当前: {start}")
-        if count <= 0:
-            raise ValueError(f"count 必须 > 0，当前: {count}")
-        self.market = market
-        self.code = code.encode("utf-8")
-        self.date = date
-        self.start = start
-        self.count = count
+        from eltdx._native_abi import load_native
+        load_native().ex_command_init("history_transactions", self, (market, code, date, start, count), _MODULES[__name__])
 
     def build_request(self) -> bytes:
         """构造请求包。"""
 
-        header = bytes.fromhex("01 01 30 00 02 01 16 00 16 00 06 24")
-        return header + struct.pack(
-            "<IB9siH",
-            self.date,
-            self.market,
-            self.code,
-            self.start,
-            self.count,
-        )
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_build("history_transactions", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[ExTransactionRecord]:
         """解析历史分笔成交响应。"""

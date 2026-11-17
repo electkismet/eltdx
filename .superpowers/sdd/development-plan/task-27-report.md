@@ -1,5 +1,52 @@
 # T27 implementation report
 
+## Stage 8 — EX wire requests and binary/date adapters (2026-11-17, stage95)
+
+Basec48a967. Resumed with two unfinished source files: EX layout registry and
+strict command references. Registered public ex::layout and authored
+extension_commands.rs, sharing all11 literal headers with strict request
+codecs. The11 EX command builders, their9 argument-bearing constructors,
+range sequence/date/time helpers and MAC-EX login builder/parser now delegate.
+This is source migration, not compilation or protocol acceptance.
+
+Preserve code/category/page validation order, original ValueError constructor
+and f-string capture, arbitrary Python values and UTF-8 encoding/struct's
+9-byte truncation and original struct.error. Keep assignment order and object
+identity, live bytes/bytearray/struct hooks and pack-before-attribute capture.
+Range state stays class-level with original dynamic type/maximum/minimum,
+1..255 wrap and overridden _next_seqid. Login retains module constants, two
+live len calls and len(body)>=2 comparison object; the heuristic remains
+legacy-only and is not production LoginReplyRules evidence.
+
+Authored extension_binary.rs. Both EX/MAC guards, preparation and slices now
+use native helpers; original struct buffer call and except/raise shell remain
+explicit Python adapters so sys.exc_info, __context__, original __cause__,
+exception matching/constructor/format hooks remain observable. Guard is outside
+the try, captured before calcsize, with original two live lengths and max
+capture; bytes is captured before end arithmetic and intrinsic slicing.
+EX datetime's three functions now delegate, sharing YYYYMMDD, packed-date and
+clock projection primitives with strict Rust while retaining arbitrary ints,
+negative/custom categories, shift-vs-floor arithmetic, no Gregorian/clock
+validation, live helper return identity, unpack arity and same pos+4 behavior.
+
+Added tests/test_native_extension_commands_contract.py with22 public function
+sources(7 parametrized); the header table has10 direct command rows plus the
+separate range fixture. Covers constructors/wire hooks/sequence/state/login,
+all binary guards/cause/context/ordering, date/clock/custom arithmetic and
+arity/identity. Added2 Rust scalar fixture functions. Seven new extension
+contract files now total140 Python public function sources. All sources remain
+uncompiled/uncollected/unexecuted; no test/build/check/network/AST/format/diff
+validation or dependency operation was performed. Source reading corrected a
+new temporary loader reference to the established _native_abi.load_native.
+
+Counts25 complete source/2 partial(T19/T27)/3 unstarted(T28-T30), unchanged.
+Next full EX response parsers and MAC command/parser/codec/price helpers, then
+transport/owner/generation/config/host/probe/export/manifest/installed-wheel
+consumer. T27 is not complete. Then T28-T30/T19 source closure, followed by
+unified verification/repairs and actual production login/optional-frame evidence.
+Active unlimited goal; no agents, publication or controller-state edits.
+Recovery commit preserves source only and disables commit hooks.
+
 ## Stage 7 — shared facade bar-time and YYYYMMDD helpers (2026-11-17, stage94)
 
 Stage6 committedcbb78cd. Authored native bar_time.rs; all8 _bar_time.py

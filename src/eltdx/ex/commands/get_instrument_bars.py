@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from sys import modules as _MODULES
 
 from eltdx.ex.commands.base import BaseCommand
 from eltdx.ex.datetime_ import get_datetime
@@ -20,31 +21,14 @@ class GetExInstrumentBarsCmd(BaseCommand[list[ExInstrumentBar]]):
         start: int = 0,
         count: int = 700,
     ) -> None:
-        if not code:
-            raise ValueError("code 不能为空")
-        if start < 0:
-            raise ValueError(f"start 必须 >= 0，当前: {start}")
-        if count <= 0:
-            raise ValueError(f"count 必须 > 0，当前: {count}")
-        self.category = category
-        self.market = market
-        self.code = code.encode("utf-8")
-        self.start = start
-        self.count = count
+        from eltdx._native_abi import load_native
+        load_native().ex_command_init("bars", self, (category, market, code, start, count), _MODULES[__name__])
 
     def build_request(self) -> bytes:
         """构造请求包。"""
 
-        header = bytes.fromhex("01 01 08 6a 01 01 16 00 16 00 ff 23")
-        return header + struct.pack(
-            "<B9sHHIH",
-            self.market,
-            self.code,
-            self.category,
-            1,
-            self.start,
-            self.count,
-        )
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_build("bars", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[ExInstrumentBar]:
         """解析K线响应。"""

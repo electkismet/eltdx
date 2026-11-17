@@ -8,15 +8,18 @@ pub fn time_of_day(minutes: u16, second: u16) -> Result<EventTime> {
             .with_context("raw_minutes", format!("{minutes}"))
             .with_context("raw_seconds", format!("{second}")));
     }
-    EventTime::time_of_day((minutes / 60) as u8, (minutes % 60) as u8, second as u8)
+    let (hour,minute) = crate::helpers::calculation::clock_parts_with::<_,std::convert::Infallible>(&minutes,
+        |raw| Ok(raw/60),|raw| Ok(raw%60)).unwrap_or_else(|never| match never {});
+    EventTime::time_of_day(hour as u8, minute as u8, second as u8)
         .map_err(|_| protocol("invalid EX clock")
             .with_context("raw_minutes", format!("{minutes}"))
             .with_context("raw_seconds", format!("{second}")))
 }
 pub fn packed_date(raw: u16) -> Result<TradingDate> {
-    let year = (raw >> 11) + 2004;
-    let rest = raw % 2048;
-    TradingDate::new(year, (rest / 100) as u8, (rest % 100) as u8)
+    let (year,month,day) = crate::helpers::calculation::packed_date_parts_with::<_,std::convert::Infallible>(&raw,
+        |raw| Ok((raw >> 11) + 2004),|raw| Ok((raw%2048)/100),|raw| Ok((raw%2048)%100))
+        .unwrap_or_else(|never| match never {});
+    TradingDate::new(year, month as u8, day as u8)
         .map_err(|_| protocol("invalid EX packed Gregorian date").with_context("raw_date", format!("{raw}")))
 }
 pub fn day_date(raw: u32) -> Result<TradingDate> {

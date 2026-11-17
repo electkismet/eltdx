@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+from sys import modules as _MODULES
 
 from eltdx.ex.commands.base import BaseCommand
 from eltdx.ex.models import ExInstrumentBar
@@ -19,12 +20,8 @@ class GetExHistoryInstrumentBarsRangeCmd(BaseCommand[list[ExInstrumentBar]]):
     _seqid: int = _SEQID_MIN
 
     def __init__(self, market: int, code: str, start_date: int, end_date: int) -> None:
-        if not code:
-            raise ValueError("code 不能为空")
-        self.market = market
-        self.code = code.encode("utf-8")
-        self.start_date = start_date
-        self.end_date = end_date
+        from eltdx._native_abi import load_native
+        load_native().ex_command_init("range", self, (market, code, start_date, end_date), _MODULES[__name__])
 
     def _next_seqid(self) -> int:
         """取下一个请求序号，到 ``_SEQID_MAX`` 后回绕到 ``_SEQID_MIN``。
@@ -37,31 +34,24 @@ class GetExHistoryInstrumentBarsRangeCmd(BaseCommand[list[ExInstrumentBar]]):
             第 257 次调用必然失败。回绕后可以无限次调用。
         """
 
-        seqid = type(self)._seqid
-        type(self)._seqid = seqid + 1 if seqid < self._SEQID_MAX else self._SEQID_MIN
-        return seqid
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_sequence(self, _MODULES[__name__])
 
     def build_request(self) -> bytes:
         """构造请求包（序号自增并按单字节范围回绕）。"""
 
-        pkg = bytearray.fromhex("01")
-        pkg.extend(struct.pack("<B", self._next_seqid()))
-        pkg.extend(bytearray.fromhex("38 92 00 01 16 00 16 00 0D 24"))
-        pkg.extend(struct.pack("<B9s", self.market, self.code))
-        pkg.extend(bytearray.fromhex("07 00"))
-        pkg.extend(struct.pack("<II", self.start_date, self.end_date))
-        return bytes(pkg)
+        from eltdx._native_abi import load_native
+        return load_native().ex_command_build("range", self, _MODULES[__name__])
 
     @staticmethod
     def _parse_date(num: int) -> tuple[int, int, int]:
-        year = num // 2048 + 2004
-        month = (num % 2048) // 100
-        day = (num % 2048) % 100
-        return year, month, day
+        from eltdx._native_abi import load_native
+        return load_native().ex_date_parts("range", num)
 
     @staticmethod
     def _parse_time(num: int) -> tuple[int, int]:
-        return num // 60, num % 60
+        from eltdx._native_abi import load_native
+        return load_native().ex_date_parts("clock", num)
 
     def parse_response(self, body: bytes) -> list[ExInstrumentBar]:
         """解析历史K线响应。"""

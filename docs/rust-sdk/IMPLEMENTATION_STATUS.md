@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第九十五段恢复点：基础c48a967。EX布局模块注册并让strict与native共用全部11请求头；EX构造器/builders、范围class序号与日期/时间、MAC-EX登录入口迁native。EX/MAC二进制guard/准备/slice及EX日期解码全部接线，保留旧参数/任意整数/编码/struct错误、校验与捕获/赋值顺序、live hooks/序号回绕、legacy登录启发式、异常活动上下文/cause及不验证日历/时钟。Python仅显式保留struct buffer和except/raise适配shell。新增22个Python函数（7个参数化）/2个Rust标量函数源码，七份新增合同共140个Python函数，全部未编译/收集/执行。下一步完整EX/MAC parser/命令/codec及transport/owner/generation/config/清单/consumer，再T28–T30/T19和统一验证；25源码完整/2部分/3未开始不变，目标active无额度上限。恢复读task-27-report Stage8；源码提交不代表验收通过。
+
 2026-11-17第九十四段恢复点：查询/HK段提交cbb78cd。本段8个共用_bar_time函数及MAC日期转换迁native，与strict EX/MAC共用YYYYMMDD分解。保留start原对象/惰性校验/原rich comparison、错误repr与捕获顺序、EX8/MAC8/HQ8差别和重复int、原模块表/hooks/replace/getattr/timedelta、当天回绕vs真实跨日/秒/微秒与日历错误。新增15个Python函数（两个参数化）/1个Rust函数源码，六份新增合同共118个Python函数，全部未执行。完整命令/parser/frame/transport/owner/generation/config/清单/consumer继续，再T28–T30/T19及统一验证。25源码完整/2部分/3未开始不变；目标active无限额，无代理或发布。恢复读task-27-report Stage7。
 
 2026-11-17第九十三段恢复点：目录段提交1af9450，前一目标轮次有93be13d/1af9450实际源码进展。本段native direct dispatcher接入11个EX方法、14个MAC简单入口和MAC-EX直接/报价组合/逐笔路由；全部6个同步HK helper已迁。保留单页/请求形状/execute与构造器捕获、date/unusual/独立7字段、旧忽略sort、先全部提取再过滤、HK秒/量/nature/count0、动态分页/len/range50返回前缀、非正count仍转日期且不新增32请求限制；strict/legacy共用价格除法。新增22个Python函数（三个参数化）/1个Rust函数源码，五份新增合同共103个Python函数，全部未执行。T27仍需bar_time/date、完整命令/parser/transport/owner/generation/config/清单/consumer，再T28–T30/T19和统一验证。25源码完整/2部分/3未开始不变；目标active无限额，无代理或发布。恢复读task-27-report Stage6。
