@@ -155,3 +155,11 @@ pagination-green-attempt01首次已完成扫描，但新增显式cursor测试误
 完成这些修改后，Linux当前stable1.100 full/all-target strict Clippy attempt05实际exit0；Windows MSRV1.89 full/all-target strict Clippy attempt03实际exit0。MSRV full合并SDK/runtime/protocol测试在较早stage129 diff attempt01实际exit0（SDK lib232通过/1 ignored，全部常规集成目标、protocol98、runtime130、deadline5、pin1、30 doctest通过）；其中当前diff的严格lint没有改变业务算法。Windows MSRV及1.100整平台矩阵、Linux MSRV/current-stable full已在最终修订diff运行中，结果以其JSON/日志为准；旧stage129 diff不自动代表最新diff。归档attempt01因未提交工作树被脚本正确拒绝，没有生成任何crate archive。
 
 当前strict lint / Rust1.89 full测试通过。正式archive/外部consumer、两种stable 32-feature矩阵、Loom、候选wheel与本机Python全套、无Python环境、两平台原生压力和84trial性能仍未完成。不得把局部严格lint/full test扩大为统一验收。
+
+## Stage130：最终候选平台复验进行中
+
+2026年11月17日，基线提交 `fe361f967fd061504a530bad6d37b23b8118dd1d`，Windows x64/MSVC 的 Rust 1.100.0 platform attempt01 保存于 `artifacts/unified/stage130-clean-candidate/windows-current-stable-platform-attempt01/`。协议/runtime、minimal/default/full SDK、Serde合同、五组严格rustdoc、全目标严格Clippy均exit0；最后的 `cargo fmt --all --check` 因 `tests/legacy_push.rs` 两条import排序不符而exit1，所以完整矩阵失败，外部consumer门禁未运行。已按rustfmt排序修正；`cargo +stable fmt --all --check` 随后exit0，stable对应rustc 1.100.0。最终平台矩阵仍需在提交后的干净候选重跑。
+
+同候选的Rust-only PATH隔离消费者 attempt01 在 `cargo generate-lockfile` 请求crates.io `config.json` 时连续超时，未进入consumer构建；原始日志和失败状态保留在 `rust-only-path-isolated-attempt01/`。离线attempt02脚本已设为使用任务cache并指定新输出目录，尚未启动。该检查仅能证明PATH不暴露Python可执行文件，不能替代物理隔离的无Python容器。stage130文档元数据、严格MkDocs和站点本地链接检查attempt01均exit0。
+
+下一步：先提交import格式和恢复文档，再在干净提交上以已安装的Rust 1.100 toolchain重跑Windows平台矩阵、MSRV矩阵、归档消费者和离线PATH隔离consumer；随后补最终候选wheel/Python回归、32 feature子集、Loom、Linux行为、两平台默认压力和84 trial性能。以上项目尚未完成，整体验收仍active；macOS、多Python版本、生产协议抓包和物理无Python环境仍是外部证据缺口。

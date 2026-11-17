@@ -3,8 +3,8 @@
 //! Authored compatibility source cases; execution is deferred with the full plan.
 use std::time::{Duration, Instant};
 
-use eltdx::RawPolicy;
 use eltdx::__python_compat::{LegacyChildPurpose, LegacyExecutor};
+use eltdx::RawPolicy;
 use eltdx_protocol::commands::quotes::RefreshStreamRequest;
 use eltdx_protocol::CommandRequest;
 use eltdx_runtime::{Engine, EngineConfig, EngineConfigOptions, RuntimeError};
