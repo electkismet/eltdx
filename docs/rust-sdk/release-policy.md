@@ -1,6 +1,6 @@
 # Rust SDK 与 Python 版本、打包及发布政策
 
-本页规定候选版本与发布边界。T01–T30源码完成后已进入实际统一验证；截至stage126，已构建并隔离消费Windows wheel，注册表观察三名称均404，首次crate归档验证暴露未发布依赖解析问题。具体候选、通过和失败见[统一验证](unified-validation.md)，不表示已经发布或完整验收。
+本页规定候选版本与发布边界。T01–T30源码已进入统一验收；stage132在Windows/Rust1.89实际生成并检查三个`.crate`，并从解包归档运行11次外部consumer，使用staging directory source与显式patch模拟尚未发布的内部依赖。此前registry observation在观测时三名称均404。具体候选、通过和失败见[统一验证](unified-validation.md)，本地归档消费不表示注册表已可用，也不表示已经发布或完成验收。
 
 | 产品或组件 | 候选版本 | 依赖关系与安装 |
 | --- | --- | --- |

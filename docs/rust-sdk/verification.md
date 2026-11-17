@@ -413,13 +413,13 @@ cargo +1.89.0 run --manifest-path "$consumer_root/Cargo.toml" --no-default-featu
 
 这里的`eltdx/default`对应已定义但为空的default feature。第一条run是最小，第二条显式跟随SDK default，第三条是full。第一次`generate-lockfile`用于consumer自行解析依赖，不复用库workspace的lock；随后`--locked`才有意义。依赖解析可能访问Cargo注册表，与行情测试禁止公网采样是两件事。
 
-以上程序按拟定API实际调用builder、五个服务句柄及close，实施后应能编译并运行；本轮没有编译它。约定这些调用不做DNS、建socket或创建worker，CI还应在无外网环境运行它验证这一点。该smoke不测试行情业务；另建consumer回环case，通过公开接口发出至少一个真正请求并核验结果和关闭。
+该最小consumer已由Rust1.89和1.100平台矩阵从独立临时目录实际编译并运行；`lazy`模式验证builder、服务句柄和close在无业务请求时可用，loopback及各业务域模式另行执行真正请求。完整source SHA、lock、工具链和退出码见对应matrix.json。CI仍应在Linux/macOS重跑；无业务请求的smoke本身不替代loopback或归档消费。
 
 Windows/macOS运行相同Rust程序，使用各平台原生临时目录/路径生成manifest，不把反斜线直接写入未转义的TOML字符串。保存consumer manifest、生成lock及正常/构建依赖图，使用前述规则拒绝Python相关生产依赖。CI不安装Python、pip或maturin，不用`PYO3_NO_PYTHON`掩盖误引入绑定的问题。
 
 ### 9.2 打包后的consumer
 
-T29 源码已提供 `scripts/verification/rust_sdk_packages.py` 的 archives/registry-observation/registry-dry-run 三种入口；独立 SDK 候选版本为 0.1.0，下层及 Python 仍为 3.3.5。版本碰撞、精确依赖、原许可证与打包/注册表证据的区别见 [发布政策](release-policy.md)。全部入口尚未运行，下面模板仍为最终验收要求。
+T29 源码提供 `scripts/verification/rust_sdk_packages.py` 的 archives/registry-observation/registry-dry-run 三种入口；独立 SDK 候选版本为 0.1.0，下层及 Python仍为3.3.5。stage132的archives入口已在Windows/Rust1.89实际打包、检查三个`.crate`并从解包内容运行11次外部consumer，完整记录见[统一验证](unified-validation.md)。registry-observation及registry-dry-run仍未运行；归档+patch模拟不等于公开注册表的无patch消费或发布。版本碰撞、精确依赖、原许可证与打包/注册表证据的区别见 [发布政策](release-policy.md)。下面命令模板保留给可发布下层已解析或发布后注册表consumer。
 
 path consumer仍可能借到workspace文件；因此还需独立验证`.crate`中存在实际发布所需源码、许可证、readme及被`include_bytes!`引用的内容。测试专用大fixture可以不发布，但公开doctest/example依赖的文件必须存在。
 

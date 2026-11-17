@@ -62,7 +62,7 @@ python scripts/verification/rust_sdk_stress.py aggregate --implementation-comple
 
 - 固定语料的Rust core、旧/新Python解析和模型构造、非空loopback、实际close及预取消微负载源码已写，详见[性能政策](performance-policy.md)。84个默认trial、同release profile、两个真实构建wheel及原始日志复验入口均未执行；外部网络仅显式opt-in。
 - stage113补齐了代次/资源源码记录和复验条件，stage114按T30交付范围进行源码收尾审阅；这些不替代最终压力运行。
-- [R01–R12最终交接](final-acceptance.md)、crate首页rustdoc、[Rust指南](user-guide.md)、[Python迁移](python-migration.md)、[候选说明](release-notes.md)与[维护手册](maintenance.md)已有源码。最小/default/full的严格rustdoc及doctest进入matrix，独立手动documentation job复用现有mirror/metadata/MkDocs/local-link检查器；均尚未运行。
+- [R01–R12最终交接](final-acceptance.md)、crate首页rustdoc、[Rust指南](user-guide.md)、[Python迁移](python-migration.md)、[候选说明](release-notes.md)与[维护手册](maintenance.md)已有源码。stage131 Windows Rust1.89/1.100 platform matrices 已执行最小/default/full/serde/f10严格rustdoc和doctest；正式手动documentation job复用现有mirror/metadata/MkDocs/local-link检查器，需在stage132恢复记录后重跑。
 - 逐公开service的普通调用源码、实际include及非空回环精确函数已补入[示例索引](service-examples.md)；[Serde](examples-serde.md)补齐有限/非有限、bytes、日期和未知值及checked类型边界。新增固定连接非空刷新与七组serde运行合同源码。后续须真实收集/编译/执行，不能以文档表或函数名代替结果。
 - T19源码交接见[F10传输索引](f10-transport-index.md)，其依赖/API/MSRV/license/平台仍待执行。生产MAC-EX登录和optional MAC setup关联证据仍缺，不能把合成ACK升级为默认生产规则。
 

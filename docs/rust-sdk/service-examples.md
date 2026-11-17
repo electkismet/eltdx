@@ -6,7 +6,7 @@
 
 权威文本为本目录的 `examples-hq.md`、`examples-f10.md`、`examples-offline.md`、`examples-ex.md`、`examples-mac.md` 与 `examples-serde.md`。它们逐字复制到 `crates/eltdx/src/guide/{hq,f10,offline,ex,mac,serde}.md`，由 crate 的 `include_str!` 文档属性收录；可选域仅在相应 feature 下收录。`src/**` 已纳入 SDK 归档，因此离开仓库打包解包后仍能编译这些示例。
 
-现有 `check_release_metadata.py` 增加六对文档的字节一致性检查，另继续检查完整 Python 包内 docs mirror。它只检查同步，不宣称示例覆盖或可编译。实际编译由 `rust_sdk_matrix.ps1` 的最小/default/serde/f10/full 严格 doctest 和 rustdoc 负责，并由后续归档消费门禁确认包装后的路径。所有命令尚未运行。
+现有 `check_release_metadata.py` 增加六对文档的字节一致性检查，另继续检查完整 Python 包内 docs mirror。它只检查同步，不宣称示例覆盖或可编译。stage131 的 Windows Rust1.89/1.100 platform matrices 已执行最小/default/serde/f10/full 严格 doctest 和 rustdoc；stage132 的解包归档consumer也编译了候选包并运行11种公开模式。正式metadata/MkDocs/site-local-links门禁仍需在stage132的新增记录后重跑。
 
 使用说明：[HQ](examples-hq.md)、[F10](examples-f10.md)、[财报/本地](examples-offline.md)、[EX](examples-ex.md)、[MAC/MAC-EX](examples-mac.md)。函数借用调用者配置的 client 和 options，不取得擅自关闭共用 owner 的权利；顶层调用者须在业务成功或失败后 close，并保留二次清理失败。网络示例为 `no_run`，不是 `ignore`。
 

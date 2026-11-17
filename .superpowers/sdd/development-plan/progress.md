@@ -11,6 +11,17 @@
   consumers, docs, then final wheel/Python, Linux behavior, two-platform native
   stress and84 performance trials. Physical no-Python, macOS, multi-Python and
   production protocol evidence remain open. Goal active/unlimited.
+- Recovery2026-11-17 stage132: checkpoint `af0e9cf` passed both Windows 32-feature
+  matrices, Rust1.89 and task-local Rust1.100, 37 commands each. Both toolchains
+  also passed runtime Loom (132 tests, including both Loom models). The official
+  archive verifier passed 24 commands, generated and inspected all3 crate
+  archives, and ran11 consumers from the extracted archive content. This uses
+  local directory source/patch simulation, not registry acceptance. Feature,
+  Loom, and archive reports are in `artifacts/unified/stage131-clean-candidate/`
+  and `artifacts/unified/stage132-checks/`. Remaining: rerun docs gates on this
+  ledger, final wheel/Python, Linux behavior, Windows/Linux pressure and84 trials;
+  physical no-Python, macOS, multi-Python, production protocol evidence stay open.
+  Goal active/unlimited.
 - Recovery2026-11-17 stage129: checkpoint ec09a40 fixed one-endpoint pagination
   to reuse the base pool. A real TDD red test proved max_connections=1 failed
   on page2; green codes6, HQ regression59 and the original external loopback

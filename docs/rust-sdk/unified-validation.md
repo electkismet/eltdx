@@ -169,3 +169,11 @@ Windows MSRV1.89 platform attempt01执行于 `2f35261`，协议/runtime、minima
 提交 `50e97c2469319e78a3b1309b84e67871f2c61d79` 的Windows x64/MSVC最终平台矩阵均通过，完整报告及逐命令日志分别位于 `artifacts/unified/stage131-clean-candidate/windows-msrv-platform-attempt01/` 与 `artifacts/unified/stage131-clean-candidate/windows-current-stable-platform-attempt01/`。Rust 1.89 使用主机已安装工具链；Rust 1.100 使用任务局部 `current-stable` toolchain。两个矩阵都在Cargo offline模式下执行，各有31条门禁命令、全部exit0：协议/runtime测试、minimal/default/full SDK行为与all-targets、Serde合同、五组严格rustdoc/doctest、SDK full all-targets strict Clippy、fmt、最小/full normal+build依赖闭包，以及lazy/loopback/offline/financial/F10/EX/MAC/MAC-EX外部consumer。两个结果的 `source_sha` 相同且工作区均为clean。
 
 这些平台矩阵中的candidate-only ignored压力用例尚未执行。较早提交 `2f35261` 的Rust 1.100 attempt04、Rust 1.98 attempt02与Rust-only PATH consumer attempt02仍作为补充证据保留；新候选仍需运行两版32 feature子集、Loom、正式crate archives/解包consumer、文档站点检查、最终wheel与完整Python回归、Linux行为、两平台默认原生压力及84-trial性能记录。物理无Python镜像、macOS、多Python版本和生产协议抓包仍需要外部环境/证据。整体验收仍active。
+
+## Stage132：Feature、Loom 与实际归档消费
+
+Windows feature matrices 在 `af0e9cf5adcabed49928f6d1523325eb9539364f` 上以离线模式分别使用Rust1.89及任务局部Rust1.100执行，各37条cargo命令全部exit0。矩阵包含五个feature的32种显式子集、default/full、最小/full normal+build依赖树及对Python/PyO3/maturin的排除断言。非full feature组合可能显示dead-code warning；这里通过的是编译检查，不把它描述成各组合的strict lint。报告见 `artifacts/unified/stage131-clean-candidate/windows-msrv-features-attempt01/matrix.json` 和 `windows-current-stable-features-attempt01/matrix.json`。
+
+同一候选的Windows Loom运行 `cargo +1.89.0 test -p eltdx-runtime --features loom --locked` 与任务局部 `cargo +current-stable ...` 均exit0；每个工具链都实际运行132个runtime单测，其中两项Loom并发模型成功，另有deadline5和pin handoff1成功。命令日志及SHA见 `artifacts/unified/stage132-checks/loom-results.json`。这不是socket或跨平台压力证据。
+
+正式 `rust_sdk_packages.py archives` 在干净候选 `af0e9cf5adcabed49928f6d1523325eb9539364f` / Rust1.89上exit0：协议、runtime和SDK三个实际 `.crate` 均已生成并检查，基于归档逐文件checksum登记staging directory source，再仅从实际解包内容构建外部消费者。24条工具命令全部通过，其中11次consumer运行覆盖最小、loopback、default、full及F10/offline/financial/EX/MAC/MAC-EX；报告为 `artifacts/unified/stage132-checks/windows-archives-attempt01/packages.json`。这是本地归档和patch模拟消费，不是发布、注册表解析、无patch消费者或注册表身份验证。文档metadata/MkDocs/site links仍需在这些记录更新后重跑；wheel/Python、Linux行为、两平台压力、84-trial性能和外部环境缺口仍未完成。
