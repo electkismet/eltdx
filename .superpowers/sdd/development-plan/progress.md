@@ -1134,3 +1134,7 @@ registry-observation实际读取三名称均404，保留HTTP响应/hash与UTC；
 pagination-green-attempt01首次已完成扫描，但新增显式cursor测试误用默认1600大小续读原page_size1游标，实际InvalidArgument；修正测试保持原page_size1后green02为6通过。测试逐请求断言0/1/2扫描和0/1显式续读均为同一物理连接身份。原外部最小消费者consumer-loopback-green-attempt01实际exit0；HQ七target回归hq-regression-attempt01为59通过，SDK/full/all-targets严格Clippy也exit0，均为记录dirty diff的局部证据。归档来源尚未重打包，完整新候选矩阵仍待，不能据局部通过称正式归档流程通过。
 
 接续：先修Rust1.100新增strict lint且保持MSRV1.89，再在干净提交跑完整归档consumer、两平台矩阵/32feature/Loom与受影响Python产物，之后运行默认两平台原生压力和84trial性能。记录的失败/命令/日志/hash位于artifacts/unified/stage128-single-endpoint，统一验收继续，目标active无额度限制。
+
+## Stage134：Linux行为与跨平台默认原生压力
+
+候选588d5e439bffe5a61e8ff21c2d7e7f1e658686d4，Linux Ubuntu22.04/Rust1.89 full合并65个target汇总1111通过（含30doctest），Loom另132+5+1通过。启动失败attempt01没有进入编译，显式工具链attempt02成功，日志分别保留。Windows/Linux release/full/default原生压力各10场景均成功，独立verify及跨平台aggregate全部exit0，候选tree/blob/lock/fixture/script一致。Linux close10000次、Windows2000次；资源/内部预算均满足既有政策，没有放宽阈值。原始和副本/聚合见artifacts/unified/stage134-linux-final、stage134-windows-stress-attempt01及stage134-stress-inputs；Linux实际Git clone/原始二进制在/root/.cache/eltdx-sdk-validation/stage134-*保留。文档三门禁在新增本轮记录前exit0，提交前重查。下一步固定新干净候选构建性能wheel，执行Windows/Linux各84trial并复算，接着逐R01–R12审计/补环境证据。目标active、remainingTokens=null；不push、tag、发布或合并。

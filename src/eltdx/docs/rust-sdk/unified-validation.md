@@ -187,3 +187,17 @@ Windows feature matrices 在 `af0e9cf5adcabed49928f6d1523325eb9539364f` 上以�
 `round4-local-attempt01` 有3045通过/1失败，唯一失败为全局系统安装ELTDX metadata 3.3.2而源码候选3.3.5；失败原始日志保留。task venv从候选wheel本地安装3.3.5、保留host pytest后，完整round4-local attempt02为3046通过/0失败。相同候选与task venv上的round5-loopback为276通过，round3-golden为103通过；各组日志、计数、source SHA、安装version及native hash记录在 `artifacts/unified/stage133-final-python/{round4-local-attempt01,round4-local-attempt02,round5-loopback-attempt01,round3-golden-attempt01}/result.json`。
 
 独立checkout外wheel消费位于 `wheel-consumer-attempt01/installed-wheel.json`：只用本地 `--only-binary` wheel安装，`pip check`、public API consumer及wheel/installed native字节hash比对全通过。外部临时venv经PATH隔离后找不到rustc/cargo/maturin，证据明确标为 `process-path-only`，不代表物理无工具链镜像。最终wheel、local/loopback/golden和独立消费的整体候选门禁通过。Linux行为、Windows/Linux默认原生压力、84-trial性能仍待；macOS、多Python版本、生产协议抓包与物理无Python镜像仍是外部环境证据缺口。
+
+## Stage134：Linux 最终行为与两平台默认原生压力
+
+2026年11月18日，干净候选 `588d5e439bffe5a61e8ff21c2d7e7f1e658686d4`。Linux Ubuntu22.04/Rust1.89在任务专用工具链及离线registry cache中运行full合并命令（SDK、runtime、protocol；`--no-default-features --features eltdx/full --locked --offline --no-fail-fast`），attempt02实际exit0，65个target汇总1111项通过，含SDK 30 doctest；明确ignored压力由独立负载执行，不记作普通测试通过。Linux Loom命令 `cargo +1.89.0 test -p eltdx-runtime --features loom --locked --offline` 实际exit0：132单测（含2模型）、deadline5、pin_handoff1。完整日志、逐target计数、lock/source/log hash见 `artifacts/unified/stage134-linux-final/results.json`。
+
+原Windows worktree的Git指针不能由Linux原样解析，先用Git archive导出干净候选到Linux本地文件系统，Windows/WSL核对源档SHA256同为 `1dc997c2f2fe498b02c0122ae9a8f54b6db2ed87bcae79e0595205be594684f2`。full attempt01在启动时找不到cargo而exit127，没有进入编译；attempt02使用显式CARGO_HOME/RUSTUP_HOME/RUSTC/RUSTDOC后完成，原失败未覆盖。压力需要Git commit/tree/blob证据，另建 `/root/.cache/eltdx-sdk-validation/stage134-linux-checkout` 的共享clone，HEAD与候选一致且clean；没有把解包源档冒充Git checkout。
+
+同一候选在Windows x64/MSVC及Linux WSL2分别执行 `rust_sdk_stress.py run --implementation-complete`，均使用Rust1.89/full/release/default counts，十个case全部exit0，runner原始事件与资源日志复算均为passed，随后各自独立 `verify` 实际exit0。Linux close为10000次、Windows为2000次，按事前平台政策执行；unique125000、inflight2000、subscription/limits/retry/financial/f10各1000、mac_cache500、budgets32000的终态数不减少。每个负载有独立预热，预热不计业务终态；物理请求、业务identity、取消确认、关闭、raw/decoded预算、线程/socket/FD或handles与RSS阈值均从原始记录重算。
+
+Linux本地原始证据保留于 `/root/.cache/eltdx-sdk-validation/stage134-linux-stress-attempt01`，副本归档为 `artifacts/unified/stage134-linux-final/linux-stress-attempt01.tar.gz`（SHA256 `7b7aa9c1270df191530eb27a83f6d88229126cece663e9b58aca4b0303e00b16`），归档包含原始日志、资源、事件及二进制hash，排除target目录，实际二进制保留在原Linux目录的target中。Windows原始证据为 `artifacts/unified/stage134-windows-stress-attempt01`；两边副本位于 `stage134-stress-inputs`，聚合器核对相同候选tree/源码blob/lock/fixture/script并再读两边全部原始数据，最终结论以 `stage134-linux-final/native-stress-aggregate.json` 与退出码为准。
+
+跨平台aggregate实际exit0，报告status=passed、两平台各10场景。Linux全部case最高RSS 16695296B、线程46、FD20、冷却RSS增量8060928B；Windows对应19496960B、线程50、handles169、冷却RSS增量2314240B，均满足事前政策。两边budgets峰值raw220B、decoded12582912B、queue28、live_actors/configured_workers4；结束后预算和活动actor/queue归零。这里是采样和合成负载证据，不推定生产服务器长期资源行为。
+
+候选588d5e4上的metadata、MkDocs strict和站点本地链接命令也均exit0，记录在stage134 results.json；该文档三门禁先于本节新增记录，后续文档修改需要再次检查。Windows两版Rust平台/feature、归档consumer及最终Python回归仍以stage131–133各自候选为准；其后到588d5e4仅文档/恢复记录变更，没有扩大旧结果的源码范围。性能84trial仍未执行，macOS、多Python版本、生产协议、物理隔离环境及发布后无patch注册表消费继续单列；目标active，无额度限制。

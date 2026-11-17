@@ -1,6 +1,6 @@
 # T30 压力、性能与最终交付证据索引
 
-当前为源码阶段恢复记录。以下压力/性能源码、采集器及工作流均未编译、启动或执行，不是通过证据。stage114在stage113的指南和R01–R12导航基础上补齐18个service、独立客户端的普通调用示例与精确非空回环对应，以及E06 Serde合同和严格单feature文档门禁。T01–T30源码范围已写齐；记录并提交全源码门槛后进入统一验证，不把源码完成当成运行通过。
+T01–T30源码范围已写齐，stage115后进入统一验收。stage134已在干净候选588d5e4上完成Windows/Linux默认release压力：两平台各10场景、独立verify及跨平台aggregate均exit0，原始采样与候选hash见[统一验证记录](unified-validation.md)。性能测量尚待执行；下面的工作量和资源政策保留为事前合同。stage114在stage113的指南和R01–R12导航基础上补齐18个service、独立客户端的普通调用示例与精确非空回环对应，以及E06 Serde合同和严格单feature文档门禁。
 
 ## 独立 Rust 压力源码
 
@@ -66,4 +66,4 @@ python scripts/verification/rust_sdk_stress.py aggregate --implementation-comple
 - 逐公开service的普通调用源码、实际include及非空回环精确函数已补入[示例索引](service-examples.md)；[Serde](examples-serde.md)补齐有限/非有限、bytes、日期和未知值及checked类型边界。新增固定连接非空刷新与七组serde运行合同源码。后续须真实收集/编译/执行，不能以文档表或函数名代替结果。
 - T19源码交接见[F10传输索引](f10-transport-index.md)，其依赖/API/MSRV/license/平台仍待执行。生产MAC-EX登录和optional MAC setup关联证据仍缺，不能把合成ACK升级为默认生产规则。
 
-最终运行输出目录尚不存在；当前不存在本页新工具的 passed 结果。
+压力实际输出为 `artifacts/unified/stage134-windows-stress-attempt01`、Linux任务缓存下的 `stage134-linux-stress-attempt01`；两边可复验副本在 `artifacts/unified/stage134-stress-inputs`，聚合报告为 `artifacts/unified/stage134-linux-final/native-stress-aggregate.json`（passed）。性能输出仍待生成；不能以压力通过替代性能测量。
