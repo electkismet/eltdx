@@ -44,7 +44,7 @@
 
 ## 当前明确缺口
 
-- 统一验证已开始；Windows/Linux full、Windows32feature检查和Python wheel构建通过仅证明各自记录的范围。stage121 Python local17失败、loopback41失败，独立wheel查询失败；其他平台/包/压力性能门禁仍待，source-complete不等于整体验收。
+- stage122完整Python local3046、loopback276及golden103通过；stage123干净92f033b的Windows/Linux full、Loom及独立wheel公开消费通过。Windows平台minimal/default通过，但full/all-targets随后暴露超时与取消清理竞态，严格Clippy及fmt也失败；须修复并在新候选重跑受影响验收。32feature旧候选通过尚须更新，其他平台/包/压力性能门禁仍待，source-complete不等于整体验收。
 - MAC-EX生产LoginReplyRules默认与optional MAC setup的响应identity/order/fence仍无独立证明。合成成功/拒绝字节只允许在显式合成profile使用。
 - category22没有独立非空生产样本，未知涨跌停规则仍返回Unknown；不影响已独立实现的HQ0x0FFC与F10历史资金流归属。
 - 注册表名称/同版本源码身份、全部新依赖lock/API/MSRV/license、跨平台镜像与实际wheel支持仍需真实执行。
