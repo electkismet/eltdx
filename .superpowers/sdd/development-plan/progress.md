@@ -1203,3 +1203,9 @@ Stage143会话 `87556` 已退出0。候选 `b9d5075` 的 manylinux2014 aarch64 w
 原快照 attempt01 的完整差异检查发现 `test_sdk_policy_fixtures.py` 末尾多余空行，已在 `103b19a` 删除；attempt02 的凭据前缀扫描误命中 `coercion_*` 测试标识，逐项核对后在 attempt03 加上词边界重新通过。Stage154 的文档门禁及证据已提交 `5ab543d`。从干净的 `103b19a6efff471a93bea2dbdbb9c160c3e20d61` 生成单提交候选 `4b31a562150970b351cf385e2acbbfb8a47aabad`，父提交为 `origin/main` 当时的 `af471f1adf38757f6aa0188968db8110eb23f6ad`。候选不带 `.superpowers` 或本地 `artifacts`，其余源树与本地检查点逐字节一致。临时索引未更改本地分支。
 
 公开分支 `codex/rust-sdk-implementation` 已确认指向 `4b31a56`。push 触发 macOS Rust 1.89/stable 及归档工作流 [44187902677](https://github.com/electkismet/eltdx/actions/runs/44187902677)；同 SHA 手动运行 wheel/sdist 的 [44187905757](https://github.com/electkismet/eltdx/actions/runs/44187905757)。手动分发不发布 PyPI，不创建标签或 GitHub Release。`artifacts/unified/stage155-release-snapshot-attempt03/` 留存快照树、远端校验和 dispatch 命令；等待两次运行的实际退出并收集证据，勿重复触发。Cargo 默认凭据、环境变量和仓库同类 secret 本轮未发现。三个 Rust crate 未上传，后续需从同一固定候选检出发布和验证公开来源。
+
+## Stage156–158：包名预检、首轮 ARM 与 macOS 复验
+
+Stage156 对 `4b31a56` 单独克隆并固定换行：三个名称 404，protocol `cargo publish --dry-run --locked` exit 0。以后如在修正候选发布，先使用同样配置检出 `6a6cd8b`，按 protocol → runtime → SDK 完成归档身份复核和无 patch 消费。无本机发布凭据；用户尚未在本机运行 `cargo login`。不要输出或传输令牌。
+
+Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.14 干净消费报告和初次 macOS 平台的两个失败包；`verified-partial.json` 包含各日志和 wheel/native 身份。macOS 两个工具链均在同一 F10 中断 fixture 的 EOF 断言遇到 TCP reset。测试修正 `24fa65d` 在 Windows 27 项通过，产品运行时代码不变；已快进远端至 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e`。Stage158 已触发运行 **44188994800**（macOS Rust/归档）及 **44189071921**（同 SHA wheel/sdist），不要重复提交。收集这两次运行结果，首轮 44187902677 / 44187905757 也要保留已产出的失败/验证记录。详见统一验证记录 Stage155–158。生产侧证据缺口未变。

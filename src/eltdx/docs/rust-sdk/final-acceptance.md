@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | T01–T30实现 | 完成 | 计划内Rust SDK、Python兼容桥接、独立Rust入口及文档/示例源码已写齐。Stage145–148依据生产样本修正Rust MAC-EX、标准EX商品总数的31字节响应解析。 |
 | 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
-| 发布平台与隔离 | 已有 Linux x64、ARM 模拟和 Windows 证据；macOS、原生 ARM 待跑 | Stage149在含修复的干净候选上复验两种工具链隔离，并从sdist离线重建Linux x64 manylinux2014 wheel；同一 wheel 通过 Stage154 的 CPython 3.10–3.14 独立消费。Stage143的arm64 wheel来自旧候选的模拟环境。Stage148的Windows wheel通过Python 3.10/3.14独立消费。 |
-| 注册表发布与消费 | 未发布 | Stage148在干净候选实际查询三个名称均返回404；本地归档通过，先前的protocol Cargo发布dry-run也通过。缺少crates.io发布凭据；发布后仍需用不带patch的独立项目验证。 |
+| 发布平台与隔离 | Linux 原生 ARM 独立安装已通过；macOS 和同 SHA 产物复验进行中 | Stage149 和 Stage154 验证 Linux x64 两种工具链隔离及 CPython 3.10–3.14 wheel 消费，Stage148 验证 Windows Python 3.10/3.14，Stage157 在原生 Linux ARM64 通过 Python 3.10/3.14 干净容器消费。Stage158 已对测试修正后的候选重新调度 macOS Rust 和 wheel/sdist 验证。 |
+| 注册表发布与消费 | 未发布 | Stage156 在公开候选干净检出查询三个名称均返回 404；本地归档通过，protocol 的 Cargo publish dry-run 通过。缺少 crates.io 发布凭据；发布后仍需用无 patch 独立项目验证。 |
 | 生产协议验收 | 部分公开主站流程已验证 | 标准EX主站完成查询52个市场与111218个商品，与Python实测一致；三个普通MAC主站通过默认三步握手及业务查询。两台MAC-EX主站以即时完整样本完成独立Rust查询，Stage151回放进一步验证匹配样本的查询和跨时段不匹配时的关闭。仍待可复用的MAC-EX登录规则及服务端拒绝样本、可选setup和category22非空证据。Stage150核对三笔证监会披露的涨停价，尚缺交易所当日参考价和双侧边界。 |
 
 因此，当前可报告为“实现完成；记录范围内的本地核心验证通过；发布/生产验收未完成”。后两项依赖外部平台、注册表权限或生产数据，不用来回滚前两项状态，也不合并成一个完成比例。
@@ -58,7 +58,7 @@
 
 ## 后续工作
 
-- 发布平台：对程序候选 `f2703c1` 或其后仅更新文档的提交运行macOS平台和归档工作流。获得公开分支推送授权后，推送候选分支触发macOS Rust任务，再对同一SHA手动运行 `Publish`，验证macOS Intel/ARM及Linux原生arm64 wheel和sdist。手动运行不上传PyPI，也不创建GitHub Release；留存 run ID、SHA、产物散列和安装结果。x64隔离消费和ARM模拟重建见[统一验证记录](unified-validation.md)。
+- 发布平台：公开候选 `6a6cd8b` 上的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)和[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)已经触发。首轮 `4b31a56` 的原生 Linux ARM64 wheel 及消费已通过，两份 macOS Rust 失败报告仍保留。以复验的实际退出和产物为准；本次手动验证不上传 PyPI，也不创建 GitHub Release。
 - 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的登录成功样本，确认候选时钟差异符合观测；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选setup的身份/顺序/fence、category22非空路径和交易所当日涨跌停价；未验证含义继续保持Unknown。
 - 注册表：在本机配置获授权的crates.io发布凭据后，核对包名、版本和账号权限，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前重新查询，404仅代表该时间点的查询结果。
 
