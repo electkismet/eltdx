@@ -22,6 +22,18 @@
   records all three exits and hashes. Remaining: final wheel/Python, Linux
   behavior, Windows/Linux pressure and84 trials; physical no-Python, macOS,
   multi-Python, production protocol evidence stay open.
+- Recovery2026-11-17 stage133: clean source `ef6b243` produced Windows abi3 wheel
+  `eltdx-3.3.5-cp310-abi3-win_amd64.whl` (wheel SHA
+  `e4b47923031756f514e34171d55aefc1bcbea08c93db17348a1eb4c55adb36fa`, native
+  SHA `465e28d1dc950a97ce36bb3ee82766c6aebe52448d3486fad5203b67c030de66`).
+  Task-venv local3046, loopback276, golden103 all passed; no-index independent
+  wheel install, pip check and nonempty public API consumer passed with
+  process-path-only toolchain isolation. Initial local attempt's one version
+  assertion exposed host metadata3.3.2; candidate wheel installed into a task
+  venv resolved it and all3046 then passed. Preserve both attempts. Next: Linux
+  behavior, Windows/Linux default native pressure and84 performance trials;
+  macOS, multi-Python, physical no-toolchain and production protocol evidence
+  remain external. Goal active/unlimited.
   Goal active/unlimited.
 - Recovery2026-11-17 stage129: checkpoint ec09a40 fixed one-endpoint pagination
   to reuse the base pool. A real TDD red test proved max_connections=1 failed

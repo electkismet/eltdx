@@ -179,3 +179,11 @@ Windows feature matrices 在 `af0e9cf5adcabed49928f6d1523325eb9539364f` 上以�
 正式 `rust_sdk_packages.py archives` 在干净候选 `af0e9cf5adcabed49928f6d1523325eb9539364f` / Rust1.89上exit0：协议、runtime和SDK三个实际 `.crate` 均已生成并检查，基于归档逐文件checksum登记staging directory source，再仅从实际解包内容构建外部消费者。24条工具命令全部通过，其中11次consumer运行覆盖最小、loopback、default、full及F10/offline/financial/EX/MAC/MAC-EX；报告为 `artifacts/unified/stage132-checks/windows-archives-attempt01/packages.json`。这是本地归档和patch模拟消费，不是发布、注册表解析、无patch消费者或注册表身份验证。
 
 `artifacts/unified/stage132-checks/docs-attempt02/results.json` 绑定于 `031e5aedb636c88ce8e9da9747790a3fc2af1cfd`，`check_release_metadata.py`、`python -m mkdocs build --strict` 和 `check_pages_links.py site` 均exit0，日志SHA256随报告保存。attempt01没有有效汇总，因为PowerShell包装器未预建静默成功命令的空日志文件；它不作为通过或失败的文档证据。最终wheel/Python、Linux行为、两平台压力、84-trial性能和外部环境缺口仍未完成。
+
+## Stage133：最终 Python wheel 与兼容回归
+
+干净提交 `ef6b243bfc67a9f0d4dde8538967b911a42218ed` 在Windows x64/MSVC、Rust1.89、Python3.12.6下执行 `maturin build --release --locked`，离线构建exit0，生成 `eltdx-3.3.5-cp310-abi3-win_amd64.whl`。wheel SHA256为 `e4b47923031756f514e34171d55aefc1bcbea08c93db17348a1eb4c55adb36fa`；封装及checkout测试路径的 `_native.pyd` SHA256均为 `465e28d1dc950a97ce36bb3ee82766c6aebe52448d3486fad5203b67c030de66`。之前被忽略的checkout native已在构建前备份到 `artifacts/unified/stage133-final-python/prior-checkout-native.pyd`，测试后续都使用候选wheel同字节native。
+
+`round4-local-attempt01` 有3045通过/1失败，唯一失败为全局系统安装ELTDX metadata 3.3.2而源码候选3.3.5；失败原始日志保留。task venv从候选wheel本地安装3.3.5、保留host pytest后，完整round4-local attempt02为3046通过/0失败。相同候选与task venv上的round5-loopback为276通过，round3-golden为103通过；各组日志、计数、source SHA、安装version及native hash记录在 `artifacts/unified/stage133-final-python/{round4-local-attempt01,round4-local-attempt02,round5-loopback-attempt01,round3-golden-attempt01}/result.json`。
+
+独立checkout外wheel消费位于 `wheel-consumer-attempt01/installed-wheel.json`：只用本地 `--only-binary` wheel安装，`pip check`、public API consumer及wheel/installed native字节hash比对全通过。外部临时venv经PATH隔离后找不到rustc/cargo/maturin，证据明确标为 `process-path-only`，不代表物理无工具链镜像。最终wheel、local/loopback/golden和独立消费的整体候选门禁通过。Linux行为、Windows/Linux默认原生压力、84-trial性能仍待；macOS、多Python版本、生产协议抓包与物理无Python镜像仍是外部环境证据缺口。
