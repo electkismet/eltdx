@@ -71,6 +71,32 @@ _TRANSACTION_PAGE_SIZE = 1000
 XdxrProvider = Callable[[int, str], "Sequence[XdxrEvent] | None"]
 
 
+def _native_connect_attempt(client, domain, target):
+    """Only connect failures are caught; the caller constructs the connection."""
+    from eltdx._native_abi import load_native
+
+    native = load_native()
+    try:
+        conn = native.extension_client_connect_one(domain, client, target, _MODULES[__name__])
+    except TransportError as exc:
+        native.extension_client_connect_failed(domain, client, target, exc, _MODULES[__name__])
+        return False, exc
+    return True, conn
+
+
+def _native_execute_attempt(client, domain, command):
+    from eltdx._native_abi import load_native
+
+    try:
+        result = client._conn.execute(command)
+    except TransportError as exc:
+        return load_native().extension_client_recover(
+            client=client, domain=domain, command=command, cause=exc,
+            module=_MODULES[__name__], assert_enabled=__debug__,
+        )
+    return True, result, False
+
+
 def convert_board_code(board_symbol: str) -> int:
     """将用户可见的板块代码转换为服务器协议代码。
 
@@ -118,20 +144,11 @@ class MacClient:
         socket_factory: SocketFactory | None = None,
         xdxr_provider: XdxrProvider | None = None,
     ) -> None:
-        if hosts is not None:
-            self._hosts = [str(h) for h in hosts]
-        elif host is not None:
-            self._hosts = [host]
-        else:
-            self._hosts = list(MAC_HOSTS)
-        if not self._hosts:
-            raise ValueError("至少需要一个 host")
-        self._port = port if port is not None else MAC_PORT
-        self._timeout = timeout if timeout is not None else MAC_TIMEOUT
-        self._socket_factory = socket_factory
-        self._xdxr_provider = xdxr_provider
-        self._host_index = 0
-        self._conn: MacConnection | None = None
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_init(
+            "mac", self, (host, port, timeout, hosts, socket_factory, xdxr_provider), _MODULES[__name__]
+        )
 
     # ------------------------------------------------------------------ #
     # 连接管理
@@ -141,13 +158,17 @@ class MacClient:
     def host(self) -> str:
         """当前选中的服务器地址。"""
 
-        return self._hosts[self._host_index]
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("mac", "host", self, _MODULES[__name__])
 
     @property
     def hosts(self) -> list[str]:
         """候选服务器地址列表（只读副本）。"""
 
-        return list(self._hosts)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("mac", "hosts", self, _MODULES[__name__])
 
     @staticmethod
     def ping_all(
@@ -161,7 +182,9 @@ class MacClient:
         服务器信息响应，因此端口开放但非 MAC 行情的主机不会被计入。
         """
 
-        return ping_mac_all(hosts, port if port is not None else MAC_PORT, timeout)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_ping("mac", (hosts, port, timeout), _MODULES[__name__])
 
     @classmethod
     def from_best_host(
@@ -182,13 +205,11 @@ class MacClient:
         参数比缺少它更容易误导。
         """
 
-        ranked = ping_mac_all(hosts, port if port is not None else MAC_PORT, ping_timeout)
-        candidates = [str(h) for h in hosts] if hosts else list(MAC_HOSTS)
-        best = ranked[0][0] if ranked else (candidates[0] if candidates else None)
-        if best is None:
-            raise ValueError("hosts 不能为空")
-        ordered = [best] + [h for h in candidates if h != best]
-        return cls(best, port, timeout, hosts=ordered)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_best(
+            "mac", cls, (hosts, port, timeout, ping_timeout), _MODULES[__name__]
+        )
 
     def connect(self) -> None:
         """连接服务器：按候选列表逐个尝试，成功即记录为当前主机。
@@ -197,43 +218,23 @@ class MacClient:
         泄漏上一条 socket，也不会出现「重连失败反而把可用连接关掉」的窗口。
         """
 
-        last_exc: TransportError | None = None
-        for offset in range(len(self._hosts)):
-            idx = (self._host_index + offset) % len(self._hosts)
-            conn = MacConnection(
-                self._hosts[idx],
-                self._port,
-                self._timeout,
-                socket_factory=self._socket_factory,
-            )
-            try:
-                conn.connect()
-            except TransportError as exc:
-                last_exc = exc
-                conn.close()
-                continue
-            # 接管新连接，并释放被替换掉的旧连接。
-            # 顺序很关键：先让 self._conn 指向新连接，再关旧的 —— 旧连接必须在
-            # 新连接确认可用之后才关，否则重连失败会把还能用的连接弄丢。
-            previous = self._conn
-            self._host_index = idx
-            self._conn = conn
-            if previous is not None and previous is not conn:
-                previous.close()
-            return
-        raise last_exc or TransportError("无可用 MAC 服务器")
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_connect("mac", self, _MODULES[__name__])
 
     def close(self) -> None:
         """关闭当前连接（幂等）。"""
 
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac", "close", self, _MODULES[__name__])
 
     def disconnect(self) -> None:
         """``close()`` 的别名。"""
 
-        self.close()
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac", "disconnect", self, _MODULES[__name__])
 
     def ensure_connected(self) -> None:
         """验证连接存活，断线则自动重建。
@@ -244,11 +245,14 @@ class MacClient:
         候选列表的下一台并重试一次，因此这里不需要单独的 ``_reconnect``。
         """
 
-        self._execute(KlineOffsetCmd(0, 1))
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac", "ensure", self, _MODULES[__name__])
 
     def __enter__(self) -> "MacClient":
-        self.connect()
-        return self
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("mac", "enter", self, _MODULES[__name__])
 
     def __exit__(
         self,
@@ -256,22 +260,16 @@ class MacClient:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        self.close()
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac", "exit", self, _MODULES[__name__])
 
     def _execute(self, cmd) -> object:
         """执行命令；传输失败时切换到下一台主机重试一次。"""
 
-        if self._conn is None:
-            self.connect()
-        assert self._conn is not None
-        try:
-            return self._conn.execute(cmd)
-        except TransportError:
-            self.close()
-            self._host_index = (self._host_index + 1) % len(self._hosts)
-            self.connect()
-            assert self._conn is not None
-            return self._conn.execute(cmd)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_execute("mac", self, cmd, _MODULES[__name__], __debug__)
 
     # ------------------------------------------------------------------ #
     # 报价

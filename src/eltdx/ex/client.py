@@ -53,6 +53,42 @@ from eltdx.exceptions import TransportError
 _T = TypeVar("_T")
 
 
+def _native_connect_attempt(client, domain, target):
+    """Retain the original constructor/connect exception scope and context."""
+    from eltdx._native_abi import load_native
+
+    native = load_native()
+    try:
+        conn = native.extension_client_connect_one(domain, client, target, _MODULES[__name__])
+    except TransportError as exc:
+        native.extension_client_connect_failed(domain, client, target, exc, _MODULES[__name__])
+        return False, exc
+    return True, conn
+
+
+def _native_reconnect_attempt(client):
+    from eltdx._native_abi import load_native
+
+    try:
+        load_native().extension_client_reconnect(client)
+    except TransportError as exc:
+        return False, exc
+    return True, None
+
+
+def _native_execute_attempt(client, domain, command):
+    from eltdx._native_abi import load_native
+
+    try:
+        result = client._conn.execute(command)
+    except TransportError as exc:
+        return load_native().extension_client_recover(
+            client=client, domain=domain, command=command, cause=exc,
+            module=_MODULES[__name__], assert_enabled=__debug__,
+        )
+    return True, result, False
+
+
 class ExTdxClient:
     """同步扩展行情客户端（期货、港股、外股等，端口 7727）。
 
@@ -102,31 +138,13 @@ class ExTdxClient:
         probe_timeout: float | None = None,
         max_probe_workers: int = DEFAULT_PROBE_WORKERS,
     ) -> None:
-        candidates = load_ex_hosts() if hosts is None else list(hosts)
-        if host is not None:
-            candidates = [host] + [h for h in candidates if h != host]
-        if not candidates:
-            raise ValueError("hosts 不能为空")
-        self._hosts = candidates
-        self._port = port
-        self._timeout = timeout
-        self._auto_failover = auto_failover
-        self._probe_on_connect = probe_on_connect
-        self._probe_timeout = (
-            min(DEFAULT_PROBE_TIMEOUT, timeout) if probe_timeout is None else probe_timeout
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_init(
+            "ex", self,
+            (host, port, timeout, hosts, auto_failover, probe_on_connect, probe_timeout, max_probe_workers),
+            _MODULES[__name__],
         )
-        self._max_probe_workers = max_probe_workers
-
-        # 显式指定的主机优先；探活只用于在它失败后挑备份。
-        self._preferred_host = host
-        self._host = host if host is not None else candidates[0]
-        self._conn = ExTdxConnection(self._host, port, timeout)
-        self._connected = False
-
-        self._ordered = list(candidates)
-        self._healthy: set[str] = set()
-        self._unhealthy: dict[str, str] = {}
-        self._probed = False
 
     @classmethod
     def from_best_host(
@@ -142,18 +160,11 @@ class ExTdxClient:
         真的应答业务命令，所以选出来的主机是可用的。
         """
 
-        candidates = load_ex_hosts() if hosts is None else list(hosts)
-        results = probe_ex_hosts(candidates, port, ping_timeout)
-        ordered = rank_ex_hosts(results, candidates=candidates)
-        client = cls(
-            ordered[0] if ordered else None,
-            port,
-            timeout,
-            hosts=candidates,
-            probe_on_connect=False,
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_best(
+            "ex", cls, (hosts, port, timeout, ping_timeout), _MODULES[__name__]
         )
-        client._seed_from_probe(results)
-        return client
 
     @staticmethod
     def ping_all(
@@ -167,7 +178,9 @@ class ExTdxClient:
         结论毫无参考价值；现在只返回真正应答业务命令的主机。
         """
 
-        return ping_ex_all(hosts, port, timeout)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_ping("ex", (hosts, port, timeout), _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 主机健康度
@@ -177,7 +190,9 @@ class ExTdxClient:
     def host(self) -> str:
         """当前（或下一个将要）使用的主机地址。"""
 
-        return self._host
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("ex", "host", self, _MODULES[__name__])
 
     @property
     def healthy_hosts(self) -> list[str]:
@@ -187,13 +202,17 @@ class ExTdxClient:
         而不是「都不可用」。
         """
 
-        return [h for h in self._ordered if h in self._healthy and h not in self._unhealthy]
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("ex", "healthy", self, _MODULES[__name__])
 
     @property
     def unhealthy_hosts(self) -> dict[str, str]:
         """近期失败的主机到失败原因的映射（副本）。"""
 
-        return dict(self._unhealthy)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("ex", "unhealthy", self, _MODULES[__name__])
 
     def refresh_hosts(
         self,
@@ -208,7 +227,9 @@ class ExTdxClient:
         早退路径（``connect()`` 与失败换台）。
         """
 
-        return self._probe_and_seed(timeout=timeout, max_workers=max_workers)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_probe("refresh", self, (timeout, max_workers), _MODULES[__name__])
 
     def _probe_and_seed(
         self,
@@ -217,21 +238,16 @@ class ExTdxClient:
         max_workers: int | None = None,
         stop_after_first: bool = False,
     ) -> list[ExHostProbe]:
-        results = probe_ex_hosts(
-            self._hosts,
-            self._port,
-            self._probe_timeout if timeout is None else timeout,
-            max_workers=max_workers if max_workers is not None else self._max_probe_workers,
-            stop_after_first=stop_after_first,
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_probe(
+            "probe", self, (timeout, max_workers, stop_after_first), _MODULES[__name__]
         )
-        self._seed_from_probe(results)
-        return results
 
     def _seed_from_probe(self, results: list[ExHostProbe]) -> None:
-        self._ordered = rank_ex_hosts(results, candidates=self._hosts)
-        self._healthy = {result.host for result in results if result.ok}
-        self._unhealthy.clear()
-        self._probed = True
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_probe("seed", self, (results,), _MODULES[__name__])
 
     def _reprobe_remaining(self) -> None:
         """失败后并发重探「尚未判坏」的主机，避免失败链退化成逐台串行超时。
@@ -241,19 +257,9 @@ class ExTdxClient:
         ``probe_timeout``，并且只会把真正应答的主机排到前面。
         """
 
-        remaining = [host for host in self._hosts if host not in self._unhealthy]
-        if len(remaining) <= 1:
-            return
-        results = probe_ex_hosts(
-            remaining,
-            self._port,
-            self._probe_timeout,
-            max_workers=self._max_probe_workers,
-            stop_after_first=True,
-        )
-        # candidates 传全量：已判坏的主机仍留在队尾，全部失败时还能被回退机制捡回来。
-        self._ordered = rank_ex_hosts(results, candidates=self._hosts)
-        self._healthy = {result.host for result in results if result.ok}
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_probe("remaining", self, (), _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 连接管理
@@ -266,39 +272,21 @@ class ExTdxClient:
         单主机模式不做探活，直接连。
         """
 
-        if (
-            self._auto_failover
-            and self._probe_on_connect
-            and not self._probed
-            and len(self._hosts) > 1
-        ):
-            # 早退：可用主机通常几十毫秒就回，没必要等 15 台静默主机把超时耗满。
-            self._probe_and_seed(stop_after_first=True)
+        from eltdx._native_abi import load_native
 
-        last_exc: TransportError | None = None
-        for host in self._candidate_order():
-            try:
-                conn = ExTdxConnection(host, self._port, self._timeout)
-                conn.connect()
-            except TransportError as exc:
-                last_exc = exc
-                self._unhealthy[host] = f"{type(exc).__name__}: {exc}"
-                continue
-            self._conn = conn
-            self._host = host
-            self._connected = True
-            return
-        raise last_exc if last_exc is not None else TransportError("没有可用主机")
+        load_native().extension_client_connect("ex", self, _MODULES[__name__])
 
     def close(self) -> None:
         """关闭连接。"""
 
-        self._conn.close()
-        self._connected = False
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("ex", "close", self, _MODULES[__name__])
 
     def __enter__(self) -> "ExTdxClient":
-        self.connect()
-        return self
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("ex", "enter", self, _MODULES[__name__])
 
     def __exit__(
         self,
@@ -306,55 +294,23 @@ class ExTdxClient:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        self.close()
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("ex", "exit", self, _MODULES[__name__])
 
     def _candidate_order(self) -> list[str]:
         """连接优先级：探活排序 - 近期失败者；失败者清空后回退到全量顺序。"""
 
-        ordered = [host for host in self._ordered if host not in self._unhealthy]
-        if not ordered:
-            # 全部判坏：清空标记重来一轮，避免会话被永久锁死。
-            self._unhealthy.clear()
-            ordered = list(self._ordered)
-        if (
-            self._preferred_host is not None
-            and self._preferred_host in ordered
-            and ordered[0] != self._preferred_host
-        ):
-            ordered = [self._preferred_host] + [h for h in ordered if h != self._preferred_host]
-        return ordered
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("ex", "order", self, _MODULES[__name__])
 
     def _execute(self, cmd: "BaseCommand[_T]") -> _T:
         """执行命令；命令级失败时标记该主机并换到下一台重试。"""
 
-        if not self._connected:
-            self.connect()
+        from eltdx._native_abi import load_native
 
-        if not self._auto_failover:
-            return self._conn.execute(cmd)
-
-        last_exc: TransportError | None = None
-        limit = max(1, len(self._hosts))
-        for _ in range(limit):
-            try:
-                result = self._conn.execute(cmd)
-            except TransportError as exc:
-                last_exc = exc
-                self._healthy.discard(self._host)
-                self._unhealthy[self._host] = f"{type(exc).__name__}: {exc}"
-                self._conn.close()
-                self._connected = False
-                try:
-                    self._reprobe_remaining()
-                    self.connect()
-                except TransportError as connect_exc:
-                    last_exc = connect_exc
-                    break
-                continue
-            self._healthy.add(self._host)
-            self._unhealthy.pop(self._host, None)
-            return result
-        raise last_exc if last_exc is not None else TransportError("没有可用主机")
+        return load_native().extension_client_execute("ex", self, cmd, _MODULES[__name__], __debug__)
 
     # ------------------------------------------------------------------ #
     # 市场信息

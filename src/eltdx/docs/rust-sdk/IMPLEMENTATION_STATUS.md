@@ -3,6 +3,7 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026-11-17第一百零二段恢复点：基础6f1904c。三类扩展client构造/最佳主机与ping入口/属性/连接选择/close/别名/上下文/请求重试及EX probe-seed-refresh管理已迁native，共11绑定；Python显式except保留三类构造捕获范围、连接发布/保留顺序、active异常context和最后一次EX失败仍重连。MAC-EX旧login布尔忽略/缓存identity保持，不当生产证据。新增31个Python函数源码（2参数化），十四份合同308函数全未执行。实际transport probe/rank与owner/generation、模型/导出/清单/consumer仍待，随后T28–T30/T19源码收尾及统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage15。
 2026-11-17第一百零一段恢复点：基础8ba1708。EX/MAC连接构造/精确收包/建连/握手/改头/交换/解码解析/关闭策略已迁native；Python保留锁/except/close适配以维持std socket释放GIL、动态对象和原异常上下文/作用域。无新限额，原断言/部分包/超量custom recv/setup宽松行为保留，不作为strict生产证据。新增21个Python函数（6参数化）/1个Rust源码用例，十三份合同277函数全未执行。owner/generation/client管理/probe/models/清单/consumer尚需完成，再T28–T30/T19和统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage14。
 
 2026-11-17第一百段恢复点：基础69cf913。EX全部8个主机配置函数接native，strict/Python共用惰性来源选择，保留两者显式空配置差异。原域名/括号/Unicode/去重/动态hook/异常cause与上下文、环境优先/两次strip及显式保存JSON/fsync/replace顺序保留；文件with/except/finally为对象适配。新增16个Python函数（1参数化）及1个Rust源码用例，十二份合同256个Python函数全未执行。下一步transport/owner/generation/client管理/probe/models/清单/consumer，再T28–T30/T19及统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage13。

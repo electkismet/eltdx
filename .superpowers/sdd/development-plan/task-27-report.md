@@ -1,4 +1,48 @@
 # T27 implementation report
+## Stage 15 — EX/MAC/MAC-EX client management (2026-11-17, stage102)
+
+Base6f1904c. Added extension_management.rs with11 native entry functions;
+all three high-level client constructors, best-host/ping entry points,
+properties, connection/close/context/alias methods, selection and execution
+retry orchestration now delegate into Rust. EX probe/seed/refresh/remaining
+selection also moved; the actual transport probe/rank functions remain the
+next source task. No native owner/generation integration is claimed here.
+
+Python retains explicit try/except adapters for the original active exception
+context. EX catches constructor plus connect, records failure and keeps the
+old connection until success. MAC constructs outside its catch, closes failed
+attempts, preserves an old working connection if all attempts fail, publishes
+the replacement before old.close, and keeps the truthy last-error rule.
+MAC-EX publishes before connect/login, ignores the legacy login result as
+before, and leaves previous cache objects unchanged. These are compatibility
+facts, not evidence of a strict production login rule.
+
+EX request failure discards health, marks failure, closes, reprobes remaining
+hosts with full-candidate ranking and reconnects even after the last allowed
+execution attempt. MAC/MAC-EX retain one retry and original active exception
+context across close/reconnect/retry. Constructor/default/None-vs-empty,
+live hooks, explicit preferred host, duplicate order, property copies, lazy
+best-host candidates, optimized asserts and command callable capture remain
+visible. No strict total timeout, attempt or record caps were imported.
+
+Added tests/test_native_extension_management_contract.py with31 public test
+function sources (2 parametrized), including Python3.10-compatible
+sys.exc_info checks, constructor/connect scopes, failure identity/context,
+last-attempt reconnect, close failures, publish ordering, cache identity,
+best-host timing, live host selection and probe callable capture. Fourteen
+new extension contract files now contain308 public function sources. All
+remain uncollected/uncompiled/unexecuted; ordinary source review only.
+
+Files: crates/eltdx-python/src/{extension_management.rs,lib.rs},
+src/eltdx/{ex/client.py,ex/mac_client.py,mac/client.py}, the new contract file,
+canonical report/progress/status/plan and status/plan package mirrors.
+Next: actual transport probe/rank functions; native owner/generation lifecycle;
+models/enums/presets/export inventory; actual public-symbol/source/fixture
+manifest evidence; installed-wheel nonempty EX/MAC/MAC-EX consumer. Then
+T28-T30 and T19 source closure before unified execution and repairs.
+Totals25 source-complete/2 partial(T19/T27)/3 unstarted(T28-T30), unchanged.
+Active goal has no quota. No tests/build/check/collection/dependency/network/
+compiler/AST/format/diff-check execution, agents, publication or controller edits.
 ## Stage 14 — EX/MAC socket policy and explicit exception adapters (2026-11-17, stage101)
 
 Base8ba1708. Added extension_transport.rs with16 native entry functions and

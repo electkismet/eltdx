@@ -1,6 +1,17 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage102: base6f1904c. Three extension client
+  constructors/best-host/ping entry/properties/selection/connect/close/aliases/
+  execution and EX probe-seed-refresh management now native via11 bindings.
+  Original Python exception adapters retain constructor catch differences,
+  old-connection preservation/publication, active cause/context, one-retry or
+  EX last-attempt reconnect and unchanged caches. Added31 public Python
+  function sources(2 parametrized); fourteen contract files total308 functions,
+  none executed. Read task-27-report Stage15. Still actual probe/rank functions,
+  owner/generation, models/exports/manifest/consumer then T28-T30/T19 closure
+  and unified verification.25/2/3 unchanged, active unlimited, no verification/
+  agents/publication/controller edits.
 - Latest recovery2026-11-17 stage101: base8ba1708. EX/MAC socket constructor/
   receive/connect/setup/head rewrite/exchange/finish/close policies now native,
   explicit Python lock/except/close shells keep objects/GIL-releasing std I/O,

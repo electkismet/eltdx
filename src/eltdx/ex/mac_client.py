@@ -47,6 +47,30 @@ from eltdx.mac.codec import build_mac_request
 _T = TypeVar("_T")
 
 
+def _native_connect_attempt(client, domain, target):
+    """Keep connection publication and login inside the original except scope."""
+    from eltdx._native_abi import load_native
+
+    try:
+        conn = load_native().extension_client_connect_one(domain, client, target, _MODULES[__name__])
+    except TransportError as exc:
+        return False, exc
+    return True, conn
+
+
+def _native_execute_attempt(client, domain, command):
+    from eltdx._native_abi import load_native
+
+    try:
+        result = client._conn.execute(command)
+    except TransportError as exc:
+        return load_native().extension_client_recover(
+            client=client, domain=domain, command=command, cause=exc,
+            module=_MODULES[__name__], assert_enabled=__debug__,
+        )
+    return True, result, False
+
+
 class MacExClient:
     """同步 MAC 协议扩展市场客户端（期货/港股/美股，端口 7727）。
 
@@ -69,20 +93,11 @@ class MacExClient:
         *,
         hosts: list[str] | None = None,
     ) -> None:
-        candidates = list(hosts) if hosts else list(MAC_EX_HOSTS)
-        if host is not None:
-            candidates = [host] + [h for h in candidates if h != host]
-        if not candidates:
-            raise ValueError("hosts 不能为空")
-        self._hosts = candidates
-        self._host = host if host is not None else candidates[0]
-        self._port = port
-        self._timeout = timeout
-        self._conn = ExTdxConnection(self._host, port, timeout, mac_ex_mode=True)
-        self._connected = False
-        self._bounds_cache: dict[int, tuple[int, int]] = {}
-        # 宏观指标（市场 38）代码缓存：name -> GoodsItem
-        self._macro_cache: dict[str, GoodsItem] = {}
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_init(
+            "mac_ex", self, (host, port, timeout, hosts), _MODULES[__name__]
+        )
 
     @classmethod
     def from_best_host(
@@ -94,14 +109,11 @@ class MacExClient:
     ) -> "MacExClient":
         """测量所有 MAC 扩展行情服务器延迟，选最低延迟建立连接。"""
 
-        candidates = list(hosts) if hosts else list(MAC_EX_HOSTS)
-        # MAC-EX 会话探活必须用 mac_ex_mode=True + 登录命令，与 connect() 一致；
-        # 否则以 EX 模式发 92B 握手 + markets，会把 MAC-EX 主站误判为不可用。
-        ranked = ping_ex_all(
-            candidates, port, ping_timeout, mac_ex_mode=True, command_factory=MacExLoginCmd
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_best(
+            "mac_ex", cls, (hosts, port, timeout, ping_timeout), _MODULES[__name__]
         )
-        best = ranked[0][0] if ranked else candidates[0]
-        return cls(best, port, timeout, hosts=candidates)
 
     @staticmethod
     def ping_all(
@@ -115,13 +127,9 @@ class MacExClient:
         EX 92B 握手，并用登录命令（0x2454）验证主机是否真正可用。
         """
 
-        return ping_ex_all(
-            hosts or list(MAC_EX_HOSTS),
-            port,
-            timeout,
-            mac_ex_mode=True,
-            command_factory=MacExLoginCmd,
-        )
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_ping("mac_ex", (hosts, port, timeout), _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 连接管理
@@ -130,40 +138,35 @@ class MacExClient:
     def connect(self) -> None:
         """建立 TCP 连接并执行 MAC 登录；按主机顺序故障转移。"""
 
-        last_exc: TransportError | None = None
-        for host in self._ordered_hosts():
-            try:
-                self._conn = ExTdxConnection(host, self._port, self._timeout, mac_ex_mode=True)
-                self._conn.connect()
-                self._conn.execute(MacExLoginCmd())
-            except TransportError as e:
-                last_exc = e
-                continue
-            self._host = host
-            self._connected = True
-            return
-        raise last_exc if last_exc is not None else TransportError("没有可用主机")
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_connect("mac_ex", self, _MODULES[__name__])
 
     def close(self) -> None:
         """关闭连接。"""
 
-        self._conn.close()
-        self._connected = False
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac_ex", "close", self, _MODULES[__name__])
 
     def disconnect(self) -> None:
         """关闭连接（别名）。"""
 
-        self.close()
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac_ex", "disconnect", self, _MODULES[__name__])
 
     def ensure_connected(self) -> None:
         """验证连接存活，断线则重建并重新登录。"""
 
-        if not self._connected:
-            self.connect()
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac_ex", "ensure", self, _MODULES[__name__])
 
     def __enter__(self) -> "MacExClient":
-        self.connect()
-        return self
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("mac_ex", "enter", self, _MODULES[__name__])
 
     def __exit__(
         self,
@@ -171,23 +174,21 @@ class MacExClient:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
-        self.close()
+        from eltdx._native_abi import load_native
+
+        load_native().extension_client_state("mac_ex", "exit", self, _MODULES[__name__])
 
     def _ordered_hosts(self) -> list[str]:
-        return [self._host] + [h for h in self._hosts if h != self._host]
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_state("mac_ex", "order", self, _MODULES[__name__])
 
     def _execute(self, cmd: "BaseCommand[_T]") -> _T:
         """执行命令；连接断开时重建连接 + 重新登录并故障转移一次。"""
 
-        if not self._connected:
-            self.connect()
-        try:
-            return self._conn.execute(cmd)
-        except TransportError:
-            self._conn.close()
-            self._connected = False
-            self.connect()
-            return self._conn.execute(cmd)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_client_execute("mac_ex", self, cmd, _MODULES[__name__], __debug__)
 
     # ------------------------------------------------------------------ #
     # 商品列表
