@@ -1,5 +1,9 @@
 # 全源码门槛与统一验证记录
 
+## 当前结论（2026-11-18）
+
+T01–T30源码实现完成。记录范围内的Rust、Linux、Windows Python 3.10–3.14、压力/性能和stage138本地归档consumer均有通过记录，但属于各自候选SHA与平台的证据，不拼成一个未执行的单候选总矩阵。发布平台隔离、macOS/非Windows产物、授权后的公开registry消费和生产协议样本分属后续外部验收；文档-only变更不触发Rust/Python全矩阵重跑。以下按阶段保留历史原始结果，当前分层结论见[最终验收索引](final-acceptance.md)。
+
 ## 源码门槛：stage115
 
 日期为2026年11月17日。root在源码检查点 `23bf1c83718e83d20e9c5ba9b919e9dfac3e2db4` 保存后，确认T01–T30约定的实现、兼容绑定、测试/回环/压力/性能工具、消费者、包和文档源码范围均已写齐；普通Git状态显示工作区干净。根据用户“全部写完后统一测试”的既有指令，从本门槛开始允许统一执行验证。此决定只允许开始验证，**不证明任何编译、行为、兼容或发布验收已通过**。
@@ -236,6 +240,8 @@ stage136文档 attempt01 针对本节与验收索引的更新执行了`check_rel
 
 提交`aa4255a2e9baeb547ae70f30a67b671bef5cef99`上的只读crates.io观察于`2026-11-17T17:55:41Z`完成：`eltdx-protocol@3.3.5`、`eltdx-runtime@3.3.5`和`eltdx@0.1.0`均HTTP404。原始响应、Rust1.89版本、候选lock SHA和退出码见`artifacts/unified/stage137-registry-observation-attempt01/packages.json`（SHA256 `4cb9969e56817b5149ffeb9f5e1dbf9229d6dc9f068c0e2c4fa073692c360f91`）。这只表示所记录时点查无该名称，不证明名称可发布或账号拥有权限；没有执行发布dry-run或上传。
 
-同一源码树的`rust_sdk_packages.py archives` Windows/Rust1.89 attempt成功：24条命令exit0，生成并检查`eltdx-protocol 3.3.5`、`eltdx-runtime 3.3.5`、`eltdx 0.1.0`三个crate归档；外部Rust consumer从实际解包内容运行11种lazy/loopback/default/full/F10/offline/financial/EX/MAC/MAC-EX模式，均通过。归档SHA256依次为`f12daac55b851830782f8bfed834775ca9acadb37898156f0dc5c633a0150910`、`3d012ac9698de03dc49409f20cfa992fb2b056a834230e80eb0c4354cf6b0c37`、`568ec8eb422337fcd123db3d4cbae50672c1f72456f9173e37722cecb3312cbe`；报告为`artifacts/unified/stage138-archives-attempt01/packages.json`（SHA256 `1519ace848c8809e5a8ad8c337c7a043955f9c26a444c2683471a47f38e1530f`）。这是directory-source与unpacked-patch本地模拟消费，不是registry消费。
+同一源码树的`rust_sdk_packages.py archives` Windows/Rust1.89 attempt成功：24条命令exit0，生成并检查`eltdx-protocol 3.3.5`、`eltdx-runtime 3.3.5`、`eltdx 0.1.0`三个crate归档；外部Rust consumer从实际解包内容运行11种lazy/loopback/default/full/F10/offline/financial/EX/MAC/MAC-EX模式，均通过。归档SHA256依次为`f12daac55b851830782f8bfed834775ca9acadb37898156f0dc5c633a0150910`、`3d012ac9698de03dc49409f20cfa992fb2b056a834230e80eb0c4354cf6b0c37`、`568ec8eb422337fcd123db3d4cbae50672c1f72456f9173e37722cecb3312cbe`；报告为`artifacts/unified/stage138-archives-attempt01/packages.json`（SHA256 `1519ace848c8809e5a8ad8c337c9a043955f9c26a444c2683471a47f38e1530f`）。这是directory-source与unpacked-patch本地模拟消费，不是registry消费。
 
 发布后无patch注册表消费仍不可执行：当前下层候选名称未出现在registry，实际发布也不在本次授权范围。stage138不提供macOS、物理隔离或生产协议证据；统一验收继续active。
+
+stage139 attempt02在干净候选`a000eaabc7b8e479b9dd288d8a12a548dd090acc`上通过metadata/mirror、MkDocs strict、站点链接和diff-check，报告SHA256 `42732c380e73d5dabbca70d13bc2bdeff7710da63e560e773a97703b82a1374a`。用户中断附近的attempt03结果文件完整，dirty候选四项exit code均为0；保留其记录，不覆盖。验收口径更新后的attempt04–06最终文档候选均在dirty状态下四项exit code为0，attempt06结果JSON SHA256为`424cfed41146d834ffb6f6f0425be4de09baa29b32cb6685bcc5b4cee51fdff8`。随后会对本恢复记录的最终版本执行门禁并提交文档。

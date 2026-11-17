@@ -16,7 +16,7 @@
 
 stage137在提交`aa4255a2e9baeb547ae70f30a67b671bef5cef99`上再次进行只读观察，`eltdx-protocol@3.3.5`、`eltdx-runtime@3.3.5`和`eltdx@0.1.0`均返回HTTP404，时间为`2026-11-17T17:55:41Z`。响应原文与SHA256、候选lock和工具版本见`artifacts/unified/stage137-registry-observation-attempt01/packages.json`（SHA256 `4cb9969e56817b5149ffeb9f5e1dbf9229d6dc9f068c0e2c4fa073692c360f91`）。这只是该时点的名称存在性观察，不代表保留名称、账号权限、发布成功或注册表消费。
 
-stage138的Windows/Rust1.89归档验证以同一当前源码树执行，24条工具命令全部exit0，三个归档的manifest/文件内容已检查；从实际解包文件运行11种最小/default/full consumer模式均成功。结果见`artifacts/unified/stage138-archives-attempt01/packages.json`（SHA256 `1519ace848c8809e5a8ad8c337c7a043955f9c26a444c2683471a47f38e1530f`）。下层包由本地目录源登记，消费者显式patch到真实解包内容；不属于公开registry身份或发布验证。
+stage138的Windows/Rust1.89归档验证以同一当前源码树执行，24条工具命令全部exit0，三个归档的manifest/文件内容已检查；从实际解包文件运行11种最小/default/full consumer模式均成功。结果见`artifacts/unified/stage138-archives-attempt01/packages.json`（SHA256 `1519ace848c8809e5a8ad8c337c9a043955f9c26a444c2683471a47f38e1530f`）。下层包由本地目录源登记，消费者显式patch到真实解包内容；不属于公开registry身份或发布验证。
 
 三个 Rust 库各自包含 README 和原 LICENSE 的逐字副本，Cargo include 限定 manifest/lock、许可证、说明、src 和适用 examples。SDK 另包含两个小型测试辅助源码 `tests/support/hq_server.rs` 和 `stress_log.rs`，供 `cfg(test)` 私有预算压力模块在归档中编译；它们不进入生产依赖或运行时。其余仓库测试和大型 fixture 留在仓库；这些测试仍须在最终候选 SHA 上完整运行。归档消费不依赖仓库外部语料。项目原非商业学习和数据研究许可不因 SDK 增加而改变，不填入不符的 MIT/Apache SPDX 标签。
 

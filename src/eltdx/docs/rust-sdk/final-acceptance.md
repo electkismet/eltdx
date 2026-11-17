@@ -1,6 +1,18 @@
 # T01–T30 最终要求与证据索引
 
-本页把开发计划R01–R12关联到实际源码、验证入口和必须保留的运行证据。它是验收导航，不能凭表格或脚本存在判定完成。统一执行已在stage115开放；stage131–134已完成Windows Rust1.89/1.100平台与feature矩阵、Loom、归档consumer、Linux/full与Loom以及两平台默认原生压力聚合；stage135完成Windows/Linux配对性能run及raw复验；stage136完成Windows Python3.10–3.14 wheel、完整回归和独立consumer矩阵；stage137–138更新只读registry观察和当前候选crate归档consumer。各次候选、平台、命令和具体范围见[统一验证记录](unified-validation.md)。stage135首轮逐项审计的未闭合项由stage136–138更新；macOS、非Windows wheel、物理隔离及公开registry消费仍未闭合，整体最终交付仍未验收。未验证、失败、缺失、平台未具备、生产样本未取到必须分别记录。
+本页把开发计划R01–R12关联到实现、验证入口和交付证据。R01–R12是完整交付范围的追溯索引，不是代码完成度或单一验收百分比；“尚未满足全部发布条件”不表示实现源码或本地核心验证仍未完成。各阶段、候选SHA、命令与原始结果见[统一验证记录](unified-validation.md)。
+
+## 当前状态
+
+| 范围 | 状态 | 结论 |
+| --- | --- | --- |
+| T01–T30实现 | 完成 | 计划内Rust SDK、Python兼容桥接、独立Rust入口及文档/示例源码已写齐。stage136之后没有运行时代码改动；stage136改动限于跨Python版本测试合同。 |
+| 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
+| 发布平台与隔离 | 待补外部环境 | 已有Windows/Linux证据；macOS/非Windows wheel及真正无对侧工具链的隔离consumer环境尚未验证。 |
+| 注册表发布与消费 | 未发布 | stage137在记录时点对三个名称查询均为404；stage138只验证本地归档和目录源/patch消费。实际发布和发布后无patch消费须在确认名称、账号权限并获得发布授权后执行。 |
+| 生产协议验收 | 独立待补证据 | MAC-EX登录/可选setup规则、category22生产样本和权威涨跌停规则没有足够生产证据。未知规则继续保持Unknown；这不否定本地实现与测试通过。 |
+
+因此，当前可报告为“实现完成；记录范围内的本地核心验证通过；发布/生产验收未完成”。后两项依赖外部平台、注册表权限或生产数据，不用来回滚前两项状态，也不合并成一个完成比例。
 
 ## 要求逐项追踪
 
@@ -23,7 +35,9 @@
 
 逐服务普通使用示例与非空回环精确函数见[示例对应表](service-examples.md)。E06 的格式和checked类型策略见[Serde合同](examples-serde.md)，实际运行target为 `serde_contract`：finite/nonfinite、负零、bytes/缺失/空、日期时区/Unknown和源单位；三个trait缺失compile-fail由serde doctest执行。`serde` 单独生产依赖和F10独立文档也要验证，不以full成功推定它们成功。
 
-## 执行顺序与候选冻结
+## 完整发布审计流程
+
+以下流程只在准备新的完整发布候选时适用。文档-only提交不要求重跑Rust/Python全矩阵；仅当运行时代码或其合同发生变化时，按影响范围重跑相应验证。既有报告继续绑定各自source SHA。
 
 1. **全源码门槛**：逐任务确认实现、绑定、测试源码、示例、打包与文档都已写齐；记录当前仍缺的执行证据，不以先跑测试探路替代源码完成。
 2. **工具与lock**：门槛之后才发现实际工具链/解释器、解析新依赖和更新Cargo.lock。验证声明的pin、MSRV、features及license；修改形成新源码检查点，lock与候选来源一致后再进行locked验证。
@@ -42,36 +56,13 @@
 
 每次新运行用新目录。failed/timeout/缺依赖的日志不可覆写为passed；外部平台报告必须同候选，不能拿旧SHA结果补当前空缺。需要重新生成黄金值、改固定阈值或减少工作量时保留旧失败和依据，先审查合同再执行。
 
-## 当前明确缺口
+## 后续工作
 
-- stage122完整Python local3046、loopback276及golden103通过；stage123干净92f033b的Windows/Linux full、Loom及独立wheel公开消费通过。后续平台矩阵暴露的超时/取消清理竞态已于stage124确定性red/green修复，修复后的Windows/full/all-targets命令exit0。stage125三个纯Rust库的full/all-targets严格Clippy exit0，Python源码合同603通过，但native仍是旧候选；须对新候选重建wheel并重跑受影响Rust/Python、平台/feature/Loom与完整消费者/包/文档/压力性能。32feature和其他旧候选通过不能补新候选空缺，source-complete不等于整体验收。
-- MAC-EX生产LoginReplyRules默认与optional MAC setup的响应identity/order/fence仍无独立证明。合成成功/拒绝字节只允许在显式合成profile使用。
-- category22没有独立非空生产样本，未知涨跌停规则仍返回Unknown；不影响已独立实现的HQ0x0FFC与F10历史资金流归属。
-- 注册表名称/同版本源码身份、全部新依赖lock/API/MSRV/license、跨平台镜像与实际wheel支持仍需真实执行。
-- Windows/macOS hosted的process-path-only隔离不能证明整台机器没有编译器；更强环境要求须提供专用镜像证据。
+- 发布平台：在可复验的macOS与非Windows环境构建/消费产物，并使用实际不含Rust或Python构建工具链的隔离镜像完成对应consumer验证。
+- 生产协议：由有权限的环境提供可追溯样本，验证MAC-EX登录回复与可选setup的身份/顺序/fence、category22非空路径及权威涨跌停规则；没有证据的语义继续标记为Unknown或不作支持承诺。
+- 注册表：在发布获授权且包名/版本/账号权限已确认后，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前的404只需在该阶段重新观察，不是当前实现工作。
 
-本节较早阶段记录保留为历史；stage131–136的更新结果优先，完整范围见统一验证记录。性能在Windows/Linux已各84 trial并通过复验；macOS、非Windows wheel、物理隔离环境及生产协议证据仍需补齐，不把本机合成测量扩大到缺失环境。
-
-## Stage135 逐项审计结论
-
-以下结论按已保存的候选、平台和证据范围审计，不把脚本存在、源码完整或不同候选的结果合并成全通过。`部分`表示实现源码已完成且有相应本地证据，但仍有明确的环境、生产样本或兼容矩阵缺口。
-
-| 要求 | 当前结论 | 已有证据 | 未闭合项 |
-| --- | --- | --- | --- |
-| R01 两产品独立安装 | 部分 | Windows wheel独立安装回归；Rust归档解包后的外部consumer执行11种模式 | 无Python/无编译器物理隔离镜像；公开注册表安装与源码身份 |
-| R02 共用Rust业务 | 部分 | Python native bridge、独立Rust入口、Python local/loopback/golden回归及Linux Rust完整集合 | category22非空生产样本；各生产profile独立对照和完整能力逐项差分 |
-| R03 owner/pin/pending | 部分 | Rust并发关闭/取消集合、Windows/Linux Loom及默认原生压力资源归零 | 未确认生产清理边界；macOS运行证据 |
-| R04 整次期限 | 部分 | operation deadline、超时/取消边界与跨平台压力合同已有运行覆盖 | 声明平台/解释器矩阵仍不齐；生产endpoint与外部时延证据 |
-| R05 metadata隔离 | 部分 | metadata owner隔离、等待者取消、精度快照相关Rust与Loom集合 | macOS和其余受支持环境的独立运行记录 |
-| R06 顺序缺失分页 | 部分 | HQ/F10/financial分页与独立consumer回环；单endpoint单连接回归通过 | 全部声明平台/Python版本的逐域矩阵；真实服务分页形态 |
-| R07 单位日期复权 | 部分 | 数值、时间、来源精度、调整与未知值由Rust用例及Python兼容回归覆盖 | 权威涨跌停规则仍未知；category22与生产复权样本缺失 |
-| R08 订阅 | 部分 | Windows/Linux原生压力覆盖队列、actor、取消、关闭和资源回收 | 仅有合成负载；无生产长时订阅和macOS记录 |
-| R09 F10/EX/MAC边界 | 部分 | F10具名入口与EX/MAC wire组合有本地fixture、Python回归及独立consumer证据 | MAC-EX生产LoginReplyRules和optional setup关联无抓包证明；category22缺样本 |
-| R10 文件下载有界 | 部分 | offline/financial ZIP、DAT、K线和边界处理有Rust/Python本地验证及归档consumer | 无生产下载源的截断/限额行为证据；其他平台矩阵 |
-| R11 兼容决策 | 部分 | Python 3.12 local 3046、loopback 276、golden 103通过；基线与差异规则有文档 | Python 3.10–3.14全矩阵未完成；生产hook/profile仍需对应样本 |
-| R12 可发布可复验 | 部分 | Windows/Linux候选、lock/wheel、压力与性能raw均可复验，stage135性能raw复验通过 | macOS、公开registry发布后消费、真实隔离镜像；生产协议证据；未执行发布 |
-
-stage135审计快照之后，stage136补齐了Windows Python3.10–3.14全部兼容回归和独立wheel消费。R11现在有该平台与版本范围的实际证据；R01、R12也增加了相同wheel交付证据。其余条目仍按具体平台、物理隔离和生产证据条件审视，没有任何一项因此升级为全环境、全生产条件通过。
+R01–R12首轮逐项审计是stage135时点的历史快照，后续更新以本节状态和[统一验证记录](unified-validation.md)为准，不再复制一份逐行“部分”表。已有Windows Python矩阵、Windows/Linux压力与性能、以及stage138归档结果分别保留在对应阶段记录中。
 
 ## Stage136：Windows Python 版本矩阵
 
@@ -79,4 +70,8 @@ stage135审计快照之后，stage136补齐了Windows Python3.10–3.14全部兼
 
 wheel SHA256为`82b0bf70a847ea7775079cb4d958130cfca850e9ca515ebf1e38b686de65fd3e`，native SHA256为`465e28d1dc950a97ce36bb3ee82766c6aebe52448d3486fad5203b67c030de66`，Cargo.lock SHA256为`214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`。逐版本解释器、各JUnit SHA、installed-wheel报告与consumer证据摘要见`artifacts/unified/stage136-python-matrix/results.json`。consumer为`process-path-only`工具链隔离，不能代表物理隔离镜像；这些是Windows合成loopback和兼容证据，不提供macOS、生产协议、公开registry或非Windows wheel证明。stage136的跨Python修正只调整了测试/快照比较假设，未改变运行时代码。恢复提交`fa9355e`上的metadata、MkDocs strict、站点链接和diff门禁均exit0；最新门禁与后续恢复记录见统一验证记录stage136章节。
 
-这些不是授权缩减任务范围的理由。源码范围须全部实现，执行失败须继续处理；任何确实需要独立外部输入的项保留具体缺口和后续行动，不能借文档标记自动通过。
+该矩阵覆盖Windows声明的Python版本范围，不覆盖macOS/非Windows wheel、物理隔离、公开registry发布后消费或生产协议证据。它与这些外部验收项分层记录，不互相替代。
+
+## Stage137–139：注册表观察、归档与文档口径
+
+stage137的crates.io HTTP 404是记录时点的只读结果；stage138通过的是本地归档和解包consumer模拟。stage138报告SHA256为`1519ace848c8809e5a8ad8c337c9a043955f9c26a444c2683471a47f38e1530f`。stage139 attempt02绑定干净提交`a000eaabc7b8e479b9dd288d8a12a548dd090acc`，metadata/mirror、MkDocs strict、站点链接与diff-check均通过；attempt03的四项dirty-tree结果完整保留且均exit0。验收口径更新后的attempt04–06也均通过四项门禁；attempt06结果JSON SHA256为`424cfed41146d834ffb6f6f0425be4de09baa29b32cb6685bcc5b4cee51fdff8`。所有旧attempt原样保留。
