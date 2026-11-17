@@ -1233,3 +1233,7 @@ Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.
 公开候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 上的 44189071921 attempt 2 已结束成功。`stage159-actions-confirmation-attempt01/verified-platforms.json` 与 `verified-aggregate.json` 核对了五平台十组安装、五 wheel 和一 sdist、逐文件散列及 CI 与独立产物清单。44188994800 的 macOS Rust/归档已独立通过。无须再等或重跑这两次 CI。更早候选的失败日志保留；此轮仅更新文档和恢复账本，产品代码不用重验。
 
 接续：同机配置获授权的 `cargo login` 后，以固定换行的干净 `stage158-macos-retest-attempt01/registry-source` 依次发布 `eltdx-protocol@3.3.5`、`eltdx-runtime@3.3.5`、`eltdx@0.1.0`，每包公开后核对下载归档和权限，再运行独立 `registry-consumer`。生产还缺 MAC-EX 跨日、其他网络和服务端拒绝、MAC 可选 setup、category 22 非空及交易所原始价格记录。目标保持 active、无额度限制。
+
+## Stage167：补齐最终候选 Linux stable
+
+`6a6cd8b` 的 Git 归档在 WSL2 x64 / Rust 1.100.0 用 `--locked --offline` 通过 SDK full、protocol、runtime 合并测试（1113 通过、0 失败、10 忽略），三 crate 严格 Clippy 与全仓 fmt 检查通过。首轮 WSL 路径错误未进入编译，保留；成功报告为 `artifacts/unified/stage167-linux-stable-attempt02/result.json`。T28–T30 仅将有既有验证证据的复选框更新，未将之前候选记录升级为冻结候选结果。发布凭据仍缺，生产证据缺口沿用 Stage165–166。

@@ -432,3 +432,9 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 从 Actions 下载 `installed-*`、`release-dist` 和 `release-verification`。`artifacts/unified/stage159-actions-confirmation-attempt01/verify.ps1` 全量模式核对十组安装、30 条命令日志、每个平台的 wheel/native 散列、非空公开 API 结果、定位不到编译工具，以及 macOS 两套 Rust 与归档日志。`verified-platforms.json` SHA256 `4a9647dfba9aa43ce53733ea43ea01a66c506c0a07574f90eb1d3162da7b4431`。两个原生 Linux 架构运行于无编译工具镜像；Windows、macOS 是独立虚拟环境和受限 PATH。
 
 同目录 `verify-aggregate.py` 核对运行 SHA/attempt、六份实际文件与 `SHA256SUMS`、十份消费报告的 wheel 身份，以及两个 CI 清单逐字节一致；独立生成的 JSON 清单经解析完全一致，文件散列只因 LF/CRLF 不同。`verified-aggregate.json` SHA256 `1b11f63726120a90d436c3b5acd63c53f355b56b2c7c56822e1bdf87d484500d`，聚合清单 SHA256 `eb33e7efe703426c496338c7cb6e58ef17b55ac0b2bcf1b197bd3d4bb5768d32`，`SHA256SUMS` SHA256 `e3432bd0806f4aa91f157534672110219d125c25c749aa594e439e1ad5ec3340`。正式 crates.io 发布及其无 patch 消费证据仍待可用发布凭据。
+
+## Stage167：冻结候选的 Linux stable 行为与严格检查
+
+从 Git 归档核对候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 后，解包至 Ubuntu 22.04 WSL2 x64 本地文件系统，在 Rust/Cargo 1.100.0 运行 locked、offline 的 SDK full、runtime 和 protocol 合并测试。65 个测试目标的汇总为 1113 passed、0 failed、10 ignored；ignored 负载不计为本轮通过。三个 crate 的 full all-targets Clippy（`-D warnings`）和 `cargo fmt --all -- --check` 均 exit 0。
+
+首轮因 Windows 路径的反斜杠被 WSL shell 解释，未运行 Cargo（exit 127）。保留 `artifacts/unified/stage167-linux-stable-attempt01/`，第二轮确认 WSL 路径可读后成功。`stage167-linux-stable-attempt02/result.json`（SHA256 `a2c8e8f6289d353cd3dae4fadfc49780b4f363987848b3215f8e51518dc2514f`）记录命令、时间、退出码和原始日志散列。Windows 生成的源归档 SHA256 `6e367ce8d957b650a6c4ecfa78ac609ce9b807ff398e1724364880ff3fa00ce0`，其中 Cargo.lock 因 CRLF 与发布检出的散列不同；转换为 LF 后一致（SHA256 `214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`）。本轮补齐同候选 Linux stable 范围，不重跑平台矩阵或压力性能，也不替代公开 registry 或生产证据。

@@ -583,31 +583,33 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T28：消费者与 feature/平台矩阵
 
-2026-11-17源码恢复点（stage109，基础55814ea）：T28独立EX/MAC/MAC-EX Rust consumer与feature/MSRV/平台/no-Python/分离wheel消费验证源码已写齐，全部未执行；详见[t28-verification-index.md](t28-verification-index.md)。桌面hosted环境只声明进程工具不可达，专用无编译器镜像仍需最终证据。27源码完整/1部分(T19)/2未开始(T29–T30)，以下验收框仍未通过。
+T28 执行证据见[独立消费者与平台索引](t28-verification-index.md)和[统一验证记录](unified-validation.md) Stage131–132、134、149、159、166。Linux 的 Rust 与 Python 消费分别有无对方工具链的镜像证据；Windows/macOS 的独立 Python 安装只验证受限进程 PATH。
 
 **文件：** 新增 `crates/eltdx/examples/`、CI Rust job、独立consumer fixture；`verification.md`包含具体执行模板。
 
-- [ ] 无Python环境先编译，再运行build/close及loopback真实请求；不是只导入crate。
-- [ ] default、no-default-features、单feature、代表组合、full均构建；mac蕴含ex。
-- [ ] MSRV1.89与current stable，Windows/Linux/macOS运行有限离线用例。
-- [ ] cargo tree确认无PyO3/Python discovery；新例子通过doctest或编译检查。
-- [ ] 对称验证普通 Python 安装：在未提供 rustc/cargo/maturin 的干净环境，仅用 `pip install --only-binary=:all: --no-index --find-links <wheelhouse> eltdx` 安装已构建 wheel，并执行公开 API 非空 loopback 查询及 close；没有匹配 wheel 必须失败，不允许回退 sdist。
-- [ ] 运行完整协议/运行时/SDK测试、fmt、clippy；在线和压力单列，失败不可改阈值后不说明。
+- [x] 无Python环境先编译，再运行build/close及loopback真实请求；不是只导入crate。Stage149 的 Linux 隔离镜像执行 12 种消费者场景。
+- [x] default、no-default-features、单feature、代表组合、full均构建；mac蕴含ex。Stage132 的两套 Rust 版本各检查 32 个显式子集及 default/full。
+- [x] MSRV1.89与current stable，Windows/Linux/macOS运行有限离线用例。Windows 两套平台矩阵见 Stage131；Linux 的 1.89 和 stable 见 Stage134、148、167；macOS 两套矩阵见 Stage159。各报告保留实际候选 SHA。
+- [x] cargo tree确认无PyO3/Python discovery；新例子通过doctest或编译检查。见 Stage131–132、149、159 的依赖树、示例和文档命令。
+- [x] 对称验证普通 Python 安装：在未提供 rustc/cargo/maturin 的干净环境，仅用 `pip install --only-binary=:all: --no-index --find-links <wheelhouse> eltdx` 安装已构建 wheel，并执行公开 API 非空 loopback 查询及 close；没有匹配 wheel 必须失败，不允许回退 sdist。Stage166 的 Linux x64/ARM64 镜像中四组消费通过。
+- [x] 运行完整协议/运行时/SDK测试、fmt、clippy；在线和压力单列，失败不可改阈值后不说明。命令的候选、平台与记录见 Stage125、131、134、159；压力见 Stage134。
 
 ### T29：package 与版本矩阵
 
-2026-11-17源码恢复点（stage110，基础1cfa649）：T29独立SDK0.1.0版本、原3.3.5下层/Python、path+version/包README与原LICENSE/include、归档/注册表观察及dry-run源码写齐，详见[发布政策](release-policy.md)。全部未运行，registry名称/版本身份与lock待最终验证；28源码完整/1部分(T19)/1未开始(T30)，以下执行验收框保持未通过。
+T29 的版本、归档和发布顺序见[发布政策](release-policy.md)。Stage159–160 已验证冻结候选的本地归档和首包 dry-run。实际 crates.io 包名与账号权限仍须发布前确认；正式发布以及无 patch 消费由后续发布验收单列。
 
 **文件：** 修改三个Rust库Cargo元信息/内部path+version、bindings依赖；新增发行检查脚本及package consumer配置。
 
 - [ ] 决定新SDK首个0.x版本及可用crate名称，实际查询注册表后记录，不提前断言名称可用。
-- [ ] protocol/runtime原3.x和SDK0.x依赖范围写明；Python包版本与绑定兼容矩阵明确。
+- [x] protocol/runtime原3.x和SDK0.x依赖范围写明；Python包版本与绑定兼容矩阵明确。见发布政策及 Stage136、166 的兼容验证范围。
 - [ ] wheel 消费测试与 wheel 构建 job 分离，记录 wheel 文件名/平台/ABI/hash；安装及运行 job 均无 Rust 工具链。源码构建另列所需工具，不混作普通 Python 安装要求。
-- [ ] 逐crate列包内容和license/readme；path-only依赖不得残留。
-- [ ] 已发布下层可执行完整package/publish dry-run；未发布下层用本地registry或明确patch的内容验证，不能当作公开registry成功证据。
+- [x] 逐crate列包内容和license/readme；path-only依赖不得残留。Stage159 冻结候选的 macOS 归档检查已执行。
+- [x] 已发布下层可执行完整package/publish dry-run；未发布下层用本地registry或明确patch的内容验证，不能当作公开registry成功证据。当前属于未发布分支，Stage159 通过三包的本地解包消费，Stage160 通过首包 dry-run；公开消费仍未执行。
 - [ ] 不实际publish/tag；产物hash、source SHA、工具链和features固定后才进入发布审批流程。
 
 ### T30：最终覆盖、性能和维护文档
+
+当前执行结果见[最终验收](final-acceptance.md)和[压力与性能索引](t30-evidence-index.md)。下列带日期的段落是源码交接时的历史记录；复选框随验收记录更新。
 
 2026-11-17第四段源码恢复点（stage114，基础fd548ca）：18个service和独立客户端的普通调用、六份feature条件rustdoc include与精确非空回环对应已写；固定连接非空refresh用例、E06七组serde运行合同和三个checked类型compile-fail、serde/f10单独文档门禁及六对include同步检查源码已补。按本任务交付范围收尾源码审阅并同步包内文档。当前30项源码范围完整/0部分/0未开始；此处尚无任何新编译或运行结果。保存本检查点后由root记录全源码门槛，按最终验收顺序准备lock并统一验证；所有下方执行验收框保持未通过，外部生产证据缺口不能改标通过。
 
@@ -620,11 +622,11 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 **文件：** Rust rustdoc、示例、Python迁移说明、能力索引、发布说明、压力/性能证据索引。
 
 - [ ] 核对R01–R12和能力矩阵逐项证据；实验category22等明确排除稳定承诺。
-- [ ] 压力证据写入实际参数/计数/峰值/系统/SHA/日志hash，读原始日志复验；禁止只验证字段格式。
-- [ ] 新增 `crates/eltdx/tests/stress.rs` 的显式ignored压力用例及证据导出，按验证规范执行；与默认快速离线CI分开。
-- [ ] 性能对比固定相同工作量和样本，区别Rust核心、Python转换、外部网络耗时。
+- [x] 压力证据写入实际参数/计数/峰值/系统/SHA/日志hash，读原始日志复验；禁止只验证字段格式。Stage134 的 Windows/Linux 原始日志分别复验及合并复算通过。
+- [x] 新增 `crates/eltdx/tests/stress.rs` 的显式ignored压力用例及证据导出，按验证规范执行；与默认快速离线CI分开。Stage134 两平台各 10 个独立压力场景通过。
+- [x] 性能对比固定相同工作量和样本，区别Rust核心、Python转换、外部网络耗时。Stage135 两平台各 84 个配对运行和原始数据复验通过；外网时延未测，不以本地回环替代。
 - [ ] 所有示例标记feature需求、错误处理、显式close、单位/时间语义；不把raw=false宣传为零拷贝。
-- [ ] 同步docs mirror并检查链接、严格构建；保留失败和未验证项。
+- [x] 同步docs mirror并检查链接、严格构建；保留失败和未验证项。Stage166 的文档构建、链接、镜像和 diff 检查均通过。
 
 ## 8. P6：独立后续项目
 

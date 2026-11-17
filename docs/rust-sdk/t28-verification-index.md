@@ -1,6 +1,6 @@
-# T28：独立消费者与平台矩阵源码
+# T28：独立消费者与平台矩阵
 
-以下是已写源码及未来执行入口，全部尚未运行。T01–T30 实现源码全部完成前，不执行依赖解析、编译、测试、安装或网络验证。T28 的验证复选框保持未通过。
+下表定位验证入口和证据范围。实际报告见[统一验证记录](unified-validation.md)：Stage131–132 为 Windows 平台与 feature/Loom 验证，Stage134 为 Linux Rust 1.89 full 与 Loom，Stage149 为两个互相独立的工具链镜像，Stage159 为冻结候选的 macOS Rust 与归档检查，Stage166 为同候选全部五个平台的 Python wheel 安装，Stage167 为同候选的 Linux Rust 1.100 full、严格 Clippy 和格式检查。每份报告保留实际候选 SHA；公开 registry 消费另见[发布政策](release-policy.md)。
 
 | 要求 | 源码入口 | 执行证据要求 |
 | --- | --- | --- |
@@ -18,4 +18,4 @@ Rust 消费者只有一个直接依赖 `eltdx`，内部 wire fixture 只用 std�
 
 脚本保存候选 SHA、工作区修改、工具链、系统/架构、lock SHA256、每条命令的参数/退出码/耗时及日志 hash。每次使用新证据目录，失败不得覆写为通过。Rust-only shell 的日志、退出码和 tree 单独保留；执行器还须记录镜像 digest 和调用时的候选 SHA，标签本身不是不可变镜像身份。
 
-全源码完成后先补根 Cargo.lock 的真实依赖解析，再运行上述 `--locked` 门禁，保存新 lock 与 source SHA；当前旧 lock 未经本轮更新或执行验证。离线测试仅使用本地 fixture；依赖下载属于工具链准备，真实市场采样、压力和性能另列 T30。新增 workflow 当前只提供显式候选执行，未触发、未上传产物，也没有创建 tag 或发布。
+全源码完成后已解析并锁定根 Cargo.lock，再按各报告所列 SHA 运行 `--locked` 门禁。离线行为测试使用本地 fixture；真实市场采样、压力和性能分别记录。Stage159、166 的 GitHub Actions 已生成可核验产物；分支验证不创建 tag 或发布包。
