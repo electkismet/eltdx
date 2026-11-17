@@ -492,6 +492,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T25：MAC、MAC-EX 与未知字段
 
+2026-11-17 Stage B第七段源码恢复点（stage87，基础cb2077f）：T25实现/用例/交接源码范围完成。mac_simple_services新增9个公开函数，覆盖12个简单入口、请求/模型/raw/坏回复/预取消；mac_routing新增5个函数，对照完整Python字段/preset、全部市场HK路由、AH_CODE及bar全部标志/改头。全部未执行，下面验收框保持未通过；真实生产login/optional证据仍未取得。MAC23/23、MAC-EX13/13源码已有，完整分工见[MAC实现交接](mac-implementation-index.md)。25源码完整/1部分（T19）/4未开始（T27–T30），继续完整T27及后续范围。
+
 2026-11-17 Stage B第五段源码恢复点：owner阶段已提交`c66fe5c`；本段接入MAC quote_list/board_members/bars/transactions/boards/unusual及MAC-EX bars/transactions/all_transactions，现分别19/23和6/13方法有源码。新增富Bar/Transaction、秒级跨日、逐响应共享meta、完整页前插与raw行映射；HK复用EX23FC/2406解码与原owner，非HK仍MAC122F。boards须空页证据，unusual单页未满足目标为Unknown，all满保护上限报错。新增14个公开用例函数源码（mac_session共19），全部未执行；T25仍部分，辅助接口/剩余覆盖、T26组合和生产握手证据待完成。23/2/5不变，全部验证延期。
 
 2026-11-17 Stage B第四段源码恢复点：握手证据已提交`2a11033`；独立MacClient/MacExClient及builder/config/profile/owner已在feature mac下登记。MAC首13个简单方法及MAC-EX共享3方法接入既有EX门/worker/frame/预算/取消和探测调度；新增公开Quote的字段位保真/meta及KlineOffsetInfo。原path用例改公共导入，新增5个公开客户端回环/生命周期用例源码。全部未编译/执行，T25仍部分：分页/Bar/Transaction/HK接线与生产默认登录证据仍待完成；后者不能用合成ACK代替。23源码完整/2部分/5未开始不变。

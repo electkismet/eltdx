@@ -2,6 +2,18 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage87: basecb2077f(T26source closure). T25's
+  simple-method/field/preset/routing source scope complete. Added9 public
+  simple-client functions covering12 methods/malformed matrix/pre-cancel,
+  and5 mac_routing functions for every source FieldBit/preset,256 routes,
+  AH_CODE and allbar flags/head rewrite. All uncompiled/uncollected/unrun.
+  Read task-25-report checkpoint7 and updated mac-implementation-index.md.
+  Counts25 source-complete/1 partial(T19)/4 unstarted(T27-T30). Next complete
+  T27 extension Python migration, T28-T30 and T19 final handoff, then unified
+  execution and production login/optional-boundary evidence. Goal active
+  without quota. No tests/build/check/collection/dependencies/network/AST/
+  format/diff-check, agents or publication. Source closure is not acceptance.
+
 - Latest recovery2026-11-17 stage86: base27adc95. T26 source scope complete:
   all23 MAC/all13 MAC-EX methods, bounded directory/cache/macro, QFQ, full
   board aggregation/ranking/history and exact-source downloads have authored

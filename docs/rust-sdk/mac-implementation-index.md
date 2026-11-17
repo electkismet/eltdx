@@ -1,6 +1,6 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前T25部分、T26源码范围完成；板块组合`29256d1`、下载`b6b6860`、目录`27adc95`已提交，stage86补完整交接和生命周期源码；MAC23/23、MAC-EX13/13方法已有源码。
+当前T25/T26源码范围完成；板块组合`29256d1`、下载`b6b6860`、目录`27adc95`、T26收尾`cb2077f`已提交，stage87补简单接口和字段/路由源码；MAC23/23、MAC-EX13/13方法已有源码。
 **MAC模块/两类公开客户端已在源码登记；没有编译、测试、联网或安装证据，尚未验收可用。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
@@ -28,7 +28,7 @@
 | `mac/config.rs` | 独立MAC/MAC-EX配置、数字endpoint默认值及共同受控传输限额；纯build |
 | `mac/profile.rs` | 三步setup/严格optional fence及独立login，复用现有frame/write/read实现 |
 | `mac/session.rs` | 独立owner/session、现有门与worker/授权/取消清理、meta/raw及共享探测调度 |
-| `mac/client.rs` | 两类builder/管理/探测/关闭；MAC23/23、MAC-EX6/13入口源码已接入；MAC-EX剩余组合仍待实现 |
+| `mac/client.rs` | 两类builder/管理/探测/关闭；MAC23/23、MAC-EX13/13含ex_services组合入口源码已接入 |
 | `mac/quote.rs` | checked MAC身份、名称源字节、bit字段/未知位和逐响应meta的公开Quote |
 | `mac/market_data.rs` | 富Bar/Transaction、精确秒级/跨日/原始时间、七个float bits、独立f64有效OHLC/逐事件证据、HK原价/count presence/来源和共享meta |
 | `mac/collect.rs` | 80/700/1000/1800分页、整页前插、raw行排列、复用aggregate_meta/HK现有EX解码和all严格终止 |
@@ -37,10 +37,12 @@
 | `crates/eltdx/tests/mac_queries.rs` | 10个查询/默认/编码/身份边界函数源码；另pagination内部6个函数，全部未执行 |
 | `crates/eltdx/tests/mac_session.rs` | 19个公开入口/非空分页/秒级/raw/HK/lifecycle/取消/半包/换源/超量用例函数源码，全部未执行 |
 | `crates/eltdx/tests/mac_helpers.rs` | 6个字段视图/别名/unknown/debug/请求/头/有界zlib/板块转换函数源码，全部未执行 |
+| `crates/eltdx/tests/mac_simple_services.rs` | 9个实际简单接口函数源码：12方法的非空/坏响应/预取消、请求形状/位/日期/raw与MAC-EX共享来源，全部未执行 |
+| `crates/eltdx/tests/mac_routing.rs` | 5个完整FieldBit/preset/全部市场HK路由/AH_CODE/bar全部标志及head改写函数源码，全部未执行 |
 | `crates/eltdx/tests/extended_services.rs` | 13个QFQ修复/降级/strict/来源/字节/额外次数/原始行映射公开函数源码，全部未执行 |
 | `crates/eltdx/tests/extended_boards.rs` | 16个全成员/全候选/六指标/原始行/缺失/非有限/目标历史/重复日期/共享限额/取消关闭公开函数源码，全部未执行 |
 | `crates/eltdx/tests/extended_downloads.rs` | 17个size/EOF/cap/strict/续传/raw/初始failover与后续禁止换源/取消关闭/期限/字节公开函数源码，全部未执行 |
-| `crates/eltdx/tests/extended_loopback.rs` | 7个MAC/MAC-EX真实owner入口、取消/关闭/期限/阻塞回调门保留/换源公开函数源码，全部未执行 |
+| `crates/eltdx/tests/extended_loopback.rs` | 14个EX/MAC/MAC-EX真实owner入口、取消/关闭/期限/排队/阻塞回调门保留/换源/lease释放公开函数源码，全部未执行 |
 | `crates/eltdx/tests/support/extension_peer.rs` | std-only手写请求/响应及明确合成setup辅助，不作生产登录证据 |
 
 MAC模块已按feature mac在crate root登记；mac依赖ex，JSON使用现有optional
@@ -145,6 +147,6 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
 5. T26 QFQ、聚合/排行/N日、同源下载及MAC-EX目录/fallback/缓存/唯一宏观解析七入口、广域生命周期/换源/多批用例源码与交接已写；参见[t26-implementation-index.md](t26-implementation-index.md)，后续T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
-详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint6，
+详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint7，
 以及`.superpowers/sdd/development-plan/task-26-report.md` Stage5。
-实现源码完整不等于执行验收通过，当前任务总数24完成源码/2部分/4未开始。
+实现源码完整不等于执行验收通过，当前任务总数25完成源码/1部分/4未开始。

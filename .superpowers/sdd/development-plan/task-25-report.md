@@ -1,5 +1,50 @@
 # T25 Stage A report
 
+## Stage B checkpoint 7 — complete simple-method source coverage (2026-11-17, stage87)
+
+Basecb2077f. T25's implementation/fixture/handoff source scope is now complete.
+Production login/optional association, compilation, dependency and runtime
+acceptance remain open. Current totals25 source-complete/1 partial(T19)/4
+unstarted(T27-T30). Earlier missing-owner/helper/schema/T26 statements below
+are historical and superseded. Full unlimited goal remains active.
+
+Added mac_simple_services.rs with9 authored public functions covering12 simple
+methods: tick chart/sampling/date/shape/bits/provenance; short-first-day chart;
+snapshot/auction/server clocks/native fields; two1218 heads/tags/opaque prefix;
+file meta/chunk/kline mixed-endian offsets; opaque goods/Unknown completion;
+MAC-EX logged-in shared chart/sampling; eleven malformed payload branches;
+and pre-cancel without opening a connection. All use public clients and a
+std-only independent literal peer, not SDK request encoders as the oracle.
+
+Added the planned mac_routing.rs with5 authored public functions. Independent
+Python FieldBit transcription checks every canonical name/slot kind and all
+four Board aliases, including absent names for legal unknown bits. Every
+named PresetField membership/order, All membership, all256 HK-stock/futures
+route decisions, raw AH_CODE versus market-dependent display, None/Qfq/Hfq,
+seconds, all four bars flags and MAC-EX head-only rewrite have source cases.
+Existing handshake5 and page/helper source cases remain the shared owners of
+those algorithms. None of these functions has been compiled/collected/run.
+
+Updated mac-implementation-index.md records all23MAC/13MAC-EX entry sources,
+simple/collect/composite ownership, fixture sources and T27 policy boundaries.
+T26 source scope closed atcb2077f. No second transport/codec/owner was added.
+These changes only add fixture/handoff sources; Python is unchanged untilT27.
+Manual source reading checked getters/queries and the Option<u16> SourceStamp
+command expectation. No compiler/formatter/AST check was used.
+
+MAC RequireAllReplies and explicit OptionalWithFence remain conservative.
+MAC-EX has no proven production default LoginReplyRules; synthetic positive/
+negative bodies are not production proof. Final allowed evidence work must
+resolve this gap without inventing an ACK. Strict Rust versus legacy Python
+raw/float/date/empty/model/timeout/partial policies stay in the index and T26
+handoff. Source closure is not production or runtime acceptance.
+
+No tests/collection/build/check/clippy/doctest/dependency resolution/download,
+network probes/compiler/AST/format/diff checks or equivalent verification ran.
+Source reads/edits and hooks-disabled Git recovery only; no agents, push, tag,
+publication or merge. Next fullT27, T28-T30 and T19 final source handoff before
+unified verification and all actual fixes.
+
 Latest status: Stage B simple-response groundwork is now authored; read the
 Stage B checkpoint at the end of this report. T25 remains partial. Historical
 Stage A statements about missing simple codecs do not describe the latest
