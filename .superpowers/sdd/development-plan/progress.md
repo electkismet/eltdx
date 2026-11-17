@@ -1,16 +1,15 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
-- Recovery2026-11-17 stage130/131: all T01-T30 sources are complete; unified
-  validation remains active. On checkpoint2f35261, Windows Rust1.100 platform
-  attempt04 passed all31 gates offline; Windows Rust1.98 attempt02 also passed.
-  Rust-only PATH consumer and feature exclusion checks exit0, with process-path
-  isolation only. Windows Rust1.89 attempt01 passed all behavior/docs/clippy
-  gates and failed only fmt due 1.89/1.100 import-sort disagreement. Replaced
-  imports with crate-qualified names; both formatter versions now pass. Commit
-  this correction, then rerun both final platform matrices and 32-feature maps,
-  Loom and archive consumers. Stage130 docs gates passed but must rerun after
-  this ledger update. Wheel/Python, Linux behavior, two-platform native stress,
-  84 performance trials, physical no-Python image, macOS, multi-Python, and
+- Recovery2026-11-17 stage131: all T01-T30 sources are complete; unified
+  validation remains active. Clean checkpoint50e97c2 passed both Windows x64
+  platform matrices: Rust1.89 and task-local current-stable Rust1.100, each
+  with all31 Cargo gates passed offline and identical source SHA. This includes
+  behavior/doctests, Serde, strict docs/Clippy, fmt, dependency closure and all
+  external Rust consumer modes. Earlier checkpoint2f35261 Rust1.98 and Rust-only
+  PATH consumer evidence remains supplemental; PATH isolation is not a physical
+  no-Python image. Next run both32 feature subsets, Loom, official crate archive
+  consumers, docs, then final wheel/Python, Linux behavior, two-platform native
+  stress and84 performance trials. Physical no-Python, macOS, multi-Python and
   production protocol evidence remain open. Goal active/unlimited.
 - Recovery2026-11-17 stage129: checkpoint ec09a40 fixed one-endpoint pagination
   to reuse the base pool. A real TDD red test proved max_connections=1 failed

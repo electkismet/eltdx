@@ -156,7 +156,7 @@ pagination-green-attempt01首次已完成扫描，但新增显式cursor测试误
 
 当前strict lint / Rust1.89 full测试通过。正式archive/外部consumer、两种stable 32-feature矩阵、Loom、候选wheel与本机Python全套、无Python环境、两平台原生压力和84trial性能仍未完成。不得把局部严格lint/full test扩大为统一验收。
 
-## Stage130：最终候选平台复验进行中
+## Stage130：候选复验结果与最终矩阵
 
 2026年11月17日，检查点提交 `2f3526169e846a07943b2f5e0084312f24aa94cb`。Windows x64/MSVC Rust 1.100.0 platform attempt01 保存于 `artifacts/unified/stage130-clean-candidate/windows-current-stable-platform-attempt01/`，最后仅在fmt失败。attempt03复用专用Rustup toolchain但联网consumer锁生成超时；attempt04启用Cargo离线，完整矩阵31个Cargo门禁全部exit0，包括protocol/runtime、minimal/default/full SDK、Serde、strict rustdoc、strict Clippy、fmt、依赖闭包及所有consumer模式。当前candidate即attempt04成功。另用系统Rust 1.98.0 执行platform attempt02也通过31个门禁，记录在 `windows-stable-platform-attempt02/`，作为额外兼容性数据，不替代官方1.100和MSRV1.89矩阵。
 
@@ -164,4 +164,8 @@ pagination-green-attempt01首次已完成扫描，但新增显式cursor测试误
 
 Windows MSRV1.89 platform attempt01执行于 `2f35261`，协议/runtime、minimal/default/full、Serde、五组strict rustdoc、SDK全目标strict Clippy及所有运行测试/doctest均通过；最后 `fmt --check` 因Rustfmt1.89与1.100对 `eltdx::__python_compat` 和 `eltdx::RawPolicy` 的排序相反而失败。现在测试改为crate-qualified路径，Rustfmt1.89和1.100独立的全仓fmt命令均exit0；完整MSRV平台矩阵待新提交后复跑。旧失败记录保留在 `windows-msrv-platform-attempt01/`。
 
-下一步：提交跨版本fmt修正和更新恢复点后，重跑Windows Rust1.89与1.100平台矩阵、两版32 feature子集、Loom及正式crate archive消费者；随后重建最终候选wheel并重跑Python完整回归，补Linux行为、两平台默认压力和84 trial性能。以上尚未完成，整体验收仍active；macOS、多Python版本、生产协议抓包和物理无Python环境仍是外部证据缺口。
+## Stage131：Rust 1.89 / 1.100 最终平台矩阵
+
+提交 `50e97c2469319e78a3b1309b84e67871f2c61d79` 的Windows x64/MSVC最终平台矩阵均通过，完整报告及逐命令日志分别位于 `artifacts/unified/stage131-clean-candidate/windows-msrv-platform-attempt01/` 与 `artifacts/unified/stage131-clean-candidate/windows-current-stable-platform-attempt01/`。Rust 1.89 使用主机已安装工具链；Rust 1.100 使用任务局部 `current-stable` toolchain。两个矩阵都在Cargo offline模式下执行，各有31条门禁命令、全部exit0：协议/runtime测试、minimal/default/full SDK行为与all-targets、Serde合同、五组严格rustdoc/doctest、SDK full all-targets strict Clippy、fmt、最小/full normal+build依赖闭包，以及lazy/loopback/offline/financial/F10/EX/MAC/MAC-EX外部consumer。两个结果的 `source_sha` 相同且工作区均为clean。
+
+这些平台矩阵中的candidate-only ignored压力用例尚未执行。较早提交 `2f35261` 的Rust 1.100 attempt04、Rust 1.98 attempt02与Rust-only PATH consumer attempt02仍作为补充证据保留；新候选仍需运行两版32 feature子集、Loom、正式crate archives/解包consumer、文档站点检查、最终wheel与完整Python回归、Linux行为、两平台默认原生压力及84-trial性能记录。物理无Python镜像、macOS、多Python版本和生产协议抓包仍需要外部环境/证据。整体验收仍active。
