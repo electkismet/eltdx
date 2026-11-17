@@ -1,6 +1,9 @@
 name: Independent Rust SDK candidate
 
 on:
+  push:
+    branches: [codex/rust-sdk-implementation]
+    paths: [.github/workflows/rust-sdk.yml]
   workflow_dispatch:
     inputs:
       implementation-complete:
@@ -40,11 +43,11 @@ jobs:
           if-no-files-found: error
 
   platform:
-    if: inputs.implementation-complete
+    if: github.event_name == 'push' || inputs.implementation-complete
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025, macos-15]
+        os: ${{ fromJSON(github.event_name == 'push' && '["macos-15"]' || '["ubuntu-24.04", "windows-2025", "macos-15"]') }}
         rust: ['1.89.0', stable]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -115,11 +118,11 @@ jobs:
       - run: cargo +1.89.0 test -p eltdx-runtime --features loom --locked
 
   archive-consumer:
-    if: inputs.implementation-complete
+    if: github.event_name == 'push' || inputs.implementation-complete
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025, macos-15]
+        os: ${{ fromJSON(github.event_name == 'push' && '["macos-15"]' || '["ubuntu-24.04", "windows-2025", "macos-15"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:

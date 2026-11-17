@@ -245,3 +245,23 @@ stage136文档 attempt01 针对本节与验收索引的更新执行了`check_rel
 发布后无patch注册表消费仍不可执行：当前下层候选名称未出现在registry，实际发布也不在本次授权范围。stage138不提供macOS、物理隔离或生产协议证据；统一验收继续active。
 
 stage139 attempt02在干净候选`a000eaabc7b8e479b9dd288d8a12a548dd090acc`上通过metadata/mirror、MkDocs strict、站点链接和diff-check，报告SHA256 `42732c380e73d5dabbca70d13bc2bdeff7710da63e560e773a97703b82a1374a`。用户中断附近的attempt03结果文件完整，dirty候选四项exit code均为0；保留其记录，不覆盖。验收口径更新后的attempt04–06最终文档候选均在dirty状态下四项exit code为0，attempt06结果JSON SHA256为`424cfed41146d834ffb6f6f0425be4de09baa29b32cb6685bcc5b4cee51fdff8`。随后会对本恢复记录的最终版本执行门禁并提交文档。
+
+## Stage140：当前候选打包与独立 Linux 消费
+
+本阶段候选是干净提交 `16d367e3896247bcd15a89870cf22f482414cfab`，tree `607693b60070f3d3490ee61a809895afe470272a`。它与stage136候选只差文档及恢复记录。Windows锁文件散列沿用stage136；用于Linux的 `git archive` 导出 SHA256 `d1a16c51f674848e85ed73336efa58bd8719cd53428a5ce16cc8c8ba14e2bf39`，导出锁文件的LF字节散列 `589f36a2855fe6f455031205214d7bf274d8b119e443f4190bce5d07bf2b1fb4`。所有下列目录位于 `artifacts/unified/`。
+
+| 项目 | 实际结果与证据 |
+| --- | --- |
+| Registry 观察 | `stage140-registry-observation-attempt01/packages.json`，SHA256 `5e3283e1c22965b225cc43bbc4a36b96542ad6c849599fcf948717a2e3953722`。UTC 2026-11-17 18:56:33–34，三个crate名称均404，无实际发布。 |
+| Windows 归档 | `stage140-archives-attempt03/packages.json`，SHA256 `a5e82fa292f7c95207d742b6ffe706bff420320c72c5666706aae21eb9bb84b5`。24条命令exit 0，3个归档hash均与stage138一致，11种解包消费通过，仍使用局部目录源及patch。attempt01、02被暂停中断，保留原始日志且无完成报告。 |
+| 首包发布 dry-run | `stage140-protocol-dry-run-attempt02/result.json`，SHA256 `83ef9df1882e9b04cc70a427b2d976ed5f799def5895eacd19bfb87497358b81`。`cargo +1.89.0 publish -p eltdx-protocol --dry-run --locked` exit 0，标准归档编译通过且Cargo明确跳过上传。attempt01指定offline而exit 101。 |
+| Linux x64 wheel | `stage140-linux-wheel-attempt02/result.json`，SHA256 `fc474a5910dc43575bed10add767d12dda97e0dcff1aa1be46ccf1a3f969c2dc`。WSL2 Ubuntu 22.04，Rust1.89/maturin1.15、CPython3.10构建abi3 wheel，exit 0，wheel SHA256 `6303163f21ff7143013ba27a6d1ad44418e8dede07c8f787c5dae237fd8f195e`。attempt01在PowerShell传递shell脚本时失败，未进入构建。 |
+| 无 Rust 的 Python 消费 | `stage140-isolated-wheel-attempt02/installed-wheel.json`，SHA256 `2372c2eb531dcbb716f1f2bbf91fba443d01ab1c851ac9725509d93b4cb0b97f`。完整镜像中没有rustc/cargo/maturin及C编译器；CPython 3.12.16二进制离线安装、pip check和回环非空查询/关闭三项exit 0。镜像摘要、原始日志及过程记录见同目录。attempt01的内部消费成功，但外层包装器把末尾CR传给shell而返回2；修正后新attempt的外层exit 0。 |
+
+隔离使用官方 `linux/amd64` OCI 镜像的展开文件系统。WSL2的独立mount/PID/IPC/UTS/network命名空间不挂载宿主源码或工具，验证时网络只启用loopback。Python镜像 `python:3.12-slim-bookworm` 的 manifest digest 是 `sha256:0f086103b026048cc50cb5da25ec435c023c5241a83fc44daea593377abc61c4`，rootfs tar SHA256 `b16b488c85b743bef8594b9811f1ab5ada8735b65bde702255ceac215b07d7c4`。镜像导出及检查散列见 `stage140-oci-inputs-attempt01`；这证明工具链隔离，不推断物理硬件或macOS产物。
+
+无Python的Rust隔离结果见 `stage140-isolated-rust-attempt01/`。镜像 `rust:1.89.0-slim-bookworm` 的 manifest digest 是 `sha256:294917190b5a3fed18d3303213943f40ec9b644b3cd6e5cdc8cd029334a770b3`，rootfs tar SHA256 `32627f624fc8c7dfd65c14c0141e90b0a5ac4e14fac39e4819071297beef1f07`。实际运行12次独立消费者场景，验证offline/F10/EX/MAC关闭时分别产生预期的E0432、启用时编译通过；最小和full生产依赖树均无Python绑定。镜像内验收脚本写出的 `exit-code.txt` 为0；其 `consumer.log` SHA256 `9ecdb9cfa0bbaec9c944c5b072840dbb52b3ad534d819a36c26b1f19c7917fb3` 与镜像内散列一致。外层WSL包装器在复制完整证据后因末尾CR将 `exit 0` 解析失败而返回2，保留此状态，不能把外层run标记为exit 0。
+
+macOS runner入口已在本地准备：向公开仓库的 `codex/rust-sdk-implementation` 分支推送含工作流变更的候选时，仅在macOS执行Rust 1.89/stable平台矩阵与归档消费；不触发PyPI/tag发布。工作流用actionlint 1.7.12检查，见 `stage140-actionlint-attempt01/result.json`。候选尚未推送，没有macOS运行结果。后续可对同一远端候选使用已有 `Publish` 手动模式，只构建和验证wheel/sdist，不上传到PyPI。缺少crates.io发布凭据及新生产证据；MAC-EX登录/setup、非空category22及涨跌停规则的生产结论仍未验证。
+
+交易所规则文本的第一轮取证成功下载了上交所通知、修订说明和深交所通知，北交所主域名返回403；原文及状态散列见 `stage140-exchange-rules-attempt01/results.json`。第二轮从北交所公告域名下载当前规则，详见 `stage140-exchange-rules-attempt02/results.json`；同目录的上交所规则正文附件SHA256为 `fc922c433438b2636cb631eab25cca405209712acbb6aaded768c45456ff8888`。条款与适用限制见[决策记录](decision-register.md)。规则文本未提供历史逐证券类别、风险状态与上市日；尚不足以启用生产profile。

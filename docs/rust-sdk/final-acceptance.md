@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | T01–T30实现 | 完成 | 计划内Rust SDK、Python兼容桥接、独立Rust入口及文档/示例源码已写齐。stage136之后没有运行时代码改动；stage136改动限于跨Python版本测试合同。 |
 | 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
-| 发布平台与隔离 | 待补外部环境 | 已有Windows/Linux证据；macOS/非Windows wheel及真正无对侧工具链的隔离consumer环境尚未验证。 |
-| 注册表发布与消费 | 未发布 | stage137在记录时点对三个名称查询均为404；stage138只验证本地归档和目录源/patch消费。实际发布和发布后无patch消费须在确认名称、账号权限并获得发布授权后执行。 |
+| 发布平台与隔离 | 两种Linux x64隔离消费通过；macOS待跑 | stage140的无Python Rust环境通过构建、业务回环和feature排除；无Rust工具链的Python环境通过wheel安装、非空查询和关闭。macOS矩阵及其产物仍待GitHub runner执行。 |
+| 注册表发布与消费 | 未发布 | stage140在候选`16d367e`再次观察三个名称均返回404；本地归档及protocol的Cargo发布dry-run通过。缺少crates.io发布凭据；仍需真实发布及无patch消费。 |
 | 生产协议验收 | 独立待补证据 | MAC-EX登录/可选setup规则、category22生产样本和权威涨跌停规则没有足够生产证据。未知规则继续保持Unknown；这不否定本地实现与测试通过。 |
 
 因此，当前可报告为“实现完成；记录范围内的本地核心验证通过；发布/生产验收未完成”。后两项依赖外部平台、注册表权限或生产数据，不用来回滚前两项状态，也不合并成一个完成比例。
@@ -45,7 +45,7 @@
 4. **交付矩阵**：MSRV1.89/current stable、Linux/Windows/macOS、32feature子集/default/full、负面API/feature、外部Rust消费者、Python3.10–3.14及wheel/sdist分开执行。
 5. **文档**：默认/full rustdoc警告视为错误、doctest、MkDocs strict、生成HTML本地链接/fragment和完整包内文档镜像；文档命令不联网抓取外部链接代替本地校验。
 6. **压力和性能**：基础正确性之后再运行两套独立手动负载，保留每次失败，使用同候选/lock/fixture/脚本和固定事前政策。raw重算通过后才接受汇总。
-7. **显式外部证据**：真实服务器、生产登录/setup规则、注册表身份、专用平台镜像和在线兼容单列。未运行则保留未运行，线上失败不伪装成离线失败；不得上传包、tag、push或合并。
+7. **显式外部证据**：真实服务器、生产登录/setup规则、注册表身份、专用平台镜像和在线兼容单列。记录未运行项与线上失败；实际发布在独立的授权阶段按[发布政策](release-policy.md)执行。
 8. **逐项完成审计**：为R01–R12及原计划全部复选项提供证据定位、SHA、命令、平台、actual/expected、退出码、日志hash和结论。源码改动会使受影响旧证据失效，须标注重跑范围；只靠绿色总状态不能完成审计。
 
 `scripts/verification/rust_sdk_matrix.ps1`、`rust_sdk_no_python.sh`、`rust_sdk_packages.py`、`consume_python_wheel.py`、`rust_sdk_stress.py`、`rust_sdk_performance.py` 是不同边界的执行入口。旧 `scripts/unified_test.py` 保留Python产品九轮门禁，不能把旧Python压力或21命令标题当作新Rust全域证据。
@@ -58,9 +58,9 @@
 
 ## 后续工作
 
-- 发布平台：在可复验的macOS与非Windows环境构建/消费产物，并使用实际不含Rust或Python构建工具链的隔离镜像完成对应consumer验证。
+- 发布平台：运行已准备的macOS平台和归档工作流，补齐macOS和其余非Windows发布产物。Linux x64隔离wheel消费的范围及报告见[统一验证记录](unified-validation.md)。
 - 生产协议：由有权限的环境提供可追溯样本，验证MAC-EX登录回复与可选setup的身份/顺序/fence、category22非空路径及权威涨跌停规则；没有证据的语义继续标记为Unknown或不作支持承诺。
-- 注册表：在发布获授权且包名/版本/账号权限已确认后，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前的404只需在该阶段重新观察，不是当前实现工作。
+- 注册表：在本机配置获授权的crates.io发布凭据后，核对包名、版本和账号权限，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前重新查询，404仅代表该时间点的查询结果。
 
 R01–R12首轮逐项审计是stage135时点的历史快照，后续更新以本节状态和[统一验证记录](unified-validation.md)为准，不再复制一份逐行“部分”表。已有Windows Python矩阵、Windows/Linux压力与性能、以及stage138归档结果分别保留在对应阶段记录中。
 

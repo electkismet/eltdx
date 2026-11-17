@@ -35,7 +35,7 @@ python scripts/verification/rust_sdk_packages.py archives --implementation-compl
 python scripts/verification/rust_sdk_packages.py registry-observation --implementation-complete --output /absolute/new-registry-evidence
 ```
 
-三平台 archive consumer 已写入 `rust-sdk.yml` 的独立 job，未触发。无 Python 的纯 Rust 源码消费者与使用 Python 编排的归档内容验证是两个证据项；后者不能代替前者的干净环境结论。最终还需要发布后移除所有 patch 的 registry consumer，以注册表版本重新生成 lock、执行同一业务流程并记录归档 checksum；本次没有授权或执行实际发布。
+三平台 archive consumer 已写入 `rust-sdk.yml` 的独立 job。无 Python 的纯 Rust 源码消费者与使用 Python 编排的归档内容验证是两个证据项。阶段140的正式发布已纳入当前目标；尚无可用的crates.io发布凭据，未执行实际上传。`eltdx-protocol` 已通过 `cargo +1.89.0 publish -p eltdx-protocol --dry-run --locked` 的标准归档编译门槛。正式发布按 `eltdx-protocol` → `eltdx-runtime` → `eltdx` 顺序进行；每次等公开索引可见，核对版本未撤回和归档内容后才继续。发布后用独立workspace、仅依赖 `eltdx = "=0.1.0"` 且无patch、path或目录源替换的consumer重新生成lock，确认三crate的来源及checksum均与公开索引匹配，再运行同一套业务流程。
 
 wheel 构建与消费 job 分开，消费只用 `--only-binary=:all: --no-index --find-links`，没有匹配 wheel 必须失败。普通 wheel 安装不要求 Rust；源码构建或缺少平台 wheel 时，开发者需要 Rust1.89+ 和 maturin。产物证据必须记录 Python版本、OS/架构、ABI/tag、wheel 文件名/hash、安装 native 文件 hash 及 candidate SHA。额外 MCP/HTTP 服务不是 SDK 默认依赖，需单独安装对应 Python extras。
 
