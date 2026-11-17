@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026-11-17第一百零七段恢复点：基础1c28931。独立installed-wheel consumer补齐三个真实TCP回环源码：EX92B setup/市场/计数/目录/五档与raw，MAC三步setup/非空报价/未知槽/AH/交易日与时段，MAC-EX登录/七字段默认/改头；都要求close两次与peer EOF。尚未启动/安装/运行，合成ACK不作生产证据。下一步T27全能力manifest与实际符号/hash/fixture/nodes，随后T28–T30/T19全部源码和统一验证。25/2/3不变，active无限额。恢复读task-27-report Stage20。
+
 2026-11-17第一百零六段恢复点：基础bcc4637。修正MAC临时建连中断且custom关闭失败的持久引用，私有队列独立于退役/替换代次；显式close重试、失败保留、避免重复/重入。EX/MAC shutdown属性读取纳入finally清理。新增6个Python函数（1参数化）源码，全部未执行。下一步完整manifest及非空EX/MAC/MAC-EX wheel consumer，再T28–T30/T19源码收尾和统一验证。25/2/3不变，active无限额。恢复读task-27-report Stage19。
 
 2026-11-17第一百零五段恢复点：基础541a9e7。字段对象两类native入口完成，保留组合/反向组合/NotImplemented、live hooks、四个别名和整数运算；新增20个Python对象合同函数源码（4参数化），全部未执行。23个业务dataclass与XdxrEvent/帧/探活/枚举/导出库存、保留适配原因及退出条件写入t27-migration-index.md。下一步生命周期清理边界、完整manifest及非空EX/MAC/MAC-EX wheel consumer，然后T28–T30/T19和统一验证。25/2/3不变，目标active无限额；恢复读task-27-report Stage18。

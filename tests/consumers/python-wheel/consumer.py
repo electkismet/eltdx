@@ -334,6 +334,201 @@ def exercise_f10(TdxClient, SocketTransport):
         require(not worker.is_alive(), "HTTP consumer listener did not stop")
 
 
+class ExtensionFixture:
+    """One real local connection with independent literal request expectations."""
+
+    def __init__(self, domain, steps):
+        self.domain, self.steps = domain, steps
+        self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.listener.bind(("127.0.0.1", 0))
+        self.listener.listen(1)
+        self.listener.settimeout(5)
+        self.host, self.port = self.listener.getsockname()
+        self.connection = None
+        self.errors, self.observed = [], []
+        self.disconnected = threading.Event()
+        self.worker = threading.Thread(target=self.serve, name="wheel-" + domain, daemon=True)
+
+    def __enter__(self):
+        self.worker.start()
+        return self
+
+    def serve(self):
+        try:
+            connection, _ = self.listener.accept()
+            self.connection = connection
+            with connection:
+                connection.settimeout(5)
+                for label, expected, response in self.steps:
+                    actual = exact(connection, len(expected))
+                    require(actual == expected, "%s %s request changed: %s != %s" % (
+                        self.domain, label, actual.hex(), expected.hex()))
+                    self.observed.append(label)
+                    # Fragment the reply to exercise exact reads through the
+                    # installed transport without timing sleeps or codecs.
+                    for start, end in ((0, 3), (3, 11), (11, len(response))):
+                        connection.sendall(response[start:end])
+                require(connection.recv(1) == b"", self.domain + " sent an unexpected extra request")
+                self.disconnected.set()
+        except BaseException as error:
+            self.errors.append(repr(error))
+
+    def __exit__(self, kind, value, traceback):
+        if kind is None:
+            self.worker.join(6)
+        if self.worker.is_alive() and self.connection is not None:
+            try:
+                self.connection.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+        self.listener.close()
+        self.worker.join(6)
+        if kind is None:
+            require(not self.worker.is_alive(), self.domain + " fixture failed to stop")
+            require(not self.errors, "%s fixture errors: %r" % (self.domain, self.errors))
+            require(self.disconnected.is_set(), self.domain + " close did not release its connection")
+
+
+def extension_frame(method, payload):
+    return struct.pack("<IIIHH", 7654321, 0, method, len(payload), len(payload)) + payload
+
+
+def mac_request(method, body, head=0x1C):
+    size = len(body) + 2
+    return struct.pack("<BIBHHH", head, 0, 1, size, size, method) + body
+
+
+def extension_bitmap(*bits):
+    value = sum(1 << bit for bit in bits)
+    return value.to_bytes(20, "little")
+
+
+def extension_quote_body(market, code, name, bitmap, slots):
+    return bitmap + struct.pack("<IH", 1, 1) + struct.pack(
+        "<H22s44s", market, code.encode("ascii"), name.encode("ascii")) + slots
+
+
+def exercise_extensions():
+    from eltdx.ex import ExTdxClient, MacExClient
+    from eltdx.ex.models import ExInstrumentInfo, ExInstrumentQuote, ExMarketInfo
+    from eltdx.mac import FieldBit, MacClient, MacQuoteField, ServerSession
+
+    # All these replies are synthetic. In particular the MAC-EX short login
+    # ACK exercises the existing Python facade, not production login evidence.
+    setup_ex = bytes.fromhex("010148650001520052005424" + "1f32c6e5d53dfb41" * 8 +
+                             "cce16dffd5ba3fb8cbc57a054f7748ea")
+    market_raw = struct.pack("<B32sB2s28x", 2, b"Futures", 47, b"IF")
+    instrument_raw = struct.pack("<BB3s9s17s9s24x", 2, 47, b"", b"IFL0", b"Index future", b"CFFEX")
+    quote_raw = struct.pack("<B9s4x", 47, b"IFL0") + struct.pack(
+        "<fffffIIIIIIIIIfffffIIIIIfffffIIIII",
+        4000.0, 4001.0, 4005.0, 3999.0, 4002.0,
+        1, 2, 300, 4, 5, 100, 200, 8, 900,
+        4001.0, 4000.0, 3999.0, 3998.0, 3997.0, 11, 12, 13, 14, 15,
+        4002.0, 4003.0, 4004.0, 4005.0, 4006.0, 21, 22, 23, 24, 25)
+    ex_steps = [
+        ("setup", setup_ex, extension_frame(0x2454, b"\x01\x00")),
+        ("markets", bytes.fromhex("01024869000102000200f423"), extension_frame(0x23F4, b"\x01\x00" + market_raw)),
+        ("count", bytes.fromhex("01034866000102000200f023"), extension_frame(0x23F0, bytes(19) + struct.pack("<I", 1))),
+        ("info", bytes.fromhex("01044867000108000800f523") + struct.pack("<IH", 0, 1),
+         extension_frame(0x23F5, struct.pack("<IH", 1, 1) + instrument_raw)),
+        ("quote", bytes.fromhex("0101080202010c000c00fa23") + struct.pack("<B9s", 47, b"IFL0"),
+         extension_frame(0x23FA, quote_raw)),
+    ]
+    evidence = {}
+    with ExtensionFixture("ex", ex_steps) as fixture:
+        client = ExTdxClient(hosts=[fixture.host], port=fixture.port, timeout=3,
+                             auto_failover=False, probe_on_connect=False)
+        try:
+            client.connect()
+            markets = client.get_markets()
+            require(len(markets) == 1 and isinstance(markets[0], ExMarketInfo), "EX market DTO missing")
+            require((markets[0].market, markets[0].category, markets[0].name, markets[0].short_name) ==
+                    (47, 2, "Futures", "IF") and markets[0]._raw == market_raw, "EX market values/raw changed")
+            require(client.get_instrument_count() == 1, "EX count changed")
+            info = client.get_instrument_info(0, 1)
+            require(len(info) == 1 and isinstance(info[0], ExInstrumentInfo), "EX instrument DTO missing")
+            require((info[0].market, info[0].code, info[0].name, info[0].desc) ==
+                    (47, "IFL0", "Index future", "CFFEX") and info[0]._raw == instrument_raw,
+                    "EX instrument fields/raw changed")
+            quote = client.get_instrument_quote(47, "IFL0")
+            require(isinstance(quote, ExInstrumentQuote) and quote.price == 4002.0 and quote.chicang == 900,
+                    "EX quote fields changed")
+            require(quote._raw == quote_raw and (quote.bid1, quote.ask5) == (4001.0, 4006.0), "EX depth/raw changed")
+        finally:
+            client.close()
+        client.close()
+        require(fixture.disconnected.wait(4), "EX connection was not closed")
+        evidence["ex"] = {"requests": list(fixture.observed), "markets": 1, "instruments": 1, "quotes": 1}
+
+    requested = extension_bitmap(1, 4, 74)
+    reply_bitmap = extension_bitmap(1, 4, 47, 74)  # unknown legal slot keeps its width
+    quote_body = extension_quote_body(1, "600000", "Stock", reply_bitmap, struct.pack("<ffII", 10.5, 11.25, 123456, 700))
+    server_body = bytearray(87)
+    struct.pack_into("<H", server_body, 0, 1)
+    struct.pack_into("<I", server_body, 22, 20261117)
+    struct.pack_into("<8H", server_body, 30, 570, 690, 780, 900, 0, 0, 0, 0)
+    struct.pack_into("<8H", server_body, 46, 570, 690, 780, 900, 0, 0, 0, 0)
+    struct.pack_into("<I", server_body, 63, 20261116)
+    struct.pack_into("<II", server_body, 71, 123, 456)
+    setup_mac = [bytes.fromhex(value) for value in (
+        "0c0218930001030003000d0001", "0c0218940001030003000d0002",
+        "0c031899000120002000db0fd5d0c9ccd6a4a8af0000008fc22540130000d500c9ccbdf0d7ea00000002")]
+    mac_steps = [("setup-%d" % (index + 1), request, extension_frame(0x000D, b"\x01\x00"))
+                 for index, request in enumerate(setup_mac)] + [
+        ("quotes", mac_request(0x122B, requested + struct.pack("<HH22s", 1, 1, b"600000")),
+         extension_frame(0x122B, quote_body)),
+        ("server", mac_request(0x120F, bytes.fromhex("04002d31") + bytes(8) + bytes.fromhex("0027060e") + bytes(52)),
+         extension_frame(0x120F, server_body)),
+    ]
+    with ExtensionFixture("mac", mac_steps) as fixture:
+        client = MacClient(hosts=[fixture.host], port=fixture.port, timeout=3)
+        try:
+            client.connect()
+            quotes = client.get_stock_quotes([(1, "600000")], (FieldBit.OPEN, FieldBit.CLOSE, FieldBit.AH_CODE))
+            require(len(quotes) == 1 and isinstance(quotes[0], MacQuoteField), "MAC quote DTO missing")
+            require((quotes[0].market, quotes[0].code, quotes[0].name) == (1, "600000", "Stock"), "MAC identity changed")
+            require(quotes[0].fields == {"open": 10.5, "close": 11.25, "ah_code": "00700"}, "MAC unknown-slot or A/H mapping changed")
+            session = client.get_server_info()
+            require(isinstance(session, ServerSession) and (session.today, session.last_trading_day) ==
+                    ("2026-11-17", "2026-11-16"), "MAC server dates changed")
+            require(session.sessions_1[0] == {"open": "9:30", "close": "11:30"} and
+                    (session.market_param_1, session.market_param_2) == (123, 456), "MAC server values changed")
+        finally:
+            client.close()
+        client.close()
+        require(fixture.disconnected.wait(4), "MAC connection was not closed")
+        evidence["mac"] = {"requests": list(fixture.observed), "quotes": 1, "server_rows": 1}
+
+    login_body = bytes.fromhex(
+        "e5bb1c2fafe525941f32c6e5d53dfb415b734cc9cdbf0ac92021bfdd1eb06d22"
+        "d008884c1611cb1378f6abd824d899d21f32c6e5d53dfb411f32c6e5d53dfb41"
+        "a9325ac935dc0837335a16e4ce17c1bb")
+    basic = extension_bitmap(0, 1, 2, 3, 4, 5, 7)
+    ex_quote = extension_quote_body(47, "IFL0", "Index future", basic,
+                                   struct.pack("<fffffIf", 4000.0, 4001.0, 4005.0, 3999.0, 4002.0, 300, 1200600.0))
+    mac_ex_steps = [
+        ("login", mac_request(0x2454, login_body, head=1), extension_frame(0x2454, b"\x01\x00")),
+        ("quotes", mac_request(0x122B, basic + struct.pack("<HH22s", 1, 47, b"IFL0"), head=1),
+         extension_frame(0x122B, ex_quote)),
+    ]
+    with ExtensionFixture("mac-ex", mac_ex_steps) as fixture:
+        client = MacExClient(hosts=[fixture.host], port=fixture.port, timeout=3)
+        try:
+            client.connect()
+            quotes = client.goods_quotes([(47, "IFL0")])
+            require(len(quotes) == 1 and isinstance(quotes[0], MacQuoteField), "MAC-EX shared quote DTO missing")
+            require((quotes[0].market, quotes[0].code) == (47, "IFL0"), "MAC-EX quote identity changed")
+            require(quotes[0].fields == {"pre_close": 4000.0, "open": 4001.0, "high": 4005.0,
+                                        "low": 3999.0, "close": 4002.0, "vol": 300, "amount": 1200600.0},
+                    "MAC-EX seven-field default changed")
+        finally:
+            client.close()
+        client.close()
+        require(fixture.disconnected.wait(4), "MAC-EX connection was not closed")
+        evidence["mac_ex"] = {"requests": list(fixture.observed), "quotes": 1, "login_evidence": "synthetic_only"}
+    return evidence
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--forbidden-root", type=Path, required=True)
@@ -397,6 +592,7 @@ def main():
         }
     evidence["offline"] = exercise_offline(financial_data, financial_archive)
     evidence["f10"] = exercise_f10(TdxClient, SocketTransport)
+    evidence["extensions"] = exercise_extensions()
     # Hash the installed distribution binaries for comparison with wheel RECORD.
     distribution = importlib.metadata.distribution("eltdx")
     evidence["native_files"] = [

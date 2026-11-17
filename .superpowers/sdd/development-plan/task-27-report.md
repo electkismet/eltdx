@@ -1,4 +1,28 @@
 # T27 implementation report
+## Stage 20 — standalone nonempty extension wheel consumer (2026-11-17, stage107)
+
+Base1c28931. Extended the actual standalone consumer at
+ tests/consumers/python-wheel/consumer.py using only stdlib and installed
+public eltdx imports. Three independent loopback TCP sources now author exact
+request bytes and fragmented responses. EX covers92-byte setup, nonempty
+markets/count/instrument info/five-level quote and exact raw rows. MAC covers
+all3 setup exchanges, custom selected quotes with an unknown legal slot and
+A/H postprocessing plus nonempty server dates/sessions/parameters. MAC-EX
+covers literal login and the exact7 default quote fields plus head rewrite.
+Each client closes explicitly, closes again and must expose peer EOF. Source
+errors and unexpected extra requests are captured by the fixture worker.
+
+No listener, consumer, install, test, collection, parser, build or dependency
+operation has been executed. Synthetic login ACKs remain explicitly not
+production evidence. README and t27-migration-index document these limits;
+the index now names actual mac_commands.rs/mac_parse.rs binding files.
+
+Next required step: complete T27 migration manifest for all EX/MAC/MAC-EX
+catalog records, real Rust symbols/source hashes/fixture/test nodes and adapter
+mapping. The full independent Rust extension consumer, feature/platform/CI,
+package/version policy, stress/maintenance sources and T19 final source closure
+remain T28-T30/T19. Only after all sources are complete may unified execution
+begin. Counts25 source-complete/2 partial/3 unstarted; goal active unlimited.
 ## Stage 19 — durable failed-signal resource cleanup (2026-11-17, stage106)
 
 Basebcc4637. Source review closed the provisional MAC cleanup ownership gap:

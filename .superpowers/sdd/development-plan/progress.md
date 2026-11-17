@@ -1,6 +1,13 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage107: base1c28931. Added standalone installed
+  wheel extension consumer sources: actual EX/MAC/MAC-EX TCP with nonempty
+  values, exact literal requests, fragmented replies, double close/peer EOF.
+  No execution; synthetic setup/login is not production evidence. Read
+  task-27-report Stage20. Next full T27 catalog manifest/symbol/hash/nodes,
+  then T28-T30/T19 complete sources and unified verification.25/2/3 unchanged,
+  active unlimited, no agents/publication/controller changes.
 - Latest recovery2026-11-17 stage106: basebcc4637. Retain failed interrupted
   provisional/replaced socket resources on the connection for explicit close
   retry, with identity/busy protection and no callback under Rust mutex.

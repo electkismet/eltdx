@@ -1,6 +1,6 @@
 # Installed Python wheel consumer
 
-This is an **unexecuted source fixture** for T18/T23/T28/T29. Run it only after all
+This is an **unexecuted source fixture** for T18/T23/T27/T28/T29. Run it only after all
 T01–T30 implementation sources are complete. It uses Python's standard library
 and public installed `eltdx` imports; it has no repository/test helper imports and
 requires neither pytest nor a Rust compiler.
@@ -41,6 +41,16 @@ Local-file cases
 also cover daily read/encode/append, duplicates, incomplete-tail refusal without
 mutation, industry overwrite/order and direct DAT/local ZIP reading. Temporary
 files are created only when this consumer is eventually executed.
+
+Three further independent TCP fixtures exercise the installed extension APIs:
+EX performs its 92-byte setup, retrieves a nonempty market and instrument table,
+count and five-level quote with raw bytes. MAC performs all three setup exchanges,
+gets nonempty custom-field quotes (including unknown-slot skipping and A/H code
+formatting), and reads the server's dates and sessions. MAC-EX performs its login
+then a nonempty quote using its original seven default fields and rewritten head.
+Each requires explicit close, repeated close and peer EOF; literal request bytes
+are authored in this standalone file and reply headers are fragmented. The short
+synthetic login replies do not constitute production login or association evidence.
 
 No success artifact is checked into the source tree: output is written only
 after these actual assertions pass in the final validation run.

@@ -15,7 +15,7 @@ Python 对象约定包括可替换的模块函数、类、socket、锁、executo
 | 范围 | Rust 与共用实现 | Python 绑定与入口 |
 | --- | --- | --- |
 | EX 请求、响应、目录、行情、K 线、分时、逐笔 | `ex/commands.rs`、`ex/layout.rs`、`ex/legacy.rs`、`ex/client.rs` | `extension_commands.rs`、`extension_parse.rs`、`extension_query.rs`，`src/eltdx/ex/commands/`、`client.py` |
-| MAC 请求与全部响应、字段、特殊值与日期 | `mac/commands.rs`、`mac/bitmap.rs`、`mac/layout.rs`、`mac/routing.rs` | `extension_commands.rs`、`extension_parse.rs`、`extension_bitmap.rs`、`extension_rules.rs` |
+| MAC 请求与全部响应、字段、特殊值与日期 | `mac/commands.rs`、`mac/bitmap.rs`、`mac/layout.rs`、`mac/routing.rs` | `mac_commands.rs`、`mac_parse.rs`、`extension_bitmap.rs`、`extension_rules.rs` |
 | MAC 分页、复权、板块聚合排行、下载 | `mac/client.rs`、`mac/services.rs`、`mac/python_legacy.rs`、共用下载游标 | `extension_client.rs`、`extension_boards.rs`、`extension_adjust.rs`，`src/eltdx/mac/client.py` |
 | MAC-EX 目录、商品回退、宏观、港股逐笔 | `mac/client.rs`、`mac/routing.rs`、目录与缓存实现 | `extension_catalog.rs`、`extension_query.rs`，`src/eltdx/ex/mac_client.py`、`_hk_transaction.py` |
 | EX/MAC 帧与有界解压策略 | `ex/frame.rs`、`mac/commands.rs` 与对应 wire 格式 | `extension_frame.rs`，Python 显式异常与自定义解压适配 |
@@ -61,3 +61,7 @@ FieldBit 的 93、94、136、139 保留个股 canonical 名 `BID2_VOLUME`、`ASK
 `tests/test_native_extension_objects_contract.py` 覆盖原字段运算、反向运算、不支持操作的 NotImplemented、live isinstance/constructor、动态转发、容器回调、repr 求值、四个别名、预设顺序、23 个业务 dataclass、帧/探活对象、默认容器、pickle、市场枚举身份与包级导出。`crates/eltdx/tests/mac_routing.rs` 从独立字面量核对全部字段、别名、预设、市场路由和请求标志。
 
 其余已写测试源码覆盖请求/响应、分页、目录、板块、复权、日期、帧、主机、探活、传输、管理与生命周期。T27 完整索引与清单将继续补齐实际 Rust 符号、来源 hash、fixture 和可收集节点，最终统一执行后才记录通过、失败和真实平台结果。
+
+## 独立 wheel 消费者源码
+
+`tests/consumers/python-wheel/consumer.py` 仅导入 stdlib 和已安装公开 eltdx 包。扩展部分使用三个独立本地 TCP 连接和字面量请求预期：EX 的 92 字节 setup、非空市场/目录/报价与 raw；MAC 三次 setup、未知字段槽跨越/AH-code 及服务器日期/时段；MAC-EX 登录及默认七字段非空报价。所有响应分片发送，各连接必须显式 close、再次 close 并观测对端 EOF。合成登录仅验证 Python 原行为，不解决严格 Rust 生产默认登录规则缺口。实际隔离安装和运行待 T28/T29 统一验证。
