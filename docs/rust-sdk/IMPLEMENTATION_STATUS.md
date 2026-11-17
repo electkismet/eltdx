@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026-11-17第一百一十段恢复点：基础1cfa649。T29版本/包元信息/原许可证与README/精确依赖、三平台归档consumer和注册表观察/dry-run源码完成。SDK候选0.1.0；下层/Python3.3.5；名称/版本/源码身份未查询，Cargo.lock未解析。归档local patch明确不算registry证据；同版本已发布源码不同则拒绝。28源码完整/1部分(T19)/1未开始(T30)。全部执行仍未进行，继续T30压力/性能/覆盖/维护与T19源码，再统一验证；active无限额。恢复读task-29-report。
+
 2026-11-17第一百零九段恢复点：基础55814ea。T28独立Rust扩展consumer、32子集/default/full、MSRV/stable三平台、外部目录与无Python容器/feature排除、分离wheel消费job源码已写。Python-only Linux验证无工具入口；桌面只保证消费进程PATH隔离，物理无编译器需专用镜像。全部脚本/workflow/consumer未执行。27源码完整/1部分(T19)/2未开始(T29–T30)，继续包版本/内容/归档消费与压力维护/T19源码，再统一验证。active无限额，恢复读task-28-report。
 
 2026-11-17第一百零八段恢复点：基础5bb5f34。T27全部50项目录逐行绑定Rust类型/方法、Python/native文件、SHA256和Python/Rust用例/fixture来源；shared inventory记录共用owner/算法/模型/导出。原验收状态/26wire/25registry/124capability/37fixture与冻结revision不变，新证据均source_only_unverified。T27源码范围完成，26源码完整/1部分(T19)/3未开始(T28–T30)，所有执行验收仍未进行。下一步T28独立Rust扩展consumer/feature与平台矩阵，再T29/T30/T19和统一验证；active无限额。恢复读task-27-report Stage21。

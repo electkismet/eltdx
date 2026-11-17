@@ -594,6 +594,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T29：package 与版本矩阵
 
+2026-11-17源码恢复点（stage110，基础1cfa649）：T29独立SDK0.1.0版本、原3.3.5下层/Python、path+version/包README与原LICENSE/include、归档/注册表观察及dry-run源码写齐，详见[发布政策](release-policy.md)。全部未运行，registry名称/版本身份与lock待最终验证；28源码完整/1部分(T19)/1未开始(T30)，以下执行验收框保持未通过。
+
 **文件：** 修改三个Rust库Cargo元信息/内部path+version、bindings依赖；新增发行检查脚本及package consumer配置。
 
 - [ ] 决定新SDK首个0.x版本及可用crate名称，实际查询注册表后记录，不提前断言名称可用。

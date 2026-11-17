@@ -413,6 +413,8 @@ Windows/macOS运行相同Rust程序，使用各平台原生临时目录/路径�
 
 ### 9.2 打包后的consumer
 
+T29 源码已提供 `scripts/verification/rust_sdk_packages.py` 的 archives/registry-observation/registry-dry-run 三种入口；独立 SDK 候选版本为 0.1.0，下层及 Python 仍为 3.3.5。版本碰撞、精确依赖、原许可证与打包/注册表证据的区别见 [发布政策](release-policy.md)。全部入口尚未运行，下面模板仍为最终验收要求。
+
 path consumer仍可能借到workspace文件；因此还需独立验证`.crate`中存在实际发布所需源码、许可证、readme及被`include_bytes!`引用的内容。测试专用大fixture可以不发布，但公开doctest/example依赖的文件必须存在。
 
 先对拟发布链条列包内容；这些命令不发布：

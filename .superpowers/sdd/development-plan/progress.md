@@ -1,6 +1,12 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage110: base1cfa649. T29 source complete:
+  SDK0.1.0/internal exact path+version/README/original license/include; archive
+  simulation and registry observation/identity/dry-run scripts,3-platform job.
+  No commands executed; names/versions/lock and consumer remain unverified.
+  28/1/1; next T30 and T19 final source handoff, then unified verification.
+  Read task-29-report; goal active unlimited, no agents or publication.
 - Latest recovery2026-11-17 stage109: base55814ea. T28 source complete:
   standalone Rust extension consumer,32 feature subsets/MSRV/stable/platform
   and Rust-only external consumer/feature exclusion, separate installed-wheel

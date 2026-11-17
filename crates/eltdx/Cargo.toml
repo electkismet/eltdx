@@ -1,10 +1,15 @@
 [package]
 name = "eltdx"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
-license-file.workspace = true
+license-file = "LICENSE"
 repository.workspace = true
+description = "Independent synchronous Rust SDK for TDX market data and local formats"
+readme = "README.md"
+keywords = ["tdx", "market-data", "finance", "protocol"]
+categories = ["api-bindings", "network-programming"]
+include = ["Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "src/**", "examples/**"]
 
 [features]
 default = []
@@ -20,8 +25,8 @@ bytes.workspace = true
 crc32fast.workspace = true
 zip.workspace = true
 encoding_rs.workspace = true
-eltdx-protocol = { path = "../eltdx-protocol" }
-eltdx-runtime = { path = "../eltdx-runtime" }
+eltdx-protocol = { path = "../eltdx-protocol", version = "=3.3.5" }
+eltdx-runtime = { path = "../eltdx-runtime", version = "=3.3.5" }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 url = { version = "=2.5.8", optional = true }
