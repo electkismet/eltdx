@@ -1138,3 +1138,10 @@ pagination-green-attempt01首次已完成扫描，但新增显式cursor测试误
 ## Stage134：Linux行为与跨平台默认原生压力
 
 候选588d5e439bffe5a61e8ff21c2d7e7f1e658686d4，Linux Ubuntu22.04/Rust1.89 full合并65个target汇总1111通过（含30doctest），Loom另132+5+1通过。启动失败attempt01没有进入编译，显式工具链attempt02成功，日志分别保留。Windows/Linux release/full/default原生压力各10场景均成功，独立verify及跨平台aggregate全部exit0，候选tree/blob/lock/fixture/script一致。Linux close10000次、Windows2000次；资源/内部预算均满足既有政策，没有放宽阈值。原始和副本/聚合见artifacts/unified/stage134-linux-final、stage134-windows-stress-attempt01及stage134-stress-inputs；Linux实际Git clone/原始二进制在/root/.cache/eltdx-sdk-validation/stage134-*保留。文档三门禁在新增本轮记录前exit0，提交前重查。下一步固定新干净候选构建性能wheel，执行Windows/Linux各84trial并复算，接着逐R01–R12审计/补环境证据。目标active、remainingTokens=null；不push、tag、发布或合并。
+
+
+## Stage135：配对性能、审计与文档恢复检查点
+
+续记：本轮确认progress.md本身受Git版本控制，须与恢复点提交。对照Linux performance results和wheel-build报告，发现统一验证文档的Linux native哈希误抄Windows值，已更正为a0af568a32a3fcf24c58e433d61afa97337b56b572dfff65e35cd458ff0a4f57；原始性能数据无改动。最终更正文档的metadata/MkDocs/site links/diff-check命令和真实时间、退出码、文件hash保存在stage135-docs-attempt06/results.json。前一段“工作区干净”指追加本恢复记录之前的8e4a7ca检查点，后续须提交本记录并复核Git状态。
+
+Windows/Linux各84个性能run及raw复验已完成，候选a3cc4c2317f4714b0e80de29d8f899aef664a59b、基线af471f1adf38757f6aa0188968db8110eb23f6ad；合成loopback候选慢约0.17–0.21ms，不外推生产。五份主文档及镜像同步，R01–R12首轮结论与缺口写入final-acceptance，文档恢复提交8e4a7ca1196bc239095dc72903ad81cf919d0e76。attempt02错误fragment失败保留，修正后attempt04及提交后attempt05的metadata/MkDocs strict/site links/diff-check均exit0，日志hash见artifacts/unified/stage135-docs-attempt04/results.json与stage135-docs-attempt05/results.json。源码未改，提交后工作区干净。仍缺macOS、其他Python版本、物理隔离镜像、生产MAC/setup/category22和权威规则、registry身份与发布后消费。goal active、remainingTokens=null，不push/tag/发布/合并。

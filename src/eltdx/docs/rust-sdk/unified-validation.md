@@ -208,7 +208,7 @@ Linux本地原始证据保留于 `/root/.cache/eltdx-sdk-validation/stage134-lin
 
 Windows run和raw verify都exit0：`artifacts/unified/stage135-performance/windows-measurement/`，candidate wheel SHA256 `a34e90464391c556648fa076ec4e640885be2c2a1e52ce2432d6b8d1c72f2afd`，native `5d997d44a83869b994bcf7555defd7cc5d8d84535a3d706682c437a80f4d7640`；baseline wheel SHA256 `81caf775f94aebb212fbb5397bc88b836ad797382e3a0995e9f290a1b441aca0`。84/84 run无错误，外部测量未运行。
 
-Linux baseline/candidate build、run、raw verify均exit0，Linux结果压缩归档解包后的独立verify也exit0。完整压缩raw证据 `artifacts/unified/stage135-performance/linux-measurement-attempt01.tar.gz` SHA256 `639ebb1898ffb3135673d0e522c4680e0c8cc3621f7233e8d20d8fa0f75cce0e`；candidate wheel SHA256 `8f8940e711527073431a050d303f43c3bc8540796e8c91ec61f53ff4d8c09955`，native `5d997d44a83869b994bcf7555defd7cc5d8d84535a3d706682c437a80f4d7640`；baseline wheel SHA256 `47c3da197167894f82c3f0b6c252357dec7c16490b22e1621662f0d7ad3dbff6`。摘要、各项锁及log hash在 `artifacts/unified/stage135-performance/results.json`。
+Linux baseline/candidate build、run、raw verify均exit0，Linux结果压缩归档解包后的独立verify也exit0。完整压缩raw证据 `artifacts/unified/stage135-performance/linux-measurement-attempt01.tar.gz` SHA256 `639ebb1898ffb3135673d0e522c4680e0c8cc3621f7233e8d20d8fa0f75cce0e`；candidate wheel SHA256 `8f8940e711527073431a050d303f43c3bc8540796e8c91ec61f53ff4d8c09955`，native `a0af568a32a3fcf24c58e433d61afa97337b56b572dfff65e35cd458ff0a4f57`；baseline wheel SHA256 `47c3da197167894f82c3f0b6c252357dec7c16490b22e1621662f0d7ad3dbff6`。摘要、各项锁及log hash在 `artifacts/unified/stage135-performance/results.json`。
 
 candidate/baseline p50比率（>1表示候选慢）为：Windows parse1.0043、projection1.0049、loopback2.3671、close1.0570；Linux parse0.9628、projection0.9752、loopback1.8178、close1.0368。loopback测的是本机合成服务器，候选额外绝对p50约0.17–0.21ms；它不代表公网请求或真实服务器吞吐。Rust core parse严格策略p50另行记录，不与legacy Python策略作减法。结果按测量政策完整报告，不设必须提速门槛，也不以比值替代API兼容、生命周期或产品验收。
 
@@ -217,3 +217,5 @@ candidate/baseline p50比率（>1表示候选慢）为：Windows parse1.0043、p
 ## Stage135 文档审计与门禁
 
 已在[最终验收索引](final-acceptance.md)为R01–R12逐项记录局部证据和未闭合条件，全部保持“部分”，不将本地fixture、不同候选或缺失的生产/平台证据升级为全通过。stage135文档更新后，`check_release_metadata.py`、`mkdocs build --strict`、`check_pages_links.py site`及`git diff --check`最终结果和日志SHA256保存在`artifacts/unified/stage135-docs-attempt04/results.json`。attempt02曾因T30索引的中文fragment与MkDocs生成id不符而失败；修正为`stage135windowslinux`后通过，失败日志保留在attempt02。
+
+文档检查点`8e4a7ca1196bc239095dc72903ad81cf919d0e76`提交后再次执行上述四项命令，均exit0，见`artifacts/unified/stage135-docs-attempt05/results.json`。随后对照Linux原始构建报告更正本页误抄为Windows值的Linux native哈希；原始性能报告和性能数值未变。更正后的最终文档门禁记录为`artifacts/unified/stage135-docs-attempt06/results.json`，以其中实际退出码和文件hash为准。
