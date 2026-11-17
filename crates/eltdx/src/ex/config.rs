@@ -88,32 +88,46 @@ pub fn parse_hosts_json(text: &str, port: u16) -> Result<Vec<SocketAddr>> {
     let strings: Vec<&str> = values.iter().map(|value| value.as_str().ok_or_else(|| config_error("EX host must be a string"))).collect::<Result<_>>()?;
     hosts::parse_hosts(strings, port)
 }
+/// Ordered, lazy source selection. Each surface decides whether a source is
+/// absent, valid or erroneous; a lower-priority source is never evaluated once
+/// the caller accepts one. Python treats empty collections as absent, while the
+/// strict API rejects explicitly configured empty sources before selection.
+#[doc(hidden)]
+pub fn select_host_source_with<S,T,E>(sources: impl IntoIterator<Item=S>,
+    mut read: impl FnMut(S) -> std::result::Result<Option<T>,E>,
+    fallback: impl FnOnce() -> std::result::Result<T,E>) -> std::result::Result<T,E> {
+    for source in sources {if let Some(value) = read(source)? {return Ok(value);}}
+    fallback()
+}
 pub fn load_hosts(source: &HostConfigSource) -> Result<Vec<SocketAddr>> {
-    if let Some(values) = &source.explicit { return validate_endpoints(values.clone()); }
-    let process = if matches!(&source.environment, EnvironmentSource::Process) {
-        match std::env::var(EX_HOSTS_ENV) {
-            Ok(value) => Some(value), Err(std::env::VarError::NotPresent) => None,
-            Err(error) => return Err(config_error("EX environment value is not Unicode").with_source(error)),
+    select_host_source_with([0,1,2],|stage| {
+        match stage {
+            0 => source.explicit.as_ref().map(|values|validate_endpoints(values.clone())).transpose(),
+            1 => {
+                let process = if matches!(&source.environment, EnvironmentSource::Process) {
+                    match std::env::var(EX_HOSTS_ENV) {
+                        Ok(value) => Some(value), Err(std::env::VarError::NotPresent) => None,
+                        Err(error) => return Err(config_error("EX environment value is not Unicode").with_source(error)),
+                    }
+                } else {None};
+                let value = match &source.environment {
+                    EnvironmentSource::Disabled => None,
+                    EnvironmentSource::Value(value) => value.as_deref(),
+                    EnvironmentSource::Process => process.as_deref(),
+                };
+                value.map(|value| hosts::parse_hosts(value.split(|ch: char|ch==','||ch==';'||ch.is_whitespace())
+                    .filter(|part| !part.is_empty()),source.port)).transpose()
+            }
+            _ => match &source.file {
+                None => Ok(None),
+                Some(path) => match fs::read_to_string(path) {
+                    Ok(text) => parse_hosts_json(&text,source.port).map(Some),
+                    Err(error) if error.kind()==std::io::ErrorKind::NotFound => Ok(None),
+                    Err(error) => Err(io_error(error)),
+                },
+            },
         }
-    } else { None };
-    let value = match &source.environment {
-        EnvironmentSource::Disabled => None,
-        EnvironmentSource::Value(value) => value.as_deref(),
-        EnvironmentSource::Process => process.as_deref(),
-    };
-    if let Some(value) = value {
-        // A present but empty configured source is invalid, not a request to
-        // silently fall through to a lower-priority source.
-        return hosts::parse_hosts(value.split(|ch: char| ch == ',' || ch == ';' || ch.is_whitespace()).filter(|part| !part.is_empty()), source.port);
-    }
-    if let Some(path) = &source.file {
-        match fs::read_to_string(path) {
-            Ok(text) => return parse_hosts_json(&text, source.port),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-            Err(error) => return Err(io_error(error)),
-        }
-    }
-    hosts::parse_hosts(hosts::DEFAULT_EX_HOSTS.iter().copied(), source.port)
+    },|| hosts::parse_hosts(hosts::DEFAULT_EX_HOSTS.iter().copied(),source.port))
 }
 static SAVE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 /// Explicit atomic replacement using a unique sibling file. Parent creation and
@@ -147,4 +161,24 @@ pub fn save_hosts(path: &Path, endpoints: &[SocketAddr]) -> Result<()> {
     // delete another writer's sibling temporary file.
     if result.is_err() && created { let _ = fs::remove_file(&temporary); }
     result
+}
+
+#[cfg(test)]
+mod source_policy_cases {
+    use super::select_host_source_with;
+    use std::cell::RefCell;
+
+    #[test]
+    fn source_selection_is_lazy_and_errors_never_trigger_fallback() {
+        let seen = RefCell::new(Vec::new());
+        let value = select_host_source_with([0,1,2], |source| {
+            seen.borrow_mut().push(source);
+            Ok::<_,&str>(if source==1 {Some("selected")} else {None})
+        }, || panic!("selected source must skip fallback")).unwrap();
+        assert_eq!(value,"selected");
+        assert_eq!(*seen.borrow(),[0,1]);
+        let result = select_host_source_with([0,1], |_| Err::<Option<()>,_>("invalid source"),
+            || panic!("invalid source must not fall back"));
+        assert_eq!(result,Err("invalid source"));
+    }
 }

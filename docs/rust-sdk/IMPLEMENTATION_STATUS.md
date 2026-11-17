@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026-11-17第一百段恢复点：基础69cf913。EX全部8个主机配置函数接native，strict/Python共用惰性来源选择，保留两者显式空配置差异。原域名/括号/Unicode/去重/动态hook/异常cause与上下文、环境优先/两次strip及显式保存JSON/fsync/replace顺序保留；文件with/except/finally为对象适配。新增16个Python函数（1参数化）及1个Rust源码用例，十二份合同256个Python函数全未执行。下一步transport/owner/generation/client管理/probe/models/清单/consumer，再T28–T30/T19及统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage13。
+
 2026-11-17第九十九段恢复点：基础08b9af5。MAC全部18个响应入口及异动描述/数值helper已迁native，Python显式except保留对象异常适配。位图未知槽/完整前缀vs部分行、bar秒级/日期范围、单多日分时分组与tail、逐笔vs竞价截断、info/board布局、两类JSON编码/长度/净额规则、异动两次DTO/server短头/大小端offset/sampling与goods逐条guard/file切片类型保留。共用响应格式与strict行步长。新增28个Python函数（5参数化），十一份合同240函数源码，全未执行。下一步transport/owner/generation/config/host/probe/models/清单/consumer，再T28–T30/T19源码收尾和统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage12；源码不代表验收。
 
 2026-11-17第九十八段恢复点：基础5f24441。MAC全部17构造器及18请求builder已接native，strict共用格式/头常量/bar标志/JSON标签/server控制字节。保留类/签名/defaults/keyword-only times、赋值捕获顺序/任意值与原GBK/struct错误；无strict报价页限额，fields只对None默认，flags惰性sum/PEP479及padding两次宽度读取保留。新增24个Python函数（4参数化），十份新增合同212函数源码，全未执行。下一步完整MAC响应parser/helper及transport/owner/generation/config/host/probe/清单/consumer，再T28–T30/T19源码收尾和统一验证；25/2/3不变，目标active无限额。恢复读task-27-report Stage11；此为源码恢复点，非验收通过。

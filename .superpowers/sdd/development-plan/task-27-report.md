@@ -1,4 +1,34 @@
 # T27 implementation report
+## Stage 13 — EX host configuration and explicit save policy (2026-11-17, stage100)
+
+Base69cf913. Added extension_hosts.rs and10 native functions; all8 public EX
+host config functions now use native policy. Python retains explicit read_text/
+JSON/with/except/finally/chmod/replace/unlink object adapters with original
+exception context. Common select_host_source_with now powers strict EX and
+Python lazy priority; strict explicit-empty rejection versus Python falsey
+fallthrough remains deliberate. No network or config writes executed here.
+
+Preserve bare hostname support, original permissive bracket branch, Unicode
+isspace iteration/any capture/PEP479, first occurrence equality-based dedup,
+normalizer hooks, source-format/repr/port order, environment get and two strip
+calls, regex/custom split, None versus empty source. Path division/Path/data_dir
+and str/JSON hooks remain live. Config reads keep FileNotFound empty, OSError
+and JSONDecodeError wrapping with cause/context, dict/list-only schema. Save
+keeps validation before paths, list materialization, live schema, temp-name PID/
+thread identifier order, JSON Unicode/indent2/newline/flush/fsync and original
+permission/replacement/final cleanup shell. No numeric-only Rust host policy
+or strict default timeout was imported into Python.
+
+Added tests/test_native_extension_hosts_contract.py:16 public function sources
+(1 parametrized) plus1 shared Rust source case. Twelve new extension contract
+files now256 Python function sources. All remain uncompiled/uncollected/
+unexecuted. No tests/build/check/network/dependency/AST/format/diff validation.
+Counts25 complete-source/2 partial(T19/T27)/3 unstarted(T28-T30), unchanged.
+Next complete connection transport/owner/generation, client management/probes,
+model/export/manifest and installed-wheel nonempty consumer. Then T28-T30/T19
+source closure and unified verification. Active unlimited, no agents,
+publication or controller-state edits.
+
 ## Stage 12 — all MAC response parsers and private helpers (2026-11-17, stage99)
 
 Base08b9af5. Authored mac_parse.rs with all18 response policies, unusual

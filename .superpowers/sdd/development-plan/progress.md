@@ -1,6 +1,18 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage100: base69cf913. All8 EX host config
+  functions now native policy with explicit file/except/with/finally adapter.
+  Shared lazy source selector in strict EX and Python; preserve differing
+  empty-source rules, hostname/bracket/Unicode/equality semantics, live hooks,
+  capture/format/exception and explicit save JSON/fsync/replace order. Added16
+  Python functions(1 parametrized)/1 Rust source case; twelve new contracts
+  total256 Python sources, all unexecuted. Read task-27-report Stage13. Next
+  transport/owner/generation/client management/probes/models/manifest/consumer,
+  then T28-T30/T19 source closure and unified verification.25/2/3 unchanged;
+  active unlimited; no tests/build/check/network/dependencies/AST/format/diff
+  validation, agents/publication/controller-state edits.
+
 - Latest recovery2026-11-17 stage99: base08b9af5. All18 MAC response methods
   and unusual/numeric helpers now native; explicit numeric except adapters
   retained. Keep bitmap20/unknown slots/prefix vs partial rows, bar seconds,
