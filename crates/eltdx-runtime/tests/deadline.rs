@@ -179,6 +179,25 @@ fn raw_execution_returns_frame_and_wire_context_without_typed_parsing() -> Resul
         stream.write_all(&response(typed.msg_id, typed.msg_type, &[7, 0]))?;
         let malformed = read_request(&mut stream)?;
         stream.write_all(&response(malformed.msg_id, malformed.msg_type, &[]))?;
+        // A subsequent real request on the same socket proves that parsing the
+        // malformed response released the only Slot before Engine::close.
+        let recovered = read_request(&mut stream)?;
+        stream.write_all(&response(recovered.msg_id, recovered.msg_type, &[11, 0]))?;
+        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+        let mut byte = [0];
+        match stream.read(&mut byte) {
+            Ok(0) => {}
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::ConnectionReset | io::ErrorKind::ConnectionAborted
+                ) => {}
+            result => {
+                return Err(io::Error::other(format!(
+                    "Engine close did not retire its socket: {result:?}"
+                )))
+            }
+        }
         Ok(())
     });
 
@@ -207,13 +226,27 @@ fn raw_execution_returns_frame_and_wire_context_without_typed_parsing() -> Resul
         engine.execute(request()),
         Err(RuntimeError::Protocol { .. })
     ));
-    let broker = engine
-        .pool_diagnostics()?
-        .broker
-        .ok_or_else(|| RuntimeError::internal("runtime did not publish its broker snapshot"))?;
-    assert_eq!(broker.active_leases, 0);
+    assert_eq!(
+        engine.execute(request())?,
+        CommandResponse::SecurityCount(11)
+    );
+
+    // A live pin on this one-Slot pool proves the successful recovery also
+    // released its ordinary lease. Cached diagnostics are not a live barrier.
+    let pin = engine.begin_pin()?.wait()?;
+    assert!(pin.source_identity(Duration::from_secs(1))?.is_some());
+    pin.begin_close()?.wait()?;
+    assert!(pin.source_identity(Duration::from_secs(1)).is_err());
 
     engine.close()?;
+    // Successful close checks the live broker and budgets before publishing
+    // the final snapshot. The stopped engine no longer owns a broker epoch.
+    let diagnostics = engine.pool_diagnostics()?;
+    assert_eq!(diagnostics.state.as_str(), "STOPPED");
+    assert!(diagnostics.broker.is_none());
+    assert_eq!(diagnostics.raw_bytes, 0);
+    assert_eq!(diagnostics.decoded_bytes, 0);
+
     join_server(server)?;
     Ok(())
 }

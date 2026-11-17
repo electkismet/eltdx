@@ -1,6 +1,6 @@
 # Rust SDK 与 Python 版本、打包及发布政策
 
-本轮选定的是候选源码配置，尚未编译、查询注册表、打包或安装。本页不表示发布可用；所有执行等 T01–T30 源码范围写齐后统一进行。
+本页规定候选版本与发布边界。T01–T30源码完成后已进入实际统一验证；截至stage126，已构建并隔离消费Windows wheel，注册表观察三名称均404，首次crate归档验证暴露未发布依赖解析问题。具体候选、通过和失败见[统一验证](unified-validation.md)，不表示已经发布或完整验收。
 
 | 产品或组件 | 候选版本 | 依赖关系与安装 |
 | --- | --- | --- |
@@ -12,7 +12,7 @@
 
 内部依赖同时写 path 和 version。path 用于开发；归档规范化清单使用注册表版本。首次 SDK 使用 0.x；0.1.x 保留已文档化的稳定入口和行为，破坏兼容的公开改动必须升级 minor 并附迁移说明；隐藏的 `__python_compat` 不是 Rust 稳定接口。Python 产品的签名、默认值、模型、异常、hooks 和安装路径仍按原兼容合同维护，SDK 0.x 的版本变化不授权破坏 Python API。
 
-`eltdx`、`eltdx-protocol`、`eltdx-runtime` 的注册表名称、候选版本是否已被使用和账号发布权尚未查询。注册表 404 只表示该时点查询未找到，不能证明命名权。若下层 `3.3.5` 已发布且内容与候选不同，必须选择新的下层版本并同步精确依赖；不能重新上传同版本或把注册表旧源码当作本地新代码。最终 lock 解析也在统一验证阶段完成，当前 lock 不作为新声明的有效解析证据。
+`eltdx`、`eltdx-protocol`、`eltdx-runtime` 于2026年11月17日11:43:52–53 UTC的实际crates.io查询均返回404，原响应/hash见stage126的registry-observation-attempt01；账号发布权尚未验证。注册表404只表示该时点查询未找到，不能证明命名权。若下层 `3.3.5` 已发布且内容与候选不同，必须选择新的下层版本并同步精确依赖；不能重新上传同版本或把注册表旧源码当作本地新代码。实际lock已于统一验证阶段解析并使用Rust1.89执行；lock及源码身份仍必须与每次验收候选对应。
 
 三个 Rust 库各自包含 README 和原 LICENSE 的逐字副本，Cargo include 限定 manifest/lock、许可证、说明、src 和适用 examples。SDK 另包含两个小型测试辅助源码 `tests/support/hq_server.rs` 和 `stress_log.rs`，供 `cfg(test)` 私有预算压力模块在归档中编译；它们不进入生产依赖或运行时。其余仓库测试和大型 fixture 留在仓库；这些测试仍须在最终候选 SHA 上完整运行。归档消费不依赖仓库外部语料。项目原非商业学习和数据研究许可不因 SDK 增加而改变，不填入不符的 MIT/Apache SPDX 标签。
 
@@ -21,7 +21,7 @@
 `scripts/verification/rust_sdk_packages.py` 要求 Python 3.11+，只作为发布验证开发工具，不进入 Rust 库构建链。每次使用新的输出目录并保存原日志、命令、退出码、工具链、lock 和归档/逐文件 hash。
 
 - `registry-observation`：实际读取 crates.io 响应，保存 HTTP 状态、时点、原始内容/hash 和同版本条目；既不发布，也不承诺名称可用。
-- `archives`：复制候选到独立 staging workspace，显式给未发布下层加本地 patch；生成独立 lock、逐 crate list/package，记录 `--no-verify`。解包检查规范化依赖、README/LICENSE/src，再用只依赖 eltdx 的外部 consumer 对全部三个解包目录显式 patch，真实运行最小/default/full 和各域非空用例。该模式是内容与消费模拟，不能标为公开注册表通过。Cargo 若仍不能解析下层，则保留失败，先建立本地 registry；不删版本、不借回源码路径、不跳过失败。
+- `archives`：复制候选到独立staging workspace，vendor真实locked依赖，并只在staging/consumer配置中替换为本地目录源。按依赖顺序逐crate list/package（记录`--no-verify`），安全解包检查规范化依赖、README/LICENSE/src；以实际归档及逐文件checksum登记目录源，令后续包能解析未发布下层。外部consumer只依赖eltdx，对全部三个解包目录显式patch，真实运行最小/default/full和各域非空用例。目录替换及patch均不进入产品manifest，也不等于公开注册表通过；不删版本、不借回工作区源码、不跳过失败。stage126的原workspace-patch失败和目录源成功探针均保留，正式流水线仍须实际执行。
 - `registry-dry-run`：先查询并下载两个已发布下层归档，核对注册表 checksum、许可证和候选 src 的全部文件字节；不同或 yanked 立即拒绝，要求版本决策。随后执行普通 package 验证及 publish dry-run。这里仍不上传，且不证明账号命名权或最终注册表消费已经通过。
 
 统一执行时可使用：

@@ -1,6 +1,7 @@
 """Record package contents and isolated consumption after source completion.
 
-Archive consumption uses explicit local patches for unpublished lower crates.
+Packaging uses an isolated directory source for unpublished lower crates;
+archive consumption uses explicit local patches to their extracted contents.
 It never counts as registry acceptance. No mode publishes, tags or pushes.
 """
 from __future__ import annotations
@@ -30,6 +31,22 @@ def manifest(path: Path) -> dict:
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 
+def register_directory_package(unpacked: Path, archive: Path, vendor: Path) -> dict:
+    """Expose an inspected archive to Cargo without a public registry upload."""
+    package = vendor / unpacked.name
+    if package.exists():
+        raise FileExistsError("Candidate directory source already exists: " + str(package))
+    shutil.copytree(unpacked, package)
+    files = {path.relative_to(package).as_posix(): sha256(path)
+             for path in sorted(package.rglob("*")) if path.is_file()
+             and path.name != ".cargo-checksum.json"}
+    checksum = {"files": files, "package": sha256(archive)}
+    checksum_path = package / ".cargo-checksum.json"
+    checksum_path.write_text(json.dumps(checksum, indent=2) + "\n", encoding="utf-8")
+    return {"directory": str(package), "archive_sha256": checksum["package"],
+            "checksum_sha256": sha256(checksum_path)}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("archives", "registry-observation", "registry-dry-run"))
@@ -52,7 +69,7 @@ def main() -> None:
     report = {
         "status": "running", "mode": args.mode, "versions": versions, "source_sha": None,
         "commands": [], "artifacts": [], "registry": [],
-        "acceptance": "local-patch-simulation" if args.mode == "archives" else args.mode,
+        "acceptance": "local-directory-and-patch-simulation" if args.mode == "archives" else args.mode,
     }
     environment = os.environ.copy()
     environment["CARGO_TARGET_DIR"] = str(output / "target")
@@ -199,22 +216,25 @@ def main() -> None:
                 cargo(["publish", "-p", name, "--dry-run", "--locked"])
             report["acceptance"] = "package-and-registry-dry-run-only-no-publication"
         else:
-            # A fresh staging workspace is allowed to have its own lock and
-            # local patch table. The committed source manifest is never edited.
+            # Cargo resolves registry dependencies while packaging, even with
+            # --no-verify; workspace patches alone cannot supply unpublished
+            # lower crates. Vendor the locked dependencies, then register each
+            # inspected lower archive before packaging its dependents. This
+            # source replacement is confined to the staging/consumer configs.
             staging = output / "staging"
             staging.mkdir()
             for name in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "LICENSE", "README.md"):
                 shutil.copyfile(ROOT / name, staging / name)
             shutil.copytree(ROOT / ".cargo", staging / ".cargo")
             shutil.copytree(ROOT / "crates", staging / "crates", ignore=shutil.ignore_patterns("target", "__pycache__"))
-            staging_manifest = staging / "Cargo.toml"
-            with staging_manifest.open("a", encoding="utf-8") as stream:
-                stream.write('\n[patch.crates-io]\n')
-                for name in CRATES[:-1]:
-                    stream.write(name + ' = { path = "crates/' + name + '" }\n')
-            report["local_patch_sources"] = {name: str(staging / "crates" / name) for name in CRATES[:-1]}
-            cargo(["generate-lockfile"], staging)
+            vendor = output / "vendor"
+            cargo(["vendor", "--locked", "--versioned-dirs", str(vendor)], staging)
+            source_config = ('\n[source.crates-io]\nreplace-with = "candidate-vendor"\n'
+                             '[source.candidate-vendor]\ndirectory = ' + json.dumps(vendor.as_posix()) + '\n')
+            with (staging / ".cargo/config.toml").open("a", encoding="utf-8") as stream:
+                stream.write(source_config)
             report["staging_lock_sha256"] = sha256(staging / "Cargo.lock")
+            report["directory_source"] = {"directory": str(vendor), "packages": {}}
             unpack = output / "unpacked"
             unpack.mkdir()
             unpacked = {}
@@ -223,6 +243,7 @@ def main() -> None:
                 cargo(["package", "-p", name, "--no-verify", "--locked"], staging)
                 archive = output / "target/package" / (name + "-" + versions[name] + ".crate")
                 unpacked[name] = inspect_archive(archive, name, unpack)
+                report["directory_source"]["packages"][name] = register_directory_package(unpacked[name], archive, vendor)
             consumer = output / "consumer"
             consumer.mkdir()
             shutil.copytree(ROOT / "tests/consumers/rust-sdk/src", consumer / "src")
@@ -234,6 +255,10 @@ def main() -> None:
             for name in CRATES:
                 text += name + ' = { path = ' + json.dumps(unpacked[name].as_posix()) + ' }\n'
             (consumer / "Cargo.toml").write_text(text, encoding="utf-8")
+            (consumer / ".cargo").mkdir()
+            shutil.copyfile(ROOT / ".cargo/config.toml", consumer / ".cargo/config.toml")
+            with (consumer / ".cargo/config.toml").open("a", encoding="utf-8") as stream:
+                stream.write(source_config)
             report["consumer_patch_sources"] = {name: str(path) for name, path in unpacked.items()}
             environment["CARGO_TARGET_DIR"] = str(output / "consumer-target")
             cargo(["generate-lockfile"], consumer)
@@ -246,7 +271,7 @@ def main() -> None:
             if any(name in tree for name in ("pyo3", "eltdx-python", "maturin")):
                 raise RuntimeError("Archive consumer contains Python discovery/bindings")
             report["consumer_lock_sha256"] = sha256(consumer / "Cargo.lock")
-            report["limitation"] = "--no-verify packaging plus unpacked local patches; no public registry identity or publish success."
+            report["limitation"] = "--no-verify packaging with isolated directory replacement plus unpacked local patches; no public registry identity or publish success."
         report["status"] = "passed"
     except BaseException as error:
         report["status"] = "failed"

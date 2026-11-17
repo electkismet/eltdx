@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026年11月17日stage126恢复点：db82b29的Linux/full、Windows32feature+default/full、release wheel、完整Python3046/276/103、隔离wheel consumer与文档三门禁通过。Windows full唯一失败为误用缓存租约快照，改为实时后续请求/pin/close检查后deadline5项与runtime严格Clippy通过；首次错误的关闭后broker断言失败也保留。归档验证实测workspace patch不足，目录源探针成功，正式脚本已修正待干净候选重跑。旧基线独立release构建成功；sdist构建/inspect通过，重建仍在session64112运行。详见统一验证stage126。继续交付矩阵、实际压力/性能与新候选证据；目标active无限额。
+
 2026年11月17日stage125严格lint恢复点：基础0b4bd48，纯格式化独立提交c62716e。三个纯Rust库eltdx/eltdx-runtime/eltdx-protocol的Rust1.89/full/all-targets严格Clippy（-D warnings）attempt11实际exit0；先前失败均保留。清理未使用的私有代码，测试专用项限定cfg(test)，动态不变量panic改typed Internal，固定表/常量的例外仅局部说明；生产lint政策不放宽。RawResultSender私有send返回是否送达，原调用者不消费失败payload。最后一个测试辅助函数使用PinReservationRuntime类型别名，format apply02及独立fmt check01均exit0。当前Python源码合同603通过，但使用先前候选native，不代表本轮新wheel已验收。证据artifacts/unified/stage125-lints；详细范围见统一验证记录。接续先在保存候选重跑Rust正确性/doctest/feature/Loom/Linux，重建绑定和wheel并重新跑Python，再独立消费者/归档包/文档与实际压力性能。旧阶段通过不能补最新候选空缺；goal active，无额度限制。
 
 2026年11月17日stage124退役仲裁修复：基础b4ffd32。确定性late cancellation回归在生产修复前实际失败started cancellation was stale（red-attempt02；attempt01因遗漏完整模块名而0项，不能算red）。Supervisor只允许精确wire转terminal意图；Runtime取消加入已有清理，先发生的失败终态保留原原因，待retry/endpoint清理则转取消并禁止新attempt，确认仍等待真正ReconnectAck，owner lifecycle清理保留原归属。新用例覆盖普通/pinned、terminal/retry/endpoint六种顺序及外来generation拒绝，green通过。带最终测试增量的Windows Rust1.89合并all-targets实际exit0：SDK lib232/1 ignored、protocol98、runtime130、deadline5、pin1及全部普通integration/examples成功；不包含doctest/ignored压力。证据artifacts/unified/stage124-retirement。Clippy/fmt、Linux/绑定/Python重新构建、完整交付及压力性能仍待。目标active无限额。
