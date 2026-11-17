@@ -1,6 +1,6 @@
 # T01–T30 最终要求与证据索引
 
-本页把开发计划R01–R12关联到实际源码、验证入口和必须保留的运行证据。它是验收导航，不能凭表格或脚本存在判定完成。统一执行已在stage115开放；stage131–134已完成Windows Rust1.89/1.100平台与feature矩阵、Loom、归档consumer、Python3.12 wheel回归、Linux/full与Loom以及两平台默认原生压力聚合。各次候选、平台、命令和具体范围见[统一验证记录](unified-validation.md)。性能测量与若干平台/生产/物理隔离外部证据仍待，整体最终交付仍未验收。未验证、失败、缺失、平台未具备、生产样本未取到必须分别记录。
+本页把开发计划R01–R12关联到实际源码、验证入口和必须保留的运行证据。它是验收导航，不能凭表格或脚本存在判定完成。统一执行已在stage115开放；stage131–134已完成Windows Rust1.89/1.100平台与feature矩阵、Loom、归档consumer、Python3.12 wheel回归、Linux/full与Loom以及两平台默认原生压力聚合；stage135完成Windows/Linux配对性能run及raw复验。各次候选、平台、命令和具体范围见[统一验证记录](unified-validation.md)。stage135已完成R01–R12首轮逐项审计并逐项列出部分结论和剩余证据；macOS、其他Python版本、生产/物理隔离外部证据尚未闭合，整体最终交付仍未验收。未验证、失败、缺失、平台未具备、生产样本未取到必须分别记录。
 
 ## 要求逐项追踪
 
@@ -50,6 +50,27 @@
 - 注册表名称/同版本源码身份、全部新依赖lock/API/MSRV/license、跨平台镜像与实际wheel支持仍需真实执行。
 - Windows/macOS hosted的process-path-only隔离不能证明整台机器没有编译器；更强环境要求须提供专用镜像证据。
 
-本节较早阶段记录保留为历史；stage131–134的更新结果优先，完整范围见统一验证记录。性能84trial仍未执行，macOS、其他Python版本、物理隔离环境及生产协议证据仍需补齐，不把此前测试通过扩大到缺失环境。
+本节较早阶段记录保留为历史；stage131–135的更新结果优先，完整范围见统一验证记录。性能在Windows/Linux已各84 trial并通过复验；macOS、其他Python版本、物理隔离环境及生产协议证据仍需补齐，不把本机合成测量扩大到缺失环境。
+
+## Stage135 逐项审计结论
+
+以下结论按已保存的候选、平台和证据范围审计，不把脚本存在、源码完整或不同候选的结果合并成全通过。`部分`表示实现源码已完成且有相应本地证据，但仍有明确的环境、生产样本或兼容矩阵缺口。
+
+| 要求 | 当前结论 | 已有证据 | 未闭合项 |
+| --- | --- | --- | --- |
+| R01 两产品独立安装 | 部分 | Windows wheel独立安装回归；Rust归档解包后的外部consumer执行11种模式 | 无Python/无编译器物理隔离镜像；公开注册表安装与源码身份 |
+| R02 共用Rust业务 | 部分 | Python native bridge、独立Rust入口、Python local/loopback/golden回归及Linux Rust完整集合 | category22非空生产样本；各生产profile独立对照和完整能力逐项差分 |
+| R03 owner/pin/pending | 部分 | Rust并发关闭/取消集合、Windows/Linux Loom及默认原生压力资源归零 | 未确认生产清理边界；macOS运行证据 |
+| R04 整次期限 | 部分 | operation deadline、超时/取消边界与跨平台压力合同已有运行覆盖 | 声明平台/解释器矩阵仍不齐；生产endpoint与外部时延证据 |
+| R05 metadata隔离 | 部分 | metadata owner隔离、等待者取消、精度快照相关Rust与Loom集合 | macOS和其余受支持环境的独立运行记录 |
+| R06 顺序缺失分页 | 部分 | HQ/F10/financial分页与独立consumer回环；单endpoint单连接回归通过 | 全部声明平台/Python版本的逐域矩阵；真实服务分页形态 |
+| R07 单位日期复权 | 部分 | 数值、时间、来源精度、调整与未知值由Rust用例及Python兼容回归覆盖 | 权威涨跌停规则仍未知；category22与生产复权样本缺失 |
+| R08 订阅 | 部分 | Windows/Linux原生压力覆盖队列、actor、取消、关闭和资源回收 | 仅有合成负载；无生产长时订阅和macOS记录 |
+| R09 F10/EX/MAC边界 | 部分 | F10具名入口与EX/MAC wire组合有本地fixture、Python回归及独立consumer证据 | MAC-EX生产LoginReplyRules和optional setup关联无抓包证明；category22缺样本 |
+| R10 文件下载有界 | 部分 | offline/financial ZIP、DAT、K线和边界处理有Rust/Python本地验证及归档consumer | 无生产下载源的截断/限额行为证据；其他平台矩阵 |
+| R11 兼容决策 | 部分 | Python 3.12 local 3046、loopback 276、golden 103通过；基线与差异规则有文档 | Python 3.10–3.14全矩阵未完成；生产hook/profile仍需对应样本 |
+| R12 可发布可复验 | 部分 | Windows/Linux候选、lock/wheel、压力与性能raw均可复验，stage135性能raw复验通过 | macOS、公开registry发布后消费、真实隔离镜像；生产协议证据；未执行发布 |
+
+因此stage135之后仍没有任何一项被声明为全环境、全生产条件通过。下一轮按上表缺口补证；拿不到的外部样本继续保留为明确未完成项，不以合成测试替代。
 
 这些不是授权缩减任务范围的理由。源码范围须全部实现，执行失败须继续处理；任何确实需要独立外部输入的项保留具体缺口和后续行动，不能借文档标记自动通过。

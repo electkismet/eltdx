@@ -200,4 +200,20 @@ Linux本地原始证据保留于 `/root/.cache/eltdx-sdk-validation/stage134-lin
 
 跨平台aggregate实际exit0，报告status=passed、两平台各10场景。Linux全部case最高RSS 16695296B、线程46、FD20、冷却RSS增量8060928B；Windows对应19496960B、线程50、handles169、冷却RSS增量2314240B，均满足事前政策。两边budgets峰值raw220B、decoded12582912B、queue28、live_actors/configured_workers4；结束后预算和活动actor/queue归零。这里是采样和合成负载证据，不推定生产服务器长期资源行为。
 
-候选588d5e4上的metadata、MkDocs strict和站点本地链接命令也均exit0，记录在stage134 results.json；该文档三门禁先于本节新增记录，后续文档修改需要再次检查。Windows两版Rust平台/feature、归档consumer及最终Python回归仍以stage131–133各自候选为准；其后到588d5e4仅文档/恢复记录变更，没有扩大旧结果的源码范围。性能84trial仍未执行，macOS、多Python版本、生产协议、物理隔离环境及发布后无patch注册表消费继续单列；目标active，无额度限制。
+候选588d5e4上的metadata、MkDocs strict和站点本地链接命令也均exit0，记录在stage134 results.json。性能对照见stage135；该文档三门禁先于stage135文档修改，stage135提交前按新文档重跑。Windows两版Rust平台/feature、归档consumer及最终Python回归仍以stage131–133各自候选为准；其后到588d5e4仅文档/恢复记录变更，没有扩大旧结果的源码范围。macOS、多Python版本、生产协议、物理隔离环境及发布后无patch注册表消费继续单列；目标active，无额度限制。
+
+## Stage135：Windows/Linux 配对性能测量
+
+候选 `a3cc4c2317f4714b0e80de29d8f899aef664a59b`，冻结基线 `af471f1adf38757f6aa0188968db8110eb23f6ad`。两者各自由 `maturin build --release --locked` 构建；Windows/MSVC使用Rust1.89/Python3.12.6，Linux Ubuntu22.04使用Rust1.89/Python3.10.12。候选与基线保留各自Cargo.lock hash，不宣称依赖完全相同。每平台固定profile opt-level3/debug0/LTO=false/codegen-units16/incremental=false/panic=unwind，500 samples、50 warmup、7个独立trial/曲线，交错顺序，共84次run；外部网络状态unrun。
+
+Windows run和raw verify都exit0：`artifacts/unified/stage135-performance/windows-measurement/`，candidate wheel SHA256 `a34e90464391c556648fa076ec4e640885be2c2a1e52ce2432d6b8d1c72f2afd`，native `5d997d44a83869b994bcf7555defd7cc5d8d84535a3d706682c437a80f4d7640`；baseline wheel SHA256 `81caf775f94aebb212fbb5397bc88b836ad797382e3a0995e9f290a1b441aca0`。84/84 run无错误，外部测量未运行。
+
+Linux baseline/candidate build、run、raw verify均exit0，Linux结果压缩归档解包后的独立verify也exit0。完整压缩raw证据 `artifacts/unified/stage135-performance/linux-measurement-attempt01.tar.gz` SHA256 `639ebb1898ffb3135673d0e522c4680e0c8cc3621f7233e8d20d8fa0f75cce0e`；candidate wheel SHA256 `8f8940e711527073431a050d303f43c3bc8540796e8c91ec61f53ff4d8c09955`，native `5d997d44a83869b994bcf7555defd7cc5d8d84535a3d706682c437a80f4d7640`；baseline wheel SHA256 `47c3da197167894f82c3f0b6c252357dec7c16490b22e1621662f0d7ad3dbff6`。摘要、各项锁及log hash在 `artifacts/unified/stage135-performance/results.json`。
+
+candidate/baseline p50比率（>1表示候选慢）为：Windows parse1.0043、projection1.0049、loopback2.3671、close1.0570；Linux parse0.9628、projection0.9752、loopback1.8178、close1.0368。loopback测的是本机合成服务器，候选额外绝对p50约0.17–0.21ms；它不代表公网请求或真实服务器吞吐。Rust core parse严格策略p50另行记录，不与legacy Python策略作减法。结果按测量政策完整报告，不设必须提速门槛，也不以比值替代API兼容、生命周期或产品验收。
+
+失败准备attempt均保留：Linux安装venv首轮代理超时、绕过代理后因旧apt索引404、更新索引后安装成功；baseline构建attempt01使用了不存在的staging路径，未开始编译，attempt02成功。Windows当前候选wheel build通过。Stage135仍不补齐macOS、其他Python版本、物理无编译器镜像、注册表发布后无patch消费、生产MAC握手/category22/涨跌停权威规则等外部证据。
+
+## Stage135 文档审计与门禁
+
+已在[最终验收索引](final-acceptance.md)为R01–R12逐项记录局部证据和未闭合条件，全部保持“部分”，不将本地fixture、不同候选或缺失的生产/平台证据升级为全通过。stage135文档更新后，`check_release_metadata.py`、`mkdocs build --strict`、`check_pages_links.py site`及`git diff --check`最终结果和日志SHA256保存在`artifacts/unified/stage135-docs-attempt04/results.json`。attempt02曾因T30索引的中文fragment与MkDocs生成id不符而失败；修正为`stage135windowslinux`后通过，失败日志保留在attempt02。

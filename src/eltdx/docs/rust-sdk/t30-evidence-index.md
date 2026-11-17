@@ -1,6 +1,6 @@
 # T30 压力、性能与最终交付证据索引
 
-T01–T30源码范围已写齐，stage115后进入统一验收。stage134已在干净候选588d5e4上完成Windows/Linux默认release压力：两平台各10场景、独立verify及跨平台aggregate均exit0，原始采样与候选hash见[统一验证记录](unified-validation.md)。性能测量尚待执行；下面的工作量和资源政策保留为事前合同。stage114在stage113的指南和R01–R12导航基础上补齐18个service、独立客户端的普通调用示例与精确非空回环对应，以及E06 Serde合同和严格单feature文档门禁。
+T01–T30源码范围已写齐，stage115后进入统一验收。stage134已在干净候选588d5e4上完成Windows/Linux默认release压力：两平台各10场景、独立verify及跨平台aggregate均exit0。stage135又在同一最终SDK源码候选a3cc4c2完成Windows/Linux各84个配对性能run与raw复验；原始采样、hash和比率见[统一验证记录](unified-validation.md)。以下负载、资源和性能方法继续作为测量合同，不把脚本存在当作通过。stage114在stage113的指南和R01–R12导航基础上补齐18个service、独立客户端的普通调用示例与精确非空回环对应，以及E06 Serde合同和严格单feature文档门禁。
 
 ## 独立 Rust 压力源码
 
@@ -60,10 +60,10 @@ python scripts/verification/rust_sdk_stress.py aggregate --implementation-comple
 
 ## 源码交接与待执行证据
 
-- 固定语料的Rust core、旧/新Python解析和模型构造、非空loopback、实际close及预取消微负载源码已写，详见[性能政策](performance-policy.md)。84个默认trial、同release profile、两个真实构建wheel及原始日志复验入口均未执行；外部网络仅显式opt-in。
+- 固定语料的Rust core、旧/新Python解析和模型构造、非空loopback、实际close及预取消微负载源码已写，详见[性能政策](performance-policy.md)。stage135已在Windows/Linux按固定release profile完成各84个trial、候选/基线wheel构建及raw复验；具体结果见[性能记录](unified-validation.md#stage135windowslinux)。外部网络仅显式opt-in，未运行。
 - stage113补齐了代次/资源源码记录和复验条件，stage114按T30交付范围进行源码收尾审阅；这些不替代最终压力运行。
-- [R01–R12最终交接](final-acceptance.md)、crate首页rustdoc、[Rust指南](user-guide.md)、[Python迁移](python-migration.md)、[候选说明](release-notes.md)与[维护手册](maintenance.md)已有源码。stage131 Windows Rust1.89/1.100 platform matrices 已执行最小/default/full/serde/f10严格rustdoc和doctest；正式手动documentation job复用现有mirror/metadata/MkDocs/local-link检查器，需在stage132恢复记录后重跑。
+- [R01–R12最终交接](final-acceptance.md)、crate首页rustdoc、[Rust指南](user-guide.md)、[Python迁移](python-migration.md)、[候选说明](release-notes.md)与[维护手册](maintenance.md)已有源码。stage131 Windows Rust1.89/1.100 platform matrices 已执行最小/default/full/serde/f10严格rustdoc和doctest；正式手动documentation job复用现有mirror/metadata/MkDocs/local-link检查器，stage135对性能结果和R01–R12审计文档更新后再次执行，最终退出码及日志hash见统一验证记录。
 - 逐公开service的普通调用源码、实际include及非空回环精确函数已补入[示例索引](service-examples.md)；[Serde](examples-serde.md)补齐有限/非有限、bytes、日期和未知值及checked类型边界。新增固定连接非空刷新与七组serde运行合同源码。后续须真实收集/编译/执行，不能以文档表或函数名代替结果。
 - T19源码交接见[F10传输索引](f10-transport-index.md)，其依赖/API/MSRV/license/平台仍待执行。生产MAC-EX登录和optional MAC setup关联证据仍缺，不能把合成ACK升级为默认生产规则。
 
-压力实际输出为 `artifacts/unified/stage134-windows-stress-attempt01`、Linux任务缓存下的 `stage134-linux-stress-attempt01`；两边可复验副本在 `artifacts/unified/stage134-stress-inputs`，聚合报告为 `artifacts/unified/stage134-linux-final/native-stress-aggregate.json`（passed）。性能输出仍待生成；不能以压力通过替代性能测量。
+压力实际输出为 `artifacts/unified/stage134-windows-stress-attempt01`、Linux任务缓存下的`stage134-linux-stress-attempt01`；两边可复验副本在`artifacts/unified/stage134-stress-inputs`，聚合报告为`artifacts/unified/stage134-linux-final/native-stress-aggregate.json`（passed）。性能原始报告与复算见`artifacts/unified/stage135-performance/results.json`；Linux压缩raw归档解包后复验通过。性能比率只描述各自平台上的候选/基线延迟，不跨平台对比，也不作为兼容通过证据。

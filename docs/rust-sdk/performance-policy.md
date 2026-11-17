@@ -1,6 +1,6 @@
 # Rust / Python 性能测量与复验
 
-本页描述已编写、尚未执行的测量源码。当前没有本轮性能数字、速度承诺或性能通过记录。全部实现源码完成、普通正确性验收后才运行；性能结果不能代替兼容或生命周期正确性。
+本页包含事前固定的测量合同及stage135实际记录。Windows/Linux各84个默认run已完成并由独立verify复算；详细原始证据、版本和hash见[统一验证记录](unified-validation.md)。性能结果不能代替兼容或生命周期正确性，也没有预设“候选必须更快”的门槛。
 
 ## 负载和可比范围
 
@@ -50,4 +50,17 @@ verify重新读取样本重算分位数、吞吐、资源峰值和trial比较；
 
 资源日志在关闭文件后计算hash，包含末尾缓冲数据；服务器错误、实际流量和已产生的worker记录须先持久化，再进行结果判定。失败原样保留，报告为failed而非measured。源码有任何修复，先形成新候选，再重建受影响的两端交付物和证据，不能将不同SHA混成一个发布结论。
 
-手动 `rust-sdk-performance.yml` 独立于默认quick CI及压力工作流；Windows/Linux分别测量，不能跨机器直接除出速度比。当前未触发任何工作流，本页所有数字都是事前配置，尚不是实际测量结果。
+手动 `rust-sdk-performance.yml` 独立于默认quick CI及压力工作流；Windows/Linux分别测量，不能跨机器直接除出速度比。stage135使用固定脚本在两平台执行了配对测量，结果见下节；该手动GitHub Actions workflow本身尚未触发。
+
+## Stage135 实际结果
+
+候选`a3cc4c2317f4714b0e80de29d8f899aef664a59b`，冻结基线`af471f1adf38757f6aa0188968db8110eb23f6ad`。Windows用Python3.12.6/MSVC，Linux Ubuntu22.04用Python3.10.12；两者Rust1.89。每个平台均500 measured samples、50 warmup、7 trial/曲线，共84 run，原始复算0错误，外部endpoint为unrun。profile严格遵守本文锁定配置。两份lock hash各自保留，候选和基线依赖不同不隐去。
+
+| 平台 | parse p50 比率 | projection p50 比率 | loopback p50 比率 | close p50 比率 |
+| --- | ---: | ---: | ---: | ---: |
+| Windows | 1.0043 | 1.0049 | 2.3671 | 1.0570 |
+| Linux | 0.9628 | 0.9752 | 1.8178 | 1.0368 |
+
+比率为candidate/baseline，>1代表候选延迟较高。Windows parse基线/候选p50中位数分别561700/564100ns，projection267100/268400ns，loopback150900/357200ns，close244000/257900ns。Linux分别为461780/444611ns、191385/186638ns、205006/372657ns、189130/196093ns。loopback为固定本机synthetic HQ server，差值约0.17–0.21ms；不能外推公网体验。Rust core strict DAT解析p50为Windows177200ns、Linux76834ns，但解析策略不同，不能与Python曲线相减推导转换耗时。上述只按既定政策报告，无提速通过阈值。
+
+Windows全部run与verify见 `artifacts/unified/stage135-performance/windows-measurement/`；Linux压缩raw包 `artifacts/unified/stage135-performance/linux-measurement-attempt01.tar.gz` 的SHA256为 `639ebb1898ffb3135673d0e522c4680e0c8cc3621f7233e8d20d8fa0f75cce0e`，包内证据解包重验通过。跨平台wheel、native、lock、源码和日志hash见 `artifacts/unified/stage135-performance/results.json`。
