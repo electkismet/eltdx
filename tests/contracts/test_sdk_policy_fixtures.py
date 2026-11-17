@@ -140,4 +140,3 @@ def test_legacy_boundaries_keep_python_projection_separate_from_rust_policy() ->
     assert cases["request_deadline_scope"]["rust"]["deadline_scope"] == "whole_operation"
     assert cases["request_deadline_scope"]["python_compat"]["two_page_result"] == "success_at_about_10_seconds"
     assert cases["request_deadline_scope"]["rust"]["two_page_result"] == "timeout_at_8_seconds"
-
