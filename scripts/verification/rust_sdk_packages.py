@@ -2,7 +2,8 @@
 
 Packaging uses an isolated directory source for unpublished lower crates;
 archive consumption uses explicit local patches to their extracted contents.
-It never counts as registry acceptance. No mode publishes, tags or pushes.
+Registry consumption uses a fresh Cargo home and only published packages.
+No mode publishes, tags or pushes.
 """
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import tarfile
+import tempfile
 import time
 import tomllib
 import urllib.error
@@ -21,6 +23,8 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
 CRATES = ("eltdx-protocol", "eltdx-runtime", "eltdx")
+CRATES_IO_SOURCE = "registry+https://github.com/rust-lang/crates.io-index"
+CONSUMER = "eltdx-independent-consumer"
 
 
 def sha256(path: Path) -> str:
@@ -29,6 +33,28 @@ def sha256(path: Path) -> str:
 
 def manifest(path: Path) -> dict:
     return tomllib.loads(path.read_text(encoding="utf-8"))
+
+
+def verify_registry_lock(lock: Path, versions: dict[str, str], checksums: dict[str, str]) -> dict:
+    resolved = {}
+    local = []
+    for package in manifest(lock)["package"]:
+        name = package["name"]
+        if name == CONSUMER and "source" not in package:
+            local.append(package)
+            continue
+        if package.get("source") != CRATES_IO_SOURCE:
+            raise RuntimeError("Unexpected registry origin for " + name)
+        if name not in versions:
+            continue
+        if name in resolved or package["version"] != versions[name]:
+            raise RuntimeError("Unexpected registry version for " + name)
+        if package.get("checksum") != checksums[name]:
+            raise RuntimeError("Unexpected registry checksum for " + name)
+        resolved[name] = package
+    if len(local) != 1 or resolved.keys() != versions.keys():
+        raise RuntimeError("Registry lock does not contain one consumer and all candidate crates")
+    return resolved
 
 
 def register_directory_package(unpacked: Path, archive: Path, vendor: Path) -> dict:
@@ -49,7 +75,7 @@ def register_directory_package(unpacked: Path, archive: Path, vendor: Path) -> d
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("archives", "registry-observation", "registry-dry-run"))
+    parser.add_argument("mode", choices=("archives", "registry-observation", "registry-dry-run", "registry-consumer"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--toolchain", default="1.89.0")
     parser.add_argument("--implementation-complete", action="store_true")
@@ -167,6 +193,90 @@ def main() -> None:
                 record["matching_versions"] = [entry for entry in data["versions"] if entry["num"] == versions[name]]
             record["limitation"] = "Read-only observation; does not prove naming rights, publish authorization or candidate source identity."
 
+    def published_identity(names: tuple[str, ...], identity: Path) -> dict[str, str]:
+        identity.mkdir()
+        checksums = {}
+        for name in names:
+            record = next(entry for entry in report["registry"] if entry["name"] == name)
+            matches = record.get("matching_versions", [])
+            if len(matches) != 1 or matches[0]["yanked"]:
+                raise RuntimeError("Candidate is not a unique unyanked registry version: " + name)
+            request = urllib.request.Request(
+                "https://crates.io/api/v1/crates/" + name + "/" + versions[name] + "/download",
+                headers={"User-Agent": "eltdx-candidate-verifier/0.1 (https://github.com/electkismet/eltdx)"})
+            archive = identity / (name + "-" + versions[name] + ".crate")
+            with urllib.request.urlopen(request, timeout=30) as response, archive.open("xb") as stream:
+                total = 0
+                while chunk := response.read(1024 * 1024):
+                    total += len(chunk)
+                    if total > 64 * 1024 * 1024:
+                        raise RuntimeError("Published archive exceeds identity inspection bound")
+                    stream.write(chunk)
+            checksum = sha256(archive)
+            if checksum != matches[0]["checksum"]:
+                raise RuntimeError("Published archive checksum differs from registry response: " + name)
+            published = inspect_archive(archive, name, identity)
+            candidate = ROOT / "crates" / name
+            candidate_sources = {path.relative_to(candidate).as_posix(): sha256(path)
+                                 for path in (candidate / "src").rglob("*") if path.is_file()}
+            published_sources = {path.relative_to(published).as_posix(): sha256(path)
+                                 for path in (published / "src").rglob("*") if path.is_file()}
+            if candidate_sources != published_sources:
+                raise RuntimeError("Published version contains different source; choose a new version: " + name)
+            record["candidate_source_identity"] = "exact-src-file-bytes-and-license"
+            checksums[name] = checksum
+        return checksums
+
+    def prepare_consumer(consumer: Path) -> str:
+        consumer.mkdir()
+        shutil.copytree(ROOT / "tests/consumers/rust-sdk/src", consumer / "src")
+        text = (ROOT / "tests/consumers/rust-sdk/Cargo.toml").read_text(encoding="utf-8")
+        local = 'path = "../../../crates/eltdx"'
+        if text.count(local) != 1:
+            raise RuntimeError("Independent consumer no longer has the expected SDK dependency")
+        return text.replace(local, 'version = "=' + versions["eltdx"] + '"')
+
+    def consume(consumer: Path) -> None:
+        cargo(["run", "--locked", "--no-default-features", "--", "lazy"], consumer)
+        cargo(["run", "--locked", "--no-default-features", "--", "loopback"], consumer)
+        cargo(["run", "--locked", "--", "loopback"], consumer)
+        for mode in ("lazy", "loopback", "f10", "offline", "financial", "ex", "mac", "mac-ex"):
+            cargo(["run", "--locked", "--no-default-features", "--features", "sdk-full", "--", mode], consumer)
+        tree = cargo(["tree", "--locked", "--no-default-features", "--features", "sdk-full", "--edges", "normal,build"], consumer)
+        if any(name in tree for name in ("pyo3", "eltdx-python", "maturin")):
+            raise RuntimeError("Consumer contains Python discovery/bindings")
+        report["consumer_lock_sha256"] = sha256(consumer / "Cargo.lock")
+
+    def consume_registry(checksums: dict[str, str]) -> None:
+        with tempfile.TemporaryDirectory(prefix="eltdx-public-registry-") as temporary:
+            isolated = Path(temporary).resolve()
+            if isolated.is_relative_to(ROOT.resolve()):
+                raise RuntimeError("Public registry consumer must run outside the candidate checkout")
+            for ancestor in (isolated, *isolated.parents):
+                if any((ancestor / ".cargo" / name).exists() for name in ("config", "config.toml")):
+                    raise RuntimeError("Ancestor Cargo config could replace the public registry: " + str(ancestor))
+            consumer = isolated / "consumer"
+            text = prepare_consumer(consumer)
+            config = tomllib.loads(text)
+            if (set(config) != {"package", "workspace", "features", "dependencies"} or config["workspace"]
+                    or config["dependencies"] != {"eltdx": {"version": "=" + versions["eltdx"], "default-features": False}}):
+                raise RuntimeError("Public consumer must only depend on the exact SDK registry version")
+            (consumer / "Cargo.toml").write_text(text, encoding="utf-8")
+            for key in tuple(environment):
+                if key.upper().startswith("CARGO_") or key.upper() in {
+                    "RUSTC", "RUSTDOC", "RUSTFLAGS", "RUSTDOCFLAGS", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER",
+                }:
+                    del environment[key]
+            environment["CARGO_HOME"] = str(isolated / "cargo-home")
+            environment["CARGO_TARGET_DIR"] = str(output / "consumer-target")
+            report["consumer_isolation"] = "fresh-cargo-home-outside-checkout-no-patch-or-source-replacement"
+            try:
+                cargo(["generate-lockfile"], consumer)
+                report["consumer_registry_packages"] = verify_registry_lock(consumer / "Cargo.lock", versions, checksums)
+                consume(consumer)
+            finally:
+                shutil.copytree(consumer, output / "consumer")
+
     try:
         report["source_sha"] = run(["git", "rev-parse", "HEAD"]).strip()
         report["worktree_status"] = run(["git", "status", "--porcelain"]).splitlines()
@@ -181,40 +291,17 @@ def main() -> None:
                     raise RuntimeError("Every internal dependency needs path and version: " + name)
         if args.mode == "registry-observation":
             registry_observation()
-        elif args.mode == "registry-dry-run":
+        elif args.mode in ("registry-dry-run", "registry-consumer"):
             registry_observation()
-            identity = output / "published-lower"
-            identity.mkdir()
-            for name in CRATES[:-1]:
-                record = next(entry for entry in report["registry"] if entry["name"] == name)
-                matches = record.get("matching_versions", [])
-                if len(matches) != 1 or matches[0]["yanked"]:
-                    raise RuntimeError("Lower candidate is not a unique unyanked registry version: " + name)
-                request = urllib.request.Request(
-                    "https://crates.io/api/v1/crates/" + name + "/" + versions[name] + "/download",
-                    headers={"User-Agent": "eltdx-candidate-verifier/0.1 (https://github.com/electkismet/eltdx)"})
-                archive = identity / (name + "-" + versions[name] + ".crate")
-                with urllib.request.urlopen(request, timeout=30) as response, archive.open("xb") as stream:
-                    total = 0
-                    while chunk := response.read(1024 * 1024):
-                        total += len(chunk)
-                        if total > 64 * 1024 * 1024:
-                            raise RuntimeError("Published archive exceeds identity inspection bound")
-                        stream.write(chunk)
-                if sha256(archive) != matches[0]["checksum"]:
-                    raise RuntimeError("Published archive checksum differs from registry response")
-                published = inspect_archive(archive, name, identity)
-                candidate_sources = {path.relative_to(ROOT / "crates" / name).as_posix(): sha256(path)
-                                     for path in (ROOT / "crates" / name / "src").rglob("*") if path.is_file()}
-                published_sources = {path.relative_to(published).as_posix(): sha256(path)
-                                     for path in (published / "src").rglob("*") if path.is_file()}
-                if candidate_sources != published_sources:
-                    raise RuntimeError("Published lower version contains different source; choose a new version: " + name)
-                record["candidate_source_identity"] = "exact-src-file-bytes-and-license"
-            for name in CRATES:
-                cargo(["package", "-p", name, "--locked"])
-                cargo(["publish", "-p", name, "--dry-run", "--locked"])
-            report["acceptance"] = "package-and-registry-dry-run-only-no-publication"
+            if args.mode == "registry-dry-run":
+                published_identity(CRATES[:-1], output / "published-lower")
+                for name in CRATES:
+                    cargo(["package", "-p", name, "--locked"])
+                    cargo(["publish", "-p", name, "--dry-run", "--locked"])
+                report["acceptance"] = "package-and-registry-dry-run-only-no-publication"
+            else:
+                checksums = published_identity(CRATES, output / "published")
+                consume_registry(checksums)
         else:
             # Cargo resolves registry dependencies while packaging, even with
             # --no-verify; workspace patches alone cannot supply unpublished
@@ -245,12 +332,9 @@ def main() -> None:
                 unpacked[name] = inspect_archive(archive, name, unpack)
                 report["directory_source"]["packages"][name] = register_directory_package(unpacked[name], archive, vendor)
             consumer = output / "consumer"
-            consumer.mkdir()
-            shutil.copytree(ROOT / "tests/consumers/rust-sdk/src", consumer / "src")
-            text = (ROOT / "tests/consumers/rust-sdk/Cargo.toml").read_text(encoding="utf-8")
+            text = prepare_consumer(consumer)
             # Registry-style version dependency with explicit candidate patches;
             # all three point to unpacked archives, never the checkout/staging.
-            text = text.replace('path = "../../../crates/eltdx"', 'version = "=' + versions["eltdx"] + '"')
             text += '\n[patch.crates-io]\n'
             for name in CRATES:
                 text += name + ' = { path = ' + json.dumps(unpacked[name].as_posix()) + ' }\n'
@@ -262,15 +346,7 @@ def main() -> None:
             report["consumer_patch_sources"] = {name: str(path) for name, path in unpacked.items()}
             environment["CARGO_TARGET_DIR"] = str(output / "consumer-target")
             cargo(["generate-lockfile"], consumer)
-            cargo(["run", "--locked", "--no-default-features", "--", "lazy"], consumer)
-            cargo(["run", "--locked", "--no-default-features", "--", "loopback"], consumer)
-            cargo(["run", "--locked", "--", "loopback"], consumer)
-            for mode in ("lazy", "loopback", "f10", "offline", "financial", "ex", "mac", "mac-ex"):
-                cargo(["run", "--locked", "--no-default-features", "--features", "sdk-full", "--", mode], consumer)
-            tree = cargo(["tree", "--locked", "--no-default-features", "--features", "sdk-full", "--edges", "normal,build"], consumer)
-            if any(name in tree for name in ("pyo3", "eltdx-python", "maturin")):
-                raise RuntimeError("Archive consumer contains Python discovery/bindings")
-            report["consumer_lock_sha256"] = sha256(consumer / "Cargo.lock")
+            consume(consumer)
             report["limitation"] = "--no-verify packaging with isolated directory replacement plus unpacked local patches; no public registry identity or publish success."
         report["status"] = "passed"
     except BaseException as error:

@@ -27,12 +27,14 @@ stage138的Windows/Rust1.89归档验证以同一当前源码树执行，24条工
 - `registry-observation`：实际读取 crates.io 响应，保存 HTTP 状态、时点、原始内容/hash 和同版本条目；既不发布，也不承诺名称可用。
 - `archives`：复制候选到独立staging workspace，vendor真实locked依赖，并只在staging/consumer配置中替换为本地目录源。按依赖顺序逐crate list/package（记录`--no-verify`），安全解包检查规范化依赖、README/LICENSE/src；以实际归档及逐文件checksum登记目录源，令后续包能解析未发布下层。外部consumer只依赖eltdx，对全部三个解包目录显式patch，真实运行最小/default/full和各域非空用例。目录替换及patch均不进入产品manifest，也不等于公开注册表通过；不删版本、不借回工作区源码、不跳过失败。stage126的原workspace-patch失败和目录源成功探针均保留，正式流水线仍须实际执行。
 - `registry-dry-run`：先查询并下载两个已发布下层归档，核对注册表 checksum、许可证和候选 src 的全部文件字节；不同或 yanked 立即拒绝，要求版本决策。随后执行普通 package 验证及 publish dry-run。这里仍不上传，且不证明账号命名权或最终注册表消费已经通过。
+- `registry-consumer`：三包都可从 crates.io 下载后，核对公开 checksum、候选源码与许可证。随后在仓库外用全新 Cargo home、不继承 Cargo 配置或缓存，仅依赖 SDK 精确版本生成 lock；核对三包版本、来源与 checksum，运行 11 种消费者场景。缺少包或身份不符即失败并保留证据。
 
 统一执行时可使用：
 
 ```sh
 python scripts/verification/rust_sdk_packages.py archives --implementation-complete --output /absolute/new-evidence
 python scripts/verification/rust_sdk_packages.py registry-observation --implementation-complete --output /absolute/new-registry-evidence
+python scripts/verification/rust_sdk_packages.py registry-consumer --implementation-complete --output /absolute/new-consumer-evidence
 ```
 
 三平台 archive consumer 已写入 `rust-sdk.yml` 的独立 job。无 Python 的纯 Rust 源码消费者与使用 Python 编排的归档内容验证是两个证据项。阶段140的正式发布已纳入当前目标；尚无可用的crates.io发布凭据，未执行实际上传。`eltdx-protocol` 已通过 `cargo +1.89.0 publish -p eltdx-protocol --dry-run --locked` 的标准归档编译门槛。正式发布按 `eltdx-protocol` → `eltdx-runtime` → `eltdx` 顺序进行；每次等公开索引可见，核对版本未撤回和归档内容后才继续。发布后用独立workspace、仅依赖 `eltdx = "=0.1.0"` 且无patch、path或目录源替换的consumer重新生成lock，确认三crate的来源及checksum均与公开索引匹配，再运行同一套业务流程。
