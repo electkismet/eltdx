@@ -1249,3 +1249,9 @@ Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.
 ## Stage170：category 22 原始空响应取证
 
 从 `6a6cd8b` 的 CI Windows wheel 安装协议编解码器，在普通和专用 7709 主站各用一个会话查询同一证券。两台普通日线均返回 5 条，category 22 均返回 `0000`；完整请求、响应、解压载荷和独立核验保留在 `artifacts/unified/stage170-category22-attempt01/`。不重复扫描相同公开主站来代替经过授权的非空样本。MAC-EX 跨日/服务端拒绝、MAC 可选 setup、交易所原始价格记录、发布和公开无 patch 消费仍未闭合。
+
+## Stage171：兼容性增量审计和发布续跑
+
+Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化在独立 Rust EX 商品总数解析；Python 的相应解析入口、调用链及锁文件未改。同候选 Linux stable/macOS 双 Rust 工具链的两条回归已从原始日志复核，证据见 `artifacts/unified/stage171-compatibility-delta-attempt01/verified.json`。上证所历史数据产品列有基本信息文件，已记录申请入口；字段和留存授权待确认，未将产品说明书计为实盘样本。发布政策明确依赖顺序、逐包下载核验及上传结果不明时的续跑；本机无发布凭据。MAC-EX 跨日采样需等 UTC+8 日期变更，当前不发同日重复请求。冻结候选及既有矩阵不变，目标仍未完成。
+
+文档检查首轮因新增中文标题的自动锚点与链接不符而失败，保留 `artifacts/unified/stage171-docs-attempt01/`，改用显式英文锚点后复验。

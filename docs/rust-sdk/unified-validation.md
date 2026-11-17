@@ -460,3 +460,9 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 通过 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的 CI Windows wheel 安装现有协议编解码器，校验 wheel/native 散列。在一个普通主站和一个资金流专用主站各开一次标准 7709 会话，以同一连接查询 `sh600000`：`0x052d` category 4 与 category 22 均请求 start 0、count 5。两台的普通日线均返回 5 条、96 字节 payload；category 22 均返回 2 字节 `0000`，连接关闭。两台的对应响应帧逐字节相同，不能据此推定其后台数据源相互独立。
 
 `artifacts/unified/stage170-category22-attempt01/` 保留握手、两个查询的请求、响应帧和解压后载荷，以及实际命令、时间和退出码。`verify.py` 逐份复算散列，独立验证帧长度、消息 ID、命令、证券身份、查询类别和记录计数，exit 0；`verified.json` SHA256 `87dfeafa3858c876ba18480f885a19ce0ef774014eb59e8cf58618f792eb1ca7`。这补齐公开主站空响应的原始证据，非空布局和业务字段仍未验收，稳定历史资金流继续使用 F10。
+
+## Stage171：最终候选兼容差异与交易所数据渠道
+
+对比 Windows Python 全矩阵候选 `e2b8819c4729de28f0472ecbe743b0c2e100872f` 与冻结候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e`。产品源码、依赖清单和锁文件的唯一变化在独立 Rust 的 `decode_instrument_count`，新增对已观察到的 31 字节 `TDX_DS` 变体的支持。Python 的 `get_instrument_count()` 和无市场参数的 `goods_count()` 经既有 PyO3 入口读取同一偏移，调用路径和解析文件的 Git blob 相同，不经过此次改动。冻结候选的 Linux stable、macOS 1.89 和 macOS stable 原始日志均包含 EX 和 MAC-EX 两条回归通过。证据 `artifacts/unified/stage171-compatibility-delta-attempt01/verified.json` SHA256 `e0cf4facde8bf6536750fb759d906066ebe3e1c89162ca285bec6028b2772f0f`。未重跑 Stage136 全矩阵，Stage166 最终候选的五平台消费结果独立记录。
+
+上证所信息网络有限公司的[行情历史数据产品](https://www.sseinfo.com/services/assortment/historical/)列出证券基本信息文件，并提供[业务申请](https://bsp.sseinfo.com/business/?id=1703682586115227650)；2.0.0 说明书只列出若干行情字段，未确认基本信息产品提供 `cpxx0201`、`cpxx0202` 或同等字段。申请前应确认能否获得指定交易日的有效参考价、上下限和限制类型，以及是否允许留存验收证据。保留网页与说明书原件于 `artifacts/unified/stage171-sse-history-channel-attempt01/`；`sources.json` SHA256 `c4bbad13c82e6ee426b3dcc5ce565cc761b30a5e899bc27e4ebb46da629a76fe`。本次未申请或取得生产文件。MAC-EX 上两轮时钟样本均属 UTC+8 的 2026-11-18；应在服务端日期变更后再采第三轮。本机仍无 crates.io 凭据，未上传。

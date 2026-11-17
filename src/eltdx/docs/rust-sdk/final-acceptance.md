@@ -28,7 +28,7 @@
 | R08 订阅 | subscription/dispatcher及Python兼容fanout | `subscription.rs`、`legacy_push.rs`、Python orchestration合同和压力subscription | 唯一push消费者、订阅pin持有/释放、续期/重同步、queue字节/帧限额、gap及关闭竞争 |
 | R09 F10/EX/MAC边界 | [F10传输](f10-transport-index.md)、[端点](f10-implementation-index.md)、[EX](ex-implementation-index.md)、[MAC](mac-implementation-index.md)、[T26](t26-implementation-index.md) | `f10_http/values/routes/named_methods/route_inventory/results`；`ex_wire/session`、`mac_wire/session/routing`、extended组合 | 非空请求/响应、157入口和具名分支、动态重复列/未知slot/GBK/序号/时间；每个生产profile另有独立证据 |
 | R10 文件下载有界 | [offline](offline-migration-index.md)、[financial](financial-implementation-index.md)、HQ/MAC下载 | `offline_bars/offline_blocks/offline_industry/gbbq`、`financial/financial_service/resources/stats/extended_downloads`及故障I/O | 逐字节roundtrip、残尾append不写、原末条阈值、partial write、ZIP目录与解压限额、完整EOF和LimitReached区别 |
-| R11 兼容决策 | [Python基线](python-baseline.md)、[56个兼容案例](compatibility-cases.md)、[决策](decision-register.md) | manifest/static/reflection/public/model/错误与逐域合同；Windows Python3.10–3.14全套local/loopback/golden矩阵，Linux x64 Python3.10–3.14 wheel 安装和公开 API 冒烟验证 | 原签名/默认/别名/异常context/cache/hooks/重开/文件行为；任何有意变化独立记录，不改黄金值遮盖 |
+| R11 兼容决策 | [Python基线](python-baseline.md)、[56个兼容案例](compatibility-cases.md)、[决策](decision-register.md) | Windows Python 3.10–3.14 完整合同和 Linux x64 五版本 wheel 消费；最终候选五平台安装及 Stage171 差异审计：后续仅修改独立 Rust 的 EX 商品总数解码，Python 入口与解析未变 | 原签名/默认/别名/异常context/cache/hooks/重开/文件行为；完整五版本矩阵和最终候选冒烟保留各自 SHA |
 | R12 可交付可复验 | [发布政策](release-policy.md)、[T30压力](t30-evidence-index.md)、[性能](performance-policy.md)、[维护](maintenance.md) | feature/platform/MSRV、doctest/doc、最新候选crate归档consumer、Windows Python3.10–3.14 wheel、原始压力性能复验 | 同一候选的干净来源/lock/hash/平台/命令/计数/失败日志；不把local patch或path消费称为公开registry通过 |
 
 表中的测试名是 `crates/eltdx/tests` 中的target，runtime文件在 `crates/eltdx-runtime/tests`；Python合同与集成目录分别是 `tests/contracts`、`tests/integration`，扩展/F10迁移合同还在其分域测试目录中，精确路径与nodes以分域索引和manifest为准。目录名、方法名和函数数量只是定位信息，执行后须核对实际收集集合和行为断言覆盖。
@@ -59,8 +59,8 @@
 ## 后续工作
 
 - 发布平台：`6a6cd8b` 的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)和[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)均通过。Stage166 校验新汇总产物；保留 Stage157 的 Rust fixture 失败和 Stage162 的上传错误。手动验证未上传 PyPI 或创建 GitHub Release。
-- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选 setup 的身份、顺序和 fence，category 22 非空路径，以及常规和特殊交易日的交易所原始参考价、限价和限制类型；价格证据的范围见 Stage164–165。Stage170 留存 category 22 空响应与普通日线对照原件，未取得非空样本。未验证含义继续保持 Unknown。
-- 注册表：在本机配置获授权的crates.io发布凭据后，核对包名、版本和账号权限，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前重新查询，404仅代表该时间点的查询结果。
+- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选 setup 的身份、顺序和 fence，category 22 非空路径，以及常规和特殊交易日的交易所原始参考价、限价和限制类型。Stage171 记录了上证所历史证券基本信息的业务申请渠道，仍需确认字段并取得可留存的生产记录。Stage170 留存 category 22 空响应与普通日线对照原件。未验证含义继续保持 Unknown。
+- 注册表：在本机配置获授权的 crates.io 发布凭据后，按[首发与中断后续跑](release-policy.md#initial-registry-release)逐包发布、下载核验，最后用无 patch 的独立项目验证来源和消费。发布前重新查询，404 仅代表该时间点的查询结果。
 
 R01–R12首轮逐项审计是stage135时点的历史快照，后续更新以本节状态和[统一验证记录](unified-validation.md)为准，不再复制一份逐行“部分”表。已有Windows Python矩阵、Windows/Linux压力与性能、以及stage138归档结果分别保留在对应阶段记录中。
 
