@@ -1,5 +1,62 @@
 # T27 implementation report
 
+## Stage 3 — MAC paging, QFQ and download orchestration (2026-11-17, stage90)
+
+Stage2 committed48b7f07. Added extension_client.rs and four native
+functions: mac_page_query (five explicit legacy paging modes),
+mac_local_recompute, mac_stock_kline, mac_download_file. Python
+get_stock_quotes_list, _fetch_kline_pages, _local_recompute_qfq,
+get_stock_kline, get_transactions, get_board_list, get_board_members and
+download_file are thin native delegates. Existing method signatures,
+aliases/defaults and original model objects stay at the Python surface.
+
+New mac/python_legacy.rs has no Python dependency. Strict Pagination and
+legacy paging share remaining_page_with (subtract, live maximum, minimum);
+strict QFQ service and legacy stock_kline share repair_needed_with lazy
+predicates. Strict budgets/validated counts/full-operation pinning remain
+strict policies; legacy retains original per-wire timeout/execute hooks and
+unbounded old paging count. No strict8s/32extra/page/record/byte cap was added.
+
+Python quote/member pages append server order and return overdelivered/
+duplicate occurrences; bar pages use original whole-batch addition at the
+front, preserving custom __add__. Members convert board once even count0.
+Quote default fields are constructed once but category int conversion
+occurs per page. Live min/page constants and three distinct len evaluations
+remain. Transactions and board lists always issue their first request, even
+for nonpositive count, preserve that first result identity, and keep the
+old behavior of continuing after a short first page. Execute is captured
+before each command constructor, preserving a replacing custom hook.
+
+Kline calls the seven positional page arguments, then optional QFQ invalid
+check/None refetch/provider repair; None repair retains original server
+series. Alignment/period validation occurs after fetching. Local legacy
+repair accepts a valid unadjusted series even when every selected event
+was skipped. Download keeps optional metadata for filesize<=0, literal
+30000B requests,1-based index, partial bytearray on short/empty, declared
+size stopping without clipping an overdelivered chunk, and original errors.
+These are business algorithms in Rust; commands/DTOs/transport overrides
+are explicit Python object adapters pending their own migration stages.
+
+Added tests/test_native_extension_client_contract.py with16 public source
+functions (one parametrized), plus two shared-policy Rust functions. Cases
+exercise remainder/order/identity/defaults/category, live max/len,35 pages,
+overdelivery/duplicates, board conversion count0, whole-page prepend/custom
+add, first short/nonpositive initial requests, first-object extension,
+date/TransportError identity, full QFQ sequence/seven args, deferred period
+error, all-skipped event acceptance, partial download/index/no clipping and
+captured execute. Together with helper contracts there are46 Python test
+functions authored in the two new files. None collected/compiled/executed.
+
+T27 remains partial: MAC summary/ranking/history; EX/MAC-EX business,
+catalog/cache/HK; transports/owners/generations/config; commands/parsers;
+all actual exports/manifest/adapter rationale and installed-wheel consumer.
+Source-read fixes are not execution evidence. Generic/PyO3/source alias and
+runtime ABI risks await final gate. Counts25 complete source/2 partial
+(T19/T27)/3 unstarted(T28-T30). Goal active unlimited; no tests/build/check/
+collection/dependencies/network/compiler/AST/format/diff checks, agents,
+push/tag/publication/merge or controller edits. Continue all source scope,
+then unified verification and all necessary repairs.
+
 ## Stage 2 — bitmap building and local adjustment (2026-11-17, stage89)
 
 Stage1 committed ebcb278. Counts remain25 source-complete/2 partial/3

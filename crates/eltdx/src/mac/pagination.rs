@@ -39,13 +39,14 @@ impl Pagination {
             return Err(self.limit("MAC collection reached its safety limit without terminal evidence"));
         }
         if self.offset > self.offset_maximum { return Err(self.limit("MAC next offset exceeds its wire field")); }
-        let remaining = match self.target {
-            Target::Count(count) => usize::try_from(count.get()).map_err(|_| self.limit("MAC target exceeds platform capacity"))?
-                .checked_sub(self.rows).ok_or_else(|| protocol("MAC consumed rows exceed its requested target"))?,
+        let target = match self.target {
+            Target::Count(count) => usize::try_from(count.get()).map_err(|_| self.limit("MAC target exceeds platform capacity"))?,
             Target::All => usize::MAX,
         };
-        let count = remaining.min(self.policy.page_size()).min(self.policy.max_records() - self.rows)
-            .min(usize::from(self.wire_maximum.get()));
+        let count = super::python_legacy::remaining_page_with(&target,&self.rows,
+            |target,rows| target.checked_sub(*rows).ok_or_else(|| protocol("MAC consumed rows exceed its requested target")),
+            || Ok(self.policy.page_size().min(self.policy.max_records()-self.rows).min(usize::from(self.wire_maximum.get()))),
+            |remaining,maximum| Ok(remaining.min(maximum)))?;
         let count = u16::try_from(count).ok().and_then(NonZeroU16::new)
             .ok_or_else(|| protocol("MAC page has no positive representable request allowance"))?;
         let request = PageRequest { offset: self.offset, count };

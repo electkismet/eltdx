@@ -99,7 +99,8 @@ pub(crate) fn bars(owner: &MacOwner, context: &OperationContext, query: &BarsQue
 pub(crate) fn bars_with_source(owner: &MacOwner, context: &OperationContext, query: &BarsQuery,
     provider: Option<Arc<dyn XdxrProvider>>, source: Option<(super::Endpoint,u64)>) -> Result<Collection<Bar>> {
     let original = collect::bars_with_source(owner,context,query,ChildPurpose::Page,source)?;
-    if query.adjust() != MacAdjust::Qfq || original.rows.is_empty() || !bad_prices(context,&original.rows)? {
+    if !super::python_legacy::repair_needed_with(|| Ok(query.adjust() == MacAdjust::Qfq),
+        || Ok(!original.rows.is_empty()),|| bad_prices(context,&original.rows))? {
         return Ok(original);
     }
     // This is a separate logical fallback, not a retry of the QFQ request. The

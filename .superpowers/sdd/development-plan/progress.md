@@ -2,6 +2,22 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage90: Stage2 committed48b7f07. Authored native
+  MAC five-mode paging, QFQ refetch/provider/late alignment and whole-file
+  download orchestration. Eight Python methods now delegate; strict and
+  legacy share remaining-page arithmetic and lazy repair predicates without
+  leaking strict limits. Keep initial transaction/board result identity and
+  mandatory request/nonpositive count/short-first continuation, duplicate/
+  overdelivery, whole-page prepend/custom add, per-page category/live len/
+  cap, captured execute and partial bytearray/no clipping download. Added16
+  Python functions(new client contracts;46 total across two files)/2 shared
+  Rust source functions, all unexecuted. Read task-27-report Stage3. Full
+  summary/rank/history, EX/MAC-EX/catalog/HK, commands/parsers/transport/
+  generation/config/manifest/consumer remain. Counts25 source-complete/2
+  partial/3 unstarted, unlimited active goal. Continue all source then unified
+  checks; no tests/build/check/collection/dependencies/network/compiler/AST/
+  format/diff checks, agents, publication or controller edits.
+
 - Latest recovery2026-11-17 stage89: Stage1 committedebcb278. Native bitmap
   builder/exclude/AH-code and all local adjustment helpers authored, sharing
   write_bit/AH width and arithmetic/OHLC traversal/invalid-price primitives

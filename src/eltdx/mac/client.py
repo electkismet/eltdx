@@ -313,38 +313,12 @@ class MacClient:
             fields: 请求字段集合，默认 ``PresetField.BASIC + PresetField.VOLUME``。
         """
 
-        if fields is None:
-            fields = PresetField.BASIC + PresetField.VOLUME
-        all_quotes: list[MacQuoteField] = []
-        fetched = 0
-        offset = start
+        from eltdx._native_abi import load_native
 
-        while fetched < count:
-            # 每页按**剩余条数**请求：固定用 _BOARD_MEMBERS_PAGE_SIZE 会让最后一页
-            # 超量（count=100 → 两页各 80 → 返回 160 条）。
-            page_size = min(count - fetched, _BOARD_MEMBERS_PAGE_SIZE)
-            batch = self._execute(
-                BoardMembersQuotesCmd(
-                    board_code=int(category),
-                    sort_type=sort_type,
-                    start=offset,
-                    page_size=page_size,
-                    sort_order=sort_order,
-                    fields=fields,
-                    exclude_flags=exclude_flags,
-                )
-            )
-            if not batch:
-                break
-            # 服务端已按 sort_type/sort_order 排好序，跨页直接顺序拼接。
-            # 注意不要像 _fetch_kline_pages 那样前插 —— 那是为 K 线倒序返回准备的。
-            all_quotes.extend(batch)
-            fetched += len(batch)
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-
-        return all_quotes
+        return load_native().mac_page_query(
+            self, "quotes", (category, start, count, sort_type, sort_order, exclude_flags, fields),
+            _MODULES[__name__],
+        )
 
     # ------------------------------------------------------------------ #
     # K 线（支持复权）
@@ -362,30 +336,11 @@ class MacClient:
     ) -> list[MacBar]:
         """分页拉取指定复权类型的 K 线（返回 oldest -> newest 的 MacBar 列表）。"""
 
-        all_bars: list[MacBar] = []
-        fetched = 0
-        offset = start
-        while fetched < count:
-            page_size = min(count - fetched, _KLINE_PAGE_SIZE)
-            bars = self._execute(
-                SymbolBarCmd(
-                    market=market,
-                    code=code,
-                    period=period,
-                    times=times,
-                    start=offset,
-                    count=page_size,
-                    fq=fq,
-                )
-            )
-            if not bars:
-                break
-            all_bars = bars + all_bars
-            fetched += len(bars)
-            offset += len(bars)
-            if len(bars) < page_size:
-                break
-        return all_bars
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_page_query(
+            self, "bars", (market, code, period, start, count, times, fq), _MODULES[__name__]
+        )
 
     def _local_recompute_qfq(
         self,
@@ -399,15 +354,9 @@ class MacClient:
         价格时返回 ``None``，调用方降级返回服务端原始结果。
         """
 
-        if self._xdxr_provider is None:
-            return None
-        events = self._xdxr_provider(market, code)
-        if not events:
-            return None
-        out = apply_forward_adjust(bars, events)
-        if has_bad_prices(out):
-            return None
-        return out
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_local_recompute(self, bars, market, code, _MODULES[__name__])
 
     def get_stock_kline(
         self,
@@ -438,21 +387,10 @@ class MacClient:
                 ``11:30``）。仅对分钟级周期生效；日线及以上不受影响。
         """
 
-        bars = self._fetch_kline_pages(market, code, period, start, count, times, adjust)
+        from eltdx._native_abi import load_native
 
-        if adjust == Adjust.QFQ and bars and has_bad_prices(bars):
-            none_bars = self._fetch_kline_pages(
-                market, code, period, start, count, times, Adjust.NONE
-            )
-            if none_bars:
-                recomputed = self._local_recompute_qfq(none_bars, market, code)
-                if recomputed is not None:
-                    bars = recomputed
-
-        return align_datetime_bars(
-            bars,
-            delta_minutes=period_to_minutes(period, times),
-            bar_time=bar_time,
+        return load_native().mac_stock_kline(
+            self, (market, code, period, start, count, times, adjust), bar_time, _MODULES[__name__]
         )
 
     # ------------------------------------------------------------------ #
@@ -520,27 +458,11 @@ class MacClient:
             date: 查询日期（``YYYYMMDD``），``None`` 表示今天。
         """
 
-        query_date = _ymd_to_date(date)
-        all_items = self._execute(
-            SymbolTransactionCmd(
-                market, code, query_date, start, min(count, _TRANSACTION_PAGE_SIZE)
-            )
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_page_query(
+            self, "transactions", (market, code, count, start, date), _MODULES[__name__]
         )
-        fetched = len(all_items)
-        offset = start + fetched
-        while fetched < count:
-            page_size = min(count - fetched, _TRANSACTION_PAGE_SIZE)
-            batch = self._execute(
-                SymbolTransactionCmd(market, code, query_date, offset, page_size)
-            )
-            if not batch:
-                break
-            all_items.extend(batch)
-            fetched += len(batch)
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-        return all_items
 
     # ------------------------------------------------------------------ #
     # 个股信息
@@ -567,20 +489,9 @@ class MacClient:
             count: 请求总数。
         """
 
-        all_items = self._execute(BoardListCmd(board_type, 0, min(count, 150)))
-        fetched = len(all_items)
-        offset = fetched
-        while fetched < count:
-            page_size = min(count - fetched, 150)
-            batch = self._execute(BoardListCmd(board_type, offset, page_size))
-            if not batch:
-                break
-            all_items.extend(batch)
-            fetched += len(batch)
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-        return all_items
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_page_query(self, "boards", (board_type, count), _MODULES[__name__])
 
     def get_board_members(
         self,
@@ -602,32 +513,12 @@ class MacClient:
             exclude_flags: 过滤标志列表。
         """
 
-        board_code = convert_board_code(board_symbol)
-        all_quotes: list[MacQuoteField] = []
-        fetched = 0
-        offset = 0
-        while fetched < count:
-            page_size = min(count - fetched, _BOARD_MEMBERS_PAGE_SIZE)
-            batch = self._execute(
-                BoardMembersQuotesCmd(
-                    board_code=board_code,
-                    sort_type=sort_type,
-                    start=offset,
-                    page_size=page_size,
-                    sort_order=sort_order,
-                    fields=fields,
-                    exclude_flags=exclude_flags,
-                )
-            )
-            if not batch:
-                break
-            # 顺序拼接，保留服务端的跨页排序（整页前插会把第 2 页排到最前）。
-            all_quotes.extend(batch)
-            fetched += len(batch)
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-        return all_quotes
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_page_query(
+            self, "members", (board_symbol, count, sort_type, sort_order, fields, exclude_flags),
+            _MODULES[__name__],
+        )
 
     def get_belong_board(self, market: int, code: str) -> list[BelongBoardInfo]:
         """获取个股所属板块列表。"""
@@ -909,23 +800,9 @@ class MacClient:
     def download_file(self, filename: str, filesize: int = 0) -> bytearray:
         """下载完整远程文件（``filesize=0`` 时自动探测大小）。"""
 
-        if filesize <= 0:
-            filesize = self._execute(FileListCmd(filename)).size
+        from eltdx._native_abi import load_native
 
-        full_data = bytearray()
-        chunk_size = 30000
-        pos = 0
-        idx = 1
-        while pos < filesize:
-            chunk = self._execute(FileDownloadCmd(filename, idx, pos, chunk_size))
-            if not chunk:
-                break
-            full_data.extend(chunk)
-            pos += len(chunk)
-            idx += 1
-            if len(chunk) < chunk_size:
-                break
-        return full_data
+        return load_native().mac_download_file(self, filename, filesize, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 扩展市场

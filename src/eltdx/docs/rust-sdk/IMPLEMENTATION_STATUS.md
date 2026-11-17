@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第九十段恢复点：第二段T27提交48b7f07。本段新增native五种MAC分页、QFQ重取/修复/末尾alignment及整文件下载编排，八个Python方法改为薄入口；strict/legacy共用剩余页算术和惰性修复判断，不引入strict总期限/次数/条数限制。保留首批逐笔/板块返回对象、首批短页仍继续/非正count仍首请求、原重复/超量、整页前插/custom add、实时len/cap/分类int、command前捕获execute及下载partial bytearray/不裁块。新增16个Python客户端用例函数及2个Rust共享函数源码，两份新增Python文件共46函数，全未执行。T27仍需summary/rank/history、EX/MAC-EX/catalog/HK、commands/parser/transport/generation/config/manifest/consumer，随后T28–T30/T19收尾和最终统一验证。25完整源码/2部分/3未开始不变；目标active无限额，无代理或发布。恢复读task-27-report Stage3。
+
 2026-11-17第八十九段恢复点：首段T27提交ebcb278。本段接入native build_bitmap/exclude/AH-code及全部本地复权helper，与strict SDK共用write_bit/市场宽度/因子运算顺序/OHLC遍历和坏价格判断；Python继续保留动态宽度/自定义数值与hooks、NaN策略、无事件浅拷贝及选中但全跳过事件仍重建DTO。新增14个Python（现30）/1个Rust函数源码，全部未执行；源码阅读修正slice前捕获int和registry.get后实时重取FieldBit，各有用例。T27整体仍部分，继续全部client/transport/config/generation/commands/parsers/catalog/manifest/consumer，再T28–T30和T19收尾。计数25完整源码/2部分/3未开始不变；目标active无限额，所有执行验证继续延期。恢复读task-27-report Stage2。
 
 2026-11-17第八十八段恢复点：基础5593729。T27已开始，首批Python板块代码/FieldSelection/normalize/位图遍历与count/active入口迁入native，共用strict Rust的board_code_plan和next_set_bit。保留Unicode/任意精度整数、真实None切片、live hooks/顺序/对象、star长度提示、惰性generator/动态字段表及custom/negative数值原语；不把strict限额带入Python。新增16个Python/2个Rust公开函数源码，全未收集/编译/执行。build_bitmap/exclude/adjust/模型及全部扩展业务/配置/生命周期/manifest/consumer仍待完整迁移，不能把helper阶段当T27完成。当前25源码完整/2部分（T19/T27）/3未开始（T28–T30），继续完整T27及后续再统一验证。目标active无限额，无代理/发布；恢复读task-27-report Stage1。

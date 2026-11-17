@@ -15,6 +15,8 @@ pub mod config;
 pub mod bitmap;
 pub mod fields;
 pub mod util;
+#[doc(hidden)]
+pub mod python_legacy;
 pub mod services;
 pub mod commands;
 pub mod models;

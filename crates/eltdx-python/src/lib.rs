@@ -22,6 +22,7 @@ mod f10_values;
 mod f10_models;
 mod extension_bitmap;
 mod extension_adjust;
+mod extension_client;
 mod money_flow_history;
 mod limits;
 mod helpers;
@@ -66,6 +67,10 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(extension_adjust::mac_forward_factor, module)?)?;
     module.add_function(wrap_pyfunction!(extension_adjust::mac_bad_prices, module)?)?;
     module.add_function(wrap_pyfunction!(extension_adjust::mac_apply_forward, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_client::mac_page_query, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_client::mac_local_recompute, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_client::mac_stock_kline, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_client::mac_download_file, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::build_command_frame, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::decode_response, module)?)?;
     module.add_function(wrap_pyfunction!(protocol::encode_request_frame, module)?)?;
