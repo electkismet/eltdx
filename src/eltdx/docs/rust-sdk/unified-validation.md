@@ -265,3 +265,16 @@ stage139 attempt02在干净候选`a000eaabc7b8e479b9dd288d8a12a548dd090acc`上�
 macOS runner入口已在本地准备：向公开仓库的 `codex/rust-sdk-implementation` 分支推送含工作流变更的候选时，仅在macOS执行Rust 1.89/stable平台矩阵与归档消费；不触发PyPI/tag发布。工作流用actionlint 1.7.12检查，见 `stage140-actionlint-attempt01/result.json`。候选尚未推送，没有macOS运行结果。后续可对同一远端候选使用已有 `Publish` 手动模式，只构建和验证wheel/sdist，不上传到PyPI。缺少crates.io发布凭据及新生产证据；MAC-EX登录/setup、非空category22及涨跌停规则的生产结论仍未验证。
 
 交易所规则文本的第一轮取证成功下载了上交所通知、修订说明和深交所通知，北交所主域名返回403；原文及状态散列见 `stage140-exchange-rules-attempt01/results.json`。第二轮从北交所公告域名下载当前规则，详见 `stage140-exchange-rules-attempt02/results.json`；同目录的上交所规则正文附件SHA256为 `fc922c433438b2636cb631eab25cca405209712acbb6aaded768c45456ff8888`。条款与适用限制见[决策记录](decision-register.md)。规则文本未提供历史逐证券类别、风险状态与上市日；尚不足以启用生产profile。
+
+## Stage141：公开 registry 无 patch 消费入口
+
+干净候选 `2540b02f5a9c52bff6c28cc37fbf67b6473c5fd6` 增加只读 `registry-consumer`。它要求下载的三个 `.crate` 与公开 checksum 一致，核对候选的源码字节与许可证，再在工作区外用全新 Cargo home 生成 lock、核对三包版本/来源/校验值并运行既有11种消费者场景。产品源码与工作区 Cargo.lock 未改。下列证据在 `artifacts/unified/`：
+
+| 项目 | 结果 |
+| --- | --- |
+| 消费验证合同 | `stage141-red-attempt01/pytest.log` 保留新增入口及锁检查尚未实现时的6项失败。`stage141-green-attempt02/pytest.log` 记录7通过，SHA256 `64a614102fc81276bdcacd0d424fdb5b9fddfc2e71ce890608b5a25126e4aaf1`；模拟已发布的成功场景验证命令、来源和证据流程。 |
+| 真实 registry | `stage141-registry-consumer-attempt01/packages.json`，SHA256 `9de1c1827c632a603bc9a81e1e4b387756450ddeed999ed3f272f3a410bf14f5`。2026-11-17 20:31:16–18 UTC，三个名称均404；命令exit 1，未进入Cargo消费。无发布凭据且未上传。 |
+| Windows 归档回归 | `stage141-archives-attempt01/packages.json`，SHA256 `d689be960ad89757c924677789224ea3d45a5d1b15e8c87c9e0558163ccb3516`。24条命令exit 0，三归档hash与stage140一致，仍是本地目录源及解包patch消费。 |
+| 文档 | `stage141-docs-attempt01/results.json`，SHA256 `472851f5993cfda947e7af5fb7956feea1c93032505f7dc7d1102b8a909faeff`。严格构建与站点链接通过；metadata/mirror、Ruff和diff检查亦通过。 |
+
+接续：macOS候选未推送，须获得公开推送授权或接入现成macOS runner；三个 crate 发布后按[发布政策](release-policy.md)再次执行 `registry-consumer`；生产证据缺口与stage140相同。
