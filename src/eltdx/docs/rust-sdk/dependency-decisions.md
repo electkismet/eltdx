@@ -66,7 +66,14 @@ limits. The legacy protocol text constructor retains its original encoding
 policy; the strict SDK passes encoded bytes through a separate checked
 constructor. No second mapping or public caller-injected codec was added.
 
-## F10 JSON, URL and transport — T19 in progress
+## F10 JSON, URL and transport — source candidate, execution pending
+
+Stage113 closes the T19 **source scope**: registered HTTP/DNS/TLS ownership,
+bounded body decoding, public fixtures and their exact source inventory are
+written. See [F10 transport handoff](f10-transport-index.md). Every dependency,
+API, lock, MSRV, license and platform conclusion below remains unverified.
+Earlier checkpoint paragraphs describe their historical state, not missing
+transport code in the current candidate.
 
 The optional `f10` feature now declares workspace `serde_json = 1.0.145` and
 `url = 2.5.8`. Neither activates the public model `serde` feature. JSON uses the
@@ -158,6 +165,18 @@ available through Response::attributes even when whole-body retention is off.
 No candidate API, compile, dependency graph, runtime fixture, formatter or
 platform check has been executed. These remain implementation source changes,
 not a dependency-selection validation result.
+
+### T19 final source handoff — stage113
+
+Focused source reading covered worker/probe leases, runtime-drop/done/join
+ordering, async resolver ownership, synchronous OS trust/config limitations,
+driver retirement, redirect POST policy, all byte accounting and compression
+termination. Repeated Content-Encoding header fields are now explicitly rejected
+instead of selecting only the first; comma-separated coding chains and unknown
+codings already use the same rejecting decoder boundary. A public fixture source
+covers all three shapes, and the transport index maps the full fixture inventory.
+No fixture or dependency check has run. Source completion does not promote any
+pin, TLS behavior or cancellation claim to verified status.
 
 ### T20 local civil-date dependency (provisional)
 

@@ -341,16 +341,18 @@ Python adapter另跑已有native/Python契约回归，包括异常、partial/mis
 
 每个公开服务至少提供一个能编译的普通使用例和一个本机回环行为例。无网络示例可直接doctest；演示真实行情请求的文档使用`no_run`保证编译，并提供同API的回环测试真正执行。不要把所有示例标`ignore`，也不要用字符串搜索“包含函数名”代替调用编译。
 
-待实现验收命令：
+全源码门槛后待执行的验收命令（当前均未运行）：
 
 ```sh
 cargo +1.89.0 test -p eltdx --doc --no-default-features --locked
+cargo +1.89.0 test -p eltdx --doc --locked
 cargo +1.89.0 test -p eltdx --doc --no-default-features --features full --locked
 cargo +1.89.0 doc -p eltdx --no-deps --no-default-features --locked
+cargo +1.89.0 doc -p eltdx --no-deps --locked
 cargo +1.89.0 doc -p eltdx --no-deps --no-default-features --features full --locked
 ```
 
-CI为rustdoc设置`RUSTDOCFLAGS=-Dwarnings`。文档中的feature标签、单位、错误、顺序、missing语义、分页停止条件、缓存、同步/异步、线程安全、取消与close语义必须与行为测试关联。compile-fail示例验证私有 `OperationContext`不可访问、受控advanced边界、不Clone的资源句柄及关闭后使用的运行期结果；不把内部Engine所有方法自动重导出为长期公共API。
+`rust_sdk_matrix.ps1`的platform分支为上述最小/default/full命令设置`RUSTDOCFLAGS=-D warnings`、记录实际flag并在失败或成功后恢复原环境；`rust-sdk.yml`另有独立手动documentation job复用metadata/mirror、MkDocs strict及生成HTML本地链接/fragment检查。源码入口已写，不表示CI已执行。文档中的feature标签、单位、错误、顺序、missing语义、分页停止条件、缓存、同步/异步、线程安全、取消与close语义必须与行为测试关联。compile-fail示例验证私有 `OperationContext`不可访问、受控advanced边界、不Clone的资源句柄及关闭后使用的运行期结果；不把内部Engine所有方法自动重导出为长期公共API。
 
 `serde`测试应覆盖模型往返、enum未知值、bytes格式、日期、finite/non-finite浮点的公开策略。lossless wire数据和JSON可表达能力不同；不能承诺普通JSON完整保存任意NaN payload。F10大整数策略和serde feature结果格式要单独记录。
 

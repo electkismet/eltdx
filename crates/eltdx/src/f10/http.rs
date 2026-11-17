@@ -217,8 +217,13 @@ async fn post_once(config: &F10Config, url: &Url, body: Bytes,
         if !status.is_success() {
             return Err(Error::new(ErrorKind::Connection, "F10 HTTP status failure").with_context("http_status", status.as_u16().to_string()));
         }
-        let encoding = response.headers().get("content-encoding").map(|value| value.to_str()).transpose()
+        let encodings = response.headers().get_all("content-encoding");
+        let mut encodings = encodings.iter();
+        let encoding = encodings.next().map(|value| value.to_str()).transpose()
             .map_err(|error| header_error("invalid Content-Encoding").with_source(error))?.unwrap_or("");
+        if encodings.next().is_some() {
+            return Err(header_error("multiple F10 Content-Encoding headers are not supported"));
+        }
         if let Some(length) = response.headers().get("content-length") {
             let length: u64 = length.to_str().ok().and_then(|value| value.parse().ok()).ok_or_else(|| header_error("invalid Content-Length"))?;
             if length > config.max_encoded_bytes.get() { return Err(Error::new(ErrorKind::LimitExceeded, "F10 encoded response exceeds limit")); }

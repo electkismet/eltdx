@@ -391,6 +391,8 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 
 ### T19：HTTP 依赖验证与 F10 基础传输
 
+2026-11-17第五段源码交接（stage113，基础58f7664）：worker/probe租约、原预算授权、DNS/TLS/CONNECT、HTTP driver回收、压缩结束与同步OS调用未确认清理边界已作源码复核；补多重Content-Encoding拒绝及三个形状的公共fixture源码，并以[f10-transport-index.md](f10-transport-index.md)绑定真实用例名。T19实现/测试/交接源码范围完成；依赖解析/API/MSRV/license、所有fixture及三平台验收均未执行，以下验收框保持未通过。当前29源码完整/1部分(T30)/0未开始；T30尚需逐服务普通示例与回环映射及最后源码审阅，未开放统一执行。
+
 2026-11-17第四段源码：HTTP检查点`6196df2`后补zlib结束校验、并发connect共用探测/未确认清理保留串行租约、Params整文档限额、可取消JSON保留副本及服务端附加字段；新增相应并发/取消/压缩/redirect源码用例，全部未执行。T19仍部分，19/4/7不变；不将源码进度当作依赖/平台/运行验收通过。
 
 2026-11-17第三段源码：owner检查点`545dd8b`后接入HTTP/DNS/TLS、原预算授权、4-worker准入/取消/关闭确认、CONNECT/IPv4回退/原始字节/三类限额，补公共F10故障用例源码。依赖选择均暂定，完全未执行验证。T19仍部分待源码边界复查和完整证据，19/4/7不变；随后T20必须覆盖157入口。
@@ -606,6 +608,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 - [ ] 不实际publish/tag；产物hash、source SHA、工具链和features固定后才进入发布审批流程。
 
 ### T30：最终覆盖、性能和维护文档
+
+2026-11-17第三段源码恢复点（stage113，基础58f7664）：补crate首页可运行惰性/no_run查询rustdoc、六份使用/迁移/最终验收/候选/维护/F10传输文档、MkDocs导航与最小/default/full严格rustdoc/doctest和独立documentation job；EX/财报例子保留业务主错误并另报close错误。压力补actor槽数、实际generation单调和close后零actor/queue。T19源码交接已收尾，29源码完整/1部分(T30)/0未开始。仍未执行任何测试/构建/check/依赖/网络/文档验证；T30还需逐service普通使用示例和现有非空回环对应及最后源码审阅，不以首页示例或表格存在宣布全源码门槛。
 
 2026-11-17第二段源码恢复点（stage112，基础c5584c9）：固定语料Rust/旧新Python性能worker、release wheel来源与84trial采集复验、性能政策和独立workflow已写；10类压力补真实预热/配置/取消及close分阶段时延。详见[performance-policy.md](performance-policy.md)。全部未执行；T30仍部分，继续最终覆盖/文档和T19源码收尾，28完整源码/2部分不变。
 

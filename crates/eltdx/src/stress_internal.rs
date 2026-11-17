@@ -20,9 +20,10 @@ fn sample(client: &TdxClient, log: &Log) -> Case {
     let queue = diagnostic.broker.as_ref().map_or(0, |broker| broker.waiter_count + broker.pin_waiter_count);
     assert!(queue <= 256);
     let live = diagnostic.actors.iter().filter(|actor| actor.actor_alive).count();
-    log.write(format!("\"kind\":\"budget\",\"raw\":{},\"raw_max\":{},\"raw_peak\":{},\"decoded\":{},\"decoded_max\":{},\"decoded_peak\":{},\"configured_workers\":{},\"live_actors\":{live},\"queue\":{queue},\"queue_max\":256",
+    log.write(format!("\"kind\":\"budget\",\"raw\":{},\"raw_max\":{},\"raw_peak\":{},\"decoded\":{},\"decoded_max\":{},\"decoded_peak\":{},\"configured_workers\":{},\"actor_slots\":{},\"live_actors\":{live},\"queue\":{queue},\"queue_max\":256",
         diagnostic.raw_bytes, diagnostic.raw_max_bytes, diagnostic.raw_peak_bytes,
-        diagnostic.decoded_bytes, diagnostic.decoded_max_bytes, diagnostic.decoded_peak_bytes, diagnostic.runtime_workers))?;
+        diagnostic.decoded_bytes, diagnostic.decoded_max_bytes, diagnostic.decoded_peak_bytes,
+        diagnostic.runtime_workers, diagnostic.actors.len()))?;
     for (slot, actor) in diagnostic.actors.iter().enumerate() {
         log.write(format!("\"kind\":\"generation\",\"slot\":{slot},\"epoch\":{},\"generation\":{},\"alive\":{},\"pending\":{},\"stale_events\":{}",
             actor.runtime_epoch, actor.tcp_generation, actor.actor_alive, actor.pending_depth, actor.stale_event_count))?;
@@ -96,6 +97,8 @@ fn stress_actual_sdk_budgets_with_slow_server_and_bounded_queue() -> Case {
     let final_budget = client.engine.pool_diagnostics()?;
     assert_eq!(final_budget.raw_bytes, 0);
     assert_eq!(final_budget.decoded_bytes, 0);
+    assert!(final_budget.actors.iter().all(|actor| !actor.actor_alive && actor.pending_depth == 0));
+    assert!(final_budget.broker.as_ref().is_none_or(|broker| broker.waiter_count + broker.pin_waiter_count == 0));
     assert!(final_budget.raw_peak_bytes > 0);
     assert!(final_budget.decoded_peak_bytes > 0);
     if let Some(error) = failure { return Err(error); }

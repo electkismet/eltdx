@@ -29,3 +29,51 @@ Manual rust-sdk-performance.yml separates preparation/measurement/artifact expor
 All ten stress paths now author actual warmup, one configuration and final measurement/end/cooldown boundaries. Separate latency observations cover actual admitted cancellation and connected owner close, with raw identity/count rechecking. Fixed malformed company command to0x02cf after reading its production command source and subscription SecurityId construction. Source-only self-review corrected an initial6-byte directory fixture assumption to the actual14-byte request, resource hashes calculated before buffered file close, failed peer records discarded before summary, cleanup after failed close-preparation queries, and source snapshot hashes not tied to actual Git bytes. None is called a verified runtime fix.
 
 Next stage113: finish focused pressure/performance source review (including generation/resource evidence), finalR01–R12 coverage handoff, crate rustdoc/example/feature/error/unit/time/raw/serde explanations, Python migration/release/maintenance documents and strict/link verifier sources. Then close T19 focused source inventory/review/handoff. Only after ALLT01–T30 source scopes are actually complete may unified execution begin. ProductionMAC-EX login and optionalMAC setup identity/order/fence evidence remain absent; synthetic ACKs never fill them. Keep canonical documentation and src/eltdx/docs/rust-sdk mirrors synchronized.
+
+## Third checkpoint — final guides, transport handoff and strict docs (stage113)
+
+Base58f7664. The actual source additions close T19's implementation/fixture/
+handoff scope. Current totals29 source-complete /1 partial(T30) /0 unstarted.
+No source gate has been opened and no execution verification ran. The unlimited
+goal remains active; no agents, publication or goal-controller changes.
+
+Added user-guide.md, python-migration.md, final-acceptance.md, release-notes.md,
+maintenance.md and f10-transport-index.md. They explain independent installs,
+features, ownership, deadlines/errors/cleanup, ordering/completion, units/time/
+raw/serde, preserved Python adapters, current candidate scope and unresolved
+production evidence. R01–R12 link real domain indexes, implementations, actual
+test targets and required run provenance; the table is navigation, not an
+acceptance program that passes merely because files exist.
+
+Crate homepage rustdoc has a non-network lazy-owner doctest and a no_run actual
+codes query with explicit endpoint and primary-versus-close error handling.
+EX and financial download examples now also report secondary close failure.
+The README documents the gated measure_candidate worker. MkDocs has user and
+domain guide navigation, and its SDK index now distinguishes original design
+baseline from the unverified implementation candidate. The stale status table
+is brought forward without altering historical checkpoint records.
+
+rust_sdk_matrix.ps1 authors minimal/default/full doctest and doc runs with
+strict RUSTDOCFLAGS, logs the actual flags and restores the original process
+environment in finally. The manual SDK workflow adds a separate documentation
+job using existing metadata/full mirror, MkDocs strict and built local-link/
+fragment checkers; it does not install/build the Python product to build docs.
+None of these commands or jobs has run.
+
+Pressure source adds actual actor_slots, live/slot/pool bounds, required live
+generation observation and per-slot monotonic epoch/generation. Close requires
+zero raw/decoded/live actor/queue; the private test also asserts every remaining
+actor is stopped with no pending work. The verifier still independently checks
+wire/terminal IDs and inflight late-response isolation. These are authored
+conditions, not observed performance or lifecycle results.
+
+Remaining T30 source work is explicit: verification.md requires every public
+service to have an ordinary compileable usage example and a nonempty local
+behavior case. Homepage examples and general integration inventory alone do not
+satisfy this per-service documentation condition. Author the missing examples,
+tie each to existing real loopback functions, then perform final source review
+of T01–T30 deliverables and synchronize mirrors. Only then may the root record
+the global source gate and start unified dependency/build/test/docs execution.
+All dependency/API/MSRV/license/platform, package/compatibility, resource and
+performance outcomes remain unverified. MAC-EX production login and optional
+MAC setup identity/order/fence evidence remain missing.

@@ -31,6 +31,7 @@ function Invoke-SdkCargo([string[]]$Arguments, [switch]$Capture) {
     [System.IO.File]::WriteAllText($taskLog, $taskText + "`n", $taskEncoding)
     $taskCommands.Add([ordered]@{
         executable = 'cargo'; arguments = @("+$Toolchain") + $Arguments; exit_code = $taskExit
+        rustdocflags = [System.Environment]::GetEnvironmentVariable('RUSTDOCFLAGS', 'Process')
         started_utc = $taskStarted.ToString('o'); duration_ms = ([DateTime]::UtcNow - $taskStarted).TotalMilliseconds
         log = [System.IO.Path]::GetFileName($taskLog)
         log_sha256 = (Get-FileHash -LiteralPath $taskLog -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -76,9 +77,19 @@ try {
         Invoke-SdkCargo -Arguments @('test', '-p', 'eltdx', '--locked', '--no-default-features')
         Invoke-SdkCargo -Arguments @('test', '-p', 'eltdx', '--locked')
         Invoke-SdkCargo -Arguments @('test', '-p', 'eltdx', '--all-targets', '--locked', '--no-default-features', '--features', 'full')
-        Invoke-SdkCargo -Arguments @('test', '-p', 'eltdx', '--doc', '--locked', '--no-default-features', '--features', 'full')
-        Invoke-SdkCargo -Arguments @('doc', '-p', 'eltdx', '--no-deps', '--locked', '--no-default-features')
-        Invoke-SdkCargo -Arguments @('doc', '-p', 'eltdx', '--no-deps', '--locked', '--no-default-features', '--features', 'full')
+        $taskPreviousRustdocFlags = [System.Environment]::GetEnvironmentVariable('RUSTDOCFLAGS', 'Process')
+        try {
+            $env:RUSTDOCFLAGS = (@($taskPreviousRustdocFlags, '-D warnings') | Where-Object { $_ }) -join ' '
+            foreach ($taskDocFeatures in @('minimal', 'default', 'full')) {
+                $taskDocFlags = @()
+                if ($taskDocFeatures -eq 'minimal') { $taskDocFlags = @('--no-default-features') }
+                if ($taskDocFeatures -eq 'full') { $taskDocFlags = @('--no-default-features', '--features', 'full') }
+                Invoke-SdkCargo -Arguments (@('test', '-p', 'eltdx', '--doc', '--locked') + $taskDocFlags)
+                Invoke-SdkCargo -Arguments (@('doc', '-p', 'eltdx', '--no-deps', '--locked') + $taskDocFlags)
+            }
+        } finally {
+            [System.Environment]::SetEnvironmentVariable('RUSTDOCFLAGS', $taskPreviousRustdocFlags, 'Process')
+        }
         Invoke-SdkCargo -Arguments @('clippy', '-p', 'eltdx', '--all-targets', '--locked', '--no-default-features', '--features', 'full', '--', '-D', 'warnings')
         Invoke-SdkCargo -Arguments @('fmt', '--all', '--check')
         Assert-SdkClosure -Features @()

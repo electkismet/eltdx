@@ -1,6 +1,6 @@
 # T30 压力、性能与最终交付证据索引
 
-当前为源码阶段恢复记录。以下压力/性能源码、采集器及工作流均未编译、启动或执行，不是通过证据。T30 仍部分完成；性能源码已补，最终文档与 R01–R12 逐项交接还需补齐。T19 源码收尾尚未完成，全部 T01–T30 源码写齐前不能进入统一验证。
+当前为源码阶段恢复记录。以下压力/性能源码、采集器及工作流均未编译、启动或执行，不是通过证据。stage113已补最终指南、R01–R12导航和严格文档验证入口；T19传输源码交接已收尾。T30仍部分完成，尚需逐服务普通使用示例与现有非空回环逐项对应及最后源码审阅；全部T01–T30源码写齐前不能进入统一验证。
 
 ## 独立 Rust 压力源码
 
@@ -31,6 +31,8 @@
 
 聚合器重新打开全部原始事件与资源日志，重算业务 ID 全覆盖/唯一终态、实际 wire 次数、物理连接内请求 ID 唯一、取消比例、重试换连接、p50/p95/p99、吞吐、内部预算与 OS 峰值/冷却残留/后段增长。它要求完整 Linux+Windows、同 SHA/tree/blob/lock/脚本、默认次数、release/full/1.89.0；拒绝 dirty、缺 case/原始日志/hash 不符、非零退出、超时、采样失败或汇总与原始记录不一致。普通旧 Python 压力报告不进入此入口。
 
+budgets原始记录另含实际actor槽数，复验要求`live_actors <= actor_slots <= pool`，每个槽的`(runtime_epoch, tcp_generation)`不回退，至少观察到真实存活代次；pending和stale事件计数必须合法。实际close后raw/decoded预算、存活actor和排队数均须为零，源码用例另检查所有残留actor快照已停止且无pending。该观测与inflight迟到响应的身份断言互补，单靠代次单调不能证明没有串线。
+
 ### 事前固定资源政策
 
 | 项 | 上限或规定 |
@@ -42,7 +44,7 @@
 | 冷却线程/FD或handles/established增量 | +4 / +32 / 0 |
 | 线程/FD或handles峰值 | 128 / 4096 |
 | 采样间隔目标/单case超时 | 20ms / 1800s；实际采样时间以日志为准 |
-| 内部预算 | 当前和peak均不超实际配置的raw/decoded上限；queue≤256；close后raw/decoded为0 |
+| 内部预算 | 当前和peak均不超实际配置的raw/decoded上限；queue≤256；actor槽数≤pool；close后raw/decoded/存活actor/queue为0 |
 
 这些是候选事前验收政策，不是已测结果或无泄漏证明。Windows owner循环设2000，Linux设10000，防止不同端口/TIME_WAIT行为使关闭压力变成端口分配测试；Windows仍覆盖2000次真实建连与所有同样断言，减少80%的owner循环覆盖必须在最终报告保留。不得在失败后无说明放宽阈值或减少次数。若平台无法观测系统连接/进程资源，应保留采样失败，不能填零。
 
@@ -59,8 +61,9 @@ python scripts/verification/rust_sdk_stress.py aggregate --implementation-comple
 ## 尚待写齐的源码和文档
 
 - 固定语料的Rust core、旧/新Python解析和模型构造、非空loopback、实际close及预取消微负载源码已写，详见[性能政策](performance-policy.md)。84个默认trial、同release profile、两个真实构建wheel及原始日志复验入口均未执行；外部网络仅显式opt-in。
-- 继续压力/性能源码自审及剩余代次/资源证据交接；源码自审并不替代最终压力运行。
-- R01–R12逐项最终交接、rustdoc/示例说明、Python迁移说明、发行说明与维护手册。
-- T19剩余源码审查和证据交接。生产MAC-EX登录和optional MAC setup关联证据仍缺，不能把合成ACK升级为默认生产规则。
+- stage113补齐了代次/资源源码记录和复验条件；最后仍须整体源码自审，且不替代最终压力运行。
+- [R01–R12最终交接](final-acceptance.md)、crate首页rustdoc、[Rust指南](user-guide.md)、[Python迁移](python-migration.md)、[候选说明](release-notes.md)与[维护手册](maintenance.md)已有源码。最小/default/full的严格rustdoc及doctest进入matrix，独立手动documentation job复用现有mirror/metadata/MkDocs/local-link检查器；均尚未运行。
+- T30最后源码任务是逐个公开service补齐可编译的普通使用说明，与真实非空回环测试逐项对应，并复查全部交付项；不能以首页两个示例代替每个service的说明。
+- T19源码交接见[F10传输索引](f10-transport-index.md)，其依赖/API/MSRV/license/平台仍待执行。生产MAC-EX登录和optional MAC setup关联证据仍缺，不能把合成ACK升级为默认生产规则。
 
 最终运行输出目录尚不存在；当前不存在本页新工具的 passed 结果。

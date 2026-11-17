@@ -13,6 +13,32 @@ permissions:
   contents: read
 
 jobs:
+  documentation:
+    if: inputs.implementation-complete
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Install the existing documentation builder without building the Python product
+        run: python -m pip install 'mkdocs-material==9.7.6'
+      - name: Verify metadata, full package documentation mirror, strict site, and local links
+        shell: bash
+        run: |
+          mkdir -p artifacts/sdk-docs
+          set -o pipefail
+          python scripts/verification/check_release_metadata.py 2>&1 | tee artifacts/sdk-docs/metadata.log
+          python -m mkdocs build --strict 2>&1 | tee artifacts/sdk-docs/mkdocs.log
+          python scripts/verification/check_pages_links.py site 2>&1 | tee artifacts/sdk-docs/links.log
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: rust-sdk-documentation
+          path: artifacts/sdk-docs
+          if-no-files-found: error
+
   platform:
     if: inputs.implementation-complete
     strategy:

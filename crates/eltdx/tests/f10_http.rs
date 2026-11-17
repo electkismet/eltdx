@@ -713,6 +713,28 @@ fn gzip_requires_footer_and_preserves_concatenated_member_semantics() -> TestRes
 }
 
 #[test]
+fn ambiguous_or_unsupported_content_codings_are_rejected() -> TestResult {
+    for headers in [
+        "Content-Encoding: identity\r\nContent-Encoding: gzip\r\n",
+        "Content-Encoding: identity, gzip\r\n",
+        "Content-Encoding: br\r\n",
+    ] {
+        let server = Server::start(move |mut stream| {
+            read_request(&mut stream)?;
+            answer(&mut stream, "200 OK", headers, TABLE)
+        })?;
+        let client = client(server.url())?;
+        let result = client.call(&query("sample")?, &OperationOptions::default());
+        let closed = client.close();
+        let joined = server.finish();
+        assert_eq!(result.expect_err("unsupported coding accepted").kind(), ErrorKind::Protocol);
+        closed?;
+        joined?;
+    }
+    Ok(())
+}
+
+#[test]
 fn opted_in_same_origin_redirect_preserves_post_body_and_request_headers() -> TestResult {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let address = listener.local_addr()?;

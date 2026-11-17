@@ -128,3 +128,34 @@ validation ran. This is a continuation checkpoint, not a passing release or
 T19 runtime/dependency gate. Counts19 complete source/4 partial/7 unstarted
 remain unchanged. Next finish source evidence/handoff, then T20 all157 methods,
 schemas, field registry, news and historical flow. Active goal has no token cap.
+
+## Fifth checkpoint — final transport source handoff (stage113)
+
+Base58f7664. T20/T23 and subsequent domain migrations already have their own
+source checkpoints; the older next-task directions above are historical.
+T19 implementation, authored fixtures and source handoff are now source-complete.
+Totals are29 source-complete /1 partial(T30) /0 unstarted. No dependency/runtime
+or acceptance checkbox is promoted. T30 still needs per-service compiled-usage
+example sources and final source review before the global execution gate.
+
+Read config/client, worker/control/resolver/http/io and their public fixtures.
+The transport index maps exact existing function names to HTTP/TLS/CONNECT,
+DNS/cancel/close, header/body/compression caps, ordering, redirect and owner gate
+boundaries. Runtime destruction precedes done, actual thread completion precedes
+join/lease release, and uncertain cleanup retains registered ownership. Native
+root/config reads remain synchronous OS work with explicit CancelUnconfirmed
+limitations; no hard-preemption guarantee is invented.
+
+Source review added rejection of repeated Content-Encoding fields rather than
+silently using the first. A public fixture source now authors repeated fields,
+comma-separated coding chains and unknown br coding, requiring Protocol and
+closing/joining before result assertions. Existing zlib/gzip end checks and
+single-driver abort/await retirement remain the shared implementations.
+
+New docs/rust-sdk/f10-transport-index.md and dependency-decisions.md record
+ownership, source cases, T20/T23 boundaries and precise unexecuted commands.
+The dependency pins, availability, lock/API/MSRV/license closure and three OS
+trust/DNS/IPv6 behavior remain unverified. Production samples are separate.
+No tests/collection/build/check/clippy/doctest, dependency/network, AST/syntax,
+format/doc/diff checks or equivalent execution ran. Only source reads/writes,
+ordinary review diff and hook-disabled recovery commits. No agents/publication.

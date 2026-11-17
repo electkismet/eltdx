@@ -119,8 +119,11 @@ nav:
       - 当日资金流: helpers/当日资金流.md
   - MCP: MCP.md
   - 跨语言网关: HTTP_GATEWAY.md
-  - Rust SDK 设计（提案）:
-      - 设计与安装边界: rust-sdk/index.md
+  - Rust SDK 候选与设计:
+      - 状态与安装边界: rust-sdk/index.md
+      - Rust 使用指南: rust-sdk/user-guide.md
+      - Python 兼容与迁移: rust-sdk/python-migration.md
+      - SDK 候选说明: rust-sdk/release-notes.md
       - 架构设计: rust-sdk/architecture.md
       - 公共 API 与行为契约: rust-sdk/public-api.md
       - HQ 逐接口规格: rust-sdk/hq-api-spec.md
@@ -133,6 +136,25 @@ nav:
       - 详细开发计划: rust-sdk/development-plan.md
       - 实施进度与恢复点: rust-sdk/IMPLEMENTATION_STATUS.md
       - 验证与发布规范: rust-sdk/verification.md
+      - 最终要求与验收索引: rust-sdk/final-acceptance.md
+      - 分域实现与迁移索引:
+          - HQ: rust-sdk/hq-implementation-index.md
+          - 目录与组合: rust-sdk/catalog-implementation-index.md
+          - F10 传输: rust-sdk/f10-transport-index.md
+          - F10 端点: rust-sdk/f10-implementation-index.md
+          - 本地文件: rust-sdk/offline-migration-index.md
+          - 专业财报: rust-sdk/financial-implementation-index.md
+          - Python F10 与文件迁移: rust-sdk/t23-migration-index.md
+          - EX: rust-sdk/ex-implementation-index.md
+          - MAC 与 MAC-EX: rust-sdk/mac-implementation-index.md
+          - 扩展组合: rust-sdk/t26-implementation-index.md
+          - Python 扩展迁移: rust-sdk/t27-migration-index.md
+      - 独立消费与平台矩阵: rust-sdk/t28-verification-index.md
+      - 依赖决策: rust-sdk/dependency-decisions.md
+      - 发布与归档政策: rust-sdk/release-policy.md
+      - 压力与证据索引: rust-sdk/t30-evidence-index.md
+      - 性能测量政策: rust-sdk/performance-policy.md
+      - 维护与恢复手册: rust-sdk/maintenance.md
   - 工程参考:
       - 架构: ARCHITECTURE.md
       - 线程层扩容方案: THREADING_SCALE_PLAN.md

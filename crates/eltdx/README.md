@@ -56,6 +56,14 @@ Examples require explicit server addresses and close clients on error paths.
 `financial_read` and `financial_download` need `offline`. Their compilation and
 execution remain pending in the candidate validation matrix.
 
+`measure_candidate` also needs `offline` and is a measurement worker for the
+fixed-fixture performance collector, with an explicit implementation-complete
+gate. It is not a general query example. Build and run it only during unified
+verification, after the whole implementation source gate and correctness runs.
+
 Repository documentation lives in `docs/rust-sdk/`: architecture, public API,
 compatibility decisions, verification, source inventories and release policy.
+Start with `user-guide.md`, `python-migration.md`, and `final-acceptance.md`;
+`maintenance.md` explains recovery and evidence invalidation. The same guides
+are available through the repository documentation site's Rust SDK navigation.
 Only recorded execution evidence may promote this candidate to a usable release.

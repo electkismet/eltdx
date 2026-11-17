@@ -248,10 +248,25 @@ def inspect_case(directory: Path, name: str, record: dict, system: str) -> dict:
                     raise ValueError("Internal budget exceeded")
             if integer(event["queue"]) > integer(event["queue_max"], 1):
                 raise ValueError("Internal queue exceeded")
-        if any(budgets[-1][field] != 0 for field in ("raw", "decoded")):
+            if not 0 <= integer(event["live_actors"]) <= integer(event["actor_slots"]) <= CONFIGURATIONS[name]["pool"]:
+                raise ValueError("Actual SDK actor counts exceed configured pool")
+        if any(budgets[-1][field] != 0 for field in ("raw", "decoded", "live_actors", "queue")):
             raise ValueError("Internal budget not released after close")
         if any(max(event[field] for event in budgets) == 0 for field in ("raw_peak", "decoded_peak", "queue", "live_actors")):
             raise ValueError("Budget/queue workload did not exercise its claimed path")
+        generations = [event for event in events if event["kind"] == "generation"]
+        if not generations or not any(event["alive"] and event["generation"] > 0 for event in generations):
+            raise ValueError("Missing actual live SDK generation observations")
+        previous = {}
+        for event in generations:
+            slot = integer(event["slot"])
+            current = (integer(event["epoch"]), integer(event["generation"]))
+            if slot >= CONFIGURATIONS[name]["pool"] or current < previous.get(slot, current):
+                raise ValueError("SDK actor slot or generation regressed")
+            if type(event["alive"]) is not bool or integer(event["pending"]) > 256:
+                raise ValueError("Invalid generation lifecycle observation")
+            integer(event["stale_events"])
+            previous[slot] = current
     phases = [event for event in events if event["kind"] == "phase"]
     baseline = max(event["unix_ns"] for event in phases if event["phase"] == "baseline")
     cooldown = next(event["unix_ns"] for event in phases if event["phase"] == "cooldown")

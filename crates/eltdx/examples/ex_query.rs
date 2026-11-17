@@ -21,7 +21,10 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         Ok(())
     })();
     let closed = client.close();
-    operation?;
-    closed?;
-    Ok(())
+    match (operation, closed) {
+        (Err(primary), Err(cleanup)) => { eprintln!("close also failed: {cleanup}"); Err(primary.into()) }
+        (Err(primary), _) => Err(primary.into()),
+        (Ok(()), Err(cleanup)) => Err(cleanup.into()),
+        (Ok(()), Ok(())) => Ok(()),
+    }
 }
