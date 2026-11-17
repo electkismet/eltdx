@@ -3,7 +3,15 @@ name: Independent Rust SDK candidate
 on:
   push:
     branches: [codex/rust-sdk-implementation]
-    paths: [.github/workflows/rust-sdk.yml]
+    paths:
+      - .github/workflows/rust-sdk.yml
+      - crates/**
+      - tests/consumers/rust-sdk/**
+      - scripts/verification/rust_sdk_matrix.ps1
+      - scripts/verification/rust_sdk_packages.py
+      - Cargo.toml
+      - Cargo.lock
+      - rust-toolchain.toml
   workflow_dispatch:
     inputs:
       implementation-complete:
