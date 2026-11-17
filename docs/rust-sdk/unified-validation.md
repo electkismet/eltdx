@@ -294,3 +294,21 @@ macOS runner入口已在本地准备：向公开仓库的 `codex/rust-sdk-implem
 [决策记录](decision-register.md)列出沪深风险警示、创业板上市前五个交易日、北交所上市首日和退市整理首日等已核对案例。仍缺交易日历、逐日状态以及与昨收或除权参考价对应的交易所实际涨跌停价样本。未扩大 `UnknownRule` 的生产规则范围，也未取得 MAC-EX 登录/可选 setup 或 category 22 非空协议数据。历史记录中 category 22 在 18 个曾可达主站都返回空；稳定历史资金流仍走 F10。
 
 同一候选的 GitHub `git push --dry-run origin HEAD:refs/heads/codex/rust-sdk-implementation` 确认能创建新分支，没有实际推送。仓库启用了 Actions；候选 push 工作流仅运行 macOS Rust 1.89/stable 平台与归档任务，分支上的 `Publish` 手动运行可以产生发布审计用 wheel/sdist（含原生 Linux arm64 及 macOS 两种架构），不会走 tag 专属 PyPI 上传。当前没有已配置的本地 crates.io 凭据，GitHub 仓库也没有配置发布用的仓库级 secret。macOS runner 和 registry 发布仍没有执行证据。
+
+## Stage145：MAC-EX 公开主站与商品总数兼容修复
+
+Windows CPython 3.12 安装了 Stage136 的 wheel（SHA256 `82b0bf70a847ea7775079cb4d958130cfca850e9ca515ebf1e38b686de65fd3e`）。对项目内置的两台公开 MAC-EX 行情主站，Python 标准登录、全市场商品总数和关闭通过，两个主站均返回110651。与[上游历史实测](https://github.com/electkismet/eltdx/pull/32#issuecomment-6676380445)的调用路径一致。原始帧、解压数据、时间、脚本及散列均留在 `artifacts/unified/stage145-mac-ex-public-attempt01/` 与 `stage145-mac-ex-wire-attempt01/`、`stage145-mac-ex-wire-attempt02/`。
+
+旧登录样本在独立Rust客户端上失败：记录 `stage145-rust-public-attempt01/result.json` 与 `stage145-rust-wire-attempt01/result.json`。两条路径发出的92字节请求散列相同，透明本地转发确认主站帧头和299字节解压长度相同，但分钟和秒的字节随时间变化；换成即时采到的完整回复后，严格匹配可以通过。即使严格登录成功，修复前的生产商品总数仍失败：`stage145-rust-fresh-attempt01` 实见主站返回31字节，而解析只接受23字节。该结果单列，不以登录阶段通过代替全流程通过。
+
+使用真实生产商品总数帧建立回环复现，`stage145-mac-count-red-attempt01` 返回101，在相同23/31字节断言处失败。提交 `45f658d6842765483420942667b37ab9866fda0c` 只在MAC-EX目录路径增加带 `TDX_DS` 前缀、长度恰好31的格式；小端计数仍从偏移19读取，不解释尾部8字节。标准EX仅接受原23字节布局，截断帧继续报错。`stage145-mac-count-green-attempt01` 四个相关Rust测试目标共86项通过，无失败；格式和diff门禁通过。
+
+在干净提交 `45f658d` 上构建独立Rust consumer workspace（仅依赖SDK的`mac` feature）。即时完整登录回复作为显式、窄范围证据，分别对两个实际主站执行登录、全市场商品总数与关闭。两次均exit 0，返回110651，与同一轮Python结果相同；见 `stage145-rust-fresh-attempt02/result.json`（SHA256 `5fef8a791f193308e72722056d43f435b385f6cb91a87f50f1846a03ca688506`）。该验证不提供可跨时段复用的默认登录规则；未知回复仍拒绝。剩余MAC-EX登录规则需有跨时间的完整样本、字段约束及可独立核对的拒绝样本；普通MAC可选setup、category22非空响应及涨跌停行情边界仍待。
+
+同一干净候选在 Windows/Rust 1.89 离线重跑三包归档，24条命令均exit 0，包括11种解包消费者模式。`stage145-archives-attempt01/packages.json` SHA256 `368aa763736b15a96dcfa6c06d9a61df1412ae4a7270519d5009a65176e93584`。protocol 与 runtime 归档散列不变，新SDK归档 SHA256 `b5f7d4e3a5d568b9065dbd10b2da358fd3c171cde00ce8ba09c930241e21b5e9`。这是本地归档和显式patch消费。
+
+## Stage146：公开普通 MAC 主站的标准三步握手
+
+在仓库列出的三个公开 MAC 主站分别使用标准Python连接和服务器信息查询。每个会话按序完整收到三条setup响应（帧头均16字节，响应体86、86、179字节），第一条业务帧的响应体为203字节，解析得到日期 `2026-11-18`。各帧头、UTC时点、原始帧及散列见 `stage146-mac-setup-attempt01/result.json`（SHA256 `ce6a1331b86d49ccd43eba4af2404eb2f52b1def6dd355e7ba4e81724c94c579`）。
+
+基于 `45f658d` 的独立Rust consumer使用 `MacClient` 默认策略，在同三台线上主站完成连接、服务器信息查询、有效交易日期解析和关闭，三台均返回 `2026-11-18`，整个进程exit 0。见 `stage146-rust-mac-attempt01/result.json`（SHA256 `4bd129b734128050c3f0817a65ad03adc08985815b1edb0a3ffbe5d21ef03143`）。本轮每一步都有回复；未观察到省略、延迟或交错的可选setup响应，不能据这些标准会话启用可选策略。

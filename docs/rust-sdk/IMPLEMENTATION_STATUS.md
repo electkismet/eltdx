@@ -3,7 +3,9 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
-Stage142续记：候选 `b9d50758d3b711786c0802fc8e6458fa9ab06bd4` 的sdist通过归档检查，并在glibc 2.17的独立manylinux2014 x86_64环境离线重建发布wheel；Python 3.10、3.14的基础消费和带MCP冒烟四项均exit 0。见[统一验证记录](unified-validation.md)。Stage141完成的 `registry-consumer` 已实查三个包名404，等待crate实际发布；macOS、Linux arm64及生产证据仍待补。
+Stage145续记：`45f658d` 修正 MAC-EX 商品总数的31字节生产响应，86项关联Rust回归通过。两台公开主站均使用即时采样的严格登录规则完成独立Rust连接、商品总数110651和关闭，与Python一致。精确逐字节规则不能复用含旧时钟的回复，未加入生产默认；长期规则、可选setup和非空category22仍待补。Stage144核对五份带时间和证券代码的公告，涨跌停价格边界仍待。见[统一验证记录](unified-validation.md)。
+
+Stage142续记：候选 `b9d50758d3b711786c0802fc8e6458fa9ab06bd4` 的sdist通过归档检查，并在glibc 2.17的独立manylinux2014 x86_64环境离线重建发布wheel；Python 3.10、3.14的基础消费和带MCP冒烟四项均exit 0。Stage141完成的 `registry-consumer` 已实查三个包名404，等待crate实际发布；macOS、Linux arm64及其余生产证据仍待补。
 
 Stage140恢复点：T01–T30实现源码范围完成；stage136以来没有运行时代码修改。以干净候选`16d367e3896247bcd15a89870cf22f482414cfab`补齐Windows归档、首个crate的标准发布dry-run、Linux x64 abi3 wheel，以及无Python的Rust构建/运行和无Rust工具链的Python wheel消费。命令、散列、复验和包装器异常见[统一验证记录](unified-validation.md)。macOS Rust 1.89/stable与归档验证工作流已在本地验语法；下一步需公开仓库分支推送授权或现成的macOS runner，然后补齐macOS矩阵和发布wheel/sdist。当前目标已包含正式crates.io发布；本机无发布凭据，三个名称查询404，无上传及公开registry consumer结果。生产MAC-EX登录/setup、category22非空样本仍待取得；已记录三所规则的一手来源，仍需证券状态和边界样本。目标未完成，无额度限制。
 2026年11月18日stage136续记：候选 `e2b8819c4729de28f0472ecbe743b0c2e100872f` 的Windows/Python3.10–3.14矩阵全部通过。每个版本的local/loopback/golden分别为3048/276/103 passed，合计17135 passed、0 failed、0 errors、0 skipped；相同abi3 wheel均可安装并通过pip check及独立非空公开API consumer。wheel SHA256 `82b0bf70a847ea7775079cb4d958130cfca850e9ca515ebf1e38b686de65fd3e`，native SHA256 `465e28d1dc950a97ce36bb3ee82766c6aebe52448d3486fad5203b67c030de66`。consumer隔离为process-path-only，不代表物理无Rust工具链镜像。汇总及逐版本JUnit/consumer身份位于`artifacts/unified/stage136-python-matrix/results.json`。恢复检查点`fa9355e`的metadata/mirror、MkDocs strict、站点本地链接和diff检查均exit0，工作树clean；报告SHA256 `33ceffc0a69374ca7b74c76a74c0d3d74966de5e7ca2249ad885111621b0e41a`。此后仅更新本恢复记录来闭合stage136日志。Windows的声明Python版本矩阵已闭合，macOS/非Windows wheel、物理隔离、公开registry与生产协议证据仍待；goal active、无额度上限。
