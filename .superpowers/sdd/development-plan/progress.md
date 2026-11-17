@@ -1,6 +1,16 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- stage118 on59888d8: F10 four targets67 tests pass after accepted socket
+  blocking; EX15/boards16/catalog32/loopback14 pass after terminal-reset EOF
+  and bounded request-count fixtures. Lifecycle3 pass, latest lib232 pass1
+  ignored and HQ helpers52 pass. Fixed fixture double price scaling plus its
+  compensating inputs, date diagnostic Display and source URI expectation.
+  Historical F37 correction was wrong: exact sum2240001, history superseded.
+  Production defects remain proven: MAC partial EOF misclassified Protocol,
+  late Failed event after normal cancellation duplicates begin_retry, pinned
+  file actually reaches fallback(primary2/fallback1). Raw logs/diffs/hashes in
+  stage118-repairs. Save recovery then deterministic regressions and fixes.
 - stage117 first full SDK behavior run on7ab55ba ended101 with14 failed
   targets; all30 full doctests and7 serde contracts passed. Exact lifecycle
   test process was recorded and stopped after a hang; lazy map had not spawned

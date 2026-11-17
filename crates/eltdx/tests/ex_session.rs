@@ -80,7 +80,10 @@ fn id() -> eltdx::Result<ExInstrumentId> {
 }
 fn wait_eof(stream: &mut TcpStream) -> TestResult {
     let mut byte = [0_u8];
-    assert_eq!(stream.read(&mut byte)?, 0);
+    match stream.read(&mut byte) {
+        Err(error) if matches!(error.kind(), std::io::ErrorKind::ConnectionReset | std::io::ErrorKind::ConnectionAborted) => {}
+        result => assert_eq!(result?, 0),
+    }
     Ok(())
 }
 

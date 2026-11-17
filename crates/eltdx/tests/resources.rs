@@ -111,7 +111,9 @@ fn a_lost_pin_never_restarts_the_file_on_a_different_server() {
     }).unwrap();
     let client = TdxClient::builder().endpoints(vec![primary.address, fallback.address]).pool_size(1).heartbeat_interval(None).build().unwrap();
     let error = client.resources().download_file("file", 30_001, &OperationOptions::default()).unwrap_err();
-    assert!(matches!(error.kind(), ErrorKind::PinLost | ErrorKind::Connection | ErrorKind::CancelUnconfirmed));
+    assert!(matches!(error.kind(), ErrorKind::PinLost | ErrorKind::Connection | ErrorKind::CancelUnconfirmed),
+        "lost pin: {error:?}; primary requests={}; fallback requests={}",
+        first_requests.load(Ordering::SeqCst), second_requests.load(Ordering::SeqCst));
     assert_eq!(second_requests.load(Ordering::SeqCst), 0); assert_eq!(first_requests.load(Ordering::SeqCst), 2);
     client.close().unwrap(); primary.finish().unwrap(); fallback.finish().unwrap();
 }

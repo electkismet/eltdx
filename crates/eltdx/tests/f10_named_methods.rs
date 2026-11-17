@@ -231,6 +231,7 @@ fn run_cases(cases: Vec<Case>) -> TestResult {
                     Err(error) => return Err(error.into()),
                 }
             };
+            stream.set_nonblocking(false)?;
             stream.set_read_timeout(Some(Duration::from_secs(2)))?;
             stream.set_write_timeout(Some(Duration::from_secs(2)))?;
             let mut headers = Vec::new();

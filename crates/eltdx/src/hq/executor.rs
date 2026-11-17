@@ -533,6 +533,7 @@ mod operation_retirement_tests {
             assert!(returned.context().iter().any(|(actual, _)| actual == key), "missing {key}");
         }
         assert_eq!(returned.context().iter().find(|(key, _)| key == "command").map(|(_, value)| value.as_str()), Some("0x044e"));
+        drop(context);
         owner.close().expect("no runtime started");
     }
 }

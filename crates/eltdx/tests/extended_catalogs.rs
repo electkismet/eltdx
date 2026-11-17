@@ -233,8 +233,8 @@ fn fallback_extra_budget_is_reserved_before_sending_the_ex_count() -> Case {
 #[test]
 fn refresh_publishes_a_new_version_and_old_handles_survive_clear_and_close() -> Case {
     let (endpoint,task) = peer(|mut stream| {
-        login(&mut stream)?; goods(&mut stream,38,0,600,&["X_A"])?;
-        goods(&mut stream,38,0,600,&["X_B"])?; goods(&mut stream,38,0,600,&["X_C"])?; eof(&mut stream)
+        login(&mut stream)?; goods(&mut stream,38,0,100,&["X_A"])?;
+        goods(&mut stream,38,0,100,&["X_B"])?; goods(&mut stream,38,0,100,&["X_C"])?; eof(&mut stream)
     })?;
     let client = builder(endpoint)?.build()?; let pages = PageOptions::new(600,8,100)?; let options = OperationOptions::default();
     let old = client.goods_catalog(market(38),&pages,&options)?;
@@ -267,7 +267,7 @@ fn clear_during_an_inflight_load_prevents_its_late_republication() -> Case {
 #[test]
 fn raw_policy_override_does_not_reuse_a_different_policy_snapshot() -> Case {
     let (endpoint,task) = peer(|mut stream| {
-        login(&mut stream)?; goods(&mut stream,38,0,600,&["X_A"])?; goods(&mut stream,38,0,600,&["X_B"])?; eof(&mut stream)
+        login(&mut stream)?; goods(&mut stream,38,0,100,&["X_A"])?; goods(&mut stream,38,0,100,&["X_B"])?; eof(&mut stream)
     })?;
     let client = builder(endpoint)?.build()?; let pages = PageOptions::new(600,8,100)?;
     let plain = client.goods_catalog(market(38),&pages,&OperationOptions::default())?;
@@ -434,11 +434,11 @@ fn unsupported_sort_and_invalid_macro_selectors_are_local_errors() -> Case {
 #[test]
 fn a_source_replacement_invalidates_cached_goods_but_keeps_the_old_arc_readable() -> Case {
     let (first,first_task) = peer(|mut stream| {
-        login(&mut stream)?; goods(&mut stream,38,0,600,&["X_A"])?;
+        login(&mut stream)?; goods(&mut stream,38,0,100,&["X_A"])?;
         request(&mut stream,1,0x23f0)?; Ok(())
     })?;
     let (second,second_task) = peer(|mut stream| {
-        login(&mut stream)?; count(&mut stream,999)?; goods(&mut stream,38,0,600,&["X_B"])?; eof(&mut stream)
+        login(&mut stream)?; count(&mut stream,999)?; goods(&mut stream,38,0,100,&["X_B"])?; eof(&mut stream)
     })?;
     let client = builder(first)?.with_endpoints(vec![first,second]).build()?;
     let pages = PageOptions::new(600,8,100)?; let options = OperationOptions::default();
@@ -455,9 +455,9 @@ fn independent_owners_at_one_endpoint_never_share_catalogs_or_close_state() -> C
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST,0))?; let endpoint = listener.local_addr()?;
     let task = thread::spawn(move || -> Case {
         let (mut first,_) = listener.accept()?; first.set_read_timeout(Some(Duration::from_secs(3)))?;
-        login(&mut first)?; goods(&mut first,38,0,600,&["X_A"])?;
+        login(&mut first)?; goods(&mut first,38,0,100,&["X_A"])?;
         let (mut second,_) = listener.accept()?; second.set_read_timeout(Some(Duration::from_secs(3)))?;
-        login(&mut second)?; goods(&mut second,38,0,600,&["X_B"])?; eof(&mut first)?; eof(&mut second)
+        login(&mut second)?; goods(&mut second,38,0,100,&["X_B"])?; eof(&mut first)?; eof(&mut second)
     });
     let first = builder(endpoint)?.build()?; let second = builder(endpoint)?.build()?;
     let pages = PageOptions::new(600,8,100)?; let options = OperationOptions::default();

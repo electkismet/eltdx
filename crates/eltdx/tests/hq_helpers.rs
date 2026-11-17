@@ -48,7 +48,7 @@ fn full_quotes_batches_eighty_and_joins_reordered_depth_by_identity() {
         0x054c => {
             let mut codes = hq_server::snapshot_codes(request);
             observed.lock().unwrap().push((0x054c, codes.len())); codes.reverse();
-            hq_server::snapshots(&codes.iter().map(|number| (number.as_str(), 100_000)).collect::<Vec<_>>())
+            hq_server::snapshots(&codes.iter().map(|number| (number.as_str(), 1_000)).collect::<Vec<_>>())
         }
         0x0547 => {
             let mut codes = hq_server::refresh_requests(request);
@@ -81,7 +81,7 @@ fn optional_depth_protocol_error_degrades_but_cancellation_terminates() {
         let server = hq_server::Server::start(move |request| match request.msg_type {
             0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&[("600000", 2)]),
             0x044d => hq_server::directory(&[]),
-            0x054c => hq_server::snapshots(&[("600000", 100_000)]),
+            0x054c => hq_server::snapshots(&[("600000", 1_000)]),
             0x0547 => { if cancel { source_token.cancel(); } vec![0x93] },
             _ => panic!("unexpected command"),
         }).unwrap();
@@ -165,7 +165,7 @@ fn profile_preserves_input_occurrences_finance_dates_units_and_zero_denominator(
         0x044d => hq_server::directory(&[]),
         0x054c => {
             let codes = hq_server::snapshot_codes(request);
-            hq_server::snapshots_with_volume(&codes.iter().map(|code| (code.as_str(), 100_000, 1000)).collect::<Vec<_>>())
+            hq_server::snapshots_with_volume(&codes.iter().map(|code| (code.as_str(), 1_000, 1000)).collect::<Vec<_>>())
         }
         0x0547 => hq_server::refresh(&[]),
         0x0010 => {
@@ -219,7 +219,7 @@ fn profile_disabled_supplements_and_empty_inputs_do_not_fetch_optional_sources()
         match request.msg_type {
             0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&[("600000", 2)]),
             0x044d => hq_server::directory(&[]),
-            0x054c => hq_server::snapshots(&[("600000", 100_000)]),
+            0x054c => hq_server::snapshots(&[("600000", 1_000)]),
             0x0547 => hq_server::refresh(&[]), _ => panic!("disabled source requested"),
         }
     }).unwrap();
@@ -241,7 +241,7 @@ fn failed_finance_is_cached_as_failed_until_expiry_clear_or_raw_policy_change() 
     let server = hq_server::Server::start(move |request| match request.msg_type {
         0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&[("600000", 2)]),
         0x044d => hq_server::directory(&[]),
-        0x054c => hq_server::snapshots(&[("600000", 100_000)]),
+        0x054c => hq_server::snapshots(&[("600000", 1_000)]),
         0x0547 => hq_server::refresh(&[]),
         0x0010 => { seen.fetch_add(1, Ordering::SeqCst); vec![1] },
         _ => panic!("unexpected command"),
@@ -276,7 +276,7 @@ fn profile_finance_partial_batches_keep_successes_and_failure_state_in_cache() {
         0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&catalog.iter().map(|code| (code.as_str(), 2)).collect::<Vec<_>>()),
         0x044d => hq_server::directory(&[]),
         0x054c => { let codes = hq_server::snapshot_codes(request);
-            hq_server::snapshots(&codes.iter().map(|code| (code.as_str(), 100_000)).collect::<Vec<_>>()) }
+            hq_server::snapshots(&codes.iter().map(|code| (code.as_str(), 1_000)).collect::<Vec<_>>()) }
         0x0547 => hq_server::refresh(&[]),
         0x0010 => {
             seen.fetch_add(1, Ordering::SeqCst); let codes = hq_server::finance_codes(request);
@@ -307,7 +307,7 @@ fn clear_during_a_finance_request_prevents_the_old_result_from_repopulating_cach
     let server = hq_server::Server::start(move |request| match request.msg_type {
         0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&[("600000", 2)]),
         0x044d => hq_server::directory(&[]),
-        0x054c => hq_server::snapshots(&[("600000", 100_000)]),
+        0x054c => hq_server::snapshots(&[("600000", 1_000)]),
         0x0547 => hq_server::refresh(&[]),
         0x0010 => { if seen.fetch_add(1, Ordering::SeqCst) == 0 {
                 entered_tx.send(()).unwrap(); release_rx.lock().unwrap().recv_timeout(Duration::from_secs(2)).unwrap(); }
@@ -335,7 +335,7 @@ fn complete_directory_cache_uses_the_published_version_and_finance_settles_after
         0x044d if hq_server::directory_offset(request) == 0 => {
             directories.fetch_add(1, Ordering::SeqCst); hq_server::directory(&[("600000", 2)]) }
         0x044d => hq_server::directory(&[]),
-        0x054c => hq_server::snapshots(&[("600000", 100_000)]),
+        0x054c => hq_server::snapshots(&[("600000", 1_000)]),
         0x0547 => hq_server::refresh(&[]),
         0x0010 => { finances.fetch_add(1, Ordering::SeqCst); hq_server::finance(&[("600000", 2.0, 4.0, 0.25)]) },
         _ => panic!("unexpected command"),
@@ -356,7 +356,7 @@ fn confirmed_missing_finance_is_distinct_from_source_failure() {
     let server = hq_server::Server::start(|request| match request.msg_type {
         0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&[("600000", 2)]),
         0x044d => hq_server::directory(&[]),
-        0x054c => hq_server::snapshots(&[("600000", 100_000)]),
+        0x054c => hq_server::snapshots(&[("600000", 1_000)]),
         0x0547 => hq_server::refresh(&[]), 0x0010 => hq_server::finance(&[]),
         _ => panic!("unexpected command"),
     }).unwrap();
@@ -376,7 +376,7 @@ fn cancelled_finance_never_degrades_to_a_profile_or_enters_the_cache() {
     let server = hq_server::Server::start(move |request| match request.msg_type {
         0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&[("600000", 2)]),
         0x044d => hq_server::directory(&[]),
-        0x054c => hq_server::snapshots(&[("600000", 100_000)]),
+        0x054c => hq_server::snapshots(&[("600000", 1_000)]),
         0x0547 => hq_server::refresh(&[]),
         0x0010 => { if seen.fetch_add(1, Ordering::SeqCst) == 0 { cancel.cancel(); }
             hq_server::finance(&[("600000", 2.0, 4.0, 0.25)]) }
@@ -583,7 +583,7 @@ fn current_auction_shares_context_and_metadata_across_dedicated_series_trades_an
         0x0004 => vec![0; 10],
         0x044d if hq_server::directory_offset(request) == 0 => hq_server::directory(&[("600000", 2)]),
         0x044d => hq_server::directory(&[]),
-        0x054c => hq_server::snapshots(&[("600000", 100_000)]),
+        0x054c => hq_server::snapshots(&[("600000", 1_000)]),
         0x0fc5 => hq_server::trade_rows(request, &[(564, 1050, 100, 8), (565, 50, 10, 0)]),
         _ => panic!("unexpected current-auction command"),
     }).unwrap();

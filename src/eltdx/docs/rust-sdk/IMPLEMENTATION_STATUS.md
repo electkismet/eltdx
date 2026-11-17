@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026年11月17日stage118修复检查点：基础59888d8。F10 blocking修复后4个target共67项全通过；EOF/reset fixture、目录max_records=100请求数修正后EX15/boards16/catalog32/loopback14均通过；生命周期3通过，后续lib232通过/1 ignored、hq_helpers52通过。修复fixture价格重复除100及对应以错误helper补偿的输入；daily行日期diagnostic用Display，来源URI预期保持tdx://。F37历史补正本身算错，已明确更正为2240001并保留追溯。3个生产行为仍未修：MAC半帧EOF归Protocol导致不failover；取消先登记retirement后worker失败事件再调用begin_retry导致Internal（实测lifecycle=false/existing_retirement=true）；HQ pinned下载断线后实际向fallback发送1请求（primary2），禁止换源合同失败。全部原日志/diff/hash保存在artifacts/unified/stage118-repairs。继续写确定性回归后修生产原因，再全矩阵；未完成整体/Python/平台/包/压力性能验收，active无限额。
+
 2026年11月17日stage117首轮行为结果：基于7ab55ba的full SDK统一测试实际exit101，共14个target失败；30项full doctest及7项Serde合同通过，不扩大为整体验收。lifecycle并发close用例超时后已记录并停止该精确测试进程，cargo继续完成；源码发现spawn藏在未消费的惰性map中，屏障前线程尚未启动，后续先修用例再验证真实并发close。Windows fixture accepted socket的非阻塞继承、EOF/reset差别、错误算术预期及活动context保留等已定位，价格/目录/provenance/断线重试继续逐项追踪。文档attempt01失败已保留；修正镜像与源码路径链接后metadata/MkDocs strict/pages links attempt02均exit0。原始日志在artifacts/unified/stage117-correctness及stage117-docs。30/30仅源码完整，Python/平台/包/压力性能和整体正确性仍待；目标active无限额，继续修复并保存恢复点。
 
 2026年11月17日stage116：全源码门槛已在b94d762记录，统一验证现已实际开始。Rust1.89/Windows首次lock暴露Loom传递依赖Rust1.95冲突，新增resolver fallback并重锁至兼容版本，Loom check已exit0；full feature全目标check在修正Hyper客户端API及测试编译问题后attempt04 exit0，仍有警告。F10头/encoded限额公开用例保留原失败后最终通过1项。原始日志在artifacts/unified/stage116-tooling，详见[统一验证](unified-validation.md)。尚未完成完整行为/绑定/Python兼容/平台/打包/文档/压力性能，目标active无限额，继续修复并验证。

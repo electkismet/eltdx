@@ -86,7 +86,7 @@ mod source_cases {
         let flow = classify_fund_flow(&ticks).unwrap();
         assert_eq!(flow.small_in().value().as_f64(), 40_000.0); assert_eq!(flow.medium_in().value().as_f64(), 200_000.0);
         assert_eq!(flow.large_in().value().as_f64(), 1_000_000.0); assert_eq!(flow.super_in().value().as_f64(), 1_000_001.0);
-        assert_eq!(flow.total_net().value().as_f64(), 2_440_001.0); assert_eq!(flow.main_net().value().as_f64(), 2_000_001.0);
+        assert_eq!(flow.total_net().value().as_f64(), 2_240_001.0); assert_eq!(flow.main_net().value().as_f64(), 2_000_001.0);
         assert_eq!(flow.classified_count(), 4); assert_eq!(flow.skipped_count(), 2); assert_eq!(flow.meta().sources().len(), 1);
     }
     #[test]

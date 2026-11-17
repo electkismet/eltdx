@@ -20,7 +20,15 @@ pub fn peer(script: impl FnOnce(TcpStream) -> Case + Send + 'static) -> Case<(En
     Ok((endpoint,task))
 }
 pub fn join(task: JoinHandle<Case>) -> Case { task.join().map_err(|_| std::io::Error::other("extension fixture panicked"))? }
-pub fn eof(stream: &mut TcpStream) -> Case { assert_eq!(stream.read(&mut [0])?,0); Ok(()) }
+pub fn eof(stream: &mut TcpStream) -> Case {
+    // Closing a connection with unread response bytes may reset it on Windows.
+    // Data, WouldBlock and timeout still fail the retirement assertion.
+    match stream.read(&mut [0]) {
+        Err(error) if matches!(error.kind(), std::io::ErrorKind::ConnectionReset | std::io::ErrorKind::ConnectionAborted) => {}
+        result => assert_eq!(result?, 0),
+    }
+    Ok(())
+}
 pub fn frame_bytes(body: &[u8]) -> Case<Vec<u8>> {
     let mut frame = 7_654_321_u32.to_le_bytes().to_vec();
     frame.extend_from_slice(&0_u32.to_le_bytes()); frame.extend_from_slice(&0_u32.to_le_bytes());

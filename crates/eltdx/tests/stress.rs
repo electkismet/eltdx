@@ -368,6 +368,7 @@ fn stress_f10_connected_owner_worker_lifecycle() -> Case {
                 }
                 Err(error) => return Err(error.into()),
             };
+            stream.set_nonblocking(false)?;
             stream.set_read_timeout(Some(Duration::from_secs(5)))?;
             stream.set_write_timeout(Some(Duration::from_secs(5)))?;
             let mut header = Vec::new();

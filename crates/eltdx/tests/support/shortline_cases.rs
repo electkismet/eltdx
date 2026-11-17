@@ -95,7 +95,7 @@ fn small_shortline_preserves_occurrences_server_dates_and_raw_without_category_s
     let table = client.helpers().shortline_indicators(&query, &OperationOptions::default().with_raw(RawPolicy::RetainPayload)).unwrap();
     assert_eq!(table.ids(), query.ids()); assert_eq!(table.rows().len(), 2);
     assert_eq!(table.target(), TradingDate::new(2026, 11, 16).unwrap()); assert_eq!(table.previous(), TradingDate::new(2026, 11, 13).unwrap());
-    assert_eq!(table.stats_date(), table.previous()); assert_eq!(table.stats_path(), "zhb.zip"); assert!(table.stats_refreshed());
+    assert_eq!(table.stats_date(), table.previous()); assert_eq!(table.stats_path(), "tdx://zhb.zip"); assert!(table.stats_refreshed());
     for row in table.rows() {
         assert_eq!(row.id(), &query.ids()[0]); assert_eq!(row.alignment(), StatsAlignment::PreviousTradingDay);
         assert_eq!(row.free_float_shares().unwrap().value().as_f64(), 15000.0); assert_eq!(row.float_shares().unwrap().value().as_f64(), 20000.0);

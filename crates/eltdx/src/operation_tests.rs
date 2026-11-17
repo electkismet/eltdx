@@ -440,6 +440,7 @@ fn page_server(delay: Duration, pages: usize) -> (eltdx_runtime::Engine, thread:
                 Err(_) => return 0,
             }
         };
+        stream.set_nonblocking(false).expect("blocking accepted socket");
         stream.set_read_timeout(Some(Duration::from_secs(2))).expect("bounded read");
         stream.set_write_timeout(Some(Duration::from_secs(2))).expect("bounded write");
         let handshake = read_wire(&mut stream).expect("handshake request");

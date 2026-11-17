@@ -25,7 +25,13 @@ fn peer(script: impl FnOnce(TcpStream) -> Case + Send + 'static) -> Case<(Endpoi
     Ok((endpoint,job))
 }
 fn join(job: JoinHandle<Case>) -> Case { job.join().map_err(|_| std::io::Error::other("MAC fixture panicked"))? }
-fn eof(stream: &mut TcpStream) -> Case { assert_eq!(stream.read(&mut [0])?,0); Ok(()) }
+fn eof(stream: &mut TcpStream) -> Case {
+    match stream.read(&mut [0]) {
+        Err(error) if matches!(error.kind(), std::io::ErrorKind::ConnectionReset | std::io::ErrorKind::ConnectionAborted) => {}
+        result => assert_eq!(result?, 0),
+    }
+    Ok(())
+}
 fn hex(text: &str) -> Case<Vec<u8>> {
     let mut bytes = Vec::new();
     for offset in (0..text.len()).step_by(2) { bytes.push(u8::from_str_radix(&text[offset..offset+2],16)?); }

@@ -166,3 +166,18 @@ failures still need evidence. Preserve every failure under stage117-correctness.
 Docs attempt01 exposed a stale mirror and links outside MkDocs; actual repairs
 gave metadata/MkDocs strict/pages checks exit0 in stage117-docs/attempt02.json.
 No task/goal acceptance claimed; continue corrections and full verification.
+
+## Unified validation stage118: partial repairs and proven production failures
+
+Base59888d8; raw per-attempt logs, exact dirty diff hashes and source snapshots
+in artifacts/unified/stage118-repairs. F10 four targets67 pass; EX15/boards16/
+catalog32/loopback14 pass; lifecycle3 pass, latest lib232 pass1 ignored and HQ
+helpers52 pass. Repaired Windows blocking and reset/EOF fixtures, goods cap100
+expectations, fixture price double scaling and compensating HQ inputs, readable
+row date diagnostic and source URI expectation. Superseded mistaken historical
+F37 sum with independent2240001 evidence, algorithms/golden unchanged.
+Still actual failures: MAC partial EOF stops failover; worker Failed after
+normal cancellation has existing_retirement=true and duplicate begin_retry
+fails Internal; pinned download sends fallback1 request after primary2. These
+need deterministic red regressions, production fixes and full regression,
+not relaxed assertions. No whole/Python/platform/package/stress acceptance.

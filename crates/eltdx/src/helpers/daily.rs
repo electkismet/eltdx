@@ -171,7 +171,8 @@ fn build_shares(id: SecurityId, target: TradingDate, previous: TradingDate, stat
         .into_iter().map(str::to_owned).collect();
     meta = meta.with_diagnostic(Diagnostic::new("tdxstat.cfg", "daily_shares.stats_row",
         if free_float.is_some() { EnrichmentStatus::Succeeded } else { EnrichmentStatus::Unavailable }, None,
-        Some(format!("stats_date={:?}; source_line={:?}; source_10k={:?}", stat.and_then(StatRow::stats_date),
+        Some(format!("stats_date={}; source_line={:?}; source_10k={:?}",
+            stat.and_then(StatRow::stats_date).map(|date| date.to_string()).unwrap_or_else(|| "unknown".to_owned()),
             stat.map(StatRow::source_line), stat.and_then(StatRow::free_float_shares_source_10k)))));
     DailyShareCapital { id, trade_date: target, total, circulating, free_float,
         finance_updated: finance.and_then(FinanceRecord::updated), sources, meta }

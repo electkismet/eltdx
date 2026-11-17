@@ -11,13 +11,13 @@ fn concurrent_client_clones_close_the_same_owner() -> eltdx::Result<()> {
     let client = TdxClient::builder().build()?;
     let clients = [client.clone(), client.clone()];
     let barrier = Arc::new(Barrier::new(clients.len() + 1));
-    let closers = clients.into_iter().map(|client| {
+    let closers: Vec<_> = clients.into_iter().map(|client| {
         let barrier = Arc::clone(&barrier);
         thread::spawn(move || {
             barrier.wait();
             client.close()
         })
-    });
+    }).collect();
     barrier.wait();
 
     for closer in closers {

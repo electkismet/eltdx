@@ -4328,7 +4328,10 @@ impl RuntimeCore {
                         }
                         None => Err(RuntimeError::internal(
                             "Supervisor rejected exact request failure",
-                        )),
+                        ).with_context("request_id", wire.request_id.get().to_string())
+                            .with_context("lifecycle_retirement", self.has_lifecycle_retirement(wire.request_id).to_string())
+                            .with_context("existing_retirement", self.retirements.contains_key(&wire.request_id).to_string())
+                            .with_context("supervisor_state", format!("{:?}", self.supervisor.state()))),
                     }
                 };
                 let _ = reply.send(action.clone());

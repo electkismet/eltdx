@@ -85,6 +85,7 @@ impl Server {
                     Ok((mut stream, _)) => {
                         let identity = worker_accepted.fetch_add(1, Ordering::SeqCst) + 1;
                         let prepared = (|| -> io::Result<TcpStream> {
+                            stream.set_nonblocking(false)?;
                             stream.set_read_timeout(Some(Duration::from_millis(100)))?;
                             stream.set_write_timeout(Some(Duration::from_secs(2)))?;
                             stream.try_clone()
@@ -218,7 +219,7 @@ pub fn snapshots(rows: &[(&str, i64)]) -> Vec<u8> {
         payload.push(1); // Shanghai.
         payload.extend_from_slice(number.as_bytes());
         payload.extend_from_slice(&1_u16.to_le_bytes());
-        append_varint(&mut payload, current_hundredths / 100);
+        append_varint(&mut payload, current_hundredths);
         for _ in 0..8 { append_varint(&mut payload, 0); } // four price deltas and time/unknown/total/current.
         payload.extend_from_slice(&0_u32.to_le_bytes());
         for _ in 0..8 { append_varint(&mut payload, 0); } // inside/outside/unknown/open, bid/ask/volumes.
@@ -233,7 +234,7 @@ pub fn snapshots_with_volume(rows: &[(&str, i64, i64)]) -> Vec<u8> {
     for &(number, current_hundredths, total_hand) in rows {
         payload.push(1); payload.extend_from_slice(number.as_bytes());
         payload.extend_from_slice(&1_u16.to_le_bytes());
-        append_varint(&mut payload, current_hundredths / 100);
+        append_varint(&mut payload, current_hundredths);
         for _ in 0..6 { append_varint(&mut payload, 0); }
         append_varint(&mut payload, total_hand); append_varint(&mut payload, 0);
         payload.extend_from_slice(&0_u32.to_le_bytes());

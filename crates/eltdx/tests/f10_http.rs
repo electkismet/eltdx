@@ -29,6 +29,7 @@ impl Server {
             loop {
                 match listener.accept() {
                     Ok((stream, _)) => {
+                        stream.set_nonblocking(false)?;
                         stream.set_read_timeout(Some(Duration::from_secs(3)))?;
                         stream.set_write_timeout(Some(Duration::from_secs(3)))?;
                         return handler(stream);
@@ -230,6 +231,7 @@ fn report_prerequisite_retains_both_raw_sources_and_shares_streamed_byte_limit()
                         Err(error) => return Err(error.into()),
                     }
                 };
+                stream.set_nonblocking(false)?;
                 stream.set_read_timeout(Some(Duration::from_secs(2)))?;
                 let (_, body) = read_request(&mut stream)?;
                 if index == 0 {
@@ -750,6 +752,7 @@ fn opted_in_same_origin_redirect_preserves_post_body_and_request_headers() -> Te
                     Err(error) => return Err(Box::new(error)),
                 }
             };
+            stream.set_nonblocking(false)?;
             stream.set_read_timeout(Some(Duration::from_secs(2)))?;
             stream.set_write_timeout(Some(Duration::from_secs(2)))?;
             let (header, body) = read_request(&mut stream)?;

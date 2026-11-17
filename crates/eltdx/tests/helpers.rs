@@ -45,6 +45,9 @@ fn server(replies: Vec<&'static str>) -> Result<(SocketAddr, thread::JoinHandle<
                     Err(error) => return Err(error.into()),
                 }
             };
+            stream.set_nonblocking(false)?;
+            stream.set_read_timeout(Some(Duration::from_secs(3)))?;
+            stream.set_write_timeout(Some(Duration::from_secs(3)))?;
             let request = receive(&mut stream)?;
             assert!(request.starts_with(b"POST "));
             write!(stream, "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", reply.len(), reply)?;
