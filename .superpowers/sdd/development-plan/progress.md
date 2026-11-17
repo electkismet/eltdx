@@ -1067,3 +1067,23 @@ Windows Rust1.89的32显式feature子集、default/full以及最小/full生产�
 registry-observation实际读取三名称均404，保留HTTP响应/hash与UTC；不等于命名权或发布成功。首次crate archives在runtime打包失败，Cargo即使--no-verify仍从注册表解析未发布protocol，workspace patch不足。独立directory-packaging-probe实际使三个归档依次成功，正式工具现改为vendor锁定依赖、staging局部目录源、逐个注册已审查的下层归档及真实checksum，再由外部消费者只patch解包内容。正式脚本修改尚须在保存的干净新候选上完整重跑；不以探针替代消费者行为验收。包内不删版本/path验证，未实际publish/push/tag/merge。
 
 接续：保存本轮测试/工具修正，执行新候选archive consumer、Windows平台/strict docs/外部Rust consumer、Loom/stable及受影响Linux回归；新候选wheel与Python结果按源码影响重建/补齐，再实际运行两平台默认压力、84trial性能及原始日志复算。外部macOS/多Python版本/真实生产协议等缺口按要求继续单列。source-complete不等于整体验收，goal active、无额度限制；所有失败attempt保留。
+
+
+## Stage127：独立归档与当前 stable 实测
+
+2026年11月17日，干净来源7f1f491f554cfa87433b1a4213ac828760be3fa3。artifacts/unified/stage127-delivery/linux-full-attempt01实际exit0：Linux/Rust1.89/full合并SDK、protocol、runtime与30 doctest均通过。新release wheel也实际构建成功，perf-candidate-build/wheel-build.json记录产物身份；checkout和任务Python测试环境仍使用db82b29的native，不能把旧Python通过投射到此产物。stage126的sdist-rebuild-attempt01现已结束exit0，实际从1437文件、261文档的sdist重建Windows abi3 wheel；此前“仍运行”是当时状态。
+
+正式crate-archives-attempt01现已生成、检查三个归档，并基于实际解包归档构建外部最小Rust消费者；整体仍失败于loopback的单连接断言。独立诊断确认两个实际socket：第一页044d走普通池，后两页走endpoint池，054c又复用普通池，不是fixture唤醒连接。Windows/Rust1.89的platform-attempt01中普通测试、minimal/default/full、Serde、五种严格rustdoc、SDK全目标严格Clippy、fmt及最小/full依赖闭包均exit0；整条矩阵最后也失败在外部loopback同一断言。三归档通过不能代表消费通过。
+
+实际当前stable为官方Rust1.100.0（2026-11-12），不是原用户stable1.98。Windows rustup直连attempt01被socket10013拒绝；attempt02经官方manifest/component SHA256验证后安装到任务局部目录并链接current-stable，未改默认工具链。Linux任务局部stable同为1.100。Windows current-stable-platform-attempt02与Linux current-stable-full-attempt01的功能测试均通过；整个流程均因严格Clippy失败而非通过。已知新诊断为固定chunks_exact可用as_chunks、可简化的Option分支，keep-going补充protocol测试中的is_multiple_of；下一步须逐层修正并同时验证MSRV1.89，不能据普通测试通过跳过strict gate。
+
+实际默认原生压力仍0次、性能84trial仍0次。macOS、多Python版本、物理无Python/编译器环境与生产协议证据仍待。所有失败独立保留，不发布、push、tag或merge。
+
+
+## Stage128：单服务器分页连接复用
+
+基础7f1f491。普通HQ分页在第一页后无条件取得另一endpoint-bound Engine，即使普通目录仅有该唯一endpoint，仍额外占用物理连接。外部消费者单连接断言实际失败；新公开codes回归配置pool_size=1/max_connections=1，pagination-red-attempt01又实际复现第二页LimitExceeded/owner_connections。services::endpoint_engine现在在验证来源属于目录后，仅当目录只有一个endpoint时复用普通Engine；多源目录继续使用原固定来源池。没有提高连接限制或删除原消费者断言，也不改变PythonLegacy运行时路径。
+
+pagination-green-attempt01首次已完成扫描，但新增显式cursor测试误用默认1600大小续读原page_size1游标，实际InvalidArgument；修正测试保持原page_size1后green02为6通过。测试逐请求断言0/1/2扫描和0/1显式续读均为同一物理连接身份。原外部最小消费者consumer-loopback-green-attempt01实际exit0；HQ七target回归hq-regression-attempt01为59通过，SDK/full/all-targets严格Clippy也exit0，均为记录dirty diff的局部证据。归档来源尚未重打包，完整新候选矩阵仍待，不能据局部通过称正式归档流程通过。
+
+接续：先修Rust1.100新增strict lint且保持MSRV1.89，再在干净提交跑完整归档consumer、两平台矩阵/32feature/Loom与受影响Python产物，之后运行默认两平台原生压力和84trial性能。记录的失败/命令/日志/hash位于artifacts/unified/stage128-single-endpoint，统一验收继续，目标active无额度限制。

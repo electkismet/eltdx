@@ -294,6 +294,8 @@ ordinary、auction、money-flow 的专用连接所有权继续分开，即使主
 
 T14源码实现采用共享 `ConnectionLimit` permit约束物理连接，默认checked `4 × pool_size`，可由builder `max_connections` 配置，至少容纳一个池；此限制仅由新Rust builder显式注入，各Engine仍保留原有每host/建连并发限制。普通、竞价、资金流分别支持endpoint目录，getter不启动网络。临时探测Engine按endpoint缓存，但一次资金流操作独占域内admission并在每次探测后确认关闭临时Engine，不累积活跃备用池。关闭失败保留owner注册和原始请求/停止原因，并单列cleanup failure；不会宣称该连接已回收。上述为源码设计/实现记录，运行证据待统一验证。
 
+单一普通HQ endpoint已天然固定来源，stage128使分页与显式续读复用原池，避免pool1/max_connections1为同源分页额外占用连接；多endpoint仍使用独立固定来源池。此优化不合并ordinary/auction/money-flow的所有权。局部运行证据见[统一验证stage128](unified-validation.md)。
+
 ### 9.2 EX/MAC
 
 EX 固定 setup、MAC 三步握手、MAC-EX 登录及 head flag 区分为协议 profile。先独立实现串行会话驱动，不把不同握手硬套进 HQ Supervisor。帧读取/解压等公共实现只有在黄金字节与故障测试证明等价后再提取复用。

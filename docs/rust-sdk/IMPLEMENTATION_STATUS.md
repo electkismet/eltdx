@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026年11月17日stage128恢复点：T01–T30源码范围完成，整体仍未验收。干净7f1f491的Linux/full通过；Windows/MSRV功能、五种strict docs、Clippy/fmt通过，整条platform因外部单连接断言失败；官方当前stable1.100的两平台功能通过、strict lint失败。已用pool1/max_connections1确定性复现并修正单endpoint分页额外建池，codes6/HQ七target59及原外部最小consumer通过，SDK/MSRV严格lint通过；归档须重新生成。sdist实际重建已exit0。见统一验证stage127–128。下一步stable lint/MSRV兼容和完整交付，再实际默认压力与84trial性能（目前均未运行）；目标active无限额。
+
 2026年11月17日stage126恢复点：db82b29的Linux/full、Windows32feature+default/full、release wheel、完整Python3046/276/103、隔离wheel consumer与文档三门禁通过。Windows full唯一失败为误用缓存租约快照，改为实时后续请求/pin/close检查后deadline5项与runtime严格Clippy通过；首次错误的关闭后broker断言失败也保留。归档验证实测workspace patch不足，目录源探针成功，正式脚本已修正待干净候选重跑。旧基线独立release构建成功；sdist构建/inspect通过，重建仍在session64112运行。详见统一验证stage126。继续交付矩阵、实际压力/性能与新候选证据；目标active无限额。
 
 2026年11月17日stage125严格lint恢复点：基础0b4bd48，纯格式化独立提交c62716e。三个纯Rust库eltdx/eltdx-runtime/eltdx-protocol的Rust1.89/full/all-targets严格Clippy（-D warnings）attempt11实际exit0；先前失败均保留。清理未使用的私有代码，测试专用项限定cfg(test)，动态不变量panic改typed Internal，固定表/常量的例外仅局部说明；生产lint政策不放宽。RawResultSender私有send返回是否送达，原调用者不消费失败payload。最后一个测试辅助函数使用PinReservationRuntime类型别名，format apply02及独立fmt check01均exit0。当前Python源码合同603通过，但使用先前候选native，不代表本轮新wheel已验收。证据artifacts/unified/stage125-lints；详细范围见统一验证记录。接续先在保存候选重跑Rust正确性/doctest/feature/Loom/Linux，重建绑定和wheel并重新跑Python，再独立消费者/归档包/文档与实际压力性能。旧阶段通过不能补最新候选空缺；goal active，无额度限制。

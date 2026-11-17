@@ -14,6 +14,62 @@ use eltdx::{
 use hq_server::{directory, directory_offset, Server};
 
 #[test]
+fn single_endpoint_pagination_reuses_the_only_allowed_connection(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let calls = Arc::clone(&observed);
+    let server = Server::start_controlled(move |request, connection| {
+        assert_eq!(request.msg_type, 0x044d);
+        let offset = directory_offset(request);
+        calls.lock().unwrap().push((offset, connection.identity()));
+        match offset {
+            0 => directory(&[("600000", 2)]),
+            1 => directory(&[("600001", 2)]),
+            2 => directory(&[]),
+            _ => panic!("unexpected offset"),
+        }
+    })?;
+    let client = TdxClient::builder()
+        .endpoints(vec![server.address])
+        .pool_size(1)
+        .max_connections(1)
+        .heartbeat_interval(None)
+        .build()?;
+    let options = OperationOptions::default();
+    let operation = (|| -> eltdx::Result<()> {
+        let query = CodeScanQuery::new().with_pages(PageOptions::new(1, 8, 8)?)?;
+        let result = client.codes().all(HqMarket::Shanghai, &query, &options)?;
+        assert_eq!(result.pages(), 3);
+        assert_eq!(result.items().len(), 2);
+        assert_eq!(result.end(), EndEvidence::EmptyPage);
+
+        // A later explicit continuation must use the same bounded pool too.
+        let first = client.codes().list(
+            HqMarket::Shanghai,
+            &CodeQuery::default().with_limit(1)?,
+            &options,
+        )?;
+        let next = CodeQuery::default()
+            .with_limit(1)?
+            .with_cursor(first.next_cursor().unwrap())?;
+        let second = client.codes().list(HqMarket::Shanghai, &next, &options)?;
+        assert_eq!(second.items().len(), 1);
+        assert_eq!(second.items()[0].id().number(), "600001");
+        Ok(())
+    })();
+    let cleanup = client.close();
+    let fixture_cleanup = server.finish();
+    operation?;
+    cleanup?;
+    fixture_cleanup?;
+    assert_eq!(
+        *observed.lock().unwrap(),
+        vec![(0, 1), (1, 1), (2, 1), (0, 1), (1, 1)]
+    );
+    Ok(())
+}
+
+#[test]
 fn short_short_empty_scan_does_not_query_count_and_retains_page_origins(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let observed = Arc::new(Mutex::new(Vec::new()));

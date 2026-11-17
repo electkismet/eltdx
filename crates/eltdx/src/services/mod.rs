@@ -350,14 +350,18 @@ fn endpoint_engine(
     let Some(endpoint) = endpoint else {
         return Ok(base.clone());
     };
-    if !crate::client::configured_hosts(config)
-        .iter()
-        .any(|host| host == endpoint)
-    {
+    let hosts = crate::client::configured_hosts(config);
+    if !hosts.iter().any(|host| host == endpoint) {
         return Err(Error::new(
             ErrorKind::InvalidArgument,
             "continuation endpoint is outside this client's source catalog",
         ));
+    }
+    // The ordinary pool is already source-bound when it has one endpoint.
+    // Reuse it so pagination and later continuations do not consume another
+    // physical-connection permit merely to enforce the same source catalog.
+    if hosts.len() == 1 {
+        return Ok(base.clone());
     }
     // An endpoint-bound Engine cannot silently fail over to a different source.
     let engine = executor.owner().endpoint_engine(base, endpoint, || {
