@@ -70,6 +70,31 @@ impl MacInstrumentId {
     pub fn code(&self) -> &MacCode { &self.code }
 }
 
+/// Conversion is explicit and never infers an HQ exchange from a market
+/// number. EX uses UTF-8 request codes; MAC additionally requires GBK.
+impl TryFrom<&crate::ex::ExInstrumentId> for MacInstrumentId {
+    type Error = Error;
+    fn try_from(value: &crate::ex::ExInstrumentId) -> Result<Self> {
+        Ok(Self::new(MacMarketId::new(u16::from(value.market().get())), MacCode::new(value.code().as_str())?))
+    }
+}
+impl TryFrom<crate::ex::ExInstrumentId> for MacInstrumentId {
+    type Error = Error;
+    fn try_from(value: crate::ex::ExInstrumentId) -> Result<Self> { Self::try_from(&value) }
+}
+impl TryFrom<&MacInstrumentId> for crate::ex::ExInstrumentId {
+    type Error = Error;
+    fn try_from(value: &MacInstrumentId) -> Result<Self> {
+        let market = crate::ex::ExMarketId::new(u32::from(value.market().get()))?;
+        let code = crate::ex::ExCode::new(value.code().as_str())?;
+        Ok(Self::new(market, code))
+    }
+}
+impl TryFrom<MacInstrumentId> for crate::ex::ExInstrumentId {
+    type Error = Error;
+    fn try_from(value: MacInstrumentId) -> Result<Self> { Self::try_from(&value) }
+}
+
 /// MAC-EX market identity remains an independent u8 namespace.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct MacExMarketId(u8);
@@ -143,6 +168,21 @@ pub enum MacPeriod { Minute5, Minute15, Minute30, Minute60, Daily, Weekly, Month
 impl MacPeriod {
     pub const fn wire(self) -> u16 { match self { Self::Minute5=>0,Self::Minute15=>1,Self::Minute30=>2,Self::Minute60=>3,Self::Daily=>4,Self::Weekly=>5,Self::Monthly=>6,Self::Minute1=>7,Self::Mins=>8,Self::Days=>9,Self::Quarterly=>10,Self::Yearly=>11,Self::Seconds=>13,Self::Wire(v)=>v } }
     pub const fn has_intraday_time(self) -> bool { matches!(self,Self::Minute5|Self::Minute15|Self::Minute30|Self::Minute60|Self::Minute1|Self::Mins|Self::Seconds|Self::Wire(0..=3|7..=8|13)) }
+    pub fn known(value: u16) -> Result<Self> {
+        Ok(match value { 0 => Self::Minute5, 1 => Self::Minute15, 2 => Self::Minute30, 3 => Self::Minute60,
+            4 => Self::Daily, 5 => Self::Weekly, 6 => Self::Monthly, 7 => Self::Minute1,
+            8 => Self::Mins, 9 => Self::Days, 10 => Self::Quarterly, 11 => Self::Yearly,
+            13 => Self::Seconds, _ => return Err(invalid("unknown MAC period requires explicit MacPeriod::Wire")),
+        })
+    }
+    pub const fn has_known_semantics(self) -> bool { matches!(self.wire(), 0..=11 | 13) }
+    /// MAC source uses five minutes per MINS unit. This is not HQ's period8
+    /// parameter or EX's fixed three-minute period8. Calendar periods have no
+    /// exact elapsed duration. Seconds remain an explicit known duration.
+    pub const fn duration_seconds(self, times: std::num::NonZeroU16) -> Option<u32> {
+        match self.wire() { 0 => Some(300), 1 => Some(900), 2 => Some(1800), 3 => Some(3600),
+            7 => Some(60), 8 => Some(300 * times.get() as u32), 13 => Some(times.get() as u32), _ => None }
+    }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MacAdjust { None, Qfq, Hfq }

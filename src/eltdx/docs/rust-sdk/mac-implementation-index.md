@@ -1,6 +1,6 @@
 # MAC / MAC-EX 实现与恢复索引
 
-当前为T25部分实现，基线`d8b0e48`后的Stage B简单响应源码检查点。
+当前为T25部分实现，基线`80de370`后的Stage B查询与分页源码检查点stage77。
 **没有编译、测试、联网或安装证据；没有注册可用的公开MAC客户端。**
 全部T01–T30实现写完后才统一验证；目标保持active且不设置额度。
 
@@ -14,8 +14,13 @@
 | `mac/responses.rs` | 私有字段/只读getter、源identity/float/未知单位、图/快照/板块/商品/文件/JSON响应 |
 | `mac/decode.rs` | 下表简单响应的严格单帧payload解析，无I/O或分页/缓存 |
 | `mac/routing.rs` | 27/31/48/49/71/98港股逐笔路由和七字段MAC-EX默认 |
+| `mac/enums.rs` | 完整源枚举、OR filter、checked/source-preserving BoardSymbol、SourceOrder |
+| `mac/query.rs` | 全部标准MAC查询构造/默认值，u32总目标、窄字段/bitmap/下载范围校验 |
+| `mac/ex_query.rs` | canonical EX身份、全部MAC-EX查询、1800/1000页、50/90000 cap、macro默认 |
+| `mac/pagination.rs` | 单一checked分页进度、实际wire行推进、短/空证据和满保护上限拒绝；列表追加/K线前插 |
 | `crates/eltdx/tests/mac_wire.rs` | 7个原Stage A函数源码，未执行 |
 | `crates/eltdx/tests/mac_responses.rs` | 14个简单响应/边界函数源码，未执行 |
+| `crates/eltdx/tests/mac_queries.rs` | 10个查询/默认/编码/身份边界函数源码；另pagination内部6个函数，全部未执行 |
 
 MAC模块仍未在crate root注册。feature mac已依赖ex；JSON使用现有optional
 serde_json，未引入第二网络/解压栈。当前源码路径包含用例只用于最终验证，
@@ -23,7 +28,8 @@ serde_json，未引入第二网络/解压栈。当前源码路径包含用例只
 
 ## MAC全部23个方法的归属
 
-下列每个方法仍待独立client/query/profile接线；“已有”只表示纯codec源码。
+全部query已写；下列每个方法仍待独立client/profile和响应meta接线。
+“已有”仅表示纯codec/checked query源码，不表示公开入口完成。
 
 | 方法 | 已有基础 | 尚待工作 |
 |---|---|---|
@@ -71,8 +77,9 @@ serde_json，未引入第二网络/解压栈。当前源码路径包含用例只
 | transactions | 港股EX23FC/2406，其余MAC122F；新session必须login |
 | all_transactions | T26港股1800分页、50页/90000到上限仍满报LimitExceeded |
 
-MAC-EX公开身份要用ExInstrumentId，再做明确无损MAC转换；Stage A的
-MacExInstrumentId仍待整合，不能当完成的最终API。
+MAC-EX查询已统一使用ExInstrumentId，再做显式无损MAC转换；市场号不推断HQ
+交易所。转换拒绝u8溢出、GBK不可表示和反向超过9B UTF-8代码。Stage A的
+MacExInstrumentId仅为旧纯codec groundwork，未被新公开查询采用。
 
 ## 严格模型与旧Python边界
 
@@ -96,7 +103,7 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
 
 ## 接下来与未验证证据
 
-1. 写完整checked query/enums/page DTO、身份转换和源码用例。
+1. checked query/enums/page进度、身份转换及用例源码已写；仍未编译或执行。
 2. 实现标准MAC三阶段OptionalReply及MAC-EX独立login profile；复用T24框架。
    源码只有“登录体>=2B”启发式，缺少生产成功/否定payload证据；不能编造ACK。
    可选setup的静默超时不证明响应边界，必须防晚到setup被当业务响应。
@@ -105,5 +112,5 @@ server-info已知核心71B，两个可选u32在71/75，剩余tail保留；坏日
 5. T26完成目录/fallback/缓存、聚合/排行、复权、同源下载及all-pages；T27兼容迁移。
 6. T28–T30消费者、打包、文档全部源码完成后统一验证，并解决实际编译/平台问题。
 
-详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint1。
+详细恢复见`.superpowers/sdd/development-plan/task-25-report.md` Stage B checkpoint2。
 实现源码完整不等于执行验收通过，当前任务总数仍23完成源码/2部分/5未开始。

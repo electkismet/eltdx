@@ -8,7 +8,14 @@ pub mod models;
 pub mod routing;
 pub mod responses;
 pub mod decode;
+pub mod enums;
+pub mod query;
+pub mod ex_query;
+pub(crate) mod pagination;
 
 pub use bitmap::{FieldId, FieldSelection, PresetField};
 pub use models::{MacCode, MacInstrumentId, MacMarketId, RemoteFileName, WireFloat};
 pub use responses::*;
+pub use enums::{BoardRankKey, BoardSymbol, BoardType, Category, ExBoardType, FilterMask, FilterType, QuoteListOrder, SortOrder, SortType};
+pub use crate::ex::models::{PageCompletion, PageResult};
+pub use query::*;

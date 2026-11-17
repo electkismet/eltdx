@@ -120,3 +120,61 @@ No test/collection/build/check/clippy/doctest/dependency/network/AST/compiler/
 format/diff-check or equivalent execution occurred. Only source reads/edits,
 ordinary Git diff/status and a hooks-disabled checkpoint are allowed. Counts
 remain23 source complete/2 partial/5 unstarted; active goal has no quota.
+
+## Stage B checkpoint 2 — checked queries and pagination (2026-11-17, stage77)
+
+Base `80de370`. Preserved and completed the uncommitted enums/query/model edits
+from the previous context. `mac/enums.rs` contains the complete source closed
+BoardType/ExBoardType/Category/SortType/SortOrder/FilterType registries, checked
+wire conversion, OR-based FilterMask and source-preserving BoardSymbol. Board
+conversion uses checked u32 arithmetic and the six specified source examples;
+prefixes remain case-sensitive. `QuoteListOrder::SourceOrder` is explicit.
+
+`mac/query.rs` now owns all23 standard-MAC checked queries, including composite
+query configuration for T26. Counts are NonZeroU32 total targets rather than a
+u16 wire page; page count/record policies remain separate. Narrow GBK8 JSON
+request subfields,20B/16B bitmap constraints, u16 unusual offsets,70B file names,
+positive chunk indices,30000B chunks and u32 source spans validate before I/O.
+Shared DownloadOptions accepts max_bytes=0 for the future no-I/O path. Added
+MacPeriod checked known registry, known-semantics guard and exact duration:
+MAC Mins8 uses5min*times, Seconds13 uses times seconds; calendar periods have
+no fixed duration. This does not alter EX period8 or Python seconds alignment.
+
+`mac/ex_query.rs` supplies all query-bearing MAC-EX entries. IDs are canonical
+ExInstrumentId; explicit bidirectional TryFrom rejects non-GBK EX codes,
+u16-to-u8 market overflow and MAC text exceeding the EX9-byte UTF-8 field.
+MAC-EX quote defaults remain exactly0/1/2/3/4/5/7; SourceOrder count100 exposes
+an actual goods request<=80 and rejects unsupported sorting at construction.
+Shared standard-MAC bar/tick/sampling queries carry the one encoding policy;
+macro bars default Monthly. HK transaction pages are1800, others1000; HK offsets
+also fit the source signed i32 EX field. all_transactions accepts only the six
+HK stock markets and at most50pages/90000rows, with caller smaller limits.
+Directory queries default600/2000/1200000 with explicit smaller-policy support.
+Macro codes trim whitespace only, retain case and do not claim source existence
+before T26 directory resolution; macro quote occurrences retain duplicates.
+
+`mac/pagination.rs` implements pure checked request/accept progression. Requests
+use the minimum of remaining target, page size, wire maximum and remaining row
+allowance. Only complete decoded wire rows advance offsets, not postprocessed
+row counts. A second pending request, oversized response or overflow fails.
+The source-confirmed empty/short end policy is distinct from empty-only policy;
+ordinary EX single-page semantics are not changed. Full safety caps fail
+LimitExceeded rather than claiming EOF; hitting a finite requested count is
+RequestedCount. PageRows appends lists or prepends whole bar pages without
+reversing rows within a page or removing duplicate occurrences. PageResult and
+PageCompletion reuse the existing EX shared schema rather than copying it.
+
+Authored10 unexecuted `tests/mac_queries.rs` functions and6 private pagination
+functions covering lossless conversion/encoding rejection, checked symbols,
+OR duplicates/registry values,100000-row targets, bitmap/code boundaries,
+period duration/seconds, dates/downloads, MAC-EX seven defaults/SourceOrder,
+HK routes/signed offsets/full caps and macro defaults. Existing path-based
+MAC source tests now import canonical EX/types/PageOptions/DownloadOptions so
+the growing unregistered module has its actual dependencies at source level.
+
+No test/collection/build/check/clippy/doctest/dependency/network/AST/compiler/
+format/diff-check or equivalent execution occurred. Counts remain23 complete
+source/2 partial/5 unstarted. MAC client/profile/root registration are still
+missing; T25 is partial. Next: owner/profile negotiation with explicit setup
+boundary and login verification evidence, shared T24 worker integration,
+simple public methods/meta/raw/management; then T26–T30 and final validation.

@@ -2,6 +2,16 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage77: base80de370; completed retained MAC
+  enums/query edits plus canonical EX identity conversions, ex_query and checked
+  pagination. All23 MAC queries and all query-bearing MAC-EX entries have source;
+ 10 query/6 pagination functions authored, unexecuted. Source totals23/2/5
+  unchanged. T25 owner/profile/client/root registration still missing. Read
+  task-25-report Stage B checkpoint2 next; solve OptionalReply boundary and
+  MAC-EX login evidence without inventing ACK/status bytes, then shared T24
+  worker/public simple methods, T26–T30 and final validation. Goal active,
+  remainingTokens=null; no agents/publication or execution verification.
+
 - Latest recovery2026-11-17 stage76: based8b0e48. T25 Stage B simple-response
   schemas/strict codecs authored in mac/{responses,decode}.rs: charts/symbol/
   boards/sampling/goods/auction/unusual/server/files and both27B-prefixed GBK
