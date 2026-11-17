@@ -42,7 +42,17 @@ pub fn extension_socket_prepare<'py>(domain: &str,connection: Bound<'py,PyAny>,m
     let kind = module.getattr("socket")?.getattr("SOCK_STREAM")?;
     let sock = factory.call1((family,kind))?;
     let method = sock.getattr("settimeout")?; method.call1((connection.getattr("timeout")?,))?;
-    if domain=="ex" {connection.setattr("_sock",&sock)?;}
+    if domain=="ex" {
+        connection.setattr("_sock",&sock)?;
+        if let Err(error) = crate::extension_lifecycle::publish(connection.py(),&connection,&sock) {
+            // New holder allocation/publication failed after the original
+            // socket publication point. Drop the just-created resource only.
+            let cleanup = module.getattr("_native_safe_close").and_then(|close| close.call1((&sock,)));
+            let _ = connection.setattr("_sock",connection.py().None());
+            if let Err(cleanup) = cleanup { error.set_cause(connection.py(),Some(cleanup)); }
+            return Err(error);
+        }
+    }
     Ok(sock.unbind())
 }
 #[pyfunction]
@@ -58,7 +68,8 @@ pub fn extension_socket_connect<'py>(domain: &str,connection: Bound<'py,PyAny>,s
 }
 #[pyfunction]
 pub fn extension_socket_assign<'py>(connection: Bound<'py,PyAny>,sock: Bound<'py,PyAny>) -> PyResult<()> {
-    connection.setattr("_sock",sock)
+    connection.setattr("_sock",&sock)?;
+    crate::extension_lifecycle::publish(connection.py(),&connection,&sock)
 }
 #[pyfunction]
 pub fn extension_require_socket<'py>(connection: Bound<'py,PyAny>,module: Bound<'py,PyAny>,assert_only: bool,enabled: bool) -> PyResult<Py<PyAny>> {
@@ -88,6 +99,7 @@ pub fn extension_connection_close<'py>(py: Python<'py>,domain: &str,connection: 
         close.call1((connection.getattr("_sock")?,))?;
         connection.setattr("_sock",py.None())?;
     }
+    crate::extension_lifecycle::retire(&connection)?;
     Ok(())
 }
 

@@ -1,6 +1,11 @@
 //! Unstable bridge used only by the separately versioned Python binding.
 //! No Python runtime, object or exception type crosses this boundary.
 
+#[cfg(feature = "ex")]
+mod extension;
+#[cfg(feature = "ex")]
+pub use extension::{LegacyExtensionOperation, LegacyExtensionSession};
+
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

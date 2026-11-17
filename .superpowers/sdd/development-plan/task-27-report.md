@@ -1,4 +1,57 @@
 # T27 implementation report
+## Stage 17 — shared owner admission and connection generations (2026-11-17, stage104)
+
+Basea49cd26. Added __python_compat::LegacyExtensionSession/Operation over the
+existing SessionOwner, with external-retirement admission sealing and deferred
+finalization on the final SessionOperation drop. No network worker or timeout
+is created by a holder. Independent connection generations cannot admit or
+commit after retirement; a new connect creates a distinct owner generation.
+The new owner state is unused by ordinary strict owners unless this explicit
+legacy retirement entry is called. No separate socket cleanup machine added.
+
+Added extension_lifecycle.rs:7 native functions plus private session/operation
+holders. EX publishes the holder when the socket is published before TCP;
+MAC owns a provisional attempt and only publishes after TCP success, preserving
+the previous usable generation on failed reconnect. Existing high-level EX
+and MAC-EX replacement points seal old native handles without introducing an
+extra custom close call. Existing caches stay in the same Python objects.
+
+Operations hold admission and the captured resource through build, wire,
+decode and DTO construction. Checks reject late responses or a parser that
+reentrantly closes/replaces its connection. Commit uses the owner's existing
+admission lock, but never owns/drops a Python value under that lock. DTO
+allocation errors unwind admission while retaining a usable connection.
+Holder traversal exposes Python cycles to GC; explicit retirement releases
+closed resource references, while active operations retain their own capture.
+Allocation failure after socket creation closes that newly created candidate.
+
+KeyboardInterrupt unwinds the synchronous socket adapter, then calls shutdown/
+close on the captured resource and seals only its generation. A reentrant new
+connection is left open. A custom cleanup failure remains the signal's cause;
+its socket stays owned for later explicit close and is not claimed cleaned.
+Python std socket calls remain the GIL-releasing I/O adapter, and custom
+socket/lock hooks still execute under their old Python interfaces. There is
+no claim of native-owned I/O workers or preemption of arbitrary Python code.
+
+Added tests/test_native_extension_lifecycle_contract.py:18 public functions,
+8 parametrized, plus3 shared-owner Rust source cases. Sixteen extension
+contract files total347 public Python function sources, all unexecuted.
+Sources cover generations, stale result rejection, same-thread reentrancy,
+late receive/close, DTO and admission allocation failures, signal cleanup,
+replacement isolation, failed custom close, resource release/GC, independent
+owners and old high-level handles. No test/build/collection/network/dependency/
+compiler/AST/format/diff-check execution. All signatures and behavior still
+require final verification after the entire source gate.
+
+Files: crates/eltdx/src/{session.rs,__python_compat.rs,
+__python_compat/extension.rs}, crates/eltdx-python/src/{extension_lifecycle.rs,
+extension_transport.rs,extension_management.rs,lib.rs}, Python EX/MAC transport,
+new contract source, report/progress/status/plan and mirrors. Counts remain25
+source-complete/2 partial(T19/T27)/3 unstarted(T28-T30), goal active unlimited.
+Next complete lifecycle source-boundary review and retained custom adapter
+inventory, model/enum/preset/export mapping, actual capability evidence and
+installed-wheel nonempty EX/MAC/MAC-EX consumer. Then T28-T30/T19 closure and
+unified verification/production evidence. No agents/publication/controller edits.
 ## Stage 16 — transport discovery, registry and ranking (2026-11-17, stage103)
 
 Base0d5ac47. Added extension_probe.rs with17 entry functions for EX/MAC

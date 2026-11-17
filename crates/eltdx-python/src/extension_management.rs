@@ -308,7 +308,9 @@ pub fn extension_client_probe<'py>(py: Python<'py>, operation: &str, client: Bou
 pub fn extension_client_connect_one<'py>(domain: &str, client: Bound<'py, PyAny>, target: Bound<'py, PyAny>, module: Bound<'py, PyAny>) -> PyResult<Py<PyAny>> {
     let conn = if domain == "mac" { target } else { ex_connection(&client, &target, &module, domain == "mac_ex")? };
     if domain == "mac_ex" {
+        let previous = client.getattr("_conn")?;
         client.setattr("_conn", &conn)?;
+        if !previous.is(&conn) { crate::extension_lifecycle::retire(&previous)?; }
         client.getattr("_conn")?.call_method0("connect")?;
         let execute = client.getattr("_conn")?.getattr("execute")?;
         execute.call1((module.getattr("MacExLoginCmd")?.call0()?,))?;
@@ -367,7 +369,11 @@ pub fn extension_client_connect<'py>(py: Python<'py>, domain: &str, client: Boun
             client.setattr("_conn", &conn)?;
             if !previous.is_none() && !previous.is(&conn) { previous.call_method0("close")?; }
         } else {
-            if domain == "ex" { client.setattr("_conn", conn)?; }
+            if domain == "ex" {
+                let previous = client.getattr("_conn")?;
+                client.setattr("_conn", &conn)?;
+                if !previous.is(&conn) { crate::extension_lifecycle::retire(&previous)?; }
+            }
             client.setattr("_host", value)?;
             client.setattr("_connected", true)?;
         }

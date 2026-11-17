@@ -253,6 +253,19 @@ def _native_safe_close(sock):
         pass
 
 
+def _native_signal_close(sock):
+    """Signal cleanup is tied to the captured socket, not a later replacement."""
+    shutdown = getattr(sock, "shutdown", None)
+    try:
+        if shutdown is not None:
+            try:
+                shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+    finally:
+        _native_safe_close(sock)
+
+
 class ExTdxConnection:
     """扩展行情同步 TCP 连接（端口 7727，92B 会话握手）。
 
@@ -294,14 +307,27 @@ class ExTdxConnection:
         from eltdx._native_abi import load_native
         sock = load_native().extension_socket_prepare("ex", self, _MODULES[__name__])
         try:
-            load_native().extension_socket_connect("ex", self, sock, _MODULES[__name__])
-        except (OSError, EltdxError) as e:
+            operation = load_native().extension_operation_begin(self, sock, _MODULES[__name__])
+        except BaseException:
             self._sock = None
+            _native_safe_close(sock)
+            load_native().extension_generation_retire(self)
+            raise
+        try:
             try:
-                sock.close()
-            except OSError:
-                pass
-            raise load_native().extension_transport_error("ex_connect", self, e, _MODULES[__name__]) from e
+                load_native().extension_socket_connect("ex", self, sock, _MODULES[__name__])
+            except (OSError, EltdxError) as e:
+                self._sock = None
+                try:
+                    sock.close()
+                except OSError:
+                    pass
+                load_native().extension_generation_retire(self)
+                raise load_native().extension_transport_error("ex_connect", self, e, _MODULES[__name__]) from e
+            load_native().extension_operation_finish(operation, None, _MODULES[__name__])
+        except BaseException as exc:
+            load_native().extension_operation_failed(operation, self, exc, _MODULES[__name__])
+            raise
 
     def close(self) -> None:
         """关闭连接（幂等）。"""
@@ -315,12 +341,20 @@ class ExTdxConnection:
         with self._lock:
             sock = self._require_sock()
             from eltdx._native_abi import load_native
-            request = load_native().extension_request_prepare("ex", self, cmd, _MODULES[__name__])
+            operation = load_native().extension_operation_begin(self, sock, _MODULES[__name__])
             try:
-                header, raw_body = load_native().extension_exchange("ex", self, sock, request, _MODULES[__name__])
-            except OSError as e:
-                raise load_native().extension_transport_error("ex_io", self, e, _MODULES[__name__]) from e
-            return load_native().extension_response_finish("ex", cmd, header, raw_body, _MODULES[__name__])
+                request = load_native().extension_request_prepare("ex", self, cmd, _MODULES[__name__])
+                load_native().extension_operation_check(operation, _MODULES[__name__])
+                try:
+                    header, raw_body = load_native().extension_exchange("ex", self, sock, request, _MODULES[__name__])
+                except OSError as e:
+                    raise load_native().extension_transport_error("ex_io", self, e, _MODULES[__name__]) from e
+                load_native().extension_operation_check(operation, _MODULES[__name__])
+                result = load_native().extension_response_finish("ex", cmd, header, raw_body, _MODULES[__name__])
+                return load_native().extension_operation_finish(operation, result, _MODULES[__name__])
+            except BaseException as exc:
+                load_native().extension_operation_failed(operation, self, exc, _MODULES[__name__])
+                raise
 
     def __enter__(self) -> "ExTdxConnection":
         self.connect()

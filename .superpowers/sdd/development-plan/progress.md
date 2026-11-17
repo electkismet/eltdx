@@ -1,6 +1,16 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage104: basea49cd26. Added shared SessionOwner
+  external retirement/admission and LegacyExtensionSession/Operation;7 native
+  functions plus GC-visible holders preserve provisional MAC versus published
+  EX connection order, late-result rejection, DTO failure release and signal
+  cleanup tied to captured resources. Custom failed close keeps ownership and
+  cause; no native worker/preemption claim. Added18 Python functions(8
+  parametrized)/3 Rust cases; sixteen contracts347 functions, all unexecuted.
+  Read task-27-report Stage17. Next lifecycle source review/adapter inventory,
+  models/exports/manifest/consumer, then T28-T30/T19 source closure and unified
+  verification.25/2/3 unchanged, active unlimited, no agents/publication.
 - Latest recovery2026-11-17 stage103: base0d5ac47. EX/MAC transport discovery,
   probe registry/collect/cleanup/rank/ping now native via17 entry functions;
   Python explicit lock/with/except/finally and socket/executor adapters retain

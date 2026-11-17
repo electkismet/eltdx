@@ -66,6 +66,19 @@ def _safe_close(sock: SocketLike) -> None:
         pass
 
 
+def _native_signal_close(sock):
+    """Retire only the resource held by the interrupted native operation."""
+    shutdown = getattr(sock, "shutdown", None)
+    try:
+        if shutdown is not None:
+            try:
+                shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+    finally:
+        _safe_close(sock)
+
+
 def _recv_exact(sock: SocketLike, n: int) -> bytes:
     """循环 ``recv`` 直到读满 ``n`` 字节；连接被关闭时抛 :class:`ConnectionClosedError`。"""
 
@@ -116,16 +129,27 @@ class MacConnection:
         from eltdx._native_abi import load_native
         sock = load_native().extension_socket_prepare("mac", self, _MODULES[__name__])
         try:
-            load_native().extension_socket_connect("mac", self, sock, _MODULES[__name__])
-        except OSError as exc:
+            operation = load_native().extension_attempt_begin(sock)
+        except BaseException:
             _safe_close(sock)
-            raise load_native().extension_transport_error("mac_connect", self, exc, _MODULES[__name__]) from exc
-        load_native().extension_socket_assign(self, sock)
+            raise
         try:
-            self._send_setup()
-        except Exception:
-            _safe_close(sock)
-            self._sock = None
+            try:
+                load_native().extension_socket_connect("mac", self, sock, _MODULES[__name__])
+            except OSError as exc:
+                _safe_close(sock)
+                raise load_native().extension_transport_error("mac_connect", self, exc, _MODULES[__name__]) from exc
+            load_native().extension_attempt_publish(self, operation, _MODULES[__name__])
+            try:
+                self._send_setup()
+            except Exception:
+                _safe_close(sock)
+                self._sock = None
+                load_native().extension_generation_retire(self)
+                raise
+            load_native().extension_operation_finish(operation, None, _MODULES[__name__])
+        except BaseException as exc:
+            load_native().extension_operation_failed(operation, self, exc, _MODULES[__name__])
             raise
 
     def close(self) -> None:
@@ -138,14 +162,22 @@ class MacConnection:
         """执行一条命令：发送请求、接收并解压响应、返回解析结果。"""
 
         from eltdx._native_abi import load_native
-        request = load_native().extension_request_prepare("mac", self, cmd, _MODULES[__name__])
+        operation = load_native().extension_operation_begin(self, None, _MODULES[__name__])
         try:
-            header, raw_body = load_native().extension_exchange("mac", self, None, request, _MODULES[__name__])
-        except socket.timeout as exc:
-            raise load_native().extension_transport_error("mac_timeout", self, exc, _MODULES[__name__]) from exc
-        except OSError as exc:
-            raise load_native().extension_transport_error("mac_io", self, exc, _MODULES[__name__]) from exc
-        return load_native().extension_response_finish("mac", cmd, header, raw_body, _MODULES[__name__])
+            request = load_native().extension_request_prepare("mac", self, cmd, _MODULES[__name__])
+            load_native().extension_operation_check(operation, _MODULES[__name__])
+            try:
+                header, raw_body = load_native().extension_exchange("mac", self, None, request, _MODULES[__name__])
+            except socket.timeout as exc:
+                raise load_native().extension_transport_error("mac_timeout", self, exc, _MODULES[__name__]) from exc
+            except OSError as exc:
+                raise load_native().extension_transport_error("mac_io", self, exc, _MODULES[__name__]) from exc
+            load_native().extension_operation_check(operation, _MODULES[__name__])
+            result = load_native().extension_response_finish("mac", cmd, header, raw_body, _MODULES[__name__])
+            return load_native().extension_operation_finish(operation, result, _MODULES[__name__])
+        except BaseException as exc:
+            load_native().extension_operation_failed(operation, self, exc, _MODULES[__name__])
+            raise
 
     def __enter__(self) -> "MacConnection":
         self.connect()

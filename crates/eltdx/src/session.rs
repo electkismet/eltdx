@@ -66,6 +66,10 @@ impl CloseFailure {
 #[derive(Debug)]
 struct SessionState {
     phase: SessionPhase,
+    /// Legacy external I/O retires its resources at its original Python close
+    /// boundary. Admission is sealed then; the last admitted operation finishes
+    /// the same owner close state machine without a second waiting thread.
+    external_retired: bool,
     shutdown_deadline: Option<Instant>,
     close_failure: Option<CloseFailure>,
     close_generation: u64,
@@ -188,6 +192,7 @@ impl SessionOwner {
             cleanup_timeout,
             state: Mutex::new(SessionState {
                 phase: SessionPhase::Open,
+                external_retired: false,
                 shutdown_deadline: None,
                 close_failure: None,
                 close_generation: 0,
@@ -277,7 +282,7 @@ impl SessionOwner {
 
     pub(crate) fn ensure_open(&self) -> Result<()> {
         let state = self.lock_state()?;
-        if state.phase == SessionPhase::Open {
+        if state.phase == SessionPhase::Open && !state.external_retired {
             Ok(())
         } else {
             Err(closed_error())
@@ -305,7 +310,7 @@ impl SessionOwner {
     // Lock order for operation admission is owner -> business token -> budget.
     pub(crate) fn with_open_admission<T>(&self, action: impl FnOnce() -> Result<T>) -> Result<T> {
         let state = self.lock_state()?;
-        if state.phase != SessionPhase::Open { return Err(closed_error()); }
+        if state.phase != SessionPhase::Open || state.external_retired { return Err(closed_error()); }
         action()
     }
 
@@ -315,7 +320,7 @@ impl SessionOwner {
 
     pub(crate) fn admit(self: &Arc<Self>) -> Result<SessionOperation> {
         let mut state = self.lock_state()?;
-        if state.phase != SessionPhase::Open {
+        if state.phase != SessionPhase::Open || state.external_retired {
             return Err(closed_error());
         }
         state.active_operations = state
@@ -328,6 +333,23 @@ impl SessionOwner {
             owner: Arc::clone(self),
             cancellation,
         })
+    }
+
+    /// The external adapter has already performed its close, on the caller's
+    /// thread and with its own exception rules. Cancel admitted old work and
+    /// reject every future admission. Deferred finalization is performed by
+    /// the final SessionOperation, so reentrant Python close never waits on
+    /// its own active operation. No external callback is called under a lock.
+    pub(crate) fn retire_external(self: &Arc<Self>) -> Result<()> {
+        let finish = {
+            let mut state = self.lock_state()?;
+            state.external_retired = true;
+            signal_operation_cancellation(&mut state);
+            self.changed.notify_all();
+            state.phase == SessionPhase::Open && state.active_operations == 0
+        };
+        if finish { self.close()?; }
+        Ok(())
     }
 
     pub(crate) fn register_pin(&self, pin: PinHandle) -> Result<()> {
@@ -770,9 +792,17 @@ fn signal_operation_cancellation(state: &mut SessionState) {
 
 impl Drop for SessionOperation {
     fn drop(&mut self) {
+        let mut finish_external = false;
         if let Ok(mut state) = self.owner.state.lock() {
             state.active_operations = state.active_operations.saturating_sub(1);
+            finish_external = state.external_retired && state.active_operations == 0
+                && state.phase == SessionPhase::Open;
             self.owner.changed.notify_all();
+        }
+        if finish_external {
+            // All external resource retirement has already happened; retain
+            // any internal close failure in the owner for later inspection.
+            let _ = self.owner.close();
         }
     }
 }
