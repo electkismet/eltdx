@@ -103,11 +103,13 @@ fn decode_frame_profile(
     // historically read that registry (including saturating scale and raw byte
     // views); do not impose immutable strict-Rust precision on those adapters.
     // Legacy trades also retain their intrinsic units, raw record text and
-    // original datetime errors independently of directory metadata.
+    // original datetime errors independently of directory metadata. Corporate
+    // and limit replies retain the old scalar and market interpretation too.
     let parsed = if legacy && matches!(&request, CommandRequest::SecurityList(_)
         | CommandRequest::LegacyQuotes(_) | CommandRequest::CategoryQuotes(_) | CommandRequest::RefreshStream(_)
         | CommandRequest::TodayTicks(_) | CommandRequest::HistoricalTicks(_) | CommandRequest::AuctionSeries(_)
-        | CommandRequest::MoneyFlow(_)) {
+        | CommandRequest::MoneyFlow(_) | CommandRequest::CapitalChanges(_)
+        | CommandRequest::FinanceBatch(_) | CommandRequest::SpecialLimits(_)) {
         CommandResponse::parse(request.clone(), &response.data)?
     } else {
         CommandResponse::parse_with_context(request.clone(), response.data.clone(), &options)?

@@ -160,8 +160,8 @@ def test_shortline_legacy_limit_policy_preserves_st_before_board_and_new_names()
     assert shortline._price_limit_ratio("sh688001", "ST example") == 5.0
     assert shortline._price_limit_ratio("bj430001", "ST example") == 5.0
     assert shortline._price_limit_ratio(CODE, "N example") is None
-    assert shortline._price_limit_ratio("sh688001", "normal") == 20.0
-    assert shortline._price_limit_ratio(CODE, "normal") == 10.0
+    assert shortline._price_limit_ratio("sh688001", "ordinary") == 20.0
+    assert shortline._price_limit_ratio(CODE, "ordinary") == 10.0
 
 
 def test_shortline_legacy_limit_status_sealed_touched_and_missing():

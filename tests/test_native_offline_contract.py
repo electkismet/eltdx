@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from importlib import import_module
 import math
 import struct
 from types import SimpleNamespace
@@ -11,7 +12,11 @@ import pytest
 from eltdx.offline import daily_bar, industry, paths
 from eltdx.offline import min_bar
 from eltdx.offline import ex_daily_bar
-from eltdx.offline import alignment, write_daily, write_ex_daily, write_min_bar
+from eltdx.offline import alignment, write_daily, write_ex_daily
+
+# The package exports a function named write_min_bar; these hook tests need the
+# module containing that function, without changing the public package export.
+write_min_bar = import_module("eltdx.offline.write_min_bar")
 
 
 def test_industry_shared_rows_keep_unicode_length_whitespace_and_last_value():

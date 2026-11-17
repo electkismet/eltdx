@@ -16,6 +16,7 @@ from eltdx.exceptions import ProtocolError
 from eltdx.protocol.commands import parse_command_response
 from eltdx.protocol.frame import ResponseFrame
 from eltdx.transport import PooledSocketTransport, SocketTransport
+from eltdx.transport.native import call_native, native_module
 
 from loopback_support import ScriptedServer, answer_handshake, read_request, response_bytes, wait_for_peer_close
 
@@ -58,6 +59,17 @@ class RecordedTrades:
     def execute(self, command, payload):
         self.offsets.append(payload["start"])
         return _parse(command, self.pages[payload["start"]], payload)
+
+
+class RecordedBulkTrades(RecordedTrades):
+    def execute_trade_batch(self, command, payload):
+        self.offsets.append(payload["start"])
+        # Reproduce the frozen native per-page bulk entry. A custom execute
+        # returning TradePage stores datetime objects in private blocks, whereas
+        # native bulk preserves lazy date tuples. Compare like entry points.
+        dto = call_native(native_module().parse_command_response, command,
+                          self.pages[payload["start"]], payload)
+        return _native_models.trade_batch_from_dto(dto)
 
 
 def _client(transport_type, host):
@@ -162,7 +174,9 @@ def test_native_trade_bulk_collection_exceeds_page_size_without_tick_objects(tra
     pages = {0: _payload(rows, historical=True), 1200: _payload(rows, historical=True),
              2400: _payload(historical=True)}
     expected = TradeApi(RecordedTrades(pages)).all_history(CODE, DATE, include_raw=True)
-    expected_batch = TradeApi(RecordedTrades(pages)).all_history_batch(CODE, DATE, include_raw=True)
+    expected_batch = TradeApi(RecordedBulkTrades(pages)).all_history_batch(CODE, DATE, include_raw=True)
+    custom_batch = TradeApi(RecordedTrades(pages)).all_history_batch(CODE, DATE, include_raw=True)
+    assert custom_batch.to_columns() == expected_batch.to_columns()
 
     def handler(connection):
         answer_handshake(connection)

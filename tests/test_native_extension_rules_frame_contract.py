@@ -54,6 +54,7 @@ def test_native_mac_rule_early_returns_and_original_custom_error_identity(monkey
 
     assert rules.compute_price_limits(object(), object(), Name(), 0) == (None, None)
     events = []
+    original_window = rules.get_no_limit_window_days
     monkeypatch.setattr(rules, "_is_index_like", lambda *args: events.append("index") or True)
     monkeypatch.setattr(rules, "get_no_limit_window_days", lambda *args: pytest.fail("index early return"))
 
@@ -64,6 +65,7 @@ def test_native_mac_rule_early_returns_and_original_custom_error_identity(monkey
 
     assert rules.compute_price_limits(0, "000001", UpperName(), 10.0) == (None, None)
     assert events == ["upper", "index"]
+    monkeypatch.setattr(rules, "get_no_limit_window_days", original_window)
     failure = RuntimeError("index hook")
 
     def fail(*args):

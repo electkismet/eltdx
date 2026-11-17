@@ -254,7 +254,9 @@ impl HqExecutor {
         if !context.is_legacy() { validate_request_precision(&snapshot, std::slice::from_ref(&raw.request))?; }
         let decoded = super::decode::decode_reply_profile(raw, context.raw(), snapshot.as_ref(), context.is_legacy()).map_err(|error| {
             if context.is_legacy() {
-                return context.annotate(Error::from_runtime(error.into()), TimeoutPhase::Decode, Some(command));
+                // Retain Python's runtime error classification/context and the
+                // original structured protocol cause used by batch recovery.
+                return context.annotate(Error::from_runtime(error.clone().into()).with_source(error), TimeoutPhase::Decode, Some(command));
             }
             let kind = match &error {
                 eltdx_protocol::ProtocolError::InvalidData { context: "price precision", .. } => ErrorKind::MetadataUnavailable,
@@ -277,7 +279,9 @@ impl HqExecutor {
         }
         self.check_context(context)?;
         context.check_boundary(TimeoutPhase::Decode)?;
-        if !matches!(&raw.request, CommandRequest::SecurityList(_) | CommandRequest::SecurityCount(_)
+        let legacy_unpriced = context.is_legacy() && matches!(&raw.request,
+            CommandRequest::CapitalChanges(_) | CommandRequest::FinanceBatch(_) | CommandRequest::SpecialLimits(_));
+        if !legacy_unpriced && !matches!(&raw.request, CommandRequest::SecurityList(_) | CommandRequest::SecurityCount(_)
             | CommandRequest::Heartbeat(_) | CommandRequest::Handshake(_) | CommandRequest::FileContent(_)
             | CommandRequest::Klines(_) | CommandRequest::DelistedKlines(_)
             | CommandRequest::TodayTicks(_) | CommandRequest::HistoricalTicks(_)
@@ -290,7 +294,7 @@ impl HqExecutor {
         let command = raw.request.command_code();
         let decoded = super::decode::decode_reply_profile(raw, context.raw(), &NoPrecision, context.is_legacy())
             .map_err(|error| context.annotate(if context.is_legacy() {
-                Error::from_runtime(error.into())
+                Error::from_runtime(error.clone().into()).with_source(error)
             } else { Error::from_protocol(error) }, TimeoutPhase::Decode, Some(command)))?;
         context.check_boundary(TimeoutPhase::Decode)?;
         Ok(decoded)

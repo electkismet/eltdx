@@ -7,7 +7,12 @@ from types import SimpleNamespace
 import pytest
 
 from eltdx.api.codes import CodeApi
+from eltdx.api.bars import BarApi
+from eltdx.api.company_info import CompanyInfoApi
+from eltdx.api.minutes import MinuteApi
 from eltdx.api.quotes import QuoteApi
+from eltdx.api.session import SessionApi
+from eltdx.api.trades import TradeApi
 from eltdx.client import TdxClient
 from eltdx.models.quote import QuoteRefreshPage
 from eltdx.transport import PooledSocketTransport, SocketTransport
@@ -96,6 +101,47 @@ def test_quote_transport_subclasses_retain_execute_extension(transport_type) -> 
     client = TdxClient(transport=CustomTransport(["127.0.0.1:7709"], heartbeat_interval=None))
     assert client.quotes.legacy("sh600001") == (0x053E, {"codes": ["sh600001"]})
     assert not client.quotes._native_services
+
+
+@pytest.mark.parametrize("transport_type", [SocketTransport, PooledSocketTransport])
+@pytest.mark.parametrize("scope", ["class", "instance"])
+@pytest.mark.parametrize("before_construction", [False, True])
+@pytest.mark.parametrize("api_type,method,args", [
+    (QuoteApi, "legacy", (["000001"],)),
+    (CodeApi, "count", ("sz",)),
+    (SessionApi, "heartbeat", ()),
+    (MinuteApi, "today", ("000001",)),
+    (TradeApi, "today", ("000001",)),
+    (CompanyInfoApi, "category", ("000001", "sz")),
+    (BarApi, "get", ("000001",)),
+])
+def test_builtin_transport_execute_overrides_remain_dynamic(
+    transport_type, scope, before_construction, api_type, method, args, monkeypatch,
+) -> None:
+    transport = transport_type(["127.0.0.1:7709"], heartbeat_interval=None)
+    marker = object()
+    calls = []
+
+    def execute(*arguments):
+        calls.append(arguments)
+        return marker
+
+    def replace_execute():
+        monkeypatch.setattr(transport_type if scope == "class" else transport, "execute", execute)
+
+    if before_construction:
+        replace_execute()
+    api = api_type(transport, native_services=True)
+    if not before_construction:
+        replace_execute()
+    try:
+        assert getattr(api, method)(*args) is marker
+        assert len(calls) == 1
+        # Restoring an override re-enables the ordinary native service path.
+        monkeypatch.undo()
+        assert api._native_services
+    finally:
+        transport.close()
 
 
 def test_native_suspended_retains_eighty_row_chunks_and_return_order() -> None:

@@ -11,12 +11,15 @@ import subprocess
 from enum import Enum
 from pathlib import Path
 
+import pytest
+
 from eltdx.protocol.commands import COMMANDS
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "tests/contracts/manifests/rust_sdk_migration.json"
 BASELINE = ROOT / "docs/rust-sdk/baseline-python-api.json"
 RUNTIME_BASELINE = ROOT / "tests/contracts/manifests/python_runtime_reflection.json"
+SDK_ADDITIONS = ROOT / "tests/contracts/manifests/python_sdk_ast_additions.json"
 SPECIAL = {
     "__init__", "__enter__", "__exit__", "__getitem__", "__len__", "__iter__",
     "__contains__", "__next__", "__bool__", "__call__", "__aenter__", "__aexit__",
@@ -503,7 +506,9 @@ def test_pytest_reference_requires_exact_collectable_test_path(tmp_path: Path) -
         encoding="utf-8",
     )
     assert _contract_target_exists(tmp_path, "test_contract.py::TestGroup::test_exact")
-    assert not _contract_target_exists(tmp_path, "test_contract.py::test_exact")
+    # Pytest collects a module function even when its argument is called self;
+    # fixture resolution happens later and is not this static node check.
+    assert _contract_target_exists(tmp_path, "test_contract.py::test_exact")
     assert not _contract_target_exists(tmp_path, "test_contract.py::TestGroup::helper")
     assert not _contract_target_exists(tmp_path, "contract.py::TestGroup::test_exact")
     nested_class_file = tmp_path / "test_nested_class.py"
@@ -600,11 +605,87 @@ def _without_locations(value):
     return value
 
 
+def _import_bindings(imports):
+    return [dict(source=item["from"], level=item["level"], **name)
+            for item in imports for name in item["names"]]
+
+
+def _legacy_ast_projection(module, additions):
+    """Remove only the exact reviewed SDK additions, preserving the old API."""
+    current = _without_locations(module)
+    assert set(additions) <= {"imports", "functions", "methods", "constructors", "all"}
+    imports = _import_bindings(current["imports"])
+    for added in additions.get("imports", []):
+        assert added in imports, (current["path"], added)
+        imports.remove(added)
+    current["imports"] = sorted(imports, key=lambda item: json.dumps(item, sort_keys=True))
+    for added in additions.get("functions", []):
+        assert added in current["functions"], (current["path"], added)
+        current["functions"].remove(added)
+    classes = {item["name"]: item for item in current["classes"]}
+    for name, methods in additions.get("methods", {}).items():
+        for added in methods:
+            assert added in classes[name]["methods"], (current["path"], name, added)
+            classes[name]["methods"].remove(added)
+    for name, approved in additions.get("constructors", {}).items():
+        methods = classes[name]["methods"]
+        constructor = next(item for item in methods if item["name"] == "__init__")
+        assert constructor == approved["after"], (current["path"], name)
+        # The sole approved signature extension is an optional final keyword.
+        before, after = approved["before"], approved["after"]
+        assert after["parameters"] == before["parameters"] + [{
+            "name": "native_services", "kind": "keyword_only", "annotation": "bool",
+            "has_default": True, "default_expr": "False",
+        }]
+        assert {k: v for k, v in before.items() if k not in {"signature", "parameters"}} == {
+            k: v for k, v in after.items() if k not in {"signature", "parameters"}
+        }
+        methods[methods.index(constructor)] = before
+    if "all" in additions:
+        assert current["all"] == additions["all"]["after"], current["path"]
+        current["all"] = additions["all"]["before"]
+    return current
+
+
 def test_current_worktree_ast_contract_matches_frozen_snapshot() -> None:
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
+    artifact = json.loads(SDK_ADDITIONS.read_text(encoding="utf-8"))
+    assert artifact["schema_version"] == 1
+    assert artifact["source_revision"] == baseline["source_revision"]
+    additions = artifact["modules"]
+    assert set(additions) <= {module["path"] for module in baseline["modules"]}
     for module in baseline["modules"]:
         current = _source_record(module["path"], (ROOT / module["path"]).read_bytes())
-        assert _without_locations(current) == _without_locations(module)
+        assert _legacy_ast_projection(current, additions.get(module["path"], {})) == _legacy_ast_projection(module, {}), module["path"]
+
+
+def test_sdk_ast_additions_do_not_allow_existing_api_drift() -> None:
+    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
+    artifact = json.loads(SDK_ADDITIONS.read_text(encoding="utf-8"))
+    module = next(item for item in baseline["modules"] if item["path"] == "src/eltdx/api/base.py")
+    current = _source_record(module["path"], (ROOT / module["path"]).read_bytes())
+    approved = artifact["modules"][module["path"]]
+    changed = json.loads(json.dumps(current))
+    constructor = changed["classes"][0]["methods"][0]
+    constructor["parameters"][-1]["default_expr"] = "True"
+    with pytest.raises(AssertionError):
+        _legacy_ast_projection(changed, approved)
+    for mutation in ("import", "function", "alias", "export", "signature"):
+        changed = json.loads(json.dumps(current))
+        if mutation == "import":
+            changed["imports"] = changed["imports"][1:]
+        elif mutation == "function":
+            changed["functions"].append({"name": "unexpected_public_function"})
+        elif mutation == "alias":
+            changed["aliases"].append({"name": "unexpected_public_alias", "value_expr": "42"})
+        elif mutation == "export":
+            changed["all"] = {"expression": "[]", "literal_names": []}
+        else:
+            changed["classes"][0]["methods"][0]["returns"] = "object"
+        # Exercise the real projection and comparison: approved additions must
+        # never exempt a module from checking its legacy bindings or API.
+        with pytest.raises(AssertionError):
+            assert _legacy_ast_projection(changed, approved) == _legacy_ast_projection(module, {})
 
 
 def test_runtime_reflection_matches_versioned_artifact() -> None:

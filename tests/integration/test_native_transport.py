@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from eltdx.client import TdxClient
-from eltdx.exceptions import ConnectionClosedError, MissingCodesWarning, ProtocolError
+from eltdx.exceptions import ConnectionClosedError, MissingCodesError, MissingCodesWarning, ProtocolError
 from eltdx.models import HandshakeInfo, HeartbeatAck, QuoteRefreshPage
 from eltdx.protocol import decode_response
 from eltdx.protocol.constants import (
@@ -116,27 +116,32 @@ def test_python_quote_facade_uses_shared_rust_snapshot_service() -> None:
         assert server.wait_for_handlers(1)
 
 
-def test_python_quote_bridge_preserves_server_order_on_initial_snapshot() -> None:
+def test_python_quote_bridge_recovers_reordered_wire_snapshots() -> None:
     second_code = _BRIDGE_CODE[:-1] + "2"
     response_codes = (second_code, _BRIDGE_CODE)
     snapshot_payload = _quote_bridge_snapshot_payload(response_codes)
 
     def handler(connection) -> None:
-        _serve_quote_bridge(connection, snapshot_payload=snapshot_payload)
+        _serve_quote_bridge_recovery(connection, (snapshot_payload,
+            _quote_bridge_snapshot_payload((_BRIDGE_CODE,)),
+            _quote_bridge_snapshot_payload((second_code,))))
 
     with ScriptedServer([handler]) as server:
         client = TdxClient(
             transport=SocketTransport([server.host], timeout=2, heartbeat_interval=None)
         )
         try:
+            # The frozen wire parser rejects the reordered variable records.
+            # The public facade then splits and rebuilds in request order.
             rows = client.quotes.get_snapshots([_BRIDGE_CODE, second_code])
-            assert [row.full_code for row in rows] == list(response_codes)
+            assert [row.full_code for row in rows] == [_BRIDGE_CODE, second_code]
         finally:
             client.close()
         assert server.wait_for_handlers(1)
 
 
-def test_python_quote_bridge_recovery_silently_omits_unmatched_rows() -> None:
+@pytest.mark.parametrize("on_missing", ["raise", "skip"])
+def test_python_quote_bridge_recovers_foreign_single_as_missing(on_missing) -> None:
     second_code = _BRIDGE_CODE[:-1] + "2"
     other_code_row = _quote_bridge_snapshot_payload((second_code,))
     empty = b"\x00\x00\x00\x00"
@@ -151,8 +156,14 @@ def test_python_quote_bridge_recovery_silently_omits_unmatched_rows() -> None:
             transport=SocketTransport([server.host], timeout=2, heartbeat_interval=None)
         )
         try:
-            rows = client.quotes.get_snapshots([_BRIDGE_CODE, second_code])
-            assert [row.full_code for row in rows] == [second_code]
+            if on_missing == "raise":
+                with pytest.raises(MissingCodesError) as caught:
+                    client.quotes.get_snapshots([_BRIDGE_CODE, second_code])
+                assert caught.value.missing_codes == (_BRIDGE_CODE,)
+            else:
+                with pytest.warns(MissingCodesWarning):
+                    rows = client.quotes.get_snapshots([_BRIDGE_CODE, second_code], on_missing="skip")
+                assert [row.full_code for row in rows] == [second_code]
         finally:
             client.close()
         assert server.wait_for_handlers(1)
