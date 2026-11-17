@@ -50,8 +50,8 @@ pub use minutes::MinuteService;
 pub(crate) use minutes::{legacy_minute_reply, minute_command};
 pub(crate) use money_flow::legacy_money_flow_reply;
 pub use money_flow::MoneyFlowService;
+pub(crate) use quotes::legacy_snapshot_rows;
 pub(crate) use quotes::{legacy_quote_reply, suspended_status};
-pub(crate) use quotes::{legacy_snapshot_rows, RawSnapshotBatch, RawSnapshotSlot};
 pub(crate) use quotes::{
     pinned_snapshot_batch, project_refresh_updates, refresh_command, SNAPSHOT_RECOVERY_REQUESTS,
 };
@@ -93,6 +93,10 @@ impl ServiceSource {
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
 fn result_meta(
     context: &OperationContext,
     _config: &ClientConfig,

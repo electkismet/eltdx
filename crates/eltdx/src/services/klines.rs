@@ -116,24 +116,18 @@ impl KlineService {
         checked_ids(std::slice::from_ref(id))?;
         query.validate()?;
         validate_page_options(query.pages())?;
-        let engine = self.engine_for_cursor(&context, query.cursor())?;
-        let metadata = self.capture_metadata(&context, std::slice::from_ref(id))?;
+        let engine = self.engine_for_cursor(context, query.cursor())?;
+        let metadata = self.capture_metadata(context, std::slice::from_ref(id))?;
         verify_cursor(
             query.cursor(),
-            ordinary_fingerprint(&context, id, query, resolve_kind(id, query.kind()))?,
+            ordinary_fingerprint(context, id, query, resolve_kind(id, query.kind()))?,
             query.pages().page_size(),
-            &context,
+            context,
             Some(metadata.version()),
         )?;
-        let mut pin = self.executor.acquire_pin(&engine, &context)?;
-        let result = self.collect_ordinary_with(
-            &context,
-            id,
-            query,
-            &metadata,
-            &engine,
-            Some(pin.handle()?),
-        );
+        let mut pin = self.executor.acquire_pin(&engine, context)?;
+        let result =
+            self.collect_ordinary_with(context, id, query, &metadata, &engine, Some(pin.handle()?));
         match result {
             Ok(series) => {
                 self.executor.release_pin(context, &mut pin, None)?;
@@ -531,6 +525,10 @@ impl KlineService {
         self.page_ordinary_with(context, id, query, request, &metadata, &engine, pin)
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Keep the checked operation context, query and source provenance explicit."
+    )]
     fn page_ordinary_with(
         &self,
         context: &OperationContext,
@@ -776,6 +774,10 @@ impl KlineService {
         self.page_delisted_with(context, id, query, request, &metadata, &engine, pin)
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Keep the checked operation context, query and source provenance explicit."
+    )]
     fn page_delisted_with(
         &self,
         context: &OperationContext,
@@ -1085,6 +1087,10 @@ impl KlineService {
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
 fn finish_collection(
     context: &OperationContext,
     id: &SecurityId,

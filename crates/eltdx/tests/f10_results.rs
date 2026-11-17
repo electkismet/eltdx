@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Independent loopback result fixtures; intentionally not run during source implementation.
 #![cfg(feature = "f10")]
 use eltdx::f10::*;

@@ -160,7 +160,9 @@ impl CompanyNewsQuery {
         let definition = super::page_template("company_news", |value| {
             Ok::<_, crate::Error>(self.section.as_str() == value)
         })?
-        .expect("built-in company news");
+        .ok_or_else(|| {
+            crate::Error::new(crate::ErrorKind::Internal, "built-in company news missing")
+        })?;
         super::template::native_inputs(definition, &self.code, self.section.as_str(), |name| {
             Ok(match name {
                 "keyword" => j(self.keyword.as_str()),

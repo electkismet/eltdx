@@ -134,6 +134,10 @@ impl Drop for Subscription {
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
 pub(crate) fn establish(
     entry: Instant,
     executor: HqExecutor,
@@ -210,7 +214,10 @@ pub(crate) fn establish(
             // Push the new guard before activation: the failing group's own
             // reservation participates in the same rollback as prior groups.
             pins.push(executor.acquire_pin(&engine, &context)?);
-            let pin = pins.last().expect("newly acquired pin").handle()?;
+            let pin = pins
+                .last()
+                .ok_or_else(|| Error::new(ErrorKind::Internal, "newly acquired pin missing"))?
+                .handle()?;
             let raw = executor.execute_pinned_raw(
                 &engine,
                 pin,
@@ -677,9 +684,10 @@ impl Control {
             let local = Instant::now()
                 .checked_add(self.config.close_timeout())
                 .unwrap_or_else(Instant::now);
-            state.deadline = Some(state.deadline.map_or(local, |deadline| deadline.min(local)));
+            let deadline = state.deadline.map_or(local, |deadline| deadline.min(local));
+            state.deadline = Some(deadline);
             state.routes.clear();
-            state.deadline.expect("retirement deadline installed")
+            deadline
         };
         let mut failure = None;
         for group in &self.groups {
@@ -791,7 +799,7 @@ impl OwnerTaskGroup for Control {
             .map(|state| {
                 state.retired
                     && state.cleanup_error.is_none()
-                    && state.worker.as_ref().map_or(true, JoinHandle::is_finished)
+                    && state.worker.as_ref().is_none_or(JoinHandle::is_finished)
             })
             .unwrap_or(false)
     }

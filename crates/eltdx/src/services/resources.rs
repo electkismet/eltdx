@@ -181,6 +181,10 @@ impl ResourceService {
         )
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Keep the checked operation context, query and source provenance explicit."
+    )]
     fn download_bounded_in_context(
         &self,
         context: &OperationContext,

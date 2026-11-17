@@ -289,6 +289,10 @@ pub struct QhIndexValuationQuery {
     start: Option<TradingDate>,
     end: Option<TradingDate>,
 }
+#[allow(
+    clippy::expect_used,
+    reason = "The default futures symbol is a fixed validated decimal literal."
+)]
 impl Default for QhIndexValuationQuery {
     fn default() -> Self {
         Self {
@@ -334,8 +338,10 @@ impl QhIndexValuationQuery {
         Ok(self)
     }
     pub fn to_call(&self) -> Result<CallQuery> {
-        let definition = super::sector_templates::sector_dynamic("qh_index_valuation")
-            .expect("built-in F10 sector");
+        let definition =
+            super::sector_templates::sector_dynamic("qh_index_valuation").ok_or_else(|| {
+                crate::Error::new(crate::ErrorKind::Internal, "built-in F10 sector missing")
+            })?;
         super::template::native_inputs(definition, &self.code, self.section.as_str(), |name| {
             Ok(j(date_text(match name {
                 "start" => self.start,
@@ -352,6 +358,10 @@ pub struct QhWeightsQuery {
     section: SectionCode,
     date: Option<TradingDate>,
 }
+#[allow(
+    clippy::expect_used,
+    reason = "The default futures symbol is a fixed validated decimal literal."
+)]
 impl Default for QhWeightsQuery {
     fn default() -> Self {
         Self {
@@ -390,7 +400,9 @@ impl QhWeightsQuery {
         let definition = if self.section.as_str() == "cfghyfb" {
             super::sector_templates::sector_weights_without_date()
         } else {
-            super::sector_templates::sector_dynamic("qh_weights").expect("built-in F10 sector")
+            super::sector_templates::sector_dynamic("qh_weights").ok_or_else(|| {
+                crate::Error::new(crate::ErrorKind::Internal, "built-in F10 sector missing")
+            })?
         };
         super::template::native_inputs(definition, &self.code, self.section.as_str(), |_| {
             Ok(j(date_text(self.date)))

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Public-method integration layer, complementary to the independent literal
 //! wire snapshots in f10_route_inventory. Authored before final verification.
 #![cfg(feature = "f10")]

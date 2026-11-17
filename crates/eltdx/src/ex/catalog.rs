@@ -297,8 +297,10 @@ mod tests {
     }
     #[test]
     fn generation_exhaustion_never_wraps_or_mutates_existing_snapshot() {
-        let mut cache = Cache::<u8>::default();
-        cache.next_version = u64::MAX;
+        let mut cache = Cache::<u8> {
+            next_version: u64::MAX,
+            ..Cache::default()
+        };
         assert_eq!(
             cache.begin_load().unwrap_err().kind(),
             ErrorKind::LimitExceeded

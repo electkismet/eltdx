@@ -33,6 +33,10 @@ pub(crate) fn validate_pages(pages: &PageOptions, maximum: usize) -> Result<()> 
     }
     Ok(())
 }
+#[allow(
+    clippy::expect_used,
+    reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+)]
 pub(crate) fn page_defaults(size: usize, pages: usize, rows: usize) -> PageOptions {
     PageOptions::new(size, pages, rows).expect("positive fixed MAC page defaults")
 }
@@ -107,6 +111,10 @@ pub struct QuoteListQuery {
     pages: PageOptions,
 }
 impl QuoteListQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new(category: Category) -> Self {
         Self {
             category,
@@ -194,6 +202,10 @@ pub struct BarsQuery {
     strict_adjustment: bool,
 }
 impl BarsQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new(id: MacInstrumentId) -> Self {
         Self {
             id,
@@ -382,6 +394,10 @@ pub struct TransactionsQuery {
     pages: PageOptions,
 }
 impl TransactionsQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new(id: MacInstrumentId) -> Self {
         Self {
             chart: TickChartQuery::new(id),
@@ -437,6 +453,10 @@ pub struct BoardsQuery {
     pages: PageOptions,
 }
 impl Default for BoardsQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     fn default() -> Self {
         Self {
             board_type: BoardType::All,
@@ -484,6 +504,10 @@ pub struct BoardMembersQuery {
     pages: PageOptions,
 }
 impl BoardMembersQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new(board: BoardSymbol) -> Self {
         Self {
             board,
@@ -686,6 +710,10 @@ pub struct BoardChangeRankingQuery {
     history_pages: PageOptions,
 }
 impl Default for BoardChangeRankingQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     fn default() -> Self {
         Self {
             board_type: BoardType::Hy,
@@ -766,6 +794,10 @@ pub struct UnusualQuery {
     pages: PageOptions,
 }
 impl UnusualQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new(market: MacMarketId) -> Self {
         Self {
             market,
@@ -814,6 +846,10 @@ pub struct KlineOffsetsQuery {
     count: NonZeroU32,
 }
 impl Default for KlineOffsetsQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     fn default() -> Self {
         Self {
             offset: 0,
@@ -878,6 +914,10 @@ pub struct DownloadChunkQuery {
     size: NonZeroU32,
 }
 impl DownloadChunkQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new(filename: RemoteFileName) -> Self {
         Self {
             filename,
@@ -970,6 +1010,10 @@ pub struct GoodsQuery {
     count: NonZeroU32,
 }
 impl GoodsQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new(market: MacMarketId) -> Self {
         Self {
             market,

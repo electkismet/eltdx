@@ -94,6 +94,10 @@ pub struct QuoteListQuery {
     pages: PageOptions,
 }
 impl QuoteListQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new(market: ExMarketId) -> Self {
         Self {
             market,
@@ -299,6 +303,10 @@ pub struct TransactionsQuery {
     pages: PageOptions,
 }
 impl TransactionsQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new(id: ExInstrumentId) -> Result<Self> {
         let wire_id = identity(&id)?;
         let size = if hk(id.market()) { 1800 } else { 1000 };
@@ -325,9 +333,6 @@ impl TransactionsQuery {
     }
     pub fn pages(&self) -> &PageOptions {
         &self.pages
-    }
-    pub(crate) fn wire_id(&self) -> &MacInstrumentId {
-        &self.wire_id
     }
     pub const fn wire_page_maximum(&self) -> u16 {
         if matches!(self.id.market().get(), 27 | 31 | 48 | 49 | 71 | 98) {
@@ -406,7 +411,7 @@ impl AllTransactionsQuery {
     pub fn pages(&self) -> &PageOptions {
         &self.pages
     }
-    pub fn with_id(mut self, value: ExInstrumentId) -> Result<Self> {
+    pub fn with_id(self, value: ExInstrumentId) -> Result<Self> {
         Self::new(value)?
             .with_date(self.date)?
             .with_pages(self.pages)?
@@ -476,6 +481,7 @@ macro_rules! directory_query {
         #[derive(Clone, Debug)]
         pub struct $name { market: ExMarketId, start: u32, count: NonZeroU32, pages: PageOptions }
         impl $name {
+            #[allow(clippy::expect_used, reason = "Only fixed defaults or closed built-in field tables are unwrapped here.")]
             pub fn new(market: ExMarketId) -> Self { Self { market, start: 0, count: NonZeroU32::new(600).expect("positive"), pages: page_defaults(600,2000,1_200_000) } }
             pub const fn market(&self) -> ExMarketId { self.market }
             pub const fn start(&self) -> u32 { self.start }

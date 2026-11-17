@@ -469,7 +469,12 @@ fn resolve_all(
                         crate::operation::ChildPurpose::Metadata,
                     )?);
                 }
-                let instruments = names.as_ref().expect("installed exact-name directory");
+                let instruments = names.as_ref().ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::Internal,
+                        "exact-name directory missing after load",
+                    )
+                })?;
                 let mut candidates = Vec::new();
                 let mut seen = HashSet::new();
                 for (index, row) in instruments.rows().iter().enumerate() {

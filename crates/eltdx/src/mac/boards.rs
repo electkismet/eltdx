@@ -617,7 +617,8 @@ fn history(
         0,
         Target::All,
         pages,
-        NonZeroU16::new(700).expect("positive"),
+        NonZeroU16::new(700)
+            .ok_or_else(|| Error::new(ErrorKind::Internal, "invalid fixed board page size"))?,
         u32::MAX,
         EndPolicy::EmptyOrShort,
     )?;
@@ -834,17 +835,18 @@ fn stable_indices(
             let end = base.saturating_add(step).min(length);
             let mut left = base;
             let mut right = middle;
-            for target in base..end {
+            for (relative, output) in scratch[base..end].iter_mut().enumerate() {
+                let target = base + relative;
                 if target % 256 == 0 {
                     context.check_boundary(TimeoutPhase::Aggregate)?;
                 }
                 if left < middle
                     && (right == end || compare(values[left], values[right]) != Ordering::Greater)
                 {
-                    scratch[target] = values[left];
+                    *output = values[left];
                     left += 1;
                 } else {
-                    scratch[target] = values[right];
+                    *output = values[right];
                     right += 1;
                 }
             }

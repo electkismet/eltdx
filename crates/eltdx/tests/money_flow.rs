@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Synthetic identity-header/88-byte records, not an actual 0FFC capture.
 #[path = "support/hq_server.rs"]
 mod hq_server;

@@ -115,6 +115,7 @@
 #![cfg_attr(feature = "mac", doc = include_str!("guide/mac.md"))]
 #![cfg_attr(feature = "serde", doc = include_str!("guide/serde.md"))]
 #![forbid(unsafe_code)]
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod adjustment;
 mod archive;

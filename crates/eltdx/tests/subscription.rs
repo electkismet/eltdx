@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Policy and deterministic loopback subscription source cases. These are
 //! synthetic fixtures, authored without executing the test target.
 use eltdx::types::RefreshRequest;

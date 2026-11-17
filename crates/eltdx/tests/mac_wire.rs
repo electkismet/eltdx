@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // Authored Stage A source cases. Execution is deferred until T01-T30 code is complete.
 #![cfg(feature = "mac")]
 use eltdx::mac;

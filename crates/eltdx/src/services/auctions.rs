@@ -214,7 +214,7 @@ impl AuctionService {
             .map(|row| row.record_range)
             .collect::<Vec<_>>();
         let meta = result_meta(
-            &context,
+            context,
             &self.config,
             Some(&snapshot),
             &ServiceSource::from_reply(&decoded),

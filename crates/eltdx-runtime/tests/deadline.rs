@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::io::{self, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc;

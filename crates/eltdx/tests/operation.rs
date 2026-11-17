@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Public options/bridge source cases; authored now, executed only in final plan validation.
 use std::error::Error as _;
 use std::time::{Duration, Instant};

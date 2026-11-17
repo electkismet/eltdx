@@ -200,6 +200,10 @@ pub(crate) fn merge_meta(
     crate::services::aggregate_meta(context, metas, version)
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
 pub(crate) fn instruments(
     owner: &MacOwner,
     context: &OperationContext,
@@ -460,7 +464,8 @@ pub(crate) fn goods_snapshot(
         0,
         Target::All,
         pages.clone(),
-        NonZeroU16::new(1000).unwrap(),
+        NonZeroU16::new(1000)
+            .ok_or_else(|| Error::new(ErrorKind::Internal, "invalid fixed goods page size"))?,
         u32::MAX,
         EndPolicy::EmptyOrShort,
     )?;

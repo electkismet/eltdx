@@ -10,10 +10,10 @@ use crate::services::{aggregate_meta, allocation_error, KlineService, SessionSer
 use crate::types::{
     Amount, AmountUnit, BatchItemState, CalendarQuery, CategoryQuery, CodeScanQuery, Diagnostic,
     EnrichmentStatus, FinanceField, FinanceRecord, FullQuote, HandshakeInfo, KlineQuery,
-    KlineSeries, LadderQuery, LimitDecision, LimitStatus, NumericValue, Price, Quantity,
-    QuantityUnit, QuoteSort, Ratio, RatioUnit, ResultMeta, SecurityId, SecuritySelection,
-    ShortlineIndicator, ShortlineQuery, ShortlineTable, Snapshot, Stat2Row, StatRow,
-    StatsAlignment, StatsQuery, Table, TradingDate, ValueProvenance,
+    KlineSeries, LadderQuery, LimitDecision, LimitStatus, NumericValue, Quantity, QuantityUnit,
+    QuoteSort, Ratio, RatioUnit, ResultMeta, SecurityId, SecuritySelection, ShortlineIndicator,
+    ShortlineQuery, ShortlineTable, Snapshot, Stat2Row, StatRow, StatsAlignment, StatsQuery, Table,
+    TradingDate, ValueProvenance,
 };
 use crate::{Error, ErrorKind, Result, TimeoutPhase};
 
@@ -608,6 +608,10 @@ fn align_stat2(row: Option<&Stat2Row>, target: TradingDate, previous: TradingDat
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
 fn build_indicator(
     quote: FullQuote,
     stat: Option<&StatRow>,
@@ -1063,7 +1067,7 @@ mod source_cases {
     use super::*;
     use crate::types::{
         AdjustMode, BarTime, DataPage, EndEvidence, EventTime, FinanceValue, KlineBar, KlineKind,
-        KlinePeriod, LimitRule, QuoteLevel,
+        KlinePeriod, LimitRule, Price, QuoteLevel,
     };
 
     fn date(day: u8) -> TradingDate {

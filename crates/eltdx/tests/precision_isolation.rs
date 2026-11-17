@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Source-level integration cases for operation-captured immutable precision.
 //! The payload is synthetic; metadata owner/store installation belongs to T10.
 

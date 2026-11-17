@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "offline")]
 use eltdx::offline::{gbbq, ReadOptions};
 use eltdx::{CancellationToken, ErrorKind, RawPolicy};

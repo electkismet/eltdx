@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored public MAC-EX contracts. Do not execute before T01-T30 sources
 //! are complete. Every login payload is synthetic, not production evidence.
 #![cfg(feature = "mac")]

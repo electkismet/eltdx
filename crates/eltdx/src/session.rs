@@ -55,7 +55,7 @@ impl CloseFailure {
         }
     }
 
-    fn into_error(&self) -> Error {
+    fn to_error(&self) -> Error {
         let mut error = Error::new(self.kind, self.message.clone());
         for (key, value) in &self.context {
             error = error.with_context(key.clone(), value.clone());
@@ -607,7 +607,7 @@ impl SessionOwner {
                                 .last_result
                                 .as_ref()
                                 .and_then(|result| result.as_ref().err())
-                                .map_or_else(close_timeout_error, CloseFailure::into_error));
+                                .map_or_else(close_timeout_error, CloseFailure::to_error));
                         }
                         let (next, wait) = self
                             .changed
@@ -625,7 +625,7 @@ impl SessionOwner {
                                     )
                                 })?
                                 .clone()
-                                .map_err(|failure| failure.into_error());
+                                .map_err(|failure| failure.to_error());
                         }
                         if wait.timed_out() && state.phase == SessionPhase::Closing {
                             return Err(close_timeout_error());
@@ -662,7 +662,7 @@ impl SessionOwner {
                             Error::new(ErrorKind::Internal, "failed session has no failure lineage")
                         })?;
                         if state.cleanup_confirmed {
-                            return Err(prior_failure.into_error());
+                            return Err(prior_failure.to_error());
                         }
                         let deadline = Instant::now()
                             .checked_add(self.cleanup_timeout)
@@ -752,13 +752,13 @@ impl SessionOwner {
                 state.phase = SessionPhase::FailedClosed;
                 state.cleanup_confirmed = cleanup_confirmed;
                 state.last_result = Some(Err(root.clone()));
-                Err(root.into_error())
+                Err(root.to_error())
             }
             (Some(root), None) => {
                 state.phase = SessionPhase::FailedClosed;
                 state.cleanup_confirmed = cleanup_confirmed;
                 state.last_result = Some(Err(root.clone()));
-                Err(root.into_error())
+                Err(root.to_error())
             }
             (None, Some(error)) => {
                 state.phase = SessionPhase::FailedClosed;
@@ -766,7 +766,7 @@ impl SessionOwner {
                 let root = CloseFailure::from_error(error);
                 state.close_failure = Some(root.clone());
                 state.last_result = Some(Err(root.clone()));
-                Err(root.into_error())
+                Err(root.to_error())
             }
             (None, None) => {
                 state.phase = SessionPhase::Closed;
@@ -948,6 +948,7 @@ impl SessionOperation {
         self.cancellation.cancelled.load(Ordering::Acquire)
     }
 
+    #[cfg(test)]
     pub(crate) fn wait_cancelled(&self, timeout: Duration) -> bool {
         if self.is_cancelled() {
             return true;
@@ -1143,7 +1144,7 @@ mod tests {
         let runtime = eltdx_runtime::RuntimeError::internal("pin retirement failed")
             .with_context("pin_id", "7");
         let failure = super::CloseFailure::from_error(super::map_close_error(runtime.clone()));
-        let error = failure.into_error();
+        let error = failure.to_error();
         assert_eq!(error.message(), "pin retirement failed");
         assert_eq!(error.context(), runtime.context().as_slice());
         assert_eq!(

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Source-only public composition cases. Run only after all T01-T30 code exists.
 #![cfg(feature = "mac")]
 #[path = "support/extension_peer.rs"]

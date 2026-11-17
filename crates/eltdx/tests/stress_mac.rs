@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Synthetic MAC-EX cache stress. No production login claim is made.
 #![cfg(feature = "mac")]
 #[path = "support/stress_log.rs"]

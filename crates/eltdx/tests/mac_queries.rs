@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // Authored source only; execution waits for the complete T01-T30 source gate.
 #![cfg(feature = "mac")]
 use eltdx::{ex, mac, types, DownloadOptions, ErrorKind, PageOptions, TradingDate};

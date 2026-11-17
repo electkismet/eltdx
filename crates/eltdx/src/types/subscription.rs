@@ -155,6 +155,7 @@ impl PushGap {
             generation: None,
         }
     }
+    #[cfg(test)]
     pub(crate) fn with_source(mut self, epoch: u64, slot: usize, generation: u64) -> Self {
         self.engine_epoch = Some(epoch);
         self.slot = Some(slot);
@@ -210,6 +211,10 @@ impl PushGap {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[non_exhaustive]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "Keep by-value event and result variants compatible with bounded queue accounting."
+)]
 pub enum PushEvent {
     Initial(SnapshotBatch),
     Update(QuoteUpdate),

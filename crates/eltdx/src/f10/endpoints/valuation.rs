@@ -11,6 +11,10 @@ use std::time::Instant;
 fn nz(value: u32) -> NonZeroU32 {
     NonZeroU32::new(value).unwrap_or(NonZeroU32::MIN)
 }
+#[allow(
+    clippy::expect_used,
+    reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+)]
 fn id(value: &'static str) -> RequestId {
     RequestId::new(value).expect("built-in decimal request id")
 }
@@ -199,6 +203,10 @@ macro_rules! stage_query {
                 self.page_size = count(value)?;
                 Ok(self)
             }
+            #[allow(
+                clippy::expect_used,
+                reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+            )]
             pub fn to_call(&self) -> Result<CallQuery> {
                 ThemeMarketQuery::new(self.code.clone())
                     .with_req_id(id(

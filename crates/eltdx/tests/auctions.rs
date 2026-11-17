@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored synthetic HQ auction cases; execution deferred with the full SDK.
 #[path = "support/hq_server.rs"]
 mod hq_server;

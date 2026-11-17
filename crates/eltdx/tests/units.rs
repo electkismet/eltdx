@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored source cases; execution is deferred until the controller opens validation.
 use std::num::NonZeroU32;
 

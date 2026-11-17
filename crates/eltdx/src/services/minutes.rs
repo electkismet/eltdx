@@ -285,12 +285,12 @@ impl MinuteService {
         let metadata = request_metadata(
             &self.executor,
             &self.engine,
-            &context,
+            context,
             &self.config,
             &self.namespace,
             std::slice::from_ref(&command),
         )?;
-        let decoded = self.fetch(&context, command, ChildPurpose::Required)?;
+        let decoded = self.fetch(context, command, ChildPurpose::Required)?;
         let CommandResponse::IntradayAux(response) = &decoded.response else {
             return Err(wrong_response("intraday aux"));
         };
@@ -346,7 +346,7 @@ impl MinuteService {
         context.record_work(points.len(), 0)?;
         let ranges = response.record_ranges.clone();
         let meta = response_meta(
-            &context,
+            context,
             &self.config,
             &metadata,
             &decoded,

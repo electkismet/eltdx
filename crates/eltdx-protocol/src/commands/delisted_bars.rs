@@ -1,4 +1,4 @@
-use crate::context::{ParseContext, ParseOptions, RecordRange};
+use crate::context::{ParseContext, ParseOptions};
 use bytes::Bytes;
 
 use crate::commands::klines::KlineBar;

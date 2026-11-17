@@ -48,6 +48,7 @@ impl CatalogLimits {
 pub(crate) enum PageEvidence {
     More,
     TerminalEmpty,
+    #[cfg(test)]
     TerminalTotal(u32),
 }
 
@@ -166,6 +167,7 @@ impl MarketCandidate {
             PageEvidence::TerminalEmpty if count != 0 => {
                 return Err(candidate_error("terminal empty evidence contains records"))
             }
+            #[cfg(test)]
             PageEvidence::TerminalTotal(total) if offset.checked_add(count) != Some(total) => {
                 return Err(candidate_error(
                     "terminal total does not match accumulated market records",
@@ -208,10 +210,12 @@ impl MarketCandidate {
             .next_offset
             .checked_add(count)
             .ok_or_else(|| candidate_error("market offset overflows u32"))?;
-        self.terminal = matches!(
-            evidence,
-            PageEvidence::TerminalEmpty | PageEvidence::TerminalTotal(_)
-        );
+        self.terminal = match evidence {
+            PageEvidence::TerminalEmpty => true,
+            #[cfg(test)]
+            PageEvidence::TerminalTotal(_) => true,
+            PageEvidence::More => false,
+        };
         Ok(())
     }
 
@@ -539,6 +543,7 @@ impl MetadataStore {
             .cloned())
     }
 
+    #[cfg(test)]
     pub(crate) fn last_known_good(
         &self,
         key: &SnapshotKey,
@@ -594,6 +599,10 @@ impl MetadataStore {
 
     /// The sole production loader owns only runtime state and cooperatively
     /// polls its source/cleanup bounds; arbitrary callbacks are test-only.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Keep the checked operation context, query and source provenance explicit."
+    )]
     pub(crate) fn load_hq_market(
         &self,
         engine: eltdx_runtime::engine::Engine,
@@ -1073,10 +1082,6 @@ impl FlightControl {
             .map_err(|_| flight_poisoned())?;
         Ok(bound.map_or(local, |owner| local.min(owner)))
     }
-    pub(crate) fn timeout_source(&self) -> &'static str {
-        self.flight.timeout_source
-    }
-
     pub(crate) fn check_active(&self) -> Result<()> {
         self.flight.check_source()
     }
@@ -1117,13 +1122,12 @@ struct MetadataAttemptState {
     authorizers: Mutex<HashMap<u64, CachedAuthorizer>>,
 }
 
+type SponsoredAuthorizer = (u64, OperationSponsor, Arc<dyn AttemptAuthorization>);
+
 impl MetadataAttemptState {
     fn authorizers_for_live_sponsors(
         &self,
-    ) -> std::result::Result<
-        Vec<(u64, OperationSponsor, Arc<dyn AttemptAuthorization>)>,
-        RuntimeError,
-    > {
+    ) -> std::result::Result<Vec<SponsoredAuthorizer>, RuntimeError> {
         let sponsors = self.flight.active_sponsors().map_err(to_runtime)?;
         let mut output = Vec::with_capacity(sponsors.len());
         for waiter in sponsors {
@@ -1268,17 +1272,17 @@ struct SponsoredReservation {
 
 impl ReservedAttempt for SponsoredReservation {
     fn start(self: Box<Self>, now: Instant) -> std::result::Result<(), RuntimeError> {
-        self.start_with_bound(now, None)
+        (*self).start_with_bound(now, None)
     }
 
     fn start_before(self: Box<Self>, deadline: Instant) -> std::result::Result<(), RuntimeError> {
-        self.start_with_bound(Instant::now(), Some(deadline))
+        (*self).start_with_bound(Instant::now(), Some(deadline))
     }
 }
 
 impl SponsoredReservation {
     fn start_with_bound(
-        mut self: Box<Self>,
+        mut self,
         now: Instant,
         bound: Option<Instant>,
     ) -> std::result::Result<(), RuntimeError> {

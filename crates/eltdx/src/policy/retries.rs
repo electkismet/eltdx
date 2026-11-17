@@ -157,6 +157,7 @@ impl OperationBudget {
             .and_then(|state| state.last_recoverable.clone())
     }
 
+    #[cfg(test)]
     pub(crate) fn reserve(
         self: &Arc<Self>,
         extra: bool,

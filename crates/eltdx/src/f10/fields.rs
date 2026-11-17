@@ -373,15 +373,15 @@ pub fn describe_field(context: &FieldContext, field: &str) -> FieldDescription {
 }
 /// Explicit Python suffix projection. Source cells should use describe_field.
 pub fn describe_projected_field(context: &FieldContext, field: &str) -> FieldDescription {
-    let mut description = None;
+    let mut description = describe_field(context, field);
     let result = visit_projected(
         [Ok::<_, std::convert::Infallible>(field)],
-        |field| Ok(duplicate_suffix(*field)),
+        |field| Ok(duplicate_suffix(field)),
         |field| Ok(lookup(context.labels(), field)),
         |label| Ok(label.is_none()),
         |field, label, duplicate| {
             let (base, _) = duplicate_suffix(field);
-            description = Some(FieldDescription {
+            description = FieldDescription {
                 field: field.to_owned(),
                 label: label.map(|label| match duplicate {
                     Some(index) => format!("{label}（{index}）"),
@@ -393,12 +393,12 @@ pub fn describe_projected_field(context: &FieldContext, field: &str) -> FieldDes
                 } else {
                     FieldEvidence::Unknown
                 },
-            });
+            };
             Ok(())
         },
     );
     match result {
-        Ok(()) => description.expect("one field was projected"),
+        Ok(()) => description,
         Err(impossible) => match impossible {},
     }
 }
@@ -417,7 +417,7 @@ pub fn describe_field_notes(
     let mut output = Vec::new();
     visit_projected(
         fields.iter().copied().map(Ok),
-        |field| Ok(duplicate_suffix(*field)),
+        |field| Ok(duplicate_suffix(field)),
         |field| Ok(lookup(context.notes(), field)),
         |note| Ok(note.is_none()),
         |field, note, _| {
@@ -447,7 +447,7 @@ mod projection_tests {
         let mut output = Vec::new();
         visit_projected(
             ["x__02", "unknown", "x"].into_iter().map(Ok::<_, ()>),
-            |field| Ok(duplicate_suffix(*field)),
+            |field| Ok(duplicate_suffix(field)),
             |field| Ok(if *field == "x" { Some("label") } else { None }),
             |label| Ok(label.is_none()),
             |field, label, suffix| {

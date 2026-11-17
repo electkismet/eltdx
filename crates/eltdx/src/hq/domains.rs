@@ -170,7 +170,11 @@ pub(crate) fn retire_probe<T>(
                     ErrorKind::CancelUnconfirmed,
                     "money-flow probe retirement was not confirmed",
                 )
-                .with_source(root.take().expect("probe stop cause"))
+                .with_source(
+                    root.take().ok_or_else(|| {
+                        Error::new(ErrorKind::Internal, "probe stop cause missing")
+                    })?,
+                )
                 .with_cleanup_failure(Error::new(
                     ErrorKind::Timeout,
                     "probe cleanup deadline elapsed",

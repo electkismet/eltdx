@@ -238,6 +238,7 @@ impl EventQueue {
             self.terminal = Some(error);
         }
     }
+    #[cfg(test)]
     pub(super) fn ended(&self) -> bool {
         self.ended
     }

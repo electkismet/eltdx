@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Synthetic loopback framing. This is not a real-server capture.
 
 use std::io::{self, Read, Write};
@@ -242,7 +244,7 @@ impl Server {
             .take()
             .expect("server worker")
             .join()
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "fixture server panicked"))?
+            .map_err(|_| io::Error::other("fixture server panicked"))?
     }
 }
 

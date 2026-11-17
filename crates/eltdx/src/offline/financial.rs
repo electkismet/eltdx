@@ -514,6 +514,7 @@ pub fn parse_dat_for_archive(
 
 /// Stage B supplies its existing operation checkpoint, preserving its error and
 /// total deadline at each bounded CPU unit without constructing a new operation.
+#[cfg(test)]
 pub(crate) fn parse_dat_for_archive_with_boundary(
     data: &[u8],
     filename: &str,
@@ -1249,8 +1250,8 @@ fn decimal_integer(text: &str) -> Option<String> {
         return None;
     }
     for (index, byte) in bytes.iter().enumerate() {
-        if !byte.is_ascii_digit()
-            && !(*byte == b'_'
+        if !(byte.is_ascii_digit()
+            || *byte == b'_'
                 && index > 0
                 && bytes[index - 1].is_ascii_digit()
                 && bytes.get(index + 1).is_some_and(u8::is_ascii_digit))

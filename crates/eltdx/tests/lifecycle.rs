@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::io::ErrorKind as IoErrorKind;
 use std::net::{Ipv4Addr, TcpListener};
 use std::sync::{Arc, Barrier};

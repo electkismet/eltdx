@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Shared fixed-request definitions. Execution is deferred to the final gate.
 #![cfg(feature = "f10")]
 

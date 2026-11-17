@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Shared DTO source cases. Private cache/flight cases live beside metadata::store.
 use eltdx::types::{Diagnostic, EnrichmentStatus, ResultMeta, SourceStamp};
 use eltdx::ErrorKind;

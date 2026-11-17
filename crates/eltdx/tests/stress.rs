@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Explicitly ignored candidate stress sources. No public server is contacted.
 //! Run through rust_sdk_stress.py only after all implementation sources exist.
 #[path = "support/hq_server.rs"]

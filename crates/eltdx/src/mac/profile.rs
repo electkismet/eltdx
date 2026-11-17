@@ -4,7 +4,7 @@ use crate::ex::control::Control;
 use crate::ex::frame::FrameLimits;
 use crate::ex::profile::{SetupFuture, SetupProfile};
 use crate::ex::transport::{read_frame, write};
-use crate::{Result, TimeoutPhase};
+use crate::TimeoutPhase;
 use tokio::net::TcpStream;
 
 // Exact original MAC transport constants. No EX92-byte setup is sent here.

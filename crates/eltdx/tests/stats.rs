@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Stage A source cases. Intentionally unexecuted until the T01–T30 validation gate.
 //! Include private modules so these cases need no temporary public parser API.
 #![allow(dead_code)]

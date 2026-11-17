@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Public-client fixture sources. These synthetic replies are not production
 //! authentication or response-association evidence. Execution is deferred.
 #![cfg(feature = "mac")]

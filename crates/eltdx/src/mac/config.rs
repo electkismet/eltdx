@@ -33,8 +33,10 @@ pub struct MacConfig {
 }
 impl Default for MacConfig {
     fn default() -> Self {
-        let mut transport = ExConfig::default();
-        transport.endpoints = default_endpoints();
+        let transport = ExConfig {
+            endpoints: default_endpoints(),
+            ..ExConfig::default()
+        };
         Self {
             transport,
             setup: MacSetupPolicy::default(),
@@ -50,8 +52,10 @@ pub struct MacExConfig {
 }
 impl Default for MacExConfig {
     fn default() -> Self {
-        let mut transport = ExConfig::default();
-        transport.endpoints = default_ex_endpoints();
+        let transport = ExConfig {
+            endpoints: default_ex_endpoints(),
+            ..ExConfig::default()
+        };
         Self {
             transport,
             login: None,

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored public download contracts; execution waits for all T01-T30 sources.
 //! Setup replies and file bytes are synthetic, not production protocol proof.
 #![cfg(feature = "mac")]

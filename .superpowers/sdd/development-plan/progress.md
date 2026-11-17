@@ -1051,3 +1051,7 @@ stage122完整集合复验补充：任务专用venv装入本轮3.3.5 wheel后，
 ## Stage124 late cancellation arbitration
 
 2026年11月17日stage124退役仲裁修复：基础b4ffd32。确定性late cancellation回归在生产修复前实际失败started cancellation was stale（red-attempt02；attempt01因遗漏完整模块名而0项，不能算red）。Supervisor只允许精确wire转terminal意图；Runtime取消加入已有清理，先发生的失败终态保留原原因，待retry/endpoint清理则转取消并禁止新attempt，确认仍等待真正ReconnectAck，owner lifecycle清理保留原归属。新用例覆盖普通/pinned、terminal/retry/endpoint六种顺序及外来generation拒绝，green通过。带最终测试增量的Windows Rust1.89合并all-targets实际exit0：SDK lib232/1 ignored、protocol98、runtime130、deadline5、pin1及全部普通integration/examples成功；不包含doctest/ignored压力。证据artifacts/unified/stage124-retirement。Clippy/fmt、Linux/绑定/Python重新构建、完整交付及压力性能仍待。目标active无限额。
+
+## Stage125 strict lint checkpoint
+
+2026年11月17日。格式化独立提交c62716e，语义lint修正另存；三个纯Rust库full/all-targets严格Clippy attempt11实际exit0，命令/dirty diff与原失败保留在artifacts/unified/stage125-lints。仅测试helper/fixture放宽测试lint，生产动态panic改typed Internal，未使用私有代码移除；RawResultSender私有send改送达bool但终态先发布不变，测试helper改PinReservationRuntime别名。Python源码合同603通过但使用旧native，不能算新wheel验收。接续保存候选后重跑Rust正确性/doctest/feature/Loom/Linux，重建wheel并完整Python回归，再消费者/包/文档/真实压力性能。goal active，remainingTokens=null；无代理、push、tag、发布或合并。

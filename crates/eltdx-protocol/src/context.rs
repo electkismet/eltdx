@@ -121,14 +121,13 @@ impl<'a> ParseContext<'a> {
     }
 
     pub(crate) fn legacy_quote_layout(&self) -> bool {
-        self.options.map_or(true, |options| {
-            options.price_precision.legacy_quote_layout()
-        })
+        self.options
+            .is_none_or(|options| options.price_precision.legacy_quote_layout())
     }
 
     pub(crate) fn retains_payload(&self) -> bool {
         self.options
-            .map_or(true, |options| options.raw == ParseRawPolicy::RetainPayload)
+            .is_none_or(|options| options.raw == ParseRawPolicy::RetainPayload)
     }
 
     pub(crate) fn payload(&self, original: &[u8]) -> Bytes {

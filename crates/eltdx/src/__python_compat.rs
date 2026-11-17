@@ -201,6 +201,10 @@ pub struct LegacySecurityPage {
 }
 
 #[derive(Clone, Debug)]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "Keep by-value event and result variants compatible with bounded queue accounting."
+)]
 pub enum LegacySnapshotState {
     Present {
         row: eltdx_protocol::commands::quotes::QuoteSnapshot,

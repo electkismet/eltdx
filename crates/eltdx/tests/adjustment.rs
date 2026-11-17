@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Independently calculated affine expectations, authored without execution.
 use eltdx::equity::build_adjustment_factors;
 use eltdx::types::{AdjustMode, ResultMeta};

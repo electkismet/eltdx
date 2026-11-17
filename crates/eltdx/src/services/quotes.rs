@@ -465,7 +465,7 @@ impl QuoteService {
         let metadata = request_metadata(
             &self.executor,
             &self.engine,
-            &context,
+            context,
             &self.config,
             &self.namespace,
             &requests,
@@ -534,7 +534,7 @@ impl QuoteService {
             }
             context.record_work(rows.len(), 0)?;
             metas.push(result_meta(
-                &context,
+                context,
                 &self.config,
                 Some(&metadata),
                 &ServiceSource::from_reply(&decoded),
@@ -544,7 +544,7 @@ impl QuoteService {
                 "quotes.legacy",
             ));
         }
-        let meta = aggregate_meta(&context, &metas, Some(metadata.version()))?;
+        let meta = aggregate_meta(context, &metas, Some(metadata.version()))?;
         Ok(BatchOutcome::with_meta(items, meta))
     }
 
@@ -624,6 +624,10 @@ fn project_snapshot_batch(
     Ok(BatchOutcome::with_meta(items, meta))
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
 pub(crate) fn pinned_snapshot_batch(
     executor: &HqExecutor,
     engine: &Engine,
@@ -718,13 +722,7 @@ impl QuoteService {
             .owner()
             .metadata()
             .catalog_version(&self.namespace, &markets)?;
-        verify_cursor(
-            query.cursor(),
-            fingerprint,
-            query.count(),
-            &context,
-            version,
-        )?;
+        verify_cursor(query.cursor(), fingerprint, query.count(), context, version)?;
         let end_offset = u32::from(query.start())
             .checked_add(u32::try_from(query.count()).map_err(|_| offset_overflow())?)
             .ok_or_else(offset_overflow)?;
@@ -749,7 +747,7 @@ impl QuoteService {
         let metadata = request_metadata(
             &self.executor,
             &engine,
-            &context,
+            context,
             &self.config,
             &self.namespace,
             std::slice::from_ref(&request),
@@ -784,7 +782,7 @@ impl QuoteService {
         for row in &page.records {
             items.push(project_category(
                 row,
-                &context,
+                context,
                 &self.config,
                 &metadata,
                 &decoded,
@@ -794,7 +792,7 @@ impl QuoteService {
         context.record_work(items.len(), 0)?;
         let source = ServiceSource::from_reply(&decoded);
         let meta = result_meta(
-            &context,
+            context,
             &self.config,
             Some(&metadata),
             &source,
@@ -884,12 +882,12 @@ impl QuoteService {
         let metadata = request_metadata(
             &self.executor,
             &self.engine,
-            &context,
+            context,
             &self.config,
             &self.namespace,
             &requests,
         )?;
-        let mut pin = self.executor.acquire_pin(&self.engine, &context)?;
+        let mut pin = self.executor.acquire_pin(&self.engine, context)?;
         let result = (|| {
             let mut updates = Vec::new();
             updates.try_reserve(ids.len()).map_err(allocation_error)?;
@@ -916,7 +914,7 @@ impl QuoteService {
                 })?;
                 let page = project_refresh_updates(
                     chunk,
-                    &context,
+                    context,
                     &self.config,
                     &metadata,
                     &decoded,
@@ -932,7 +930,7 @@ impl QuoteService {
             Ok(QuoteUpdates::new(
                 requested,
                 updates,
-                aggregate_meta(&context, &metas, Some(metadata.version()))?,
+                aggregate_meta(context, &metas, Some(metadata.version()))?,
             ))
         })();
         match result {
@@ -940,7 +938,7 @@ impl QuoteService {
                 self.executor.release_pin(context, &mut pin, None)?;
                 Ok(updates)
             }
-            Err(root) => match self.executor.release_pin(&context, &mut pin, Some(root)) {
+            Err(root) => match self.executor.release_pin(context, &mut pin, Some(root)) {
                 Err(error) => Err(error),
                 Ok(()) => Err(Error::new(
                     ErrorKind::Internal,
@@ -1037,6 +1035,10 @@ pub(crate) fn project_refresh_updates(
     Ok(QuoteUpdates::new(ids.to_vec(), updates, meta))
 }
 
+#[allow(
+    clippy::large_enum_variant,
+    reason = "Keep by-value event and result variants compatible with bounded queue accounting."
+)]
 pub(crate) enum RawSnapshotSlot {
     Present {
         row: QuoteSnapshot,

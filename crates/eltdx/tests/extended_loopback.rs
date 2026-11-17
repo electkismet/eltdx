@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored public-owner/race sources. Execution waits for T01-T30 completion.
 //! All login strings here are explicit synthetic fixtures, never production ACKs.
 #![cfg(feature = "mac")]

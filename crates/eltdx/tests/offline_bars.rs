@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "offline")]
 use eltdx::offline::{
     daily, ex_daily, minute, paths, AppendOptions, Coefficients, DailyBar, Durability, ExDailyBar,

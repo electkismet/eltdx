@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Public cross-source helpers. Authored cases, deferred until the source gate.
 #![cfg(feature = "f10")]
 use eltdx::f10::{

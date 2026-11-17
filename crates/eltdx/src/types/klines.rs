@@ -57,50 +57,6 @@ impl KlinePeriod {
         Ok((raw, parameter))
     }
 
-    pub(crate) const fn from_wire(raw: u16, parameter: u16) -> Option<Self> {
-        match (raw, parameter) {
-            (0, 1) => Some(Self::Min5),
-            (1, 1) => Some(Self::Min15),
-            (2, 1) => Some(Self::Min30),
-            (3, 1) => Some(Self::Min60),
-            (4, 1) => Some(Self::Day),
-            (5, 1) => Some(Self::Week),
-            (6, 1) => Some(Self::Month),
-            (7, 1) => Some(Self::Min1),
-            (8, value) if value > 0 => Some(Self::Minutes(value)),
-            (9, value) if value > 0 => Some(Self::Days(value)),
-            (10, 1) => Some(Self::Quarter),
-            (11, 1) => Some(Self::Year),
-            (13, value) if value > 0 => Some(Self::Seconds(value)),
-            _ => None,
-        }
-    }
-
-    pub(crate) const fn raw(self) -> u16 {
-        match self {
-            Self::Min5 => 0,
-            Self::Min15 => 1,
-            Self::Min30 => 2,
-            Self::Min60 => 3,
-            Self::Day => 4,
-            Self::Week => 5,
-            Self::Month => 6,
-            Self::Min1 => 7,
-            Self::Minutes(_) => 8,
-            Self::Days(_) => 9,
-            Self::Quarter => 10,
-            Self::Year => 11,
-            Self::Seconds(_) => 13,
-        }
-    }
-
-    pub(crate) const fn parameter(self) -> u16 {
-        match self {
-            Self::Minutes(value) | Self::Days(value) | Self::Seconds(value) => value,
-            _ => 1,
-        }
-    }
-
     pub(crate) const fn minute_width(self) -> Option<u16> {
         match self {
             Self::Min1 => Some(1),
@@ -505,6 +461,10 @@ pub struct KlineSeries {
 }
 
 impl KlineSeries {
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Keep the checked operation context, query and source provenance explicit."
+    )]
     pub(crate) fn new(
         id: SecurityId,
         period: KlinePeriod,
@@ -554,9 +514,6 @@ impl KlineSeries {
     }
     pub fn meta(&self) -> &ResultMeta {
         self.bars.meta()
-    }
-    pub(crate) fn legacy_raw(&self) -> Option<&bytes::Bytes> {
-        self.legacy_raw.as_ref()
     }
 }
 

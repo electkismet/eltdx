@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! T24 public-client source cases. Authored only: no compilation, collection,
 //! server thread or socket in this file is executed before the T01–T30 gate.
 #![cfg(feature = "ex")]

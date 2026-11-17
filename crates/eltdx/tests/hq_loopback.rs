@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Public-client synthetic integration source. No fixture is a server capture.
 #[path = "support/hq_server.rs"]
 mod hq_server;

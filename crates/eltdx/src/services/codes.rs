@@ -80,7 +80,11 @@ pub(crate) fn legacy_directory_reply(
 
 /// One directory algorithm for strict Rust collectors and the native legacy
 /// bridge. The callback owns transport/ABI policy; pagination owns progress.
-pub(crate) fn walk_directory(
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
+fn walk_directory(
     context: &OperationContext,
     market: HqMarket,
     start: u32,
@@ -691,21 +695,21 @@ impl CodeService {
         query: &CodeScanQuery,
         predicate: impl Fn(&Security) -> bool,
     ) -> Result<Collected<Security>> {
-        let mut scan = self.scan(&context, markets, query)?;
+        let mut scan = self.scan(context, markets, query)?;
         scan.items.retain(|item| {
             query
                 .category()
-                .map_or(true, |category| item.category() == category)
+                .is_none_or(|category| item.category() == category)
                 && predicate(item)
         });
         let catalog_version = scan.catalog_version;
-        let snapshots = self.publish_candidates(&context, scan.candidates)?;
+        let snapshots = self.publish_candidates(context, scan.candidates)?;
         let version = snapshots
             .iter()
             .map(|snapshot| snapshot.version())
             .max()
             .or(catalog_version);
-        let meta = aggregate_meta(&context, &scan.metas, version)?;
+        let meta = aggregate_meta(context, &scan.metas, version)?;
         Ok(Collected::new(
             scan.items,
             EndEvidence::EmptyPage,

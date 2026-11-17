@@ -11,6 +11,11 @@ const SCAN_CHUNK_BYTES: usize = 16 * 1024;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum InvalidBytePolicy {
     Replace,
+    #[cfg(test)]
+    #[allow(
+        dead_code,
+        reason = "Used by the independent encoding integration target."
+    )]
     Ignore,
 }
 

@@ -1220,14 +1220,11 @@ fn parse_strict_snapshot_records(
     }
     let mut rows = Vec::with_capacity(count);
     let mut start = 0_usize;
-    for index in 0..count {
+    for (index, requested_code) in requested_codes.iter().take(count).enumerate() {
         let marker_error = || {
             ProtocolError::invalid_data(
                 "snapshot",
-                format!(
-                    "snapshot record marker not found: {}",
-                    requested_codes[index]
-                ),
+                format!("snapshot record marker not found: {}", requested_code),
             )
         };
         let Some((relative, code)) = find_snapshot_identity(&data[start..], 0) else {

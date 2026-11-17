@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Request fixtures are source evidence until the final validation phase.
 #![cfg(feature = "f10")]
 use eltdx::f10::*;

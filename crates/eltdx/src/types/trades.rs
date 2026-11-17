@@ -16,6 +16,10 @@ pub struct TradeQuery {
 }
 
 impl TradeQuery {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     pub fn new() -> Self {
         Self {
             date: MarketDateChoice::Current,

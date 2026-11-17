@@ -105,3 +105,13 @@ stage122完整集合复验补充：任务专用venv装入本轮3.3.5 wheel后，
 ## Stage124 late cancellation arbitration
 
 2026年11月17日stage124退役仲裁修复：基础b4ffd32。确定性late cancellation回归在生产修复前实际失败started cancellation was stale（red-attempt02；attempt01因遗漏完整模块名而0项，不能算red）。Supervisor只允许精确wire转terminal意图；Runtime取消加入已有清理，先发生的失败终态保留原原因，待retry/endpoint清理则转取消并禁止新attempt，确认仍等待真正ReconnectAck，owner lifecycle清理保留原归属。新用例覆盖普通/pinned、terminal/retry/endpoint六种顺序及外来generation拒绝，green通过。带最终测试增量的Windows Rust1.89合并all-targets实际exit0：SDK lib232/1 ignored、protocol98、runtime130、deadline5、pin1及全部普通integration/examples成功；不包含doctest/ignored压力。证据artifacts/unified/stage124-retirement。Clippy/fmt、Linux/绑定/Python重新构建、完整交付及压力性能仍待。目标active无限额。
+
+## Stage125：严格Clippy与恢复检查点
+
+2026年11月17日，基础为取消竞态修复0b4bd48，Rust1.89的全工作区格式化独立保存于c62716e428be4190cfee3181a3ea52d3db26fe20。后续语义lint修正没有混入该格式化提交。运行证据位于 `artifacts/unified/stage125-lints/`，每轮原始失败、dirty diff/hash、命令和退出码保留。
+
+`all-targets-attempt11` 的完整命令为 `cargo +1.89.0 clippy -p eltdx -p eltdx-runtime -p eltdx-protocol --all-targets --locked --no-default-features --features eltdx/full -- -D warnings`，实际exit0，来源c62716e加记录的dirty diff，SHA256为516bb299f2a73c9d27a4229d4bcad0314e51adc4fd83cf4715e53b73275ce773。前轮attempt10仅剩测试helper类型复杂度，使用PinReservationRuntime别名后通过。`--fix`成功不算严格lint成功；本结论仅引用未使用fix的attempt11。`format-apply-attempt02` 与独立 `format-check-attempt01` 均实际exit0；后者完整执行 `cargo +1.89.0 fmt --all -- --check`。
+
+修正边界：移除未使用的私有包装/字段/事件分支，实际unstarted取消仍由UnstartedRejected负责；仅单元测试使用的helper限定cfg(test)，集成支持文件的dead_code例外仅限测试共享fixture。测试unwrap/expect许可限定测试目标。生产动态不变量改为typed Internal，固定常量/内建表与高参数数/大枚举仅在具体声明处注明例外；没有全局生产warning豁免。RawResultSender私有send不再返回无人消费的大型SendError payload，而返回送达bool，终态发布顺序不变；对应测试验证真实接收者和终态。私有metadata sponsor helper消耗Self，保持原授权/期限路径；订阅cursor保留先完整校验再修改。
+
+`python-contract-source-attempt01` 实际603 passed、exit0，使用任务venv内先前候选native。它证明本轮Python源码合同通过，不能替代本轮Rust修改后重新构建的wheel/绑定行为验收。此前stage122的local3046/loopback276/golden103及stage123的Windows/Linux/full、Loom和独立wheel消费者仅证明各自记录候选；stage124修复后Windows/all-targets通过也不能推定本次lint修正的运行行为。下一阶段保存新候选后重跑完整受影响Rust正确性、doctest、feature/Loom/Linux，重建wheel并回归Python，再继续外部Rust消费者、包/文档、压力和性能。外部平台/真实协议缺口保持明确，整体目标active且无额度限制。

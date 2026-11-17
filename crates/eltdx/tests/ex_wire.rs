@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored T24 Stage A cases. Deliberately not executed or collected until the
 //! controller permits validation after T01–T30 implementation is complete.
 #![cfg(feature = "ex")]

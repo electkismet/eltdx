@@ -270,7 +270,6 @@ impl OperationSponsor {
 
 #[derive(Debug)]
 pub(crate) struct RequestPermit {
-    pub operation_id: u64,
     pub child_id: usize,
     profile: ExecutionProfile,
     authorization: Arc<dyn eltdx_runtime::execution::AttemptAuthorization>,
@@ -304,7 +303,7 @@ impl RequestPermit {
                 rust_retry_policy(
                     request,
                     if pinned {
-                        NonZeroU32::new(1).expect("one fixed-source attempt")
+                        NonZeroU32::MIN
                     } else {
                         wire_attempts
                     },
@@ -330,7 +329,6 @@ struct DecodeMetadata {
 pub(crate) struct OperationContext {
     pub id: u64,
     pub session_id: usize,
-    pub entry: Instant,
     name: &'static str,
     owner: Arc<SessionOwner>,
     _admission: SessionOperation,
@@ -413,7 +411,7 @@ impl OperationContext {
     }
 
     fn create(
-        entry: Instant,
+        _entry: Instant,
         name: &'static str,
         owner: Arc<SessionOwner>,
         options: OperationOptions,
@@ -438,7 +436,6 @@ impl OperationContext {
         let context = Self {
             id,
             session_id: owner.generation(),
-            entry,
             name,
             owner,
             _admission: admission,
@@ -617,7 +614,6 @@ impl OperationContext {
             })
             .map_err(|error| self.annotate(error, TimeoutPhase::Admission, None))?;
         Ok(RequestPermit {
-            operation_id: self.id,
             child_id,
             profile: self.profile,
             authorization: Arc::new(ChildAuthorization {

@@ -1158,7 +1158,10 @@ fn finish_page(
 ) -> Result<TradePage> {
     let (ticks, order) = order_trade_pages(pages, reverse)?;
     let meta = if metas.len() == 1 {
-        metas.into_iter().next().expect("one trade response")
+        metas
+            .into_iter()
+            .next()
+            .ok_or_else(|| Error::new(ErrorKind::Internal, "single trade response missing"))?
     } else {
         aggregate_meta(context, &metas, Some(version))?
     };

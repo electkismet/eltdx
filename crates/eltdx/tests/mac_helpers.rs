@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // Authored source cases only. Execution is deferred until T01-T30 sources are complete.
 #![cfg(feature = "mac")]
 use bytes::Bytes;

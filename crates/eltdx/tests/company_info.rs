@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Source-only public HQ company contracts; no HTTP F10 dependency.
 #[path = "support/hq_server.rs"]
 mod hq_server;

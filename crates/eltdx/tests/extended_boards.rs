@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored public board contracts. Execution is deferred until all T01-T30 sources exist.
 #![cfg(feature = "mac")]
 #[path = "support/extension_peer.rs"]

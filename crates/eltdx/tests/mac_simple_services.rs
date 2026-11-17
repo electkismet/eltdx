@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored public simple-method fixtures. No execution before T01-T30 sources
 //! are complete. Synthetic login replies do not establish production evidence.
 #![cfg(feature = "mac")]

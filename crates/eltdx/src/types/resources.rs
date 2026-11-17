@@ -20,6 +20,10 @@ pub struct DownloadOptions {
     max_chunks: NonZeroU32,
 }
 impl Default for DownloadOptions {
+    #[allow(
+        clippy::expect_used,
+        reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+    )]
     fn default() -> Self {
         Self {
             max_bytes: 64 * 1024 * 1024,

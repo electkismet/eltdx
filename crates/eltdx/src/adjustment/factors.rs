@@ -25,15 +25,10 @@ pub(crate) fn build_with_boundary(
         .map_err(crate::services::allocation_error)?;
     for event in changes.records() {
         boundary()?;
-        if event.category() == 1
-            && event
-                .date()
-                .is_some_and(|date| query.start_date().is_none_or(|start| date >= start))
-        {
-            events.push((
-                event.date().expect("filtered dated event"),
-                coefficients(event)?,
-            ));
+        if let Some(date) = event.date() {
+            if event.category() == 1 && query.start_date().is_none_or(|start| date >= start) {
+                events.push((date, coefficients(event)?));
+            }
         }
     }
     let mut dates = Vec::new();

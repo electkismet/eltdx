@@ -752,6 +752,7 @@ impl ControlCell {
         Ok(())
     }
 
+    #[cfg(test)]
     fn request_cancel(
         &self,
         request_id: RequestId,
@@ -871,14 +872,11 @@ impl RawResultSender {
         self.terminal.store(true, Ordering::Release);
     }
 
-    fn send(
-        &self,
-        result: Result<RawReply, RuntimeError>,
-    ) -> Result<(), std_mpsc::SendError<Result<RawReply, RuntimeError>>> {
+    fn send(&self, result: Result<RawReply, RuntimeError>) -> bool {
         // The single runtime reducer has already retired/released this request.
         // Publish terminal state before handing the value to another thread.
         self.terminal.store(true, Ordering::Release);
-        self.sender.send(result)
+        self.sender.send(result).is_ok()
     }
 }
 
@@ -2439,10 +2437,12 @@ impl Engine {
         check_pid(self.inner.created_pid)
     }
 
+    #[cfg(test)]
     fn ensure_runtime(&self) -> Result<RuntimeRef, RuntimeError> {
         self.ensure_runtime_with_deadline(None)
     }
 
+    #[cfg(test)]
     fn ensure_runtime_with_deadline(
         &self,
         deadline: Option<Deadline>,
@@ -4348,59 +4348,6 @@ impl RuntimeCore {
                 };
                 self.fail_unstarted_request(wire, error).await
             }
-            SlotEvent::UnstartedCancelled { request_id } => {
-                let Some(pending) = self.pending.get(&request_id) else {
-                    return Ok(());
-                };
-                if pending.wire.is_some() {
-                    return Err(RuntimeError::internal(
-                        "unstarted Slot cancellation already owns a wire identity",
-                    ));
-                }
-                let error = RuntimeError::connection_closed("request cancelled by caller")
-                    .with_context("request_id", request_id.get().to_string());
-                match pending.admission {
-                    Admission::Active(lease) => {
-                        let batch = self
-                            .supervisor
-                            .terminal_active(
-                                wire_without_generation(lease),
-                                TerminalKind::Cancelled,
-                                Some(error),
-                                Instant::now(),
-                            )?
-                            .ok_or_else(|| {
-                                RuntimeError::internal("unstarted cancellation was stale")
-                            })?;
-                        self.process_terminal_batch(batch).await
-                    }
-                    Admission::Pinned(call) => {
-                        let pin = call.pin;
-                        let batch = self
-                            .supervisor
-                            .terminal_pin(
-                                RequestWireIdentity {
-                                    engine_epoch: pin.engine_epoch,
-                                    request_id,
-                                    lease_id: pin.lease_id,
-                                    slot_id: pin.slot_id,
-                                    generation: None,
-                                    message: None,
-                                },
-                                TerminalKind::Cancelled,
-                                Some(error),
-                                Instant::now(),
-                            )?
-                            .ok_or_else(|| {
-                                RuntimeError::internal("unstarted pinned cancellation was stale")
-                            })?;
-                        self.process_pin_terminal_batch(pin, batch).await
-                    }
-                    Admission::Waiting(_) => Err(RuntimeError::internal(
-                        "unstarted Slot cancellation lacks assigned admission",
-                    )),
-                }
-            }
             SlotEvent::Failed {
                 wire,
                 error,
@@ -5580,6 +5527,8 @@ enum SlotDirective {
     Stop,
 }
 
+// Work is bounded by the ingress capacity; inline requests avoid an extra allocation.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum SlotWork {
     EnsureConnected {
@@ -5631,9 +5580,6 @@ enum SlotEvent {
         acknowledgement: HeartbeatAck,
         reply: oneshot::Sender<Result<(), RuntimeError>>,
     },
-    UnstartedCancelled {
-        request_id: RequestId,
-    },
     UnstartedRejected {
         attempt: RequestAttempt,
         error: RuntimeError,
@@ -5684,9 +5630,6 @@ enum WorkOutcome {
     HeartbeatCompleted {
         wire: RequestWireIdentity,
         acknowledgement: HeartbeatAck,
-    },
-    UnstartedCancelled {
-        request_id: RequestId,
     },
     UnstartedRejected {
         attempt: RequestAttempt,
@@ -5861,11 +5804,6 @@ impl SlotWorker {
             WorkOutcome::UnstartedRejected { attempt, error } => self
                 .event_tx
                 .send(SlotEvent::UnstartedRejected { attempt, error })
-                .await
-                .map_err(|_| RuntimeError::internal("runtime event receiver closed")),
-            WorkOutcome::UnstartedCancelled { request_id } => self
-                .event_tx
-                .send(SlotEvent::UnstartedCancelled { request_id })
                 .await
                 .map_err(|_| RuntimeError::internal("runtime event receiver closed")),
             WorkOutcome::Interrupted { wire } => self.retire_wire(wire).await,
@@ -7168,7 +7106,7 @@ mod tests {
     fn controlled_push_consumer_excludes_raw_poll_drain_and_second_claim_without_startup(
     ) -> Result<(), RuntimeError> {
         let engine = Engine::new(config(1, 8)?)?;
-        let mut consumer = engine.claim_push_consumer()?;
+        let consumer = engine.claim_push_consumer()?;
         assert!(matches!(
             engine.poll_push(Duration::ZERO),
             Err(RuntimeError::PoolBusy { .. })
@@ -7265,16 +7203,15 @@ mod tests {
         )
     }
 
+    type PinReservationRuntime = (
+        RuntimeCore,
+        tokio::runtime::Runtime,
+        std_mpsc::Receiver<Result<super::PinDelivery, RuntimeError>>,
+    );
+
     fn pin_reservation_runtime(
         request_id: RequestId,
-    ) -> Result<
-        (
-            RuntimeCore,
-            tokio::runtime::Runtime,
-            std_mpsc::Receiver<Result<super::PinDelivery, RuntimeError>>,
-        ),
-        RuntimeError,
-    > {
+    ) -> Result<PinReservationRuntime, RuntimeError> {
         let (_command_tx, command_rx) = tokio::sync::mpsc::channel(2);
         let runtime_config = config(1, 1)?;
         let diagnostics = super::DiagnosticsCache::stopped(&runtime_config);
@@ -7914,9 +7851,10 @@ mod tests {
             sender,
             terminal: Arc::clone(&terminal),
         };
-        sender
-            .send(Err(RuntimeError::connection_closed("terminal result")))
-            .expect("terminal receiver is present");
+        assert!(
+            sender.send(Err(RuntimeError::connection_closed("terminal result"))),
+            "terminal receiver is present"
+        );
         drop(receiver);
         assert!(terminal.load(Ordering::Acquire));
         runtime.block_on(

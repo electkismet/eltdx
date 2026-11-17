@@ -11,7 +11,9 @@ use crate::config::ClientConfig;
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::metadata::{hq_market, FlightPolicy, MetadataSnapshot};
 use crate::operation::{ChildPurpose, OperationContext, OperationOptions, RecoveryLimit};
-use crate::session::{PinnedSession, SessionOperation, SessionOwner};
+#[cfg(test)]
+use crate::session::SessionOperation;
+use crate::session::{PinnedSession, SessionOwner};
 use crate::types::{HqMarket, SecurityId};
 
 /// Owner-bound entry point for HQ operations. It holds no runtime worker itself.
@@ -29,10 +31,12 @@ impl HqExecutor {
         self.owner.close()
     }
 
+    #[cfg(test)]
     pub(crate) fn begin_operation(&self) -> Result<SessionOperation> {
         self.owner.admit()
     }
 
+    #[cfg(test)]
     pub(crate) fn ensure_open(&self) -> Result<()> {
         self.owner.ensure_open()
     }
@@ -129,7 +133,11 @@ impl HqExecutor {
                         ErrorKind::CancelUnconfirmed,
                         "temporary pin retirement was not confirmed",
                     )
-                    .with_source(root.take().expect("stop cause exists"))
+                    .with_source(
+                        root.take().ok_or_else(|| {
+                            Error::new(ErrorKind::Internal, "pin stop cause missing")
+                        })?,
+                    )
                     .with_cleanup_failure(Error::new(
                         ErrorKind::Timeout,
                         "pin release cleanup budget elapsed",
@@ -348,6 +356,10 @@ impl HqExecutor {
         Ok(snapshot)
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Keep the checked operation context, query and source provenance explicit."
+    )]
     pub(crate) fn execute_decoded(
         &self,
         engine: &Engine,

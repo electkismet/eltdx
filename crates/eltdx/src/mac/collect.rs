@@ -175,21 +175,6 @@ pub(crate) fn quote_list(
     })
 }
 
-pub(crate) fn bars(
-    owner: &MacOwner,
-    context: &OperationContext,
-    query: &BarsQuery,
-) -> Result<Collection<Bar>> {
-    bars_with_purpose(owner, context, query, ChildPurpose::Page)
-}
-pub(crate) fn bars_with_purpose(
-    owner: &MacOwner,
-    context: &OperationContext,
-    query: &BarsQuery,
-    first_purpose: ChildPurpose,
-) -> Result<Collection<Bar>> {
-    bars_with_source(owner, context, query, first_purpose, None)
-}
 pub(crate) fn bars_with_source(
     owner: &MacOwner,
     context: &OperationContext,
@@ -439,6 +424,10 @@ pub(crate) fn ex_transactions(
         })
     })
 }
+#[allow(
+    clippy::expect_used,
+    reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+)]
 fn maximum(value: u16) -> NonZeroU16 {
     NonZeroU16::new(value).expect("positive fixed MAC page maximum")
 }

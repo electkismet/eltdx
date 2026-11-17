@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // Source cases only. Do not execute before the T01-T30 implementation gate.
 #![cfg(feature = "mac")]
 use eltdx::{mac, TradingDate};

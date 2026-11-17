@@ -57,6 +57,10 @@ pub fn row_fields(method: &str) -> &'static [RowField] {
     }
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+)]
 pub(crate) fn column(method: &str, attribute: &str) -> &'static str {
     row_fields(method)
         .iter()
@@ -145,6 +149,10 @@ pub const LADDER_ROW_FIELDS: &[(&str, &str, Option<&str>)] = &[
     ("highest_board_level", "zglb", Some("_as_int")),
 ];
 
+#[allow(
+    clippy::expect_used,
+    reason = "Only fixed defaults or closed built-in field tables are unwrapped here."
+)]
 pub(crate) fn ladder_column(attribute: &str) -> &'static str {
     LADDER_ROW_FIELDS
         .iter()

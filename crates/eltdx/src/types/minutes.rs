@@ -314,6 +314,10 @@ pub struct SparklineSeries {
 }
 
 impl SparklineSeries {
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Keep the checked operation context, query and source provenance explicit."
+    )]
     pub(crate) fn new(
         id: SecurityId,
         selector: u8,

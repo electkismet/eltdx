@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Independent source-contract fixtures; authored, not executed. The field
 //! names and preset memberships below are transcribed from Python FieldBit /
 //! PresetField source, rather than derived from the Rust schema under test.

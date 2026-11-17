@@ -169,6 +169,7 @@ impl Pagination {
     pub(crate) const fn next_offset(&self) -> u32 {
         self.offset
     }
+    #[cfg(test)]
     pub(crate) const fn pages(&self) -> usize {
         self.pages
     }

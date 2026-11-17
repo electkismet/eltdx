@@ -4,7 +4,7 @@ use bytes::Bytes;
 use eltdx_protocol::frame::ResponseFrame;
 use eltdx_protocol::{
     CommandRequest, CommandResponse, ParseOptions, ParseRawPolicy, PricePrecisionSource,
-    ProtocolError, RecordRange,
+    ProtocolError,
 };
 use eltdx_runtime::slot::{EngineEpoch, GenerationId, RequestId, SlotId};
 use eltdx_runtime::RawReply;
@@ -31,16 +31,6 @@ pub(crate) struct DecodedReply {
     pub(crate) payload: Bytes,
     /// Original matching framing, including compression lengths, for RetainWire.
     pub(crate) wire: Option<ResponseFrame>,
-}
-
-impl DecodedReply {
-    pub(crate) fn record_bytes(&self, range: RecordRange) -> Result<Bytes, ProtocolError> {
-        range.bytes(&self.payload)
-    }
-
-    pub(crate) fn record_hex(&self, range: RecordRange) -> Result<String, ProtocolError> {
-        range.hex(&self.payload)
-    }
 }
 
 /// `precision` must be the snapshot captured by the operation before its first

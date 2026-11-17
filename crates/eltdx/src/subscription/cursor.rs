@@ -58,10 +58,9 @@ impl CursorBook {
             }
         }
         for (id, sequence) in floors {
-            let last = self
-                .sequences
-                .get_mut(id)
-                .expect("floor identities validated");
+            let last = self.sequences.get_mut(id).ok_or_else(|| {
+                Error::new(ErrorKind::Internal, "validated floor identity disappeared")
+            })?;
             *last = (*last).max(*sequence);
         }
         Ok(())
@@ -94,10 +93,12 @@ impl CursorBook {
         });
         self.remember(source, updates)?;
         for update in updates {
-            *self
-                .sequences
-                .get_mut(update.id())
-                .expect("validated cursor identity") = sequence;
+            *self.sequences.get_mut(update.id()).ok_or_else(|| {
+                Error::new(
+                    ErrorKind::Internal,
+                    "validated sequence identity disappeared",
+                )
+            })? = sequence;
         }
         Ok(())
     }
@@ -122,10 +123,9 @@ impl CursorBook {
         }
         for row in updates {
             // The most recently received value wins, including150000→93000.
-            *self
-                .cursors
-                .get_mut(row.id())
-                .expect("identity validated above") = row.cursor();
+            *self.cursors.get_mut(row.id()).ok_or_else(|| {
+                Error::new(ErrorKind::Internal, "validated cursor identity disappeared")
+            })? = row.cursor();
         }
         Ok(true)
     }
@@ -262,7 +262,7 @@ mod tests {
     fn snapshot_floor_identity_validation_is_atomic() {
         let identity = source(1, 0, 1);
         let id: SecurityId = "sh600000".parse().unwrap();
-        let mut cursors = CursorBook::new(identity, &[id.clone()]).unwrap();
+        let mut cursors = CursorBook::new(identity, std::slice::from_ref(&id)).unwrap();
         assert_eq!(
             cursors
                 .snapshot_floors(&[(id, 10), ("sh600001".parse().unwrap(), 20)])

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored synthetic source cases; execution waits for the whole-plan gate.
 #[path = "support/hq_server.rs"]
 mod hq_server;

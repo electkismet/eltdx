@@ -327,6 +327,10 @@ enum HttpResult {
     Redirect(StatusCode, String),
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
 async fn post_once(
     config: &F10Config,
     url: &Url,

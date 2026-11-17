@@ -32,6 +32,10 @@ impl<T> std::fmt::Debug for Job<T> {
             .finish_non_exhaustive()
     }
 }
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
 pub(crate) fn execute<T: Send + 'static>(
     session: Arc<Session>,
     config: ExConfig,

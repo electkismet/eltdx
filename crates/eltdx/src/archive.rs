@@ -89,7 +89,6 @@ pub(crate) struct ArchiveMember {
 pub(crate) struct ArchiveEntryMetadata<'a> {
     pub name: &'a [u8],
     pub index: usize,
-    pub declared_size: u64,
     pub is_directory: bool,
 }
 
@@ -163,7 +162,6 @@ pub(crate) fn decode_with_selector(
         .map(|(index, entry)| ArchiveEntryMetadata {
             name: entry.name,
             index,
-            declared_size: entry.expanded as u64,
             is_directory: entry.is_directory,
         })
         .collect();

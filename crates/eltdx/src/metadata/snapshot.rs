@@ -10,9 +10,6 @@ use crate::types::{HqMarket, SecurityId};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum ProtocolFamily {
     Hq,
-    Ex,
-    Mac,
-    F10,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -158,19 +155,9 @@ impl MetadataSnapshot {
     pub(crate) fn covers_market(&self, market: HqMarket) -> bool {
         self.markets.contains(&market)
     }
-    pub(crate) const fn fetched_at_unix_seconds(&self) -> i64 {
-        self.fetched_at_unix_seconds
-    }
-    pub(crate) const fn expires_at_unix_seconds(&self) -> Option<i64> {
-        self.expires_at_unix_seconds
-    }
     pub(crate) fn is_fresh_at(&self, now_unix_seconds: i64) -> bool {
         self.expires_at_unix_seconds
-            .map_or(true, |expires| now_unix_seconds < expires)
-    }
-
-    pub(crate) fn record(&self, id: &SecurityId) -> Option<&MetadataRecord> {
-        self.entries.get(id)
+            .is_none_or(|expires| now_unix_seconds < expires)
     }
 
     pub(crate) fn precision_for(&self, id: &SecurityId) -> Option<PrecisionMetadata> {

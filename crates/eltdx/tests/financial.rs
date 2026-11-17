@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #![cfg(feature = "offline")]
 //! Authored source cases; execution is deferred by the T01-T30 implementation gate.
 //! Includes T22 Stage B shared archive/local dispatch source cases.

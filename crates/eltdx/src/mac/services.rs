@@ -398,6 +398,10 @@ impl Fallback {
         }
     }
 }
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Keep the checked operation context, query and source provenance explicit."
+)]
 fn fallback(
     owner: &MacOwner,
     context: &OperationContext,

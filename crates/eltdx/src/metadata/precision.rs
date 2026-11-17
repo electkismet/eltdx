@@ -1,4 +1,4 @@
-use crate::types::{AmountUnit, HqMarket, QuantityUnit, SecurityId, ValueProvenance};
+use crate::types::{AmountUnit, QuantityUnit, SecurityId, ValueProvenance};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct PrecisionMetadata {
@@ -29,6 +29,7 @@ impl PrecisionMetadata {
     }
 
     /// Opt-in audited pricing fallback only. It is not listing/existence evidence.
+    #[cfg(test)]
     pub(crate) fn audited_prefix_fallback(id: &SecurityId) -> Option<Self> {
         // Audited compatibility pricing prefixes from protocol::unit. This opt-in
         // rule makes no assertion that the id exists or is actually an ETF.
@@ -43,6 +44,7 @@ impl PrecisionMetadata {
     }
 
     /// HQ trades encode milli-yuan independently of quote metadata decimals.
+    #[cfg(test)]
     pub(crate) fn hq_trade_price(raw_milli_yuan: i64) -> crate::types::Price {
         crate::types::Price::with_value_and_provenance(
             crate::types::NumericValue::ScaledInteger {
@@ -58,18 +60,6 @@ impl PrecisionMetadata {
 pub(crate) struct UnitMetadata<T> {
     unit: T,
     provenance: ValueProvenance,
-}
-
-impl<T: Copy> UnitMetadata<T> {
-    pub(crate) const fn new(unit: T, provenance: ValueProvenance) -> Self {
-        Self { unit, provenance }
-    }
-    pub(crate) const fn unit(self) -> T {
-        self.unit
-    }
-    pub(crate) const fn provenance(self) -> ValueProvenance {
-        self.provenance
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -101,21 +91,12 @@ impl MetadataRecord {
     pub(crate) const fn price_precision(&self) -> Option<PrecisionMetadata> {
         self.price_precision
     }
-    pub(crate) const fn quantity_unit(&self) -> Option<UnitMetadata<QuantityUnit>> {
-        self.quantity_unit
-    }
-    pub(crate) const fn amount_unit(&self) -> Option<UnitMetadata<AmountUnit>> {
-        self.amount_unit
-    }
-}
-
-pub(crate) fn market_matches(id: &SecurityId, market: HqMarket) -> bool {
-    id.market() == market
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::HqMarket;
     #[test]
     fn fallback_is_opt_in_audited_and_trade_scale_is_independent() {
         let fund = SecurityId::new(HqMarket::Shanghai, "510300").unwrap();

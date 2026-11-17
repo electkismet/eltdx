@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored compatibility source cases; execution is deferred with the full plan.
 use std::time::{Duration, Instant};
 

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Literal request contracts transcribed from the frozen Python API and
 //! extension specification. These cases are authored, not yet executed.
 #![cfg(feature = "f10")]

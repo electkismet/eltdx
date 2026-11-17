@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 #[path = "support/hq_server.rs"]
 mod hq_server;
 
@@ -241,7 +243,7 @@ fn ordinary_collect_rejects_offset_overflow_before_requesting_an_unrepresentable
         .heartbeat_interval(None)
         .build()?;
     let query = KlineQuery::new()
-        .with_start(u16::MAX.into())?
+        .with_start(u16::MAX)?
         .with_pages(PageOptions::new(1, 3, 3)?)?;
     let error = client
         .klines()

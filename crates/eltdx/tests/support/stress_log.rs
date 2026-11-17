@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Append-only raw evidence, used only by explicitly ignored stress targets.
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};

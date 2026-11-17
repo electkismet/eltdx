@@ -359,7 +359,7 @@ fn key(
 }
 
 fn known_identity(key: &StatsKey) -> bool {
-    matches!(key.market_id.as_u32(), Some(0 | 1 | 2))
+    matches!(key.market_id.as_u32(), Some(0..=2))
         && key.code.len() == 6
         && key.code.bytes().all(|value| value.is_ascii_digit())
 }

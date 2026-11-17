@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored public default-HQ helper source cases. Execution deferred.
 use eltdx::{helpers::classify_fund_flow, AmountUnit};
 #[path = "support/board_cases.rs"]

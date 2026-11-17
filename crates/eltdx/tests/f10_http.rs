@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Authored public F10 transport cases. Run only at the final validation gate.
 #![cfg(feature = "f10")]
 
@@ -16,6 +18,7 @@ use eltdx::f10::{
 use eltdx::{CancellationToken, ErrorKind, OperationOptions, RawPolicy};
 
 type TestResult = Result<(), Box<dyn StdError + Send + Sync>>;
+type DnsPeer = (SocketAddr, mpsc::Sender<()>, JoinHandle<TestResult>);
 const TABLE: &[u8] = br#"{"ErrorCode":0,"ResultSets":[{"ResultSetKey":"table","ColName":["price","name"],"Content":[[12.50,"TEST"]]}]}"#;
 
 struct Server {
@@ -509,10 +512,7 @@ fn certificate() -> Result<(Vec<u8>, Arc<rustls::ServerConfig>), Box<dyn StdErro
 
 /// Minimal independent UDP DNS A/AAAA authority for f10.fixture.test. It returns
 /// a refused IPv4 address first and a listening IPv6 address second when asked.
-fn dns_server(
-    address: SocketAddr,
-) -> Result<(SocketAddr, mpsc::Sender<()>, JoinHandle<TestResult>), Box<dyn StdError + Send + Sync>>
-{
+fn dns_server(address: SocketAddr) -> Result<DnsPeer, Box<dyn StdError + Send + Sync>> {
     let socket = UdpSocket::bind("127.0.0.1:0")?;
     socket.set_read_timeout(Some(Duration::from_millis(30)))?;
     let local = socket.local_addr()?;
@@ -896,9 +896,7 @@ fn request_header_order_keeps_separated_duplicate_names() -> TestResult {
             .ok_or("missing first header")?;
         assert_eq!(lines[first + 1], "X-Between: middle");
         assert_eq!(lines[first + 2], "X-Order: last");
-        assert!(lines
-            .iter()
-            .any(|line| *line == "Accept: application/custom"));
+        assert!(lines.contains(&"Accept: application/custom"));
         answer(&mut stream, "200 OK", "", TABLE)?;
         eof(&mut stream)
     })?;

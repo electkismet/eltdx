@@ -107,7 +107,7 @@ pub(crate) fn file(
             let chunk = decode::download_chunk_with(&body,requested_wire,|length| sponsor.record_bytes(length))?;
             let ranges = if chunk.bytes().is_empty() { Vec::new() } else { vec![(8,8+chunk.bytes().len())] };
             session::decoded(chunk,None,ranges)
-        }).map_err(|error| {
+        }).inspect_err(|error| {
             // Preserve every accepted observation even if a later pinned read
             // fails. The error kind/cause is the original transport/decoder's.
             if let Ok(meta) = crate::services::aggregate_meta(context,&metas,None) {
@@ -115,7 +115,6 @@ pub(crate) fn file(
                     Some(error.kind()),Some(format!("index={index}; offset={offset}; accepted_bytes={}; pinned_source={source:?}; no EOF was observed",data.len()))));
                 let _ = owner.session.record_meta(meta);
             }
-            error
         })?;
         let observed = identity(owner, context, &reply.meta)?;
         if source.is_some_and(|expected| expected != observed) {
@@ -207,16 +206,16 @@ fn mismatch<T>(
     observed: u64,
     eof_observed: bool,
 ) -> Result<T> {
-    let meta = crate::services::aggregate_meta(context, metas, None)?
-        .with_diagnostic(Diagnostic::new(
-        "mac-download",
-        "ExpectedSizeMismatch",
-        EnrichmentStatus::Failed,
-        Some(ErrorKind::Protocol),
-        Some(format!(
+    let meta =
+        crate::services::aggregate_meta(context, metas, None)?.with_diagnostic(Diagnostic::new(
+            "mac-download",
+            "ExpectedSizeMismatch",
+            EnrichmentStatus::Failed,
+            Some(ErrorKind::Protocol),
+            Some(format!(
             "expected_size={expected}; observed_position={observed}; eof_observed={eof_observed}"
         )),
-    ));
+        ));
     owner.session.record_meta(meta)?;
     Err(Error::new(
         ErrorKind::Protocol,

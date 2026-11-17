@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Policy defaults are evidence decisions, not claimed exchange-rule examples.
 #[path = "support/hq_server.rs"]
 mod hq_server;

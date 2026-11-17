@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Shared GBK source cases. Authored only; do not execute before the plan gate.
 #![allow(dead_code)]
 

@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 //! Synthetic source contracts for the public HQ financial service.
 //! Authored during implementation; execution waits for the whole-project gate.
 #![cfg(feature = "offline")]
