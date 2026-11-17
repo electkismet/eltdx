@@ -127,3 +127,14 @@ failures, fix without reducing feature/API/test scope, and checkpoint repairs.
 Uncompiled dependencies/API/MSRV/licenses/platforms, package/compatibility/
 resource/performance outcomes and production profiles remain unverified. The
 unlimited goal remains active until requirement-by-requirement actual acceptance.
+
+## Global source gate — root checkpoint (stage115)
+
+Root saved source checkpoint23bf1c83718e83d20e9c5ba9b919e9dfac3e2db4 and
+observed a clean Git worktree. All authored T01-T30 source scopes are complete;
+under the user's instruction, unified execution can now begin. No compile/test/
+dependency/network/format/document result exists at the time of this record.
+See docs/rust-sdk/unified-validation.md for subsequent actual run outcomes.
+Begin tool/lock preparation then correctness/compatibility/package/docs and
+pressure/performance; do not reduce scope or invent missing external evidence.
+Goal remains active without a token quota; no publishing or goal-state edits.

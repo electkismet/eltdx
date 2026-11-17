@@ -42,6 +42,7 @@ Python 从源码安装、为暂未提供wheel的平台自行构建，以及参�
 | [详细开发计划](development-plan.md) | 按什么依赖顺序改哪些文件，如何划分可验收任务 | 实施者、任务协调者 |
 | [验证与发布规范](verification.md) | 什么证据才足以说独立 Rust SDK 可用、兼容、可发布 | 测试、CI、发布人员 |
 | [最终验收索引](final-acceptance.md) | R01–R12对应哪些实现、用例、消费者和缺失证据 | 验收、维护人员 |
+| [统一验证记录](unified-validation.md) | 全源码门槛、真实运行阶段、失败与恢复点 | 验收、维护人员 |
 | [发布政策](release-policy.md) | 独立版本、包内容、归档消费和注册表身份如何核实 | 发布人员 |
 | [压力证据](t30-evidence-index.md) / [性能政策](performance-policy.md) | 原生负载如何采集和从原始记录复验 | 性能、验收人员 |
 | [维护手册](maintenance.md) | 如何恢复进度、处理失败和使旧证据失效 | 维护人员 |

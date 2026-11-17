@@ -145,6 +145,7 @@ nav:
       - 实施进度与恢复点: rust-sdk/IMPLEMENTATION_STATUS.md
       - 验证与发布规范: rust-sdk/verification.md
       - 最终要求与验收索引: rust-sdk/final-acceptance.md
+      - 全源码门槛与统一验证: rust-sdk/unified-validation.md
       - 分域实现与迁移索引:
           - HQ: rust-sdk/hq-implementation-index.md
           - 目录与组合: rust-sdk/catalog-implementation-index.md

@@ -1,6 +1,13 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- stage115 global source gate: root recorded all T01-T30 authored source
+  deliverables complete at23bf1c83718e83d20e9c5ba9b919e9dfac3e2db4; clean
+  Git status observed. Unified verification may now begin under the user's
+  existing instruction. No new execution result yet. Start real tool/lock
+  preparation, preserve command/exit/raw logs and repair failures without
+  dropping scope. Canonical unified-validation.md tracks actual outcomes;
+  source counts30/0/0 do not imply any accepted tasks. Goal active unlimited.
 - Latest recovery2026-11-17 stage114: basefd548ca. T30 remaining source scope
   authored:18 service/independent-client examples, six feature-gated includes,
   exact nonempty loopback index, pinned refresh case, seven serde contracts
