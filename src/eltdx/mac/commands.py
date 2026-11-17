@@ -89,49 +89,8 @@ class SymbolQuotesCmd(BaseCommand[list[MacQuoteField]]):
         return load_native().mac_command_build("quotes", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[MacQuoteField]:
-        pos = RESP_BITMAP_SIZE
-        (_total_stocks, row_count) = unpack_from("<IH", body, pos, "symbol_quotes header")
-        pos += 6
-
-        # 行宽按**全部置位位**算，未知字段在线上也占 4 字节槽位；不能只数已知字段。
-        # 位图读完整 20 字节：实测字段位为 0–150，其中 128–150 也在 [16:20] 内。
-        resp_bitmap = body[:RESP_BITMAP_SIZE]
-        slots = list(iter_set_bits(resp_bitmap))
-        row_len = 68 + 4 * count_set_bits(resp_bitmap)
-
-        results: list[MacQuoteField] = []
-        for _ in range(row_count):
-            row_end = pos + row_len
-            if row_end > len(body):
-                break
-            row_data = body[pos:row_end]
-            pos = row_end
-
-            (market, code_raw, name_raw) = unpack_from(
-                "<H22s44s", row_data, 0, "symbol_quotes row"
-            )
-            fields_dict: dict[str, object] = {}
-            for slot, field_bit, fmt in slots:
-                if field_bit is None:
-                    # 未知字段：槽位照占，但没有可命名的键。
-                    continue
-                value_bytes = row_data[68 + slot * 4 : 68 + (slot + 1) * 4]
-                (value,) = struct.unpack(fmt, value_bytes)
-                post_fn = FIELD_POSTPROCESS.get(field_bit.value)
-                if post_fn is not None:
-                    value = cast("object", post_fn(value, market))
-                fields_dict[field_bit.field_name] = value
-
-            results.append(
-                MacQuoteField(
-                    market=market,
-                    code=_decode_gbk(code_raw),
-                    name=_decode_gbk(name_raw),
-                    fields=fields_dict,
-                )
-            )
-
-        return results
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("quotes", self, body, _MODULES[__name__])
 
 
 #: 0x122C 的字段位图只有 16 字节（128 位），其后 4 字节是控制区而非字段位。
@@ -173,48 +132,8 @@ class BoardMembersQuotesCmd(BaseCommand[list[MacQuoteField]]):
         return load_native().mac_command_build("members", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[MacQuoteField]:
-        resp_bitmap = body[:RESP_BITMAP_SIZE]
-        (_total, row_count) = unpack_from("<IH", body, RESP_BITMAP_SIZE, "board_members header")
-
-        # 响应位图读完整 20 字节（与 0x122B 一致），否则服务端回显的高位字段会被漏掉。
-        active_slots = list(iter_set_bits(resp_bitmap))
-        row_len = 68 + count_set_bits(resp_bitmap) * 4
-
-        results: list[MacQuoteField] = []
-        for i in range(row_count):
-            row_start = 26 + i * row_len
-            market_raw = unpack_from("<H", body, row_start, f"board_members row[{i}] market")[0]
-            code_raw = body[row_start + 2 : row_start + 24]
-            name_raw = body[row_start + 24 : row_start + 68]
-
-            fields_dict: dict[str, object] = {}
-            for slot, field_bit, fmt in active_slots:
-                if field_bit is None:
-                    # 未知字段槽位照占，但不产出键。
-                    continue
-                val_bytes = body[
-                    row_start + 68 + slot * 4 : row_start + 68 + (slot + 1) * 4
-                ]
-                if len(val_bytes) < 4:
-                    break
-                (value,) = struct.unpack(fmt, val_bytes)
-                # 与 SymbolQuotesCmd 保持一致：AH_CODE 这类字段要按同一规则转换，
-                # 否则同一个字段在两个命令里返回的类型/语义不同。
-                post_fn = FIELD_POSTPROCESS.get(field_bit.value)
-                if post_fn is not None:
-                    value = cast("object", post_fn(value, market_raw))
-                fields_dict[field_bit.field_name] = value
-
-            results.append(
-                MacQuoteField(
-                    market=market_raw,
-                    code=code_raw.decode("gbk", errors="replace").rstrip("\x00"),
-                    name=name_raw.decode("gbk", errors="replace").rstrip("\x00"),
-                    fields=fields_dict,
-                )
-            )
-
-        return results
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("members", self, body, _MODULES[__name__])
 
 
 class SymbolBarCmd(BaseCommand[list[MacBar]]):
@@ -241,43 +160,8 @@ class SymbolBarCmd(BaseCommand[list[MacBar]]):
         return load_native().mac_command_build("bars", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[MacBar]:
-        (_category_flag, _flag, count, _start) = unpack_from(
-            "<HBHI", body, 24, "symbol_bar header"
-        )
-        count = min(count, max(0, (len(body) - 33) // 36))
-
-        # 日内周期才带 time_num：分钟级（< DAILY）、1 分钟、多分钟，以及**秒级**。
-        # 漏掉 SECONDS 会让秒级 K 线的 time_num 被丢弃，时间退化成当天 00:00。
-        is_intraday = (
-            self._period < Period.DAILY
-            or self._period == Period.MIN_1
-            or self._period == Period.MINS
-            or self._period == Period.SECONDS
-        )
-
-        results: list[MacBar] = []
-        for i in range(count):
-            offset = 33 + i * 36
-            if offset + 36 > len(body):
-                break
-            (ymd, time_num, open_, high, low, close, amount, vol, float_shares) = unpack_from(
-                "<II7f", body, offset, f"symbol_bar bar[{i}]"
-            )
-            if ymd < 19900101 or ymd > 20991231:
-                continue
-            results.append(
-                MacBar(
-                    datetime=_combine_bar_datetime(ymd, time_num, is_intraday),
-                    open=open_,
-                    high=high,
-                    low=low,
-                    close=close,
-                    vol=vol,
-                    amount=amount,
-                    float_shares=float_shares,
-                )
-            )
-        return results
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("bars", self, body, _MODULES[__name__])
 
 
 class SymbolTickChartCmd(BaseCommand[MacTickChart]):
@@ -294,63 +178,8 @@ class SymbolTickChartCmd(BaseCommand[MacTickChart]):
         return load_native().mac_command_build("minute", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> MacTickChart:
-        (market, code_raw, _query_date, _reserved, _ref_price, count) = unpack_from(
-            "<H22sIBfH", body, 0, "tick_chart header"
-        )
-
-        ticks: list[MacTick] = []
-        for i in range(count):
-            offset = 35 + i * 18
-            (minutes, price, avg, vol, momentum) = unpack_from(
-                "<HffIf", body, offset, f"tick_chart tick[{i}]"
-            )
-            ticks.append(
-                MacTick(
-                    time=time(minutes // 60 % 24, minutes % 60),
-                    price=price,
-                    avg=avg,
-                    vol=vol,
-                    momentum=momentum,
-                )
-            )
-
-        tail_offset = 35 + count * 18
-        (
-            name_raw,
-            _decimal,
-            _category,
-            _vol_unit,
-            _date_raw,
-            _time_raw,
-            pre_close,
-            open_,
-            high,
-            low,
-            close,
-            _momentum_tail,
-            vol,
-            amount,
-            _tail_pad2,
-            turnover,
-            avg_tail,
-            _industry,
-        ) = unpack_from("<44sBHf5x2I5ffIf12s2fI", body, tail_offset, "tick_chart tail")
-
-        return MacTickChart(
-            market=market,
-            code=_decode_gbk(code_raw),
-            name=_decode_gbk(name_raw),
-            pre_close=pre_close,
-            open=open_,
-            high=high,
-            low=low,
-            close=close,
-            vol=int(vol),
-            amount=amount,
-            turnover=turnover,
-            avg=avg_tail,
-            charts=ticks,
-        )
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("minute", self, body, _MODULES[__name__])
 
 
 class TickChartsCmd(BaseCommand[MacMultiTickChart]):
@@ -379,100 +208,8 @@ class TickChartsCmd(BaseCommand[MacMultiTickChart]):
         return load_native().mac_command_build("multi_minute", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> MacMultiTickChart:
-        (market, code_raw) = unpack_from("<H22s", body, 0, "tick_charts header")
-
-        date_ints = unpack_from("<5I", body, 24, "tick_charts dates")
-        pre_close_floats = unpack_from("<5f", body, 44, "tick_charts pre_closes")
-        (count, _send_last, page_size, total) = unpack_from(
-            "<HBHH", body, 64, "tick_charts header2"
-        )
-        # 响应头只给了 5 个日期 / 昨收槽位：服务端回 count>5（或 page_size=0 导致
-        # 后续整除）都不能直接采信。天数改为受两个上界约束：
-        #   1) 前导有效日期槽的个数 —— 空槽的 ymd=0 会让 date(0,0,0) 直接抛错；
-        #   2) ``MAX_DAYS``。
-        leading_days = 0
-        for value in date_ints:
-            if not value:
-                break
-            leading_days += 1
-        count = max(0, min(count, leading_days, self.MAX_DAYS))
-        page_size = max(1, page_size)
-
-        max_ticks = max(0, (len(body) - self._TICK_OFFSET - self._TAIL_SIZE) // self._TICK_SIZE)
-        actual_total = min(total, max_ticks)
-        if actual_total >= count * page_size:
-            tick_counts = [page_size] * count
-        else:
-            complete_days = min(count - 1, actual_total // page_size) if count else 0
-            first_day_count = actual_total - complete_days * page_size
-            empty_days = count - complete_days - 1
-            tick_counts = [first_day_count] + [page_size] * complete_days + [0] * empty_days
-
-        days: list[MacMultiTickDay] = []
-        tick_index = 0
-        for d, tick_count in enumerate(tick_counts):
-            ticks: list[MacTick] = []
-            for t in range(tick_count):
-                offset = self._TICK_OFFSET + tick_index * self._TICK_SIZE
-                (minutes, price, avg, vol, _tick_reserved) = unpack_from(
-                    "<HffHH", body, offset, f"tick_charts tick[{d}][{t}]"
-                )
-                tick_index += 1
-                ticks.append(
-                    MacTick(
-                        time=time(minutes // 60 % 24, minutes % 60),
-                        price=price,
-                        avg=avg,
-                        vol=vol,
-                    )
-                )
-
-            ymd = date_ints[d]
-            days.append(
-                MacMultiTickDay(
-                    date=date(ymd // 10000, (ymd % 10000) // 100, ymd % 100),
-                    pre_close=pre_close_floats[d],
-                    ticks=ticks,
-                )
-            )
-
-        tail_offset = self._TICK_OFFSET + actual_total * self._TICK_SIZE
-        (
-            name_raw,
-            _decimal,
-            _category,
-            _vol_unit,
-            _date_raw,
-            _time_raw,
-            pre_close,
-            open_,
-            high,
-            low,
-            close,
-            _momentum,
-            vol,
-            amount,
-            _tail_pad2,
-            turnover,
-            avg,
-            _industry,
-        ) = unpack_from(self._TAIL_FMT, body, tail_offset, "tick_charts tail")
-
-        return MacMultiTickChart(
-            market=market,
-            code=_decode_gbk(code_raw),
-            name=_decode_gbk(name_raw),
-            pre_close=pre_close,
-            open=open_,
-            high=high,
-            low=low,
-            close=close,
-            vol=int(vol),
-            amount=amount,
-            turnover=turnover,
-            avg=avg,
-            charts=days,
-        )
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("multi_minute", self, body, _MODULES[__name__])
 
 
 class SymbolTransactionCmd(BaseCommand[list[MacTransaction]]):
@@ -496,24 +233,8 @@ class SymbolTransactionCmd(BaseCommand[list[MacTransaction]]):
         return load_native().mac_command_build("transactions", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[MacTransaction]:
-        (count,) = unpack_from("<H", body, 29, "transaction count")
-
-        results: list[MacTransaction] = []
-        for i in range(count):
-            offset = 39 + i * 18
-            (time_sec, price, volume, trade_count, bs_flag) = unpack_from(
-                "<IfIIH", body, offset, f"transaction item[{i}]"
-            )
-            results.append(
-                MacTransaction(
-                    time=time(time_sec // 3600, time_sec % 3600 // 60, time_sec % 60),
-                    price=price,
-                    vol=volume,
-                    trade_count=trade_count,
-                    bs_flag=bs_flag,
-                )
-            )
-        return results
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("transactions", self, body, _MODULES[__name__])
 
 
 class SymbolInfoCmd(BaseCommand[MacSymbolInfo]):
@@ -530,55 +251,9 @@ class SymbolInfoCmd(BaseCommand[MacSymbolInfo]):
         return load_native().mac_command_build("info", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> MacSymbolInfo:
-        (market, code_raw, name_raw) = unpack_from("<H22s44s", body, 8, "symbol_info identity")
-        (
-            date_raw,
-            time_raw,
-            activity,
-            pre_close,
-            open_,
-            high,
-            low,
-            close,
-            momentum,
-            vol,
-            amount,
-            inside_volume,
-            outside_volume,
-        ) = unpack_from("<III5ffIfII", body, 96, "symbol_info core")
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("info", self, body, _MODULES[__name__])
 
-        (_decimal, _a, _b, _c, _vr, turnover, avg) = unpack_from(
-            "<HIf20xI3f", body, 148, "symbol_info extra"
-        )
-
-        dt = datetime(
-            date_raw // 10000,
-            (date_raw % 10000) // 100,
-            date_raw % 100,
-            time_raw // 10000,
-            (time_raw % 10000) // 100,
-            time_raw % 100,
-        )
-
-        return MacSymbolInfo(
-            market=market,
-            code=_decode_gbk(code_raw),
-            name=_decode_gbk(name_raw),
-            time=dt,
-            activity=activity,
-            pre_close=pre_close,
-            open=open_,
-            high=high,
-            low=low,
-            close=close,
-            momentum=momentum,
-            vol=int(vol),
-            amount=amount,
-            inside_volume=inside_volume,
-            outside_volume=outside_volume,
-            turnover=turnover,
-            avg=avg,
-        )
 
 # ============================================================
 # 板块 / 所属板块 / 资金流：0x1231 / 0x1218
@@ -607,64 +282,28 @@ class BoardListCmd(BaseCommand[list[BoardInfo]]):
         return load_native().mac_command_build("boards", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[BoardInfo]:
-        count_all, _total = unpack_from("<HH", body, 0, "board_list header")
-        count = count_all // 2  # 服务器返回 board_info + symbol_info 各一份
-
-        results: list[BoardInfo] = []
-        for i in range(count):
-            offset = 4 + i * _BOARD_RECORD_SIZE
-            (
-                market,
-                code_raw,
-                _pad1,
-                name_raw,
-                price,
-                rise_speed,
-                pre_close,
-                symbol_market,
-                symbol_code_raw,
-                _pad2,
-                symbol_name_raw,
-                symbol_price,
-                symbol_rise_speed,
-                symbol_pre_close,
-            ) = unpack_from(_BOARD_RECORD_FMT, body, offset, f"board_list record[{i}]")
-
-            results.append(
-                BoardInfo(
-                    market=market,
-                    code=code_raw.decode("gbk", errors="replace").rstrip("\x00"),
-                    name=name_raw.decode("gbk", errors="replace").rstrip("\x00"),
-                    price=price,
-                    rise_speed=rise_speed,
-                    pre_close=pre_close,
-                    symbol_market=symbol_market,
-                    symbol_code=symbol_code_raw.decode("gbk", errors="replace").rstrip("\x00"),
-                    symbol_name=symbol_name_raw.decode("gbk", errors="replace").rstrip("\x00"),
-                    symbol_price=symbol_price,
-                    symbol_rise_speed=symbol_rise_speed,
-                    symbol_pre_close=symbol_pre_close,
-                )
-            )
-        return results
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("boards", self, body, _MODULES[__name__])
 
 
 def _to_float(value: object) -> float:
     """安全转 float（失败返回 0.0）。"""
 
+    from eltdx._native_abi import load_native
     try:
-        return float(cast("float", value))
+        return load_native().mac_numeric_value(False, value, _MODULES[__name__])
     except (ValueError, TypeError):
-        return 0.0
+        return load_native().mac_numeric_default(False)
 
 
 def _to_int(value: object) -> int:
     """安全转 int（失败返回 0）。"""
 
+    from eltdx._native_abi import load_native
     try:
-        return int(float(cast("float", value)))
+        return load_native().mac_numeric_value(True, value, _MODULES[__name__])
     except (ValueError, TypeError):
-        return 0
+        return load_native().mac_numeric_default(True)
 
 
 class SymbolBelongBoardCmd(BaseCommand[list[BelongBoardInfo]]):
@@ -682,25 +321,8 @@ class SymbolBelongBoardCmd(BaseCommand[list[BelongBoardInfo]]):
         return load_native().mac_command_build("belong", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[BelongBoardInfo]:
-        if len(body) < 27:
-            return []
-        python_list: list[list[object]] = json.loads(body[27:].decode("gbk", errors="replace"))
-        results: list[BelongBoardInfo] = []
-        for row in python_list:
-            n = len(row)
-            if n not in (9, 13):
-                continue
-            results.append(
-                BelongBoardInfo(
-                    board_type=_to_int(row[0]),
-                    market=_to_int(row[1]),
-                    board_code=str(row[2]),
-                    board_name=str(row[3]),
-                    close=_to_float(row[4]) if n > 4 and row[4] else 0.0,
-                    pre_close=_to_float(row[5]) if n > 5 and row[5] else 0.0,
-                )
-            )
-        return results
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("belong", self, body, _MODULES[__name__])
 
 
 class SymbolCapitalFlowCmd(BaseCommand[CapitalFlowData | None]):
@@ -718,37 +340,8 @@ class SymbolCapitalFlowCmd(BaseCommand[CapitalFlowData | None]):
         return load_native().mac_command_build("capital", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> CapitalFlowData | None:
-        if len(body) < 27:
-            return None
-        python_list: list[list[object]] = json.loads(body[27:].decode("gbk"))
-        if len(python_list) < 2:
-            return None
-
-        today_data = python_list[0]
-        five_days_data = python_list[1]
-
-        main_in = _to_float(today_data[0]) if len(today_data) > 0 else 0.0
-        main_out = _to_float(today_data[1]) if len(today_data) > 1 else 0.0
-        retail_in = _to_float(today_data[2]) if len(today_data) > 2 else 0.0
-        retail_out = _to_float(today_data[3]) if len(today_data) > 3 else 0.0
-        mid_net_5d = _to_float(five_days_data[4]) if len(five_days_data) > 4 else 0.0
-        large_net_5d = _to_float(five_days_data[3]) if len(five_days_data) > 3 else 0.0
-
-        return CapitalFlowData(
-            date="",
-            main_in=main_in,
-            main_out=main_out,
-            main_net=main_in - main_out,
-            small_in=retail_in,
-            small_out=retail_out,
-            small_net=retail_in - retail_out,
-            mid_in=0.0,
-            mid_out=0.0,
-            mid_net=mid_net_5d,
-            large_in=0.0,
-            large_out=0.0,
-            large_net=large_net_5d,
-        )
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("capital", self, body, _MODULES[__name__])
 
 
 # ============================================================
@@ -770,98 +363,15 @@ class SymbolAuctionCmd(BaseCommand[list[AuctionItem]]):
         return load_native().mac_command_build("auction", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[AuctionItem]:
-        (_market, _code, count) = unpack_from("<H22sI", body, 0, "auction header")
-        items: list[AuctionItem] = []
-        for i in range(count):
-            offset = 36 + i * 16
-            if offset + 16 > len(body):
-                break
-            (time_sec, price, matched, unmatched) = unpack_from(
-                "<IfIi", body, offset, f"auction item[{i}]"
-            )
-            items.append(
-                AuctionItem(
-                    time=time(time_sec // 3600, (time_sec % 3600) // 60, time_sec % 60),
-                    price=price,
-                    matched=matched,
-                    unmatched=unmatched,
-                )
-            )
-        return items
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("auction", self, body, _MODULES[__name__])
 
 
 def _describe_unusual(unusual_type: int, data: bytes) -> tuple[str, str]:
     """根据异动类型解析描述和数值。"""
 
-    if len(data) < 13:
-        return "", ""
-    v1, v2, v3, v4 = struct.unpack_from("<B2fI", data)
-
-    if unusual_type == 0x03:
-        desc = f"主力{'买入' if v1 == 0x00 else '卖出'}"
-        val = f"{v2:.2f}/{v3:.2f}"
-    elif unusual_type == 0x04:
-        desc = "加速拉升"
-        val = f"{v2 * 100:.2f}%"
-    elif unusual_type == 0x05:
-        desc = "加速下跌"
-        val = ""
-    elif unusual_type == 0x06:
-        desc = "低位反弹"
-        val = f"{v2 * 100:.2f}%"
-    elif unusual_type == 0x07:
-        desc = "高位回落"
-        val = f"{v2 * 100:.2f}%"
-    elif unusual_type == 0x08:
-        desc = "撑杆跳高"
-        val = f"{v2 * 100:.2f}%"
-    elif unusual_type == 0x09:
-        desc = "平台跳水"
-        val = f"{v2 * 100:.2f}%"
-    elif unusual_type == 0x0A:
-        desc = f"单笔冲{'跌' if v2 < 0 else '涨'}"
-        val = f"{v2 * 100:.2f}%"
-    elif unusual_type == 0x0B:
-        direction = "平" if v3 == 0 else "跌" if v3 < 0 else "涨"
-        desc = f"区间放量{direction}"
-        val = f"{v2:.1f}倍" + ("" if v3 == 0 else f"{v3 * 100:.2f}%")
-    elif unusual_type == 0x0C:
-        desc = "区间缩量"
-        val = ""
-    elif unusual_type == 0x10:
-        desc = "大单托盘"
-        val = f"{v4:.2f}/{v3:.2f}"
-    elif unusual_type == 0x11:
-        desc = "大单压盘"
-        val = f"{v2:.2f}/{v3:.2f}"
-    elif unusual_type == 0x12:
-        desc = "大单锁盘"
-        val = ""
-    elif unusual_type == 0x13:
-        desc = "竞价试买"
-        val = f"{v2:.2f}/{v3:.2f}"
-    elif unusual_type == 0x14:
-        direction = "涨" if v1 == 0x00 else "跌"
-        if len(data) >= 10:
-            sub_type, v2_alt, v3_alt = struct.unpack_from("<Bff", data, 1)
-        else:
-            sub_type, v2_alt, v3_alt = 0, 0.0, 0.0
-        if sub_type == 0x01:
-            desc = f"逼近{direction}停"
-        elif sub_type == 0x02:
-            desc = f"封{direction}停板"
-        elif sub_type == 0x04:
-            desc = f"封{direction}大减"
-        elif sub_type == 0x05:
-            desc = f"打开{direction}停"
-        else:
-            desc = f"涨跌停({direction})"
-        val = f"{v2_alt:.2f}/{v3_alt:.2f}"
-    else:
-        desc = f"异动类型{unusual_type:#04x}"
-        val = ""
-
-    return desc, val
+    from eltdx._native_abi import load_native
+    return load_native().mac_unusual_description(unusual_type, data, _MODULES[__name__])
 
 
 class UnusualCmd(BaseCommand[list[UnusualItem]]):
@@ -878,51 +388,8 @@ class UnusualCmd(BaseCommand[list[UnusualItem]]):
         return load_native().mac_command_build("unusual", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[UnusualItem]:
-        (count,) = unpack_from("<H", body, 0, "unusual count")
-
-        results: list[UnusualItem] = []
-        for i in range(count):
-            offset = 2 + i * 32
-            if offset + 32 > len(body):
-                break
-            market, code_raw, _z0, unusual_type, _z1, index, _z2 = unpack_from(
-                "<H6sBBBHH", body, offset, f"unusual record[{i}]"
-            )
-            desc, value = _describe_unusual(unusual_type, body[offset + 15 : offset + 28])
-            hour, minute_sec = unpack_from("<BH", body, offset + 29, f"unusual time[{i}]")
-            results.append(
-                UnusualItem(
-                    index=index,
-                    market=market,
-                    code=code_raw.decode("gbk", errors="replace").rstrip("\x00"),
-                    name="",
-                    time=time(hour, minute_sec // 100, minute_sec % 100),
-                    desc=desc,
-                    value=value,
-                    unusual_type=unusual_type,
-                )
-            )
-
-        binary_length = 2 + count * 32
-        text_bytes = body[binary_length:]
-        text_list = text_bytes.decode("gbk", errors="ignore").strip(",").split(",")
-
-        populated: list[UnusualItem] = []
-        for i, item in enumerate(results):
-            name = text_list[i] if i < len(text_list) else ""
-            populated.append(
-                UnusualItem(
-                    index=item.index,
-                    market=item.market,
-                    code=item.code,
-                    name=name,
-                    time=item.time,
-                    desc=item.desc,
-                    value=item.value,
-                    unusual_type=item.unusual_type,
-                )
-            )
-        return populated
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("unusual", self, body, _MODULES[__name__])
 
 
 class ServerInfoCmd(BaseCommand[ServerSession]):
@@ -935,52 +402,8 @@ class ServerInfoCmd(BaseCommand[ServerSession]):
         return load_native().mac_command_build("server", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> ServerSession:
-        if len(body) < 87:
-            return ServerSession(today="", last_trading_day="")
-
-        pos = 0
-        _count = unpack_from("<H", body, pos, "server_info count")[0]
-        pos += 2 + 8 + 3 + 9  # count + flags + tag + reserved
-
-        def _parse_date(p: int) -> tuple[str, int]:
-            d = unpack_from("<I", body, p, "server_info date")[0]
-            return f"{d // 10000}-{d % 10000 // 100:02d}-{d % 100:02d}", p + 4
-
-        def _parse_session(p: int) -> tuple[list[dict[str, object]], int]:
-            vals = unpack_from("<8H", body, p, "server_info session")
-            sessions: list[dict[str, object]] = []
-            for i in range(0, 8, 2):
-                sessions.append(
-                    {
-                        "open": f"{vals[i] // 60}:{vals[i] % 60:02d}",
-                        "close": f"{vals[i + 1] // 60}:{vals[i + 1] % 60:02d}",
-                    }
-                )
-            return sessions, p + 16
-
-        today, pos = _parse_date(pos)
-        pos += 4  # ts1
-        sessions_1, pos = _parse_session(pos)
-        sessions_2, pos = _parse_session(pos)
-        pos += 1  # flag byte
-        last_trading_day, pos = _parse_date(pos)
-        pos += 4  # ts2
-
-        market_param_1 = 0
-        market_param_2 = 0
-        if pos + 8 <= len(body):
-            market_param_1 = unpack_from("<I", body, pos, "server_info param1")[0]
-            pos += 4
-            market_param_2 = unpack_from("<I", body, pos, "server_info param2")[0]
-
-        return ServerSession(
-            today=today,
-            last_trading_day=last_trading_day,
-            sessions_1=sessions_1,
-            sessions_2=sessions_2,
-            market_param_1=market_param_1,
-            market_param_2=market_param_2,
-        )
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("server", self, body, _MODULES[__name__])
 
 
 class KlineOffsetCmd(BaseCommand[KlineOffsetInfo]):
@@ -997,11 +420,8 @@ class KlineOffsetCmd(BaseCommand[KlineOffsetInfo]):
         return load_native().mac_command_build("offsets", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> KlineOffsetInfo:
-        if len(body) < 8:
-            return KlineOffsetInfo(total=0, returned=0)
-        total = struct.unpack(">I", body[:4])[0]  # total 字段为大端序
-        returned = struct.unpack("<I", body[4:8])[0]
-        return KlineOffsetInfo(total=total, returned=returned)
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("offsets", self, body, _MODULES[__name__])
 
 
 # ============================================================
@@ -1025,17 +445,8 @@ class ChartSamplingCmd(BaseCommand[list[float]]):
         return load_native().mac_command_build("sampling", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[float]:
-        if len(body) < self._RESPONSE_HEADER_SIZE:
-            return []
-        require_bytes(body, 0, self._RESPONSE_HEADER_SIZE, "ChartSamplingCmd header")
-        (count,) = unpack_from("<H", body, 40, "chart_sampling count")
-        prices: list[float] = []
-        for i in range(count):
-            pos = self._RESPONSE_HEADER_SIZE + i * 4
-            require_bytes(body, pos, 4, f"ChartSamplingCmd price[{i}]")
-            (price,) = unpack_from("<f", body, pos, f"chart_sampling price[{i}]")
-            prices.append(price)
-        return prices
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("sampling", self, body, _MODULES[__name__])
 
 
 class GoodsListCmd(BaseCommand[list[GoodsItem]]):
@@ -1055,29 +466,8 @@ class GoodsListCmd(BaseCommand[list[GoodsItem]]):
         return load_native().mac_command_build("goods", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> list[GoodsItem]:
-        require_bytes(body, 0, 2, "GoodsListCmd header")
-        (total,) = unpack_from("<H", body, 0, "GoodsListCmd total")
-        self.total = total
-        items: list[GoodsItem] = []
-        for i in range(total):
-            offset = 2 + i * self._RECORD_SIZE
-            require_bytes(body, offset, self._RECORD_SIZE, f"GoodsListCmd record[{i}]")
-            category, raw_name, u, index, switch, v1, v2, v3, c1, c2 = unpack_from(
-                self._RECORD_FMT, body, offset, f"GoodsListCmd record[{i}]"
-            )
-            items.append(
-                GoodsItem(
-                    name=raw_name.decode("gbk", errors="replace").rstrip("\x00"),
-                    category=category,
-                    u=u,
-                    index=index,
-                    switch=switch,
-                    code=[v1, v2, v3],
-                    c1=c1,
-                    c2=c2,
-                )
-            )
-        return items
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("goods", self, body, _MODULES[__name__])
 
 
 _FILENAME_LEN = 70
@@ -1098,10 +488,8 @@ class FileListCmd(BaseCommand[FileMeta]):
         return load_native().mac_command_build("file_meta", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> FileMeta:
-        require_bytes(body, 0, 4 + 4 + 1 + 32, "FileListCmd")
-        offset, size, flag = unpack_from("<IIb", body, 0, "FileListCmd meta")
-        hash_str = body[9:41].decode("ascii", errors="replace").rstrip("\x00")
-        return FileMeta(offset=offset, size=size, flag=flag, hash=hash_str)
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("file_meta", self, body, _MODULES[__name__])
 
 
 class FileDownloadCmd(BaseCommand[bytes]):
@@ -1124,9 +512,8 @@ class FileDownloadCmd(BaseCommand[bytes]):
         return load_native().mac_command_build("file_download", self, _MODULES[__name__])
 
     def parse_response(self, body: bytes) -> bytes:
-        if len(body) < 8:
-            return b""
-        return body[8:]
+        from eltdx._native_abi import load_native
+        return load_native().mac_response_parse("file_download", self, body, _MODULES[__name__])
 
 
 __all__ = [

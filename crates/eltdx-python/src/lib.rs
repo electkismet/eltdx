@@ -33,6 +33,7 @@ mod extension_parse;
 mod extension_rules;
 mod extension_frame;
 mod mac_commands;
+mod mac_parse;
 mod money_flow_history;
 mod limits;
 mod helpers;
@@ -114,6 +115,10 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(extension_commands::ex_login_parse, module)?)?;
     module.add_function(wrap_pyfunction!(mac_commands::mac_command_init, module)?)?;
     module.add_function(wrap_pyfunction!(mac_commands::mac_command_build, module)?)?;
+    module.add_function(wrap_pyfunction!(mac_parse::mac_response_parse, module)?)?;
+    module.add_function(wrap_pyfunction!(mac_parse::mac_numeric_value, module)?)?;
+    module.add_function(wrap_pyfunction!(mac_parse::mac_numeric_default, module)?)?;
+    module.add_function(wrap_pyfunction!(mac_parse::mac_unusual_description, module)?)?;
     module.add_function(wrap_pyfunction!(extension_binary::extension_require_bytes, module)?)?;
     module.add_function(wrap_pyfunction!(extension_binary::extension_prepare_unpack, module)?)?;
     module.add_function(wrap_pyfunction!(extension_binary::extension_unpack_error, module)?)?;

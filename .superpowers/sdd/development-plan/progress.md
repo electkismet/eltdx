@@ -1,6 +1,19 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage99: base08b9af5. All18 MAC response methods
+  and unusual/numeric helpers now native; explicit numeric except adapters
+  retained. Keep bitmap20/unknown slots/prefix vs partial rows, bar seconds,
+  chart partition/clamping/tail, per-record vs prefix behavior, info/board
+  layouts, JSON error/truthy rules, two unusual model passes, original server
+  default, mixed-endian offsets, strict sampling/goods and file slice types.
+  Shared response formats/strides; strict policy/production evidence unchanged.
+  Added28 Python functions(5 parametrized), eleven new contracts total240,
+  all unexecuted. Read task-27-report Stage12. Next transport/owner/generation/
+  config/hosts/probes/models/manifest/consumer, then T28-T30/T19 source closure
+  and unified verification.25/2/3 unchanged; active unlimited, no verification/
+  agents/publication/controller-state edits.
+
 - Latest recovery2026-11-17 stage98: base5f24441. All17 MAC constructors and
   all18 builders now native delegates. Shared request formats/head constants/
   bars flags/JSON tags/server bytes with strict Rust; original identities,

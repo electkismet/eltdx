@@ -530,6 +530,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 - [ ] 新增 `crates/eltdx/tests/extended_loopback.rs`，通过公开EX/MAC客户端覆盖各profile握手、半包、切换和释放；运行 `cargo test -p eltdx --features ex,mac --test extended_loopback --locked`。
 
 ### T27：扩展 Python 迁移与全能力核对
+2026-11-17第十二段源码恢复点（stage99，基础08b9af5）：MAC全部18响应和异动描述/数值helper迁native，保留原位图/prefix/partial/秒级/多日分组/JSON/异常/model/文件类型等规则。strict共用响应格式与行步长但不改变其校验。新增28个Python函数（5参数化），十一份合同240函数，全未执行。transport/owner/generation/config/host/probe/models/清单/consumer继续；25完整源码/2部分/3未开始不变，全部执行验收延期。
+
 2026-11-17第十一段源码恢复点（stage98，基础5f24441）：MAC全部17构造器/18请求builder接native，与strict共用格式/头常量/bar标志/JSON标签/server字节。原类/签名/参数顺序/任意值/捕获与赋值顺序、GBK/struct错误、None字段默认/no quote cap/惰性flags与PEP479/padding双宽度/date算术保留。新增24个Python函数（4参数化），十份合同212函数，全未执行。MAC全parser/helper和transport/owner/generation/config/host/probe/清单/consumer继续；25完整源码/2部分/3未开始不变，全部执行验收延期。
 
 

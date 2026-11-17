@@ -1,4 +1,44 @@
 # T27 implementation report
+## Stage 12 — all MAC response parsers and private helpers (2026-11-17, stage99)
+
+Base08b9af5. Authored mac_parse.rs with all18 response policies, unusual
+text decoding and safe numeric conversion helpers. Existing Python methods
+now delegate; the numeric except blocks remain explicit Python object/active
+exception adapters. No compile, test, import, collection, dependency, network,
+AST, format or diff validation was executed.
+
+Preserve quote20B bitmap/all-bit row width/complete prefixes versus members'
+short-value partial row; unknown slots still occupy space, live postprocess/
+cast, quote ignore/all-NUL versus members replace/right-NUL decode. Bars keep
+clamped counts, date-range skipping, lazy period comparisons including seconds,
+raw numeric slots and model-before-datetime capture. Single/multi-day charts
+keep modulo24 minute clocks,18B/14B ticks, source tail slots, leading-date/count/
+page clamping, short oldest day followed by complete days, zero-count behavior,
+live size/format/date/model hooks. Strict Rust validation remains separate.
+
+Transactions remain strict-per-record, auction keeps complete-prefix recovery;
+seconds and signed unmatched are preserved. Info retains96/148 offsets and
+HHMMSS datetime. Boards retain count//2 and all paired160B columns. Belong JSON
+retains9/13 rows, replace decode and truthiness, capital strict GBK/two rows/
+repeated live lengths and original net column order. Numeric helpers preserve
+cast/float/int capture and swallow only original ValueError/TypeError.
+
+Unusual retains all type/format/overlapping0x14 fields and two DTO passes with
+names starting at declared count*32. Server short87B default, unvalidated date/
+session text and original optional-param guard remain. Offsets stay big/little
+endian, sampling strict per price, goods assigns total before record failure,
+file signed flag/ASCII replacement and download slice type are retained.
+Shared layout registers response formats and strict transaction/board/goods/
+auction row strides. No production login or association evidence inferred.
+
+Added tests/test_native_mac_parse_contract.py with28 public functions,
+5 parametrized. Eleven new extension contract files total240 public Python
+function sources, all unexecuted. Counts25 source-complete/2 partial(T19/T27)/
+3 unstarted(T28-T30), unchanged. Next transport/owner/generation/config/host/
+probe/management/models/export/manifest and nonempty installed-wheel consumer;
+then T28-T30/T19 source closure followed by unified verification and repairs.
+Goal active unlimited; no agents/publication/controller-state edits.
+
 ## Stage 11 — all MAC constructors and request builders (2026-11-17, stage98)
 
 Base5f24441. Registered mac_commands.rs and its two native entry functions.

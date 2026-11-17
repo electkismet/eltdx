@@ -173,10 +173,10 @@ pub fn boards(body: &[u8]) -> Result<BoardPage> {
     let total_raw = view.u16(2)?;
     if paired_count % 2 != 0 { return Err(protocol("MAC board response has an unpaired board/leader record")); }
     let count = usize::from(paired_count / 2);
-    view.records(4, count, 160, 0)?;
+    view.records(4, count, super::layout::BOARD_RECORD_SIZE, 0)?;
     let mut items = Vec::with_capacity(count);
     for index in 0..count {
-        let offset = 4 + index * 160;
+        let offset = 4 + index * super::layout::BOARD_RECORD_SIZE;
         items.push(BoardInfo { board: board_side(&view, offset)?, leader: board_side(&view, offset + 80)?,
             meta: std::sync::Arc::new(crate::types::ResultMeta::default()) });
     }
@@ -191,10 +191,10 @@ pub fn chart_sampling(body: &[u8]) -> Result<Vec<WireFloat>> {
 pub fn goods(body: &[u8]) -> Result<Vec<GoodsItem>> {
     let view = View::new(body, "0x2562");
     let count = usize::from(view.u16(0)?);
-    view.records(2, count, 48, 0)?;
+    view.records(2, count, super::layout::GOODS_RECORD_SIZE, 0)?;
     let mut items = Vec::with_capacity(count);
     for index in 0..count {
-        let offset = 2 + index * 48;
+        let offset = 2 + index * super::layout::GOODS_RECORD_SIZE;
         items.push(GoodsItem { category: view.u16(offset)?, name: WireText::from_wire(view.array(offset + 2)?),
             u: view.u16(offset + 25)?, index: view.u32(offset + 27)?, switch: view.u8(offset + 31)?,
             code: [view.float(offset + 32)?, view.float(offset + 36)?, view.float(offset + 40)?],
@@ -205,10 +205,10 @@ pub fn goods(body: &[u8]) -> Result<Vec<GoodsItem>> {
 pub fn auction(body: &[u8]) -> Result<Vec<Auction>> {
     let view = View::new(body, "0x123d");
     let count = usize::try_from(view.u32(24)?).map_err(|_| protocol("MAC auction row count exceeds address space"))?;
-    view.records(36, count, 16, 0)?;
+    view.records(36, count, super::layout::AUCTION_RECORD_SIZE, 0)?;
     let mut items = Vec::with_capacity(count);
     for index in 0..count {
-        let offset = 36 + index * 16;
+        let offset = 36 + index * super::layout::AUCTION_RECORD_SIZE;
         let time_seconds = view.u32(offset)?;
         items.push(Auction { time_seconds, time: seconds(time_seconds)?, price: view.number(offset + 4)?,
             matched: NativeNumber::unknown(view.u32(offset + 8)?), unmatched: NativeNumber::unknown(view.i32(offset + 12)?) });
