@@ -219,3 +219,15 @@ candidate/baseline p50比率（>1表示候选慢）为：Windows parse1.0043、p
 已在[最终验收索引](final-acceptance.md)为R01–R12逐项记录局部证据和未闭合条件，全部保持“部分”，不将本地fixture、不同候选或缺失的生产/平台证据升级为全通过。stage135文档更新后，`check_release_metadata.py`、`mkdocs build --strict`、`check_pages_links.py site`及`git diff --check`最终结果和日志SHA256保存在`artifacts/unified/stage135-docs-attempt04/results.json`。attempt02曾因T30索引的中文fragment与MkDocs生成id不符而失败；修正为`stage135windowslinux`后通过，失败日志保留在attempt02。
 
 文档检查点`8e4a7ca1196bc239095dc72903ad81cf919d0e76`提交后再次执行上述四项命令，均exit0，见`artifacts/unified/stage135-docs-attempt05/results.json`。随后对照Linux原始构建报告更正本页误抄为Windows值的Linux native哈希；原始性能报告和性能数值未变。更正后的最终文档门禁记录为`artifacts/unified/stage135-docs-attempt06/results.json`，以其中实际退出码和文件hash为准。
+
+## Stage136：Windows Python 3.10–3.14
+
+候选提交`e2b8819c4729de28f0472ecbe743b0c2e100872f`只调整跨解释器测试假设，没有改运行时代码。由该候选构建的Windows x64/MSVC abi3 wheel SHA256为`82b0bf70a847ea7775079cb4d958130cfca850e9ca515ebf1e38b686de65fd3e`，native `_native.pyd` SHA256为`465e28d1dc950a97ce36bb3ee82766c6aebe52448d3486fad5203b67c030de66`，Cargo.lock SHA256为`214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`。Python3.10.22、3.11.18、3.12.6、3.13.18和3.14.10均安装了同一wheel，`pip check`均exit0，实际native hash均相同。
+
+五个解释器各自执行`round4-local`、`round5-loopback`、`round3-golden`，分别为3048、276、103项通过，合计17135 passed、0 failed、0 errors、0 skipped。每个解释器的临时独立wheel consumer完成本地`--only-binary=:all:`安装、`pip check`、公开API非空TCP回环查询及关闭，三个命令均exit0。consumer工具链隔离记录为`process-path-only`，不等同物理无Rust/cargo/maturin镜像。
+
+Python版本差异修正在测试层：AST快照不再依赖`ast.unparse`的括号格式，Enum反射忽略CPython内部MRO/签名细节；长度提示与datetime错误断言改为结构化或对照当前解释器行为。3.14首轮失败日志保留，修复后的完整五版本复验通过。逐版本JUnit hash、安装/native身份、consumer命令和报告SHA汇总于`artifacts/unified/stage136-python-matrix/results.json`（SHA256 `d0ea046b18f962ee719647c626186aa4bdc0a2b855162c1729bdca0476e846b2`）；各原始日志与JUnit在同目录的`python-3.10/`至`python-3.14/`。
+
+该矩阵补齐了Windows上的声明Python版本范围，不补齐macOS/非Windows wheel、物理隔离环境、公开registry无patch消费、生产MAC/setup/category22样本或权威涨跌停规则。统一验收仍active；这些外部证据缺口维持未闭合。
+
+stage136文档 attempt01 针对本节与验收索引的更新执行了`check_release_metadata.py`、`mkdocs build --strict`、`check_pages_links.py site`及dirty-tree `git diff --check`，四项均exit0，逐命令SHA和日志见`artifacts/unified/stage136-docs-attempt01/results.json`（文件SHA256 `1d8c0013c9efa9af1e78e87983c5c9dc45c31466067b12392b5b2f5a5ecd8d81`）。恢复提交后会对同一文档内容在clean tree再次运行并另存attempt，不覆盖本次dirty-tree证据。

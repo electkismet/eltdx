@@ -1,12 +1,12 @@
 # T01–T30 最终要求与证据索引
 
-本页把开发计划R01–R12关联到实际源码、验证入口和必须保留的运行证据。它是验收导航，不能凭表格或脚本存在判定完成。统一执行已在stage115开放；stage131–134已完成Windows Rust1.89/1.100平台与feature矩阵、Loom、归档consumer、Python3.12 wheel回归、Linux/full与Loom以及两平台默认原生压力聚合；stage135完成Windows/Linux配对性能run及raw复验。各次候选、平台、命令和具体范围见[统一验证记录](unified-validation.md)。stage135已完成R01–R12首轮逐项审计并逐项列出部分结论和剩余证据；macOS、其他Python版本、生产/物理隔离外部证据尚未闭合，整体最终交付仍未验收。未验证、失败、缺失、平台未具备、生产样本未取到必须分别记录。
+本页把开发计划R01–R12关联到实际源码、验证入口和必须保留的运行证据。它是验收导航，不能凭表格或脚本存在判定完成。统一执行已在stage115开放；stage131–134已完成Windows Rust1.89/1.100平台与feature矩阵、Loom、归档consumer、Linux/full与Loom以及两平台默认原生压力聚合；stage135完成Windows/Linux配对性能run及raw复验；stage136完成Windows Python3.10–3.14 wheel、完整回归和独立consumer矩阵。各次候选、平台、命令和具体范围见[统一验证记录](unified-validation.md)。stage135首轮逐项审计的未闭合项由stage136更新；macOS、非Windows wheel、生产/物理隔离及registry证据尚未闭合，整体最终交付仍未验收。未验证、失败、缺失、平台未具备、生产样本未取到必须分别记录。
 
 ## 要求逐项追踪
 
 | 要求 | 实现与源码交接 | 验证入口/核心观察 | 达成所需证据 |
 | --- | --- | --- | --- |
-| R01 两产品独立安装 | `crates/eltdx`；两个 `tests/consumers`；[T28索引](t28-verification-index.md) | Rust-only外部consumer；Python-only镜像wheel消费；生产normal/build tree | 无Python的Rust构建及真实非空查询；无Rust工具的实际wheel安装/查询/close；各自真实依赖、路径及hash |
+| R01 两产品独立安装 | `crates/eltdx`；两个 `tests/consumers`；[T28索引](t28-verification-index.md) | Rust-only外部consumer；Windows Python3.10–3.14独立wheel安装、pip check、非空公开API查询及close | 无Python的Rust物理隔离构建；无Rust工具的物理隔离wheel消费；公开registry身份及非Windows产物 |
 | R02 共用Rust业务 | HQ/F10/offline/EX/MAC桥接；[HQ](hq-implementation-index.md)、[T23](t23-migration-index.md)、[T27](t27-migration-index.md) | 旧Python样本/黄金输出、新Python native bridge、独立Rust结果；custom hook合同 | 完整能力清单逐项实际node/fixture/差异及结果；两端都调用新算法的比较不能充当独立oracle |
 | R03 owner/pin/pending | SDK session/operation，runtime engine/slot；任务T05–T07 | `lifecycle.rs`、`operation.rs`、runtime `pin_handoff.rs`；并发close/Drop与未确认清理 | 每个请求唯一归属和终态；旧generation迟到事件不能串线；超时不提前核销未回收资源 |
 | R04 整次期限 | operation sponsor/authorization，metadata与各组合服务 | runtime `deadline.rs`、SDK `operation.rs`、F10/扩展fixture；Python逐请求对照 | startup/queue/metadata/page/retry都消耗同一原始Rust期限；Python原逐页策略不被缩短；清理期限另报 |
@@ -16,8 +16,8 @@
 | R08 订阅 | subscription/dispatcher及Python兼容fanout | `subscription.rs`、`legacy_push.rs`、Python orchestration合同和压力subscription | 唯一push消费者、订阅pin持有/释放、续期/重同步、queue字节/帧限额、gap及关闭竞争 |
 | R09 F10/EX/MAC边界 | [F10传输](f10-transport-index.md)、[端点](f10-implementation-index.md)、[EX](ex-implementation-index.md)、[MAC](mac-implementation-index.md)、[T26](t26-implementation-index.md) | `f10_http/values/routes/named_methods/route_inventory/results`；`ex_wire/session`、`mac_wire/session/routing`、extended组合 | 非空请求/响应、157入口和具名分支、动态重复列/未知slot/GBK/序号/时间；每个生产profile另有独立证据 |
 | R10 文件下载有界 | [offline](offline-migration-index.md)、[financial](financial-implementation-index.md)、HQ/MAC下载 | `offline_bars/offline_blocks/offline_industry/gbbq`、`financial/financial_service/resources/stats/extended_downloads`及故障I/O | 逐字节roundtrip、残尾append不写、原末条阈值、partial write、ZIP目录与解压限额、完整EOF和LimitReached区别 |
-| R11 兼容决策 | [Python基线](python-baseline.md)、[56个兼容案例](compatibility-cases.md)、[决策](decision-register.md) | manifest/static/reflection/public/model/错误与逐域合同 | 原签名/默认/别名/异常context/cache/hooks/重开/文件行为；任何有意变化独立记录，不改黄金值遮盖 |
-| R12 可交付可复验 | [发布政策](release-policy.md)、[T30压力](t30-evidence-index.md)、[性能](performance-policy.md)、[维护](maintenance.md) | feature/platform/MSRV、doctest/doc、归档consumer、wheel/sdist、原始压力性能复验 | 同一候选的干净来源/lock/hash/平台/命令/计数/失败日志；不把local patch或path消费称为公开registry通过 |
+| R11 兼容决策 | [Python基线](python-baseline.md)、[56个兼容案例](compatibility-cases.md)、[决策](decision-register.md) | manifest/static/reflection/public/model/错误与逐域合同；Windows Python3.10–3.14全套local/loopback/golden矩阵 | 原签名/默认/别名/异常context/cache/hooks/重开/文件行为；任何有意变化独立记录，不改黄金值遮盖 |
+| R12 可交付可复验 | [发布政策](release-policy.md)、[T30压力](t30-evidence-index.md)、[性能](performance-policy.md)、[维护](maintenance.md) | feature/platform/MSRV、doctest/doc、归档consumer、Windows Python3.10–3.14 wheel、原始压力性能复验 | 同一候选的干净来源/lock/hash/平台/命令/计数/失败日志；不把local patch或path消费称为公开registry通过 |
 
 表中的测试名是 `crates/eltdx/tests` 中的target，runtime文件在 `crates/eltdx-runtime/tests`；Python合同与集成目录分别是 `tests/contracts`、`tests/integration`，扩展/F10迁移合同还在其分域测试目录中，精确路径与nodes以分域索引和manifest为准。目录名、方法名和函数数量只是定位信息，执行后须核对实际收集集合和行为断言覆盖。
 
@@ -50,7 +50,7 @@
 - 注册表名称/同版本源码身份、全部新依赖lock/API/MSRV/license、跨平台镜像与实际wheel支持仍需真实执行。
 - Windows/macOS hosted的process-path-only隔离不能证明整台机器没有编译器；更强环境要求须提供专用镜像证据。
 
-本节较早阶段记录保留为历史；stage131–135的更新结果优先，完整范围见统一验证记录。性能在Windows/Linux已各84 trial并通过复验；macOS、其他Python版本、物理隔离环境及生产协议证据仍需补齐，不把本机合成测量扩大到缺失环境。
+本节较早阶段记录保留为历史；stage131–136的更新结果优先，完整范围见统一验证记录。性能在Windows/Linux已各84 trial并通过复验；macOS、非Windows wheel、物理隔离环境及生产协议证据仍需补齐，不把本机合成测量扩大到缺失环境。
 
 ## Stage135 逐项审计结论
 
@@ -71,6 +71,12 @@
 | R11 兼容决策 | 部分 | Python 3.12 local 3046、loopback 276、golden 103通过；基线与差异规则有文档 | Python 3.10–3.14全矩阵未完成；生产hook/profile仍需对应样本 |
 | R12 可发布可复验 | 部分 | Windows/Linux候选、lock/wheel、压力与性能raw均可复验，stage135性能raw复验通过 | macOS、公开registry发布后消费、真实隔离镜像；生产协议证据；未执行发布 |
 
-因此stage135之后仍没有任何一项被声明为全环境、全生产条件通过。下一轮按上表缺口补证；拿不到的外部样本继续保留为明确未完成项，不以合成测试替代。
+stage135审计快照之后，stage136补齐了Windows Python3.10–3.14全部兼容回归和独立wheel消费。R11现在有该平台与版本范围的实际证据；R01、R12也增加了相同wheel交付证据。其余条目仍按具体平台、物理隔离和生产证据条件审视，没有任何一项因此升级为全环境、全生产条件通过。
+
+## Stage136：Windows Python 版本矩阵
+
+候选 `e2b8819c4729de28f0472ecbe743b0c2e100872f` 使用Windows x64/MSVC构建的`eltdx-3.3.5-cp310-abi3-win_amd64.whl`。Python3.10.22、3.11.18、3.12.6、3.13.18、3.14.10分别通过local 3048、loopback 276和golden 103项，合计17135 passed、0 failed、0 errors、0 skipped。每个版本另从临时环境安装同一wheel，pip check及独立非空公开API consumer均exit0；记录了wheel/native身份并成功close。
+
+wheel SHA256为`82b0bf70a847ea7775079cb4d958130cfca850e9ca515ebf1e38b686de65fd3e`，native SHA256为`465e28d1dc950a97ce36bb3ee82766c6aebe52448d3486fad5203b67c030de66`，Cargo.lock SHA256为`214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`。逐版本解释器、各JUnit SHA、installed-wheel报告与consumer证据摘要见`artifacts/unified/stage136-python-matrix/results.json`。consumer为`process-path-only`工具链隔离，不能代表物理隔离镜像；这些是Windows合成loopback和兼容证据，不提供macOS、生产协议、公开registry或非Windows wheel证明。stage136的跨Python修正只调整了测试/快照比较假设，未改变运行时代码。文档门禁与最新恢复点结果见统一验证记录stage136章节。
 
 这些不是授权缩减任务范围的理由。源码范围须全部实现，执行失败须继续处理；任何确实需要独立外部输入的项保留具体缺口和后续行动，不能借文档标记自动通过。
