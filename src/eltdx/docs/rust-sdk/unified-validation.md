@@ -417,3 +417,18 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 | 北交所 `bj920117` | 30% | 20.68 | 26.88 | 14.48 |
 
 两家供应商的同日快照相互印证，但可能共享交易所上游；这些样本不替代交易所分发的原始文件，也未覆盖无涨跌幅、除权参考及其他特殊交易状态。运行时代码及 `UnknownRule` 行为未变。
+
+## Stage165：上市首日与除息日的独立核验
+
+对干净检查点 `c8c9de5cf5cc3d71c639936fe587b6e05780e071`，首轮取数窗口止于 10 月 31 日，未覆盖实际除息日；保留 `artifacts/unified/stage165-special-prices-attempt01/` 原响应，第二轮延至 11 月 3 日。`stage165-special-prices-attempt02/verify.py` 校验两个目录的 9 份原始响应、交易所网站公告及两个行情源 11 条未复权日线的 OHLC，exit 0。`verified.json` SHA256 `0c43e9de1dfc34f838509295ab07ac97b1f021d0000a7fa081d7fb39dc3a764f`。
+
+- 鸿富诚 `sz301716`：深交所披露确认 2026-09-29 上市、发行价 76.86 元和上市后前五个交易日不设涨跌幅。东方财富和腾讯这一天的收盘价均为 578.88 元，与普通创业板 20% 限幅不适用一致。未取得交易所静态文件中的无涨跌幅标记。
+- 广钢气体 `sh688548`：上交所披露确认 2026-11-02 除息和每股 0.078 元现金红利，腾讯除息事件字段与公告一致。两家未复权日线的上一交易日收盘价均为 23.08 元。按公告的差异化分红公式得除息参考价 23.00 元，以 20% 复算上下限 27.60/18.40 元。东方财富未复权日线涨跌额仍以 23.08 元为基准；不能据此字段判定除息日参考价。复算值尚未取得当日交易所文件对证，不修改 SDK 的 `UnknownRule` 行为。
+
+## Stage166：同一候选五平台发行产物验证完成
+
+[GitHub Actions 44189071921 attempt 2](https://github.com/electkismet/eltdx/actions/runs/44189071921) 在 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 成功结束。最后一组 macOS ARM64 / Python 3.14 安装通过后，五个 wheel 与一个 sdist 聚合成功，分支候选的 release metadata 验证也成功。此运行未上传 PyPI 或创建 GitHub Release。
+
+从 Actions 下载 `installed-*`、`release-dist` 和 `release-verification`。`artifacts/unified/stage159-actions-confirmation-attempt01/verify.ps1` 全量模式核对十组安装、30 条命令日志、每个平台的 wheel/native 散列、非空公开 API 结果、定位不到编译工具，以及 macOS 两套 Rust 与归档日志。`verified-platforms.json` SHA256 `4a9647dfba9aa43ce53733ea43ea01a66c506c0a07574f90eb1d3162da7b4431`。两个原生 Linux 架构运行于无编译工具镜像；Windows、macOS 是独立虚拟环境和受限 PATH。
+
+同目录 `verify-aggregate.py` 核对运行 SHA/attempt、六份实际文件与 `SHA256SUMS`、十份消费报告的 wheel 身份，以及两个 CI 清单逐字节一致；独立生成的 JSON 清单经解析完全一致，文件散列只因 LF/CRLF 不同。`verified-aggregate.json` SHA256 `1b11f63726120a90d436c3b5acd63c53f355b56b2c7c56822e1bdf87d484500d`，聚合清单 SHA256 `eb33e7efe703426c496338c7cb6e58ef17b55ac0b2bcf1b197bd3d4bb5768d32`，`SHA256SUMS` SHA256 `e3432bd0806f4aa91f157534672110219d125c25c749aa594e439e1ad5ec3340`。正式 crates.io 发布及其无 patch 消费证据仍待可用发布凭据。

@@ -1225,3 +1225,11 @@ Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.
 ## Stage164：实盘行情双侧限价交叉核验
 
 `c291bda` 上以东方财富、腾讯行情的 2026-11-17 快照核对 `sh600000`、`sz301716`、`bj920117`，两家给出的参考价和上下限均一致，按交易所规则与公告复算一致。五份原始响应与 `verified.json`、核验命令见 `artifacts/unified/stage164-published-quotes-attempt01/`。行情商结果不替代交易所原始静态资料和特殊状态样本，运行时代码及未知规则行为未变。`44189071921` attempt 2 的 macOS Intel 与 ARM 已进入执行；继续从同一运行收集，不重启。Cargo 发布凭据仍缺。
+
+## Stage165–166：最终平台验证关闭，特殊行情证据补充
+
+`c8c9de5` 下通过交易所披露和两家行情日线交叉核验鸿富诚首日无涨跌幅、广钢气体除息日参考价复算。首次窗口未覆盖除息日，保留原件并追加正确窗口。9 份响应和核验均见 `artifacts/unified/stage165-special-prices-attempt02/verified.json`，以交易所正式市场数据文件另行确认原始参考价、上下限和标志，不用日线涨跌额代替。
+
+公开候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 上的 44189071921 attempt 2 已结束成功。`stage159-actions-confirmation-attempt01/verified-platforms.json` 与 `verified-aggregate.json` 核对了五平台十组安装、五 wheel 和一 sdist、逐文件散列及 CI 与独立产物清单。44188994800 的 macOS Rust/归档已独立通过。无须再等或重跑这两次 CI。更早候选的失败日志保留；此轮仅更新文档和恢复账本，产品代码不用重验。
+
+接续：同机配置获授权的 `cargo login` 后，以固定换行的干净 `stage158-macos-retest-attempt01/registry-source` 依次发布 `eltdx-protocol@3.3.5`、`eltdx-runtime@3.3.5`、`eltdx@0.1.0`，每包公开后核对下载归档和权限，再运行独立 `registry-consumer`。生产还缺 MAC-EX 跨日、其他网络和服务端拒绝、MAC 可选 setup、category 22 非空及交易所原始价格记录。目标保持 active、无额度限制。

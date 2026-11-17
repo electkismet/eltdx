@@ -8,17 +8,17 @@
 | --- | --- | --- |
 | T01–T30实现 | 完成 | 计划内Rust SDK、Python兼容桥接、独立Rust入口及文档/示例源码已写齐。Stage145–148依据生产样本修正Rust MAC-EX、标准EX商品总数的31字节响应解析。 |
 | 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
-| 发布平台与隔离 | macOS Rust 与原生 Linux 安装已通过；最终候选 wheel/sdist 聚合待确认 | Stage159 在 `6a6cd8b` 上通过 macOS Rust 1.89/stable、三 crate 归档及原生 Linux x64/ARM64 的 Python 3.10/3.14 干净容器消费。五平台十组独立 Python 安装和 5+1 产物聚合在其父候选 `4b31a56` 已全部通过；修正候选的同 SHA wheel/sdist 复验见下。 |
+| 发布平台与隔离 | 发布候选的五平台产物、十组安装与 macOS Rust 验证通过 | `6a6cd8b` 上通过 macOS Rust 1.89/stable、三 crate 归档，以及 Windows x64、macOS Intel/ARM64、原生 Linux x64/ARM64 的 Python 3.10/3.14 独立安装。五个 wheel 和一个 sdist 的聚合、元数据和逐文件哈希通过。Linux 使用无编译工具镜像，Windows/macOS 使用独立环境及受限 PATH；无 Python 的 Rust 镜像消费见 Stage149。 |
 | 注册表发布与消费 | 未发布 | Stage160 在最终候选干净检出查询三个名称均返回 404，本地归档与 protocol 的 Cargo publish dry-run 通过。缺少 crates.io 发布凭据；发布后仍需用无 patch 独立项目验证。 |
-| 生产协议验收 | 部分公开主站流程已验证 | 标准 EX 主站查询 52 个市场与 111218 个商品，与 Python 实测一致；三个普通 MAC 主站通过默认三步握手及业务查询。两台 MAC-EX 主站以即时完整样本完成独立 Rust 查询；Stage163 在稳定 F10 入口查询到五条真实历史资金流记录。Stage164 在两个行情商交叉确认沪、深、北三个普通交易样本的参考价和双侧限价。仍待可复用的 MAC-EX 登录规则及服务端拒绝、可选 setup、实验 category 22 非空，以及交易所原始股票价格记录和特殊交易日样本。 |
+| 生产协议验收 | 部分公开主站流程已验证 | 标准 EX 主站查询 52 个市场与 111218 个商品，与 Python 实测一致；三个普通 MAC 主站通过默认三步握手及业务查询。两台 MAC-EX 主站以即时完整样本完成独立 Rust 查询；Stage163 在稳定 F10 入口查询到五条真实历史资金流记录。Stage164–165 核对普通双侧限价、新股首日无涨跌幅及除息价复算。仍待可复用的 MAC-EX 登录规则及服务端拒绝、可选 setup、实验 category 22 非空，以及交易所原始参考价、限价和限制类型记录。 |
 
-因此，当前可报告为“实现完成；记录范围内的本地核心验证通过；发布/生产验收未完成”。后两项依赖外部平台、注册表权限或生产数据，不用来回滚前两项状态，也不合并成一个完成比例。
+当前已完成实现、所列本地核心验证和最终候选的平台与产物复验。正式注册表发布及无 patch 消费、尚缺的生产样本分别追踪，不合并为一个完成比例。
 
 ## 要求逐项追踪
 
 | 要求 | 实现与源码交接 | 验证入口/核心观察 | 达成所需证据 |
 | --- | --- | --- | --- |
-| R01 两产品独立安装 | `crates/eltdx`；两个 `tests/consumers`；[T28索引](t28-verification-index.md) | 最新候选三crate归档和11种解包Rust consumer模式；Windows Python3.10–3.14独立wheel消费；Stage149无Python的Rust消费者、无编译工具的Linux x64 wheel消费者均通过 | 公开registry身份及无patch消费；补齐macOS和原生ARM产物 |
+| R01 两产品独立安装 | `crates/eltdx`；两个 `tests/consumers`；[T28索引](t28-verification-index.md) | 三 crate 归档和 11 种解包 Rust consumer；Stage149 无 Python 的 Rust 消费；Stage166 同候选五平台十组 wheel 消费，含两个原生 Linux 架构的无编译工具镜像 | 公开 registry 身份及无 patch 消费仍待实际发布后验证 |
 | R02 共用Rust业务 | HQ/F10/offline/EX/MAC桥接；[HQ](hq-implementation-index.md)、[T23](t23-migration-index.md)、[T27](t27-migration-index.md) | 旧Python样本/黄金输出、新Python native bridge、独立Rust结果；custom hook合同 | 完整能力清单逐项实际node/fixture/差异及结果；两端都调用新算法的比较不能充当独立oracle |
 | R03 owner/pin/pending | SDK session/operation，runtime engine/slot；任务T05–T07 | `lifecycle.rs`、`operation.rs`、runtime `pin_handoff.rs`；并发close/Drop与未确认清理 | 每个请求唯一归属和终态；旧generation迟到事件不能串线；超时不提前核销未回收资源 |
 | R04 整次期限 | operation sponsor/authorization，metadata与各组合服务 | runtime `deadline.rs`、SDK `operation.rs`、F10/扩展fixture；Python逐请求对照 | startup/queue/metadata/page/retry都消耗同一原始Rust期限；Python原逐页策略不被缩短；清理期限另报 |
@@ -58,8 +58,8 @@
 
 ## 后续工作
 
-- 发布平台：公开候选 `6a6cd8b` 的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)已通过。同 SHA 的[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)因 macOS Intel 的产物上传 DNS 错误已重跑失败任务；以新的汇总产物为准。两份初次 macOS Rust 失败报告保留在 Stage157。手动验证不上传 PyPI 或创建 GitHub Release。
-- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的登录成功样本，确认候选时钟差异符合观测；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选 setup 的身份、顺序和 fence，category 22 非空路径，以及可追溯的交易所当日参考价和限价原始记录；未验证含义继续保持 Unknown。
+- 发布平台：`6a6cd8b` 的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)和[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)均通过。Stage166 校验新汇总产物；保留 Stage157 的 Rust fixture 失败和 Stage162 的上传错误。手动验证未上传 PyPI 或创建 GitHub Release。
+- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选 setup 的身份、顺序和 fence，category 22 非空路径，以及常规和特殊交易日的交易所原始参考价、限价和限制类型；现有公告、行情和复算证据的范围见 Stage164–165。未验证含义继续保持 Unknown。
 - 注册表：在本机配置获授权的crates.io发布凭据后，核对包名、版本和账号权限，按依赖拓扑发布；随后用不含patch的独立consumer验证实际registry身份和消费结果。发布前重新查询，404仅代表该时间点的查询结果。
 
 R01–R12首轮逐项审计是stage135时点的历史快照，后续更新以本节状态和[统一验证记录](unified-validation.md)为准，不再复制一份逐行“部分”表。已有Windows Python矩阵、Windows/Linux压力与性能、以及stage138归档结果分别保留在对应阶段记录中。
