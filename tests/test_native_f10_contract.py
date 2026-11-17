@@ -703,14 +703,19 @@ def test_f10_index_valuation_keeps_dynamic_selector_and_trimmed_dates():
 def test_f10_forecast_preserves_leap_day_default_error(monkeypatch):
     from datetime import date
 
+    today = date(2024, 2, 29)
+    with pytest.raises(ValueError) as expected:
+        today.replace(year=today.year - 1)
+
     class Date:
         @staticmethod
         def today():
-            return date(2024, 2, 29)
+            return today
 
     monkeypatch.setattr(f10, "date", Date)
-    with pytest.raises(ValueError, match="day is out of range"):
+    with pytest.raises(ValueError) as actual:
         f10.F10Client().hk_analyst_forecast("700")
+    assert actual.value.args == expected.value.args
 
 
 def test_f10_forecast_explicit_start_only_defaults_end(monkeypatch):

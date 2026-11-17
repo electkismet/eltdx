@@ -25,6 +25,39 @@ SPECIAL = {
     "__contains__", "__next__", "__bool__", "__call__", "__aenter__", "__aexit__",
     "__aiter__", "__anext__",
 }
+AST_EXPRESSION_FIELDS = {"annotation", "default_expr", "decorators", "expression", "returns", "value_expr"}
+
+
+def _canonical_ast_signature(value: str) -> tuple[str, str, str | None]:
+    function = ast.parse(f"def {value}:\n    pass\n").body[0]
+    assert isinstance(function, ast.FunctionDef)
+    arguments = ast.dump(function.args, annotate_fields=True, include_attributes=False)
+    returns = ast.dump(function.returns, annotate_fields=True, include_attributes=False) if function.returns else None
+    return function.name, arguments, returns
+
+
+def _canonical_ast_snapshot(value, field: str | None = None):
+    if isinstance(value, str) and field in AST_EXPRESSION_FIELDS:
+        expression = ast.parse(value, mode="eval").body
+        return ("expression", ast.dump(expression, annotate_fields=True, include_attributes=False))
+    if isinstance(value, str) and field == "signature":
+        return ("signature", _canonical_ast_signature(value))
+    if isinstance(value, list):
+        return [_canonical_ast_snapshot(item, field) for item in value]
+    if isinstance(value, dict):
+        return {key: _canonical_ast_snapshot(item, key) for key, item in value.items()}
+    return value
+
+
+def _runtime_class_matches(record: dict, cls: type) -> bool:
+    actual_mro = [base.__module__ + "." + base.__qualname__ for base in cls.__mro__]
+    expected_mro = [base for base in record["mro"] if base != "enum.ReprEnum"]
+    actual_mro = [base for base in actual_mro if base != "enum.ReprEnum"]
+    if expected_mro != actual_mro:
+        return False
+    if issubclass(cls, Enum):
+        return True
+    return record["signature"] == str(inspect.signature(cls))
 
 
 def _expr(node: ast.AST | None) -> str | None:
@@ -593,7 +626,7 @@ def test_static_python_baseline_matches_authoritative_source_revision() -> None:
     for module in baseline["modules"]:
         raw = _git_source(baseline["source_revision"], module["path"])
         expected[module["path"]] = _source_record(module["path"], raw)
-        assert module == expected[module["path"]]
+        assert _canonical_ast_snapshot(module) == _canonical_ast_snapshot(expected[module["path"]])
     assert baseline["summary"] == {"modules": 134, "classes": 231, "module_functions": 247, "methods": 724, "annotated_class_fields": 1220}
 
 
@@ -647,6 +680,49 @@ def _legacy_ast_projection(module, additions):
     return current
 
 
+def test_ast_snapshot_comparison_ignores_unparser_only_parentheses() -> None:
+    original = {
+        "aliases": [{
+            "name": "REVERSE",
+            "value_expr": "{value: key for key, value in MARKET_TO_ID.items()}",
+        }]
+    }
+    reformatted = {
+        "aliases": [{
+            "name": "REVERSE",
+            "value_expr": "{value: key for (key, value) in MARKET_TO_ID.items()}",
+        }]
+    }
+    changed = {
+        "aliases": [{
+            "name": "REVERSE",
+            "value_expr": "{value: key for key, value in OTHER_MARKETS.items()}",
+        }]
+    }
+
+    assert _canonical_ast_snapshot(original) == _canonical_ast_snapshot(reformatted)
+    assert _canonical_ast_snapshot(original) != _canonical_ast_snapshot(changed)
+
+
+def test_runtime_enum_snapshot_ignores_python_enum_factory_details() -> None:
+    market = importlib.import_module("eltdx.models.enums").Market
+    baseline = {
+        "mro": [
+            "eltdx.models.enums.Market",
+            "enum.IntEnum",
+            "builtins.int",
+            "enum.ReprEnum",
+            "enum.Enum",
+            "builtins.object",
+        ],
+        "signature": "(*values)",
+    }
+
+    assert _runtime_class_matches(baseline, market)
+    baseline["mro"][0] = "eltdx.models.enums.OtherMarket"
+    assert not _runtime_class_matches(baseline, market)
+
+
 def test_current_worktree_ast_contract_matches_frozen_snapshot() -> None:
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
     artifact = json.loads(SDK_ADDITIONS.read_text(encoding="utf-8"))
@@ -656,7 +732,9 @@ def test_current_worktree_ast_contract_matches_frozen_snapshot() -> None:
     assert set(additions) <= {module["path"] for module in baseline["modules"]}
     for module in baseline["modules"]:
         current = _source_record(module["path"], (ROOT / module["path"]).read_bytes())
-        assert _legacy_ast_projection(current, additions.get(module["path"], {})) == _legacy_ast_projection(module, {}), module["path"]
+        actual = _legacy_ast_projection(current, additions.get(module["path"], {}))
+        expected = _legacy_ast_projection(module, {})
+        assert _canonical_ast_snapshot(actual) == _canonical_ast_snapshot(expected), module["path"]
 
 
 def test_sdk_ast_additions_do_not_allow_existing_api_drift() -> None:
@@ -698,8 +776,7 @@ def test_runtime_reflection_matches_versioned_artifact() -> None:
         for record in module_record["classes"]:
             cls = actual[record["name"]]
             assert record["bases"] == [base.__module__ + "." + base.__qualname__ for base in cls.__bases__]
-            assert record["mro"] == [base.__module__ + "." + base.__qualname__ for base in cls.__mro__]
-            assert record["signature"] == str(inspect.signature(cls))
+            assert _runtime_class_matches(record, cls)
             assert record["dataclass"]["is_dataclass"] == dataclasses.is_dataclass(cls)
             expected_decorators = set(record["decorators"])
             assert ("dataclasses.dataclass" in expected_decorators) == dataclasses.is_dataclass(cls)

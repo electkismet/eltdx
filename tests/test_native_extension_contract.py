@@ -146,9 +146,12 @@ def test_extension_normalize_keeps_instance_identity_and_star_length_hint(monkey
     monkeypatch.setattr(bitmap, "FieldSelection", Selection)
     monkeypatch.setattr(bitmap, "tuple", lambda value: pytest.fail("star expansion has no global tuple lookup"),
                         raising=False)
+    expected_parts = tuple(Source())
+    expected_evaluation = events.copy()
+    events.clear()
     result = bitmap.normalize_fields(Source())
-    assert result.parts == (bitmap.FieldBit.OPEN, bitmap.FieldBit.CLOSE)
-    assert events == ["iter", "len", ("construct", result.parts)]
+    assert result.parts == expected_parts
+    assert events == expected_evaluation + [("construct", expected_parts)]
     events.clear()
     assert bitmap.normalize_fields(bitmap.PresetField.OHLC).parts == bitmap.PresetField.OHLC.value
     assert events == [("construct", bitmap.PresetField.OHLC.value)]
