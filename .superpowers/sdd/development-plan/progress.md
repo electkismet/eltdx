@@ -1197,3 +1197,9 @@ Stage143会话 `87556` 已退出0。候选 `b9d5075` 的 manylinux2014 aarch64 w
 ## Stage154：Linux x64 wheel 消费覆盖 Python 3.10–3.14
 
 在 `5373824` 干净检查点，在仅允许回环的 WSL2 命名空间内验证 `33d542d` 构建的 Stage149 wheel；五版 CPython 的独立安装、pip check、非空公开 API 查询及关闭全部通过。构建 SHA、执行 SHA、15 条退出码、原始日志和 wheel/native 散列见统一验证记录 Stage154。工具链不存在的证据沿用 Stage149 的独立镜像，未在本轮重跑完整套件。仍待 macOS/原生 ARM、crates.io 发布凭据及实际消费、未闭合生产样本；恢复时无需重跑本轮。
+
+## Stage155：GitHub Actions 候选已提交并开始运行
+
+原快照 attempt01 的完整差异检查发现 `test_sdk_policy_fixtures.py` 末尾多余空行，已在 `103b19a` 删除；attempt02 的凭据前缀扫描误命中 `coercion_*` 测试标识，逐项核对后在 attempt03 加上词边界重新通过。Stage154 的文档门禁及证据已提交 `5ab543d`。从干净的 `103b19a6efff471a93bea2dbdbb9c160c3e20d61` 生成单提交候选 `4b31a562150970b351cf385e2acbbfb8a47aabad`，父提交为 `origin/main` 当时的 `af471f1adf38757f6aa0188968db8110eb23f6ad`。候选不带 `.superpowers` 或本地 `artifacts`，其余源树与本地检查点逐字节一致。临时索引未更改本地分支。
+
+公开分支 `codex/rust-sdk-implementation` 已确认指向 `4b31a56`。push 触发 macOS Rust 1.89/stable 及归档工作流 [44187902677](https://github.com/electkismet/eltdx/actions/runs/44187902677)；同 SHA 手动运行 wheel/sdist 的 [44187905757](https://github.com/electkismet/eltdx/actions/runs/44187905757)。手动分发不发布 PyPI，不创建标签或 GitHub Release。`artifacts/unified/stage155-release-snapshot-attempt03/` 留存快照树、远端校验和 dispatch 命令；等待两次运行的实际退出并收集证据，勿重复触发。Cargo 默认凭据、环境变量和仓库同类 secret 本轮未发现。三个 Rust crate 未上传，后续需从同一固定候选检出发布和验证公开来源。
