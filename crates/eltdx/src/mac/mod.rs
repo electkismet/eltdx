@@ -19,6 +19,7 @@ pub mod util;
 pub mod python_legacy;
 pub mod services;
 pub mod commands;
+pub mod layout;
 pub mod models;
 pub mod routing;
 pub mod responses;

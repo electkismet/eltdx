@@ -4,10 +4,8 @@ use crate::mac::bitmap::{decode_bitmap, decode_slot, encode_bitmap, quote_row_wi
 use crate::mac::models::{BarRecord, FieldContext, MacAdjust, MacCode, MacInstrumentId, MacPeriod, MacMarketId, QuoteField, QuoteRow, SlotValue, TransactionPrice, TransactionSlot, WireFloat};
 use crate::{Error, ErrorKind, Result};
 
-pub const MAC_HEAD_FLAG: u8 = 0x1c;
-pub const STANDARD_HEAD_FLAG: u8 = 0x0c;
-pub const MAC_REQUEST_HEADER_SIZE: usize = 10;
-pub const MAC_RESPONSE_HEADER_SIZE: usize = 16;
+pub use super::layout::{HEAD_FLAG as MAC_HEAD_FLAG,STANDARD_HEAD_FLAG,
+    REQUEST_HEADER_SIZE as MAC_REQUEST_HEADER_SIZE,RESPONSE_HEADER_SIZE as MAC_RESPONSE_HEADER_SIZE};
 pub const MAC_EX_LOGIN_COMMAND: u16 = 0x2454;
 
 fn invalid(message: impl Into<String>) -> Error { Error::new(ErrorKind::InvalidArgument,message).with_context("domain","mac") }
@@ -63,7 +61,7 @@ pub fn board_members_request(board_code:u32,sort_type:u16,start:u32,count:u16,so
     body.extend_from_slice(&encode_bitmap(fields,BitmapLayout::Board16)?);body.extend_from_slice(&[0,exclude_mask,0,1]);build_request(0x122c,&body,MAC_HEAD_FLAG)
 }
 pub fn bars_request(id:&MacInstrumentId,period:MacPeriod,times:u16,start:u32,count:u16,adjust:MacAdjust)->Result<MacRequest>{
-    let mut body=Vec::with_capacity(46);put_u16(&mut body,id.market().get());body.extend_from_slice(&id.code().wire_bytes());put_u16(&mut body,period.wire());put_u16(&mut body,times);put_u32(&mut body,start);put_u16(&mut body,count);put_u16(&mut body,adjust.wire());body.extend_from_slice(&[1,1,0,1]);put_u16(&mut body,0);body.extend_from_slice(&[0;4]);build_request(0x122e,&body,MAC_HEAD_FLAG)
+    let mut body=Vec::with_capacity(46);put_u16(&mut body,id.market().get());body.extend_from_slice(&id.code().wire_bytes());put_u16(&mut body,period.wire());put_u16(&mut body,times);put_u32(&mut body,start);put_u16(&mut body,count);put_u16(&mut body,adjust.wire());body.extend_from_slice(&super::layout::BARS_FLAGS);put_u16(&mut body,0);body.extend_from_slice(&[0;4]);build_request(0x122e,&body,MAC_HEAD_FLAG)
 }
 pub fn tick_chart_request(id:&MacInstrumentId,date_yyyymmdd:Option<u32>)->Result<MacRequest>{
     let mut body=Vec::with_capacity(38);put_u16(&mut body,id.market().get());body.extend_from_slice(&id.code().wire_bytes());put_u32(&mut body,date_yyyymmdd.unwrap_or(0));body.extend_from_slice(&[1,0,0,0,0,0,0,0,0,0]);build_request(0x122d,&body,MAC_HEAD_FLAG)
@@ -78,11 +76,11 @@ pub fn transactions_request(id:&MacInstrumentId,date_yyyymmdd:Option<u32>,start:
 pub fn symbol_info_request(id:&MacInstrumentId)->Result<MacRequest>{let mut body=Vec::with_capacity(40);put_u16(&mut body,id.market().get());body.extend_from_slice(&id.code().wire_bytes());put_u32(&mut body,1);body.extend_from_slice(&[0;12]);build_request(0x122a,&body,MAC_HEAD_FLAG)}
 pub fn board_list_request(board_type:u16,start:u16,page_size:u16)->Result<MacRequest>{let mut body=Vec::with_capacity(20);put_u16(&mut body,page_size);put_u16(&mut body,board_type);body.extend_from_slice(&[0,0]);put_u16(&mut body,start);put_u16(&mut body,1);body.extend_from_slice(&[0;8]);build_request(0x1231,&body,MAC_HEAD_FLAG)}
 fn request_1218(market:MacMarketId,code:&MacCode,tag:&[u8;10],head_flag:u8)->Result<MacRequest>{if code.encoded().len()>8{return Err(invalid("MAC 0x1218 code exceeds its source 8-byte request field"));}let mut body=Vec::with_capacity(47);put_u16(&mut body,market.get());let mut short=[0;8];short[..code.encoded().len()].copy_from_slice(code.encoded());body.extend_from_slice(&short);body.extend_from_slice(&[0;16]);body.extend_from_slice(tag);body.extend_from_slice(&[0;11]);build_request(0x1218,&body,head_flag)}
-pub fn belonging_board_request(market:MacMarketId,code:&MacCode)->Result<MacRequest>{request_1218(market,code,b"Stock_GLHQ",1)}
-pub fn capital_flow_request(market:MacMarketId,code:&MacCode)->Result<MacRequest>{request_1218(market,code,b"Stock_ZJLX",2)}
+pub fn belonging_board_request(market:MacMarketId,code:&MacCode)->Result<MacRequest>{request_1218(market,code,super::layout::BELONG_TAG,1)}
+pub fn capital_flow_request(market:MacMarketId,code:&MacCode)->Result<MacRequest>{request_1218(market,code,super::layout::CAPITAL_TAG,2)}
 pub fn auction_request(id:&MacInstrumentId,start:u32,count:u32)->Result<MacRequest>{let mut body=Vec::with_capacity(48);put_u16(&mut body,id.market().get());body.extend_from_slice(&id.code().wire_bytes());put_u32(&mut body,start);put_u32(&mut body,count);body.extend_from_slice(&[0;10]);build_request(0x123d,&body,MAC_HEAD_FLAG)}
 pub fn unusual_request(market:MacMarketId,start:u16,count:u16)->Result<MacRequest>{let mut body=Vec::with_capacity(20);put_u16(&mut body,market.get());put_u16(&mut body,start);body.extend_from_slice(&[0;2]);put_u16(&mut body,count);body.extend_from_slice(&[0;2]);for value in [1_u16,200,30,40,50,200]{put_u16(&mut body,value);}build_request(0x1237,&body,MAC_HEAD_FLAG)}
-pub fn server_info_request()->Result<MacRequest>{let mut body=vec![0x04,0x00,0x2d,0x31];body.extend_from_slice(&[0;8]);body.extend_from_slice(&[0,0x27,0x06,0x0e]);body.extend_from_slice(&[0;52]);build_request(0x120f,&body,MAC_HEAD_FLAG)}
+pub fn server_info_request()->Result<MacRequest>{let mut body=super::layout::SERVER_PREFIX.to_vec();body.extend_from_slice(&[0;8]);body.extend_from_slice(&super::layout::SERVER_MARKER);body.extend_from_slice(&[0;52]);build_request(0x120f,&body,MAC_HEAD_FLAG)}
 pub fn kline_offsets_request(offset:u32,count:u32)->Result<MacRequest>{let mut body=Vec::with_capacity(13);put_u32(&mut body,offset);put_u32(&mut body,count);body.extend_from_slice(&[0;5]);build_request(0x124a,&body,MAC_HEAD_FLAG)}
 pub fn chart_sampling_request(id:&MacInstrumentId)->Result<MacRequest>{let mut body=Vec::with_capacity(40);put_u16(&mut body,id.market().get());body.extend_from_slice(&id.code().wire_bytes());put_u16(&mut body,1);put_u16(&mut body,20);body.extend_from_slice(&[0;9]);build_request(0x254d,&body,MAC_HEAD_FLAG)}
 pub fn goods_request(market:MacMarketId,start:u32,count:u32)->Result<MacRequest>{if count>1000{return Err(invalid("MAC goods page count exceeds 1000"));}let mut body=Vec::with_capacity(10);put_u16(&mut body,market.get());put_u32(&mut body,start);put_u32(&mut body,count);build_request(0x2562,&body,MAC_HEAD_FLAG)}

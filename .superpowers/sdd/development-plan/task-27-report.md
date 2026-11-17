@@ -1,4 +1,39 @@
 # T27 implementation report
+## Stage 11 — all MAC constructors and request builders (2026-11-17, stage98)
+
+Base5f24441. Registered mac_commands.rs and its two native entry functions.
+All17 argument-bearing constructors and all18 request builders in the existing
+MAC command classes now delegate. mac::layout shares request formats, header
+constants, bars flags, JSON tags and server control bytes with strict codecs;
+Python retains its public class identities, signatures/defaults and DTOs.
+
+Keep arbitrary Python values and deferred struct/GBK errors, original attribute
+assignment/capture order, bars keyword-only times, no strict quote page cap,
+None-only quote field default, stocks/list identity, false exclude-list behavior,
+chained days validation before assignments, min(count,600) without lower bound,
+and goods count upper bound only. Date constructors retain numeric year/month/
+day hooks with no new calendar validation. Encoding/int/pack/bytes/build hooks
+stay live in source order; members16B request bitmap is separate from20B response.
+
+Members sum keeps the original lazy generator protocol and per-item live int,
+including PEP479 RuntimeError/cause. Private Python identity-generator shell is
+an object adapter, not a business loop. Quote row unpack errors remain Python
+ValueError. JSON8B GBK truncation/head_flag, sampling and filename padding with
+two live width reads, file offset/index/size and server bytes.fromhex behavior
+remain. Strict input limits/evidence are unchanged.
+
+Added tests/test_native_mac_commands_contract.py with24 public functions,
+4 parametrized. Ten new extension contract files total212 public Python function
+sources; none collected/compiled/executed. No tests/build/check/network/dependency/
+AST/format/diff validation executed. This recovery commit preserves sources only.
+
+Counts25 source-complete/2 partial(T19/T27)/3 unstarted(T28-T30), unchanged.
+Next full MAC response parsers/private helpers, then transport/owner/generation/
+config/host/probe/export/manifest/installed-wheel consumer. Then T28-T30/T19
+source closure and unified verification/repairs with real production login and
+optional-boundary evidence. Goal active unlimited, no agents/publication or
+controller-state edits.
+
 
 ## Stage 10 — MAC date/price rules and EX/MAC framing (2026-11-17, stage97)
 

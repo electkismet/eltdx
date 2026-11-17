@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026-11-17第九十八段恢复点：基础5f24441。MAC全部17构造器及18请求builder已接native，strict共用格式/头常量/bar标志/JSON标签/server控制字节。保留类/签名/defaults/keyword-only times、赋值捕获顺序/任意值与原GBK/struct错误；无strict报价页限额，fields只对None默认，flags惰性sum/PEP479及padding两次宽度读取保留。新增24个Python函数（4参数化），十份新增合同212函数源码，全未执行。下一步完整MAC响应parser/helper及transport/owner/generation/config/host/probe/清单/consumer，再T28–T30/T19源码收尾和统一验证；25/2/3不变，目标active无限额。恢复读task-27-report Stage11；此为源码恢复点，非验收通过。
+
 
 2026-11-17第九十七段恢复点：基础e9fbac1。MAC日期/GBK/3价格规则及EX/MAC帧request/header/body/encode和有界zlib策略迁native，秒分解/限价乘法与strict共用。保留原seconds/惰性时间/hooks、板块优先ST/上市窗口链比较/epsilon/round/nonfinite、live struct/两次len/DTO构造方式/raw/异常上下文与cause；Python显式except/custom decompressor为对象适配。strict批准规则目录仍空，未推断生产login/关联证据。新增22个Python函数（6参数化、7装饰器）/2个Rust函数源码，九份新增合同188个Python函数，全未执行。下一步MAC完整命令/parser和transport/owner/generation/config/清单/consumer，再T28–T30/T19及统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage10。
 

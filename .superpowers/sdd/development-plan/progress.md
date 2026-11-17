@@ -1,6 +1,18 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage98: base5f24441. All17 MAC constructors and
+  all18 builders now native delegates. Shared request formats/head constants/
+  bars flags/JSON tags/server bytes with strict Rust; original identities,
+  signatures/times/order/hooks/GBK/struct errors and arbitrary values retained.
+  Keep None-only fields/no strict quote cap/lazy flags+PEP479/two padding widths/
+  original validation and source date arithmetic. Added24 Python function
+  sources(4 parametrized), ten new contracts total212, all unexecuted.
+  Read task-27-report Stage11. Next full MAC parsers/helpers, transport/owner/
+  generation/config/hosts/probes/manifest/consumer, then T28-T30/T19 source
+  closure and unified verification.25/2/3 unchanged; unlimited active,
+  no verification/agents/publication/controller-state edits.
+
 
 - Latest recovery2026-11-17 stage97: basee9fbac1. Native MAC date/GBK/3
   price-rule helpers and EX/MAC frame request/header/body/encode plus limited
