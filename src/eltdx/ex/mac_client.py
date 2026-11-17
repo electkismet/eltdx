@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import date
+from sys import modules as _MODULES
 from types import TracebackType
 from typing import Any, TypeVar
 
@@ -222,19 +223,9 @@ class MacExClient:
         （如 ``XAU`` 同时属于类别 5 与 8），无命中抛 ``ProtocolError``。
         """
 
-        text = str(code).strip()
-        if "_" in text:
-            return text
-        if not self._macro_cache:
-            self._macro_cache = {item.name: item for item in self.macro_indicators()}
-        candidates = [name for name in self._macro_cache if name.partition("_")[2] == text]
-        if len(candidates) == 1:
-            return candidates[0]
-        if len(candidates) > 1:
-            raise ValueError(
-                f"ambiguous macro code {code!r}; candidates: {', '.join(sorted(candidates))}"
-            )
-        raise ProtocolError(f"unknown macro indicator: {code!r}")
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_macro_code(self, code, _MODULES[__name__])
 
     def macro_indicators(self) -> list[GoodsItem]:
         """列出全部宏观指标（市场 38，实测 217 个，9 个类别）。
@@ -243,11 +234,9 @@ class MacExClient:
         结果按 ``index`` 排序；重复调用会命中实例缓存（``_macro_cache``）。
         """
 
-        if self._macro_cache:
-            return list(self._macro_cache.values())
-        items = self.goods_list(ExMarket.MACRO_INDICATOR, 0, 600)
-        self._macro_cache = {item.name: item for item in items}
-        return items
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_macro_indicators(self, _MODULES[__name__])
 
     def macro_quotes(
         self,
@@ -264,12 +253,9 @@ class MacExClient:
         ``pre_close`` 通常是上一个报告期的值。
         """
 
-        if isinstance(codes, str):
-            codes = [codes]
-        if not codes:
-            return []
-        resolved = [(ExMarket.MACRO_INDICATOR, self._macro_code(c)) for c in codes]
-        return self.goods_quotes(resolved, fields)
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_macro_quotes(self, codes, fields, _MODULES[__name__])
 
     def macro_kline(
         self,
@@ -286,13 +272,10 @@ class MacExClient:
         ``MacBar.close`` 即该报告期的指标值；``vol``/``amount`` 恒 0。
         """
 
-        return self.goods_kline(
-            ExMarket.MACRO_INDICATOR,
-            self._macro_code(code),
-            period=period,
-            start=start,
-            count=count,
-            adjust=adjust,
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_macro_kline(
+            self, (code, period, start, count, adjust), _MODULES[__name__],
         )
 
     def goods_count(self, market: int | None = None) -> int:
@@ -303,14 +286,9 @@ class MacExClient:
             **该命令在部分扩展行情主站上恒返回 0**，此时自动退回 EX 元数据
             （``GetExInstrumentInfoCmd``）二分定位市场边界后相减计数。
         """
-        if market is None:
-            return self._execute(GetExInstrumentCountCmd())
-        cmd = GoodsListCmd(market, 0, 1)
-        self._execute(cmd)
-        if cmd.total:
-            return int(cmd.total)
-        lo, hi = self._market_bounds(market)
-        return hi - lo
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_goods_count(self, market, _MODULES[__name__])
 
     def goods_list(self, market: int, start: int = 0, count: int = 600) -> list[GoodsItem]:
         """获取扩展市场商品列表（自动翻页）。
@@ -323,20 +301,9 @@ class MacExClient:
             「代码 + 名称」成对数据请直接用 :meth:`instruments`。
         """
 
-        page_size = 600
-        collected: list[GoodsItem] = []
-        offset = start
-        while len(collected) < count:
-            batch = self._execute(GoodsListCmd(market, offset, min(page_size, 1000)))
-            if not batch:
-                break
-            collected.extend(batch)
-            offset += len(batch)
-            if len(batch) < page_size:
-                break
-        if collected:
-            return collected[:count]
-        return _to_goods_items(self.instruments(market, start=start, count=count))
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_goods_list(self, market, start, count, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # EX 元数据路径（服务器不支持 0x2562 时的可靠替代）
@@ -352,30 +319,9 @@ class MacExClient:
         「首个 ``> market``」两次二分即可得到边界；结果按市场号缓存。
         """
 
-        cached = self._bounds_cache.get(market)
-        if cached is not None:
-            return cached
-        total = self._execute(GetExInstrumentCountCmd())
-        if total <= 0:
-            return (0, 0)
+        from eltdx._native_abi import load_native
 
-        def lower_bound(predicate: Any) -> int:
-            lo, hi = 0, total
-            while lo < hi:
-                mid = (lo + hi) // 2
-                items = self._info_page(mid, 1)
-                if not items:
-                    hi = mid
-                    continue
-                if predicate(items[0].market):
-                    hi = mid
-                else:
-                    lo = mid + 1
-            return lo
-
-        bounds = (lower_bound(lambda m: m >= market), lower_bound(lambda m: m > market))
-        self._bounds_cache[market] = bounds
-        return bounds
+        return load_native().mac_ex_market_bounds(self, market, _MODULES[__name__])
 
     def instruments(
         self,
@@ -398,30 +344,9 @@ class MacExClient:
             count: 最多返回条数。
         """
 
-        if count <= 0:
-            return []
-        offset, _ = self._market_bounds(market)
-        total = self._execute(GetExInstrumentCountCmd())
-        page = min(max(count, 1), 1000)
-        collected: list[ExInstrumentInfo] = []
-        skipped = 0
-        pos = offset
-        while pos < total and len(collected) < count:
-            batch = self._info_page(pos, page)
-            if not batch:
-                break
-            for item in batch:
-                if item.market == market:
-                    if skipped < start:
-                        skipped += 1
-                        continue
-                    collected.append(item)
-                    if len(collected) >= count:
-                        break
-                elif item.market > market:
-                    return collected
-            pos += len(batch)
-        return collected
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_instruments(self, market, start, count, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 行情
@@ -556,25 +481,9 @@ def _to_goods_items(infos: Iterable[ExInstrumentInfo]) -> list[GoodsItem]:
     0x2562 协议本身的语义一致（该命令的 23 字节字段就是代码，如 ``IFL0``）。
     """
 
-    items: list[GoodsItem] = []
-    for index, info in enumerate(infos):
-        try:
-            numeric = [float(info.code)]
-        except (TypeError, ValueError):
-            numeric = []
-        items.append(
-            GoodsItem(
-                name=info.code or info.name,
-                category=info.category,
-                u=0,
-                index=index,
-                switch=0,
-                code=numeric,
-                c1=0,
-                c2=0,
-            )
-        )
-    return items
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_ex_goods_items(infos, _MODULES[__name__])
 
 
 def _first_code(item: GoodsItem) -> str:
@@ -585,14 +494,9 @@ def _first_code(item: GoodsItem) -> str:
     只有在 ``name`` 为空时才退回 float 占位里取数字。
     """
 
-    label = (item.name or "").strip()
-    if label:
-        return label
-    parts: Iterable[float] = item.code
-    values = [int(v) for v in parts]
-    if not values or values[0] <= 0:
-        return ""
-    return str(values[0])
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_ex_first_code(item, _MODULES[__name__])
 
 
 __all__ = ["MacExClient", "Period", "Adjust", "FieldBit", "build_mac_request"]

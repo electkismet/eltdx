@@ -124,7 +124,7 @@ fn resolve(context: &OperationContext, selector: &MacroCode, catalog: &GoodsCata
     for (index,row) in catalog.rows().iter().enumerate() {
         if index%256 == 0 { context.check_boundary(TimeoutPhase::Aggregate)?; }
         let code = row.actual_code();
-        let suffix = code.split_once('_').map(|(_,suffix)| suffix);
+        let suffix = super::python_legacy::macro_suffix(code);
         let matched = if selector.is_full_code() { code == text }
             else { suffix == Some(text) || row.display_name() == Some(text) };
         if matched && !codes.contains(code) {
@@ -165,7 +165,7 @@ fn resolve_all(owner: &MacOwner, context: &OperationContext, lease: &Lease,
                 let mut candidates = Vec::new(); let mut seen = HashSet::new();
                 for (index,row) in instruments.rows().iter().enumerate() {
                     if index%256 == 0 { context.check_boundary(TimeoutPhase::Aggregate)?; }
-                    if (row.name() == selector.as_str() || row.code().split_once('_').is_some_and(|(_,suffix)| suffix == selector.as_str()))
+                    if (row.name() == selector.as_str() || super::python_legacy::macro_suffix(row.code()).is_some_and(|suffix| suffix == selector.as_str()))
                         && !seen.contains(row.code()) {
                         context.record_work(0,8*std::mem::size_of::<&str>()+row.code().len()*2)?;
                         seen.try_reserve(1).map_err(crate::services::allocation_error)?;

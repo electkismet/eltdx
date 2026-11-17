@@ -531,6 +531,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T27：扩展 Python 迁移与全能力核对
 
+2026-11-17第五段源码恢复点（stage92，板块段93be13d）：10个MAC-EX目录/回退/边界/证券/宏观入口迁入native，与strict共用suffix；保留原页内index/数值形状/nonfinite、固定600分页/count0 fallback、边界缓存和证券相对偏移、宏观首对象/重复末值/无TTL/原hooks与错误。新增20个Python/1个Rust函数源码，四份新增合同共81个Python函数，全部未执行。其余直接命令/报价组合/HK/common逐笔及完整命令/parser/transport/owner/generation/config/清单/consumer继续；25完整源码/2部分/3未开始不变，全部执行验收延期。
+
 2026-11-17第四段源码恢复点（stage91，第三段997ae40）：板块summary/实时排行/history/_board_row迁入native，共用资金字段表/百分比算术；保留七次惰性汇总/原对象、重复代码、涨幅先截取与资金先全汇总、稳定排序/任意slice和短历史/重复日期/原错误策略。新增15个Python/1个Rust函数源码，三份新增合同文件共61个Python函数，全部未执行。完整EX/MAC-EX/catalog/macro/HK、命令/parser/transport/owner/generation/config/清单/consumer继续；25完整源码/2部分/3未开始不变，所有执行验收延期。
 
 2026-11-17第三段源码恢复点（stage90，第二段48b7f07）：MAC分类/成员/K线/逐笔/板块五种分页、QFQ回退及整文件下载编排已迁native，八个Python方法薄委托；strict/legacy复用剩余页算术与惰性修复判断。保留Python原始首请求/首对象/短页/整页前插/超量/custom hooks及partial下载，不新增strict限额。新增16个Python/2个Rust用例函数源码，全部未执行。T27仍部分，summary/rank/history、EX/MAC-EX与完整命令/解析/传输/配置/generation/清单/consumer继续；25完整源码/2部分/3未开始不变，全部执行验收延期。

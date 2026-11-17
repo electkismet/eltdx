@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第九十二段恢复点：板块段提交93be13d。本段新增10个native MAC-EX目录/回退/边界/证券/宏观入口，Python对应方法薄委托。保留页内index/单float或空列表/nonfinite/全部数值转换、600分页/非正count仍fallback、binary bounds原缓存/相对start及DTO/raw；宏观完整代码旁路/首对象/重复末值/无TTL/实时partition/原错误和顺序，与strict共用suffix原语。新增20个Python用例函数（一个参数化）/1个Rust suffix函数，四份新增扩展合同共81个Python函数，全部未执行。T27仍需其余直接命令/报价组合/HK与普通逐笔、完整commands/parser/transport/owner/generation/config/清单/consumer，再T28–T30/T19及统一验证。25源码完整/2部分/3未开始不变；目标active无限额，无代理或发布。恢复读task-27-report Stage5。
+
 2026-11-17第九十一段恢复点：第三段T27提交997ae40。本段新增native板块汇总/实时排行/历史涨幅排行及_board_row，四个Python方法薄委托；strict/legacy共用资金字段注册表和百分比算术。保留七次惰性实时汇总/原members、重复代码末值、涨幅先截取与资金先全量汇总、稳定排序/任意slice、days验证/空列表提前返回、仅TransportError跳过、短窗口及重复日期末次出现。新增15个Python用例函数（一个参数化）/1个Rust注册表函数，三份新增扩展合同文件共61个Python函数，全部未执行。T27仍需完整EX/MAC-EX/catalog/macro/HK、命令/parser/transport/owner/generation/config/manifest/consumer，再T28–T30/T19收尾和统一验证。25源码完整/2部分/3未开始不变；目标active无限额，无代理或发布。恢复读task-27-report Stage4。
 
 2026-11-17第九十段恢复点：第二段T27提交48b7f07。本段新增native五种MAC分页、QFQ重取/修复/末尾alignment及整文件下载编排，八个Python方法改为薄入口；strict/legacy共用剩余页算术和惰性修复判断，不引入strict总期限/次数/条数限制。保留首批逐笔/板块返回对象、首批短页仍继续/非正count仍首请求、原重复/超量、整页前插/custom add、实时len/cap/分类int、command前捕获execute及下载partial bytearray/不裁块。新增16个Python客户端用例函数及2个Rust共享函数源码，两份新增Python文件共46函数，全未执行。T27仍需summary/rank/history、EX/MAC-EX/catalog/HK、commands/parser/transport/generation/config/manifest/consumer，随后T28–T30/T19收尾和最终统一验证。25完整源码/2部分/3未开始不变；目标active无限额，无代理或发布。恢复读task-27-report Stage3。

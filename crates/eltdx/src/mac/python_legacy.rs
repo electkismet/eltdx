@@ -9,6 +9,11 @@ pub const BOARD_MONEY_AGGREGATES: [(u8,&str,&str);4] = [
     (111,"main_net_3d_amount","main_net_3d"),(112,"main_net_5d_amount","main_net_5d"),
 ];
 
+/// The first separator determines the macro selector suffix. A caller may
+/// distinguish a missing separator from an explicitly empty suffix.
+#[doc(hidden)]
+pub fn macro_suffix(code: &str) -> Option<&str> { code.split_once('_').map(|(_,suffix)| suffix) }
+
 #[doc(hidden)]
 pub fn remaining_page_with<T,E>(target: &T, consumed: &T,
     subtract: impl FnOnce(&T,&T) -> std::result::Result<T,E>,
@@ -52,5 +57,14 @@ mod source_cases {
         assert!(!repair_needed_with::<()>(|| Ok(true),|| Ok(false),|| panic!("empty series")).unwrap());
         assert!(repair_needed_with::<()>(|| Ok(true),|| Ok(true),|| Ok(true)).unwrap());
         assert_eq!(repair_needed_with::<&str>(|| Ok(true),|| Ok(true),|| Err("price hook failure")),Err("price hook failure"));
+    }
+
+    #[test]
+    fn macro_suffix_uses_first_separator_and_exposes_missing_vs_empty() {
+        assert_eq!(macro_suffix("1_GDP"),Some("GDP"));
+        assert_eq!(macro_suffix("9_SHIBOR_3M"),Some("SHIBOR_3M"));
+        assert_eq!(macro_suffix("plain"),None);
+        assert_eq!(macro_suffix("1_"),Some(""));
+        assert_eq!(macro_suffix(""),None);
     }
 }

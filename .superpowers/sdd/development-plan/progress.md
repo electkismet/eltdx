@@ -2,6 +2,21 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage92: Stage4 committed93be13d. Authored10
+  native MAC-EX catalog/fallback/bounds/instrument/macro entry functions;
+  Python wrappers retain DTO/raw/model/command hooks, page-relative indices,
+  one-float-or-empty/nonfinite fallback, full int conversion, fixed600 pages,
+  count0 fallback, binary bounds cache identity and relative starts. Macro
+  retains full-code bypass/first-result identity/duplicate-key last value/
+  no TTL/live partition and original order/error; strict/legacy share suffix
+  primitive. Added20 Python sources(one parametrized)/1 Rust suffix case;
+  four new files now81 Python functions, all unexecuted. Read Stage5 report.
+  Next remaining direct commands/quote composition/HK and common transactions,
+  commands/parsers/transport/owner/generation/config/manifest/consumer. Counts
+  25 complete source/2 partial/3 unstarted; unlimited active goal. Continue
+  all source then unified checks. No tests/build/check/collection/dependencies/
+  network/compiler/AST/format/diff checks, agents/publication/controller edits.
+
 - Latest recovery2026-11-17 stage91: Stage3 committed997ae40. Authored
   native MAC board summary/realtime/history rankings and _board_row; four
   Python methods now delegate. Strict/legacy share money-field registry

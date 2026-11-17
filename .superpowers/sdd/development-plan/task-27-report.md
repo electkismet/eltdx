@@ -1,5 +1,52 @@
 # T27 implementation report
 
+## Stage 5 — MAC-EX catalog fallback and macro cache (2026-11-17, stage92)
+
+Stage4 committed93be13d. Authored extension_catalog.rs with10 native
+entries: _to_goods_items, _first_code, goods_count, goods_list,
+_market_bounds, instruments, _macro_code, macro_indicators, macro_quotes
+and macro_kline. Existing Python signatures/defaults and names now forward
+to native business orchestration. Strict macro resolution and legacy exact
+string resolution share macro_suffix; custom string subclasses retain
+their live partition method. Missing separator vs empty suffix remains
+distinct in the primitive and caller-selected in each policy.
+
+Retain page-relative enumerate0, name=code-or-name, one Python float slot
+or empty list on TypeError/ValueError, Python nonfinite floats, original
+category/model hooks and no invented raw fields. _first_code strips the
+label first and otherwise int-converts every numeric part before checking
+the first value. Goods uses fixed600 requests, final prefix slicing and
+fallback even for nonpositive count; no strict catalog snapshot cap/TTL/
+whole-operation timeout was introduced. Count checks live command.total
+and otherwise subtracts old EX binary bounds. Bounds cache retains original
+tuple identity and old zero-total uncached behavior. Instruments keeps
+market-relative start, global directory positions and original DTOs/raw.
+
+Macro full codes bypass lookup; instance cache retains no TTL, source order
+and duplicate-key last object, and returns the original first items object.
+Bare suffix requires one match and preserves original ValueError/ProtocolError
+messages and sorted ambiguity candidates. Quote resolution keeps input
+occurrences/order, live hooks and fields, without an added batch limit.
+Macro kline captures its original goods_kline method before code resolution.
+
+Added tests/test_native_extension_catalog_contract.py with20 public test
+function sources(one parametrized), plus one shared Rust suffix function.
+Four new extension contract files contain81 Python public function sources;
+none collected/compiled/executed. Source cases cover fallback shape/error/
+nonfinite/model hooks, full numeric conversion, fixed paging/overdelivery/
+count0 fallback, captured execute/errors, bounds cache/zero total, relative
+instrument offsets/DTO raw, macro cache identity/duplicates/no TTL/isolation,
+full/suffix/custom-partition/missing-separator decisions,90 quote occurrences
+and captured macro kline callbacks. PyO3/runtime compatibility awaits final gate.
+
+T27 still partial: remaining EX/MAC/MAC-EX direct commands, quote composition,
+HK/common transactions and legacy50-page prefix, all commands/parsers,
+transport/owner/generation/config, full manifest/export/adapter evidence and
+installed-wheel extension consumer. Counts25 complete source/2 partial/3
+unstarted. Continue T27, T28-T30 and T19 source closure before all unified
+verification/fixes. Unlimited active goal; no execution checks, agents,
+publication or controller edits. Checkpoint is source preservation only.
+
 ## Stage 4 — MAC board summary and both rankings (2026-11-17, stage91)
 
 Stage3 committed997ae40. Authored extension_boards.rs and four native
