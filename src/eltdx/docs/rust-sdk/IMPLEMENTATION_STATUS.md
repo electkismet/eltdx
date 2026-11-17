@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026-11-17第一百零五段恢复点：基础541a9e7。字段对象两类native入口完成，保留组合/反向组合/NotImplemented、live hooks、四个别名和整数运算；新增20个Python对象合同函数源码（4参数化），全部未执行。23个业务dataclass与XdxrEvent/帧/探活/枚举/导出库存、保留适配原因及退出条件写入t27-migration-index.md。下一步生命周期清理边界、完整manifest及非空EX/MAC/MAC-EX wheel consumer，然后T28–T30/T19和统一验证。25/2/3不变，目标active无限额；恢复读task-27-report Stage18。
+
 2026-11-17第一百零四段恢复点：基础a49cd26。连接代次接入共用SessionOwner admission/retirement；7个native入口与GC可见holder保留EX先发布/MAC临时attempt后发布差别，关闭后旧句柄与迟到结果拒绝，DTO失败释放admission，KeyboardInterrupt只清理捕获socket且不影响新连接。custom清理失败保留引用/cause，不声称已清理或可抢占任意Python回调。新增18个Python函数（8参数化）/3个Rust源码用例，十六份合同347函数全未执行。下一步生命周期源码复查/适配器库存、模型/导出/清单/非空wheel consumer，后续T28–T30/T19和统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage17。
 2026-11-17第一百零三段恢复点：基础0d5ac47。EX/MAC实际probe/registry/pool调度收集/结果与排序/ping迁native，共17入口；Python显式lock/with/except/finally与socket/executor适配保留原清理、异常context、重复结果、早退两次abort及MAC非空交易日语义。strict与legacy共用rank尾部遍历但保留各自去重策略。新增21个Python函数（1参数化）/1个Rust源码用例，十五份合同329函数全未执行。owner/generation、模型/导出/清单/非空wheel consumer仍待，随后T28–T30/T19源码收尾及统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage16。
 2026-11-17第一百零二段恢复点：基础6f1904c。三类扩展client构造/最佳主机与ping入口/属性/连接选择/close/别名/上下文/请求重试及EX probe-seed-refresh管理已迁native，共11绑定；Python显式except保留三类构造捕获范围、连接发布/保留顺序、active异常context和最后一次EX失败仍重连。MAC-EX旧login布尔忽略/缓存identity保持，不当生产证据。新增31个Python函数源码（2参数化），十四份合同308函数全未执行。实际transport probe/rank与owner/generation、模型/导出/清单/consumer仍待，随后T28–T30/T19源码收尾及统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage15。

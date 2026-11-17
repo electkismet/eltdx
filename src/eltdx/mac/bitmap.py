@@ -35,7 +35,9 @@ class FieldBit(IntEnum):
     def field_name(self) -> str:
         """返回英文字段名（小写），用于 dict 列名等。"""
 
-        return self.name.lower()
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("name", self, None, _MODULES[__name__])
 
     # ── 基础字段 (0x00-0x07) ──
     PRE_CLOSE = 0x00, "<f", "昨收"
@@ -340,17 +342,17 @@ class PresetField(Enum):
     ALL = tuple(FieldBit)
 
     def __add__(self, other: object) -> "FieldSelection":
-        if isinstance(other, FieldBit | PresetField | FieldSelection):
-            return FieldSelection(self, other)
-        return NotImplemented
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_operator(self, other, True, False, _MODULES[__name__])
 
     def __or__(self, other: object) -> "FieldSelection":
         return self.__add__(other)
 
     def __radd__(self, other: object) -> "FieldSelection":
-        if isinstance(other, FieldBit | FieldSelection):
-            return FieldSelection(other, self)
-        return NotImplemented
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_operator(self, other, True, True, _MODULES[__name__])
 
     def __ror__(self, other: object) -> "FieldSelection":
         return self.__radd__(other)
@@ -369,36 +371,45 @@ class FieldSelection:
         )
 
     def __add__(self, other: object) -> "FieldSelection":
-        if isinstance(other, FieldBit | PresetField | FieldSelection):
-            return FieldSelection(self, other)
-        return NotImplemented
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_operator(self, other, False, False, _MODULES[__name__])
 
     def __or__(self, other: object) -> "FieldSelection":
         return self.__add__(other)
 
     def __radd__(self, other: object) -> "FieldSelection":
-        if isinstance(other, FieldBit | PresetField):
-            return FieldSelection(other, self)
-        return NotImplemented
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_operator(self, other, False, True, _MODULES[__name__])
 
     def __ror__(self, other: object) -> "FieldSelection":
         return self.__radd__(other)
 
     def __iter__(self) -> Iterator[FieldBit]:
-        return iter(self._fields)
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("iter", self, None, _MODULES[__name__])
 
     def __len__(self) -> int:
-        return len(self._fields)
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("len", self, None, _MODULES[__name__])
 
     def __bool__(self) -> bool:
-        return bool(self._fields)
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("bool", self, None, _MODULES[__name__])
 
     def __contains__(self, item: object) -> bool:
-        return item in self._fields
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("contains", self, item, _MODULES[__name__])
 
     def __repr__(self) -> str:
-        names = [bit.name for bit in self._fields]
-        return f"FieldSelection([{', '.join(names)}])"
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_field_value("repr", self, None, _MODULES[__name__])
 
 
 def normalize_fields(fields: "Fields") -> FieldSelection:

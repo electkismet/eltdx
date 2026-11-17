@@ -81,6 +81,8 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<extension_bitmap::MacBitSlots>()?;
     module.add_function(wrap_pyfunction!(extension_bitmap::mac_board_code, module)?)?;
     module.add_function(wrap_pyfunction!(extension_bitmap::mac_field_selection, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_bitmap::mac_field_operator, module)?)?;
+    module.add_function(wrap_pyfunction!(extension_bitmap::mac_field_value, module)?)?;
     module.add_function(wrap_pyfunction!(extension_bitmap::mac_normalize_fields, module)?)?;
     module.add_function(wrap_pyfunction!(extension_bitmap::mac_field_bits, module)?)?;
     module.add_function(wrap_pyfunction!(extension_bitmap::mac_count_bits, module)?)?;

@@ -1,6 +1,14 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage105: base541a9e7. Completed two native field
+  object functions and authored20 object compatibility functions(4 parametrized).
+  Recorded all23 passive business DTOs, event/header/probe objects, enums,
+  aliases/reexports and explicit adapter exit criteria in t27-migration-index.
+  All sources unexecuted; no verification, agents or publication. Next review
+  lifecycle cleanup ownership, then manifest/nonempty installed-wheel extension
+  consumer, then T28-T30/T19 source closure and unified validation.25/2/3
+  unchanged, active unlimited. Read task-27-report Stage18.
 - Latest recovery2026-11-17 stage104: basea49cd26. Added shared SessionOwner
   external retirement/admission and LegacyExtensionSession/Operation;7 native
   functions plus GC-visible holders preserve provisional MAC versus published

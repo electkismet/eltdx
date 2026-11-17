@@ -6,6 +6,37 @@ use eltdx::mac::{bitmap, enums::{board_code_plan, BoardCodePlan}};
 use crate::f10_request::builtin;
 
 #[pyfunction]
+pub fn mac_field_operator<'py>(py: Python<'py>, value: Bound<'py, PyAny>, other: Bound<'py, PyAny>, preset: bool, reverse: bool, module: Bound<'py, PyAny>) -> PyResult<Py<PyAny>> {
+    let is_instance = builtin(&module,"isinstance")?;
+    let op = py.import("operator")?;
+    let mut allowed = module.getattr("FieldBit")?;
+    if !reverse || !preset { allowed = op.getattr("or_")?.call1((allowed,module.getattr("PresetField")?))?; }
+    if !reverse || preset { allowed = op.getattr("or_")?.call1((allowed,module.getattr("FieldSelection")?))?; }
+    if !is_instance.call1((&other,allowed))?.is_truthy()? { return Ok(py.NotImplemented()); }
+    let constructor = module.getattr("FieldSelection")?;
+    Ok(if reverse { constructor.call1((other,value))? } else { constructor.call1((value,other))? }.unbind())
+}
+
+#[pyfunction]
+pub fn mac_field_value<'py>(py: Python<'py>, operation: &str, value: Bound<'py, PyAny>, other: Bound<'py, PyAny>, module: Bound<'py, PyAny>) -> PyResult<Py<PyAny>> {
+    let result = match operation {
+        "name" => value.getattr("name")?.call_method0("lower")?,
+        "iter" => { let iter = builtin(&module,"iter")?; iter.call1((value.getattr("_fields")?,))? }
+        "len" => { let len = builtin(&module,"len")?; len.call1((value.getattr("_fields")?,))? }
+        "bool" => { let boolean = builtin(&module,"bool")?; boolean.call1((value.getattr("_fields")?,))? }
+        "contains" => value.getattr("_fields")?.contains(other)?.into_pyobject(py)?.to_owned().into_any(),
+        "repr" => {
+            let names = PyList::empty(py);
+            for bit in value.getattr("_fields")?.try_iter()? { names.append(bit?.getattr("name")?)?; }
+            let joined = ", ".into_pyobject(py)?.call_method1("join",(names,))?;
+            "FieldSelection([{}])".into_pyobject(py)?.call_method1("format",(joined,))?
+        }
+        _ => return Err(pyo3::exceptions::PyValueError::new_err("unknown field object operation")),
+    };
+    Ok(result.unbind())
+}
+
+#[pyfunction]
 pub fn mac_board_code(py: Python<'_>, value: Bound<'_, PyAny>, module: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
     let text = value.call_method0("strip")?;
     let plan = board_code_plan(|prefix| text.call_method1("startswith",(prefix,))?.is_truthy(),

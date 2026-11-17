@@ -1,4 +1,35 @@
 # T27 implementation report
+## Stage 18 — field objects and passive model/export inventory (2026-11-17, stage105)
+
+Base541a9e7. Finished the two registered native field-object entry points:
+mac_field_operator and mac_field_value. FieldBit.field_name and PresetField/
+FieldSelection forward/reflected addition, iteration/length/truth/contains/
+representation now delegate to native policy. Preserve live isinstance and
+constructor capture order, exact reflected operand admission, NotImplemented,
+Python integer arithmetic for FieldBit-with-FieldBit, field order and aliases.
+The or/ror Python forwarding methods deliberately retain live add overrides.
+
+Read all EX/MAC passive models, enum declarations and package/MAC-EX exports.
+Added docs/rust-sdk/t27-migration-index.md with 23 business dataclasses, XdxrEvent,
+frame/probe objects, enum identity, four canonical field aliases, seven-field
+MAC-EX defaults and explicit retained-adapter reasons/exit criteria. Passive
+Python declarations keep dataclasses/pickle/slots/default containers and public
+type identity; independent Rust callers still use Rust types only.
+
+Added tests/test_native_extension_objects_contract.py with20 public test
+function sources, four parametrized. Covers dynamic constructor/isinstance,
+forward/reflected operators, live or/ror overrides, containers and original
+exceptions, representation/name, aliases/defaults, model fields/raw/equality/
+pickle/independent mutable defaults, exact enum/export/reexport identities.
+No collection or execution; all source and PyO3 API assumptions remain subject
+to final validation. No tests/build/check/network/dependency/AST/format or
+other execution verification, no agents or publication.
+
+T27 stays partial. Next lifecycle source review, in particular provisional
+failed signal cleanup ownership and shutdown attribute failure; then complete
+migration manifest and standalone installed-wheel EX/MAC/MAC-EX nonempty
+consumer. T28-T30/T19 source closure and unified verification remain. Counts25
+source-complete/2 partial/3 unstarted, goal active unlimited.
 ## Stage 17 — shared owner admission and connection generations (2026-11-17, stage104)
 
 Basea49cd26. Added __python_compat::LegacyExtensionSession/Operation over the
