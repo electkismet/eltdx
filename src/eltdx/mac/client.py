@@ -289,7 +289,9 @@ class MacClient:
             fields: 字段选择，默认 :attr:`PresetField.COMMON`。
         """
 
-        return self._execute(SymbolQuotesCmd(stocks, fields))  # type: ignore[return-value]
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "quotes", (stocks, fields), None, _MODULES[__name__])
 
     def get_stock_quotes_list(
         self,
@@ -411,7 +413,9 @@ class MacClient:
             date: 查询日期（``YYYYMMDD`` 整数），``None`` 表示今天。
         """
 
-        return self._execute(SymbolTickChartCmd(market, code, _ymd_to_date(date)))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "tick", (market, code, date), None, _MODULES[__name__])
 
     def get_tick_charts(
         self,
@@ -429,12 +433,16 @@ class MacClient:
             days: 天数。
         """
 
-        return self._execute(TickChartsCmd(market, code, _ymd_to_date(date), days))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "ticks", (market, code, date, days), None, _MODULES[__name__])
 
     def get_chart_sampling(self, market: int, code: str) -> list[float]:
         """获取分时缩略采样价格点（240 个点）。"""
 
-        return self._execute(ChartSamplingCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "sampling", (market, code), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 逐笔成交
@@ -471,7 +479,9 @@ class MacClient:
     def get_symbol_info(self, market: int, code: str) -> MacSymbolInfo:
         """获取个股简要特征快照。"""
 
-        return self._execute(SymbolInfoCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "symbol", (market, code), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 板块
@@ -523,7 +533,9 @@ class MacClient:
     def get_belong_board(self, market: int, code: str) -> list[BelongBoardInfo]:
         """获取个股所属板块列表。"""
 
-        return self._execute(SymbolBelongBoardCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "belong", (market, code), None, _MODULES[__name__])
 
     def get_board_summary(
         self,
@@ -622,12 +634,16 @@ class MacClient:
     def get_capital_flow(self, market: int, code: str) -> CapitalFlowData | None:
         """获取个股资金流向（无数据时返回 ``None``）。"""
 
-        return self._execute(SymbolCapitalFlowCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "capital", (market, code), None, _MODULES[__name__])
 
     def get_auction(self, market: int, code: str) -> list[AuctionItem]:
         """获取集合竞价数据。"""
 
-        return self._execute(SymbolAuctionCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "auction", (market, code), None, _MODULES[__name__])
 
     def get_unusual(
         self,
@@ -637,7 +653,9 @@ class MacClient:
     ) -> list[UnusualItem]:
         """获取市场异动数据（``count=0`` 时使用默认值 600）。"""
 
-        return self._execute(UnusualCmd(market, start, count or 600))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "unusual", (market, start, count), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 服务器信息 / K 线偏移
@@ -646,7 +664,9 @@ class MacClient:
     def get_server_info(self) -> ServerSession:
         """获取服务器交易时段信息。"""
 
-        return self._execute(ServerInfoCmd())
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "server", (), None, _MODULES[__name__])
 
     def get_kline_offset(
         self,
@@ -655,7 +675,9 @@ class MacClient:
     ) -> KlineOffsetInfo:
         """获取 K 线数据偏移信息。"""
 
-        return self._execute(KlineOffsetCmd(offset, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "offset", (offset, count), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 文件操作
@@ -664,7 +686,9 @@ class MacClient:
     def get_file_meta(self, filename: str) -> FileMeta:
         """查询远程文件元信息。"""
 
-        return self._execute(FileListCmd(filename))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "file_meta", (filename,), None, _MODULES[__name__])
 
     def download_file_chunk(
         self,
@@ -675,7 +699,9 @@ class MacClient:
     ) -> bytes:
         """下载远程文件的一个分片。"""
 
-        return self._execute(FileDownloadCmd(filename, index, offset, size))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "file_chunk", (filename, index, offset, size), None, _MODULES[__name__])
 
     def download_file(self, filename: str, filesize: int = 0) -> bytearray:
         """下载完整远程文件（``filesize=0`` 时自动探测大小）。"""
@@ -696,7 +722,9 @@ class MacClient:
     ) -> list[GoodsItem]:
         """获取扩展市场（期货/期权等）商品列表。"""
 
-        return self._execute(GoodsListCmd(market, start, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac", "goods", (market, start, count), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # easy_tdx 语义别名

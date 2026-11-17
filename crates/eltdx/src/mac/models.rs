@@ -203,7 +203,13 @@ pub enum MacExRoute { MacCommand, ExHongKongTransactions }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TransactionPrice { MacF32(WireFloat), HongKongScaledU32 { raw: u32, divisor: u32 } }
 impl TransactionPrice {
-    pub fn as_f64(self) -> f64 { match self { Self::MacF32(value) => value.as_f64(), Self::HongKongScaledU32 { raw, divisor } => f64::from(raw) / f64::from(divisor) } }
+    pub fn as_f64(self) -> f64 { match self {
+        Self::MacF32(value) => value.as_f64(),
+        Self::HongKongScaledU32 { raw, divisor } => {
+            let value = super::routing::hk_price_with::<_,std::convert::Infallible>(f64::from(raw),f64::from(divisor),|raw,divisor| Ok(raw/divisor));
+            match value { Ok(value) => value,Err(never) => match never {} }
+        }
+    } }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TransactionSlot {

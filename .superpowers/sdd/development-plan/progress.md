@@ -2,6 +2,21 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage93: base1af9450; prior turn concrete
+  progress via93be13d/1af9450. Authored extension native direct dispatch,
+  MAC-EX quote composition/transaction routing and all6 sync HK helpers.
+  Keep original request shape/single EX page, execute/constructor captures,
+  chart date/unusual/default7 fields, old unused sort, all-label-before-filter,
+  HK seconds/price/nature/no count, dynamic mapper/pages/len/range50 prefix,
+  mandatory date conversion and no new32-request cap. Strict/legacy share
+  HK division. Added22 Python function sources(3 parametrized)/1 Rust source;
+  five new files total103 public Python functions, all unexecuted. Read
+  task-27-report Stage6. Next shared bar-time/date helpers, full commands/
+  parsers/transport/owner/generation/config/manifest/consumer; then T28-T30/
+  T19 source closure before unified checks. Counts25 complete source/2
+  partial/3 unstarted. Unlimited active goal; no verification execution,
+  agents, publication or controller edits.
+
 - Latest recovery2026-11-17 stage92: Stage4 committed93be13d. Authored10
   native MAC-EX catalog/fallback/bounds/instrument/macro entry functions;
   Python wrappers retain DTO/raw/model/command hooks, page-relative indices,

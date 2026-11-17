@@ -144,3 +144,12 @@ fn shared_board_aggregate_registry_keeps_source_bits_and_legacy_names() {
         assert_eq!(field.kind,SlotKind::F32);
     }
 }
+
+#[test]
+fn hk_numeric_projection_shares_division_without_changing_source_bits_or_caller_policy() {
+    use eltdx::mac::models::TransactionPrice;
+    let source = TransactionPrice::HongKongScaledU32 { raw: 12345,divisor: 1000 };
+    assert_eq!(source.as_f64(),12.345);
+    assert_eq!(routing::hk_price_with::<_,&str>(20.0,10.0,|raw,divisor| Ok(raw/divisor)).unwrap(),2.0);
+    assert_eq!(routing::hk_price_with::<_,&str>(20.0,0.0,|_,_| Err("legacy custom division")),Err("legacy custom division"));
+}

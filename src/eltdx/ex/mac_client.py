@@ -310,7 +310,9 @@ class MacExClient:
     # ------------------------------------------------------------------ #
 
     def _info_page(self, start: int, count: int) -> list[ExInstrumentInfo]:
-        return self._execute(GetExInstrumentInfoCmd(start, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac_ex", "info", (start, count), None, _MODULES[__name__])
 
     def _market_bounds(self, market: int) -> tuple[int, int]:
         """二分定位 ``market`` 在全量扩展行情标的中的半开区间 ``[lo, hi)``。
@@ -363,8 +365,9 @@ class MacExClient:
         （7 个基础字段：前收/开/高/低/收/量/额）。
         """
 
-        selected = DEFAULT_QUOTE_FIELDS if fields is None else fields
-        return self._execute(SymbolQuotesCmd(stocks, selected))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac_ex", "quotes", (stocks, fields), None, _MODULES[__name__])
 
     def goods_quotes_list(
         self,
@@ -386,15 +389,9 @@ class MacExClient:
             协议上无法排序。``easy_tdx`` 同样标注为「暂未实现排序，预留接口」。
         """
 
-        page_size = min(count, 80)
-        items = self.goods_list(market, start=start, count=page_size)
-        if not items:
-            return []
-        codes = [(market, _first_code(item)) for item in items]
-        codes = [(m, c) for m, c in codes if c]
-        if not codes:
-            return []
-        return self._execute(SymbolQuotesCmd(codes, DEFAULT_QUOTE_FIELDS))
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_quotes_list(self, market, start, count, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # K 线
@@ -411,8 +408,10 @@ class MacExClient:
     ) -> list[MacBar]:
         """获取扩展市场 K 线数据（支持复权）。"""
 
-        return self._execute(
-            SymbolBarCmd(market, code, period=period, start=start, count=count, fq=adjust)
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(
+            self, "mac_ex", "bars", (market, code, period, start, count, adjust), None, _MODULES[__name__],
         )
 
     # ------------------------------------------------------------------ #
@@ -427,12 +426,16 @@ class MacExClient:
     ) -> MacTickChart:
         """获取单日分时图。"""
 
-        return self._execute(SymbolTickChartCmd(market, code, query_date))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac_ex", "tick", (market, code, query_date), None, _MODULES[__name__])
 
     def goods_chart_sampling(self, market: int, code: str) -> list[float]:
         """获取分时缩略采样价格点（约 240 个点）。"""
 
-        return self._execute(ChartSamplingCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "mac_ex", "sampling", (market, code), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 成交
@@ -454,9 +457,11 @@ class MacExClient:
             协议 0x122F。``start=0`` 指向最新一笔（协议为倒序）。
         """
 
-        if is_hk_stock_market(market):
-            return _fetch_hk_transactions_sync(self._execute, market, code, query_date, start, count)
-        return self._execute(SymbolTransactionCmd(market, code, query_date, start, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_transactions(
+            self, (market, code, query_date, start, count), False, _MODULES[__name__],
+        )
 
     def goods_transaction_all(
         self,
@@ -466,12 +471,9 @@ class MacExClient:
     ) -> list[MacTransaction]:
         """获取港股某日**全部**逐笔成交（仅港股股票类市场，自动翻页）。"""
 
-        if not is_hk_stock_market(market):
-            raise ValueError(
-                "goods_transaction_all 仅支持港股股票类市场（HK_STOCK_MARKETS），"
-                f"收到 market={market}；其他市场请用 goods_transaction。"
-            )
-        return _fetch_all_hk_transactions_sync(self._execute, market, code, query_date)
+        from eltdx._native_abi import load_native
+
+        return load_native().mac_ex_transactions(self, (market, code, query_date), True, _MODULES[__name__])
 
 
 def _to_goods_items(infos: Iterable[ExInstrumentInfo]) -> list[GoodsItem]:

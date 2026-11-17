@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第九十三段恢复点：目录段提交1af9450，前一目标轮次有93be13d/1af9450实际源码进展。本段native direct dispatcher接入11个EX方法、14个MAC简单入口和MAC-EX直接/报价组合/逐笔路由；全部6个同步HK helper已迁。保留单页/请求形状/execute与构造器捕获、date/unusual/独立7字段、旧忽略sort、先全部提取再过滤、HK秒/量/nature/count0、动态分页/len/range50返回前缀、非正count仍转日期且不新增32请求限制；strict/legacy共用价格除法。新增22个Python函数（三个参数化）/1个Rust函数源码，五份新增合同共103个Python函数，全部未执行。T27仍需bar_time/date、完整命令/parser/transport/owner/generation/config/清单/consumer，再T28–T30/T19和统一验证。25源码完整/2部分/3未开始不变；目标active无限额，无代理或发布。恢复读task-27-report Stage6。
+
 2026-11-17第九十二段恢复点：板块段提交93be13d。本段新增10个native MAC-EX目录/回退/边界/证券/宏观入口，Python对应方法薄委托。保留页内index/单float或空列表/nonfinite/全部数值转换、600分页/非正count仍fallback、binary bounds原缓存/相对start及DTO/raw；宏观完整代码旁路/首对象/重复末值/无TTL/实时partition/原错误和顺序，与strict共用suffix原语。新增20个Python用例函数（一个参数化）/1个Rust suffix函数，四份新增扩展合同共81个Python函数，全部未执行。T27仍需其余直接命令/报价组合/HK与普通逐笔、完整commands/parser/transport/owner/generation/config/清单/consumer，再T28–T30/T19及统一验证。25源码完整/2部分/3未开始不变；目标active无限额，无代理或发布。恢复读task-27-report Stage5。
 
 2026-11-17第九十一段恢复点：第三段T27提交997ae40。本段新增native板块汇总/实时排行/历史涨幅排行及_board_row，四个Python方法薄委托；strict/legacy共用资金字段注册表和百分比算术。保留七次惰性实时汇总/原members、重复代码末值、涨幅先截取与资金先全量汇总、稳定排序/任意slice、days验证/空列表提前返回、仅TransportError跳过、短窗口及重复日期末次出现。新增15个Python用例函数（一个参数化）/1个Rust注册表函数，三份新增扩展合同文件共61个Python函数，全部未执行。T27仍需完整EX/MAC-EX/catalog/macro/HK、命令/parser/transport/owner/generation/config/manifest/consumer，再T28–T30/T19收尾和统一验证。25源码完整/2部分/3未开始不变；目标active无限额，无代理或发布。恢复读task-27-report Stage4。

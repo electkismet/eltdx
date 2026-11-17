@@ -12,7 +12,15 @@ pub fn default_quote_selection() -> crate::mac::bitmap::FieldSelection {
     crate::mac::bitmap::FieldSelection::mac_ex_default()
 }
 
-pub fn hk_price_from_wire(raw: u32) -> f64 { f64::from(raw) / 1000.0 }
+pub fn hk_price_from_wire(raw: u32) -> f64 {
+    let value = hk_price_with::<_,std::convert::Infallible>(f64::from(raw),1000.0,|raw,divisor| Ok(raw/divisor));
+    match value { Ok(value) => value,Err(never) => match never {} }
+}
+
+/// Numeric conversion, dynamic divisor and validation belong to the caller.
+#[doc(hidden)]
+pub fn hk_price_with<T,E>(raw: T,divisor: T,
+    divide: impl FnOnce(T,T) -> std::result::Result<T,E>) -> std::result::Result<T,E> { divide(raw,divisor) }
 
 /// Caller performs its own market equality/membership policy.
 #[doc(hidden)]

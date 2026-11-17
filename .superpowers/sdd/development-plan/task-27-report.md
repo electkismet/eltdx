@@ -1,5 +1,53 @@
 # T27 implementation report
 
+## Stage 6 — direct entries, quote composition and HK routing (2026-11-17, stage93)
+
+Previous turn was concrete progress:93be13d/1af9450 changed authoritative
+implementation and recovery files. Base for this stage1af9450. Authored
+extension_query.rs with explicit MAC/EX/MAC-EX command dispatch, native
+MAC-EX quote-list composition/transaction routing, and all six synchronous
+HK helpers. The11 EX business methods,14 remaining simple MAC entries,
+five MAC-EX direct entries/info and quote/transaction compositions now use
+native entry logic. Existing public signatures, aliases and DTO/raw objects
+remain. This is not full command/parser/transport migration acceptance.
+
+Preserved capture of execute and command before conversion/constructor
+side effects; MAC chart live date hooks and unusual truthiness-or600;
+MAC quotes still pass None to the original command, while MAC-EX selects
+its own7 fields before execute lookup. EX remains single-page/range;
+bar alignment follows fetching and range validation precedes I/O. MAC-EX
+bars keep keyword request layout. Quote-list uses min(count,80), extracts
+all labels before its second filter pass, keeps duplicates and deliberately
+ignores the old reserved sort parameters.
+
+HK stock membership stays the live Python set/hook, with only6 original
+markets; common/futures stay MAC. Date/command/time/model hooks remain live.
+Strict TransactionPrice, routing::hk_price_from_wire and legacy mapping now
+share hk_price_with while retaining source u32/divisor, second precision,
+nature/volume and absent trade_count0. Python HK paging keeps actual wire
+offset/overdelivery/duplicates, per-page live cap/len, no32-request limit,
+date conversion even for count<=0, lazy live mapper and StopIteration cause.
+The all endpoint uses original live range(50) and returns its accumulated
+prefix at that bound without strict LimitExceeded. Transport errors retain
+identity. A tiny identity generator shell preserves the original generator
+object protocol without retaining a Python business loop.
+
+Added tests/test_native_extension_query_contract.py with22 public function
+sources(three parametrized), including23 direct-entry table cases and all
+HK stock/futures decisions; added1 Rust HK arithmetic function source.
+Five new extension contract files total103 Python public function sources,
+all uncollected/uncompiled/unrun. Removed a leftover Python loop line found
+by ordinary source reading before checkpoint. This is not syntax/compiler
+or runtime verification; those remain prohibited until the full source gate.
+
+Counts25 source-complete/2 partial(T19/T27)/3 unstarted(T28-T30). Next
+shared _bar_time/date helpers, full command/parser migration, transports/
+owner/generation/config, full exports/manifest/adapter evidence and installed-
+wheel extension consumer. Then T28-T30/T19 source closure and all unified
+verification/repairs/production evidence. Unlimited active goal; no tests,
+collection/build/check/dependencies/network/compiler/AST/format/diff checks,
+agents, publication or controller edits. Checkpoint preserves source only.
+
 ## Stage 5 — MAC-EX catalog fallback and macro cache (2026-11-17, stage92)
 
 Stage4 committed93be13d. Authored extension_catalog.rs with10 native

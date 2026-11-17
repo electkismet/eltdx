@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from sys import modules as _MODULES
 from types import TracebackType
 from typing import TypeVar
 
@@ -362,17 +363,23 @@ class ExTdxClient:
     def get_markets(self) -> list[ExMarketInfo]:
         """获取扩展行情支持的市场列表。"""
 
-        return self._execute(GetExMarketsCmd())
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "ex", "markets", (), None, _MODULES[__name__])
 
     def get_instrument_count(self) -> int:
         """获取扩展行情商品总数。"""
 
-        return self._execute(GetExInstrumentCountCmd())
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "ex", "count", (), None, _MODULES[__name__])
 
     def get_instrument_info(self, start: int, count: int = 100) -> list[ExInstrumentInfo]:
         """获取商品信息列表（分页）。"""
 
-        return self._execute(GetExInstrumentInfoCmd(start, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "ex", "info", (start, count), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 行情
@@ -381,7 +388,9 @@ class ExTdxClient:
     def get_instrument_quote(self, market: int, code: str) -> ExInstrumentQuote | None:
         """获取单个商品五档实时行情。"""
 
-        return self._execute(GetExInstrumentQuoteCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "ex", "quote", (market, code), None, _MODULES[__name__])
 
     def get_instrument_quote_list(
         self,
@@ -392,7 +401,9 @@ class ExTdxClient:
     ) -> list[OrderedDict[str, object]]:
         """按类别获取商品行情列表。"""
 
-        return self._execute(GetExInstrumentQuoteListCmd(market, category, start, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "ex", "quotes", (market, category, start, count), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # K线
@@ -417,11 +428,10 @@ class ExTdxClient:
                 ``11:30``）。仅对分钟级周期生效；日线及以上不受影响。
         """
 
-        bars = self._execute(GetExInstrumentBarsCmd(category, market, code, start, count))
-        return align_hour_minute_bars(
-            bars,
-            delta_minutes=category_to_minutes(category),
-            bar_time=bar_time,
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(
+            self, "ex", "bars", (category, market, code, start, count), bar_time, _MODULES[__name__],
         )
 
     def get_history_instrument_bars_range(
@@ -441,13 +451,11 @@ class ExTdxClient:
             :class:`ValueError`（与 easy_tdx 一致）。
         """
 
-        if bar_time == BAR_TIME_END:
-            raise ValueError(
-                "get_history_instrument_bars_range 不支持 bar_time='end'（缺少周期信息），"
-                f"请改用 {BAR_TIME_START!r}"
-            )
-        check_bar_time(bar_time)
-        return self._execute(GetExHistoryInstrumentBarsRangeCmd(market, code, start_date, end_date))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(
+            self, "ex", "range", (market, code, start_date, end_date), bar_time, _MODULES[__name__],
+        )
 
     # ------------------------------------------------------------------ #
     # 分时
@@ -456,12 +464,16 @@ class ExTdxClient:
     def get_minute_time_data(self, market: int, code: str) -> list[ExMinuteBar]:
         """获取当日分时行情数据。"""
 
-        return self._execute(GetExMinuteTimeDataCmd(market, code))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "ex", "minute", (market, code), None, _MODULES[__name__])
 
     def get_history_minute_time_data(self, market: int, code: str, date: int) -> list[ExMinuteBar]:
         """获取历史某日分时行情数据（date: YYYYMMDD）。"""
 
-        return self._execute(GetExHistoryMinuteTimeDataCmd(market, code, date))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "ex", "history_minute", (market, code, date), None, _MODULES[__name__])
 
     # ------------------------------------------------------------------ #
     # 成交
@@ -476,7 +488,9 @@ class ExTdxClient:
     ) -> list[ExTransactionRecord]:
         """获取当日分笔成交数据。"""
 
-        return self._execute(GetExTransactionDataCmd(market, code, start, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "ex", "transactions", (market, code, start, count), None, _MODULES[__name__])
 
     def get_history_transaction_data(
         self,
@@ -488,7 +502,9 @@ class ExTdxClient:
     ) -> list[ExTransactionRecord]:
         """获取历史某日分笔成交数据（date: YYYYMMDD）。"""
 
-        return self._execute(GetExHistoryTransactionDataCmd(market, code, date, start, count))
+        from eltdx._native_abi import load_native
+
+        return load_native().extension_single(self, "ex", "history_transactions", (market, code, date, start, count), None, _MODULES[__name__])
 
 
 __all__ = ["ExTdxClient"]
