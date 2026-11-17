@@ -95,8 +95,15 @@ pub fn encode_bitmap(selection:&FieldSelection,layout:BitmapLayout)->Result<Vec<
     if selection.debug_all { return Err(invalid("DEBUG all-ones bitmap is reserved for the advanced surface")); }
     if layout==BitmapLayout::Board16 && selection.ids().iter().any(|id| id.get()>=128) { return Err(invalid("0x122C bitmap cannot select field bits 128..=150")); }
     let mut out=vec![0;width];
-    for id in selection.ids(){let bit=usize::from(id.get());out[bit/8]|=1<<(bit%8);}
+    for id in selection.ids(){write_bit(&mut out,usize::from(id.get()));}
     Ok(out)
+}
+/// Shared wire insertion. Callers select their own width/validation policy;
+/// an out-of-range bit returns false and never changes the buffer.
+#[doc(hidden)]
+pub fn write_bit(bytes: &mut [u8], bit: usize) -> bool {
+    let Some(byte) = bytes.get_mut(bit/8) else { return false; };
+    *byte |= 1 << (bit%8); true
 }
 pub fn decode_bitmap(bytes:&[u8])->Result<DecodedBitmap> {
     if bytes.len()!=20 { return Err(protocol("MAC response bitmap must be exactly 20 bytes")); }

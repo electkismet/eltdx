@@ -15,8 +15,9 @@ pub fn mac_board_code(py: Python<'_>, value: Bound<'_, PyAny>, module: Bound<'_,
         BoardCodePlan::Prefix { skip,add } => {
             // s[2:] has an actual None stop/step, observable by a custom
             // strip result implementing __getitem__.
+            let integer = builtin(&module,"int")?;
             let tail = text.get_item(py.get_type::<PySlice>().call1((skip,py.None()))?)?;
-            operator.getattr("add")?.call1((add,builtin(&module,"int")?.call1((tail,))?))?
+            operator.getattr("add")?.call1((add,integer.call1((tail,))?))?
         }
         BoardCodePlan::Full { subtract,add } => {
             let value = builtin(&module,"int")?.call1((text,))?;
@@ -61,6 +62,81 @@ pub fn mac_normalize_fields(py: Python<'_>, fields: Bound<'_, PyAny>, module: Bo
     let constructor = module.getattr("FieldSelection")?;
     let args = py.get_type::<PyTuple>().call1((fields,))?.cast_into::<PyTuple>()?;
     Ok(constructor.call(args,None)?.unbind())
+}
+
+fn formatted(value: &Bound<'_, PyAny>, spec: &str) -> PyResult<String> {
+    let template = format!("{{:{spec}}}");
+    template.into_pyobject(value.py())?.call_method1("format",(value,))?.extract()
+}
+fn wire_integer<'py>(py: Python<'py>, bytes: &[u8]) -> PyResult<Bound<'py, PyAny>> {
+    py.get_type::<PyInt>().call_method1("from_bytes",(PyBytes::new(py,bytes),"little"))
+}
+
+#[pyfunction]
+pub fn mac_build_bitmap(py: Python<'_>, fields: Bound<'_, PyAny>, width: Bound<'_, PyAny>,
+    module: Bound<'_, PyAny>) -> PyResult<Py<PyAny>>
+{
+    if !(1.into_pyobject(py)?.le(&width)? && width.le(module.getattr("BITMAP_SIZE")?)?) {
+        let error = builtin(&module,"ValueError")?;
+        let maximum = formatted(&module.getattr("BITMAP_SIZE")?,"")?;
+        let width = formatted(&width,"")?;
+        return Err(PyErr::from_value(error.call1((format!("width must be between 1 and {maximum}, got {width}"),))?));
+    }
+    if builtin(&module,"isinstance")?.call1((&fields,module.getattr("PresetField")?))?.is_truthy()?
+        && fields.is(&module.getattr("PresetField")?.getattr("DEBUG")?) {
+        let constructor = builtin(&module,"bytearray")?;
+        let bytes = py.import("operator")?.getattr("mul")?.call1((PyBytes::new(py,&[255]),width))?;
+        return Ok(constructor.call1((bytes,))?.unbind());
+    }
+    let selection = module.getattr("normalize_fields")?.call1((fields,))?;
+    let op = py.import("operator")?;
+    let limit = op.getattr("mul")?.call1((&width,8))?;
+    let mut buffer = [0;20];
+    let mut custom: Option<Bound<'_,PyAny>> = None;
+    for bit in selection.try_iter()? {
+        py.check_signals()?;
+        let bit = bit?;
+        if bit.getattr("value")?.ge(&limit)? {
+            let error = builtin(&module,"ValueError")?;
+            // Each f-string field is evaluated/formatted before the next one.
+            let name = formatted(&bit.getattr("name")?,"")?;
+            let value = formatted(&bit.getattr("value")?,"02X")?;
+            let width = formatted(&width,"")?;
+            let maximum = formatted(&limit,"")?;
+            let last = formatted(&op.getattr("sub")?.call1((&limit,1))?,"")?;
+            return Err(PyErr::from_value(error.call1((format!(
+                "字段 {name}(0x{value}) 超出 {width} 字节位图（最多 {maximum} 位，即 0..{last}）"),))?));
+        }
+        // The source reads .value twice. Keep that read even when the normal
+        // exact integer can use the strict SDK's common wire insertion.
+        let value = bit.getattr("value")?;
+        if custom.is_none() && value.is_exact_instance_of::<PyInt>() {
+            if let Ok(position) = value.extract::<usize>() {
+                if bitmap::write_bit(&mut buffer,position) { continue; }
+            }
+        }
+        let prior = match custom.take() { Some(value) => value,None => wire_integer(py,&buffer)? };
+        let mask = op.getattr("lshift")?.call1((1,value))?;
+        custom = Some(op.getattr("ior")?.call1((prior,mask))?);
+    }
+    let integer = match custom { Some(value) => value,None => wire_integer(py,&buffer)? };
+    let constructor = builtin(&module,"bytearray")?;
+    let bytes = integer.call_method1("to_bytes",(width,"little"))?;
+    Ok(constructor.call1((bytes,))?.unbind())
+}
+
+#[pyfunction]
+pub fn mac_exclude_flags(value: Bound<'_, PyAny>, module: Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    Ok(value.call_method1("to_bytes",(module.getattr("CONTROL_SIZE")?,"little"))?.unbind())
+}
+
+#[pyfunction]
+pub fn mac_post_ah_code(py: Python<'_>, value: Bound<'_, PyAny>, market: Bound<'_, PyAny>,
+    module: Bound<'_, PyAny>) -> PyResult<Py<PyAny>>
+{
+    if !value.is_truthy()? { return Ok("".into_pyobject(py)?.into_any().unbind()); }
+    let width = eltdx::mac::routing::ah_code_width(PyTuple::new(py,[0,1])?.contains(market)?);
+    Ok(builtin(&module,"str")?.call1((value,))?.call_method1("zfill",(width,))?.unbind())
 }
 
 #[pyfunction]
@@ -112,7 +188,7 @@ impl MacBitSlots {
         };
         let class = module.getattr("FieldBit")?;
         let field = class.getattr("_value2member_map_")?.call_method1("get",(position,))?;
-        let (field,format) = if builtin(module,"isinstance")?.call1((&field,class))?.is_truthy()? {
+        let (field,format) = if builtin(module,"isinstance")?.call1((&field,module.getattr("FieldBit")?))?.is_truthy()? {
             let format = field.getattr("fmt")?; (field,format)
         } else { (py.None().into_bound(py),py.None().into_bound(py)) };
         let slot = self.slot; self.slot += 1;

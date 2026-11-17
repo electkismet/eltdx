@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+2026-11-17第八十九段恢复点：首段T27提交ebcb278。本段接入native build_bitmap/exclude/AH-code及全部本地复权helper，与strict SDK共用write_bit/市场宽度/因子运算顺序/OHLC遍历和坏价格判断；Python继续保留动态宽度/自定义数值与hooks、NaN策略、无事件浅拷贝及选中但全跳过事件仍重建DTO。新增14个Python（现30）/1个Rust函数源码，全部未执行；源码阅读修正slice前捕获int和registry.get后实时重取FieldBit，各有用例。T27整体仍部分，继续全部client/transport/config/generation/commands/parsers/catalog/manifest/consumer，再T28–T30和T19收尾。计数25完整源码/2部分/3未开始不变；目标active无限额，所有执行验证继续延期。恢复读task-27-report Stage2。
+
 2026-11-17第八十八段恢复点：基础5593729。T27已开始，首批Python板块代码/FieldSelection/normalize/位图遍历与count/active入口迁入native，共用strict Rust的board_code_plan和next_set_bit。保留Unicode/任意精度整数、真实None切片、live hooks/顺序/对象、star长度提示、惰性generator/动态字段表及custom/negative数值原语；不把strict限额带入Python。新增16个Python/2个Rust公开函数源码，全未收集/编译/执行。build_bitmap/exclude/adjust/模型及全部扩展业务/配置/生命周期/manifest/consumer仍待完整迁移，不能把helper阶段当T27完成。当前25源码完整/2部分（T19/T27）/3未开始（T28–T30），继续完整T27及后续再统一验证。目标active无限额，无代理/发布；恢复读task-27-report Stage1。
 
 2026-11-17第八十七段恢复点：T26源码收尾已提交`cb2077f`。T25新增mac_simple_services.rs的9个公开函数源码，覆盖12个简单接口、请求形状/数值位/日期/raw、十一类坏回复和预取消零连接；新增mac_routing.rs的5个函数源码，逐项对照完整Python FieldBit/preset、256个市场路由、A/H代码原整数及全部bar标志/head-only改写。全部未编译/收集/运行。T25仅实现/用例/交接源码范围完成，生产默认登录和optional关联证据仍待最终允许阶段取得。当前25源码完整/1部分（T19）/4未开始（T27–T30）；继续完整T27 Python迁移、T28–T30及T19最终交接，再统一验证。目标active无额度上限，无代理/发布。恢复先读task-25-report checkpoint7、mac-implementation-index.md与task-27-brief.md。

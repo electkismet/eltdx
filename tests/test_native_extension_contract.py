@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 from types import GeneratorType, SimpleNamespace
+from datetime import date, datetime
+import math
 
 import pytest
 
 from eltdx.mac import bitmap
 from eltdx.mac import client as mac
+from eltdx.mac import adjust
 
 
 @pytest.mark.parametrize("text,expected", [
@@ -300,3 +303,277 @@ def test_extension_bitmap_count_and_active_fields_keep_live_helpers(monkeypatch)
     assert len(value) == 1
     assert value[0][0] is field
     assert value[0][1] is fmt
+
+
+def test_extension_bitmap_builder_keeps_layout_debug_type_and_exact_errors():
+    result = bitmap.build_bitmap([bitmap.FieldBit.OPEN, bitmap.FieldBit.CHANGE_AT_1430])
+    assert type(result) is bytearray
+    assert result == bytearray((1 << 1 | 1 << 150).to_bytes(20, "little"))
+    assert bitmap.build_bitmap(bitmap.PresetField.DEBUG, width=16) == bytearray(b"\xff" * 16)
+    assert bitmap.build_bitmap(None, width=True) == bytearray(b"\0")
+    with pytest.raises(ValueError) as caught:
+        bitmap.build_bitmap([bitmap.FieldBit.BID3_PRICE], width=16)
+    assert str(caught.value) == "字段 BID3_PRICE(0x80) 超出 16 字节位图（最多 128 位，即 0..127）"
+    with pytest.raises(ValueError) as caught:
+        bitmap.build_bitmap(object(), width=0)
+    assert str(caught.value) == "width must be between 1 and 20, got 0"
+    with pytest.raises(TypeError):
+        bitmap.build_bitmap(None, width=1.5)
+
+
+def test_extension_bitmap_builder_retains_dynamic_normalizer_and_unbounded_custom_width(monkeypatch):
+    marker = object()
+    reads = []
+
+    class Field:
+        @property
+        def value(self):
+            reads.append("value")
+            return 200
+
+    def normalize(value):
+        assert value is marker
+        return [Field()]
+
+    monkeypatch.setattr(bitmap, "BITMAP_SIZE", 32)
+    monkeypatch.setattr(bitmap, "normalize_fields", normalize)
+    assert bitmap.build_bitmap(marker, width=32) == bytearray((1 << 200).to_bytes(32, "little"))
+    assert reads == ["value", "value"]
+
+
+def test_extension_bitmap_builder_keeps_custom_shift_inplace_or_and_captured_bytearray(monkeypatch):
+    events = []
+    result = object()
+
+    class Accumulator:
+        def __ror__(self, prior):
+            events.append(("or", prior))
+            return self
+
+        def __ior__(self, other):
+            events.append(("ior", other is self))
+            return self
+
+        def to_bytes(self, width, order):
+            events.append(("bytes", width, order))
+            monkeypatch.setattr(bitmap, "bytearray", lambda value: pytest.fail("resolved before to_bytes"))
+            return b"custom"
+
+    accumulator = Accumulator()
+
+    class Bit:
+        def __ge__(self, limit):
+            events.append(("ge", limit))
+            return False
+
+        def __rlshift__(self, one):
+            events.append(("shift", one))
+            return accumulator
+
+    monkeypatch.setattr(bitmap, "normalize_fields", lambda value: [SimpleNamespace(value=Bit())] * 2)
+    monkeypatch.setattr(bitmap, "bytearray", lambda value: events.append(("output", value)) or result, raising=False)
+    assert bitmap.build_bitmap(None) is result
+    assert events == [("ge", 160), ("shift", 1), ("or", 0), ("ge", 160),
+                      ("shift", 1), ("ior", True), ("bytes", 20, "little"), ("output", b"custom")]
+
+
+def test_extension_exclude_flags_keeps_object_to_bytes_and_live_size(monkeypatch):
+    marker = object()
+    size = object()
+    events = []
+
+    class Flags:
+        def to_bytes(self, length, order):
+            events.append((length, order))
+            return marker
+
+    monkeypatch.setattr(bitmap, "CONTROL_SIZE", size)
+    assert bitmap.build_exclude_flags(Flags()) is marker
+    assert events == [(size, "little")]
+    monkeypatch.setattr(bitmap, "CONTROL_SIZE", 4)
+    with pytest.raises(OverflowError):
+        bitmap.build_exclude_flags(-1)
+
+
+def test_extension_ah_postprocessor_keeps_zero_membership_signed_and_live_str(monkeypatch):
+    assert bitmap._post_ah_code(0, object()) == ""
+    assert bitmap._post_ah_code(123, True) == "00123"
+    assert bitmap._post_ah_code(-12, 31) == "-00012"
+    events = []
+    monkeypatch.setattr(bitmap, "str", lambda value: events.append(value) or "custom", raising=False)
+    marker = object()
+    assert bitmap._post_ah_code(marker, 0) == "custom"
+    assert events == [marker]
+
+
+@pytest.mark.parametrize("values", [
+    (0.0, 0.0, 0.0, 0.0, 0.0), (-1.0, 0.0, 0.0, 0.0, 0.0),
+    (1.0, 0.0, 0.0, -1.0, 0.0), (float("inf"), 0.0, 0.0, 0.0, 0.0),
+    (1.0, float("nan"), 0.0, 0.0, 0.0),
+])
+def test_extension_adjust_factor_retains_nan_result_policy(values):
+    assert math.isnan(adjust.compute_forward_factor(*values))
+
+
+def test_extension_adjust_factor_keeps_numeric_protocol_and_denominator_first(monkeypatch):
+    events = []
+
+    class Number:
+        def __init__(self, name):
+            self.name = name
+
+        def __le__(self, other):
+            events.append(("le", self.name, other))
+            return False
+
+        def __eq__(self, other):
+            events.append(("eq", self.name, other))
+            return False
+
+        def __radd__(self, other):
+            events.append(("radd", self.name, other))
+            return Number("stock-total")
+
+        def __add__(self, other):
+            events.append(("add", self.name, other.name))
+            return Number("sum")
+
+        def __mul__(self, other):
+            events.append(("mul", self.name, other.name))
+            return Number("product")
+
+        def __sub__(self, other):
+            events.append(("sub", self.name, other.name))
+            return Number("difference")
+
+        def __truediv__(self, other):
+            events.append(("divide", self.name, other.name))
+            return Number("factor")
+
+        def __float__(self):
+            events.append(("float", self.name))
+            return 0.75
+
+    monkeypatch.setattr(adjust, "math", SimpleNamespace(
+        isfinite=lambda value: events.append(("finite", value.name)) or True))
+    assert adjust.compute_forward_factor(*(Number(name) for name in ("close", "cash", "price", "stock", "rights"))) == 0.75
+    assert events == [("le", "close", 0), ("radd", "stock", 1.0), ("add", "stock-total", "rights"),
+                      ("mul", "close", "sum"), ("eq", "product", 0), ("sub", "close", "cash"),
+                      ("mul", "price", "rights"), ("add", "difference", "product"),
+                      ("divide", "sum", "product"), ("finite", "factor"), ("float", "factor")]
+
+
+def _extension_bar(day, value, marker=0):
+    return adjust.MacBar(datetime(2026, 11, day), value, value, value, value, marker, -0.0, 123.0)
+
+
+def test_extension_adjust_no_events_is_sorted_shallow_copy_and_skips_event_scan_on_empty():
+    first, second = _extension_bar(1, 10), _extension_bar(2, 20)
+    source = [second, first]
+    result = adjust.apply_forward_adjust(source, [])
+    assert result == [first, second]
+    assert result is not source
+    assert result[0] is first and result[1] is second
+
+    class Events:
+        def __iter__(self):
+            pytest.fail("empty bars do not inspect events")
+
+    assert adjust.apply_forward_adjust([], Events()) == []
+
+
+def test_extension_adjust_sequential_same_date_events_use_already_adjusted_close():
+    source = [_extension_bar(3, 30, 3), _extension_bar(1, 8, 1),
+              _extension_bar(2, 20, 2), _extension_bar(1, 10, 4)]
+    events = [adjust.XdxrEvent(date(2026, 11, 3), fenhong=1),
+              adjust.XdxrEvent(date(2026, 11, 2), fenhong=1, songzhuangu=1),
+              adjust.XdxrEvent(date(2026, 11, 2), fenhong=1)]
+    result = adjust.apply_forward_adjust(source, events)
+    assert [bar.close for bar in result] == pytest.approx([2.66, 3.325, 19, 30])
+    assert [bar.vol for bar in result] == [1, 4, 2, 3]
+    assert all(bar.float_shares == 123 and math.copysign(1, bar.amount) == -1 for bar in result)
+    assert all(result[index] is not source[old] for index, old in enumerate([1, 3, 2, 0]))
+    assert [bar.close for bar in source] == [30, 8, 20, 10]
+
+
+def test_extension_adjust_nonempty_all_skipped_still_constructs_original_dto():
+    source = [_extension_bar(1, 10), _extension_bar(2, 20)]
+    # Selected event precedes every bar, so no factor exists but output DTOs
+    # are still newly constructed. Category/zero events alone take shallow copy.
+    result = adjust.apply_forward_adjust(source, [adjust.XdxrEvent(date(2026, 10, 1), fenhong=1)])
+    assert result == source
+    assert all(a is not b for a, b in zip(result, source))
+    result = adjust.apply_forward_adjust(source, [adjust.XdxrEvent(date(2026, 11, 2), category=2, fenhong=1)])
+    assert all(a is b for a, b in zip(result, source))
+
+
+def test_extension_adjust_keeps_live_factor_range_inplace_order_and_model(monkeypatch):
+    events = []
+
+    class Price:
+        def __init__(self, label):
+            self.label = label
+
+        def __imul__(self, factor):
+            events.append((self.label, factor))
+            return self
+
+    source = [SimpleNamespace(datetime=datetime(2026, 11, day),
+                              **{field: Price(f"{field}{day}") for field in ("open", "high", "low", "close")},
+                              vol=0, amount=0, float_shares=0) for day in (1, 2, 3)]
+    monkeypatch.setattr(adjust, "compute_forward_factor", lambda *values: 2.0)
+    monkeypatch.setattr(adjust, "range", lambda count: events.append(("range", count)) or (1, 0), raising=False)
+    monkeypatch.setattr(adjust, "MacBar", lambda **values: values)
+    result = adjust.apply_forward_adjust(source, [adjust.XdxrEvent(date(2026, 11, 3), fenhong=1)])
+    assert events == [("range", 2)] + [(f"{field}{day}", 2.0) for day in (2, 1) for field in ("open", "high", "low", "close")]
+    assert len(result) == 3
+    assert result[0]["open"] is source[0].open
+
+
+def test_extension_bad_prices_reads_full_tuple_before_finite_short_circuit(monkeypatch):
+    events = []
+
+    class Bar:
+        def __getattr__(self, field):
+            events.append(field)
+            return field
+
+    monkeypatch.setattr(adjust, "math", SimpleNamespace(isfinite=lambda value: events.append(("finite", value)) or False))
+    assert adjust.has_bad_prices([Bar()])
+    assert events == ["open", "high", "low", "close", ("finite", "open")]
+    assert not adjust.has_bad_prices([])
+
+
+def test_extension_board_code_captures_int_before_custom_slice(monkeypatch):
+    class Text:
+        def strip(self):
+            return self
+
+        def startswith(self, prefix):
+            return prefix == "US"
+
+        def __getitem__(self, index):
+            monkeypatch.setattr(mac, "int", lambda value: 99)
+            return "7"
+
+    monkeypatch.setattr(mac, "int", lambda value: 7, raising=False)
+    assert mac.convert_board_code(Text()) == 30007
+
+
+def test_extension_bitmap_rereads_field_class_after_custom_registry_get(monkeypatch):
+    class After:
+        fmt = "custom"
+
+    marker = After()
+
+    class Registry:
+        def get(self, position):
+            assert position == 1
+            monkeypatch.setattr(bitmap, "FieldBit", After)
+            return marker
+
+    class Before:
+        _value2member_map_ = Registry()
+
+    monkeypatch.setattr(bitmap, "FieldBit", Before)
+    assert list(bitmap.iter_set_bits(b"\x02")) == [(0, marker, "custom")]

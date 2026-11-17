@@ -43,18 +43,65 @@ impl AdjustmentResult {
 }
 
 pub fn convert_board_code(board: &BoardSymbol) -> Result<u32> { Ok(board.wire_code()) }
+/// The arithmetic order is shared with the legacy object projection. Input,
+/// denominator and result validity are deliberately caller policy.
+#[doc(hidden)]
+pub fn forward_denominator_with<T,E>(close: &T, stock: &T, rights: &T, one: T,
+    mut add: impl FnMut(T,&T) -> std::result::Result<T,E>,
+    multiply: impl FnOnce(&T,T) -> std::result::Result<T,E>) -> std::result::Result<T,E>
+{
+    let stock_total = add(one,stock)?;
+    multiply(close,add(stock_total,rights)?)
+}
+#[doc(hidden)]
+pub fn forward_numerator_with<T,E>(close: &T, cash: &T, price: &T, rights: &T,
+    subtract: impl FnOnce(&T,&T) -> std::result::Result<T,E>,
+    multiply: impl FnOnce(&T,&T) -> std::result::Result<T,E>,
+    add: impl FnOnce(T,T) -> std::result::Result<T,E>) -> std::result::Result<T,E>
+{
+    let difference = subtract(close,cash)?;
+    add(difference,multiply(price,rights)?)
+}
+/// Applies one event in source OHLC order. Strict callers preflight finite
+/// outputs; Python intentionally keeps its existing in-place numeric policy.
+#[doc(hidden)]
+pub fn scale_prices_with<I,T,E>(indices: I,
+    mut multiply: impl FnMut(&T,usize) -> std::result::Result<(),E>,
+    mut boundary: impl FnMut(usize) -> std::result::Result<(),E>) -> std::result::Result<(),E>
+where I: IntoIterator<Item=std::result::Result<T,E>>
+{
+    for (index,row) in indices.into_iter().enumerate() {
+        let row = row?;
+        boundary(index)?;
+        for slot in 0..4 { multiply(&row,slot)?; }
+    }
+    Ok(())
+}
+#[doc(hidden)]
+pub fn price_invalid_with<E>(finite: impl FnOnce() -> std::result::Result<bool,E>,
+    nonpositive: impl FnOnce() -> std::result::Result<bool,E>) -> std::result::Result<bool,E>
+{
+    Ok(!finite()? || nonpositive()?)
+}
 pub fn compute_forward_factor(cum_close: f64, fenhong: f64, peigujia: f64, songzhuangu: f64, peigu: f64) -> Result<f64> {
     if ![cum_close,fenhong,peigujia,songzhuangu,peigu].into_iter().all(f64::is_finite) || cum_close <= 0.0 {
         return Err(invalid("MAC forward adjustment requires finite inputs and a positive prior close"));
     }
-    let denominator = cum_close * (1.0+songzhuangu+peigu);
+    let denominator = forward_denominator_with::<_,std::convert::Infallible>(
+        &cum_close,&songzhuangu,&peigu,1.0,|a,b| Ok(a+b),|a,b| Ok(a*b))
+        .unwrap_or_else(|never| match never {});
     if !denominator.is_finite() || denominator == 0.0 { return Err(invalid("MAC forward adjustment denominator is zero or nonfinite")); }
-    let factor = (cum_close-fenhong+peigujia*peigu)/denominator;
+    let numerator = forward_numerator_with::<_,std::convert::Infallible>(
+        &cum_close,&fenhong,&peigujia,&peigu,|a,b| Ok(a-b),|a,b| Ok(a*b),|a,b| Ok(a+b))
+        .unwrap_or_else(|never| match never {});
+    let factor = numerator/denominator;
     if !factor.is_finite() { return Err(invalid("MAC forward adjustment factor is nonfinite")); }
     Ok(factor)
 }
 pub fn has_bad_prices(bars: &[Bar]) -> bool {
-    bars.iter().any(|bar| prices(bar).into_iter().any(|value| !value.is_finite() || value <= 0.0))
+    bars.iter().any(|bar| prices(bar).into_iter().any(|value|
+        price_invalid_with::<std::convert::Infallible>(|| Ok(value.is_finite()),|| Ok(value <= 0.0))
+            .unwrap_or_else(|never| match never {})))
 }
 pub fn apply_forward_adjust(bars: &[Bar], events: &[XdxrEvent]) -> Result<Vec<Bar>> {
     forward_adjustment(bars,events).map(AdjustmentResult::into_rows)
@@ -117,10 +164,8 @@ pub(crate) fn forward_adjustment_with_boundary(bars: &[Bar], events: &[XdxrEvent
                     }
                     if !finite { evidence.reason = Some("event would create a nonfinite price"); }
                     else {
-                        for (index,row) in values[..affected].iter_mut().enumerate() {
-                            if index % 256 == 0 { boundary()?; }
-                            for value in row { *value *= factor; }
-                        }
+                        scale_prices_with((0..affected).map(Ok::<_,Error>),|index,slot| { values[*index][slot] *= factor; Ok(()) },
+                            |index| { if index % 256 == 0 { boundary()?; } Ok(()) })?;
                         evidence.factor = Some(factor); evidence.affected_rows = affected;
                         adjusted_prefix = adjusted_prefix.max(affected);
                     }
@@ -184,6 +229,31 @@ mod tests {
     fn bar(day: u8, price: f32, marker: u32) -> Bar { bar_with(20261100+u32::from(day),0,price,marker,&query()) }
     fn cash(day: u8, amount: f64) -> XdxrEvent { XdxrEvent { fenhong: amount,..XdxrEvent::new(date(day)) } }
     fn near(actual: f64, expected: f64) { assert!((actual-expected).abs() < 1e-12,"actual={actual:?}; expected={expected:?}"); }
+
+    #[test]
+    fn shared_object_arithmetic_and_prefix_keep_source_order_and_short_circuit() {
+        use std::cell::RefCell;
+        let stages = RefCell::new(Vec::new());
+        let denominator = forward_denominator_with::<_,()>(
+            &10.0,&0.1,&0.2,1.0,
+            |a,b| { stages.borrow_mut().push("add"); Ok(a+b) },
+            |a,b| { stages.borrow_mut().push("multiply"); Ok(a*b) }).unwrap();
+        near(denominator,13.0);
+        assert_eq!(*stages.borrow(),["add","add","multiply"]);
+        stages.borrow_mut().clear();
+        let numerator = forward_numerator_with::<_,()>(
+            &10.0,&1.0,&5.0,&0.2,
+            |a,b| { stages.borrow_mut().push("subtract"); Ok(a-b) },
+            |a,b| { stages.borrow_mut().push("multiply"); Ok(a*b) },
+            |a,b| { stages.borrow_mut().push("add"); Ok(a+b) }).unwrap();
+        near(numerator,10.0);
+        assert_eq!(*stages.borrow(),["subtract","multiply","add"]);
+        let mut mutations = Vec::new();
+        scale_prices_with([Ok::<_,()>(2),Ok(0)],|row,slot| { mutations.push((*row,slot)); Ok(()) },|_| Ok(())).unwrap();
+        assert_eq!(mutations,[(2,0),(2,1),(2,2),(2,3),(0,0),(0,1),(0,2),(0,3)]);
+        assert!(price_invalid_with::<()>(|| Ok(false),|| panic!("nonfinite short-circuits comparison")).unwrap());
+        assert_eq!(price_invalid_with::<&str>(|| Err("finite hook failure"),|| Ok(false)),Err("finite hook failure"));
+    }
 
     #[test]
     fn factor_uses_per_share_quantities_and_rejects_invalid_inputs() {

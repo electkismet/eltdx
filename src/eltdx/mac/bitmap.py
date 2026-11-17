@@ -204,10 +204,9 @@ FIELD_BITMAP_MAP: dict[int, tuple[str, str, str]] = {
 def _post_ah_code(value: int, market: int = 0) -> str:
     """A/H 股代码补齐位数（沪深北 5 位，其他 6 位）。"""
 
-    if not value:
-        return ""
-    width = 5 if market in (0, 1) else 6
-    return str(value).zfill(width)
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_post_ah_code(value, market, _MODULES[__name__])
 
 
 FIELD_POSTPROCESS: dict[int, object] = {
@@ -449,21 +448,9 @@ def build_bitmap(
         ValueError: 选中了超出 ``width * 8`` 的字段位，或 ``width`` 非法。
     """
 
-    if not 1 <= width <= BITMAP_SIZE:
-        raise ValueError(f"width must be between 1 and {BITMAP_SIZE}, got {width}")
-    if isinstance(fields, PresetField) and fields is PresetField.DEBUG:
-        return bytearray(b"\xff" * width)
-    selection = normalize_fields(fields)
-    limit = width * 8
-    bitmap_int = 0
-    for bit in selection:
-        if bit.value >= limit:
-            raise ValueError(
-                f"字段 {bit.name}(0x{bit.value:02X}) 超出 {width} 字节位图"
-                f"（最多 {limit} 位，即 0..{limit - 1}）"
-            )
-        bitmap_int |= 1 << bit.value
-    return bytearray(bitmap_int.to_bytes(width, "little"))
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_build_bitmap(fields, width, _MODULES[__name__])
 
 
 def build_exclude_flags(exclude_flags: int = 0) -> bytes:
@@ -475,7 +462,9 @@ def build_exclude_flags(exclude_flags: int = 0) -> bytes:
     0x122B 没有这块控制区，其 20 字节位图全部是字段位。
     """
 
-    return exclude_flags.to_bytes(CONTROL_SIZE, "little")
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_exclude_flags(exclude_flags, _MODULES[__name__])
 
 
 #: 合法字段位的上界（不含）。实测字段位为 0–150，位 151–159 是保留区

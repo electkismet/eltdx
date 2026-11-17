@@ -1,5 +1,46 @@
 # T27 implementation report
 
+## Stage 2 — bitmap building and local adjustment (2026-11-17, stage89)
+
+Stage1 committed ebcb278. Counts remain25 source-complete/2 partial/3
+unstarted. Added native build_bitmap/build_exclude_flags/_post_ah_code and
+all three adjustment helpers. Shared write_bit is used by strict bitmap
+encoding and Python's ordinary integer builder. Custom widths/bits/numeric
+methods preserve the Python path without a new cap; live normalizer and
+bytearray/exception constructor timing remain visible. Strict and legacy
+A/H code projections share the response-market width decision.
+
+Strict and Python adjustment use the same denominator/numerator operation
+order, OHLC mutation traversal and invalid-price short-circuit primitive.
+Strict finite-input/output validation stays strict; Python retains original
+NaN policy, stable datetime/event sorting, original date/bisect/compute/
+math/range/enumerate/model hooks, per-column attribute collection order,
+custom inplace numeric methods, shallow-copy no-event path and newly built
+DTOs for selected but all-skipped events. Python sorting key functions are
+explicit tiny object-access adapters, retaining lambda identity/type for
+custom sorted hooks rather than routing business back into Python.
+
+Added14 public Python contract functions (now30, two parametrized) and one
+private Rust source function; expanded the shared bit writer fixture. Cases
+cover normal/debug/high-bit/error layouts, dynamic32B/high200 bit, exact
+double .value access, custom shift/inplace-or and captured bytearray,
+exclude object/size, A/H membership/str, NaN/numeric-factor order, no-event
+shallow identity/empty early return, same-date sequential adjusted closes,
+all-skipped DTO rebuilding, live reverse range/inplace OHLC/model and eager
+OHLC tuple before finite short-circuit. Also fixed source-read-observed
+captured int before custom board slicing, and live FieldBit reread after
+registry.get; both have authored contract cases.
+
+No tests/collection/build/check/dependencies/network/compiler/AST/format/
+diff checks ran. Source-only compatibility remains unverified; PyO3/generic
+signatures and actual wheel import must be checked only after all source
+scope is complete. Full client/transport/config/generation/command/parser/
+catalog/manifest/consumer scope of T27 remains. Pure DTO declarations and
+enum registries stay as original public object adapters, with business
+methods still to be individually mapped. Goal active unlimited; no agents
+or publication. Continue complete T27 and T28-T30, T19 final source handoff,
+then unified execution/fixes and production protocol evidence.
+
 ## Stage 1 — board/selection/bitmap compatibility (2026-11-17, stage88)
 
 Base5593729. T27 is started, not source-complete. Totals are25

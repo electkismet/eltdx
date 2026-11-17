@@ -112,6 +112,11 @@ fn shared_bit_scan_keeps_unknown_positions_and_caller_limit() {
     assert_eq!(bitmap::next_set_bit(&[],&mut cursor,usize::MAX),None);
     let mut cursor = usize::MAX;
     assert_eq!(bitmap::next_set_bit(&source,&mut cursor,usize::MAX),None);
+    let mut destination = [0;20];
+    assert!(bitmap::write_bit(&mut destination,159));
+    assert_eq!(destination[19],128);
+    assert!(!bitmap::write_bit(&mut destination,160));
+    assert_eq!(destination[19],128);
 }
 
 #[test]

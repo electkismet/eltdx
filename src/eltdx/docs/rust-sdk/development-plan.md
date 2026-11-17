@@ -531,6 +531,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T27：扩展 Python 迁移与全能力核对
 
+2026-11-17第二段源码恢复点（stage89，首段ebcb278）：请求位图构建/exclude/AH后处理及本地复权全helper已接native，strict/legacy共用位写入、市场宽度和因子/OHLC/坏价格核心；保留Python动态hooks/任意整数/原NaN与对象策略。新增14个Python用例函数（本域现30）和1个Rust函数源码，全部未执行。client/transport/config/generation/命令/parser/目录/manifest/consumer全范围仍待，T27不能宣布完成。25源码完整/2部分/3未开始，继续全部源码后统一验证。
+
 2026-11-17第一段源码恢复点（stage88，基础5593729）：Python板块代码、FieldSelection/normalize、位图slots/count/active已接入native，共用严格Rust的plan/scan而保留Python动态数值/长度/对象/hooks/惰性策略；新增16个Python和2个Rust公开函数源码，全部未执行。T27仍部分，build/exclude/adjust/models和全部扩展业务/管理/配置/generation/raw/custom transport/manifest/consumer必须继续完整实现。当前25源码完整/2部分（T19/T27）/3未开始（T28–T30）；所有执行验收仍延期。
 
 **文件：** 修改 `src/eltdx/ex`、`mac`、native桥接及迁移清单；新增相应差分测试。

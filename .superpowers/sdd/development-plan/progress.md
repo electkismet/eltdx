@@ -2,6 +2,19 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage89: Stage1 committedebcb278. Native bitmap
+  builder/exclude/AH-code and all local adjustment helpers authored, sharing
+  write_bit/AH width and arithmetic/OHLC traversal/invalid-price primitives
+  with strict SDK. Python keeps dynamic width/no added cap, custom inplace
+  methods/hooks, NaN/shallow-copy/all-skipped DTO policies. Added14 Python
+  public functions(now30)/1 Rust source function, all unexecuted. Fixed
+  captured int before custom slice and live FieldBit after registry.get with
+  source cases. Counts25 source-complete/2 partial(T19/T27)/3 unstarted.
+  Read task-27-report Stage2; next full client/transport/config/generation/
+  command/parser/catalog/manifest/consumer migration. Goal active unlimited;
+  no tests/build/check/collection/dependencies/network/compiler/AST/format/
+  diff checks, agents or publication. Continue all source then unified checks.
+
 - Latest recovery2026-11-17 stage88: base5593729. T27 started: Python
   board code, FieldSelection/normalize and bitmap slots/count/active fields
   now delegate to native Rust, sharing board_code_plan/next_set_bit with

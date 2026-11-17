@@ -13,3 +13,9 @@ pub fn default_quote_selection() -> crate::mac::bitmap::FieldSelection {
 }
 
 pub fn hk_price_from_wire(raw: u32) -> f64 { f64::from(raw) / 1000.0 }
+
+/// Caller performs its own market equality/membership policy.
+#[doc(hidden)]
+pub const fn ah_code_width(mainland_response: bool) -> usize {
+    if mainland_response { 5 } else { 6 }
+}
