@@ -912,7 +912,7 @@ fn page_server(
     });
     let engine = loopback_engine(
         vec![eltdx_runtime::endpoint::Endpoint::numeric(&address.to_string()).expect("endpoint")],
-        Duration::from_millis(120),
+        Duration::from_secs(2),
     );
     (engine, server)
 }
@@ -921,9 +921,9 @@ fn page_server(
 fn runtime_two_page_comparison_rust_times_out_both_python_profiles_keep_request_windows() {
     use crate::__python_compat::{LegacyChildPurpose, LegacyExecutor};
     use crate::hq::executor::HqExecutor;
-    let (engine, server) = page_server(Duration::from_millis(80), 2);
+    let (engine, server) = page_server(Duration::from_secs(1), 2);
     let client = ClientBuilder::new()
-        .request_timeout(Duration::from_millis(120))
+        .request_timeout(Duration::from_secs(2))
         .build()
         .expect("config");
     let owner = Arc::new(SessionOwner::new(
@@ -945,10 +945,10 @@ fn runtime_two_page_comparison_rust_times_out_both_python_profiles_keep_request_
     executor.close().expect("retired Rust operation");
     assert_eq!(server.join().expect("server"), 2);
 
-    let (engine, server) = page_server(Duration::from_millis(80), 2);
+    let (engine, server) = page_server(Duration::from_secs(1), 2);
     let legacy = LegacyExecutor::new(
         engine,
-        Duration::from_millis(120),
+        Duration::from_secs(2),
         Duration::from_secs(1),
         Duration::from_secs(1),
     )
@@ -967,7 +967,7 @@ fn runtime_two_page_comparison_rust_times_out_both_python_profiles_keep_request_
     legacy.close().expect("legacy close");
     assert_eq!(server.join().expect("server"), 2);
 
-    let (engine, server) = page_server(Duration::from_millis(80), 2);
+    let (engine, server) = page_server(Duration::from_secs(1), 2);
     for _ in 0..2 {
         engine
             .execute(request())

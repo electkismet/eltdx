@@ -31,6 +31,7 @@ impl Peer {
                 }
                 match listener.accept() {
                     Ok((stream, _)) => {
+                        stream.set_nonblocking(false)?;
                         stream.set_read_timeout(Some(Duration::from_secs(3)))?;
                         stream.set_write_timeout(Some(Duration::from_secs(3)))?;
                         return script(stream);
