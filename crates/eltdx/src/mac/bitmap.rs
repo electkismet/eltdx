@@ -104,8 +104,26 @@ pub fn decode_bitmap(bytes:&[u8])->Result<DecodedBitmap> {
     let mut reserved=[0;20];
     for bit in 151..160 { if raw[bit/8]&(1<<(bit%8))!=0 { reserved[bit/8]|=1<<(bit%8); } }
     let mut slots=Vec::new();
-    for bit in 0..=150 { if raw[bit/8]&(1<<(bit%8))!=0 {let id=FieldId(bit as u8);slots.push(SlotDescriptor{slot:slots.len(),bit:id,definition:definition(id)});} }
+    let mut cursor = 0;
+    while let Some(bit) = next_set_bit(&raw,&mut cursor,usize::from(FIELD_LIMIT)) {
+        let id=FieldId(bit as u8);slots.push(SlotDescriptor{slot:slots.len(),bit:id,definition:definition(id)});
+    }
     Ok(DecodedBitmap{raw,reserved,slots})
+}
+/// Shared ascending bit traversal. `limit` excludes reserved positions for the
+/// strict decoder; the Python adapter supplies its already-masked integer's
+/// bytes and keeps the legacy dynamic FIELD_BIT_LIMIT policy.
+#[doc(hidden)]
+pub fn next_set_bit(bytes: &[u8], cursor: &mut usize, limit: usize) -> Option<usize> {
+    while *cursor < limit {
+        let byte = *bytes.get(*cursor/8)?;
+        let candidate = byte & (u8::MAX << (*cursor%8));
+        if candidate == 0 { *cursor = (*cursor/8).checked_add(1)?.checked_mul(8)?; continue; }
+        let bit = (*cursor/8).checked_mul(8)?.checked_add(candidate.trailing_zeros() as usize)?;
+        if bit >= limit { return None; }
+        *cursor = bit.checked_add(1)?; return Some(bit);
+    }
+    None
 }
 pub fn decode_slot(desc:SlotDescriptor, raw:[u8;4])->SlotValue {
     match desc.definition.map(|field|field.kind) {Some(SlotKind::F32)=>SlotValue::F32(WireFloat::from_bits(u32::from_le_bytes(raw))),Some(SlotKind::U32)=>SlotValue::U32(u32::from_le_bytes(raw)),Some(SlotKind::I32)=>SlotValue::I32(i32::from_le_bytes(raw)),None=>SlotValue::Unknown(raw)}

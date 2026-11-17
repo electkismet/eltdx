@@ -66,6 +66,28 @@ impl FilterMask {
 
 /// Board conversions preserve the exact caller text alongside the checked
 /// source number. Prefixes are case-sensitive, as in the original parser.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BoardCodePlan {
+    Prefix { skip: usize, add: u32 },
+    Full { subtract: u32, add: u32 },
+    Plain,
+}
+/// Shared source decision order; conversion/overflow are separate policies.
+/// Python supplies its live string methods, len and arbitrary-precision int.
+#[doc(hidden)]
+pub fn board_code_plan<E>(mut starts: impl FnMut(&str) -> std::result::Result<bool,E>,
+    six_characters: impl FnOnce() -> std::result::Result<bool,E>) -> std::result::Result<BoardCodePlan,E>
+{
+    if starts("US")? { return Ok(BoardCodePlan::Prefix { skip: 2,add: 30000 }); }
+    if starts("HK")? { return Ok(BoardCodePlan::Prefix { skip: 2,add: 20000 }); }
+    if six_characters()? {
+        for (prefix,subtract,add) in [("88",880000,20000),("399",399000,30000),("899",899000,32000),("000",0,31000)] {
+            if starts(prefix)? { return Ok(BoardCodePlan::Full { subtract,add }); }
+        }
+    }
+    Ok(BoardCodePlan::Plain)
+}
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct BoardSymbol { source: String, wire_code: u32 }
 impl BoardSymbol {
@@ -78,21 +100,12 @@ impl BoardSymbol {
             if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) { return Err(invalid()); }
             text.parse::<u32>().map_err(|_| invalid())
         };
-        let wire_code = if let Some(number) = text.strip_prefix("US") {
-            decimal(number)?.checked_add(30_000).ok_or_else(invalid)?
-        } else if let Some(number) = text.strip_prefix("HK") {
-            decimal(number)?.checked_add(20_000).ok_or_else(invalid)?
-        } else {
-            let number = decimal(text)?;
-            if text.len() == 6 && text.starts_with("88") {
-                number.checked_sub(880_000).and_then(|n| n.checked_add(20_000)).ok_or_else(invalid)?
-            } else if text.len() == 6 && text.starts_with("399") {
-                number.checked_sub(399_000).and_then(|n| n.checked_add(30_000)).ok_or_else(invalid)?
-            } else if text.len() == 6 && text.starts_with("899") {
-                number.checked_sub(899_000).and_then(|n| n.checked_add(32_000)).ok_or_else(invalid)?
-            } else if text.len() == 6 && text.starts_with("000") {
-                number.checked_add(31_000).ok_or_else(invalid)?
-            } else { number }
+        let plan = board_code_plan::<std::convert::Infallible>(|prefix| Ok(text.starts_with(prefix)),|| Ok(text.len() == 6))
+            .unwrap_or_else(|never| match never {});
+        let wire_code = match plan {
+            BoardCodePlan::Prefix { skip,add } => decimal(&text[skip..])?.checked_add(add).ok_or_else(invalid)?,
+            BoardCodePlan::Full { subtract,add } => decimal(text)?.checked_sub(subtract).and_then(|value| value.checked_add(add)).ok_or_else(invalid)?,
+            BoardCodePlan::Plain => decimal(text)?,
         };
         Ok(Self { source, wire_code })
     }

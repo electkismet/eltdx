@@ -2,6 +2,19 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage88: base5593729. T27 started: Python
+  board code, FieldSelection/normalize and bitmap slots/count/active fields
+  now delegate to native Rust, sharing board_code_plan/next_set_bit with
+  strict SDK. Preserve Unicode/arbitrary int/live hooks/ordered identity,
+  true None slice, star length hints, lazy generator/dynamic registry and
+  custom/negative numeric methods. Added16 Python and2 Rust public function
+  sources, all uncompiled/uncollected/unrun. Counts25 source-complete/2
+  partial(T19/T27)/3 unstarted(T28-T30). Read task-27-report Stage1; next
+  build_bitmap/exclude/adjust/models, full extension business/management/
+  generation/config/manifest/installed wheel, then T28-T30/T19 final handoff.
+  Goal active without quota. No verification execution, agents, publication
+  or controller edits. This helper stage does not complete T27.
+
 - Latest recovery2026-11-17 stage87: basecb2077f(T26source closure). T25's
   simple-method/field/preset/routing source scope complete. Added9 public
   simple-client functions covering12 methods/malformed matrix/pre-cancel,

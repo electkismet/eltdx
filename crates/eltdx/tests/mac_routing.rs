@@ -98,3 +98,33 @@ fn bar_adjustment_and_all_four_request_flags_survive_mac_ex_head_rewrite() {
         let mapped = commands::rewrite_mac_ex_head(&request.wire).unwrap(); assert_eq!(mapped[0],1); assert_eq!(&mapped[1..],&request.wire[1..]);
     }
 }
+
+#[test]
+fn shared_bit_scan_keeps_unknown_positions_and_caller_limit() {
+    let mut source = [0; 51];
+    for bit in [1,47,48,150,151,159,400] { source[bit/8] |= 1 << (bit%8); }
+    for (limit,expected) in [(151,&[1,47,48,150][..]),(401,&[1,47,48,150,151,159,400][..]),(0,&[][..])] {
+        let mut cursor = 0; let mut result = Vec::new();
+        while let Some(bit) = bitmap::next_set_bit(&source,&mut cursor,limit) { result.push(bit); }
+        assert_eq!(result,expected);
+    }
+    let mut cursor = 0;
+    assert_eq!(bitmap::next_set_bit(&[],&mut cursor,usize::MAX),None);
+    let mut cursor = usize::MAX;
+    assert_eq!(bitmap::next_set_bit(&source,&mut cursor,usize::MAX),None);
+}
+
+#[test]
+fn shared_board_plan_preserves_decision_short_circuit_and_error() {
+    use eltdx::mac::enums::{board_code_plan, BoardCodePlan};
+    let mut seen = Vec::new();
+    let plan = board_code_plan::<&str>(|prefix| { seen.push(prefix.to_owned()); Ok(prefix == "US") },
+        || Err("len must not be read for US")).unwrap();
+    assert_eq!(plan,BoardCodePlan::Prefix { skip: 2,add: 30000 });
+    assert_eq!(seen,["US"]);
+    seen.clear();
+    assert_eq!(board_code_plan::<&str>(|prefix| { seen.push(prefix.to_owned()); Ok(prefix == "899") },|| Ok(true)).unwrap(),
+        BoardCodePlan::Full { subtract: 899000,add: 32000 });
+    assert_eq!(seen,["US","HK","88","399","899"]);
+    assert_eq!(board_code_plan::<&str>(|_| Ok(false),|| Err("custom length failure")),Err("custom length failure"));
+}

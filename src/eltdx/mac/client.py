@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from datetime import date as _date
+from sys import modules as _MODULES
 from types import TracebackType
 from typing import TypeVar
 
@@ -84,21 +85,9 @@ def convert_board_code(board_symbol: str) -> int:
         其他      -> int(N)
     """
 
-    s = board_symbol.strip()
-    if s.startswith("US"):
-        return 30000 + int(s[2:])
-    if s.startswith("HK"):
-        return 20000 + int(s[2:])
-    if len(s) == 6:
-        if s.startswith("88"):
-            return int(s) - 880000 + 20000
-        if s.startswith("399"):
-            return int(s) - 399000 + 30000
-        if s.startswith("899"):
-            return int(s) - 899000 + 32000
-        if s.startswith("000"):
-            return 31000 + int(s)
-    return int(s)
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_board_code(board_symbol, _MODULES[__name__])
 
 
 class MacClient:

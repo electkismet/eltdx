@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from enum import Enum, IntEnum
+from sys import modules as _MODULES
 from typing import TypeAlias
 
 # ── 统一的字段选择类型 ──
@@ -362,20 +363,11 @@ class FieldSelection:
     __slots__ = ("_fields",)
 
     def __init__(self, *parts: "FieldBit | PresetField | FieldSelection") -> None:
-        seen: set[FieldBit] = set()
-        result: list[FieldBit] = []
-        for part in parts:
-            if isinstance(part, PresetField):
-                source: Iterable[FieldBit] = part.value
-            elif isinstance(part, FieldBit):
-                source = (part,)
-            else:
-                source = part._fields
-            for bit in source:
-                if bit not in seen:
-                    seen.add(bit)
-                    result.append(bit)
-        self._fields: tuple[FieldBit, ...] = tuple(result)
+        from eltdx._native_abi import load_native
+
+        self._fields: tuple[FieldBit, ...] = load_native().mac_field_selection(
+            parts, _MODULES[__name__]
+        )
 
     def __add__(self, other: object) -> "FieldSelection":
         if isinstance(other, FieldBit | PresetField | FieldSelection):
@@ -413,15 +405,9 @@ class FieldSelection:
 def normalize_fields(fields: "Fields") -> FieldSelection:
     """将任意字段选择形式归一化为 :class:`FieldSelection`。"""
 
-    if fields is None:
-        return FieldSelection()
-    if isinstance(fields, FieldSelection):
-        return fields
-    if isinstance(fields, PresetField):
-        return FieldSelection(*fields.value)
-    if isinstance(fields, FieldBit):
-        return FieldSelection(fields)
-    return FieldSelection(*fields)
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_normalize_fields(fields, _MODULES[__name__])
 
 
 def build_bitmap(
@@ -512,25 +498,17 @@ def iter_set_bits(bitmap_bytes: bytes) -> Iterator[tuple[int, FieldBit | None, s
     凭空多出一个槽位，把所有字段整体推错。
     """
 
-    bitmap_int = _field_bits(bitmap_bytes)
-    slot = 0
-    while bitmap_int:
-        lowbit = bitmap_int & -bitmap_int
-        bit_pos = lowbit.bit_length() - 1
-        bitmap_int ^= lowbit
-        field = FieldBit._value2member_map_.get(bit_pos)
-        if isinstance(field, FieldBit):
-            yield slot, field, field.fmt
-        else:
-            yield slot, None, None
-        slot += 1
+    from eltdx._native_abi import load_native
+
+    yield from load_native().mac_bit_slots(bitmap_bytes, _MODULES[__name__])
 
 
 def _field_bits(bitmap_bytes: bytes) -> int:
     """取出位图里**合法字段位**的部分，屏蔽 151–159 保留区。"""
 
-    mask = (1 << FIELD_BIT_LIMIT) - 1
-    return int.from_bytes(bitmap_bytes, "little") & mask
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_field_bits(bitmap_bytes, _MODULES[__name__])
 
 
 def count_set_bits(bitmap_bytes: bytes) -> int:
@@ -539,7 +517,9 @@ def count_set_bits(bitmap_bytes: bytes) -> int:
     保留位（151–159）不计入。
     """
 
-    return _field_bits(bitmap_bytes).bit_count()
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_count_bits(bitmap_bytes, _MODULES[__name__])
 
 
 def get_active_fields(bitmap_bytes: bytes) -> list[tuple[FieldBit, str]]:
@@ -551,7 +531,9 @@ def get_active_fields(bitmap_bytes: bytes) -> list[tuple[FieldBit, str]]:
         与 :func:`count_set_bits`。
     """
 
-    return [(field, fmt) for _, field, fmt in iter_set_bits(bitmap_bytes) if field is not None]
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_active_fields(bitmap_bytes, _MODULES[__name__])
 
 
 __all__ = [
