@@ -54,6 +54,8 @@ FieldBit 的 93、94、136、139 保留个股 canonical 名 `BID2_VOLUME`、`ASK
 
 共用 owner 只管理 admission、连接代次和结果提交；它不接管任意 Python 自定义 socket 的物理清理。严格 Rust 的 worker 与取消确认承诺不能直接宣称适用于 Python 自定义回调。真实登录响应规则与可选帧关联证据尚未取得，合成短 ACK 和旧 Python 宽松登录不构成生产证据。
 
+中断后的自定义 socket 关闭失败会保留在连接的私有清理队列；该引用独立于已经退役的代次，临时 MAC 建连失败和后来替换连接也不会丢掉它。显式 `close()` 先遵循当前连接原关闭规则，再重试这些资源；失败保留以供再次重试，同一资源不重复清理，清理回调重入时跳过在途记录。此队列不启动后台任务，不把关闭失败改称成功。若自定义连接拒绝私有状态赋值，原信号异常带保留资源及状态错误供调用者处理。
+
 ## 待执行对象兼容证据
 
 `tests/test_native_extension_objects_contract.py` 覆盖原字段运算、反向运算、不支持操作的 NotImplemented、live isinstance/constructor、动态转发、容器回调、repr 求值、四个别名、预设顺序、23 个业务 dataclass、帧/探活对象、默认容器、pickle、市场枚举身份与包级导出。`crates/eltdx/tests/mac_routing.rs` 从独立字面量核对全部字段、别名、预设、市场路由和请求标志。

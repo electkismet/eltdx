@@ -94,12 +94,16 @@ pub fn extension_connection_receive<'py>(domain: &str,connection: Bound<'py,PyAn
 
 #[pyfunction]
 pub fn extension_connection_close<'py>(py: Python<'py>,domain: &str,connection: Bound<'py,PyAny>,module: Bound<'py,PyAny>) -> PyResult<()> {
+    let mut closed = None;
     if !connection.getattr("_sock")?.is_none() {
         let close = module.getattr(if domain=="mac" {"_safe_close"} else {"_native_safe_close"})?;
-        close.call1((connection.getattr("_sock")?,))?;
+        let socket = connection.getattr("_sock")?;
+        close.call1((&socket,))?;
+        closed = Some(socket);
         connection.setattr("_sock",py.None())?;
     }
     crate::extension_lifecycle::retire(&connection)?;
+    crate::extension_lifecycle::retry_failed_cleanup(&connection,&module,closed.as_ref(),domain)?;
     Ok(())
 }
 

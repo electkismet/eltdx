@@ -68,8 +68,8 @@ def _safe_close(sock: SocketLike) -> None:
 
 def _native_signal_close(sock):
     """Retire only the resource held by the interrupted native operation."""
-    shutdown = getattr(sock, "shutdown", None)
     try:
+        shutdown = getattr(sock, "shutdown", None)
         if shutdown is not None:
             try:
                 shutdown(socket.SHUT_RDWR)

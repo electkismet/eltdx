@@ -335,8 +335,8 @@ impl SessionOwner {
         })
     }
 
-    /// The external adapter has already performed its close, on the caller's
-    /// thread and with its own exception rules. Cancel admitted old work and
+    /// The external adapter retires this generation on the caller's thread
+    /// with its own resource/exception rules. Cancel admitted old work and
     /// reject every future admission. Deferred finalization is performed by
     /// the final SessionOperation, so reentrant Python close never waits on
     /// its own active operation. No external callback is called under a lock.

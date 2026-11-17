@@ -530,6 +530,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 - [ ] 新增 `crates/eltdx/tests/extended_loopback.rs`，通过公开EX/MAC客户端覆盖各profile握手、半包、切换和释放；运行 `cargo test -p eltdx --features ex,mac --test extended_loopback --locked`。
 
 ### T27：扩展 Python 迁移与全能力核对
+2026-11-17第十九段源码恢复点（stage106，基础bcc4637）：MAC临时/已替换socket的失败信号清理持久保留并由显式close重试；修正shutdown属性失败的finally范围，补6个Python函数源码（1参数化），全未执行。完整manifest及非空wheel consumer仍待，随后T28–T30/T19和统一验证。25/2/3，active无限额。
+
 2026-11-17第十八段源码恢复点（stage105，基础541a9e7）：字段对象运算/属性已接2个native入口，新增20个合同函数源码（4参数化），全未执行。23业务dataclass及事件/帧/探活/枚举/导出与适配退出条件写入[t27-migration-index.md](t27-migration-index.md)。下一步生命周期清理复查、完整manifest/非空wheel consumer，然后T28–T30/T19及统一验证。25/2/3不变，active无限额。
 
 2026-11-17第十七段源码恢复点（stage104，基础a49cd26）：共用SessionOwner封闭旧连接admission/结果交付；EX/MAC原发布时机、DTO失败、GC引用与信号清理绑定捕获socket。新增7个native入口、18个Python函数（8参数化）/3个Rust源码用例，十六份合同347函数全未执行。生命周期复查/适配器库存、模型/导出/清单/consumer仍待，之后T28–T30/T19和统一验证；25/2/3不变，active无限额。

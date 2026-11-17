@@ -4,6 +4,7 @@ use std::sync::Mutex;
 
 use eltdx::__python_compat::{LegacyExtensionOperation, LegacyExtensionSession};
 use pyo3::prelude::*;
+use pyo3::types::PyList;
 use pyo3::{PyTraverseError, PyVisit};
 
 #[pyclass(frozen, module = "eltdx._native")]
@@ -118,6 +119,67 @@ pub(super) fn retire(connection: &Bound<'_, PyAny>) -> PyResult<()> {
     Ok(())
 }
 
+fn cleanup_queue<'py>(connection: &Bound<'py, PyAny>) -> PyResult<Option<Bound<'py, PyList>>> {
+    match connection.getattr("_native_cleanup_sockets") {
+        Ok(value) => Ok(Some(value.cast_into::<PyList>()?)),
+        Err(error) if error.is_instance_of::<pyo3::exceptions::PyAttributeError>(connection.py()) => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
+fn retain_failed_cleanup(connection: &Bound<'_, PyAny>, socket: &Bound<'_, PyAny>) -> PyResult<()> {
+    let py = connection.py();
+    let queue = match cleanup_queue(connection)? {
+        Some(queue) => queue,
+        None => {
+            let queue = PyList::empty(py);
+            connection.setattr("_native_cleanup_sockets", &queue)?;
+            queue
+        }
+    };
+    for record in queue.iter() {
+        if record.get_item(0)?.is(socket) { return Ok(()); }
+    }
+    // Keep the resource independently of its old generation, which can be
+    // released by a later successful replacement. The flag guards reentrant
+    // close; no mutex is held across custom Python cleanup callbacks.
+    queue.append(PyList::new(py, [socket.clone(), false.into_pyobject(py)?.to_owned().into_any()])?)
+}
+
+fn remove_cleanup_record(queue: &Bound<'_, PyList>, record: &Bound<'_, PyAny>) -> PyResult<()> {
+    for (index, candidate) in queue.iter().enumerate() {
+        if candidate.is(record) { queue.del_item(index)?; break; }
+    }
+    Ok(())
+}
+
+/// Retry resources retained after an interrupted provisional/replaced socket
+/// failed to close. A just-closed current socket is removed without closing it
+/// twice. On failure the record remains owned and a later close retries it.
+pub(super) fn retry_failed_cleanup(
+    connection: &Bound<'_, PyAny>, module: &Bound<'_, PyAny>,
+    closed: Option<&Bound<'_, PyAny>>, domain: &str,
+) -> PyResult<()> {
+    let Some(queue) = cleanup_queue(connection)? else { return Ok(()); };
+    let records: Vec<Py<PyAny>> = queue.iter().map(Bound::unbind).collect();
+    for record in records {
+        let record = record.bind(connection.py());
+        let socket = record.get_item(0)?;
+        if closed.is_some_and(|value| value.is(&socket)) {
+            remove_cleanup_record(&queue, record)?;
+            continue;
+        }
+        if record.get_item(1)?.is_truthy()? { continue; }
+        record.set_item(1, true)?;
+        let result = module.getattr(if domain == "mac" { "_safe_close" } else { "_native_safe_close" })
+            .and_then(|close| close.call1((&socket,)));
+        record.set_item(1, false)?;
+        result?;
+        remove_cleanup_record(&queue, record)?;
+    }
+    Ok(())
+}
+
 #[pyfunction]
 pub fn extension_operation_begin<'py>(py: Python<'py>, connection: Bound<'py, PyAny>, socket: Bound<'py, PyAny>, module: Bound<'py, PyAny>) -> PyResult<Py<NativeExtensionOperation>> {
     let socket = if socket.is_none() { connection.getattr("_sock")? } else { socket };
@@ -163,9 +225,18 @@ pub fn extension_operation_failed<'py>(py: Python<'py>, operation: Bound<'py, Na
         // A Python signal has unwound the synchronous I/O call. Retire only
         // the captured socket; a reentrant replacement remains untouched.
         let resource = operation.get().resource.bind(py);
-        let close_result = module.getattr("_native_signal_close")?.call1((resource,));
-        // Even a failed custom close seals admission. Keep its resource owned
-        // for an explicit later close rather than claim confirmed cleanup.
+        let close_result = module.getattr("_native_signal_close").and_then(|close| close.call1((resource,)));
+        // Even a failed custom close seals admission. A queue on the connection
+        // retains provisional/replaced resources independently of this holder.
+        // If a custom connection refuses the private attribute, the raised
+        // signal still exposes the resource and the retention error as cause.
+        if let Err(error) = &close_result {
+            if let Err(retention) = retain_failed_cleanup(&connection, resource) {
+                let fallback = cause.setattr("_eltdx_cleanup_socket", resource);
+                error.set_cause(py, Some(retention));
+                if let Err(fallback) = fallback { error.set_cause(py, Some(fallback)); }
+            }
+        }
         let retire_result = holder.get().session.retire().map_err(internal);
         if close_result.is_ok() { holder.get().release(); }
         match current(&connection) {

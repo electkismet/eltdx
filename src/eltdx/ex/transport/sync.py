@@ -255,8 +255,8 @@ def _native_safe_close(sock):
 
 def _native_signal_close(sock):
     """Signal cleanup is tied to the captured socket, not a later replacement."""
-    shutdown = getattr(sock, "shutdown", None)
     try:
+        shutdown = getattr(sock, "shutdown", None)
         if shutdown is not None:
             try:
                 shutdown(socket.SHUT_RDWR)

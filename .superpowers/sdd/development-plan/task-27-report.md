@@ -1,4 +1,28 @@
 # T27 implementation report
+## Stage 19 — durable failed-signal resource cleanup (2026-11-17, stage106)
+
+Basebcc4637. Source review closed the provisional MAC cleanup ownership gap:
+a failed signal close now retains the captured socket in a private connection
+queue, independent of a retired holder or subsequent replacement. Explicit
+close retries those resources after its existing current-socket close/retire;
+failed attempts remain retained, identity avoids double-close, and a busy flag
+avoids recursively retrying an in-progress custom close. No Python callback is
+called under a Rust mutex. A rejected private-state assignment attaches the
+resource to the original signal with retention failure context when possible.
+
+Both EX/MAC signal adapters now resolve shutdown inside the try/finally, so
+an attribute getter failure still attempts close. Missing native signal helper
+also follows failure retention and retirement. Core retirement documentation
+now states admission sealing independently of physical cleanup; replaced old
+EX/MAC-EX resources do not acquire a new custom close behavior.
+
+Added six public Python source functions, one parametrized, covering shutdown
+attribute failure, provisional failure across a successful reconnect, repeated
+close failure, reentrant retry, no double-close and post-cleanup reference
+release. No execution/collection/build/dependency/network/format/AST checks.
+T27 still partial; next complete manifest and nonempty standalone wheel
+consumer for EX/MAC/MAC-EX. All strict production-login/frame-association
+limits remain explicit; all final verification deferred.25/2/3, active unlimited.
 ## Stage 18 — field objects and passive model/export inventory (2026-11-17, stage105)
 
 Base541a9e7. Finished the two registered native field-object entry points:

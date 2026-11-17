@@ -1,6 +1,13 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage106: basebcc4637. Retain failed interrupted
+  provisional/replaced socket resources on the connection for explicit close
+  retry, with identity/busy protection and no callback under Rust mutex.
+  Shutdown attribute errors still run final close. Added6 Python functions
+  (one parametrized), unexecuted. Read task-27-report Stage19. Next manifest
+  and standalone nonempty EX/MAC/MAC-EX wheel consumer, then T28-T30/T19
+  source closure and unified verification.25/2/3, active unlimited.
 - Latest recovery2026-11-17 stage105: base541a9e7. Completed two native field
   object functions and authored20 object compatibility functions(4 parametrized).
   Recorded all23 passive business DTOs, event/header/probe objects, enums,

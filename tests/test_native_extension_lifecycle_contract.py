@@ -350,3 +350,151 @@ def test_native_extension_new_admission_allocation_failure_closes_candidate(monk
     with pytest.raises(MemoryError) as raised:
         connection.connect()
     assert raised.value is failure and connection._sock is None and sock.events[-1] == "close"
+
+
+@pytest.mark.parametrize("domain", ["ex", "mac"])
+def test_native_extension_shutdown_attribute_failure_still_attempts_close(monkeypatch, domain):
+    module, connection, _ = make_connection(monkeypatch, domain)
+    failure, lookup = KeyboardInterrupt(), ValueError("shutdown lookup")
+
+    class ShutdownFailure(Socket):
+        @property
+        def shutdown(self):
+            raise lookup
+
+        def sendall(self, data):
+            raise failure
+
+    sock = ShutdownFailure()
+    connection._sock = sock
+    with pytest.raises(KeyboardInterrupt) as raised:
+        connection.execute(SimpleNamespace(build_request=lambda: b"request"))
+    assert raised.value is failure and failure.__cause__ is lookup
+    assert sock.events == ["close"]
+    assert connection._native_session.retired
+    connection.close()
+    # Conservative retention may retry a custom object when its shutdown
+    # lookup failed even if its first close returned successfully.
+    assert not connection._native_cleanup_sockets
+
+
+def test_native_mac_provisional_failed_signal_cleanup_retains_retry_after_replacement(monkeypatch):
+    _, connection, old_socket = make_connection(monkeypatch, "mac")
+    old = connection._native_session
+    candidate = Socket()
+    failure, cleanup = KeyboardInterrupt(), ValueError("provisional close")
+
+    def connect(address):
+        raise failure
+
+    def close():
+        candidate.events.append("failed-close")
+        raise cleanup
+
+    candidate.connect, candidate.close = connect, close
+    connection._socket_factory = lambda *args: candidate
+    with pytest.raises(KeyboardInterrupt) as raised:
+        connection.connect()
+    assert raised.value is failure and failure.__cause__ is cleanup
+    assert connection._sock is old_socket and connection._native_session is old and not old.retired
+    assert connection._native_cleanup_sockets[0][0] is candidate
+
+    replacement = Socket()
+    connection._socket_factory = lambda *args: replacement
+    connection.connect()
+    assert old.retired and connection._sock is replacement
+    candidate.close = lambda: candidate.events.append("retry-close")
+    connection.close()
+    assert replacement.events[-1] == "close" and candidate.events[-1] == "retry-close"
+    assert not connection._native_cleanup_sockets
+
+
+def test_native_mac_provisional_cleanup_record_survives_repeated_explicit_close_failure(monkeypatch):
+    _, connection, _ = make_connection(monkeypatch, "mac")
+    candidate = Socket()
+
+    def connect(address):
+        raise KeyboardInterrupt()
+
+    def close():
+        raise ValueError("retry still fails")
+
+    candidate.connect, candidate.close = connect, close
+    connection._socket_factory = lambda *args: candidate
+    with pytest.raises(KeyboardInterrupt):
+        connection.connect()
+    for _ in range(2):
+        with pytest.raises(ValueError, match="retry still fails"):
+            connection.close()
+        assert connection._sock is None
+        assert connection._native_cleanup_sockets[0][0] is candidate
+        assert connection._native_cleanup_sockets[0][1] is False
+    candidate.close = lambda: None
+    connection.close()
+    assert not connection._native_cleanup_sockets
+
+
+def test_native_mac_provisional_cleanup_retry_is_safe_when_callback_reenters_close(monkeypatch):
+    _, connection, _ = make_connection(monkeypatch, "mac")
+    candidate = Socket()
+
+    def connect(address):
+        raise KeyboardInterrupt()
+
+    def close_failure():
+        raise ValueError("first close")
+
+    candidate.connect, candidate.close = connect, close_failure
+    connection._socket_factory = lambda *args: candidate
+    with pytest.raises(KeyboardInterrupt):
+        connection.connect()
+    retries = []
+
+    def close_reentrant():
+        retries.append("close")
+        connection.close()
+
+    candidate.close = close_reentrant
+    connection.close()
+    assert retries == ["close"] and not connection._native_cleanup_sockets
+
+
+def test_native_extension_current_failed_cleanup_is_not_closed_twice_on_retry(monkeypatch):
+    module, connection, sock = make_connection(monkeypatch, "mac")
+
+    def send(data):
+        raise KeyboardInterrupt()
+
+    def failure():
+        raise ValueError("first close")
+
+    sock.sendall, sock.close = send, failure
+    with pytest.raises(KeyboardInterrupt):
+        connection.execute(SimpleNamespace(build_request=lambda: b"request"))
+    calls = []
+    sock.close = lambda: calls.append("close")
+    connection.close()
+    assert calls == ["close"] and not connection._native_cleanup_sockets
+
+
+def test_native_extension_retained_cleanup_reference_is_released_after_explicit_close(monkeypatch):
+    _, connection, _ = make_connection(monkeypatch, "mac")
+    candidate = Socket()
+
+    def connect(address):
+        raise KeyboardInterrupt()
+
+    def fail():
+        raise ValueError("candidate close")
+
+    candidate.connect, candidate.close = connect, fail
+    connection._socket_factory = lambda *args: candidate
+    with pytest.raises(KeyboardInterrupt):
+        connection.connect()
+    reference = weakref.ref(candidate)
+    candidate.close = lambda: None
+    connection._socket_factory = lambda *args: None
+    connection.close()
+    del candidate
+    gc.collect()
+    assert reference() is None and not connection._native_cleanup_sockets

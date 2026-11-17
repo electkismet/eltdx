@@ -18,8 +18,8 @@ impl Default for LegacyExtensionSession {
 impl LegacyExtensionSession {
     pub fn new() -> Self {
         // External adapters own their original I/O timeouts and close policy.
-        // Shared close runs only after external close and the final admission
-        // have completed, with no wait budget imposed on Python network work.
+        // Shared close finalizes only this admission state after retirement
+        // and the final admission, without waiting on Python network work.
         Self { owner: Arc::new(SessionOwner::new(Duration::ZERO, Duration::ZERO)) }
     }
 
@@ -31,9 +31,11 @@ impl LegacyExtensionSession {
 
     pub fn ensure_open(&self) -> Result<()> { self.owner.ensure_open() }
 
-    /// Call only after the adapter has closed the captured physical resource.
-    /// Existing admissions remain owned until they unwind, but cannot publish
-    /// a result after this boundary. A same-thread reentrant close is safe.
+    /// Seal this generation when the adapter closes or replaces a connection.
+    /// This does not establish physical cleanup: the adapter owns that policy,
+    /// including retaining a resource whose custom close failed for later retry.
+    /// Admissions remain owned until they unwind, but cannot publish a result
+    /// after this boundary. A same-thread reentrant close is safe.
     pub fn retire(&self) -> Result<()> { self.owner.retire_external() }
 }
 
