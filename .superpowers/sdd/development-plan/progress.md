@@ -1221,3 +1221,7 @@ Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.
 限定现货限价证据为有授权的交易所实际交易日记录，公开 LDDS 测试方案只作取证线索。最终 wheel/sdist 运行 `44189071921` attempt 1 在 macOS Intel 上传产物时 DNS `ENOTFOUND`，构建及两版 Python 冒烟步骤已通过。运行结束后 `--failed` 重跑成功进入 attempt 2，SHA 不变；最新状态以该运行和原始产物为准。失败日志、未能在运行中单 job 重试的结果，以及接受重试的命令都保留在 `artifacts/unified/stage162-macos-upload-retry-attempt01/`、`attempt02/` 对应目录。不要重复调度。
 
 最终候选的独立 Rust F10 consumer（只启用 `f10`）查询 `600000` 五日资金流，返回五条带日期和主力净额的记录，正常关闭，通过。见 `artifacts/unified/stage163-f10-production-attempt01/result.json`；不作 category 22 或实际涨跌停价证据。仍需用户本地 `cargo login` 配置发布权限，然后才能发布三个 crate 与验证公开消费。目标尚未完成。
+
+## Stage164：实盘行情双侧限价交叉核验
+
+`c291bda` 上以东方财富、腾讯行情的 2026-11-17 快照核对 `sh600000`、`sz301716`、`bj920117`，两家给出的参考价和上下限均一致，按交易所规则与公告复算一致。五份原始响应与 `verified.json`、核验命令见 `artifacts/unified/stage164-published-quotes-attempt01/`。行情商结果不替代交易所原始静态资料和特殊状态样本，运行时代码及未知规则行为未变。`44189071921` attempt 2 的 macOS Intel 与 ARM 已进入执行；继续从同一运行收集，不重启。Cargo 发布凭据仍缺。

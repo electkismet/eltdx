@@ -405,3 +405,15 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 - **Stage161**：公开的 [LDDS 接入测试方案](https://www.ciis.com.hk/hongkong/tc/uploadfiles/202303/29/2023032914245965374292.pdf) 第 2 页确认参与单位须接收、加载 `cpxx0201`、`cpxx0202`，第 6 页明确测试数据不得外发。保存的 PDF SHA256 `f64c5fdccb0eb618a33d21ddba0e589f87d459c2edc234bb5f772ea5482740a1`。它只确认取证渠道；验收仍需获得有授权的实际交易日记录，不以测试数据替代。
 - **Stage162**：[最终候选的 wheel/sdist 工作流](https://github.com/electkismet/eltdx/actions/runs/44189071921)首轮的 macOS Intel wheel 构建及 CPython 3.10/3.14 冒烟均成功，随后产物服务报 `Failed to CreateArtifact: Unable to make request: ENOTFOUND`。原 job `134413314117` 的日志 SHA256 `433866ba5c9007c6277c4fe063ddfc9d9ca57dac550d8a82cec0d163b5c9376e` 保存在 `stage162-macos-upload-retry-attempt01/`。运行中单 job 重试被 GitHub 拒绝；首轮结束后 `gh run rerun 44189071921 --failed` exit 0。重跑绑定原 SHA，原始任务状态和提交命令保存在 `stage162-macos-upload-retry-attempt02/`；待重新生成的 wheel、安装报告和聚合产物核对通过后才关闭本项。
 - **Stage163**：从 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的干净发布检出构建仅启用 `f10` 的独立 Rust consumer，使用 1.89，依赖解析与构建离线。向正常 `static.tdx.com.cn:7615` 入口发起一次 `CWServ.tdxf10_gg_sj` 五日历史资金流查询，上海 `600000` 返回 5 条记录，业务状态成功，日期为 2026-11-17/16/13/12/11，每条带匹配的证券代码和非空主力净额，关闭成功，exit 0。命令、独立 lock、源码与结果保存在 `stage163-f10-production-attempt01/`；`result.json` SHA256 `e92f86f000ed66764f460cdbd4299814bac30ac440aa1f2a70c9440e0323cd68`。只验证该次稳定 F10 入口，未调用 category 22，也不证明所有 F10 入口、交易所实际限价或字段的独立数据一致性。
+
+## Stage164：两家行情源的同日参考与双侧限价
+
+`c291bda` 干净检查点从东方财富和腾讯行情取得五份 HTTP 200 原始响应，覆盖 2026-11-17（UTC+8）三个市场的普通交易样本。`artifacts/unified/stage164-published-quotes-attempt01/verify.ps1` 校验响应散列、代码、名称、交易日、成交价、参考价及上下限，再按既有交易所规则与公告以十进制复算；执行 exit 0。`verified.json` SHA256 `4a31def4135931038521367b85d6e08920e45e83682f952a6bb4d847867a5c86`。
+
+| 证券 | 限幅 | 参考价（元） | 上限（元） | 下限（元） |
+| --- | --- | --- | --- | --- |
+| 沪市主板 `sh600000` | 10% | 10.78 | 11.86 | 9.70 |
+| 创业板 `sz301716` | 20% | 303.00 | 363.60 | 242.40 |
+| 北交所 `bj920117` | 30% | 20.68 | 26.88 | 14.48 |
+
+两家供应商的同日快照相互印证，但可能共享交易所上游；这些样本不替代交易所分发的原始文件，也未覆盖无涨跌幅、除权参考及其他特殊交易状态。运行时代码及 `UnknownRule` 行为未变。
