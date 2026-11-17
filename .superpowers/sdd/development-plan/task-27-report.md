@@ -1,4 +1,38 @@
 # T27 implementation report
+## Stage 14 — EX/MAC socket policy and explicit exception adapters (2026-11-17, stage101)
+
+Base8ba1708. Added extension_transport.rs with16 native entry functions and
+ex::legacy::receive_exact_with. Existing EX/MAC constructors, receive loops,
+connect/setup/write/read/decode/parse, head rewrite and close policy now native.
+Python std socket calls retain their GIL-releasing I/O; custom socket and lock
+objects stay callable through explicit adapters. This stage does not complete
+owner/generation lifecycle or client/probe migration.
+
+Keep constructor assignment/falsey factory/default host/send_setup short circuit,
+settimeout outside connect handlers, MAC socket publication after connect versus
+EX before connect, live socket/header/parser/callable lookup order, original
+per-read timeout and no new cap. The source receive loop retains nonpositive
+count, oversized custom chunks, two len lookups and original error classes.
+MAC setup swallows only response OSError/TransportError; send failures propagate.
+EX setup drains header plus body. Legacy lax ACK behavior does not establish a
+strict production handshake rule. MAC-EX rewrites only0x1c heads. EX Python lock
+still encloses build, wire exchange, decode and DTO parse.
+
+Python explicit with/except/raise and close-helper shells preserve active error
+context/cause and original broad/narrow exception scopes. Builder/decompress/
+parser errors remain outside communication wrapping as before; non-OSError close
+failures remain visible. __debug__ preserves assert removal under optimized
+Python. No attempt to claim these adapters provide completed owner semantics.
+
+Added tests/test_native_extension_transport_contract.py:21 public function
+sources (6 parametrized) plus1 Rust receive-loop source case. Thirteen new
+extension contract files total277 Python function sources, all unexecuted.
+No tests/build/check/network/dependency/AST/format/diff validation executed.
+Counts25 complete-source/2 partial(T19/T27)/3 unstarted(T28-T30). Next owner/
+generation, client management and probe policy, models/export/manifest and
+installed-wheel nonempty consumer; then T28-T30/T19 source closure and unified
+verification. Goal active unlimited; no agents/publication/controller edits.
+
 ## Stage 13 — EX host configuration and explicit save policy (2026-11-17, stage100)
 
 Base69cf913. Added extension_hosts.rs and10 native functions; all8 public EX

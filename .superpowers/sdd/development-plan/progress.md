@@ -1,6 +1,17 @@
 # SDD ledger — plan: docs/rust-sdk/development-plan.md
 
 ## Setup
+- Latest recovery2026-11-17 stage101: base8ba1708. EX/MAC socket constructor/
+  receive/connect/setup/head rewrite/exchange/finish/close policies now native,
+  explicit Python lock/except/close shells keep objects/GIL-releasing std I/O,
+  active context and original error boundaries. Keep exact legacy len/chunks/
+  assertions/socket publication/setup handling; no strict login evidence inferred.
+  Added21 Python functions(6 parametrized)/1 Rust source case; thirteen new
+  contracts total277 functions, all unexecuted. Read task-27-report Stage14.
+  Owner/generation/client/probe/models/manifest/consumer still required, then
+  T28-T30/T19 source closure and unified verification.25/2/3 unchanged;
+  active unlimited, no verification/agents/publication/controller edits.
+
 - Latest recovery2026-11-17 stage100: base69cf913. All8 EX host config
   functions now native policy with explicit file/except/with/finally adapter.
   Shared lazy source selector in strict EX and Python; preserve differing

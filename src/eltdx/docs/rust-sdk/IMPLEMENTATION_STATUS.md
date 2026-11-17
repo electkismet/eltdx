@@ -3,6 +3,8 @@
 > 本文件是跨会话恢复点。每个阶段和提交后更新状态、当前任务、下一步及未执行验证；重开任务时先读本文件，再读对应实现计划和分域规格。
 
 ## 当前状态
+2026-11-17第一百零一段恢复点：基础8ba1708。EX/MAC连接构造/精确收包/建连/握手/改头/交换/解码解析/关闭策略已迁native；Python保留锁/except/close适配以维持std socket释放GIL、动态对象和原异常上下文/作用域。无新限额，原断言/部分包/超量custom recv/setup宽松行为保留，不作为strict生产证据。新增21个Python函数（6参数化）/1个Rust源码用例，十三份合同277函数全未执行。owner/generation/client管理/probe/models/清单/consumer尚需完成，再T28–T30/T19和统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage14。
+
 2026-11-17第一百段恢复点：基础69cf913。EX全部8个主机配置函数接native，strict/Python共用惰性来源选择，保留两者显式空配置差异。原域名/括号/Unicode/去重/动态hook/异常cause与上下文、环境优先/两次strip及显式保存JSON/fsync/replace顺序保留；文件with/except/finally为对象适配。新增16个Python函数（1参数化）及1个Rust源码用例，十二份合同256个Python函数全未执行。下一步transport/owner/generation/client管理/probe/models/清单/consumer，再T28–T30/T19及统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage13。
 
 2026-11-17第九十九段恢复点：基础08b9af5。MAC全部18个响应入口及异动描述/数值helper已迁native，Python显式except保留对象异常适配。位图未知槽/完整前缀vs部分行、bar秒级/日期范围、单多日分时分组与tail、逐笔vs竞价截断、info/board布局、两类JSON编码/长度/净额规则、异动两次DTO/server短头/大小端offset/sampling与goods逐条guard/file切片类型保留。共用响应格式与strict行步长。新增28个Python函数（5参数化），十一份合同240函数源码，全未执行。下一步transport/owner/generation/config/host/probe/models/清单/consumer，再T28–T30/T19源码收尾和统一验证；25/2/3不变，active无限额。恢复读task-27-report Stage12；源码不代表验收。

@@ -5,6 +5,7 @@ from __future__ import annotations
 import socket
 import threading
 import time
+from sys import modules as _MODULES
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from types import TracebackType
@@ -266,13 +267,15 @@ def ping_ex_all(
 
 
 def _recv_exact_sock(sock: socket.socket, n: int) -> bytes:
-    buf = bytearray()
-    while len(buf) < n:
-        chunk = sock.recv(n - len(buf))
-        if not chunk:
-            raise TransportError("连接被服务器关闭")
-        buf.extend(chunk)
-    return bytes(buf)
+    from eltdx._native_abi import load_native
+    return load_native().extension_recv_exact("ex", sock, n, _MODULES[__name__])
+
+
+def _native_safe_close(sock):
+    try:
+        sock.close()
+    except OSError:
+        pass
 
 
 class ExTdxConnection:
@@ -298,14 +301,8 @@ class ExTdxConnection:
         mac_ex_mode: bool = False,
         send_setup: bool = True,
     ) -> None:
-        self.host = host if host is not None else _first_host()
-        self.port = port
-        self.timeout = timeout
-        self.mac_ex_mode = mac_ex_mode
-        # MAC-EX 会话台的登录流程与 EX 握手互斥，保守地不发握手包。
-        self.send_setup = send_setup and not mac_ex_mode
-        self._sock: socket.socket | None = None
-        self._lock = threading.Lock()
+        from eltdx._native_abi import load_native
+        load_native().extension_connection_init("ex", self, (host, port, timeout, mac_ex_mode, send_setup), _MODULES[__name__])
 
     def connect(self) -> None:
         """建立 TCP 连接并完成 exhq 会话握手；失败抛 TransportError。
@@ -319,50 +316,36 @@ class ExTdxConnection:
         「发了握手之后服务器不再应答」结论的真实成因（流错位，而非服务端弃连）。
         """
 
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(self.timeout)
-        self._sock = sock
+        from eltdx._native_abi import load_native
+        sock = load_native().extension_socket_prepare("ex", self, _MODULES[__name__])
         try:
-            sock.connect((self.host, self.port))
-            if self.send_setup:
-                sock.sendall(_EX_SETUP_PKG)
-                header = parse_header(self._recv_exact(HEADER_SIZE))
-                # 读走应答体，保持字节流与后续业务命令对齐。
-                self._recv_exact(header.zipsize)
+            load_native().extension_socket_connect("ex", self, sock, _MODULES[__name__])
         except (OSError, EltdxError) as e:
             self._sock = None
             try:
                 sock.close()
             except OSError:
                 pass
-            raise TransportError(f"扩展行情连接/握手失败 {self.host}:{self.port}: {e}") from e
+            raise load_native().extension_transport_error("ex_connect", self, e, _MODULES[__name__]) from e
 
     def close(self) -> None:
         """关闭连接（幂等）。"""
 
-        if self._sock is not None:
-            try:
-                self._sock.close()
-            except OSError:
-                pass
-            self._sock = None
+        from eltdx._native_abi import load_native
+        load_native().extension_connection_close("ex", self, _MODULES[__name__])
 
     def execute(self, cmd: BaseCommand[_T]) -> _T:
         """执行一条命令：发送请求，接收并解压响应，返回解析结果。"""
 
         with self._lock:
             sock = self._require_sock()
-            request = cmd.build_request()
-            if self.mac_ex_mode and request and request[0] == 0x1C:
-                request = b"\x01" + request[1:]
+            from eltdx._native_abi import load_native
+            request = load_native().extension_request_prepare("ex", self, cmd, _MODULES[__name__])
             try:
-                sock.sendall(request)
-                header = parse_header(self._recv_exact(HEADER_SIZE))
-                raw_body = self._recv_exact(header.zipsize)
+                header, raw_body = load_native().extension_exchange("ex", self, sock, request, _MODULES[__name__])
             except OSError as e:
-                raise TransportError(f"通信错误: {e}") from e
-            body = decompress_body(header, raw_body)
-            return cmd.parse_response(body)
+                raise load_native().extension_transport_error("ex_io", self, e, _MODULES[__name__]) from e
+            return load_native().extension_response_finish("ex", cmd, header, raw_body, _MODULES[__name__])
 
     def __enter__(self) -> "ExTdxConnection":
         self.connect()
@@ -377,13 +360,12 @@ class ExTdxConnection:
         self.close()
 
     def _require_sock(self) -> socket.socket:
-        if self._sock is None:
-            raise TransportError("未连接，请先调用 connect()")
-        return self._sock
+        from eltdx._native_abi import load_native
+        return load_native().extension_require_socket(self, _MODULES[__name__], False, __debug__)
 
     def _recv_exact(self, n: int) -> bytes:
-        sock = self._require_sock()
-        return _recv_exact_sock(sock, n)
+        from eltdx._native_abi import load_native
+        return load_native().extension_connection_receive("ex", self, n, _MODULES[__name__], __debug__)
 
 
 __all__ = [
