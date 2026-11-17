@@ -39,6 +39,8 @@ python scripts/verification/rust_sdk_packages.py registry-consumer --implementat
 
 三平台 archive consumer 已写入 `rust-sdk.yml` 的独立 job。无 Python 的纯 Rust 源码消费者与使用 Python 编排的归档内容验证是两个证据项。阶段140的正式发布已纳入当前目标；尚无可用的crates.io发布凭据，未执行实际上传。`eltdx-protocol` 已通过 `cargo +1.89.0 publish -p eltdx-protocol --dry-run --locked` 的标准归档编译门槛。正式发布按 `eltdx-protocol` → `eltdx-runtime` → `eltdx` 顺序进行；每次等公开索引可见，核对版本未撤回和归档内容后才继续。发布后用独立workspace、仅依赖 `eltdx = "=0.1.0"` 且无patch、path或目录源替换的consumer重新生成lock，确认三crate的来源及checksum均与公开索引匹配，再运行同一套业务流程。
 
+Stage152 的 Windows/Linux 归档比对确认，换行会改变许可证与原始清单的字节，使用本地目录源打包时还会改变上层包锁文件中下层归档的 checksum。正式发布使用一份固定 SHA、固定换行设置的干净检出，并从同一份检出运行发布前后字节校验。公开 registry 的 checksum 必须来自实际发布的归档，不得从本地模拟产物推定，不放宽已发布源码与许可证的逐字节身份校验。实测见[统一验证记录](unified-validation.md) Stage152。
+
 wheel 构建与消费 job 分开，消费只用 `--only-binary=:all: --no-index --find-links`，没有匹配 wheel 必须失败。普通 wheel 安装不要求 Rust；源码构建或缺少平台 wheel 时，开发者需要 Rust1.89+ 和 maturin。产物证据必须记录 Python版本、OS/架构、ABI/tag、wheel 文件名/hash、安装 native 文件 hash 及 candidate SHA。额外 MCP/HTTP 服务不是 SDK 默认依赖，需单独安装对应 Python extras。
 
 发布前冻结 source SHA、干净状态、真实 Cargo.lock、feature 集、工具链/镜像 digest、全部产物 hash、平台/兼容/压力证据及剩余限制。任何修复后重新产生候选和受影响证据。发布、tag、push 和合并仍是独立操作，本轮脚本只准备可审阅的产物与 dry-run。

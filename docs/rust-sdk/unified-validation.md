@@ -366,3 +366,11 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 10 个场景全部通过。8 个完整匹配场景逐一校验登录请求和商品总数请求，均从真实响应读得 111651 并关闭连接。另有 2 个双向交叉场景把另一个时点的成功回复配置为唯一已知模式；两个真实回复只在解压数据的零基偏移 57、60 不同。客户端均将回复判为未知、未发送业务请求并关闭连接。逐场景命令和结果见同目录下 `replay.json`（SHA256 `ee780a18190fbde0e90ae4790091c666cb8ee780c198313269f21319afee6765`）。
 
 这两次未知回复来自成功会话，仅验证客户端匹配失败时的行为。仍需服务方拒绝样本和更长时段的独立成功样本来约束可复用规则；不把任何字节从匹配条件中排除，也不将本地回放记作本轮新实盘连接。公开候选分支和 Cargo 发布凭据仍未配置。
+
+## Stage152：Linux 归档消费与跨平台产物比对
+
+候选 `6e0a65f9e8f414c952839c9362398e726798e9ea` 从本地 Git bundle 检出至 WSL2 Linux 文件系统，验证 SHA、tree `476d4af889f278b06e260564a016cd578892e64a` 和干净状态。attempt01 的 clone 未能从仅包含候选分支的 bundle 推断默认 HEAD，未执行打包；保留其失败日志。attempt02 显式以 SHA 检出，使用 Linux x64、Rust 1.89、Python 3.12 离线验证三包；24 条命令均 exit 0，包括 11 种独立解包消费者场景。报告 `artifacts/unified/stage152-linux-archives-attempt02/packages.json`（SHA256 `f8a23bbca3def7f03334a4f135c7883cc74ae948cc105c965ae2bc5b06e1fb14`）；三份归档、外层命令及原始日志在同目录。此轮仍是本地目录源和解包 patch 消费。
+
+与 Stage148 Windows 归档比对：三包文件清单一致，`src/` 内容逐字节一致；两份 `Cargo.toml.orig` 和三份 `LICENSE` 只有 LF/CRLF 差异。解析两端归档内的锁文件后确认，runtime 和 SDK 唯一的结构差异是各自下层依赖的 checksum，且与各平台实际归档一致。`archive-comparison.json` SHA256 `bdd407dae1800d2721efcd15409b9cbc8c9ecebf4d8eddf767a86810e624e45b`；`lock-comparison.json` SHA256 `e3b7f7ab9f4bd967a9351f34210cecaa40ec660306c2e711e3f675071c37d386`。发布及身份校验须使用相同换行设置的干净检出，以公开 registry 实际 checksum 为准。
+
+另核对 Stage150 保存的上交所接口规范 §2.8–2.9，定位开市前经 MDGW、ztDisk 分发的现货产品基础信息文件和第二批价格更新。具体所需记录见[决策记录](decision-register.md)；本轮未取得交易所当日文件。
