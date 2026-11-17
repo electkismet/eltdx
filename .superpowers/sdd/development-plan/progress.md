@@ -1209,3 +1209,9 @@ Stage143会话 `87556` 已退出0。候选 `b9d5075` 的 manylinux2014 aarch64 w
 Stage156 对 `4b31a56` 单独克隆并固定换行：三个名称 404，protocol `cargo publish --dry-run --locked` exit 0。以后如在修正候选发布，先使用同样配置检出 `6a6cd8b`，按 protocol → runtime → SDK 完成归档身份复核和无 patch 消费。无本机发布凭据；用户尚未在本机运行 `cargo login`。不要输出或传输令牌。
 
 Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.14 干净消费报告和初次 macOS 平台的两个失败包；`verified-partial.json` 包含各日志和 wheel/native 身份。macOS 两个工具链均在同一 F10 中断 fixture 的 EOF 断言遇到 TCP reset。测试修正 `24fa65d` 在 Windows 27 项通过，产品运行时代码不变；已快进远端至 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e`。Stage158 已触发运行 **44188994800**（macOS Rust/归档）及 **44189071921**（同 SHA wheel/sdist），不要重复提交。收集这两次运行结果，首轮 44187902677 / 44187905757 也要保留已产出的失败/验证记录。详见统一验证记录 Stage155–158。生产侧证据缺口未变。
+
+## Stage159–160：macOS Rust 已通过，等待最终 wheel 聚合
+
+最终候选 `6a6cd8b` 的 44188994800 已成功结束，双 Rust 工具链各 31 条和归档 24 条全部通过并已核对哈希。44189071921 继续等待 macOS wheel 及后续合计；同 SHA 的两个原生 Linux wheel 与四份无编译工具报告已下载并通过 `artifacts/unified/stage159-actions-confirmation-attempt01/verify.ps1 -LinuxOnly`。首轮 44187905757 已结束成功，五 wheel、一个 sdist 和十种独立安装保留在 stage157；不能冒充新 SHA。请继续下载最终候选剩余 wheel、消费者、release-dist 和 release-verification，运行 `verify.ps1` 与 SHA256SUMS 校验后更新最终验收。
+
+初始发布预检已按最终候选重做：`stage160-registry-preflight-attempt01` 三名 404、protocol dry-run exit 0。固定检出为 `artifacts/unified/stage158-macos-retest-attempt01/registry-source`，换行配置为 `core.autocrlf=false`。凭据尚缺。完整生产仍需独立的服务端 MAC-EX 拒绝证据、可选 MAC setup、实验 category 22 非空和受权行情数据的实际限价文件。
