@@ -1,5 +1,39 @@
 # T27 implementation report
 
+## Stage 7 — shared facade bar-time and YYYYMMDD helpers (2026-11-17, stage94)
+
+Stage6 committedcbb78cd. Authored native bar_time.rs; all8 _bar_time.py
+business functions and MacClient module _ymd_to_date now delegate. Public
+tables/constants/typing remain Python object adapters. Strict EX/MAC date
+decoding and legacy arbitrary-number date projection share ymd_parts_with,
+preserving strict validation and Python floor/mod/constructor behavior.
+
+Keep start identity/short circuit, validator-before-duration check for end,
+the original final rich-comparison object, live validation tables/error
+constructors and repr ordering. EX8 means3m, MAC8 means5m*times, HQ8 means
+parameter; repeated live int conversion, parameter laziness and min1 remain.
+Clock-field and wrapped-datetime alignment use modulo24 on the same date;
+datetime alignment creates one real timedelta before iteration and can
+cross dates. DTO/field/getattr/replace/timedelta hooks stay live at their
+old capture points, retained object fields/seconds/microseconds remain, and
+calendar exceptions are not translated. Original assertion is honored
+when Python optimization is disabled, including a custom _needs_align.
+
+Added tests/test_native_bar_time_contract.py with15 public source functions
+(two parametrized) plus one shared Rust source function. Including the five
+extension contract files, six newly authored files total118 Python public
+functions. None compiled/collected/executed. Cases cover date wrap vs
+rollover, no-op identity, rich comparison, live constants/representations,
+domain8 distinctions/int side effects, lookup order, empty-input timedelta,
+per-row capture/hooks, calendar errors and arbitrary-size/custom dates.
+
+Counts remain25 complete source/2 partial(T19/T27)/3 unstarted(T28-T30).
+Next full EX/MAC command/parser/helpers and frame/transport/owner/generation/
+config migration, export/manifest/adapter evidence and installed-wheel
+extension consumer. Then T28-T30 and T19 source closure before unified
+execution/repairs/production protocol evidence. Unlimited active goal;
+no verification commands, agents, publication or controller edits.
+
 ## Stage 6 — direct entries, quote composition and HK routing (2026-11-17, stage93)
 
 Previous turn was concrete progress:93be13d/1af9450 changed authoritative

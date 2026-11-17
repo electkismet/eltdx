@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import timedelta
+from sys import modules as _MODULES
 from typing import TypeVar
 
 BAR_TIME_START = "start"
@@ -47,16 +48,17 @@ _BarT = TypeVar("_BarT")
 def check_bar_time(bar_time: str) -> None:
     """校验 ``bar_time`` 取值，非法值立即抛 :class:`ValueError`。"""
 
-    if bar_time not in VALID_BAR_TIMES:
-        raise ValueError(
-            f"bar_time 必须是 {BAR_TIME_START!r} 或 {BAR_TIME_END!r}，得到: {bar_time!r}"
-        )
+    from eltdx._native_abi import load_native
+
+    return load_native().bar_time_check(bar_time, _MODULES[__name__])
 
 
 def category_to_minutes(category: int) -> int | None:
     """扩展行情 ``KlineCategory`` → 每根 bar 的分钟数；日线及以上返回 ``None``。"""
 
-    return EX_CATEGORY_MINUTES.get(int(category))
+    from eltdx._native_abi import load_native
+
+    return load_native().bar_time_minutes("ex", category, None, _MODULES[__name__])
 
 
 def period_to_minutes(period: int, times: int = 1) -> int | None:
@@ -66,13 +68,9 @@ def period_to_minutes(period: int, times: int = 1) -> int | None:
     没有意义，返回 ``None``。
     """
 
-    base = MAC_PERIOD_MINUTES.get(int(period))
-    if base is None:
-        # 4=DAILY 5=WEEKLY 6=MONTHLY 9=DAYS 10=QUARTERLY 11=YEARLY 13=SECONDS 均不偏移
-        return None
-    if int(period) == 8:  # MINS：多分钟，乘以倍数
-        return base * max(int(times), 1)
-    return base
+    from eltdx._native_abi import load_native
+
+    return load_native().bar_time_minutes("mac", period, times, _MODULES[__name__])
 
 
 def kline_period_minutes(raw: int, parameter: int = 1) -> int | None:
@@ -83,18 +81,17 @@ def kline_period_minutes(raw: int, parameter: int = 1) -> int | None:
     「周期名 → 编号」的映射，避免与 Rust 侧漂移。
     """
 
-    if int(raw) == 8:  # "{N}m" 多分钟：N 就是 parameter
-        return max(int(parameter), 1)
-    return KLINES_RAW_MINUTES.get(int(raw))
+    from eltdx._native_abi import load_native
+
+    return load_native().bar_time_minutes("hq", raw, parameter, _MODULES[__name__])
 
 
 def _needs_align(bar_time: str, delta_minutes: int | None) -> bool:
     """是否真的需要偏移；``"start"`` 与"非分钟级"都原样返回。"""
 
-    if bar_time == BAR_TIME_START:
-        return False
-    check_bar_time(bar_time)
-    return delta_minutes is not None and delta_minutes > 0
+    from eltdx._native_abi import load_native
+
+    return load_native().bar_time_needed(bar_time, delta_minutes, _MODULES[__name__])
 
 
 def align_hour_minute_bars(
@@ -109,16 +106,9 @@ def align_hour_minute_bars(
     （``% 24``，与 easy_tdx ``_align_minutes_df`` 一致）。收盘 bar 不会跨日，故不处理跨日。
     """
 
-    if not _needs_align(bar_time, delta_minutes):
-        return bars
-    assert delta_minutes is not None  # _needs_align 已保证
-    result: list[_BarT] = []
-    for bar in bars:
-        total = bar.hour * 60 + bar.minute + delta_minutes  # type: ignore[attr-defined]
-        result.append(
-            replace(bar, hour=(total // 60) % 24, minute=total % 60)  # type: ignore[type-var]
-        )
-    return result
+    from eltdx._native_abi import load_native
+
+    return load_native().bar_time_align("hour", bars, delta_minutes, bar_time, None, _MODULES[__name__])
 
 
 def align_time_bars(
@@ -137,20 +127,9 @@ def align_time_bars(
     :func:`align_datetime_bars`，那条路径加真实 ``timedelta``、可以跨日）。
     """
 
-    if not _needs_align(bar_time, delta_minutes):
-        return bars
-    assert delta_minutes is not None
-    result: list[_BarT] = []
-    for bar in bars:
-        when = getattr(bar, field)  # type: ignore[attr-defined]
-        total = when.hour * 60 + when.minute + delta_minutes
-        result.append(
-            replace(
-                bar,
-                **{field: when.replace(hour=(total // 60) % 24, minute=total % 60)},
-            )  # type: ignore[type-var]
-        )
-    return result
+    from eltdx._native_abi import load_native
+
+    return load_native().bar_time_align("wrapped", bars, delta_minutes, bar_time, field, _MODULES[__name__])
 
 
 def align_datetime_bars(
@@ -169,16 +148,9 @@ def align_datetime_bars(
     ——与 easy_tdx ``_align_datetime_df`` 一致（MAC 走的是这条路径）。
     """
 
-    if not _needs_align(bar_time, delta_minutes):
-        return bars
-    assert delta_minutes is not None
-    delta = timedelta(minutes=delta_minutes)
-    result: list[_BarT] = []
-    for bar in bars:
-        result.append(
-            replace(bar, **{field: getattr(bar, field) + delta})  # type: ignore[type-var]
-        )
-    return result
+    from eltdx._native_abi import load_native
+
+    return load_native().bar_time_align("datetime", bars, delta_minutes, bar_time, field, _MODULES[__name__])
 
 
 __all__ = [

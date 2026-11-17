@@ -738,9 +738,9 @@ class MacClient:
 def _ymd_to_date(value: int | None) -> _date | None:
     """将 ``YYYYMMDD`` 整数转换为 :class:`datetime.date`（``None`` 透传）。"""
 
-    if value is None:
-        return None
-    return _date(value // 10000, (value % 10000) // 100, value % 100)
+    from eltdx._native_abi import load_native
+
+    return load_native().mac_ymd_date(value, _MODULES[__name__])
 
 
 __all__ = ["MacClient", "convert_board_code"]

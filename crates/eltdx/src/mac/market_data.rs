@@ -151,9 +151,11 @@ impl Transaction {
     }
 }
 fn day(raw: u32) -> Result<TradingDate> {
-    let year = u16::try_from(raw/10000).map_err(|_| protocol("MAC bar year exceeds source date range"))?;
+    let (year,month,day) = crate::helpers::calculation::ymd_parts_with::<_,std::convert::Infallible>(&raw,
+        |raw| Ok(raw/10000),|raw| Ok((raw%10000)/100),|raw| Ok(raw%100)).unwrap_or_else(|never| match never {});
+    let year = u16::try_from(year).map_err(|_| protocol("MAC bar year exceeds source date range"))?;
     if year > 9999 { return Err(protocol("MAC bar year exceeds four digits")); }
-    TradingDate::new(year,((raw%10000)/100) as u8,(raw%100) as u8)
+    TradingDate::new(year,month as u8,day as u8)
         .map_err(|error| protocol("invalid MAC bar calendar date").with_source(error))
 }
 fn clock(raw: u32) -> Result<(u8,u8,u8)> {

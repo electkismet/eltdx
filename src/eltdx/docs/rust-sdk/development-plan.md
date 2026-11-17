@@ -531,6 +531,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 
 ### T27：扩展 Python 迁移与全能力核对
 
+2026-11-17第七段源码恢复点（stage94，查询段cbb78cd）：共用_bar_time8函数及MAC日期转换迁native，strict EX/MAC共用年月日分解；保留原identity/短路/校验/比较对象、三域周期8/重复int、动态DTO/时间hooks、当天回绕与真实跨日等规则。新增15个Python/1个Rust函数源码，六份新增合同118个Python函数，全部未执行。完整命令/parser/frame/transport/owner/generation/config/清单/consumer仍需继续；25源码完整/2部分/3未开始不变，全部执行验收延期。
+
 2026-11-17第六段源码恢复点（stage93，目录段1af9450）：EX11方法/MAC14简单入口及MAC-EX直接查询/报价组合/逐笔路由迁native，6个同步HK helper迁完，共用价格除法。保留单页/request形状/捕获顺序、独立默认字段/旧忽略sort、HK原市场/秒/价格/nature/动态分页和50页前缀。新增22个Python/1个Rust函数源码，五份新增合同103个Python函数，全部未执行。bar_time/date与完整命令/parser/transport/owner/generation/config/清单/consumer继续；25完整源码/2部分/3未开始不变，全部执行验收延期。
 
 2026-11-17第五段源码恢复点（stage92，板块段93be13d）：10个MAC-EX目录/回退/边界/证券/宏观入口迁入native，与strict共用suffix；保留原页内index/数值形状/nonfinite、固定600分页/count0 fallback、边界缓存和证券相对偏移、宏观首对象/重复末值/无TTL/原hooks与错误。新增20个Python/1个Rust函数源码，四份新增合同共81个Python函数，全部未执行。其余直接命令/报价组合/HK/common逐笔及完整命令/parser/transport/owner/generation/config/清单/consumer继续；25完整源码/2部分/3未开始不变，全部执行验收延期。

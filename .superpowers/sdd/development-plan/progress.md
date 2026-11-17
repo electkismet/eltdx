@@ -2,6 +2,20 @@
 
 ## Setup
 
+- Latest recovery2026-11-17 stage94: basecbb78cd. All8 shared _bar_time
+  functions and MAC _ymd_to_date now native delegates; public constants/
+  tables stay object adapters. Strict EX/MAC and Python share YYYYMMDD
+  projection, with separate validation. Keep original identity/short-circuit/
+  rich comparison, error repr/captures, EX8vsMAC8vsHQ8/repeated int, live
+  datetime/replace/getattr hooks, modulo24 same-date versus real timedelta
+  cross-date/second/microsecond and ordinary calendar errors. Added15 Python
+  function sources(2 parametrized)/1 Rust function; six new files total118
+  Python functions, all unexecuted. Read task-27-report Stage7. Full command/
+  parser/frame/transport/owner/generation/config/export/manifest/consumer
+  still required. Counts25 complete source/2 partial/3 unstarted. Unlimited
+  active goal; all source before unified checks, no agents/publication/
+  controller edits or verification execution.
+
 - Latest recovery2026-11-17 stage93: base1af9450; prior turn concrete
   progress via93be13d/1af9450. Authored extension native direct dispatch,
   MAC-EX quote composition/transaction routing and all6 sync HK helpers.

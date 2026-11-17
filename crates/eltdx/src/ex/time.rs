@@ -20,8 +20,10 @@ pub fn packed_date(raw: u16) -> Result<TradingDate> {
         .map_err(|_| protocol("invalid EX packed Gregorian date").with_context("raw_date", format!("{raw}")))
 }
 pub fn day_date(raw: u32) -> Result<TradingDate> {
-    let year = u16::try_from(raw / 10000).map_err(|_| protocol("EX year overflow"))?;
-    TradingDate::new(year, ((raw % 10000) / 100) as u8, (raw % 100) as u8)
+    let (year,month,day) = crate::helpers::calculation::ymd_parts_with::<_,std::convert::Infallible>(&raw,
+        |raw| Ok(raw/10000),|raw| Ok((raw%10000)/100),|raw| Ok(raw%100)).unwrap_or_else(|never| match never {});
+    let year = u16::try_from(year).map_err(|_| protocol("EX year overflow"))?;
+    TradingDate::new(year, month as u8, day as u8)
         .map_err(|_| protocol("invalid EX YYYYMMDD date").with_context("raw_date", format!("{raw}")))
 }
 pub fn bar_time(raw: [u8; 4], period: ExPeriod, alignment: BarTime) -> Result<(EventTime, EventTime, BarTimeSource)> {

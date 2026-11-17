@@ -1,6 +1,14 @@
 //! Scalar operations shared by strict values and the Python legacy projection.
 //! Validation, missing-value policy and rounding belong to the calling profile.
 
+/// Split a YYYYMMDD scalar in source evaluation order. Integer semantics,
+/// arbitrary precision and Gregorian validation belong to the caller.
+pub fn ymd_parts_with<T,E>(value: &T,
+    year: impl FnOnce(&T) -> Result<T,E>,month: impl FnOnce(&T) -> Result<T,E>,
+    day: impl FnOnce(&T) -> Result<T,E>) -> Result<(T,T,T),E> {
+    Ok((year(value)?,month(value)?,day(value)?))
+}
+
 pub fn turnover_with<T, E>(volume: T, shares: &T,
     mut multiply_hundred: impl FnMut(T) -> Result<T, E>,
     divide: impl FnOnce(T, &T) -> Result<T, E>) -> Result<T, E> {
@@ -67,6 +75,18 @@ pub fn share_source_names(total: bool, circulating: bool, free_float: bool) -> V
 #[cfg(test)]
 mod source_cases {
     use super::*;
+
+    #[test]
+    fn ymd_projection_keeps_order_and_stops_on_original_error() {
+        use std::cell::RefCell;
+        let steps = RefCell::new(Vec::new());
+        let result = ymd_parts_with::<_,&str>(&20261117,
+            |raw| { steps.borrow_mut().push("year"); Ok(raw/10000) },
+            |raw| { steps.borrow_mut().push("month"); Ok((raw%10000)/100) },
+            |raw| { steps.borrow_mut().push("day"); Ok(raw%100) }).unwrap();
+        assert_eq!(result,(2026,11,17)); assert_eq!(*steps.borrow(),["year","month","day"]);
+        assert_eq!(ymd_parts_with::<_,&str>(&1,|_| Err("source division"),|_| panic!("year failed"),|_| panic!("year failed")),Err("source division"));
+    }
 
     #[test]
     fn inverse_action_keeps_subtraction_before_division() {
