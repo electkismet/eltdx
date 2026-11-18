@@ -1271,3 +1271,7 @@ Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化�
 ## Stage175：冻结候选的实际源码发行包重建
 
 用 CI Stage166 的 `eltdx-3.3.5.tar.gz` 在 Windows x64、Rust 1.89、CPython 3.12.6 离线重建 abi3 wheel，另以独立环境通过二进制安装、pip check、非空公开 API 消费和关闭。证据在 `artifacts/unified/stage175-final-sdist-attempt01/result.json`。04:27 UTC crates.io 三个名称仍为 404，本机无发布凭据。保留冻结候选；按服务端 UTC+8 日期换日后，使用国内直连环境补取 MAC-EX 跨日样本。
+
+## Stage176：交易所原始价格取数清单
+
+取得并核对四份官方接口规范，按 Stage164–165 样本定位沪市 `cpxx0201/0202`、深市第二遍静态 XML 及 `300111` 快照、北交所 `NQXX.DBF` 及待确认的参考价记录。统一验证记录列出具体交易日、字段和证据边界，原件与页码在 `artifacts/unified/stage176-exchange-file-specs-attempt01/verified.json`。本轮未取得真实交易日记录，冻结候选及 `UnknownRule` 不变；本机尚无发布凭据，也未到国内线路跨日采样窗口。

@@ -503,3 +503,15 @@ R02 的迁移目录和样本库存自 Python 五版本矩阵候选至冻结发�
 重建 wheel 在候选检出外的新虚拟环境中通过无索引二进制安装、`pip check`、公开 API 非空回环查询和关闭。消费环境使用受限 PATH；原生扩展的安装字节与重建 wheel 一致，SHA256 `f4bcdd47fc526270f739af608f270f4f1ae5a3b0bbc0319ae9cdab299469ca00`。过程、命令、原始日志和消费报告见 `artifacts/unified/stage175-final-sdist-attempt01/`，`result.json` SHA256 `7c5d1a6e6300cd2773730fffadb17b5966dedb19d67b1f58cf19cb4811470de5`。这是最终候选的源码包实际构建证据；不重复 Stage166 的五平台 wheel 安装审计。
 
 2026-11-18 04:27 UTC，在同一冻结检出复查 crates.io 三个名称，均 HTTP 404。`artifacts/unified/stage175-registry-observation-attempt01/packages.json` SHA256 `40b7060a4249c0240d59fd847c5ad7fc0a87466a4b8f1cd92acffedf284a28e1`；未取得本机发布凭据，未上传。
+
+## Stage176：交易所原始限价记录的取数清单 { #stage176-exchange-records }
+
+2026-11-18，从交易所官方网站取得四份接口规范，核对 HTTP 状态、PDF 原件 SHA256 和有关字段的页码。以下清单可用于向获准的数据源索取 Stage164–165 同证券、同交易日的原始记录。
+
+| 市场与样本（交易日 UTC+8） | 原始材料及核对字段 |
+| --- | --- |
+| 上交所：`600000` 2026-11-17，`688548` 2026-11-02 除息 | [IS124 3.70](https://www.sse.com.cn/services/tradingtech/data/c/10832592/files/98a374cfa623415181710783a1718c28.pdf) §2.8–2.9：同一交易日的 `cpxx0201MMDD.txt`、`cpxx0202MMDD.txt`，以及适用批次和记录更新时间。第二批可能更新第一批的价格。核对 20 前收盘价（除权除息时为调整后价）、21 价格档位、22 限制类型、23 上限、24 下限。按 22 的取值解释 23–24，不能直接把数值当作有效限价。 |
+| 深交所：`301716` 2026-11-17 和 2026-09-29 上市首日 | [数据文件交换规范 1.43](https://www.szse.cn/marketServices/technicalservice/interface/P020260918541117849849.pdf) §3.1、§3.4：开市前第二遍 `securities_YYYYMMDD.xml` 的 `PrevClosePx`，以及 `cashauctionparams_YYYYMMDD.xml` 中对应阶段的 `PriceLimitSetting`。保留 `HasPriceLimit`、`ReferPriceType`、`LimitType`、价格档位和有效的百分比或绝对价格字段。百分比配置还要与[Binary 行情 1.17](https://www.szse.cn/marketServices/technicalservice/interface/P020250328368568358456.pdf) `300111` 原始快照中的 `PrevClosePx` 及 `xe`/`xf` 实际价格对证，保留采样时间和交易阶段。无价格限制的哨兵值按市场和品种解释。 |
+| 北交所：`920117` 2026-11-17 | [行情接口优化说明](https://www.bse.cn/uploads/6/file/public/202606/20260610181355_8rv4age5hh.pdf) 确认 `NQXX.DBF` 的 `XXZQDM`、`XXJGDW`、`XXXJXZ`、`XXZTJG`、`XXDTJG`、`XXCQCX` 和 `XXGXSJ`。需同时索取当日适用版本中 `XXXJXZ` 的定义，以及同一证券的原始行情参考价记录；该附件未定义这两项。 |
+
+取得记录后，保留来源、适用版本、交易日、批次或时点、证券代码、原始字节 SHA256，以及获准留存的范围。区分交易所原始标记、原始绝对价格、由规则复算的价格；深交所的申报有效范围 (`HasAuctionLimit`) 与日涨跌幅限制分别记。上述来源仅证明文件及字段定义，并未取得所列交易日的生产记录，不改变 `UnknownRule`。本轮原件、取件时间、页码和未命中的北交所旧链接记录见 `artifacts/unified/stage176-exchange-file-specs-attempt01/verified.json`，SHA256 `0e7182b1729d333867c707e6543b62c407997d4dd06e5fb0e5faea83da051a33`。

@@ -63,7 +63,7 @@ Stage172 从冻结候选 `6a6cd8b` 的 Linux stable 原始测试日志逐项提�
 ## 后续工作
 
 - 发布平台：`6a6cd8b` 的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)和[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)均通过。[Stage175](unified-validation.md#stage175-final-sdist) 直接用 CI 汇总的最终源码包离线重建 Windows wheel，并通过独立安装与公开 API 测试。保留 Stage157 的 Rust fixture 失败和 Stage162 的上传错误。手动验证未上传 PyPI 或创建 GitHub Release。
-- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本。Stage172 的云端 Box 无到达这两台主站的路由；后续跨日采样使用已验证能直连的国内网络，独立网络样本另用可直连的国内线路。仍需真实服务端拒绝、可选 setup 的身份、顺序和 fence、category 22 非空，以及交易所原始参考价、限价和限制类型。Stage171 记录了上证所历史证券基本信息申请渠道；Stage170 留存 category 22 空响应。未验证含义继续保持 Unknown。
+- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本。Stage172 的云端 Box 无到达这两台主站的路由；后续跨日采样使用已验证能直连的国内网络，独立网络样本另用可直连的国内线路。仍需真实服务端拒绝、可选 setup 的身份、顺序和 fence、category 22 非空，以及交易所原始参考价、限价和限制类型。[Stage176](unified-validation.md#stage176-exchange-records) 列出沪、深、北所需的文件、字段、证券和交易日；Stage171 记录了上证所历史证券基本信息申请渠道。Stage170 留存 category 22 空响应。未验证含义继续保持 Unknown。
 - 注册表：在本机配置获授权的 crates.io 发布凭据后，按[首发与中断后续跑](release-policy.md#initial-registry-release)逐包发布、下载核验，最后用无 patch 的独立项目验证来源和消费。发布前重新查询，404 仅代表该时间点的查询结果。
 
 R01–R12首轮逐项审计是stage135时点的历史快照，后续更新以本节状态和[统一验证记录](unified-validation.md)为准，不再复制一份逐行“部分”表。已有Windows Python矩阵、Windows/Linux压力与性能、以及stage138归档结果分别保留在对应阶段记录中。
