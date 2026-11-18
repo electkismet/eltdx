@@ -443,13 +443,15 @@ T17 源码检查点 `88b9036`。Stage178 核对冻结候选的 ZIP 依赖锁、�
 
 **文件：** 新增 `src/offline/{mod,paths,alignment,bars,block,industry,gbbq}.rs`，测试 `tests/{offline_bars,offline_blocks,offline_industry,gbbq}.rs`。
 
-- [ ] day/lc1/lc5/.5/ex-day逐字节往返，HK amount同槽u32/f32含义不丢失。
-- [ ] 读取残尾保留完整记录；append残尾拒绝且文件内容完全不变；显式replace才允许替换。
-- [ ] Python `write_*` 保持追加含义：只与调用前磁盘末条时间比较，输入批内不排序/去重；空输入也先拒绝残尾。测试逆序输入、重复时间、重叠区间和原文件字节不变。
-- [ ] daily 原有 fsync 与 minute/EX 的耐久性差异分别覆盖；Rust 显式 durability 策略与 Python 默认映射固定，不能笼统声称所有写入都已持久化。
-- [ ] 日期编码、股/手系数、债券系数、ties-to-even分别参数化。
-- [ ] 路径发现不写磁盘；板块配置拒绝目录逃逸；GBBQ运算采用wrapping u32。
-- [ ] 行业 `parse_tdxhy_cfg/read_industry_cfg` 覆盖 GBK 替换解码、少列/非6字符代码跳过、6字符非数字仍保留、同码后值覆盖、未知行业保留及空文件；字节与文件入口一致。
+[Stage183](unified-validation.md#stage183-offline-financial-evidence) 将下列条目对到既有 Rust、Python 执行证据和源码。
+
+- [x] `.day`、`.lc1/.lc5` 共用格式、`.5`、EX 日线四种布局逐字节往返；HK amount 同槽 `u32/f32` 均保留，路径用例另核对各后缀。
+- [x] 保留残尾前的完整记录，追加（含空输入）拒绝且原字节不变。本版 `write` 按[离线接口规格](extension-api-spec.md)为追加别名，未提供覆盖入口。
+- [x] Python 保持追加语义；日线实测仅比较调用前磁盘末条，输入逆序和重复保留，重叠旧行跳过，空输入也先拒绝残尾。分钟与 EX 的追加模式由现有适配路径核对。
+- [x] Rust 写入单测覆盖格式默认、显式 flush/sync 以及失败回报；安装 wheel 核对 Python 日线调用 `fsync` 的 hook，分钟和 EX 默认关闭行为由源码核对。证据不证明断电持久性。
+- [x] 日期边界及原始位、股/手与债券系数、ties-to-even 以位级记录、前缀表和并列小数用例核对。
+- [x] 路径发现只读元数据；板块拒绝越界文件名，Linux 文件用例核对实际及悬空符号链接；GBBQ 用独立模 `2^32` 语料核对 `wrapping u32` 解码。
+- [x] 行业配置验证 GBK 替换解码、少列/非六字符代码跳过、六字符非数字保留、同码后值覆盖、未知行业及空文件；字节与文件入口等价。
 - [x] `cargo test -p eltdx --features offline --test offline_bars --test offline_blocks --test offline_industry --test gbbq --locked`（Stage174 与 `financial` 合并执行）。
 
 ### T22：专业财报、ZIP 与 DAT
@@ -460,10 +462,12 @@ T17 源码检查点 `88b9036`。Stage178 核对冻结候选的 ZIP 依赖锁、�
 
 **文件：** 新增 `src/offline/financial.rs`、`src/financial.rs`；新增 `tests/financial.rs`。
 
-- [ ] ZIP条目/压缩体/展开体限额在分配前生效，拒绝加密/同名重复；多不同名DAT按T03选择规则。
-- [ ] DAT report_size必须为4倍数；字段/总float限额、索引越界/重复/重叠、空和短文件分别验证。
-- [ ] 专业财报下载走HQ资源接口而非HTTP F10，max_bytes下传到下载源。
-- [ ] hash字段只保留时不宣称已验完整性；如新增hash验证，规定算法和失配错误。
+[Stage183](unified-validation.md#stage183-offline-financial-evidence) 核对了财报解析和 HQ 回环证据。
+
+- [x] ZIP 结构预检检查条目、压缩体和声明展开量，流式检查实际展开和 CRC；用例拒绝加密/同名重复，并验证多 DAT 歧义拒绝和精确名称选择。
+- [x] DAT `report_size` 非 4 倍数、每记录/累计 float 限额、索引越界/重复/重叠、空和短文件均有对应已运行用例。
+- [x] HQ 回环断言列表与下载使用 `0x06B9`；`max_bytes` 与 `max_chunks` 控制源请求，达到上限仍是 `LimitReached`，不会进入完整记录解析。
+- [x] 名单 hash 和 size 保留为服务端元数据；回环使用失真的 hash/size 检查不能把它们作为完整性或 EOF 凭据。ZIP CRC 单独验证。
 - [x] `cargo test -p eltdx --features offline --test financial --locked`（Stage174 与其他只依赖 `offline` 的目标合并执行）。
 
 ### T23：F10/文件组合 helpers 与 Python 回迁

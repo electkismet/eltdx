@@ -564,3 +564,16 @@ Stage167 的同候选 Linux stable 原始日志和退出码已核对。`stats` �
 独立消费者仅启用 `f10`，直接依赖 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的源码，复用 Stage163 消费者锁进行 `--locked --offline` 构建。探针显式断言默认 `ResolverPolicy::Bounded` 和 `TlsPolicy::SystemRoots`，用 `F10Client::connect` 对 `https://index.crates.io/` 只做 DNS、TCP 和 TLS 握手，再关闭客户端。Windows x64/Rust 1.89 成功。Linux WSL2 x64/Rust 1.100 首次构建成功，但 Cargo 启动的进程检测到证书路径环境覆盖，在连接前退出 1；仅在复验子进程中去掉相应变量，直接运行同一次构建的二进制，握手与关闭成功。未修改操作系统证书或 DNS 设置。
 
 原始命令、输入和两次 Linux 日志保存在 `artifacts/unified/stage182-system-tls-attempt01/`，`verified.json` SHA256 `42ab699515fd6b78620fbf61ab60d0607aaa6911996068d2238e84ac008e2d51`。本次为两种系统默认路径的实测，未发送 HTTP 业务请求，未验证 macOS、国内行情连通性、ELTDX 公开包消费或其他生产路由。
+
+## Stage183：T21 离线读写和 T22 专业财报证据 { #stage183-offline-financial-evidence }
+
+核对冻结候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的具名用例、退出码和日志散列。Stage174 的 Windows/Rust 1.89 仅 `offline` 运行 55 条（行情文件 9、板块 6、行业 4、GBBQ 4、财报 32）。Stage167 的 Linux stable `full` 提供财报服务 8 条、板块 6 条和写入耐久策略单测；Stage178 已记录同一日志的 ZIP 流式实际展开和 CRC 用例。Stage180 最终 CI wheel 的 T23 JUnit 包含 80 条 `test_native_offline_contract` 具名实例，零失败/跳过。本次复核未重跑原套件。
+
+| 条目 | 已核对的判据 |
+| --- | --- |
+| T21 原始记录与写入 | 四种物理布局逐字节往返，`.lc1/.lc5` 共用布局；EX 同槽整数与浮点保留。残尾读保留完整记录，追加拒绝后原字节不变。日线 Python 用例验证原末条阈值、逆序、重复、旧行和空输入对齐；Rust 写入策略单测验证 flush/sync 调用与错误反馈，不代表断电持久性。 |
+| T21 解码、路径和目录 | 核对日期/系数/并列小数、GBBQ 独立模 `2^32` 解码向量、行业 GBK 和文件/字节入口。路径发现只读，板块拒绝越界文件名；实际及悬空链接断言采用 Linux 日志，Windows 用例可能因建链权限提前返回。 |
+| T22 ZIP 与 DAT | 固定有限预检、真实展开边界、重复/加密/损坏、按精确名称选择；DAT 编码倍数、字段预算、偏移及重叠、空和短文件各有独立断言。 |
+| T22 下载和完整性 | HQ `0x06B9` 列表与档案共用一条连接；达到配置的字节或分块数上限不等于 EOF。远端名单 hash 原样保留；测试刻意给出错误 size/hash，并验证真实来源与完成条件。 |
+
+原始报告定位、散列、Rust 具名日志行及 Python JUnit 节点见 `artifacts/unified/stage183-offline-financial-attempt01/verified.json`，SHA256 `a3cf5e2e88690d54c9af3db239c57a6bbfc0feb46b006cbe88377d32f3222058`。首轮证据提取使用了错误的统计目标计数，第二轮改为引用 Stage178 已核对的具名 ZIP 证据；原始测试结果未变。T21/T22 的本地条目据此归档；不推定真实行情或财报服务器、无 patch 消费已验证。

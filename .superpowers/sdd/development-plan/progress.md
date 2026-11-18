@@ -1299,3 +1299,7 @@ Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化�
 ## Stage182：Windows 和 Linux 系统 DNS、证书库实测
 
 冻结候选 `6a6cd8b` 的独立 F10 探针经 Windows 和 Linux WSL2 系统 DNS、系统证书库成功协商公开 TLS 并关闭。保存 Linux 首次进程因证书覆盖变量在联网前退出以及同二进制的复验。`artifacts/unified/stage182-system-tls-attempt01/verified.json` 完整绑定命令和散列；macOS 系统 DNS 和证书库待实测。该探针不依赖国内行情网络，不改变发布或生产验收状态。
+
+## Stage183：T21/T22 离线和专业财报验收追溯
+
+复核 `6a6cd8b` 的 Stage174 仅 offline 55 条、Stage167 财报服务/板块/耐久策略、Stage178 ZIP 和 Stage180 最终 wheel 离线合同 80 条。按断言核对残尾、追加次序、格式/GBBQ/行业、ZIP/DAT 边界和 HQ `0x06B9` 限额；财报名单 hash 仍是元数据。回填 T21/T22 和 R10 的证据位置，未重复测试或改候选。绑定记录 `artifacts/unified/stage183-offline-financial-attempt01/verified.json`。注册表与国内生产取证等待条件未变；下一步继续 T20 具名入口、动态 JSON 和 Python 兼容逐项追溯。
