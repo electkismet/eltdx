@@ -480,3 +480,18 @@ R02 的迁移目录和样本库存自 Python 五版本矩阵候选至冻结发�
 核对 fixture 库存的实际文件散列和来源：37 份旧黄金样本均是 Python 回归基线，历史输出可检查回归，不能证明协议字段正确。7 份补充样本中，`COMP-052` 与 `COMP-056` 的预期值来自独立协议推算，其余为冻结 Python 合同或协议回归输入。当前两个语言入口共用算法的比对只证明该用例覆盖的行为一致，无独立预期的字段不能由此确认。
 
 `artifacts/unified/stage173-r02-audit-attempt01/` 保存 `audit.py`、`run.log` 与逐行 `verified.json`（SHA256 `50fbf17e7f3b93e044e47a3bb1a0ed2cc95eacb9ab8bf2a8b41ff8d2dbc02c30`）。本次未改变迁移清单、Python 公开行为或发布候选，也未重跑原矩阵。正式注册表和待补的国内生产样本均不受本次用例核对影响。
+
+## Stage174：冻结候选的定向 feature 测试 { #stage174-targeted-features }
+
+在 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的干净发布检出，以 Windows x64/MSVC、Rust 1.89 执行六条 `--locked --offline` 测试命令。每条仅启用计划指定的功能，覆盖 Stage172 的 full 日志无法独立证明的功能组合。六条均退出 0，13 个测试目标合计 201 条通过、0 条失败、0 条忽略。
+
+| 计划 | 功能组合 | 测试目标 | 通过 |
+| --- | --- | --- | ---: |
+| T18 | 无可选功能 | `hq_helpers` | 52 |
+| T21–T22 | `offline` | `offline_bars`、`offline_blocks`、`offline_industry`、`gbbq`、`financial` | 55 |
+| T23 | `f10,offline` | `helpers` | 11 |
+| T24 | `ex` | `ex_wire`、`ex_session` | 40 |
+| T25–T26 | `mac`（依赖 `ex`） | `mac_wire`、`mac_routing`、`extended_services` | 29 |
+| T26 | `ex,mac` | `extended_loopback` | 14 |
+
+命令、环境、候选 SHA、锁文件散列和原始日志保存在 `artifacts/unified/stage174-windows-feature-tests-attempt01/`。`result.json` SHA256 `daa20be60deaa9022743a13dea8adc058d30c69c18358d3c6d8d181c5637fe59`。六份日志散列及汇总均已复核。发布检出测试前后干净；本次未重跑平台矩阵，且未进行实盘连接或注册表发布。

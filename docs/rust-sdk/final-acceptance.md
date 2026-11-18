@@ -35,6 +35,8 @@
 
 Stage172 从冻结候选 `6a6cd8b` 的 Linux stable 原始测试日志逐项提取 R03–R10 对应的 40 个测试目标，核实 411 条具名测试通过、0 条忽略。各要求对应的目标、完整测试名和计数见[统一验证记录](unified-validation.md#stage172-local-evidence-and-network)。该记录用于核对已运行的 full 范围，独立 feature 和生产验收证据仍按各自边界记录。
 
+[Stage174](unified-validation.md#stage174-targeted-features) 在同一冻结候选以 Windows 和 Rust 1.89 单独执行计划指定的六组功能组合，201 条行为用例全通过，覆盖最小 HQ、离线、F10 与离线、EX 和 MAC。测试范围见各条命令，不用于证明线上协议行为。
+
 逐服务普通使用示例与非空回环精确函数见[示例对应表](service-examples.md)。E06 的格式和checked类型策略见[Serde合同](examples-serde.md)，实际运行target为 `serde_contract`：finite/nonfinite、负零、bytes/缺失/空、日期时区/Unknown和源单位；三个trait缺失compile-fail由serde doctest执行。`serde` 单独生产依赖和F10独立文档也要验证，不以full成功推定它们成功。
 
 ## 完整发布审计流程

@@ -380,7 +380,7 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 - [ ] 在默认 HQ feature 下实现矩阵中的 full_quotes、每日股本/涨跌停价、排行、board_quotes、limit_ladder、market_stat、shortline 和完整 stock_profile_table。现有 profile 仅依赖 HQ 的 full_quotes、证券目录和 finance_batch，不虚构 F10 依赖。
 - [ ] 按代码关联指数、市场统计及各批量来源；短线验证服务器日期、09:25、双文件主日期、>=95% 覆盖和前交易日对齐门槛，不能按返回位置猜对象。
 - [ ] 主数据链失败返回错误；full_quotes 刷新等已定义的可选补充源失败保留主数据并附诊断，新 Rust 取消/总 deadline 则终止操作。Python 逐请求超时、原可选请求超时降级条件与结果模型按旧样本验收。
-- [ ] 运行 `cargo test -p eltdx --no-default-features --test hq_helpers --locked`，证明默认 HQ helpers 不暗含 f10/offline；另测可选功能关闭下的公开 API 编译边界。
+- [x] 运行 `cargo test -p eltdx --no-default-features --test hq_helpers --locked`，证明默认 HQ helpers 不暗含 f10/offline；另测可选功能关闭下的公开 API 编译边界。冻结候选的 52 条行为测试见 Stage174，feature 禁用的编译边界见 Stage169。
 - [ ] 按域替换算法，不一次删除所有Python实现；更新迁移清单的fixture和实际状态。
 - [ ] 保留close/reconnect generation、custom transport、缓存清理、默认参数与异常因果链。
 - [ ] 执行相关Python业务测试及native/contract/loopback套件；不得自动包含未声明在线测试。
@@ -447,7 +447,7 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 - [ ] 日期编码、股/手系数、债券系数、ties-to-even分别参数化。
 - [ ] 路径发现不写磁盘；板块配置拒绝目录逃逸；GBBQ运算采用wrapping u32。
 - [ ] 行业 `parse_tdxhy_cfg/read_industry_cfg` 覆盖 GBK 替换解码、少列/非6字符代码跳过、6字符非数字仍保留、同码后值覆盖、未知行业保留及空文件；字节与文件入口一致。
-- [ ] `cargo test -p eltdx --features offline --test offline_bars --test offline_blocks --test offline_industry --test gbbq --locked`。
+- [x] `cargo test -p eltdx --features offline --test offline_bars --test offline_blocks --test offline_industry --test gbbq --locked`（Stage174 与 `financial` 合并执行）。
 
 ### T22：专业财报、ZIP 与 DAT
 
@@ -461,7 +461,7 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 - [ ] DAT report_size必须为4倍数；字段/总float限额、索引越界/重复/重叠、空和短文件分别验证。
 - [ ] 专业财报下载走HQ资源接口而非HTTP F10，max_bytes下传到下载源。
 - [ ] hash字段只保留时不宣称已验完整性；如新增hash验证，规定算法和失配错误。
-- [ ] `cargo test -p eltdx --features offline --test financial --locked`。
+- [x] `cargo test -p eltdx --features offline --test financial --locked`（Stage174 与其他只依赖 `offline` 的目标合并执行）。
 
 ### T23：F10/文件组合 helpers 与 Python 回迁
 
@@ -474,7 +474,7 @@ T17源码检查点`88b9036`；上述执行命令与ZIP的实际MSRV/许可证/lo
 - [ ] 完成 index_members/index_etfs/ipo_calendar、board_members、stock_topics/topic_stocks、theme_strength_rank 及财报等实际依赖 F10/文件的能力；完整 stock_profile_table 与其他 HQ-only helper 保持 T18 的默认 feature 可用性。
 - [ ] 每个跨来源 helper 固定必需/可选来源及降级条件；新 Rust 的主源失败/取消/总 deadline 终止，Python 按 legacy policy 保留原逐请求计时与降级，不能强套总期限。
 - [ ] 组合helper按实际feature启用，缺feature在编译时没有该方法，不在运行时跨Python补齐。
-- [ ] 运行 `cargo test -p eltdx --features f10,offline --test helpers --locked` 及Python F10/offline/financial/helper相关套件；同步迁移清单。
+- [ ] 运行 `cargo test -p eltdx --features f10,offline --test helpers --locked` 及Python F10/offline/financial/helper相关套件；同步迁移清单。该 Rust 命令在冻结候选通过 11 条（Stage174）；Python 用例和原清单核对见 Stage173。
 
 ## 6. P4：扩展市场
 
@@ -490,7 +490,7 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 - [ ] 输入host优先级、非法配置报错、协议级探测和受限transport错误切换逐项对齐。
 - [ ] 同一连接串行请求，response关联校验只采用有录包证据的规则。
 - [ ] K线position/amount不同解释、原始record与动态quote缺口明确处理。
-- [ ] `cargo test -p eltdx --features ex --test ex_wire --test ex_session --locked`。
+- [x] `cargo test -p eltdx --features ex --test ex_wire --test ex_session --locked`（Stage174，40 条通过）。
 
 ### T25：MAC、MAC-EX 与未知字段
 
@@ -508,7 +508,7 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 - [ ] 0x122B/0x122C不同bitmap布局；未知合法位消费4B并保留，reserved151..159不消费。
 - [ ] bit别名按上下文投影，原始bit id保留；MAC K线秒级时间不降到分钟。
 - [ ] 香港股票逐笔EX路径、其他市场MAC路径、价格除1000和性质转换有独立样本。
-- [ ] `cargo test -p eltdx --features mac --test mac_wire --test mac_routing --locked`。
+- [x] `cargo test -p eltdx --features mac --test mac_wire --test mac_routing --locked`（Stage174 与 `extended_services` 合并执行）。
 
 ### T26：扩展组合服务与目录缓存
 
@@ -528,8 +528,8 @@ P3/P4 的 F10、EX、MAC、MAC-EX、offline 和财报接口由 [扩展逐接口�
 - [ ] 板块金额/净流入排名先聚合再topN；N日排行受总预算约束。
 - [ ] MAC复权异常检测→原始K线→有效除权事件修复流程保留来源，不算transport重试。
 - [ ] 未实现排序参数不能假称支持；返回功能状态或在稳定API中拒绝。
-- [ ] `cargo test -p eltdx --features mac --test extended_services --locked`。
-- [ ] 新增 `crates/eltdx/tests/extended_loopback.rs`，通过公开EX/MAC客户端覆盖各profile握手、半包、切换和释放；运行 `cargo test -p eltdx --features ex,mac --test extended_loopback --locked`。
+- [x] `cargo test -p eltdx --features mac --test extended_services --locked`（Stage174，三组只启用 `mac` 的目标合计 29 条通过）。
+- [x] 新增 `crates/eltdx/tests/extended_loopback.rs`，通过公开EX/MAC客户端覆盖各profile握手、半包、切换和释放；运行 `cargo test -p eltdx --features ex,mac --test extended_loopback --locked`（Stage174，14 条通过，生产握手证据另列）。
 
 ### T27：扩展 Python 迁移与全能力核对
 2026-11-17第二十一段源码恢复点（stage108，基础5bb5f34）：T27完整50项目录/实际符号/hash/用例/fixture及保留适配清单源码完成。权威验收状态和计数不提升，全部证据source_only_unverified；26源码完整/1部分(T19)/3未开始(T28–T30)。继续T28/T29/T30/T19全部源码，再统一验证。

@@ -1263,3 +1263,7 @@ Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化�
 ## Stage173：R02 实际用例和独立预期值追溯
 
 `artifacts/unified/stage173-r02-audit-attempt01/verified.json` 对 124 条目录记录和 8 组补充映射逐条关联已执行具名引用：Python 341 个、Rust 68 个，无未匹配引用。核对三份 Stage136 Python 3.12 JUnit、Stage167 冻结候选 Rust full 日志和 fixture 文件散列。旧黄金样本 37 份仅为回归基线，补充样本仅 COMP-052、COMP-056 标记为独立协议推算。未改动冻结候选和源清单，不扩大生产结论。本机仍无发布凭据；UTC+8 尚未换日，国内 MAC-EX 跨日采样未发起。
+
+## Stage174：冻结候选指定 feature 门禁
+
+在 `6a6cd8b` 的干净发布检出，Windows x64/MSVC / Rust 1.89 执行 T18、T21–T26 所列的六组功能组合，共 13 个测试目标、201 条通过、0 条失败、0 条忽略。原始日志和环境在 `artifacts/unified/stage174-windows-feature-tests-attempt01/result.json`。只更新有直接执行证据的计划条目和验证索引，未改变源码候选。正式发布凭据及国内生产证据仍待取得。
