@@ -6,7 +6,7 @@
 
 支持平台应安装匹配 Python/ABI/架构的预编译 wheel。wheel 已包含 native 扩展，不要求再安装 Cargo SDK、rustc、maturin 或常驻服务。源码安装、贡献开发和没有匹配 wheel 的平台才需要 Rust 构建工具。不能为了让 wheel 消费测试通过而安装编译器或允许 sdist 回退。
 
-`eltdx` 的 Python 产品版本继续由原 workspace 版本来源管理，候选为3.3.5；Rust SDK 首个候选为0.1.0，两者版本线不同。是否能从公开索引安装本次候选取决于另外的发布流程，本文不是发布公告。
+Python 和 Rust 从同一个 workspace 版本发布。本次测试版 Cargo 版本为 `3.4.0-beta.1`，Python 按 PEP 440 记作 `3.4.0b1`。发布后，用户按所用语言安装对应包，见 [测试版说明](../releases/v3.4.0-beta.1.md)。
 
 ```python
 from eltdx import TdxClient

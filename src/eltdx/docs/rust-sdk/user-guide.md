@@ -1,12 +1,12 @@
 # Rust SDK 使用与行为指南
 
-当前是未发布、尚未通过统一验证的候选源码。以下示例对应实现入口，最终以编译、回环、兼容及平台证据验收；不能把文档中的命令当作执行记录。架构与完整签名分别见[架构](architecture.md)、[公共 API](public-api.md)及[分域规格](extension-api-spec.md)。
+当前候选为 [v3.4.0-beta.1 双端测试版](../releases/v3.4.0-beta.1.md)。架构与完整签名分别见[架构](architecture.md)、[公共 API](public-api.md)及[分域规格](extension-api-spec.md)。
 
 ## 两种语言独立消费
 
 Rust 项目只添加 Rust 库；Python 项目只安装匹配平台的 Python wheel。共享发生在维护者的源码层：Python wheel 内包含 PyO3 及编译后的共用 Rust 业务代码。运行时没有 Python↔Rust 网络服务，也没有要求 Rust 程序启动 Python。CLI/HTTP/MCP 是另外的消费者，真正 async API 属于后续设计，不是同步 SDK 的隐含能力。
 
-SDK 候选版本为0.1.0，最低 Rust1.89，edition2021。注册表名称、版本及发布权仍需核实；发布前从已冻结的候选源码消费：
+SDK 候选最低需要 Rust 1.89，使用 Rust 2021 edition。发布到 crates.io 后，从 Cargo 精确选择 `=3.4.0-beta.1`。在发布前开发时，可从候选源码接入：
 
 ```toml
 [dependencies]

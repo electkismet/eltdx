@@ -12,9 +12,9 @@ name = "_native"
 crate-type = ["cdylib"]
 
 [dependencies]
-eltdx = { path = "../eltdx", version = "=0.1.0", features = ["offline", "f10", "mac"] }
-eltdx-protocol = { path = "../eltdx-protocol", version = "=3.3.5" }
-eltdx-runtime = { path = "../eltdx-runtime", version = "=3.3.5" }
+eltdx = { path = "../eltdx", version = "=3.4.0-beta.1", features = ["offline", "f10", "mac"] }
+eltdx-protocol = { path = "../eltdx-protocol", version = "=3.4.0-beta.1" }
+eltdx-runtime = { path = "../eltdx-runtime", version = "=3.4.0-beta.1" }
 pyo3 = { workspace = true, features = ["abi3-py310", "extension-module"] }
 thiserror.workspace = true
 

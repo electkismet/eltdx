@@ -9,9 +9,35 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   native-dist:
     uses: ./.github/workflows/native-wheels.yml
+
+  rust-dist:
+    name: Verify Rust crate archives with an independent consumer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: rustup toolchain install 1.89.0 --profile minimal
+      - run: >-
+          python scripts/verification/rust_sdk_packages.py archives
+          --implementation-complete --output artifacts/release-rust
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: rust-release-verification
+          path: |
+            artifacts/release-rust/packages.json
+            artifacts/release-rust/*.log
+          if-no-files-found: error
 
   verify-release:
     name: Verify release candidate metadata
@@ -30,17 +56,21 @@ jobs:
           path: dist
       - name: Verify tag, version, candidate, and artifact identity
         if: github.event_name == 'push'
+        env:
+          RELEASE_REF: ${{ github.ref }}
         run: >-
           python scripts/verification/check_release_metadata.py
           --artifact-dir dist/packages
-          --ref "${{ github.ref }}"
+          --ref "$RELEASE_REF"
           --sha "${{ github.sha }}"
       - name: Verify branch dry-run candidate and artifact identity
         if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_REF: ${{ github.ref }}
         run: >-
           python scripts/verification/check_release_metadata.py
           --artifact-dir dist/packages
-          --ref "${{ github.ref }}"
+          --ref "$RELEASE_REF"
           --sha "${{ github.sha }}"
           --allow-dry-run-ref
       - name: Upload dry-run evidence
@@ -52,10 +82,37 @@ jobs:
             dist/SHA256SUMS
           if-no-files-found: error
 
+  crates-io:
+    name: Publish and verify Rust crates on crates.io
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [rust-dist, verify-release]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: rustup toolchain install 1.89.0 --profile minimal
+      - name: Release protocol, runtime, and SDK in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: >-
+          python scripts/verification/rust_sdk_packages.py registry-publish
+          --implementation-complete --output artifacts/crates-io
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: crates-io-verification
+          path: |
+            artifacts/crates-io/packages.json
+            artifacts/crates-io/*.log
+          if-no-files-found: error
+
   pypi:
     name: Upload exact artifacts to PyPI
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [native-dist, verify-release]
+    needs: [native-dist, verify-release, crates-io]
     runs-on: ubuntu-24.04
     environment:
       name: pypi
@@ -78,7 +135,7 @@ jobs:
   release:
     name: Create GitHub Release from exact artifacts
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: [native-dist, verify-release, pypi]
+    needs: [native-dist, verify-release, crates-io, pypi]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -89,15 +146,21 @@ jobs:
           name: release-dist
           path: dist
       - name: Prepare release notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
         run: >-
           python scripts/release/prepare_release_notes.py
-          --tag "${{ github.ref_name }}"
+          --tag "$RELEASE_TAG"
           --output RELEASE_NOTES.md
       - name: Create release without rebuilding
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "${{ github.ref_name }}" dist/packages/* dist/SHA256SUMS
-          --verify-tag
-          --title "${{ github.ref_name }}"
-          --notes-file RELEASE_NOTES.md
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          flags=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$RELEASE_TAG" dist/packages/* dist/SHA256SUMS \
+            --verify-tag --title "$RELEASE_TAG" --notes-file RELEASE_NOTES.md "${flags[@]}"

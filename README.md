@@ -1,7 +1,7 @@
 <h1 align="center">eltdx</h1>
 
 <p align="center">
-  <strong>Python API，Rust 驱动的通达信量化数据客户端，支持其他语言通过HTTP或WebSocket调用</strong>
+  <strong>通达信量化数据客户端，提供 Python 和 Rust API，共用 Rust 核心</strong>
 </p>
 
 <p align="center">
@@ -39,6 +39,8 @@
 5. 请勿将本项目用于侵犯他人权益、违反监管规定或滥用第三方服务的行为。
 
 感谢 [injoyai/tdx](https://github.com/injoyai/tdx) 及 [rainx/pytdx](https://github.com/rainx/pytdx) 的启发。
+
+本分支对应 [v3.4.0-beta.1 双端测试版](docs/releases/v3.4.0-beta.1.md)。Python 用户安装 Python 包，Rust 用户添加 Cargo 依赖。
 
 ## 功能地图
 

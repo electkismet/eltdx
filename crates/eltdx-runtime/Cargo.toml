@@ -14,7 +14,7 @@ loom = ["dep:loom"]
 
 [dependencies]
 bytes.workspace = true
-eltdx-protocol = { path = "../eltdx-protocol", version = "=3.3.5" }
+eltdx-protocol = { path = "../eltdx-protocol", version = "=3.4.0-beta.1" }
 loom = { workspace = true, optional = true }
 rand.workspace = true
 socket2.workspace = true

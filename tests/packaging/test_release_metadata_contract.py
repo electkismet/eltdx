@@ -4,12 +4,24 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from scripts.verification.check_release_metadata import TARGET_PYTHON_VERSION
+import pytest
+
+from scripts.verification.check_release_metadata import TARGET_CARGO_VERSION
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TAG_REF = f"refs/tags/v{TARGET_PYTHON_VERSION}"
+TAG_REF = f"refs/tags/v{TARGET_CARGO_VERSION}"
 BRANCH_REF = "refs/heads/codex/rust-3.0"
+
+
+@pytest.mark.parametrize(
+    ("cargo", "python"),
+    [("3.4.0-beta.1", "3.4.0b1"), ("3.4.0-rc.2", "3.4.0rc2"), ("3.4.0", "3.4.0")],
+)
+def test_cargo_release_version_has_canonical_python_equivalent(cargo: str, python: str) -> None:
+    from scripts.verification.check_release_metadata import _normalize_cargo
+
+    assert _normalize_cargo(cargo) == python
 
 
 def test_current_release_metadata_is_consistent() -> None:

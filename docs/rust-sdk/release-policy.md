@@ -1,16 +1,15 @@
 # Rust SDK 与 Python 版本、打包及发布政策
 
-本页规定候选版本与发布边界。T01–T30源码已进入统一验收；stage132与stage138在Windows/Rust1.89实际生成并检查三个`.crate`，并从解包归档运行11次外部consumer，使用staging directory source与显式patch模拟尚未发布的内部依赖。stage137在最新候选上重新只读查询时，三个名称均返回404。具体候选、通过和失败见[统一验证](unified-validation.md)，本地归档消费不表示注册表已可用，也不表示已经发布或完成验收。
+eltdx 每次用同一个 Git 标签发布 Rust 与 Python 包。`v3.4.0-beta.1` 对应 Cargo 的 `3.4.0-beta.1` 和 PyPI 的 `3.4.0b1`；正式版本号直接一致。原 `0.1.0` Rust 源码测试版和 `3.3.5` wheel 候选的历史记录见[统一验证](unified-validation.md)。
 
 | 产品或组件 | 候选版本 | 依赖关系与安装 |
 | --- | --- | --- |
-| Rust 业务 SDK `eltdx` | `0.1.0` | 用户通过 Cargo 消费；default 无扩展 feature；不依赖 Python |
-| `eltdx-protocol` | `3.3.5`，沿用 workspace 版本线 | runtime 与 SDK 精确依赖 `=3.3.5`；实际公开版本身份尚未核实 |
-| `eltdx-runtime` | `3.3.5`，沿用 workspace 版本线 | SDK 精确依赖 `=3.3.5`，runtime 同时依赖 protocol |
-| Python wheel/sdist `eltdx` | `3.3.5`，保持原版本来源 | PyO3 绑定依赖 SDK `=0.1.0` 和两个下层库 `=3.3.5`，构建后封入 wheel |
-| `eltdx-python` Cargo 绑定包 | `3.3.5`，`publish=false` | 用于 maturin 构建 Python 产品，不作为 Rust SDK 的生产依赖 |
+| Rust 业务 SDK `eltdx` | `3.4.0-beta.1` | 用户通过 Cargo 消费；不依赖 Python |
+| `eltdx-protocol` / `eltdx-runtime` | `3.4.0-beta.1` | Cargo 自动解析 SDK 精确依赖的下层包 |
+| Python wheel/sdist `eltdx` | `3.4.0b1` | 已编译的共享 Rust 核心封入 wheel |
+| `eltdx-python` Cargo 绑定包 | `3.4.0-beta.1`，`publish=false` | 仅用于 maturin 构建 Python 包 |
 
-内部依赖同时写 path 和 version。path 用于开发；归档规范化清单使用注册表版本。首次 SDK 使用 0.x；0.1.x 保留已文档化的稳定入口和行为，破坏兼容的公开改动必须升级 minor 并附迁移说明；隐藏的 `__python_compat` 不是 Rust 稳定接口。Python 产品的签名、默认值、模型、异常、hooks 和安装路径仍按原兼容合同维护，SDK 0.x 的版本变化不授权破坏 Python API。
+内部依赖同时写 path 和精确 version：path 用于开发，归档使用注册表版本。主项目版本由 Cargo workspace 管理；升版同步更新精确依赖和锁文件。测试版是用户主动选装的版本。Python 的公开用法按原兼容合同维护，`__python_compat` 是绑定实现细节。
 
 `eltdx`、`eltdx-protocol`、`eltdx-runtime` 于2026年11月17日11:43:52–53 UTC的实际crates.io查询均返回404，原响应/hash见stage126的registry-observation-attempt01；账号发布权尚未验证。注册表404只表示该时点查询未找到，不能证明命名权。若下层 `3.3.5` 已发布且内容与候选不同，必须选择新的下层版本并同步精确依赖；不能重新上传同版本或把注册表旧源码当作本地新代码。实际lock已于统一验证阶段解析并使用Rust1.89执行；lock及源码身份仍必须与每次验收候选对应。
 
@@ -37,17 +36,16 @@ python scripts/verification/rust_sdk_packages.py registry-observation --implemen
 python scripts/verification/rust_sdk_packages.py registry-consumer --implementation-complete --output /absolute/new-consumer-evidence
 ```
 
-三平台 archive consumer 已写入 `rust-sdk.yml` 的独立 job。无 Python 的纯 Rust 源码消费者与使用 Python 编排的归档内容验证是两个证据项。阶段140的正式发布已纳入当前目标；尚无可用的crates.io发布凭据，未执行实际上传。`eltdx-protocol` 已通过 `cargo +1.89.0 publish -p eltdx-protocol --dry-run --locked` 的标准归档编译门槛。正式发布按 `eltdx-protocol` → `eltdx-runtime` → `eltdx` 顺序进行；每次等公开索引可见，核对版本未撤回和归档内容后才继续。发布后用独立workspace、仅依赖 `eltdx = "=0.1.0"` 且无patch、path或目录源替换的consumer重新生成lock，确认三crate的来源及checksum均与公开索引匹配，再运行同一套业务流程。
+`Publish` 工作流支持从候选分支手动演练，不上传产物到公开注册表。推送与 workspace 版本匹配的 `v` 标签后，同一次运行构建并验证 Python wheel/sdist 和 Rust 归档，按依赖顺序发布 Rust 包，验证公开索引消费，再通过 PyPI Trusted Publishing 上传 Python 包。两端成功后才创建 GitHub Release；预发布标签不会成为项目的最新正式版。性能、生产抓包与外部线路验证另行记录。
 
 Stage152 的 Windows/Linux 归档比对确认，换行会改变许可证与原始清单的字节，使用本地目录源打包时还会改变上层包锁文件中下层归档的 checksum。正式发布使用一份固定 SHA、固定换行设置的干净检出，并从同一份检出运行发布前后字节校验。公开 registry 的 checksum 必须来自实际发布的归档，不得从本地模拟产物推定，不放宽已发布源码与许可证的逐字节身份校验。实测见[统一验证记录](unified-validation.md) Stage152。
 
 ## 首发与中断后续跑 { #initial-registry-release }
 
-1. 用获授权的 crates.io 账号在发布机运行 `cargo login`；不要把令牌放在命令参数、日志或聊天中。在固定换行的发布检出核对完整 SHA、干净状态和 `Cargo.lock`，并以新证据目录运行 `registry-observation`。核对已有包名的所有者和目标版本；404 只表示查询时未找到。
-2. 仅对当前待上传的包执行 `cargo +1.89.0 publish --registry crates-io --locked -p <crate>`。依次处理 `eltdx-protocol@3.3.5`、`eltdx-runtime@3.3.5`、`eltdx@0.1.0`。保存每次命令、结果和本次 Cargo 生成的 `.crate` 散列。等目标版本在公开索引可见，确认未撤回、下载归档的 SHA256 与索引相同，并核对归档 `src/` 和许可证与固定检出逐字节一致后，才继续下一个包。
-3. 如果上传报错、超时或进程中断，保留失败记录并先查询目标版本。已有同版本且归档身份一致时，从下一个待发布包续跑；若未出现，先确认上传结果和索引同步状态再重试。已存在的版本若身份不符、被撤回或所有权不符，停止发布链，核对版本与所有权；不要用替换源绕过。
-4. 三个版本都确认后，从同一份干净检出运行 `registry-consumer`。保存公开归档、独立项目的锁文件及消费者结果。源码消费者和本地归档消费者的通过记录仍单独保留。
+1. 在 GitHub Actions secrets 设置获授权的 `CARGO_REGISTRY_TOKEN`，首次发布需允许创建三个 crate。令牌不写入命令参数、文件或聊天。检查版本能否发布，404 只表示该时点未找到。
+2. 工作流上的 `registry-publish` 依次处理 `eltdx-protocol` → `eltdx-runtime` → `eltdx`。确认版本未撤回、归档散列与索引相同、源码和许可证与发布提交一致后，再继续。全部上架后用独立 Cargo 项目消费公开版本。
+3. 如果上传中断，先确认索引是否已经出现，再重跑同一个标签的失败工作流。已经存在的同版 Rust 归档只有在来源提交和源码一致时才会跳过；同版归档冲突停止发布，由维护者处理。两个注册表不能原子上传，所以 PyPI 失败时 Rust 包可能已经可用，GitHub 统一发布页会等 PyPI 完成。
 
 wheel 构建与消费 job 分开，消费只用 `--only-binary=:all: --no-index --find-links`，没有匹配 wheel 必须失败。普通 wheel 安装不要求 Rust；源码构建或缺少平台 wheel 时，开发者需要 Rust1.89+ 和 maturin。产物证据必须记录 Python版本、OS/架构、ABI/tag、wheel 文件名/hash、安装 native 文件 hash 及 candidate SHA。额外 MCP/HTTP 服务不是 SDK 默认依赖，需单独安装对应 Python extras。
 
-发布前冻结 source SHA、干净状态、真实 Cargo.lock、feature 集、工具链/镜像 digest、全部产物 hash、平台/兼容/压力证据及剩余限制。任何修复后重新产生候选和受影响证据。发布、tag、push 和合并仍是独立操作，本轮脚本只准备可审阅的产物与 dry-run。
+测试版可用候选分支提交发布；稳定版从合并到 `main` 的提交发布。每次保留标签、产物散列和验证记录，修复后使用新的测试版号。

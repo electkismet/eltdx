@@ -344,7 +344,7 @@ F10 不继承 HQ 自动重试；在没有接口幂等性和服务行为证据前
 
 先完成纯 Rust `cargo package` 和外部 consumer；原有 Python wheel/sdist 继续独立验证。还需在没有 rustc/cargo/maturin 的干净 Python 环境中用 `--only-binary=:all:` 安装已构建 wheel，执行非空 loopback 查询及 close，证明普通 Python 用户不需要构建工具链。内部 path 依赖补版本，发布顺序为 protocol→runtime→eltdx；bindings 不进入 Rust 用户依赖链。
 
-SDK 初始以 `0.x` 发布并注明稳定范围；不能把现有项目 3.3.5 等同于新 API 已成熟。底层 crate 和 Python 版本可保持既有节奏；版本矩阵明确绑定范围，Python PEP440 与 Cargo SemVer 预发布标签分别映射。最终版本号在发布候选任务中实际确认名称可用性后固定，文档不虚构 crates.io 占用状态。
+Python 包与 Rust SDK 共用项目版本，从同一个 Git 标签发布。预发布时，Cargo 的 `3.4.0-beta.1` 对应 Python 的 `3.4.0b1`；正式版的版本号直接一致。Rust API 的成熟度由测试版标记和已知限制说明。
 
 架构变更必须附带：影响范围、兼容判断、迁移方式、验证用例和需要更新的本文档集合。只涉及内部文件拆分且不改变契约的改动无需重做整份架构；公共类型、生命周期、重试、精度或默认行为变更必须重新审查。
 

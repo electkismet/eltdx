@@ -29,6 +29,7 @@ def inspect_workflow(*, disable_uploads: bool, disable_release: bool) -> dict:
     path = ROOT / ".github" / "workflows" / "publish.yml"
     text = path.read_text(encoding="utf-8")
     native = _job(text, "native-dist")
+    crates = _job(text, "crates-io")
     pypi = _job(text, "pypi")
     release = _job(text, "release")
     checks = {
@@ -37,11 +38,15 @@ def inspect_workflow(*, disable_uploads: bool, disable_release: bool) -> dict:
         "pypi_tag_gate_present": TAG_GATE in pypi,
         "pypi_environment_present": "name: pypi" in pypi,
         "pypi_depends_on_verified_native_artifacts": (
-            "needs: [native-dist, verify-release]" in pypi
+            "needs: [native-dist, verify-release, crates-io]" in pypi
         ),
+        "crates_tag_gate_present": TAG_GATE in crates,
+        "crates_depends_on_both_package_checks": "needs: [rust-dist, verify-release]" in crates,
         "pypi_trusted_publish_present": "pypa/gh-action-pypi-publish" in pypi,
         "release_tag_gate_present": TAG_GATE in release,
-        "release_depends_on_pypi": "needs: [native-dist, verify-release, pypi]" in release,
+        "release_depends_on_both_registries": (
+            "needs: [native-dist, verify-release, crates-io, pypi]" in release
+        ),
         "github_release_command_present": "gh release create" in release,
     }
     if not all(checks.values()):
@@ -54,7 +59,7 @@ def inspect_workflow(*, disable_uploads: bool, disable_release: bool) -> dict:
         "checks": checks,
         "uploads_disabled": True,
         "github_release_disabled": True,
-        "disabled_jobs": ["pypi", "release"],
+        "disabled_jobs": ["crates-io", "pypi", "release"],
         "commands_executed": [],
         "network_calls": 0,
     }

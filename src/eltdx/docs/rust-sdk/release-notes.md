@@ -1,6 +1,6 @@
-# Rust SDK 0.1.0 候选说明
+# Rust SDK 候选能力说明
 
-**状态：未发布、统一验证待开始。** 本页是候选变更说明，不是可用版本公告或性能结论。Python产品候选仍沿用3.3.5版本来源；新增SDK的0.1.0不要求Python用户安装第二个产品。
+本页描述候选能力和已知限制。当前 Python 与 Rust 统一测试版见 [v3.4.0-beta.1 发布说明](../releases/v3.4.0-beta.1.md)。历史验证记录按候选提交保存在 [统一验证](unified-validation.md)。
 
 ## 新增独立 Rust 产品
 
@@ -15,16 +15,14 @@
 
 标准Python入口按域接入同一Rust业务源码，公开Python类/属性/参数/返回模型和必要对象适配继续保留。原逐请求timeout、缓存identity、自定义transport/hook、异常context/cause、关闭后重开和文件append行为分别有合同。严格Rust规则不会自动改变Python默认。
 
-普通Python用户继续使用匹配wheel，不需要额外Rust工具；源码构建和缺少wheel的平台另列。完整兼容矩阵、真实安装与非空查询均未执行，不能在此提前宣布“完全不影响”。见[Python迁移](python-migration.md)。
+普通 Python 用户继续使用匹配 wheel，不需要额外 Rust 工具；源码构建和缺少 wheel 的平台另列。见 [Python 迁移](python-migration.md)。
 
 ## 候选交付与证据
 
-新增独立Rust和已安装wheel消费者、feature/MSRV/三平台矩阵、归档消费者、原生压力和固定语料新旧性能工具；每条实际记录应绑定source/lock/脚本/fixture/产物hash，复验重新读取原始日志。工具源码尚未运行，不预填速度提升、资源峰值或通过率。
+发布流程验证 Rust 归档与 Python wheel 安装。详尽的性能和生产证据按验证候选单独记录。
 
-SDK与下层库的版本、license/include、注册表身份和演练要求见[发布政策](release-policy.md)。本次没有发布、上传、tag、push或合并。新增SDK不改变仓库原有学习研究及非商业许可条件，使用前须阅读原LICENSE。
+SDK 与下层库的版本、许可及注册表身份见 [发布政策](release-policy.md)。新增 SDK 不改变仓库原有学习研究及非商业许可条件。
 
 ## 已知限制与不作承诺的范围
 
 MAC-EX没有经独立生产样本证明的默认登录规则；optional MAC setup的身份/顺序/fence不能从合成ACK推导。category22仍属实验；未知单位、涨跌停权威规则和未采样市场/profile保持显式未知。不承诺真实服务器长期可用、覆盖所有市场或零缺陷。
-
-当前依赖声明、lock、跨平台、Python兼容、包和压力性能仍需统一验收；首个源码候选不能替代这些结果。最终发布说明应补上实际候选SHA、工具链/平台、通过/失败/未运行项与证据位置；不存在的结果保持空缺，不删除已知限制。

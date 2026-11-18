@@ -3,7 +3,7 @@
 Packaging uses an isolated directory source for unpublished lower crates;
 archive consumption uses explicit local patches to their extracted contents.
 Registry consumption uses a fresh Cargo home and only published packages.
-No mode publishes, tags or pushes.
+Only the explicit registry-publish mode uploads to crates.io.
 """
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ def register_directory_package(unpacked: Path, archive: Path, vendor: Path) -> d
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("archives", "registry-observation", "registry-dry-run", "registry-consumer"))
+    parser.add_argument("mode", choices=("archives", "registry-observation", "registry-dry-run", "registry-consumer", "registry-publish"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--toolchain", default="1.89.0")
     parser.add_argument("--implementation-complete", action="store_true")
@@ -167,8 +167,8 @@ def main() -> None:
                                     "sha256": sha256(archive), "files": files})
         return unpack / expected_root
 
-    def registry_observation() -> None:
-        for name in CRATES:
+    def registry_observation(names: tuple[str, ...] = CRATES) -> None:
+        for name in names:
             url = "https://crates.io/api/v1/crates/" + name
             request = urllib.request.Request(url, headers={"User-Agent": "eltdx-candidate-verifier/0.1 (https://github.com/electkismet/eltdx)"})
             try:
@@ -180,7 +180,7 @@ def main() -> None:
                 status, body = error.code, error.read(4 * 1024 * 1024 + 1)
             if len(body) > 4 * 1024 * 1024:
                 raise RuntimeError("Registry response exceeds evidence bound")
-            raw = output / (name + "-registry.json")
+            raw = output / f"{len(report['registry']):02d}-{name}-registry.json"
             raw.write_bytes(body)
             record = {"name": name, "url": url, "http_status": status, "raw": raw.name,
                       "sha256": sha256(raw), "observed_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
@@ -194,10 +194,10 @@ def main() -> None:
             record["limitation"] = "Read-only observation; does not prove naming rights, publish authorization or candidate source identity."
 
     def published_identity(names: tuple[str, ...], identity: Path) -> dict[str, str]:
-        identity.mkdir()
+        identity.mkdir(exist_ok=True)
         checksums = {}
         for name in names:
-            record = next(entry for entry in report["registry"] if entry["name"] == name)
+            record = next(entry for entry in reversed(report["registry"]) if entry["name"] == name)
             matches = record.get("matching_versions", [])
             if len(matches) != 1 or matches[0]["yanked"]:
                 raise RuntimeError("Candidate is not a unique unyanked registry version: " + name)
@@ -223,6 +223,11 @@ def main() -> None:
                                  for path in (published / "src").rglob("*") if path.is_file()}
             if candidate_sources != published_sources:
                 raise RuntimeError("Published version contains different source; choose a new version: " + name)
+            if args.mode == "registry-publish":
+                vcs = json.loads((published / ".cargo_vcs_info.json").read_text(encoding="utf-8"))
+                if (vcs["git"]["sha1"] != report["source_sha"] or vcs["git"].get("dirty")
+                        or vcs["path_in_vcs"] != "crates/" + name):
+                    raise RuntimeError("Published version was not built from this release commit: " + name)
             record["candidate_source_identity"] = "exact-src-file-bytes-and-license"
             checksums[name] = checksum
         return checksums
@@ -291,6 +296,22 @@ def main() -> None:
                     raise RuntimeError("Every internal dependency needs path and version: " + name)
         if args.mode == "registry-observation":
             registry_observation()
+        elif args.mode == "registry-publish":
+            if not environment.get("CARGO_REGISTRY_TOKEN"):
+                raise RuntimeError("Set CARGO_REGISTRY_TOKEN using the release secret before publishing")
+            registry_observation()
+            checksums = {}
+            for name in CRATES:
+                record = next(entry for entry in report["registry"] if entry["name"] == name)
+                if not record.get("matching_versions"):
+                    cargo(["publish", "-p", name, "--registry", "crates-io", "--locked"])
+                    for _ in range(6):
+                        registry_observation((name,))
+                        if report["registry"][-1].get("matching_versions"):
+                            break
+                        time.sleep(5)
+                checksums.update(published_identity((name,), output / "published"))
+            consume_registry(checksums)
         elif args.mode in ("registry-dry-run", "registry-consumer"):
             registry_observation()
             if args.mode == "registry-dry-run":

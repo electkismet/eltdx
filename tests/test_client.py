@@ -40,7 +40,9 @@ def local_probe_results(tmp_path, monkeypatch):
 
 
 def test_version_is_defined() -> None:
-    assert __version__ == "3.3.5"
+    from scripts.verification.check_release_metadata import TARGET_PYTHON_VERSION
+
+    assert __version__ == TARGET_PYTHON_VERSION
 
 
 def test_packaged_server_hosts_load_from_json() -> None:

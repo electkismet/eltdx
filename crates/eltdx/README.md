@@ -1,9 +1,8 @@
 # eltdx Rust SDK
 
-Candidate version **0.1.0**, Rust **1.89.0** or later, edition 2021.
-This source candidate has not yet been compiled, tested or published. The
-`eltdx` registry name and version availability are unverified. The repository's
-non-commercial learning and research [LICENSE](LICENSE) applies to this crate.
+Rust **1.89.0** or later, edition 2021. The Rust SDK and Python package share
+the eltdx project version. The repository's non-commercial learning and research
+[LICENSE](LICENSE) applies to this crate.
 
 Rust applications depend on this crate and do not install Python, PyO3, pip or
 maturin. Python users continue to install their separate `eltdx` wheel; a
@@ -11,7 +10,7 @@ supported prebuilt wheel does not require the user to install Rust tools.
 
 ```toml
 [dependencies]
-# Until registry acceptance, use the candidate checkout's absolute path.
+# For development from a local checkout:
 eltdx = { path = "/absolute/candidate/crates/eltdx" }
 ```
 
@@ -53,8 +52,7 @@ is supplied. Synthetic fixture rules only exercise authored contracts.
 
 Examples require explicit server addresses and close clients on error paths.
 `hq_query` uses the default features; `ex_query` needs `ex`;
-`financial_read` and `financial_download` need `offline`. Their compilation and
-execution remain pending in the candidate validation matrix.
+`financial_read` and `financial_download` need `offline`.
 
 `measure_candidate` also needs `offline` and is a measurement worker for the
 fixed-fixture performance collector, with an explicit implementation-complete
@@ -63,7 +61,4 @@ verification, after the whole implementation source gate and correctness runs.
 
 Repository documentation lives in `docs/rust-sdk/`: architecture, public API,
 compatibility decisions, verification, source inventories and release policy.
-Start with `user-guide.md`, `python-migration.md`, and `final-acceptance.md`;
-`maintenance.md` explains recovery and evidence invalidation. The same guides
-are available through the repository documentation site's Rust SDK navigation.
-Only recorded execution evidence may promote this candidate to a usable release.
+Start with `user-guide.md` and the release notes for the version you install.

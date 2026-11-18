@@ -9,13 +9,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TAG_PATTERN = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+(?:(?:a|b|rc)[0-9]+)?")
+TAG_PATTERN = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+(?:-(?:alpha|beta|rc)\.[0-9]+)?")
 FORBIDDEN_MARKERS = ("TODO", "FIXME", "TBD", "PLACEHOLDER")
 
 
 def prepare(tag: str, output: Path) -> None:
     if TAG_PATTERN.fullmatch(tag) is None:
-        raise ValueError("tag must be a normalized v-prefixed PEP 440 release")
+        raise ValueError("tag must match the v-prefixed Cargo release version")
     source = ROOT / "docs" / "releases" / f"{tag}.md"
     if not source.is_file():
         raise FileNotFoundError(f"release notes do not exist for {tag}: {source}")
