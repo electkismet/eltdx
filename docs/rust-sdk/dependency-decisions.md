@@ -22,7 +22,17 @@ boundaries, informational heads and body exclusion have dedicated unit sources,
 and the public over-limit fixture's final diagnostic run passed. The complete
 HTTP matrix, platform behavior and dependency licenses still require execution.
 
-## ZIP and CRC — T17, provisional source selection
+## ZIP and CRC — T17 decision
+
+[Stage178](unified-validation.md#stage178-zip-decision) verified the selected
+`zip 0.6.6` and `crc32fast 1.5.0` archive checksums and license files against
+the frozen candidate. Their published manifests declare Rust 1.59.0 (MIT)
+and Rust 1.63 (MIT OR Apache-2.0), respectively. The locked HQ-only tree on
+Rust 1.89 shows `zip/deflate` and `flate2/rust_backend`. The same candidate's
+Linux `stats` and `financial` logs record the archive boundary tests, including
+deceptive claimed sizes and limits on actual expansion. This decision covers
+these two direct dependencies and their use in this SDK; it is not a general
+dependency advisory or license audit.
 
 The default HQ SDK uses one private decoder, `archive::decode_selected`, for
 statistics and financial archives. Cargo source declares exact workspace
@@ -32,28 +42,14 @@ does not require the optional offline or F10 feature. The existing flate2 Rust
 backend is reused by the selected ZIP dependency; no independent inflater or
 filesystem extraction was added.
 
-This is a **provisional, unverified dependency choice**. The local sparse record
-read during Stage A declares zip MSRV 1.59.0 (workspace 1.89), an unyanked
-0.6.6 entry, and checksum
-`760394e246e4c28189f19d488c058bf16f564016aefac5d32bb1f3b51d5e9261`.
-Its dependency ranges admit existing flate2 1.1.2 and crc32fast 1.5.0. Expected
-license identifiers are MIT for zip and MIT OR Apache-2.0 for crc32fast; exact
-license files, advisory state, transitives, target MSRV and APIs have not yet
-been verified. No registry resolution, downloads, lockfile regeneration,
-compilation or runtime checks have run. Cargo.lock must be resolved and all
-requirements verified at the final T01–T30 validation gate before release
-readiness can be claimed. A rejected dependency will be replaced at that gate
-without weakening the archive limits or introducing a second decoder.
-
 The structural preflight precedes library directory allocation. It admits a
 bounded classic Store/Deflate subset, validates central/local declarations and
 descriptors, and rejects duplicate raw names, encryption, ZIP64, spanning,
 overlapping records and unlisted local data. Streaming checks actual expanded
 counts and independently accumulates CRC for every member, including members
 not selected for delivery. An operation-supplied boundary is checked between
-bounded work units. Library deflate EOF/trailing-byte behavior, interoperability
-with independent archives, CRC, malformed streams and limits all await final
-validation; authored source cases are not evidence of passing behavior.
+bounded work units. The behavior evidence is tied to the test inputs and
+assertions recorded in Stage167 and Stage178.
 
 | Consumer | Compressed | Entries | Expanded per member | Expanded total |
 | --- | ---: | ---: | ---: | ---: |

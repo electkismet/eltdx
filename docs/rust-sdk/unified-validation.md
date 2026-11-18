@@ -521,3 +521,9 @@ R02 的迁移目录和样本库存自 Python 五版本矩阵候选至冻结发�
 从 macOS CI 归档报告确认 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的三个 `.crate` 并核对散列。在仓库外创建空 Cargo home 和独立消费者，不继承 Cargo 配置、缓存或工作区锁；仅把三个尚未发布的 ELTDX crate patch 到上述归档解包目录。Windows x64 上用 Cargo 1.89.0 从 crates.io 重新 `generate-lockfile`，确认 164 个第三方包均带 crates.io 来源和 checksum，随后 `cargo +1.89.0 check --locked --all-features` exit 0。新消费者锁 SHA256 `2738db59de7442f1199ede8e7d9bb70cd613faead4ff92915148e9b78e2d1b8f`。
 
 这验证了当时公开索引的第三方依赖选择在 Windows 上没有阻断 Rust 1.89 全功能编译。三个候选 crate 仍来自本地归档，真实发布、无 patch 锁文件身份和业务场景仍按发布政策单独验收。脚本、消费者 manifest/lock 和日志见 `artifacts/unified/stage177-fresh-resolution-attempt01/`，`result.json` SHA256 `9b16a99c1fa6c7427b2c2ea015920287482c9a74b24df749722d2b2075917818`。
+
+## Stage178：T17 ZIP 依赖选型验收 { #stage178-zip-decision }
+
+在冻结候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 上，将 Stage177 从 crates.io 下载的 `zip 0.6.6`、`crc32fast 1.5.0` 归档 SHA256 与锁定值核对，检查归档内许可证与 manifest 的 MSRV 声明。Rust 1.89 的 `cargo tree --locked -p eltdx --no-default-features -e normal,build,features` 复核了 ZIP `deflate` 和 flate2 `rust_backend` 路径。两份原始归档、许可证文本和依赖树保存在 `artifacts/unified/stage178-t17-zip-attempt01/`。
+
+Stage167 的同候选 Linux stable 原始日志和退出码已核对。`stats` 和 `financial` 的七条具名用例覆盖重复条目、加密、CRC、截断、压缩大小、伪报尺寸后的实际展开限制、精确边界及公开统计入口的非空解码。日志行号和 SHA256 见 `verified.json`（SHA256 `ec11414d332c383225de470b8189122070d53879fe6f688611ed4457a99238b3`）。据此完成 T17 的 ZIP 选型条目；没有重跑整套测试，也未扩大为全依赖审计或生产协议证明。

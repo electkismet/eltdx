@@ -1279,3 +1279,7 @@ Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化�
 ## Stage177：公开第三方依赖的全新解析
 
 从冻结候选 `6a6cd8b` 的 macOS CI 归档取三个本地包，以空 Cargo home 在 Windows/Rust 1.89 的独立工程生成新消费者锁。确认 164 个第三方包来自 crates.io；`check --locked --all-features` 通过。归档、日志及锁见 `artifacts/unified/stage177-fresh-resolution-attempt01/result.json`。三个 ELTDX 本地 patch 只为探测当前第三方依赖的 MSRV；未替代正式发布或无 patch 消费。
+
+## Stage178：T17 ZIP 选型条目闭合
+
+核对公开归档和冻结候选依赖锁、两份许可声明与三份许可证文件、Rust 1.89 的仅 HQ feature 树，以及同候选 Stage167 的七条具名归档行为用例。完成 T17 的 ZIP 选型条目，保留具体证据在 `artifacts/unified/stage178-t17-zip-attempt01/`。没有改动运行时或发布候选；仍待凭据、国内跨日窗口及缺少的生产原始记录。
