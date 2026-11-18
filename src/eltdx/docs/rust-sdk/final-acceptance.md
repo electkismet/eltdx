@@ -19,7 +19,7 @@
 | 要求 | 实现与源码交接 | 验证入口/核心观察 | 达成所需证据 |
 | --- | --- | --- | --- |
 | R01 两产品独立安装 | `crates/eltdx`；两个 `tests/consumers`；[T28索引](t28-verification-index.md) | 三 crate 归档和 11 种解包 Rust consumer；Stage169 无 Python 的 Rust 消费与 Stage166 五平台十组 wheel 消费都绑定 `6a6cd8b`，含两个原生 Linux 架构的无编译工具镜像 | 公开 registry 身份及无 patch 消费仍待实际发布后验证 |
-| R02 共用Rust业务 | HQ/F10/offline/EX/MAC桥接；[HQ](hq-implementation-index.md)、[T23](t23-migration-index.md)、[T27](t27-migration-index.md) | 旧Python样本/黄金输出、新Python native bridge、独立Rust结果；custom hook合同 | 完整能力清单逐项实际node/fixture/差异及结果；两端都调用新算法的比较不能充当独立oracle |
+| R02 共用Rust业务 | HQ/F10/offline/EX/MAC桥接；[HQ](hq-implementation-index.md)、[T23](t23-migration-index.md)、[T27](t27-migration-index.md) | [Stage173](unified-validation.md#stage173-migration-evidence) 将 124 条目录记录和 8 组补充映射中的 341 个 Python、68 个 Rust 具名节点对到实际通过记录，并逐份核实样本来源 | 用例通过只覆盖其实际断言；旧版黄金数据、当前双入口对照、独立协议推算分别使用，不互作替代 |
 | R03 owner/pin/pending | SDK session/operation，runtime engine/slot；任务T05–T07 | `lifecycle.rs`、`operation.rs`、runtime `pin_handoff.rs`；并发close/Drop与未确认清理 | 每个请求唯一归属和终态；旧generation迟到事件不能串线；超时不提前核销未回收资源 |
 | R04 整次期限 | operation sponsor/authorization，metadata与各组合服务 | runtime `deadline.rs`、SDK `operation.rs`、F10/扩展fixture；Python逐请求对照 | startup/queue/metadata/page/retry都消耗同一原始Rust期限；Python原逐页策略不被缩短；清理期限另报 |
 | R05 metadata隔离 | SDK metadata/context，显式精度快照与取消赞助 | `metadata.rs`、`precision_isolation.rs`、多owner与等待者取消 | 不跨client/源污染，不因单个waiter取消终止其他赞助者，不在失败时发布部分metadata |

@@ -472,3 +472,11 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 使用 Stage167 已保留的 `full.log` 核实 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 和原运行退出码、日志 SHA256，然后按 R03–R10 提取各目标的外层测试汇总与具名结果。去重后 40 个测试目标、411 条通过、0 条忽略。`artifacts/unified/stage172-target-audit-attempt02/verified.json`（SHA256 `ba2378f1607923c6b85d2ac3afb488aac740068bbaf02e669ac37208b81295ab`）保留对应关系和节点。首轮提取遇到 F10 子进程输出与父测试交错，未找到 `f10_http`；第二轮按目标边界和外层汇总核对。此项读取既有 Linux stable / `eltdx/full` 日志，未重跑矩阵，也不推定每一种单独 feature 命令或生产协议已验证。
 
 2026-11-18 00:01 UTC，Linux 云端 Box 对既有两台 MAC-EX 主站各尝试一次标准连接，两次均立即返回 `Errno 101`（网络不可达），未发送登录请求、未接收协议帧。`artifacts/unified/stage172-cloud-mac-ex-attempt01/capture.json` 原件 SHA256 `0202771d75659a60a2dde87a412e0ed36601bbac0bf9e022227add12c8084e8f`，已与云端逐字节核对。这次结果不计作登录拒绝或跨网成功样本。后续使用可直连主站的国内网络，在 UTC+8 服务端日期换日后补采一次；独立线路样本也要求实际可直连。
+
+## Stage173：迁移目录的实际用例与样本来源 { #stage173-migration-evidence }
+
+R02 的迁移目录和样本库存自 Python 五版本矩阵候选至冻结发布候选无变化。读取 Stage136 CPython 3.12.6 的 local、loopback、golden 三份原始 JUnit（Python 候选 `e2b8819c4729de28f0472ecbe743b0c2e100872f`），以及 Stage167 Linux stable 的 full 原始日志（Rust 候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e`），校验各原件散列、Python 实际计数和 Rust 退出码。把迁移清单 124 条目录记录、8 组补充映射的具名测试引用逐个对到实际通过记录：去重后 Python 341 个、Rust 68 个，无未匹配的具名引用；Python 参数化的已执行实例另有明细。只列文件或源码的映射不在此计数中。
+
+核对 fixture 库存的实际文件散列和来源：37 份旧黄金样本均是 Python 回归基线，历史输出可检查回归，不能证明协议字段正确。7 份补充样本中，`COMP-052` 与 `COMP-056` 的预期值来自独立协议推算，其余为冻结 Python 合同或协议回归输入。当前两个语言入口共用算法的比对只证明该用例覆盖的行为一致，无独立预期的字段不能由此确认。
+
+`artifacts/unified/stage173-r02-audit-attempt01/` 保存 `audit.py`、`run.log` 与逐行 `verified.json`（SHA256 `50fbf17e7f3b93e044e47a3bb1a0ed2cc95eacb9ab8bf2a8b41ff8d2dbc02c30`）。本次未改变迁移清单、Python 公开行为或发布候选，也未重跑原矩阵。正式注册表和待补的国内生产样本均不受本次用例核对影响。

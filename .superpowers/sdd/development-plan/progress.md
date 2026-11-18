@@ -1259,3 +1259,7 @@ Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化�
 ## Stage172：落实验收节点与国内网络条件
 
 原始冻结候选 Linux stable 日志中 R03–R10 对应 40 个去重目标、411 条具名测试通过、0 条忽略，见 `artifacts/unified/stage172-target-audit-attempt02/verified.json`。首轮复核被 F10 子进程交错输出影响，未变更原日志。云端 Box 两次连接均因 `Errno 101` 未到达主站，原件在 `artifacts/unified/stage172-cloud-mac-ex-attempt01/capture.json`。按用户指示不再把该 Box 用于国内行情取证；本机已验证的国内线路负责 UTC+8 跨日采样，独立线路另取可直连环境。此次不算服务端拒绝；发布和未满足的生产项保持待验收。
+
+## Stage173：R02 实际用例和独立预期值追溯
+
+`artifacts/unified/stage173-r02-audit-attempt01/verified.json` 对 124 条目录记录和 8 组补充映射逐条关联已执行具名引用：Python 341 个、Rust 68 个，无未匹配引用。核对三份 Stage136 Python 3.12 JUnit、Stage167 冻结候选 Rust full 日志和 fixture 文件散列。旧黄金样本 37 份仅为回归基线，补充样本仅 COMP-052、COMP-056 标记为独立协议推算。未改动冻结候选和源清单，不扩大生产结论。本机仍无发布凭据；UTC+8 尚未换日，国内 MAC-EX 跨日采样未发起。
