@@ -49,7 +49,7 @@ HTTP连接driver拥有socket，所有结果路径都drop sender并abort+await dr
 
 精确版本、feature、归档许可证、声明的 MSRV 和实测工具链见[依赖决策](dependency-decisions.md)。Stage179 在 Windows/Rust 1.89 仅启用 `f10` 执行 HTTP 目标；Stage166、Stage167 的 macOS 和 Linux 结果来自 `full`。三平台分别检查默认生产依赖、F10 的 normal/build 及含 dev 的闭包。`rcgen` 仅在 dev 闭包中，默认 HQ 不含 HTTP/TLS/DNS 栈。
 
-系统 DNS 配置和 native roots 加载仍是已登记 worker 内的本地同步 OS 调用；调用超出清理期限时会报告未确认清理，并保留 worker 责任。回环用例实测了显式 DNS、自定义证书、代理、SNI、证书拒绝和回环 IPv6 回退。Stage163 的 Windows 默认 `http://static.tdx.com.cn:7615/TQLEX` 查询走系统 DNS 并得到非空结果。该查询不执行 TLS；三平台实际系统证书库导入，以及 Linux/macOS 的系统 DNS 配置行为，仍需独立运行证据。回环 IPv6 也不证明生产 IPv6 路由可用。
+系统 DNS 配置和 native roots 加载仍是已登记 worker 内的本地同步 OS 调用；调用超出清理期限时会报告未确认清理，并保留 worker 责任。回环用例实测了显式 DNS、自定义证书、代理、SNI、证书拒绝和回环 IPv6 回退。[Stage182](unified-validation.md#stage182-system-tls-probe) 在 Windows 和 Linux WSL2 验证了默认系统 DNS、证书库和公开 HTTPS 握手。macOS 的系统 DNS 和证书库路径待实测。Stage163 的 Windows 默认 HTTP 查询给出了非空生产 F10 结果，不执行 TLS；回环 IPv6 也不证明生产 IPv6 路由可用。
 
 变更传输或依赖后，按影响范围复验：
 

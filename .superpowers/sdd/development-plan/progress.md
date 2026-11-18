@@ -1295,3 +1295,7 @@ Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化�
 ## Stage181：T19 依赖与回环证据
 
 在冻结候选 `6a6cd8b` 上核对 Windows/Linux/macOS 九份依赖树、13 个直接依赖归档与许可原件，以及四份原始日志各 27 个具名用例。关闭 T19 本地传输和依赖选型条目。三平台实际系统证书库、Linux/macOS 系统 DNS 仍需针对性证据。`artifacts/unified/stage181-t19-f10-attempt01/verified.json` 保留证据定位。后续行情样本沿用国内直连，境外 Box 不用于该项；MAC-EX 跨日样本仍需服务端北京时间换日。本机尚无发布凭据，未上传任何 crate。
+
+## Stage182：Windows 和 Linux 系统 DNS、证书库实测
+
+冻结候选 `6a6cd8b` 的独立 F10 探针经 Windows 和 Linux WSL2 系统 DNS、系统证书库成功协商公开 TLS 并关闭。保存 Linux 首次进程因证书覆盖变量在联网前退出以及同二进制的复验。`artifacts/unified/stage182-system-tls-attempt01/verified.json` 完整绑定命令和散列；macOS 系统 DNS 和证书库待实测。该探针不依赖国内行情网络，不改变发布或生产验收状态。

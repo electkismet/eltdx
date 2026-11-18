@@ -104,7 +104,7 @@ F10 16MiB 是本提案给新 Rust 的保护默认值，不是服务器协议上�
 | --- | --- | --- | --- |
 | E01 | 涨跌停的3套规则冲突；不能选任意一套称权威。新Rust无已审核证券/日期规则时返回未知 | 有效日期、证券类别、ST/上市阶段和交易所原规则的来源；边界样本 | T03、T16 |
 | E02 | category22有parser但缺非空实测，不作为稳定历史资金流入口 | 非空capture、请求参数、字段单位/日期与独立核验 | T02；稳定历史仍走F10 |
-| E03 | [T19 依赖与本地 HTTP 矩阵已核对](unified-validation.md#stage181-f10-dependency-decision)；保留配置化的解码上限 | 生产大响应适配、三平台实际系统证书库导入及 Linux/macOS 系统 DNS 各需运行证据 | T19 / 生产验收 |
+| E03 | [T19 依赖与本地 HTTP 矩阵已核对](unified-validation.md#stage181-f10-dependency-decision)；[Windows 和 Linux WSL2 系统 TLS/DNS 已实测](unified-validation.md#stage182-system-tls-probe)；保留配置化的解码上限 | 生产大响应适配及 macOS 系统证书库和 DNS 尚缺实测 | T19 / 生产验收 |
 | E04 | ZIP库尚未验证 | stats与财报独立语料、CRC/重名/加密/超量/截断的实际结果 | T17先完成，T22扩展 |
 | E05 | crate名称、版本、注册表发布链未确认 | 实际注册表查验、manifest版本关系及独立consumer | T29 |
 | E06 | 新DTO/serde格式未编译验证 | Rust类型定义、字段含义、unknown/nonfinite/bytes编码的roundtrip和编译结果 | 各域及T28 |

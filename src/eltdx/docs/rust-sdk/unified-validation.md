@@ -558,3 +558,9 @@ Stage167 的同候选 Linux stable 原始日志和退出码已核对。`stats` �
 原始日志按候选 SHA、命令退出码和散列复核：Stage179 Windows 1.89（仅 F10）、Stage167 Linux stable（full）、Stage166 macOS ARM64 1.89 和 stable（full）各命中源码中的 27 个具名 HTTP 用例，零失败或忽略。按具名断言闭合 T19 的回环、限额与编码条目，未重跑既有矩阵。Stage163 的默认 HTTP 生产查询另提供 Windows 系统 DNS 成功样本。三平台系统证书库实际加载、Linux/macOS 系统 DNS 和生产 IPv6 不由本次回环结果推定。
 
 证据在 `artifacts/unified/stage181-t19-f10-attempt01/`，`verified.json` SHA256 `c57f63b18a588ec9004e9eb8dc529e4c0706ae9cbcb7cb125ae0813b0b3b7a09`。前两次证据提取失败来自日志识别：Windows 目标边界、Linux 父子进程输出交错。第三次在目标内按用例名和外层通过汇总核对成功，原测试日志未改。候选源码与锁未变。行情主站后续取证使用已验证可直连的国内网络；Stage172 的境外 Box 网络不可达，该次尝试无协议响应，也无法验证独立国内线路。
+
+## Stage182：F10 默认系统 DNS 与证书库握手 { #stage182-system-tls-probe }
+
+独立消费者仅启用 `f10`，直接依赖 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的源码，复用 Stage163 消费者锁进行 `--locked --offline` 构建。探针显式断言默认 `ResolverPolicy::Bounded` 和 `TlsPolicy::SystemRoots`，用 `F10Client::connect` 对 `https://index.crates.io/` 只做 DNS、TCP 和 TLS 握手，再关闭客户端。Windows x64/Rust 1.89 成功。Linux WSL2 x64/Rust 1.100 首次构建成功，但 Cargo 启动的进程检测到证书路径环境覆盖，在连接前退出 1；仅在复验子进程中去掉相应变量，直接运行同一次构建的二进制，握手与关闭成功。未修改操作系统证书或 DNS 设置。
+
+原始命令、输入和两次 Linux 日志保存在 `artifacts/unified/stage182-system-tls-attempt01/`，`verified.json` SHA256 `42ab699515fd6b78620fbf61ab60d0607aaa6911996068d2238e84ac008e2d51`。本次为两种系统默认路径的实测，未发送 HTTP 业务请求，未验证 macOS、国内行情连通性、ELTDX 公开包消费或其他生产路由。
