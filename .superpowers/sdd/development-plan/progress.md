@@ -1283,3 +1283,7 @@ Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化�
 ## Stage178：T17 ZIP 选型条目闭合
 
 核对公开归档和冻结候选依赖锁、两份许可声明与三份许可证文件、Rust 1.89 的仅 HQ feature 树，以及同候选 Stage167 的七条具名归档行为用例。完成 T17 的 ZIP 选型条目，保留具体证据在 `artifacts/unified/stage178-t17-zip-attempt01/`。没有改动运行时或发布候选；仍待凭据、国内跨日窗口及缺少的生产原始记录。
+
+## Stage179：开发计划指定的默认 HQ、F10 和底层命令
+
+冻结候选 `6a6cd8b` 在 Windows/Rust 1.89 完成 24 个 SDK 测试目标、217 条通过，另有 runtime/protocol 指定范围 50 条通过，零失败、零忽略。默认生产依赖树核对无 Python 绑定及 F10 HTTP 栈。将实际运行记录回填 T04–T20 对应条目，完整 runtime 与 Linux 生命周期继续引用 Stage167。日志与散列见统一验证记录 Stage179；订阅在线、域级生产取证和正式发布仍单列。候选源码未变。

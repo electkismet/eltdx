@@ -527,3 +527,16 @@ R02 的迁移目录和样本库存自 Python 五版本矩阵候选至冻结发�
 在冻结候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 上，将 Stage177 从 crates.io 下载的 `zip 0.6.6`、`crc32fast 1.5.0` 归档 SHA256 与锁定值核对，检查归档内许可证与 manifest 的 MSRV 声明。Rust 1.89 的 `cargo tree --locked -p eltdx --no-default-features -e normal,build,features` 复核了 ZIP `deflate` 和 flate2 `rust_backend` 路径。两份原始归档、许可证文本和依赖树保存在 `artifacts/unified/stage178-t17-zip-attempt01/`。
 
 Stage167 的同候选 Linux stable 原始日志和退出码已核对。`stats` 和 `financial` 的七条具名用例覆盖重复条目、加密、CRC、截断、压缩大小、伪报尺寸后的实际展开限制、精确边界及公开统计入口的非空解码。日志行号和 SHA256 见 `verified.json`（SHA256 `ec11414d332c383225de470b8189122070d53879fe6f688611ed4457a99238b3`）。据此完成 T17 的 ZIP 选型条目；没有重跑整套测试，也未扩大为全依赖审计或生产协议证明。
+
+## Stage179：开发计划指定的默认 HQ、F10 和底层命令 { #stage179-plan-commands }
+
+从干净的 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 检出，在 Windows x64、Rust 1.89.0 执行开发计划所列的窄范围命令。使用 `--locked --offline`，沿用 Stage174 的编译缓存；所有测试程序在本轮实际运行。执行前后锁文件 SHA256 均为 `214eecd8f24fd6c3a2bafc519087e608e0cb2df4fa9c409db33bfba19c475143`。
+
+| 命令范围 | 通过数 | 证据 |
+| --- | ---: | --- |
+| 默认 SDK：配置、生命周期、操作、精度、元数据和单位、目录和报价、K 线和分钟、逐笔和竞价及资金流、订阅、复权和日历及限价、资源和统计及 HQ 回环 | 161 | T04、T07–T11、T13–T17，21 个目标 |
+| 仅 F10：HTTP、结果及路由 | 56 | T19–T20，3 个目标 |
+| runtime `pin`、runtime `deadline` 集成目标、protocol `context` | 50 | T05、T06、T09，分别 27、5、18 条；两个名字过滤器保留实际过滤数 |
+| 默认 SDK 的 `cargo tree --edges normal,build` | 不适用 | T04，树中没有 Python 绑定或 F10 的 Hyper/Hickory/rustls |
+
+原始日志及命令退出码见 `artifacts/unified/stage179-plan-commands-attempt01/result.json`（SHA256 `297e036010ca2090a2d9e4c47fc211d378ece12655f5f975e7ad0a2024330d36`）及 `artifacts/unified/stage179-lower-plan-attempt01/result.json`（SHA256 `9a05ff82ddd704e1f2b1333ad1bed01ed386ef7b876ad065e2aa11247db06d83`）。日志散列均已复算。Stage167 另保留同候选 Linux 的完整 runtime 136 条及同一组生命周期 3 条结果。订阅证据仅覆盖本地行为；真实 1000 证券在线观察单列，未在公开主站发起。

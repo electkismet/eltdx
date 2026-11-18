@@ -124,7 +124,7 @@ P3 与 P4 可由不同人员并行；公共类型、owner 和 operation 的修�
 - [ ] 测试默认 `build()`、clone、未启动 close 和第二次 close；不得依赖真实主机。
 - [ ] 实现验证后私有字段、窄枚举和 `#[non_exhaustive]` 错误种类；不得暴露 `python_kind` 给新 SDK。
 - [ ] 定义最低依赖和 feature 表；基础 crate 默认不拉 PyO3 或 HTTP。默认 HQ 所需内部 ZIP 解码在 T17 经验证后加入，不依赖公开 offline feature。
-- [ ] 运行 `cargo test -p eltdx --test config --locked`、`cargo tree -p eltdx --edges normal,build --locked`。
+- [x] `cargo test -p eltdx --test config --locked`、`cargo tree -p eltdx --edges normal,build --locked`：[Stage179](unified-validation.md#stage179-plan-commands) 在冻结候选通过 13 条配置用例，并核对默认生产依赖树。
 
 最小测试形状（对应类型落地后执行）：
 
@@ -149,7 +149,7 @@ fn build_and_close_without_network() -> eltdx::Result<()> {
 - [x] 为“先成功后取消”“先取消后成功”“成功发送失败”“PendingPin 未 wait 就 drop”及失败结果交付竞态编写源码用例。
 - [x] 源码断言成功 grant 只有一个所有者，释放后 active leases=0；取消/未交付后归零，后续 pin 可重新取得且重复 release 无效。
 - [x] 为 pending request 丢弃添加非阻塞取消登记；源码覆盖取消确认超时触发现有 fail-closed 路径，并避免把成功结果误认为仍在执行。
-- [ ] 运行 `cargo test -p eltdx-runtime pin --locked` 和完整 runtime 测试；评审不得破坏原 FIFO/fencing。
+- [x] `cargo test -p eltdx-runtime pin --locked`：Stage179 通过 27 条；Stage167 的 Linux 完整 runtime 运行通过 136 条单元及集成用例，含 FIFO/fencing 回归。
 
 ### T06：增加原始回复与绝对执行期限
 
@@ -161,7 +161,7 @@ fn build_and_close_without_network() -> eltdx::Result<()> {
 - [ ] 新路径不得提前调用旧全局精度 parser；原始回包包含请求/epoch/slot/generation/host上下文。
 - [ ] 检查 raw reply 交付、丢弃和 parse error 后的预算释放，故障不得留存 lease。
 - [ ] 旧 typed execute 使用共同原始执行机制后调用旧 parser，避免两套调度器。
-- [ ] 运行 `cargo test -p eltdx-runtime --test deadline --locked` 和原有 close/retry/memory 回归。
+- [x] `cargo test -p eltdx-runtime --test deadline --locked`：Stage179 通过 5 条；原有 close/retry/memory 回归见 Stage167 完整 runtime 日志。
 
 ### T07：SDK owner 与关闭状态机
 
@@ -174,7 +174,7 @@ fn build_and_close_without_network() -> eltdx::Result<()> {
 - [ ] 正常Rust首次 close 创建 owner 级绝对 shutdown deadline；停止 admission、订阅、各专用池仅使用剩余预算，并发 closer 不重置期限。确认退出后才成功；错误时保留诊断和后续清理机会。Python兼容按原域顺序/独立预算触发分域gate，不提前全局封闭；COMP-013的阶段间并发与首错后可用域须先录制旧基线。
 - [ ] 测试 close 期间新请求拒绝、进行中请求被唤醒、pin释放无死锁；多个繁忙池和并发 closer 的总耗时不能累加为每池完整 timeout。
 - [ ] Python 兼容关闭单独冻结主 transport→资金流→竞价的旧顺序、各阶段期限和异常投影；私有 shutdown policy 复用清理状态机，不能给 Python 强套 Rust 总 1 秒。多池繁忙用例分别验证两种预算规则。
-- [ ] `cargo test -p eltdx --test lifecycle --locked`；增加 Windows/Linux 的相同行为测试，勿用线程名计数代替资源观察。
+- [x] `cargo test -p eltdx --test lifecycle --locked`：Stage179 Windows 和 Stage167 Linux 均通过同一组 3 条行为用例。
 
 ### T08：操作上下文和错误边界
 
@@ -188,7 +188,7 @@ fn build_and_close_without_network() -> eltdx::Result<()> {
 - [ ] 将 close 与业务 token 分开；已经取消的 token 不能阻止释放。
 - [ ] 通过 `#[doc(hidden)] pub mod __python_compat` 暴露窄绑定桥接（跨 crate 不能用 `pub(crate)`），内部创建 legacy policy；无 PyO3 依赖、不新增 feature，普通 Rust API 不提供 legacy 切换，此桥接不承诺 SDK 公开稳定性。
 - [ ] 增加双 profile 对照：两页分别低于单请求上限、合计超过总上限时，Rust 超时，旧/新 Python 成功；预取、补查、空值 fallback 次数及无限页选项按各自契约验证。不得给 Python 暗加累计尝试上限。
-- [ ] `cargo test -p eltdx --test operation --locked`。
+- [x] `cargo test -p eltdx --test operation --locked`：Stage179 通过 3 条。
 
 T04–T12 的跨 crate 类型与执行顺序按 [内部实施规格](execution-and-compatibility.md) 实现；`RequestPermit` 将旧启动后计时与新绝对期限交给共同 runtime 执行，业务循环不自行重置 timeout。
 
@@ -202,7 +202,7 @@ T04–T12 的跨 crate 类型与执行顺序按 [内部实施规格](execution-a
 - [ ] 新证券列表解析不写全局；旧入口兼容 wrapper 行为有单独测试。
 - [ ] 精度依赖整次 operation 捕获的单份 snapshot，所有分页/拆批/fallback 使用同一版本，不在每条请求或记录中重新读可变共享表。
 - [ ] `include_raw=false` 不创建永久 record hex；对保留字段进行语义和位级对照。
-- [ ] `cargo test -p eltdx-protocol context --locked`、`cargo test -p eltdx --test precision_isolation --locked`。
+- [x] `cargo test -p eltdx-protocol context --locked`、`cargo test -p eltdx --test precision_isolation --locked`：Stage179 分别通过 18 条和 2 条。
 
 ### T10：元数据加载、单位投影和时钟
 
@@ -214,7 +214,7 @@ T04–T12 的跨 crate 类型与执行顺序按 [内部实施规格](execution-a
 - [ ] 测试刷新期间已开始请求仍用旧snapshot；两个owner互不污染。
 - [ ] 参数化股/手、万元/元、百分比/比值、f32位模式、债券精度、跨日时间；未知单位不猜。
 - [ ] 注入时钟验证上海日期边界与 metadata 过期，不改系统时钟。
-- [ ] `cargo test -p eltdx --test metadata --test units --locked`。
+- [x] `cargo test -p eltdx --test metadata --test units --locked`：Stage179 通过 6 条。
 
 ## 4. P2：HQ 完整业务及第一批 Python 迁移
 
@@ -230,7 +230,7 @@ T04–T12 的跨 crate 类型与执行顺序按 [内部实施规格](execution-a
 - [ ] 按 T02 用例实现二分补查，最多32次额外补查并服从操作总预算；具体兼容阈值见矩阵。
 - [ ] strict 在确认缺失时返回带原因的结构化错误；allow_partial 用槽位保留缺失原因。两种策略的损坏数据、取消和主请求连接失败都返回错误，不伪装为 missing。
 - [ ] 证券全表遇短页继续、空页停止、重复页/无进展报错；不先依赖 count 才能翻页。
-- [ ] `cargo test -p eltdx --test codes --test quotes_batch --locked`。
+- [x] `cargo test -p eltdx --test codes --test quotes_batch --locked`：Stage179 通过 17 条。
 
 ### T12：第一条跨语言业务链
 
@@ -256,7 +256,7 @@ T04–T12 的跨 crate 类型与执行顺序按 [内部实施规格](execution-a
 - [x] 已编写周/月/季/年、category8、HQ/EX/MAC时间差异HQ部分的测试源码；结束标签真实跨日并保存source_time。
 - [x] 退市结果raw保留首页，普通聚合legacy raw清空；Rust逐页payload/wire保留响应顺序，逐条range对应输出顺序。
 - [x] 无效日期、畸形计数、尾部数据按照协议parser契约处理；已编写边界测试源码，执行延期。
-- [ ] `cargo test -p eltdx --test klines --test minutes --locked`。
+- [x] `cargo test -p eltdx --test klines --test minutes --locked`：Stage179 通过 23 条。
 
 T13实现源码与自审已写完，尚未编译或运行；待T01–T30全部实现代码完成后统一验证。M25–M40及M98–M99已接入公开Rust服务，Python迁移仍由T18完成。
 
@@ -271,7 +271,7 @@ T13实现源码与自审已写完，尚未编译或运行；待T01–T30全部�
 - [x] 已写竞价原序列/秒/f32原位保留及可追踪开盘撮合，不添加固定时间窗过滤；执行延期。
 - [x] 已写代码3/整批min(n,8)×3≤24/操作额外预算的原子授权、独立空值策略及合成用例；执行延期。
 - [x] 当前未暴露历史区间stub，P3 F10 T20实现后启用；category22仍为实验路径。
-- [ ] `cargo test -p eltdx --test trades --test auctions --test money_flow --locked`。
+- [x] `cargo test -p eltdx --test trades --test auctions --test money_flow --locked`：Stage179 通过 25 条；`0x0ffc` 非空生产取证单列于 Stage168。
 
 T14全部13方法实现及自审源码已写完：M41–M52/M100。专属惰性池、owner物理连接上限、备用探测关闭和错误链一并实现；没有运行编译或测试。测试源码均为合成输入，完整0FFC真实抓包仍缺失。Python迁移及legacy计时/次数/raw投影由T18继续，不能以此任务状态声称两种语言已验证兼容。下一任务T15。
 
@@ -286,7 +286,8 @@ T14全部13方法实现及自审源码已写完：M41–M52/M100。专属惰性�
 - [x] 已写唯一dispatcher精确源路由、独立订阅与Python独占raw reader；保持原overflow计数/异常投影，执行延期。
 - [x] 已写按接收顺序保留跨日游标回退和独立gap控制状态，以及相关源码用例；执行延期。
 - [x] 已写close/Drop/父close/无owner环、慢消费者、溢出、源丢失及同源重同步成功/失败用例源码；执行延期。
-- [ ] `cargo test -p eltdx --test subscription --locked`；真实1000证券在线用例单列opt-in，见验证文档。
+- [x] `cargo test -p eltdx --test subscription --locked`：Stage179 通过 19 条。
+- [ ] 真实 1000 证券在线用例单列 opt-in；离线用例不替代该生产观察。
 
 T15实现及限定源码自审检查点为`e35b5f2`，M24此前检查点为`e995825`。这里只关闭源码实施，不表示编译或运行通过；没有执行测试、构建或等价检查。下一任务T16。
 
@@ -298,7 +299,7 @@ T15实现及限定源码自审检查点为`e35b5f2`，M24此前检查点为`e995
 - [x] 已写scale+offset、同日原序、anchor/窗口/qfq/hfq及K线单位/来源保持源码与独立仿射预期；执行延期。
 - [x] 已写指定指数完整日线、owner不可变缓存、覆盖区间、午夜/清除/失败发布和父close源码与用例；无weekday回退，执行延期。
 - [x] 已写0452实际条数分页与空EOF、未知identity/f32位保留、有效日期profile应用及UnknownRule默认；六个T03冲突case源码保持未知，旧Python兼容映射由T18继续。
-- [ ] `cargo test -p eltdx --test adjustment --test calendar --test price_limits --locked`。
+- [x] `cargo test -p eltdx --test adjustment --test calendar --test price_limits --locked`：Stage179 通过 14 条。交易所实际参考价和限制类型另见 Stage176 取数清单。
 
 T16源码检查点`6fa4bc7`/`84061e7`，另有`tests/corporate.rs`与私有用例源码。M60返回Result传播Clock错误的规格补正见decision-register；没有运行任何编译或测试。后续T17源码已在`88b9036`接续完成。
 
@@ -312,8 +313,8 @@ T16源码检查点`6fa4bc7`/`84061e7`，另有`tests/corporate.rs`与私有用�
 - [x] 零/精确/超限、短/空块、offset及lost-pin不换源用例源码已写；stats上限加一且解压前拒绝。Python旧截取/逐请求/None行为由T18适配；执行延期。
 - [x] 统计文件解析保留源身份、日期、计数字符串与单位，95%/主日期规则留给T18；默认HQ注册唯一ZIP及GBK源码。
 - [x] 公司GBK字节范围/有损诊断、会话控制字段、ping/probe及公开客户端用例源码已写，执行延期。
-- [ ] `cargo test -p eltdx --test resources --test company_info --test stats --locked`。
-- [ ] 新增 `crates/eltdx/tests/hq_loopback.rs`，经公开Client/service完成至少一次非空查询、一次分页和一次故障关闭；运行 `cargo test -p eltdx --test hq_loopback --locked`，不能只测试内部Engine。
+- [x] `resources`、`company_info`、`stats` 用 `cargo test -p eltdx --locked` 逐目标执行：Stage179 合计通过 32 条。
+- [x] 同一命令加入 `--test hq_loopback`，Stage179 通过 4 条，含公开 Client 的非空查询、分页和故障后关闭。
 
 T17 源码检查点 `88b9036`。Stage178 核对冻结候选的 ZIP 依赖锁、归档和源码许可证，以及 Stage167 已执行的相关行为用例；上述逐命令验收仍按实际运行记录核对。
 
@@ -407,7 +408,7 @@ T17 源码检查点 `88b9036`。Stage178 核对冻结候选的 ZIP 依赖锁、�
 - [ ] 超时和响应byte cap在读取过程中执行；无GIL/Python/DNS全局monkeypatch。
 - [ ] 记录候选 HTTP 依赖的 MSRV、feature 树与许可证；固定通过者版本。复查 T17 的 ZIP 决策供 P3 财报复用，不重新引入另一套解码器。
 - [ ] F10编码compact UTF-8 JSON，解码UTF-8-sig，服务器业务失败与HTTP失败分开。
-- [ ] `cargo test -p eltdx --features f10 --test f10_http --locked`。
+- [x] `cargo test -p eltdx --features f10 --test f10_http --locked`：Stage179 在 F10 单 feature 下通过 27 条。
 
 ### T20：F10 动态结果、端点与历史资金流
 
@@ -434,7 +435,7 @@ T17 源码检查点 `88b9036`。Stage178 核对冻结候选的 ZIP 依赖锁、�
 - [ ] 报告期→报表等依赖调用共享总deadline；资讯读取实际第二结果集。
 - [x] 历史资金流指定days；先反转服务端原始记录，再按距最新的start/count切片，绝不按日期sort（COMP-050）；不得改走category22或0FFC。源码已写，执行验收延期。
 - [ ] 为约定宽松输入保留Python映射；严格Rust输入另测，不顺便修正BRK.B等旧行为。
-- [ ] `cargo test -p eltdx --features f10 --test f10_results --test f10_routes --locked`。
+- [x] `cargo test -p eltdx --features f10 --test f10_results --test f10_routes --locked`：Stage179 在 F10 单 feature 下通过 29 条。
 
 ### T21：本地行情、股本与行业配置读写
 
