@@ -79,7 +79,7 @@ P3 与 P4 可由不同人员并行；公共类型、owner 和 operation 的修�
 - [ ] `migrated` 记录的 `sdk_evidence` 必须指向 `crates/eltdx/src/lib.rs::PublicSymbol`，并解析为 crate 根的公开声明或单符号 `pub use` 重导出；不得用私有父模块中的声明、注释或字符串文本充当证据，且 `lib.rs` 必须列在该记录 `source_files`。协议层 wire 支持不能充当 SDK 实现证据。
 - [ ] `compatibility` 必须是 pytest 默认文件规则（`test_*.py` 或 `*_test.py`）可收集的精确节点，节点路径匹配模块级 `test_*` 函数或一个顶层 `Test*` 类中的 `test_*` 方法；不接受嵌套测试类。排除定义了 `__init__` 或 `__new__`、设置 `__test__ = False` 的测试类，以及被标记为 fixture 或设置 `__test__ = False` 的函数，不得仅凭 AST 中任意同名节点通过。
 - [ ] Python 模块覆盖按来源分别校验：`frozen_static_baseline` 必须映射到冻结快照模块；`migration_manifest` 必须以 `record_id` 绑定具有合法迁移状态的记录且模块路径出现在该记录 `source_files`；`compatibility_contract` 的精确 pytest 节点或测试模块级导入必须显式导入对应 `eltdx` Python 模块，其他测试函数的局部导入不得代替。
-- [ ] 运行 `python -m pytest -q tests/contracts/test_unified_test_plan.py tests/contracts/test_command_registry_consistency.py`；输出必须列真实收集数，无网络。
+- [x] `test_unified_test_plan.py` 和 `test_command_registry_consistency.py`：最终 CI wheel 的[Stage180](unified-validation.md#stage180-final-python-contracts)通过 29 条，原始日志含收集数和具名结果。
 
 ### T02：补充独立样本与差分基线
 
@@ -93,7 +93,7 @@ P3 与 P4 可由不同人员并行；公共类型、owner 和 operation 的修�
 - [x] 为批量重复/乱序/缺失、短页后还有数据、日期跨日、ETF/债券精度、无效压缩、ZIP/DAT、重复 F10 列和未知 MAC bit 建立具体样本，位于 `tests/fixtures/sdk/cases/`。
 - [x] 期望值来源与独立性逐例记录；既有 Python 生成的期望只标为回归基线，不标为独立 oracle。
 - [x] category22 没有非空实测响应时标为实验能力，不伪造“已实测”记录，也不阻止稳定 `0x0FFC` 日资金流和 F10 历史资金流路径。
-- [ ] 运行 `python -m pytest -q tests/contracts/test_sdk_fixture_inventory.py tests/native/test_differential.py`；原生命令测试需要先按项目既有方式安装当前绑定。
+- [x] 安装最终 CI wheel 后运行 `test_sdk_fixture_inventory.py`、`test_differential.py` 及 `test_static_fixture_inputs.py`：Stage180 修复语料换行及清单后通过 148 条，保留首轮散列失败记录。
 
 实现与测试源码已完成；上述测试执行按用户要求推迟到 T01–T30 全部实现代码完成后统一进行。当前库存导出脚本只生成来源/哈希清单，不调用协议解析器。
 
@@ -243,7 +243,7 @@ T04–T12 的跨 crate 类型与执行顺序按 [内部实施规格](execution-a
 - [ ] 用同一 fake/loopback 数据比较旧 Python facade、Rust service 和新 Python facade，字段/顺序/异常/原值全部相符。
 - [ ] GIL 释放、KeyboardInterrupt、`__cause__`、自定义 Transport仍被验证；回调不得在持GIL的阻塞I/O中运行。
 - [ ] 将旧算法从 native 常规路径移除，兼容 custom transport 路径显式标注和覆盖。
-- [ ] 运行 `python -m pytest -q tests/test_client.py tests/test_helpers.py tests/contracts/test_sdk_quote_bridge.py tests/contracts/test_native_errors_contract.py`。
+- [x] 运行 `test_client.py`、`test_helpers.py`、`test_sdk_quote_bridge.py` 和 `test_native_errors_contract.py`：Stage180 以最终 CI wheel 通过 152 条。
 - [ ] 运行 SDK quote测试，证明 Python绑定变化不改变Rust consumer API。
 
 ### T13：K线、退市K线与分钟线分页
@@ -475,7 +475,7 @@ T17 源码检查点 `88b9036`。Stage178 核对冻结候选的 ZIP 依赖锁、�
 - [ ] 完成 index_members/index_etfs/ipo_calendar、board_members、stock_topics/topic_stocks、theme_strength_rank 及财报等实际依赖 F10/文件的能力；完整 stock_profile_table 与其他 HQ-only helper 保持 T18 的默认 feature 可用性。
 - [ ] 每个跨来源 helper 固定必需/可选来源及降级条件；新 Rust 的主源失败/取消/总 deadline 终止，Python 按 legacy policy 保留原逐请求计时与降级，不能强套总期限。
 - [ ] 组合helper按实际feature启用，缺feature在编译时没有该方法，不在运行时跨Python补齐。
-- [ ] 运行 `cargo test -p eltdx --features f10,offline --test helpers --locked` 及Python F10/offline/financial/helper相关套件；同步迁移清单。该 Rust 命令在冻结候选通过 11 条（Stage174）；Python 用例和原清单核对见 Stage173。
+- [x] `cargo test -p eltdx --features f10,offline --test helpers --locked` 在冻结候选通过 11 条（Stage174）；Python F10、helper、offline、financial 合同以最终 CI wheel 通过 367 条（Stage180）；迁移清单及具名证据见 Stage173。
 
 ## 6. P4：扩展市场
 

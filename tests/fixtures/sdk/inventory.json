@@ -11,7 +11,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/auction_series/normal/request.json",
-        "sha256": "8fbdc595e244e16543b81f91e24bdbc31d728b632f6a09272059bb08792677ba"
+        "sha256": "a8a15c7599e224d748f351bb365633f25fa9d9d3fdafbb6cde4b636d12787bd7"
       },
       "response": {
         "path": "tests/fixtures/7709/auction_series/normal/response.bin",
@@ -19,7 +19,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/auction_series/normal/expected.json",
-        "sha256": "37a038d252d75330358084a1e1182079f3d895c510af508c12c40b795f070dd2",
+        "sha256": "453f17f3c2e247d2cbe2a92cc512e76b4ac4ff0987d3c27cae7a73523a61582f",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -37,7 +37,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/block_meta/normal/request.json",
-        "sha256": "d5f4744da0757cd16834ef8fcd22a51358fa8959865f518e0bfaf66e6d004b15"
+        "sha256": "02a745abd35322a2f3a9a0e8cfa926565c4439b5f60ed463d055e63ae91cbb40"
       },
       "response": {
         "path": "tests/fixtures/7709/block_meta/normal/response.bin",
@@ -45,7 +45,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/block_meta/normal/expected.json",
-        "sha256": "708d68de3646f268a1bbb295a48b2916acc20eab417d2890875acb04bb59b875",
+        "sha256": "c80fc4189aeda43be36704eaa7c3a88329f3ca296d279de08e1950e4139d8489",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -63,7 +63,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/capital_changes/normal/request.json",
-        "sha256": "7c30e35c51ae0939453e559eb62147f8a3138e257c261f2430554098050a2884"
+        "sha256": "560d4a245f87a1d18b48461a84e6553d699f4f60f8de91f0cfb650172916cb67"
       },
       "response": {
         "path": "tests/fixtures/7709/capital_changes/normal/response.bin",
@@ -71,7 +71,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/capital_changes/normal/expected.json",
-        "sha256": "0d23084792aee12e1a4f3eba6733987424ad2dda4b47af984db48b7bf8c0c861",
+        "sha256": "e2d7c6db2ab23c60eecf35a69e19d7d57392fed51e97eddcc07bd1e2561dd4b5",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -89,7 +89,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/category_quotes/normal/request.json",
-        "sha256": "831665e06a111e5871b6d3f2146c8bce8b304fdc8253d7c686b150bc9111075c"
+        "sha256": "91c065d54811181fe7df0c8452c764afd81a70cc8a068f2a76c3bb7319e478b1"
       },
       "response": {
         "path": "tests/fixtures/7709/category_quotes/normal/response.bin",
@@ -97,7 +97,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/category_quotes/normal/expected.json",
-        "sha256": "8cd4b35408dcc806997c249c2932224058769adec078a9f06109b0d33beb22d0",
+        "sha256": "757e0ac3d7f2a348e3c6146ca65085e5a9e6da6f5b7376702a27702f953f2a29",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -115,7 +115,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/category_quotes/trailing_byte/request.json",
-        "sha256": "831665e06a111e5871b6d3f2146c8bce8b304fdc8253d7c686b150bc9111075c"
+        "sha256": "91c065d54811181fe7df0c8452c764afd81a70cc8a068f2a76c3bb7319e478b1"
       },
       "response": {
         "path": "tests/fixtures/7709/category_quotes/trailing_byte/response.bin",
@@ -123,7 +123,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/category_quotes/trailing_byte/expected.json",
-        "sha256": "3cafab8af07427d95637ff9136e323600a38dffeb2459ca22b0e0c52e72c4988",
+        "sha256": "b0e57a0b80a888acc4d3a3f718b3cc32aa0534bf9099d6070fc5cb19f4047761",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -141,7 +141,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/company_info_category/normal/request.json",
-        "sha256": "b60d3fff52ae4a9f52b447974641f284569f1a54807e651c0c36fcad2977586b"
+        "sha256": "8f4a5a64b33a9090e9f7fb8b86b475ef905fae28e98e07d14ef288f31acc2c88"
       },
       "response": {
         "path": "tests/fixtures/7709/company_info_category/normal/response.bin",
@@ -149,7 +149,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/company_info_category/normal/expected.json",
-        "sha256": "3f2d081099d80f0ba702513bd6ca4e0c514c1b992ea401fac1059bb351d079f9",
+        "sha256": "9dbdcce227e8079a5dfc33e94d2ffd0685ab71d7a1bcf391e7c41e81466d2c4f",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -167,7 +167,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/company_info_content/normal/request.json",
-        "sha256": "e954700bc27e22e774ecf832e5da10659dd8ec1b8ebceea1b880a8b20eecde40"
+        "sha256": "6db59311298f337cd5b127b9f6bfeb82b4d85ebcef9148ef87b8c375c6184345"
       },
       "response": {
         "path": "tests/fixtures/7709/company_info_content/normal/response.bin",
@@ -175,7 +175,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/company_info_content/normal/expected.json",
-        "sha256": "cba71a20f9b50344dd15181b533ad9a45e7a71fcfa1896ed10d30f754f918759",
+        "sha256": "8af8b783a88fdf72281597ed6b43e0ec9f5bffa49ab8ed8affe98585d1216280",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -196,7 +196,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/delisted_bars/normal/request.json",
-        "sha256": "a41406b62cfe52c24d9ef7f479041a2ae781cef11069cc2104f938bfdae6b0c2"
+        "sha256": "10adc95a169440d38604f1bf49d00b714da4eb0a4f7af8d8c3ddce051f97f61a"
       },
       "response": {
         "path": "tests/fixtures/7709/delisted_bars/normal/response.bin",
@@ -204,7 +204,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/delisted_bars/normal/expected.json",
-        "sha256": "1c6e329a7ef18222fbc619dfdbbb1d9c6218e4178626b84e72b6c22c04a774d5",
+        "sha256": "48b0474a7856af82a453e09a9da176b75bd27b8752afd911f003f59ecdb4822d",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -222,7 +222,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/file_content/max_chunk_empty/request.json",
-        "sha256": "6c7c5466082b59fb915f3f08869d7029e7a59d6408c77e0269a9903063b5cc4b"
+        "sha256": "a4d141fc7278073758ac6eeaa85876d851d574a93c802405fbc7c1bbcd2a8638"
       },
       "response": {
         "path": "tests/fixtures/7709/file_content/max_chunk_empty/response.bin",
@@ -230,7 +230,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/file_content/max_chunk_empty/expected.json",
-        "sha256": "2b4aca09e90e767d8bc94d422503d64dbd970ede66d9e7233f67bc2cf856b0a7",
+        "sha256": "b4dacc93758db0369031f7d400db8ee2b0c3115890420e753a72203b5ff558c8",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -248,7 +248,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/file_content/normal/request.json",
-        "sha256": "2301ec345948370909c6cbe7d742798b72a2604474ef681c4830b8145af61136"
+        "sha256": "702314fcc0cd6c1458523106e63b34e7554eca47f255c4e5c534295579fc57f0"
       },
       "response": {
         "path": "tests/fixtures/7709/file_content/normal/response.bin",
@@ -256,7 +256,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/file_content/normal/expected.json",
-        "sha256": "a4d144872f870eb0f8420d098d2f726562632d228dc940d3451fd4f568461d7d",
+        "sha256": "1cc81adeeac65e2f497df7156c437426ee01ab4923ecaf0917e2e16760a1f28d",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -274,7 +274,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/finance_batch/normal/request.json",
-        "sha256": "1bb949fe22711105ac43a3f3760391f076619639853752aaacdbecba8a29c208"
+        "sha256": "024e6cc1a6fb3e19aa03181168c18713db26950e1e61bacff3d969a28114fa49"
       },
       "response": {
         "path": "tests/fixtures/7709/finance_batch/normal/response.bin",
@@ -282,7 +282,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/finance_batch/normal/expected.json",
-        "sha256": "4c412f4f1b1c9fc5fc6bc43681d7c9ec4910328f1aca33892bce78fee41c460d",
+        "sha256": "dd5e7632b94c8f493ed6408ca6bace517c1417e09a75a4e92d0fccb57cb30c38",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -300,7 +300,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/handshake/normal/request.json",
-        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+        "sha256": "82eff2729d946d23b07a0b6493f88590443bfbe5e2635559deee219125a2ff86"
       },
       "response": {
         "path": "tests/fixtures/7709/handshake/normal/response.bin",
@@ -308,7 +308,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/handshake/normal/expected.json",
-        "sha256": "aca0a508f0c87210d929cd2a606e38337d22c9b3f071e1c201278720730e566e",
+        "sha256": "3be82ba15b6ca3cd35c17ede38305c92ccec1623ed34827e2985a076900ff749",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -326,7 +326,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/heartbeat/bad_compression/request.json",
-        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+        "sha256": "82eff2729d946d23b07a0b6493f88590443bfbe5e2635559deee219125a2ff86"
       },
       "response": {
         "path": "tests/fixtures/7709/heartbeat/bad_compression/response.bin",
@@ -334,7 +334,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/heartbeat/bad_compression/expected.json",
-        "sha256": "3cafab8af07427d95637ff9136e323600a38dffeb2459ca22b0e0c52e72c4988",
+        "sha256": "b0e57a0b80a888acc4d3a3f718b3cc32aa0534bf9099d6070fc5cb19f4047761",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -352,7 +352,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/heartbeat/compressed/request.json",
-        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+        "sha256": "82eff2729d946d23b07a0b6493f88590443bfbe5e2635559deee219125a2ff86"
       },
       "response": {
         "path": "tests/fixtures/7709/heartbeat/compressed/response.bin",
@@ -360,7 +360,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/heartbeat/compressed/expected.json",
-        "sha256": "ff2ac0558dbcb961529b30e209957ca37578c8f4b8a1b56cad6a9719cc1dbd7d",
+        "sha256": "cea805154aabee52dcbbae647daffe95b36e4371e24bf80db5ac2d2af655d20c",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -378,7 +378,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/heartbeat/normal/request.json",
-        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+        "sha256": "82eff2729d946d23b07a0b6493f88590443bfbe5e2635559deee219125a2ff86"
       },
       "response": {
         "path": "tests/fixtures/7709/heartbeat/normal/response.bin",
@@ -386,7 +386,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/heartbeat/normal/expected.json",
-        "sha256": "ff2ac0558dbcb961529b30e209957ca37578c8f4b8a1b56cad6a9719cc1dbd7d",
+        "sha256": "cea805154aabee52dcbbae647daffe95b36e4371e24bf80db5ac2d2af655d20c",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -404,7 +404,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/heartbeat/stale_message/request.json",
-        "sha256": "1df1485ab9b0a1a2cb865f030e9949ebd3e2cc63aadf795fdfa53ef9ad0d2250"
+        "sha256": "82eff2729d946d23b07a0b6493f88590443bfbe5e2635559deee219125a2ff86"
       },
       "response": {
         "path": "tests/fixtures/7709/heartbeat/stale_message/response.bin",
@@ -412,7 +412,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/heartbeat/stale_message/expected.json",
-        "sha256": "3cafab8af07427d95637ff9136e323600a38dffeb2459ca22b0e0c52e72c4988",
+        "sha256": "b0e57a0b80a888acc4d3a3f718b3cc32aa0534bf9099d6070fc5cb19f4047761",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -430,7 +430,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/historical_intraday/normal/request.json",
-        "sha256": "94ae05a1575113bf9d430df5abfb53e816d041f3f1d3fd3c316ccf70f7dd8e6c"
+        "sha256": "4deb66b6fb5cd441d3c0fb188afe808f05c2be8477e6f1374a8cc67e9ef18e08"
       },
       "response": {
         "path": "tests/fixtures/7709/historical_intraday/normal/response.bin",
@@ -438,7 +438,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/historical_intraday/normal/expected.json",
-        "sha256": "7a0c3635e9f8de5e8cc91ed396f87609835962db175eace560850f5075770c13",
+        "sha256": "f02d49e70b63d2f848dd29c1434022e7cc27ceaccc93b075776f96c46475f510",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -456,7 +456,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/historical_ticks/normal/request.json",
-        "sha256": "12984ad2bd4624e954a841944a034da946a4ea81c7e42e480e8cf0f73488d251"
+        "sha256": "328fbda44aeada0f57ab519f00cb74b013b2e65bbaff97ad2a6d34758706a25f"
       },
       "response": {
         "path": "tests/fixtures/7709/historical_ticks/normal/response.bin",
@@ -464,7 +464,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/historical_ticks/normal/expected.json",
-        "sha256": "dac236c57869cc040fb2b10f9c9de1f84cdf81eab8b57037e41ecf173db62512",
+        "sha256": "8643c12ced5dc07d3d267dec273c41185979d1bac6295406071bcd3cc6cc12c0",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -482,7 +482,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/intraday_aux/normal/request.json",
-        "sha256": "79b0fe42c8c744520eb38a019f5973e7259ae05a282d006c3dfd1c65b056ba3e"
+        "sha256": "7fdc898fa8a3ecbaf8799772a781c4155acebb07c794271dcabc01fc4ad6fbe2"
       },
       "response": {
         "path": "tests/fixtures/7709/intraday_aux/normal/response.bin",
@@ -490,7 +490,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/intraday_aux/normal/expected.json",
-        "sha256": "24214fa01da523230cdc6ef1307de801b015ddc93e1ea2eba19536b25a9b5704",
+        "sha256": "00334532ccaa23bcae20e82bd3d3f82c6e91445d61b29f496de0da3dcb0e65d1",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -508,7 +508,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/klines/include_raw_false/request.json",
-        "sha256": "26f35c5b53ee4bb9cb7b3bd55e7824bd325759ce77db172dca418b5553deeb29"
+        "sha256": "38811b11670b7e68999fb15a41cca9791cde9debb8314fcbf42da9fec3379fa2"
       },
       "response": {
         "path": "tests/fixtures/7709/klines/include_raw_false/response.bin",
@@ -516,7 +516,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/klines/include_raw_false/expected.json",
-        "sha256": "eae5fa4050cb0cf6044df8d141ef081286f39419cd45e62cb2534703085bcc44",
+        "sha256": "f5e0631e7e7875f5b2de685c2eacb597b92fa75c0a45be9e1f28bf8851996f31",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -534,7 +534,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/klines/max_page_empty/request.json",
-        "sha256": "02ddbedd3d9c14545602773ccad634792e5a1e100f38314cebd644f7a0d96893"
+        "sha256": "5cd104f7c5b50b047e7ef2e8c47b2f4b32b6f03d46259852e87cca76332ea2fa"
       },
       "response": {
         "path": "tests/fixtures/7709/klines/max_page_empty/response.bin",
@@ -542,7 +542,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/klines/max_page_empty/expected.json",
-        "sha256": "3c6e1866a07808e369daeeb8cf040d28a877e7ebd430abf4546c22d54e7dd57d",
+        "sha256": "345be200429070bdeaa025948e45a2b744e6afbeb7a31ff4abe2598e3404a4f7",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -560,7 +560,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/klines/normal/request.json",
-        "sha256": "42eaf7ddb8ab561d199948e559105ee81d7f70ba0f046aa8081cf632a0b63fb4"
+        "sha256": "cd75251b462a6c8e3b5c94bc27c67e73ed9db28dd97de6e31f07a82a71e1217b"
       },
       "response": {
         "path": "tests/fixtures/7709/klines/normal/response.bin",
@@ -568,7 +568,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/klines/normal/expected.json",
-        "sha256": "a94f30f8dbc4929916aeda2188b2a7e9d568b69e6e7d4ce8c9b528f6b0eb2286",
+        "sha256": "3791b85cc49c715808eb587532ec77a7f6f3d840788a7f820b7e7650cde914a5",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -586,7 +586,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/legacy_quotes/normal/request.json",
-        "sha256": "1dd381e0bfaa7f18c04e8f3a477f76910221d5b9b041311967e10c2881fa2b15"
+        "sha256": "f9223a3656ffb15dc60c71c9e7cc1a31634bc44587c9c645c6e1a3692909d93d"
       },
       "response": {
         "path": "tests/fixtures/7709/legacy_quotes/normal/response.bin",
@@ -594,7 +594,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/legacy_quotes/normal/expected.json",
-        "sha256": "4292cca829418a4df0b56fd467b0f1d020520bb8cc1c1d99fd6733c109293b70",
+        "sha256": "f8035c9959ac3b7ef532edd2c089de366d68908e5a84d2d231c51e8571e3e8fd",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -612,7 +612,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/recent_intraday/include_raw_false/request.json",
-        "sha256": "4d9af911e73ac7f171a5c347cea7024ea6379f1cd1f119b5594dacda2231929d"
+        "sha256": "3594d4934811ac0ebc8ee308909973c079a12046b481dcf3cf8d6ab2102cc4cf"
       },
       "response": {
         "path": "tests/fixtures/7709/recent_intraday/include_raw_false/response.bin",
@@ -620,7 +620,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/recent_intraday/include_raw_false/expected.json",
-        "sha256": "79ef31ce8a14fbb9f062aa3278fc947b996ecb9df3fdca59151b038ee21ba626",
+        "sha256": "5bcfd3fd098da733d8c5f85976082dc2f94fbb3b4ccfaf45918f78602d93ed8c",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -638,7 +638,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/recent_intraday/normal/request.json",
-        "sha256": "94ae05a1575113bf9d430df5abfb53e816d041f3f1d3fd3c316ccf70f7dd8e6c"
+        "sha256": "4deb66b6fb5cd441d3c0fb188afe808f05c2be8477e6f1374a8cc67e9ef18e08"
       },
       "response": {
         "path": "tests/fixtures/7709/recent_intraday/normal/response.bin",
@@ -646,7 +646,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/recent_intraday/normal/expected.json",
-        "sha256": "d85597d50e4c0171e84e3286d830717c418fbb403e9868fb6a1af8aa3eef59ac",
+        "sha256": "d2d42ae066e6e4a9bfc712a65a404a612ae15e28616e608cc03f062766d4f16f",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -664,7 +664,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/refresh_stream/normal/request.json",
-        "sha256": "b9330bd7f4ab1149ad67bcae5e907bb1382ddf2ec6ece490b82d5cfdc1e45a61"
+        "sha256": "9a0bb5da7413d62b71e0ac3fdfce1fd775378ee573dfce5f1c949c3b4616757e"
       },
       "response": {
         "path": "tests/fixtures/7709/refresh_stream/normal/response.bin",
@@ -672,7 +672,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/refresh_stream/normal/expected.json",
-        "sha256": "13e8c552083066f94f000ebe10199ab070a4b9c538ccad8aed539b3a3821f34a",
+        "sha256": "5bd1f4f634b8742206935ebdff67df2aba2c20ed9f8d8cf30c6679beeadcbf72",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -690,7 +690,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/security_count/normal/request.json",
-        "sha256": "3b0aaa9377066297616b948326953276ebe29b8af4f6c4736d3d26da3562817d"
+        "sha256": "d6c9e632a1e86a03e9c987eb4b8bca9c32dbf46d5612fbeeb87ae9493151ab8e"
       },
       "response": {
         "path": "tests/fixtures/7709/security_count/normal/response.bin",
@@ -698,7 +698,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/security_count/normal/expected.json",
-        "sha256": "9a10b94fa0ba8385799202de5a8adb9e8f15d0028a589a9f7b183a7abb5e3f12",
+        "sha256": "34e2af78173aad2c7992a5392eea6b6de8d8d27c31fbbf49dcbf7ab1c56735e4",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -716,7 +716,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/security_list/bj_empty/request.json",
-        "sha256": "4d5b7b3b49145850aacf7823a9123800b85ee4eba59e18cd0acfffd55f250929"
+        "sha256": "6ff6e1744a1d25f81e000c599d2b6c7dc49892005036711aef363887f8b19e50"
       },
       "response": {
         "path": "tests/fixtures/7709/security_list/bj_empty/response.bin",
@@ -724,7 +724,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/security_list/bj_empty/expected.json",
-        "sha256": "1fbca9960221cdfef34814b761791c531f3a56e2671f79d073d755b3bd0a639c",
+        "sha256": "b6faac8b14ebdf5ba316973279b40904850ac7cb244f4daed87d69ec9795c3aa",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -742,7 +742,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/security_list/normal/request.json",
-        "sha256": "2846a2cdca4faa93c32cc7e55862b2eae95c732b03fceb67fb669b508d3bee21"
+        "sha256": "43028a220e8e96d28b90170f4b1c6bf4f006e244edb39c517fcf7928ecca4315"
       },
       "response": {
         "path": "tests/fixtures/7709/security_list/normal/response.bin",
@@ -750,7 +750,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/security_list/normal/expected.json",
-        "sha256": "4d0b03dc38c71b4ba47604dfa322bf0e11f0a61c84ae2f2dbceef879ba36644a",
+        "sha256": "83fa41ed08427006f0acef46f592b7f1e37937fbb40320ce553b2c438472b79e",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -768,7 +768,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/security_list/sh_empty/request.json",
-        "sha256": "48762ce1d82eac1c51950fdbb66093829d1e3388b6b198a0838891ba1cc3aa65"
+        "sha256": "bcf96eba98098ef0cc88171297623ae85f5ddecd418d399910397b3fd632efab"
       },
       "response": {
         "path": "tests/fixtures/7709/security_list/sh_empty/response.bin",
@@ -776,7 +776,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/security_list/sh_empty/expected.json",
-        "sha256": "1fbca9960221cdfef34814b761791c531f3a56e2671f79d073d755b3bd0a639c",
+        "sha256": "b6faac8b14ebdf5ba316973279b40904850ac7cb244f4daed87d69ec9795c3aa",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -794,7 +794,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/snapshots/etf_index_empty/request.json",
-        "sha256": "d394383418bb12f5acff2ac8bd6035d45ddd50ad6eeeb9cc42fb5104ab42b31d"
+        "sha256": "ccbdf8684bd4d28b7647b03c7a3f6577a2e32d032cb75f1e1c843a78c13dd485"
       },
       "response": {
         "path": "tests/fixtures/7709/snapshots/etf_index_empty/response.bin",
@@ -802,7 +802,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/snapshots/etf_index_empty/expected.json",
-        "sha256": "1fbca9960221cdfef34814b761791c531f3a56e2671f79d073d755b3bd0a639c",
+        "sha256": "b6faac8b14ebdf5ba316973279b40904850ac7cb244f4daed87d69ec9795c3aa",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -820,7 +820,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/snapshots/normal/request.json",
-        "sha256": "1dd381e0bfaa7f18c04e8f3a477f76910221d5b9b041311967e10c2881fa2b15"
+        "sha256": "f9223a3656ffb15dc60c71c9e7cc1a31634bc44587c9c645c6e1a3692909d93d"
       },
       "response": {
         "path": "tests/fixtures/7709/snapshots/normal/response.bin",
@@ -828,7 +828,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/snapshots/normal/expected.json",
-        "sha256": "638b56cf4185590b03ef4dedc6e872a593b99e85f8c9c545ebd91271186d8fc5",
+        "sha256": "4472e475d2e96af9b44da323d39fb24809f34f7f6b7e20befbed59a60013af1e",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -846,7 +846,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/snapshots/truncated_record/request.json",
-        "sha256": "1dd381e0bfaa7f18c04e8f3a477f76910221d5b9b041311967e10c2881fa2b15"
+        "sha256": "f9223a3656ffb15dc60c71c9e7cc1a31634bc44587c9c645c6e1a3692909d93d"
       },
       "response": {
         "path": "tests/fixtures/7709/snapshots/truncated_record/response.bin",
@@ -854,7 +854,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/snapshots/truncated_record/expected.json",
-        "sha256": "3cafab8af07427d95637ff9136e323600a38dffeb2459ca22b0e0c52e72c4988",
+        "sha256": "b0e57a0b80a888acc4d3a3f718b3cc32aa0534bf9099d6070fc5cb19f4047761",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -872,7 +872,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/sparkline/normal/request.json",
-        "sha256": "659e2787bd3a4de156c1da0944423638d3b46994ab1ba59380e9d8698157ab37"
+        "sha256": "fca29bafdb74215ea18e8661765ac07b295eb84f4702d9aedfd36eedfc99a4f8"
       },
       "response": {
         "path": "tests/fixtures/7709/sparkline/normal/response.bin",
@@ -880,7 +880,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/sparkline/normal/expected.json",
-        "sha256": "0e9da48f6825a80b5fd4619602a151b1c7d89e8284715d65abca9d3193c80c35",
+        "sha256": "aa1d935c581d10b675e7fab86997c34ca0d7c00262cd2e3d61fd6c8bd2872894",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -898,7 +898,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/special_limits/normal/request.json",
-        "sha256": "013f3e15761e819fd3d809e4d949b09c5456df7072ac24085a8579614c6c739b"
+        "sha256": "e76793cd629dfe5cbe693110ba63da5094710ebfe9de198b4093ad2f4e27473a"
       },
       "response": {
         "path": "tests/fixtures/7709/special_limits/normal/response.bin",
@@ -906,7 +906,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/special_limits/normal/expected.json",
-        "sha256": "854408725c6f510938b21f407204f5077b4e4b98fbba77311524c28dc47d6f3a",
+        "sha256": "52a145217802f8df9e87fe4df69ff598ea3d27a6ee614c63ba922666dda535f4",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -924,7 +924,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/today_intraday/normal/request.json",
-        "sha256": "8fbdc595e244e16543b81f91e24bdbc31d728b632f6a09272059bb08792677ba"
+        "sha256": "a8a15c7599e224d748f351bb365633f25fa9d9d3fdafbb6cde4b636d12787bd7"
       },
       "response": {
         "path": "tests/fixtures/7709/today_intraday/normal/response.bin",
@@ -932,7 +932,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/today_intraday/normal/expected.json",
-        "sha256": "19787531a51d6966773564efdc2217d31bb0a0525efaae674c013cf37447485f",
+        "sha256": "31229b62e17131cc8acbf3f2d73f9054b16d22843c31eec202511726265aec1d",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",
@@ -950,7 +950,7 @@
       },
       "request": {
         "path": "tests/fixtures/7709/today_ticks/normal/request.json",
-        "sha256": "454ef839940930fce3b42c7b32d72301b3960969a901465e6f695207c2fd5698"
+        "sha256": "afcbf5282329d832792bfc0841b37c51148f307457e19d2629230ac6b5bc7e22"
       },
       "response": {
         "path": "tests/fixtures/7709/today_ticks/normal/response.bin",
@@ -958,7 +958,7 @@
       },
       "expected": {
         "path": "tests/fixtures/7709/today_ticks/normal/expected.json",
-        "sha256": "70cba51cb83c3086154b7689dfa4f8644ae7765f768a7a87a1c3103756575da1",
+        "sha256": "9911f3f7405bbeb4912161c5af53837af8b7961e85016a5df3fb85ddd4981ee6",
         "source_revision": "0fb9d00ebbb2dabc1f40f511919a192003896e36",
         "generated_by": "scripts/fixtures/export_current_golden.py",
         "evidence_level": "python_regression_baseline",

@@ -585,11 +585,13 @@ def materialize_case(case_key: str, fixture_root: Path = DEFAULT_ROOT) -> Path:
         (temporary / "request.json").write_text(
             json.dumps(request, ensure_ascii=True, indent=2) + "\n",
             encoding="utf-8",
+            newline="\n",
         )
         (temporary / "response.bin").write_bytes(_response_frame(case))
         (temporary / "metadata.json").write_text(
             json.dumps(metadata, ensure_ascii=True, indent=2) + "\n",
             encoding="utf-8",
+            newline="\n",
         )
         temporary.replace(target)
     except BaseException:

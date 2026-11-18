@@ -5,6 +5,9 @@ and every supplemental SDK case. The inventory generator reads the committed
 inputs and expected files; it never imports the Python parser or regenerates an
 expected result.
 
+Fixture JSON uses LF on all platforms. The inventory hashes the exact file
+bytes, including line endings; binary wire inputs are hashed unchanged.
+
 The 37 legacy fixtures were materialized from synthetic inputs at
 `401dda95dd337ddf1440c18629be37d39d134d2c`. Their `expected.json` files are
 Python regression baselines generated at

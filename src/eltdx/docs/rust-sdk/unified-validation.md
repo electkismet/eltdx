@@ -540,3 +540,13 @@ Stage167 的同候选 Linux stable 原始日志和退出码已核对。`stats` �
 | 默认 SDK 的 `cargo tree --edges normal,build` | 不适用 | T04，树中没有 Python 绑定或 F10 的 Hyper/Hickory/rustls |
 
 原始日志及命令退出码见 `artifacts/unified/stage179-plan-commands-attempt01/result.json`（SHA256 `297e036010ca2090a2d9e4c47fc211d378ece12655f5f975e7ad0a2024330d36`）及 `artifacts/unified/stage179-lower-plan-attempt01/result.json`（SHA256 `9a05ff82ddd704e1f2b1333ad1bed01ed386ef7b876ad065e2aa11247db06d83`）。日志散列均已复算。Stage167 另保留同候选 Linux 的完整 runtime 136 条及同一组生命周期 3 条结果。订阅证据仅覆盖本地行为；真实 1000 证券在线观察单列，未在公开主站发起。
+
+## Stage180：最终 Python wheel 的定向合同与语料字节修复 { #stage180-final-python-contracts }
+
+从 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的 CI 产物离线安装 Windows abi3 wheel（SHA256 `c396d7b01c7daa97e6b88294a688855ae53d16297c18a187b14028b43bef09df`），在每个 CPython 3.12.6 测试进程确认导入本次安装的原生模块，SHA256 `5492674e1d16df87ed7f7db21856d5607c84aba6f21d0b245bf3f2653b0bdee6`。首轮 T01 通过 29 条，T02 为 106 通过、1 失败；`stage180-final-python-contracts-attempt01/result.json` SHA256 `681c8a8f850fc09287e2a9fe149da2735254617c1f23611e3f3e5f983ed99922`。
+
+故障来自清单使用 Windows CRLF 字节计算了 37 份 `request.json` 和 37 份 `expected.json` 的散列，而 Git 和 CI 源码包中的原件是 LF。保留原始响应及预期文件字节，以 Git 中 LF 字节修正 74 条散列，明确 Git 属性和生成器的 LF 约定。隔离检出中用 `core.autocrlf=true` 复验，语料 JSON 仍为 LF。
+
+第二轮在同一候选叠加上述四个测试维护文件，继续使用同一个 CI wheel。T01（测试计划和命令目录）29、T02（语料和黄金回归、生成器）148、T12（公开客户端及兼容桥）152、T23（F10 / helper / offline / financial 合同）367 条通过，合计 696，零失败、零错误或跳过。`artifacts/unified/stage180-final-python-contracts-attempt02/result.json` SHA256 `974cebff82035f3ff93fd3ae0b19da0f342ba5c826674d9f123bfc8a2e05dfa1`，同目录保留各 JUnit、原始日志和叠加文件散列。
+
+同一隔离检出重新生成并检查本地 sdist，111 份旧版语料文件和 7 份补充语料均与新清单匹配，文件本身与 CI 原包逐字节一致；527 个 Rust/Python 产品和构建输入文件也逐字节一致。见 `artifacts/unified/stage180-final-python-contracts-attempt02/sdist/verified.json`，SHA256 `1cd7c138dcddd8e3b97bd5adf616337eb005c8a01695a7991e1c449b96175038`。这是语料和发行包内容验证；Stage175 保留原 CI sdist 的实际编译和消费证据。冻结的 Rust 发布候选及既有 wheel 未替换。
