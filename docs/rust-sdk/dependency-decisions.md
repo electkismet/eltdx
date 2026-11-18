@@ -84,7 +84,45 @@ limits. The legacy protocol text constructor retains its original encoding
 policy; the strict SDK passes encoded bytes through a separate checked
 constructor. No second mapping or public caller-injected codec was added.
 
-## F10 JSON, URL and transport — source candidate, execution pending
+## F10 JSON, URL and transport — T19 decision
+
+[Stage181](unified-validation.md#stage181-f10-dependency-decision) verifies the
+archive checksums, published manifests and license files for the following
+exact pins. It inventories the normal, build and dev edges for Windows x64,
+Linux x64 and macOS ARM64. The Rust versions in the table are upstream
+declarations; the SDK's Rust 1.89 evidence comes from actual Windows F10-only
+and macOS full runs. Linux and macOS stable logs match the same fixture source.
+
+| Package | Pin | Declared Rust | License declaration |
+| --- | --- | --- | --- |
+| hyper | 1.12.0 | 1.63 | MIT |
+| hyper-util | 0.1.21 | 1.85 | MIT |
+| http-body-util | 0.1.5 | 1.61 | MIT |
+| rustls | 0.23.46 | 1.71 | Apache-2.0 OR ISC OR MIT |
+| tokio-rustls | 0.26.6 | 1.71 | MIT OR Apache-2.0 |
+| rustls-native-certs | 0.8.2 | 1.71 | Apache-2.0 OR ISC OR MIT |
+| hickory-resolver | 0.24.4 | 1.71.1 | MIT OR Apache-2.0 |
+| tokio | 1.53.1 | 1.71 | MIT |
+| flate2 | 1.1.2 | 1.67.0 | MIT OR Apache-2.0 |
+| serde_json | 1.0.145 | 1.61 | MIT OR Apache-2.0 |
+| url | 2.5.8 | 1.63 | MIT OR Apache-2.0 |
+| chrono | 0.4.42 | 1.62.0 | MIT OR Apache-2.0 |
+| rcgen (fixture only) | 0.13.2 | Undeclared | MIT OR Apache-2.0 |
+
+The resolved stack uses Hyper client/HTTP1, the Tokio I/O bridge, rustls with
+ring/TLS1.2, and Hickory's Tokio runtime and system configuration. It does not
+enable the public SDK `serde` feature, Hyper server/HTTP2 or a Python binding.
+The default HQ production graph excludes this HTTP/TLS/DNS stack. F10 shares
+the existing flate2 Rust backend with the T17 ZIP path; stats and financial
+archives use the same private decoder. The trees also inventory transitive
+license declarations; the license file review covers the 13 direct pins.
+See the [F10 transport index](f10-transport-index.md) for the remaining native
+certificate and system DNS coverage.
+
+### Historical source checkpoints
+
+The entries below describe the evidence available during implementation,
+before Stage179 and Stage181.
 
 Stage113 closes the T19 **source scope**: registered HTTP/DNS/TLS ownership,
 bounded body decoding, public fixtures and their exact source inventory are

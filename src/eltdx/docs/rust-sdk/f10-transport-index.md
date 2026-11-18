@@ -1,6 +1,6 @@
 # T19 F10 传输源码与验证交接
 
-本页完成T19的源码库存与交接，不代表依赖验证、编译或运行验收通过。已按源码检查HTTP边界、worker所有权、原操作授权、DNS/TLS/代理、限额、压缩和错误清理；全部执行仍待T01–T30源码门槛。具名157入口与历史资金流属于[T20端点索引](f10-implementation-index.md)，Python复用与对象适配属于[T23迁移](t23-migration-index.md)。
+本页记录 T19 的传输分工和实际验收范围。[Stage181](unified-validation.md#stage181-f10-dependency-decision) 核对锁定依赖，并将 27 条回环用例逐个对到冻结候选在 Windows、Linux、macOS 的实际通过日志。具名 157 入口与历史资金流见 [T20 端点索引](f10-implementation-index.md)，Python 复用与对象适配见 [T23 迁移](t23-migration-index.md)。
 
 ## 实现分工和不变量
 
@@ -20,9 +20,9 @@ worker先销毁Tokio runtime，再发布done，实际线程结束后才join并�
 
 HTTP连接driver拥有socket，所有结果路径都drop sender并abort+await driver。解码或状态验证失败不会将同一socket交给下一次调用。解压writer在增长前检查最大decoded和父累计byte预算；encoded/wire保留副本也先计账。RetainWire记录收到的HTTP明文，TLS密文不在该合同内；Omit不保留完整表JSON的冗余副本，不代表解析无分配。
 
-## 已写公共fixture矩阵
+## 已执行的公开接口回环用例
 
-下列均为 `crates/eltdx/tests/f10_http.rs` 的真实函数名，尚未收集或执行。fixture使用本机TCP/UDP、显式合成证书和独立字面量响应，不能当作生产F10数据样本。
+下列用例来自 `crates/eltdx/tests/f10_http.rs`。测试使用本机 TCP/UDP、合成证书和独立字面量响应，覆盖本地传输行为。生产 F10 样本另见统一验证记录 Stage163。
 
 | 边界 | 主要用例 |
 | --- | --- |
@@ -45,17 +45,17 @@ HTTP连接driver拥有socket，所有结果路径都drop sender并abort+await dr
 
 值层及request/response预算的纯源码用例还在 `f10_values.rs` 与各模块内部；T20具名方法、路由inventory和typed结果不能被这一张HTTP表替代。独立Rust消费者、已安装Python wheel消费者和HTTP owner压力是额外的全链路证据。
 
-## 依赖与平台验收仍待执行
+## 依赖、系统配置和生产证据
 
-精确pin/features、已有缓存metadata与尚未知的API/MSRV/license记在[依赖决策](dependency-decisions.md)。实际lock须在全源码门槛后解析，并检查完整normal/build/dev闭包与许可证；缓存里同名版本或本页表格不是可下载、可编译或合规证明。若候选版本不可用或API不符，修正源码声明及文档，再生成新的候选和证据。
+精确版本、feature、归档许可证、声明的 MSRV 和实测工具链见[依赖决策](dependency-decisions.md)。Stage179 在 Windows/Rust 1.89 仅启用 `f10` 执行 HTTP 目标；Stage166、Stage167 的 macOS 和 Linux 结果来自 `full`。三平台分别检查默认生产依赖、F10 的 normal/build 及含 dev 的闭包。`rcgen` 仅在 dev 闭包中，默认 HQ 不含 HTTP/TLS/DNS 栈。
 
-系统DNS配置与native roots加载是registered worker内的本地同步OS调用。其无法及时返回时只能报未确认清理并保留责任，不允许声称能抢占任意OS代码。Windows/macOS/Linux系统trust、代理、DNS配置/IPv6可用性都需实际平台用例；某个平台无IPv6应明确记录环境缺口，不能把未触发fallback当作通过。
+系统 DNS 配置和 native roots 加载仍是已登记 worker 内的本地同步 OS 调用；调用超出清理期限时会报告未确认清理，并保留 worker 责任。回环用例实测了显式 DNS、自定义证书、代理、SNI、证书拒绝和回环 IPv6 回退。Stage163 的 Windows 默认 `http://static.tdx.com.cn:7615/TQLEX` 查询走系统 DNS 并得到非空结果。该查询不执行 TLS；三平台实际系统证书库导入，以及 Linux/macOS 的系统 DNS 配置行为，仍需独立运行证据。回环 IPv6 也不证明生产 IPv6 路由可用。
 
-全源码完成后的执行模板：
+变更传输或依赖后，按影响范围复验：
 
 ```sh
 cargo +1.89.0 test -p eltdx --no-default-features --features f10 --test f10_http --locked
 cargo +1.89.0 test -p eltdx --no-default-features --features f10 --test f10_values --test f10_routes --test f10_named_methods --test f10_route_inventory --test f10_results --test f10_shared_templates --locked
 ```
 
-最小feature还需证明不引入HTTP依赖；full/交叉feature/MSRV与current stable重复构建；真实F10服务可用性和生产响应另列显式在线证据。以上命令目前均未执行。
+第二条命令涉及 T19 值层和 T20 端点；各目标的既有证据以开发计划和统一验证记录中绑定的实际命令为准。

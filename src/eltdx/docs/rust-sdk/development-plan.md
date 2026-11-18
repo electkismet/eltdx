@@ -392,6 +392,8 @@ T17 源码检查点 `88b9036`。Stage178 核对冻结候选的 ZIP 依赖锁、�
 
 ### T19：HTTP 依赖验证与 F10 基础传输
 
+[Stage181](unified-validation.md#stage181-f10-dependency-decision) 核对了冻结候选的依赖选型与跨平台回环结果。系统证书库和实际系统 DNS 的覆盖范围见[F10 传输索引](f10-transport-index.md)。下列源码阶段叙述保留当时状态。
+
 2026-11-17第五段源码交接（stage113，基础58f7664）：worker/probe租约、原预算授权、DNS/TLS/CONNECT、HTTP driver回收、压缩结束与同步OS调用未确认清理边界已作源码复核；补多重Content-Encoding拒绝及三个形状的公共fixture源码，并以[f10-transport-index.md](f10-transport-index.md)绑定真实用例名。T19实现/测试/交接源码范围完成；依赖解析/API/MSRV/license、所有fixture及三平台验收均未执行，以下验收框保持未通过。当前29源码完整/1部分(T30)/0未开始；T30尚需逐服务普通示例与回环映射及最后源码审阅，未开放统一执行。
 
 2026-11-17第四段源码：HTTP检查点`6196df2`后补zlib结束校验、并发connect共用探测/未确认清理保留串行租约、Params整文档限额、可取消JSON保留副本及服务端附加字段；新增相应并发/取消/压缩/redirect源码用例，全部未执行。T19仍部分，19/4/7不变；不将源码进度当作依赖/平台/运行验收通过。
@@ -404,10 +406,10 @@ T17 源码检查点 `88b9036`。Stage178 核对冻结候选的 ZIP 依赖锁、�
 
 **文件：** 新增 `src/f10/{mod,http,request,response}.rs`、测试 `tests/f10_http.rs`；修改crate feature/dependency；测试依赖评估记录放 `docs/rust-sdk/dependency-decisions.md`（实施时创建）。
 
-- [ ] 使用本地HTTP/HTTPS/代理fixture验证Host/SNI/证书、CONNECT、环境代理、IPv4优先及IPv6回退。
-- [ ] 超时和响应byte cap在读取过程中执行；无GIL/Python/DNS全局monkeypatch。
-- [ ] 记录候选 HTTP 依赖的 MSRV、feature 树与许可证；固定通过者版本。复查 T17 的 ZIP 决策供 P3 财报复用，不重新引入另一套解码器。
-- [ ] F10编码compact UTF-8 JSON，解码UTF-8-sig，服务器业务失败与HTTP失败分开。
+- [x] 本地 HTTP/HTTPS/代理验证 Host/SNI/证书、CONNECT、环境代理、IPv4 优先及 IPv6 回退：四份日志均通过 TLS、代理和回退具名用例。
+- [x] 超时和响应字节限制在读取时执行：通过分片读取、压缩展开和连接释放用例；三平台 Rust 树无 Python 绑定，DNS fixture 使用显式配置，无全局替换。
+- [x] 已记录固定 HTTP 依赖的 MSRV、feature 树与许可证。F10 压缩复用 flate2 的 Rust 后端；财报与 T17 统计复用同一 ZIP 解码器。
+- [x] 已用独立字节预期验证紧凑 UTF-8 JSON、带 BOM 响应，以及业务错误与 HTTP 失败分开。
 - [x] `cargo test -p eltdx --features f10 --test f10_http --locked`：Stage179 在 F10 单 feature 下通过 27 条。
 
 ### T20：F10 动态结果、端点与历史资金流

@@ -550,3 +550,11 @@ Stage167 的同候选 Linux stable 原始日志和退出码已核对。`stats` �
 第二轮在同一候选叠加上述四个测试维护文件，继续使用同一个 CI wheel。T01（测试计划和命令目录）29、T02（语料和黄金回归、生成器）148、T12（公开客户端及兼容桥）152、T23（F10 / helper / offline / financial 合同）367 条通过，合计 696，零失败、零错误或跳过。`artifacts/unified/stage180-final-python-contracts-attempt02/result.json` SHA256 `974cebff82035f3ff93fd3ae0b19da0f342ba5c826674d9f123bfc8a2e05dfa1`，同目录保留各 JUnit、原始日志和叠加文件散列。
 
 同一隔离检出重新生成并检查本地 sdist，111 份旧版语料文件和 7 份补充语料均与新清单匹配，文件本身与 CI 原包逐字节一致；527 个 Rust/Python 产品和构建输入文件也逐字节一致。见 `artifacts/unified/stage180-final-python-contracts-attempt02/sdist/verified.json`，SHA256 `1cd7c138dcddd8e3b97bd5adf616337eb005c8a01695a7991e1c449b96175038`。这是语料和发行包内容验证；Stage175 保留原 CI sdist 的实际编译和消费证据。冻结的 Rust 发布候选及既有 wheel 未替换。
+
+## Stage181：T19 F10 依赖选型与回环证据 { #stage181-f10-dependency-decision }
+
+在干净的 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 冻结检出，用 Cargo 1.89.0 离线读取 Windows x64、Linux x64 与 macOS ARM64 的九份 locked 依赖树，覆盖默认生产、F10 生产及含测试依赖三种范围。核对 12 个由 `f10` 开启的直接依赖和 1 个仅用于测试的 `rcgen`：来自 crates.io 缓存的归档逐个与候选锁的 checksum 一致，归档 manifest 的版本、MSRV、许可声明和随包许可证原件已记录。默认 HQ 不引入 Hyper/Hickory/rustls，三个目标的 Rust 树都无 Python 绑定。平台根证书来源分别选择 `schannel`、`openssl-probe` 和 `security-framework`；选择正确后端只证明依赖配置。
+
+原始日志按候选 SHA、命令退出码和散列复核：Stage179 Windows 1.89（仅 F10）、Stage167 Linux stable（full）、Stage166 macOS ARM64 1.89 和 stable（full）各命中源码中的 27 个具名 HTTP 用例，零失败或忽略。按具名断言闭合 T19 的回环、限额与编码条目，未重跑既有矩阵。Stage163 的默认 HTTP 生产查询另提供 Windows 系统 DNS 成功样本。三平台系统证书库实际加载、Linux/macOS 系统 DNS 和生产 IPv6 不由本次回环结果推定。
+
+证据在 `artifacts/unified/stage181-t19-f10-attempt01/`，`verified.json` SHA256 `c57f63b18a588ec9004e9eb8dc529e4c0706ae9cbcb7cb125ae0813b0b3b7a09`。前两次证据提取失败来自日志识别：Windows 目标边界、Linux 父子进程输出交错。第三次在目标内按用例名和外层通过汇总核对成功，原测试日志未改。候选源码与锁未变。行情主站后续取证使用已验证可直连的国内网络；Stage172 的境外 Box 网络不可达，该次尝试无协议响应，也无法验证独立国内线路。
