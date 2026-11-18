@@ -33,6 +33,8 @@
 
 表中的测试名是 `crates/eltdx/tests` 中的target，runtime文件在 `crates/eltdx-runtime/tests`；Python合同与集成目录分别是 `tests/contracts`、`tests/integration`，扩展/F10迁移合同还在其分域测试目录中，精确路径与nodes以分域索引和manifest为准。目录名、方法名和函数数量只是定位信息，执行后须核对实际收集集合和行为断言覆盖。
 
+Stage172 从冻结候选 `6a6cd8b` 的 Linux stable 原始测试日志逐项提取 R03–R10 对应的 40 个测试目标，核实 411 条具名测试通过、0 条忽略。各要求对应的目标、完整测试名和计数见[统一验证记录](unified-validation.md#stage172-local-evidence-and-network)。该记录用于核对已运行的 full 范围，独立 feature 和生产验收证据仍按各自边界记录。
+
 逐服务普通使用示例与非空回环精确函数见[示例对应表](service-examples.md)。E06 的格式和checked类型策略见[Serde合同](examples-serde.md)，实际运行target为 `serde_contract`：finite/nonfinite、负零、bytes/缺失/空、日期时区/Unknown和源单位；三个trait缺失compile-fail由serde doctest执行。`serde` 单独生产依赖和F10独立文档也要验证，不以full成功推定它们成功。
 
 ## 完整发布审计流程
@@ -59,7 +61,7 @@
 ## 后续工作
 
 - 发布平台：`6a6cd8b` 的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)和[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)均通过。Stage166 校验新汇总产物；保留 Stage157 的 Rust fixture 失败和 Stage162 的上传错误。手动验证未上传 PyPI 或创建 GitHub Release。
-- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本；仍需跨日、其他网络条件及独立拒绝样本来确定可长期使用的规则。另补可选 setup 的身份、顺序和 fence，category 22 非空路径，以及常规和特殊交易日的交易所原始参考价、限价和限制类型。Stage171 记录了上证所历史证券基本信息的业务申请渠道，仍需确认字段并取得可留存的生产记录。Stage170 留存 category 22 空响应与普通日线对照原件。未验证含义继续保持 Unknown。
+- 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本。Stage172 的云端 Box 无到达这两台主站的路由；后续跨日采样使用已验证能直连的国内网络，独立网络样本另用可直连的国内线路。仍需真实服务端拒绝、可选 setup 的身份、顺序和 fence、category 22 非空，以及交易所原始参考价、限价和限制类型。Stage171 记录了上证所历史证券基本信息申请渠道；Stage170 留存 category 22 空响应。未验证含义继续保持 Unknown。
 - 注册表：在本机配置获授权的 crates.io 发布凭据后，按[首发与中断后续跑](release-policy.md#initial-registry-release)逐包发布、下载核验，最后用无 patch 的独立项目验证来源和消费。发布前重新查询，404 仅代表该时间点的查询结果。
 
 R01–R12首轮逐项审计是stage135时点的历史快照，后续更新以本节状态和[统一验证记录](unified-validation.md)为准，不再复制一份逐行“部分”表。已有Windows Python矩阵、Windows/Linux压力与性能、以及stage138归档结果分别保留在对应阶段记录中。

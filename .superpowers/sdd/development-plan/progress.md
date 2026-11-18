@@ -1255,3 +1255,7 @@ Stage157 下载并核查首轮原生 ARM64、Linux x64 的四份 CPython 3.10/3.
 Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化在独立 Rust EX 商品总数解析；Python 的相应解析入口、调用链及锁文件未改。同候选 Linux stable/macOS 双 Rust 工具链的两条回归已从原始日志复核，证据见 `artifacts/unified/stage171-compatibility-delta-attempt01/verified.json`。上证所历史数据产品列有基本信息文件，已记录申请入口；字段和留存授权待确认，未将产品说明书计为实盘样本。发布政策明确依赖顺序、逐包下载核验及上传结果不明时的续跑；本机无发布凭据。MAC-EX 跨日采样需等 UTC+8 日期变更，当前不发同日重复请求。冻结候选及既有矩阵不变，目标仍未完成。
 
 文档检查首轮因新增中文标题的自动锚点与链接不符而失败，保留 `artifacts/unified/stage171-docs-attempt01/`，改用显式英文锚点后复验。
+
+## Stage172：落实验收节点与国内网络条件
+
+原始冻结候选 Linux stable 日志中 R03–R10 对应 40 个去重目标、411 条具名测试通过、0 条忽略，见 `artifacts/unified/stage172-target-audit-attempt02/verified.json`。首轮复核被 F10 子进程交错输出影响，未变更原日志。云端 Box 两次连接均因 `Errno 101` 未到达主站，原件在 `artifacts/unified/stage172-cloud-mac-ex-attempt01/capture.json`。按用户指示不再把该 Box 用于国内行情取证；本机已验证的国内线路负责 UTC+8 跨日采样，独立线路另取可直连环境。此次不算服务端拒绝；发布和未满足的生产项保持待验收。

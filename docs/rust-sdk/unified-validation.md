@@ -466,3 +466,9 @@ registry 查询 attempt01 因未提交文档被干净候选门槛拒绝，没有
 对比 Windows Python 全矩阵候选 `e2b8819c4729de28f0472ecbe743b0c2e100872f` 与冻结候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e`。产品源码、依赖清单和锁文件的唯一变化在独立 Rust 的 `decode_instrument_count`，新增对已观察到的 31 字节 `TDX_DS` 变体的支持。Python 的 `get_instrument_count()` 和无市场参数的 `goods_count()` 经既有 PyO3 入口读取同一偏移，调用路径和解析文件的 Git blob 相同，不经过此次改动。冻结候选的 Linux stable、macOS 1.89 和 macOS stable 原始日志均包含 EX 和 MAC-EX 两条回归通过。证据 `artifacts/unified/stage171-compatibility-delta-attempt01/verified.json` SHA256 `e0cf4facde8bf6536750fb759d906066ebe3e1c89162ca285bec6028b2772f0f`。未重跑 Stage136 全矩阵，Stage166 最终候选的五平台消费结果独立记录。
 
 上证所信息网络有限公司的[行情历史数据产品](https://www.sseinfo.com/services/assortment/historical/)列出证券基本信息文件，并提供[业务申请](https://bsp.sseinfo.com/business/?id=1703682586115227650)；2.0.0 说明书只列出若干行情字段，未确认基本信息产品提供 `cpxx0201`、`cpxx0202` 或同等字段。申请前应确认能否获得指定交易日的有效参考价、上下限和限制类型，以及是否允许留存验收证据。保留网页与说明书原件于 `artifacts/unified/stage171-sse-history-channel-attempt01/`；`sources.json` SHA256 `c4bbad13c82e6ee426b3dcc5ce565cc761b30a5e899bc27e4ebb46da629a76fe`。本次未申请或取得生产文件。MAC-EX 上两轮时钟样本均属 UTC+8 的 2026-11-18；应在服务端日期变更后再采第三轮。本机仍无 crates.io 凭据，未上传。
+
+## Stage172：冻结候选测试追溯与生产网络限制 { #stage172-local-evidence-and-network }
+
+使用 Stage167 已保留的 `full.log` 核实 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 和原运行退出码、日志 SHA256，然后按 R03–R10 提取各目标的外层测试汇总与具名结果。去重后 40 个测试目标、411 条通过、0 条忽略。`artifacts/unified/stage172-target-audit-attempt02/verified.json`（SHA256 `ba2378f1607923c6b85d2ac3afb488aac740068bbaf02e669ac37208b81295ab`）保留对应关系和节点。首轮提取遇到 F10 子进程输出与父测试交错，未找到 `f10_http`；第二轮按目标边界和外层汇总核对。此项读取既有 Linux stable / `eltdx/full` 日志，未重跑矩阵，也不推定每一种单独 feature 命令或生产协议已验证。
+
+2026-11-18 00:01 UTC，Linux 云端 Box 对既有两台 MAC-EX 主站各尝试一次标准连接，两次均立即返回 `Errno 101`（网络不可达），未发送登录请求、未接收协议帧。`artifacts/unified/stage172-cloud-mac-ex-attempt01/capture.json` 原件 SHA256 `0202771d75659a60a2dde87a412e0ed36601bbac0bf9e022227add12c8084e8f`，已与云端逐字节核对。这次结果不计作登录拒绝或跨网成功样本。后续使用可直连主站的国内网络，在 UTC+8 服务端日期换日后补采一次；独立线路样本也要求实际可直连。
