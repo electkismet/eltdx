@@ -9,7 +9,7 @@
 | T01–T30实现 | 完成 | 计划内Rust SDK、Python兼容桥接、独立Rust入口及文档/示例源码已写齐。Stage145–148依据生产样本修正Rust MAC-EX、标准EX商品总数的31字节响应解析。 |
 | 本地核心验证 | 已通过所记录范围 | Rust平台/feature/Loom/Linux、压力与性能、Python 3.10–3.14矩阵，以及当前三crate归档和解包consumer均有通过记录。证据按各自候选SHA和平台解释，不合并成一个未经执行的“全矩阵单候选”。 |
 | 发布平台与隔离 | 发布候选的五平台产物、十组安装与 macOS Rust 验证通过 | `6a6cd8b` 上通过 macOS Rust 1.89/stable、三 crate 归档，以及 Windows x64、macOS Intel/ARM64、原生 Linux x64/ARM64 的 Python 3.10/3.14 独立安装。五个 wheel 和一个 sdist 的聚合、元数据和逐文件哈希通过。Linux 使用无编译工具镜像，Windows/macOS 使用独立环境及受限 PATH；同一候选的无 Python Rust 镜像消费见 Stage169。 |
-| 注册表发布与消费 | 未发布 | Stage160 的 protocol Cargo publish dry-run 通过；Stage169 再查三个名称均返回 404。缺少 crates.io 发布凭据；发布后仍需用无 patch 独立项目验证。 |
+| 注册表发布与消费 | 未发布 | Stage160 的 protocol Cargo publish dry-run 通过；Stage175 再查三个名称均返回 404。缺少 crates.io 发布凭据；发布后仍需用无 patch 独立项目验证。 |
 | 生产协议验收 | 部分公开主站流程已验证 | 标准 EX 主站查询 52 个市场与 111218 个商品，与 Python 实测一致；三个普通 MAC 主站通过默认三步握手及业务查询。两台 MAC-EX 主站以即时完整样本完成独立 Rust 查询。Stage163 验证稳定 F10 历史资金流，Stage168 另取得并独立解码 HQ `0x0ffc` 日资金流的完整生产帧，两者各返回五条记录。Stage164–165 核对普通双侧限价、新股首日无涨跌幅及除息价复算。仍待可复用的 MAC-EX 登录规则及服务端拒绝、可选 setup、实验 category 22 非空，以及交易所原始参考价、限价和限制类型记录。 |
 
 当前已完成实现、所列本地核心验证和最终候选的平台与产物复验。正式注册表发布及无 patch 消费、尚缺的生产样本分别追踪，不合并为一个完成比例。
@@ -62,7 +62,7 @@ Stage172 从冻结候选 `6a6cd8b` 的 Linux stable 原始测试日志逐项提�
 
 ## 后续工作
 
-- 发布平台：`6a6cd8b` 的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)和[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)均通过。Stage166 校验新汇总产物；保留 Stage157 的 Rust fixture 失败和 Stage162 的上传错误。手动验证未上传 PyPI 或创建 GitHub Release。
+- 发布平台：`6a6cd8b` 的 [macOS Rust/归档复验](https://github.com/electkismet/eltdx/actions/runs/44188994800)和[原生 wheel/sdist 验证](https://github.com/electkismet/eltdx/actions/runs/44189071921)均通过。[Stage175](unified-validation.md#stage175-final-sdist) 直接用 CI 汇总的最终源码包离线重建 Windows wheel，并通过独立安装与公开 API 测试。保留 Stage157 的 Rust fixture 失败和 Stage162 的上传错误。手动验证未上传 PyPI 或创建 GitHub Release。
 - 生产协议：Stage153 已核对两台 MAC-EX 主站相隔约 69 分钟的成功样本。Stage172 的云端 Box 无到达这两台主站的路由；后续跨日采样使用已验证能直连的国内网络，独立网络样本另用可直连的国内线路。仍需真实服务端拒绝、可选 setup 的身份、顺序和 fence、category 22 非空，以及交易所原始参考价、限价和限制类型。Stage171 记录了上证所历史证券基本信息申请渠道；Stage170 留存 category 22 空响应。未验证含义继续保持 Unknown。
 - 注册表：在本机配置获授权的 crates.io 发布凭据后，按[首发与中断后续跑](release-policy.md#initial-registry-release)逐包发布、下载核验，最后用无 patch 的独立项目验证来源和消费。发布前重新查询，404 仅代表该时间点的查询结果。
 

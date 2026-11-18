@@ -1267,3 +1267,7 @@ Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化�
 ## Stage174：冻结候选指定 feature 门禁
 
 在 `6a6cd8b` 的干净发布检出，Windows x64/MSVC / Rust 1.89 执行 T18、T21–T26 所列的六组功能组合，共 13 个测试目标、201 条通过、0 条失败、0 条忽略。原始日志和环境在 `artifacts/unified/stage174-windows-feature-tests-attempt01/result.json`。只更新有直接执行证据的计划条目和验证索引，未改变源码候选。正式发布凭据及国内生产证据仍待取得。
+
+## Stage175：冻结候选的实际源码发行包重建
+
+用 CI Stage166 的 `eltdx-3.3.5.tar.gz` 在 Windows x64、Rust 1.89、CPython 3.12.6 离线重建 abi3 wheel，另以独立环境通过二进制安装、pip check、非空公开 API 消费和关闭。证据在 `artifacts/unified/stage175-final-sdist-attempt01/result.json`。04:27 UTC crates.io 三个名称仍为 404，本机无发布凭据。保留冻结候选；按服务端 UTC+8 日期换日后，使用国内直连环境补取 MAC-EX 跨日样本。

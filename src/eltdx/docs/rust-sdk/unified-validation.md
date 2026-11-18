@@ -495,3 +495,11 @@ R02 的迁移目录和样本库存自 Python 五版本矩阵候选至冻结发�
 | T26 | `ex,mac` | `extended_loopback` | 14 |
 
 命令、环境、候选 SHA、锁文件散列和原始日志保存在 `artifacts/unified/stage174-windows-feature-tests-attempt01/`。`result.json` SHA256 `daa20be60deaa9022743a13dea8adc058d30c69c18358d3c6d8d181c5637fe59`。六份日志散列及汇总均已复核。发布检出测试前后干净；本次未重跑平台矩阵，且未进行实盘连接或注册表发布。
+
+## Stage175：最终候选源码包的离线重建与消费 { #stage175-final-sdist }
+
+直接取 Stage166 汇总的 `eltdx-3.3.5.tar.gz`，核对 SHA256 `6532d70b286b87e083213863fa6cc95a343d7cdb01a565d153a685477d12d862`，绑定冻结候选 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e`。Windows x64 上使用 CPython 3.12.6、Rust 1.89.0、maturin 1.15.0，以本机已有的构建后端和缓存依赖执行 `pip wheel --no-deps --no-index --no-cache-dir --no-build-isolation`；Cargo 禁用联网，maturin 从源码包读取 locked 构建设置。实际从 pip 的解包目录编译通过，生成 `eltdx-3.3.5-cp310-abi3-win_amd64.whl`，SHA256 `650e3fbf1e32b824df2d07c4f570c3f3f9c55194c9e82694dcfe5d495c09dded`。该 wheel 是单独重建的验证产物。
+
+重建 wheel 在候选检出外的新虚拟环境中通过无索引二进制安装、`pip check`、公开 API 非空回环查询和关闭。消费环境使用受限 PATH；原生扩展的安装字节与重建 wheel 一致，SHA256 `f4bcdd47fc526270f739af608f270f4f1ae5a3b0bbc0319ae9cdab299469ca00`。过程、命令、原始日志和消费报告见 `artifacts/unified/stage175-final-sdist-attempt01/`，`result.json` SHA256 `7c5d1a6e6300cd2773730fffadb17b5966dedb19d67b1f58cf19cb4811470de5`。这是最终候选的源码包实际构建证据；不重复 Stage166 的五平台 wheel 安装审计。
+
+2026-11-18 04:27 UTC，在同一冻结检出复查 crates.io 三个名称，均 HTTP 404。`artifacts/unified/stage175-registry-observation-attempt01/packages.json` SHA256 `40b7060a4249c0240d59fd847c5ad7fc0a87466a4b8f1cd92acffedf284a28e1`；未取得本机发布凭据，未上传。
