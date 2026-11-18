@@ -1275,3 +1275,7 @@ Stage136 的完整 Python 五版本矩阵到 `6a6cd8b` 的唯一运行时变化�
 ## Stage176：交易所原始价格取数清单
 
 取得并核对四份官方接口规范，按 Stage164–165 样本定位沪市 `cpxx0201/0202`、深市第二遍静态 XML 及 `300111` 快照、北交所 `NQXX.DBF` 及待确认的参考价记录。统一验证记录列出具体交易日、字段和证据边界，原件与页码在 `artifacts/unified/stage176-exchange-file-specs-attempt01/verified.json`。本轮未取得真实交易日记录，冻结候选及 `UnknownRule` 不变；本机尚无发布凭据，也未到国内线路跨日采样窗口。
+
+## Stage177：公开第三方依赖的全新解析
+
+从冻结候选 `6a6cd8b` 的 macOS CI 归档取三个本地包，以空 Cargo home 在 Windows/Rust 1.89 的独立工程生成新消费者锁。确认 164 个第三方包来自 crates.io；`check --locked --all-features` 通过。归档、日志及锁见 `artifacts/unified/stage177-fresh-resolution-attempt01/result.json`。三个 ELTDX 本地 patch 只为探测当前第三方依赖的 MSRV；未替代正式发布或无 patch 消费。

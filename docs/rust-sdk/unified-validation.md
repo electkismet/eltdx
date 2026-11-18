@@ -515,3 +515,9 @@ R02 的迁移目录和样本库存自 Python 五版本矩阵候选至冻结发�
 | 北交所：`920117` 2026-11-17 | [行情接口优化说明](https://www.bse.cn/uploads/6/file/public/202606/20260610181355_8rv4age5hh.pdf) 确认 `NQXX.DBF` 的 `XXZQDM`、`XXJGDW`、`XXXJXZ`、`XXZTJG`、`XXDTJG`、`XXCQCX` 和 `XXGXSJ`。需同时索取当日适用版本中 `XXXJXZ` 的定义，以及同一证券的原始行情参考价记录；该附件未定义这两项。 |
 
 取得记录后，保留来源、适用版本、交易日、批次或时点、证券代码、原始字节 SHA256，以及获准留存的范围。区分交易所原始标记、原始绝对价格、由规则复算的价格；深交所的申报有效范围 (`HasAuctionLimit`) 与日涨跌幅限制分别记。上述来源仅证明文件及字段定义，并未取得所列交易日的生产记录，不改变 `UnknownRule`。本轮原件、取件时间、页码和未命中的北交所旧链接记录见 `artifacts/unified/stage176-exchange-file-specs-attempt01/verified.json`，SHA256 `0e7182b1729d333867c707e6543b62c407997d4dd06e5fb0e5faea83da051a33`。
+
+## Stage177：从公开索引重新解析第三方依赖 { #stage177-fresh-resolution }
+
+从 macOS CI 归档报告确认 `6a6cd8bb57d03a03d554a9aee885baf91ef5e50e` 的三个 `.crate` 并核对散列。在仓库外创建空 Cargo home 和独立消费者，不继承 Cargo 配置、缓存或工作区锁；仅把三个尚未发布的 ELTDX crate patch 到上述归档解包目录。Windows x64 上用 Cargo 1.89.0 从 crates.io 重新 `generate-lockfile`，确认 164 个第三方包均带 crates.io 来源和 checksum，随后 `cargo +1.89.0 check --locked --all-features` exit 0。新消费者锁 SHA256 `2738db59de7442f1199ede8e7d9bb70cd613faead4ff92915148e9b78e2d1b8f`。
+
+这验证了当时公开索引的第三方依赖选择在 Windows 上没有阻断 Rust 1.89 全功能编译。三个候选 crate 仍来自本地归档，真实发布、无 patch 锁文件身份和业务场景仍按发布政策单独验收。脚本、消费者 manifest/lock 和日志见 `artifacts/unified/stage177-fresh-resolution-attempt01/`，`result.json` SHA256 `9b16a99c1fa6c7427b2c2ea015920287482c9a74b24df749722d2b2075917818`。
