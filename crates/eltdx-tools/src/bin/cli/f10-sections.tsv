@@ -1,0 +1,19 @@
+profile	8	0=基本资料	3=参控股公司	4=员工构成	5=员工效益	6=研发投入	8=发行上市信息	9=指数调入调出	20=管理层	21=高管兼职	22=（暂无数据）	23=离任高管
+digest	tips	tips=最新提示	profile=公司概要	events=公司大事	news=公司新闻	announcements=公司公告	reports=公司研报	roadshows=路演互动	interaction=投资者互动
+shareholders	count	count=股东人数与股价比较	ranking=同行业股东人数增减量排名	controller=控股股东与实际控制人	top_circulating=十大流通股东	top=十大股东（按报告期）	bonds=十大债券持有人	changes=重要股东持股变动	institutions=机构持股汇总	institution_types=机构持股分类汇总	institution_holdings=机构持仓明细	plan=股东增减持计划
+capital	structure	structure=股本结构	changes=股本变动	buyback=股票回购	restricted=限售流通	restricted_detail=限售解禁明细（需 --date）
+business	business	business=主营业务概述	composition=主营构成（需 --report-date）	customers=前五名客户（需 --report-date）	suppliers=前五名供应商（需 --report-date）	price=产品价格	changes=财务指标大幅变动说明（需 --report-date）
+industry	peers	peers=同业对比	dividend_rank=同业分红排名	scale=同业规模	valuation=同业估值	news=行业新闻	reports=行业研报	market_share=市场份额	summary=行业汇总	comparable=可比公司	comparable_profile=可比公司资料
+trading	margin	margin=近期融资融券	margin_history=近 6 个月融资融券	block_trades=大宗交易	dragon_board=龙虎榜	northbound=沪深股通	limit_down=跌停分析	limit_up=涨停分析	bonds=可转债	main_force=主力盘口	reports=研报/席位	kcb=科创板标记
+fund	basic	name=名称与市场	managers=基金经理	company=基金管理人	basic=基本概况	seats=交易席位	scale=规模与份额	scale_history=份额/规模历史（需 --date）	nav=单位净值序列	nav_period=区间收益	nav_rank=同类排名	dividends=基金分红	asset_allocation=资产配置	industry_allocation=行业分布	holdings_compare=重仓股变动	holdings_rank=重仓排名	holding_summary=基金持仓汇总	bond_allocation=债券配置	futures_allocation=期货持仓明细	holdings=持股情况	holdings_detail=持股明细	holdings_changes=持有基金明细	fund_of_funds=下属基金资产	finance=财务指标（--arg 选表，默认 zcfzb）	sales_info=费率	sales_announcements=销售公告	sales_news=相关资讯	etf=是否 ETF	margin=ETF 融资融券	ratings=基金评级	categories=分类/同类对比
+market	board_info	board_info=板块名称与市场	board_basics=板块基础资料	board_description=板块说明	board_trading=板块交易数据	board_flow=板块资金（--arg 001_1/002_1/003_1）	board_members=成份股数据（--arg 001/002/003/004/005）	board_analysis=板块三点分析	board_finance_compare=成份股财务对比	board_candidates=成份股候选数据（--arg 001/002）	board_trend=板块异动分析	index_info=指数信息	index_profile=指数概况	index_valuation=指数估值快照（PE/PB/PS/PCF/股息率）	index_tracking=跟踪标的	index_flow=指数资金动向（--arg 003/004_1/004_2）	index_flow_members=成份股资金	index_members=指数成份股清单（= index_flow_members）	index_etfs=跟踪该指数的产品（= index_tracking）	index_notices=今日提示	market_basic=大盘指数基本信息	market_margin=大盘两融活跃个股列表	market_margin_summary=大盘两融日序列汇总	market_margin_investors=两融投资者情况统计（--arg 1m/3m/6m/1y）	market_new_shares=新股分析	ipo_calendar=近期新股（= market_new_shares）	market_capital=大盘市场概览（--arg 001/002/003/004）
+forecast	ylyctj	ylyctj=盈利预测统计	ylycmx=盈利预测明细	yzyq=一致预期	tzpjtj=投资评级统计	ycpjyjbg=研报明细
+dividend	fh	fh=分红方案历史	pf=配股	pxmz=募资汇总	zf=增发	gqjl=股权激励	fhpm_gxl=股息率排名	fhlszs_gxl=股息率历史走势
+finance	zcfzb	zcfzb=资产负债表	lyb=利润表	xjllb=现金流量表	zyzb=主要指标	dbfx=杜邦分析	cwgc=财务概况	zcdjt=资产大计提	ylnl=盈利能力	cwzd=财务诊断	cwbg=财报披露
+governance	wgcl	wgcl=违规处理	dbmxbgq=担保明细	gljy=关联交易	gqzr=股权转让	gqzy=股权质押	sgjb=诉讼仲裁	zdsx=重大事项	zjly=资金运用
+score	pf	pf=综合评分
+topics	zttzbkz	zttzbkz=板块题材	zttzztk=自选题材	sjcd=事件驱动	xxmmg=细项明细
+news	gsyj	gsyj=公司研报	jgcs=监管措施	finance_review=财报点评
+northbound	bszj	bszj=北向资金	sdzj=南向资金
+ranking	scpmdela	scpmdela=市场排名	hypmdela=行业排名
+board-members		auto=板块分红成份（自动翻页，按记录身份去重，无需 --section）

@@ -448,6 +448,52 @@ fn overlapping_subscriptions_keep_separate_source_routes_and_independent_close()
 }
 
 #[test]
+fn raw_push_frames_keep_subscription_decode_context_after_unsubscribe() {
+    let (source_tx, source_rx) = mpsc::channel();
+    let server = Server::start_controlled(move |request, connection| {
+        if request.msg_type == 0x0547 {
+            source_tx.send(connection.clone()).unwrap();
+        }
+        ordinary_reply(request, 2)
+    })
+    .unwrap();
+    let client = client(&server, 1);
+    let options = OperationOptions::default()
+        .with_timeout(Duration::from_secs(2))
+        .with_raw(eltdx::RawPolicy::RetainPayload);
+    let quotes = client.quotes();
+    quotes.enable_push_frames().unwrap();
+    let mut subscription = quotes.subscribe(&ids(2), &policy(), &options).unwrap();
+    take_initial(&mut subscription);
+    let connection = source_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+    for rows in [
+        &[("600000", 93001)][..],
+        &[("600000", 93002), ("600001", 93003)],
+    ] {
+        connection.push(0x0547, &hq_server::refresh(rows)).unwrap();
+    }
+    let mut frames = Vec::new();
+    for _ in 0..2 {
+        frames.extend(
+            quotes
+                .read_push_frames(Some(Duration::from_secs(1)), &options)
+                .unwrap(),
+        );
+    }
+    subscription.close().unwrap();
+    assert_eq!(frames.len(), 2);
+    assert_eq!(frames[0].response().msg_type, 0x0547);
+    let first = quotes.decode_push_frame(&frames[0], &options).unwrap();
+    assert_eq!(first.updates()[0].cursor(), 93001);
+    let second = quotes.decode_push_frame(&frames[1], &options).unwrap();
+    assert_eq!(second.updates().len(), 2);
+    assert_eq!(second.updates()[0].cursor(), 93002);
+    assert_eq!(second.updates()[1].cursor(), 93003);
+    client.close().unwrap();
+    server.finish().unwrap();
+}
+
+#[test]
 fn read_cancellation_keeps_initial_and_setup_cancellation_does_not_stop_the_lease() {
     let (source_tx, source_rx) = mpsc::channel();
     let server = Server::start_controlled(move |request, connection| {

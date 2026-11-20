@@ -14,6 +14,7 @@ use crate::metadata::MetadataSnapshot;
 use crate::operation::{CancellationToken, ChildPurpose, OperationContext, OperationOptions};
 use crate::services::{
     aggregate_meta, checked_ids, pinned_snapshot_batch, project_refresh_updates, refresh_command,
+    PushDecodeContext,
 };
 use crate::session::{OwnerTaskGroup, PinnedSession, SessionOwner};
 use crate::types::{
@@ -29,7 +30,7 @@ use super::queue::{EventQueue, QueueAction};
 struct Group {
     pin: PinHandle,
     source: GenerationIdentity,
-    ids: Vec<SecurityId>,
+    ids: Arc<[SecurityId]>,
     cursors: Mutex<CursorBook>,
 }
 
@@ -251,7 +252,7 @@ pub(crate) fn establish(
             groups.push(Group {
                 pin: pin.clone(),
                 source,
-                ids: part.to_vec(),
+                ids: Arc::from(part),
                 cursors: Mutex::new(cursors),
             });
         }
@@ -712,6 +713,14 @@ impl Control {
 }
 
 impl PushSink for Control {
+    fn decode_context(&self, source: GenerationIdentity) -> Option<PushDecodeContext> {
+        let group = self.groups.iter().find(|group| group.source == source)?;
+        Some(PushDecodeContext {
+            ids: group.ids.clone(),
+            metadata: self.metadata.clone(),
+        })
+    }
+
     fn frame(&self, frame: &PushFrame) -> Result<()> {
         if frame.response.msg_type != eltdx_protocol::commands::quotes::TYPE_REFRESH_STREAM {
             return Ok(());

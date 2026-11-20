@@ -2,13 +2,14 @@
 resolver = "2"
 members = [
   "crates/eltdx",
+  "crates/eltdx-tools",
   "crates/eltdx-protocol",
   "crates/eltdx-runtime",
   "crates/eltdx-python",
 ]
 
 [workspace.package]
-version = "3.4.0-beta.1"
+version = "3.4.0-beta.2"
 edition = "2021"
 rust-version = "1.89"
 license-file = "LICENSE"

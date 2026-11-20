@@ -126,6 +126,23 @@ impl ResourceService {
         Ok(self.download_entry(path, max_bytes, options, true)?.data)
     }
 
+    pub fn download_with_options(
+        &self,
+        path: &str,
+        download: &DownloadOptions,
+        options: &OperationOptions,
+    ) -> Result<DownloadResult> {
+        let context = self.executor.begin_context_at(
+            Instant::now(),
+            "resource_download",
+            &self.config,
+            options,
+        )?;
+        let result = self.download_configured_in_context(&context, path, download, false)?;
+        context.finish()?;
+        Ok(result.result)
+    }
+
     fn download_entry(
         &self,
         path: &str,

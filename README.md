@@ -40,7 +40,7 @@
 
 感谢 [injoyai/tdx](https://github.com/injoyai/tdx) 及 [rainx/pytdx](https://github.com/rainx/pytdx) 的启发。
 
-本分支对应 [v3.4.0-beta.1 双端测试版](docs/releases/v3.4.0-beta.1.md)。Python 用户安装 Python 包，Rust 用户添加 Cargo 依赖。
+本分支对应 [v3.4.0-beta.2 双端测试版](docs/releases/v3.4.0-beta.2.md)。Python 用户安装 Python 包，Rust 用户添加 Cargo 依赖。
 
 ## 功能地图
 
@@ -142,6 +142,22 @@ python -m pytest
 ```
 
 源码仓库里的 `scripts/` 目录用于开发和排查；通过 `pip install eltdx` 安装后，优先使用上面的命令行入口。
+
+### 从源码构建 Rust 工具
+
+需要 Rust 1.89 或更新版本。在仓库根目录运行：
+
+```bash
+cargo build --locked --release -p eltdx-tools
+./target/release/eltdx --help
+./target/release/eltdx-http --host 127.0.0.1 --port 8000
+```
+
+MCP 客户端通过 stdio 启动 `target/release/eltdx-mcp`。配置里的 `command` 使用该文件的绝对路径。Windows 构建产物带 `.exe` 后缀。这三个入口直接调用 Rust SDK，运行时无需安装 Python。
+
+使用 MAC-EX、场外基金网络查询或 MCP 宏观数据工具前，设置 `ELTDX_MAC_EX_LOGIN_RULES` 指向经验证的登录规则 JSON 文件。文件需要提供字符串 `evidence` 和非空数组 `accepted_hex`，可选数组 `rejected_hex`。数组中的每项是完整登录响应载荷的十六进制字符串。
+
+网关客户端通过 `/ws` 的 `quotes.subscribe` 接收实时行情，不需要传入 Python 回调。`quotes.poll_push` 和 `quotes.drain_pushes` 可读取原始推送；`parse=true` 用于能够关联到订阅的行情帧。Rust 网关和 Python 网关的部分响应原始字段仍有差异。
 
 ## 快速开始
 

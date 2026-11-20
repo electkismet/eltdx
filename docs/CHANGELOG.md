@@ -1,5 +1,11 @@
 # 变更记录
 
+## v3.4.0-beta.2
+
+- 新增原生 Rust CLI、HTTP/WebSocket 网关和 MCP 服务，可从仓库源码构建，运行时不依赖 Python。
+- 网关支持原始行情推送轮询、带订阅上下文的多证券推送解析，以及 F10 集合查询缓存；扩展行情 CLI 支持域名参数。
+- 安装方式和已知限制见 [v3.4.0-beta.2 发布说明](releases/v3.4.0-beta.2.md)。
+
 ## v3.4.0-beta.1
 
 - 新增纯 Rust SDK；Python 包复用同一 Rust 核心，保留原有调用方式。

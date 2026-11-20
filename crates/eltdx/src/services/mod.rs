@@ -53,9 +53,10 @@ pub use money_flow::MoneyFlowService;
 pub(crate) use quotes::legacy_snapshot_rows;
 pub(crate) use quotes::{legacy_quote_reply, suspended_status};
 pub(crate) use quotes::{
-    pinned_snapshot_batch, project_refresh_updates, refresh_command, SNAPSHOT_RECOVERY_REQUESTS,
+    pinned_snapshot_batch, project_refresh_updates, refresh_command, PushDecodeContext,
+    SNAPSHOT_RECOVERY_REQUESTS,
 };
-pub use quotes::{PinnedQuoteService, QuoteService};
+pub use quotes::{PinnedQuoteService, QuotePushFrame, QuoteService};
 pub use trades::TradeService;
 pub(crate) use trades::{legacy_trade_read, legacy_trade_reply};
 

@@ -1,15 +1,17 @@
 use std::collections::{HashMap, VecDeque};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use eltdx_protocol::commands::quotes::{
     CategoryQuotesRequest, LegacyQuotesRequest, QuoteSnapshot, RefreshCursor, RefreshStreamRequest,
-    SnapshotsRequest,
+    SnapshotsRequest, TYPE_REFRESH_STREAM,
 };
+use eltdx_protocol::frame::ResponseFrame;
 use eltdx_protocol::unit::NormalizedCode;
 use eltdx_protocol::{CommandRequest, CommandResponse, RecordRange};
 use eltdx_runtime::engine::Engine;
+use eltdx_runtime::push::PushFrame;
 
 use crate::config::ClientConfig;
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
@@ -96,6 +98,24 @@ pub(crate) fn legacy_quote_reply(
 
 pub(crate) fn suspended_status(status: u16) -> bool {
     status & 0x20 != 0
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct PushDecodeContext {
+    pub ids: Arc<[SecurityId]>,
+    pub metadata: Arc<MetadataSnapshot>,
+}
+
+#[derive(Clone, Debug)]
+pub struct QuotePushFrame {
+    pub(crate) frame: PushFrame,
+    pub(crate) decode: Option<PushDecodeContext>,
+}
+
+impl QuotePushFrame {
+    pub fn response(&self) -> &ResponseFrame {
+        &self.frame.response
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -308,6 +328,81 @@ impl QuoteService {
             subscription,
             options,
         )
+    }
+
+    pub fn enable_push_frames(&self) -> Result<()> {
+        self.executor
+            .owner()
+            .push_dispatcher(&self.engine)?
+            .enable_raw()
+    }
+
+    pub fn read_push_frames(
+        &self,
+        wait: Option<Duration>,
+        options: &OperationOptions,
+    ) -> Result<Vec<QuotePushFrame>> {
+        let entry = Instant::now();
+        let deadline = entry.checked_add(wait.unwrap_or_default()).ok_or_else(|| {
+            Error::new(
+                ErrorKind::InvalidArgument,
+                "push wait exceeds the supported deadline",
+            )
+        })?;
+        let context =
+            self.executor
+                .begin_context_at(entry, "quote_push_frames", &self.config, options)?;
+        let dispatcher = self.executor.owner().push_dispatcher(&self.engine)?;
+        let frames = dispatcher.read_raw(wait.is_none(), &context, deadline)?;
+        context.finish()?;
+        Ok(frames)
+    }
+
+    pub fn decode_push_frame(
+        &self,
+        frame: &QuotePushFrame,
+        options: &OperationOptions,
+    ) -> Result<QuoteUpdates> {
+        let context = self.executor.begin_context_at(
+            Instant::now(),
+            "quote_push_decode",
+            &self.config,
+            options,
+        )?;
+        if frame.response().msg_type != TYPE_REFRESH_STREAM {
+            return Err(wrong_response("quote push"));
+        }
+        let decode = frame.decode.as_ref().ok_or_else(|| {
+            Error::new(
+                ErrorKind::Protocol,
+                "push has no matching subscription activation; use raw push polling",
+            )
+        })?;
+        context.install_metadata(Arc::clone(&decode.metadata))?;
+        let metadata = context.begin_decode()?;
+        let requests = decode
+            .ids
+            .iter()
+            .cloned()
+            .map(RefreshRequest::new)
+            .collect::<Vec<_>>();
+        let decoded = crate::hq::decode::decode_push(
+            &frame.frame,
+            refresh_command(&requests)?,
+            context.raw(),
+            metadata.as_ref(),
+        )
+        .map_err(Error::from_protocol)?;
+        let updates = project_refresh_updates(
+            &decode.ids,
+            &context,
+            &self.config,
+            &metadata,
+            &decoded,
+            "quotes.push",
+        )?;
+        context.finish()?;
+        Ok(updates)
     }
 
     /// Language-neutral retrieval. T12 passes a Python-profile context and the

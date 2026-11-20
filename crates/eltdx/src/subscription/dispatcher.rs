@@ -1,5 +1,6 @@
 //! One controlled runtime consumer per exact Engine. Routes retain weak sinks;
 //! neither the dispatcher nor its worker retains the SDK session owner.
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, Weak};
 use std::thread::{self, JoinHandle};
@@ -12,11 +13,15 @@ use eltdx_runtime::RuntimeError;
 
 use crate::error::{Error, ErrorKind, Result, TimeoutPhase};
 use crate::operation::OperationContext;
+use crate::services::{PushDecodeContext, QuotePushFrame};
 use crate::session::OwnerTaskGroup;
 
 /// Internal synchronous projection only: implementations cannot invoke user
 /// callbacks, start requests or wait for renewal while the consumer dispatches.
 pub(crate) trait PushSink: std::fmt::Debug + Send + Sync {
+    fn decode_context(&self, _source: GenerationIdentity) -> Option<PushDecodeContext> {
+        None
+    }
     fn frame(&self, frame: &PushFrame) -> Result<()>;
     fn gap(&self, dropped: u64, cumulative: u64);
     fn failed(&self, error: Error);
@@ -45,6 +50,13 @@ struct Worker {
     failure: Option<Error>,
 }
 
+#[derive(Debug, Default)]
+struct RawFrames {
+    enabled: bool,
+    frames: VecDeque<QuotePushFrame>,
+    dropped: u64,
+}
+
 #[derive(Debug)]
 pub(crate) struct Dispatcher {
     stopped: AtomicBool,
@@ -52,6 +64,8 @@ pub(crate) struct Dispatcher {
     routing_changed: Condvar,
     worker: Mutex<Worker>,
     worker_changed: Condvar,
+    raw: Mutex<RawFrames>,
+    raw_changed: Condvar,
 }
 
 impl Dispatcher {
@@ -70,6 +84,8 @@ impl Dispatcher {
                 failure: None,
             }),
             worker_changed: Condvar::new(),
+            raw: Mutex::new(RawFrames::default()),
+            raw_changed: Condvar::new(),
         }))
     }
 
@@ -244,12 +260,68 @@ impl Dispatcher {
             generation: frame.generation,
         };
         let (_delivery, sinks) = self.targets(Some(source))?;
+        let mut raw = self.raw.lock().map_err(|_| poisoned())?;
+        if raw.enabled {
+            if raw.frames.len() == 128 {
+                raw.frames.pop_front();
+                raw.dropped = raw.dropped.saturating_add(1);
+            }
+            raw.frames.push_back(QuotePushFrame {
+                frame: frame.clone(),
+                decode: sinks.iter().find_map(|sink| sink.decode_context(source)),
+            });
+            self.raw_changed.notify_one();
+        }
+        drop(raw);
         for sink in sinks {
             if let Err(error) = sink.frame(frame) {
                 sink.failed(error);
             }
         }
         Ok(())
+    }
+
+    pub(crate) fn enable_raw(&self) -> Result<()> {
+        self.raw.lock().map_err(|_| poisoned())?.enabled = true;
+        Ok(())
+    }
+
+    pub(crate) fn read_raw(
+        &self,
+        all: bool,
+        context: &OperationContext,
+        deadline: Instant,
+    ) -> Result<Vec<QuotePushFrame>> {
+        let mut raw = self.raw.lock().map_err(|_| poisoned())?;
+        raw.enabled = true;
+        loop {
+            if self.stopped.load(Ordering::Acquire) {
+                return Err(closed());
+            }
+            context.check_boundary(TimeoutPhase::Queue)?;
+            if raw.dropped != 0 {
+                let dropped = std::mem::take(&mut raw.dropped);
+                return Err(Error::from_runtime(RuntimeError::PushOverflow {
+                    dropped_total: dropped,
+                    context: Vec::new(),
+                }));
+            }
+            if all {
+                return Ok(raw.frames.drain(..).collect());
+            }
+            if let Some(frame) = raw.frames.pop_front() {
+                return Ok(vec![frame]);
+            }
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return Ok(Vec::new());
+            }
+            raw = self
+                .raw_changed
+                .wait_timeout(raw, remaining.min(SIGNAL_POLL_INTERVAL))
+                .map_err(|_| poisoned())?
+                .0;
+        }
     }
 
     fn run(&self, consumer: PushConsumer) {
@@ -265,6 +337,12 @@ impl Dispatcher {
                     Err(RuntimeError::PushOverflow { dropped_total, .. }) => {
                         let dropped = dropped_total.saturating_sub(reported_dropped);
                         reported_dropped = dropped_total;
+                        let mut raw = self.raw.lock().map_err(|_| poisoned())?;
+                        if raw.enabled {
+                            raw.dropped = raw.dropped.saturating_add(dropped);
+                            self.raw_changed.notify_all();
+                        }
+                        drop(raw);
                         let (_delivery, sinks) = self.targets(None)?;
                         for sink in sinks {
                             sink.gap(dropped, dropped_total);
@@ -302,6 +380,7 @@ impl Dispatcher {
         worker.finished = true;
         self.worker_changed.notify_all();
         self.routing_changed.notify_all();
+        self.raw_changed.notify_all();
     }
 }
 
@@ -310,6 +389,7 @@ impl OwnerTaskGroup for Dispatcher {
         self.stopped.store(true, Ordering::Release);
         self.routing_changed.notify_all();
         self.worker_changed.notify_all();
+        self.raw_changed.notify_all();
     }
 
     fn close_until(&self, deadline: Instant) -> Result<()> {
