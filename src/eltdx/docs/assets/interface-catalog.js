@@ -49,7 +49,8 @@
 
   var language = new URLSearchParams(window.location.search).get("lang") === "rust" ? "rust" : "python";
   var catalog = language === "rust" ? window.ELTDX_RUST_CATALOG : window.ELTDX_CATALOG;
-  root.querySelectorAll("[data-catalog-language]").forEach(function (link) {
+  var languageLinks = root.querySelectorAll("[data-catalog-language]");
+  languageLinks.forEach(function (link) {
     if (link.dataset.catalogLanguage === language) {
       link.setAttribute("aria-current", "page");
     } else {
@@ -439,7 +440,11 @@
         var callList = createElement("div", "interface-call-list");
         item.calls.forEach(function (call) {
           var callRow = createElement("div", "interface-call");
-          callRow.appendChild(createElement("span", "interface-call-label", call.label));
+          var callLabel = createElement(call.doc ? "a" : "span", "interface-call-label", call.label);
+          if (call.doc) {
+            callLabel.href = localDocUrl(call);
+          }
+          callRow.appendChild(callLabel);
           callRow.appendChild(createElement("code", "", call.api));
           callList.appendChild(callRow);
         });
@@ -607,6 +612,19 @@
       window.location.hash = button.dataset.catalogView === "function" ? "function/all" : "all";
     });
   });
-  window.addEventListener("hashchange", applyFilters);
-  applyFilters();
+  function updateCategory() {
+    languageLinks.forEach(function (link) {
+      var url = new URL(window.location.href);
+      if (link.dataset.catalogLanguage === "rust") {
+        url.searchParams.set("lang", "rust");
+      } else {
+        url.searchParams.delete("lang");
+      }
+      link.href = url.href;
+    });
+    applyFilters();
+  }
+
+  window.addEventListener("hashchange", updateCategory);
+  updateCategory();
 })();

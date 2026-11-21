@@ -35,6 +35,7 @@ hide:
       <span>参考文档</span>
       <a href="rust-sdk/">Rust SDK 安装与示例</a>
       <a href="https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.2/eltdx/">完整 Rust API 参考</a>
+      <a href="https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.2/eltdx/offline/">离线文件与专业财报</a>
     </nav>
   </aside>
 
@@ -88,8 +89,9 @@ hide:
     </section>
     <section class="catalog-scope" aria-labelledby="rust-catalog-scope-title" data-catalog-language-content="rust" hidden>
       <h2 id="rust-catalog-scope-title">Rust API 收录范围</h2>
-      <p>目录收录 <code>3.4.0-beta.2</code> 的常用业务入口。每项文档链接指向该版本对应的 Rust 方法或函数。完整类型、构造器和其他方法见 <a href="https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.2/eltdx/">Rust API 参考</a>。</p>
+      <p>Rust <code>3.4.0-beta.2</code> 与 Python 目录使用相同的业务项。同一项下可能有多个方法，或与其他项共用一个方法。完整类型、构造器和其他方法见 <a href="https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.2/eltdx/">Rust API 参考</a>。</p>
       <p>默认支持 7709 行情。各项所需的 Cargo feature 显示在「协议 / 类型」列。安装方式和客户端示例见 <a href="rust-sdk/">Rust SDK 指南</a>。</p>
+      <p><a href="https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.2/eltdx/offline/">离线文件接口</a>和<a href="https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.2/eltdx/financial/">专业财报服务</a>可在 API 参考中单独浏览。</p>
     </section>
   </div>
 </section>
