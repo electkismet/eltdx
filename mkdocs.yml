@@ -55,6 +55,7 @@ extra_css:
 
 extra_javascript:
   - assets/interface-catalog-data.js
+  - assets/interface-catalog-rust-data.js
   - assets/interface-catalog.js
 
 nav:

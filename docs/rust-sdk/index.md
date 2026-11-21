@@ -44,12 +44,13 @@ fn main() -> Result<()> {
 }
 ```
 
-`build()` 创建客户端配置，行情查询时才建立所需连接。`snapshots()` 按输入返回批量结果，使用 `state()` 检查每项状态。需要在部分证券无数据时仍取得其他结果，可调用 `snapshots_with_policy()`。[行情接口](https://docs.rs/eltdx/3.4.0-beta.2/eltdx/services/struct.QuoteService.html)
+`build()` 创建客户端配置，行情查询时才建立所需连接。`snapshots()` 按输入返回批量结果，使用 `state()` 检查每项状态。需要在部分证券无数据时仍取得其他结果，可调用 `snapshots_with_policy()`。[行情接口](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.2/eltdx/services/struct.QuoteService.html)
 
 ## API 参考
 
-- 查看服务入口、类型、方法签名和 Cargo feature。[Rust API 参考（docs.rs）](https://docs.rs/eltdx/3.4.0-beta.2/eltdx/)
-- 查看客户端配置、服务入口和会话生命周期。[`TdxClient`](https://docs.rs/eltdx/3.4.0-beta.2/eltdx/struct.TdxClient.html)
+- 按功能或协议搜索 Rust 方法、参数和返回类型。[Rust 接口目录](../index.md?lang=rust)
+- 查看服务入口、类型、方法签名和 Cargo feature。[完整 Rust API 参考](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.2/eltdx/)
+- 查看客户端配置、服务入口和会话生命周期。[`TdxClient`](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.2/eltdx/struct.TdxClient.html)
 - 查看 HQ、F10、EX、MAC 和离线读取的逐服务示例。[Rust 使用指南与示例](https://github.com/electkismet/eltdx/blob/v3.4.0-beta.2/docs/rust-sdk/service-examples.md)
 
 ## 构建原生工具
