@@ -18,6 +18,7 @@ hide:
     <nav class="catalog-tree" data-interface-tree aria-label="接口层级"></nav>
     <nav class="catalog-reference-links" aria-label="参考文档">
       <span>参考文档</span>
+      <a href="rust-sdk/">Rust SDK 与原生工具</a>
       <a href="EXTENDED_MARKET/">扩展行情 / MAC / 基金</a>
       <a href="OFFLINE/">本地行情文件</a>
       <a href="FINANCIAL/">专业财报</a>

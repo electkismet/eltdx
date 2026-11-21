@@ -1,6 +1,6 @@
 site_name: eltdx
 site_url: https://electkismet.github.io/eltdx/
-site_description: Rust 驱动 7709 行情与 7615 F10 的 Python 客户端
+site_description: eltdx 的 Python 客户端与 Rust SDK 文档，覆盖 7709 行情、7615 F10 和扩展行情
 repo_url: https://github.com/electkismet/eltdx
 repo_name: electkismet/eltdx
 edit_uri: edit/main/docs/
@@ -59,6 +59,7 @@ extra_javascript:
 
 nav:
   - 接口目录: index.md
+  - Rust 文档: rust-sdk/index.md
   - 使用指南:
       - 产品与能力: PRODUCT.md
       - v3.3.5 发布说明: releases/v3.3.5.md

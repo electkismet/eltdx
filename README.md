@@ -40,6 +40,8 @@
 
 感谢 [injoyai/tdx](https://github.com/injoyai/tdx) 及 [rainx/pytdx](https://github.com/rainx/pytdx) 的启发。
 
+[Rust SDK 与原生工具文档](https://electkismet.github.io/eltdx/rust-sdk/)对应 Rust 测试版，包含 Cargo 安装、行情查询示例和 API 参考。
+
 ## 功能地图
 
 eltdx 默认按“想拿什么数据”组织入口。普通调用优先使用模块化 API 和 Helpers；需要核对底层字段时，再对照 `7709` 命令或 `7615` Entry。下表的代表调用均来自当前接口文档，点击方法名可直接查看参数、返回字段和同类方法。
