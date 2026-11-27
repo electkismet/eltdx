@@ -112,12 +112,16 @@ impl RecentIntradayRequest {
     ) -> Result<Self, ProtocolError> {
         let trading_date = DateParts::new(trading_date.year, trading_date.month, trading_date.day)?;
         let trading_date_raw = trading_date.yyyymmdd()?;
-        // 服务端把 selector 解成「yyyymmdd 的二补数」：date = 2^32 - selector。
+        // The server decodes the selector as the two's complement of a
+        // `yyyymmdd` date: `date = 2^32 - selector`.
         //
-        // 旧实现用 `RECENT_DATE_SELECTOR_BASE - python_date_ordinal(date)`，只在
-        // 标定日附近与真实编码一致；日期跨月后两者会漂移（ordinal 每天 +1，
-        // yyyymmdd 每月跳一次 +100-30 的差值），导致服务端返回**别的交易日**
-        // 的分时，甚至返回空 payload。实测 2026-11-25 请求会落到 2026-07-09。
+        // The old implementation used
+        // `RECENT_DATE_SELECTOR_BASE - python_date_ordinal(date)`, which only
+        // matched the real encoding around the calibration date: `ordinal`
+        // advances by 1 per day, while `yyyymmdd` jumps by roughly +70 at each
+        // month boundary, so the two drift apart and the server ends up
+        // returning another trading day's minutes (or an empty payload).
+        // Observed: requesting 2026-11-25 landed on 2026-07-09.
         let date_selector_raw = 0u32.wrapping_sub(trading_date_raw);
         Ok(Self {
             code,
@@ -877,8 +881,10 @@ mod tests {
 
     #[test]
     fn recent_selector_encodes_yyyymmdd_as_twos_complement() -> Result<(), ProtocolError> {
-        // 旧实现用 ordinal 线性推算，在 2026-05-11 标定日附近与真实编码巧合一致，
-        // 跨月后会落到错误的交易日。这里用 11 月的日期钉住真实编码。
+        // The old implementation derived the selector from a linear ordinal,
+        // which happened to match the real encoding around the 2026-05-11
+        // calibration date but drifted across month boundaries. Use a November
+        // date here so the test pins the real encoding.
         let date = DateParts::new(2026, 11, 25)?;
         let request = RecentIntradayRequest::new(NormalizedCode::parse("sz000988")?, date)?;
         assert_eq!(request.date_selector_raw, 0u32.wrapping_sub(20261125));
