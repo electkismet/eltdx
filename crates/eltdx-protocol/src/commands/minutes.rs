@@ -15,7 +15,6 @@ pub const TYPE_HISTORICAL_INTRADAY: u16 = 0x0fb4;
 pub const TYPE_SPARKLINE: u16 = 0x0fd1;
 pub const TYPE_RECENT_INTRADAY: u16 = 0x0feb;
 
-pub const RECENT_DATE_SELECTOR_BASE: u32 = 0xfed6_2304;
 pub const DEFAULT_TODAY_RESERVED_TAIL: [u8; 4] = [0x00, 0x00, 0x00, 0x93];
 pub const DEFAULT_SPARKLINE_SELECTOR: u8 = 1;
 pub const DEFAULT_SPARKLINE_WINDOW: u16 = 20;
@@ -113,13 +112,13 @@ impl RecentIntradayRequest {
     ) -> Result<Self, ProtocolError> {
         let trading_date = DateParts::new(trading_date.year, trading_date.month, trading_date.day)?;
         let trading_date_raw = trading_date.yyyymmdd()?;
-        let ordinal = python_date_ordinal(trading_date)?;
-        let date_selector_raw =
-            RECENT_DATE_SELECTOR_BASE
-                .checked_sub(ordinal)
-                .ok_or_else(|| {
-                    ProtocolError::invalid_data("recent intraday", "recent date selector underflow")
-                })?;
+        // 服务端把 selector 解成「yyyymmdd 的二补数」：date = 2^32 - selector。
+        //
+        // 旧实现用 `RECENT_DATE_SELECTOR_BASE - python_date_ordinal(date)`，只在
+        // 标定日附近与真实编码一致；日期跨月后两者会漂移（ordinal 每天 +1，
+        // yyyymmdd 每月跳一次 +100-30 的差值），导致服务端返回**别的交易日**
+        // 的分时，甚至返回空 payload。实测 2026-11-25 请求会落到 2026-07-09。
+        let date_selector_raw = 0u32.wrapping_sub(trading_date_raw);
         Ok(Self {
             code,
             trading_date,
@@ -854,37 +853,7 @@ fn parse_selector_text(value: &str) -> Result<u8, ProtocolError> {
     })
 }
 
-fn python_date_ordinal(date: DateParts) -> Result<u32, ProtocolError> {
-    let validated = DateParts::new(date.year, date.month, date.day)?;
-    let previous_year = u32::try_from(validated.year - 1)
-        .map_err(|_| ProtocolError::invalid_data("date", "invalid ordinal year"))?;
-    let mut ordinal = previous_year
-        .checked_mul(365)
-        .and_then(|value| value.checked_add(previous_year / 4))
-        .and_then(|value| value.checked_sub(previous_year / 100))
-        .and_then(|value| value.checked_add(previous_year / 400))
-        .ok_or_else(|| ProtocolError::invalid_data("date", "date ordinal overflow"))?;
-    const DAYS_BEFORE_MONTH: [u16; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-    let month_index = usize::from(validated.month.saturating_sub(1));
-    let before_month = DAYS_BEFORE_MONTH
-        .get(month_index)
-        .copied()
-        .ok_or_else(|| ProtocolError::invalid_data("date", "invalid ordinal month"))?;
-    ordinal = ordinal
-        .checked_add(u32::from(before_month))
-        .and_then(|value| value.checked_add(u32::from(validated.day)))
-        .ok_or_else(|| ProtocolError::invalid_data("date", "date ordinal overflow"))?;
-    if validated.month > 2 && is_leap_year(validated.year) {
-        ordinal = ordinal
-            .checked_add(1)
-            .ok_or_else(|| ProtocolError::invalid_data("date", "date ordinal overflow"))?;
-    }
-    Ok(ordinal)
-}
 
-fn is_leap_year(year: i32) -> bool {
-    year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
-}
 
 fn encode_hex(data: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
@@ -908,6 +877,27 @@ mod tests {
     use crate::unit::{DateParts, NormalizedCode};
     use crate::ProtocolError;
 
+    #[test]
+    fn recent_selector_encodes_yyyymmdd_as_twos_complement() -> Result<(), ProtocolError> {
+        // 旧实现用 ordinal 线性推算，在 2026-05-11 标定日附近与真实编码巧合一致，
+        // 跨月后会落到错误的交易日。这里用 11 月的日期钉住真实编码。
+        let date = DateParts::new(2026, 11, 25)?;
+        let request = RecentIntradayRequest::new(NormalizedCode::parse("sz000988")?, date)?;
+        assert_eq!(request.date_selector_raw, 0u32.wrapping_sub(20261125));
+        assert_eq!(request.date_selector_raw, 0xfecad6fb);
+
+        let frame = request.frame(7);
+        assert_eq!(&frame.data[..4], &[0xfb, 0xd6, 0xca, 0xfe]);
+        let reversed = u32::from_le_bytes([
+            frame.data[0],
+            frame.data[1],
+            frame.data[2],
+            frame.data[3],
+        ]);
+        assert_eq!(0u32.wrapping_sub(reversed), 20261125);
+        assert_eq!(frame.data.len(), 11);
+        Ok(())
+    }
     #[test]
     fn all_five_request_layouts_match_frozen_wire_data() -> Result<(), ProtocolError> {
         let date = DateParts::new(2026, 5, 11)?;
