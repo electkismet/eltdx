@@ -853,8 +853,6 @@ fn parse_selector_text(value: &str) -> Result<u8, ProtocolError> {
     })
 }
 
-
-
 fn encode_hex(data: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
     let mut output = String::with_capacity(data.len().saturating_mul(2));
@@ -889,11 +887,7 @@ mod tests {
         let frame = request.frame(7);
         assert_eq!(&frame.data[..4], &[0xfb, 0xd6, 0xca, 0xfe]);
         let reversed = u32::from_le_bytes([
-            frame.data[0],
-            frame.data[1],
-            frame.data[2],
-            frame.data[3],
-        ]);
+            frame.data[0], frame.data[1], frame.data[2], frame.data[3]]);
         assert_eq!(0u32.wrapping_sub(reversed), 20261125);
         assert_eq!(frame.data.len(), 11);
         Ok(())
