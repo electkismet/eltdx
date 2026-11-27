@@ -47,9 +47,21 @@
     return;
   }
 
-  var catalog = window.ELTDX_CATALOG;
+  var language = new URLSearchParams(window.location.search).get("lang") === "rust" ? "rust" : "python";
+  var catalog = language === "rust" ? window.ELTDX_RUST_CATALOG : window.ELTDX_CATALOG;
+  var languageLinks = root.querySelectorAll("[data-catalog-language]");
+  languageLinks.forEach(function (link) {
+    if (link.dataset.catalogLanguage === language) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+  root.querySelectorAll("[data-catalog-language-content]").forEach(function (content) {
+    content.hidden = content.dataset.catalogLanguageContent !== language;
+  });
   if (!catalog || !Array.isArray(catalog.items) || !catalog.taxonomy || !Array.isArray(catalog.taxonomy.layers)) {
-    root.textContent = "接口目录数据加载失败。";
+    root.querySelector("[data-interface-lead]").textContent = "接口目录数据加载失败。";
     return;
   }
 
@@ -230,7 +242,7 @@
     scopes.all = {
       id: "all",
       label: "接口文档",
-      description: "共 " + items.length + " 项公开能力，按 7709、7615 F10、Helpers、扩展行情（7727）、MAC 和 MAC-EX 组织。",
+      description: catalog.description || "共 " + items.length + " 项公开能力，按 7709、7615 F10、Helpers、扩展行情（7727）、MAC 和 MAC-EX 组织。",
       count: items.length
     };
     layers.forEach(function (layer) {
@@ -261,7 +273,7 @@
     functionScopes["function/all"] = {
       id: "function/all",
       label: "全部功能",
-      description: "共 " + items.length + " 项公开能力，默认按业务功能组织。",
+      description: catalog.description || "共 " + items.length + " 项公开能力，默认按业务功能组织。",
       count: items.length
     };
     functionalGroups.forEach(function (group) {
@@ -428,7 +440,11 @@
         var callList = createElement("div", "interface-call-list");
         item.calls.forEach(function (call) {
           var callRow = createElement("div", "interface-call");
-          callRow.appendChild(createElement("span", "interface-call-label", call.label));
+          var callLabel = createElement(call.doc ? "a" : "span", "interface-call-label", call.label);
+          if (call.doc) {
+            callLabel.href = localDocUrl(call);
+          }
+          callRow.appendChild(callLabel);
           callRow.appendChild(createElement("code", "", call.api));
           callList.appendChild(callRow);
         });
@@ -582,6 +598,11 @@
   buildFunctionScopes();
   renderRows();
 
+  if (language === "rust") {
+    root.querySelector(".catalog-kicker").textContent = "Rust API · " + catalog.release.version;
+    searchInput.placeholder = "搜索 Rust 接口、方法、类型或 Cargo feature";
+  }
+
   searchInput.addEventListener("input", applyFilters);
   scopeSelect.addEventListener("change", function () {
     window.location.hash = scopeSelect.value;
@@ -591,6 +612,19 @@
       window.location.hash = button.dataset.catalogView === "function" ? "function/all" : "all";
     });
   });
-  window.addEventListener("hashchange", applyFilters);
-  applyFilters();
+  function updateCategory() {
+    languageLinks.forEach(function (link) {
+      var url = new URL(window.location.href);
+      if (link.dataset.catalogLanguage === "rust") {
+        url.searchParams.set("lang", "rust");
+      } else {
+        url.searchParams.delete("lang");
+      }
+      link.href = url.href;
+    });
+    applyFilters();
+  }
+
+  window.addEventListener("hashchange", updateCategory);
+  updateCategory();
 })();

@@ -55,10 +55,12 @@ extra_css:
 
 extra_javascript:
   - assets/interface-catalog-data.js
+  - assets/interface-catalog-rust-data.js
   - assets/interface-catalog.js
 
 nav:
   - 接口目录: index.md
+  - Rust 文档: rust-sdk/index.md
   - 使用指南:
       - 产品与能力: PRODUCT.md
       - v3.4.0-beta.3 测试版: releases/v3.4.0-beta.3.md
@@ -123,7 +125,7 @@ nav:
   - MCP: MCP.md
   - 跨语言网关: HTTP_GATEWAY.md
   - Rust SDK 候选与设计:
-      - 状态与安装边界: rust-sdk/index.md
+      - 历史开发指南: rust-sdk/design-guide.md
       - Rust 使用指南: rust-sdk/user-guide.md
       - 逐服务示例与回环:
           - 示例覆盖与编译方式: rust-sdk/service-examples.md

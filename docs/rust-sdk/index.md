@@ -1,99 +1,72 @@
-# Rust SDK 架构与开发指南
+# Rust SDK 与原生工具
 
-> 当前候选为 [v3.4.0-beta.1 双端测试版](../releases/v3.4.0-beta.1.md)。原设计基线为 `af471f1`（Python v3.3.5）。历史验证结果及适用的源码版本见 [统一验证记录](unified-validation.md)。
+本指南适用于 `v3.4.0-beta.3`。Rust SDK 提供同步 API，可直接用 Cargo 安装。原生 CLI、HTTP/WebSocket 网关和 MCP 服务可从该版本的源码构建，运行时无需 Python。[测试版发布说明](https://github.com/electkismet/eltdx/releases/tag/v3.4.0-beta.3)
 
-实施恢复点更新于2026-11-17 stage114：HQ、F10具名入口、本地文件/财报、EX/MAC/MAC-EX及Python共享业务迁移，独立消费、包、压力性能、逐服务示例和Serde合同的T01–T30源码范围已写齐。保存全源码检查点、记录门槛后统一验证。逐任务准确状态见[实施进度](IMPLEMENTATION_STATUS.md)，要求与证据见[最终验收索引](final-acceptance.md)。这些是源码进度，不能当作可用、兼容或可发布结论。
+## 安装 SDK
 
-目标是让 **Python 用户调用 Python API，Rust 用户调用 Rust API，两者共用 Rust 业务实现**。Rust 程序的构建和运行均不需要 Python、PyO3、maturin 或 Python 服务进程。
+使用 Rust 1.89 或更新版本。在应用的 `Cargo.toml` 中添加以下依赖。
 
-## 安装与使用：两个独立产品
+```toml
+[dependencies]
+eltdx = "=3.4.0-beta.3"
+```
 
-| 使用者 | 只需要安装什么 | 不需要额外安装什么 |
-| --- | --- | --- |
-| Rust 项目 | 在 `Cargo.toml` 添加 `eltdx` crate，由 Cargo 构建 | Python、Python `eltdx` 包、PyO3运行环境 |
-| Python 项目 | `pip install eltdx`，安装与平台匹配的预编译 wheel | Rust工具链、另一个Cargo库、单独的本地服务 |
+默认支持 7709 行情，包括证券目录、快照、K 线、分时、成交、竞价和订阅。需要其他数据时，在依赖声明中添加相应的 Cargo feature。
 
-共享的是维护者仓库里的 Rust 源码。Rust 库直接包含它；Python wheel 内包含由这些源码编译出的 native 扩展。**普通用户不需要把两个产品都安装。** Rust SDK 的注册表包尚未发布，本表描述目标交付方式，不表示现在已经能从注册表安装新SDK。
-
-Python 从源码安装、为暂未提供wheel的平台自行构建，以及参与项目开发时，才可能需要Rust编译工具链；这与普通Python用户安装匹配wheel的路径分开。Python wheel 的平台覆盖、ABI和发布验证仍由原Python产品维护。
-
-**兼容目标是现有 Python 用户无需改用法。** 安装、导入、参数、返回模型、异常、缓存、自定义 transport、关闭后重连以及已有的降级/文件行为都纳入兼容验收，当前尚未取得本轮通过证据。发现现有 bug 时单独提出修复与版本决策，不能借 Rust 迁移顺带改变默认行为。
-
-这套文档同时保留设计基线、当前源码库存和待执行的验收规范。设计文件中的原拟议签名与已写代码有出入时，按契约追踪差异并修正，不能仅因代码存在就声称合同已达成。历史 Actor 改造文档不构成本项目的实施指令。
-
-## 阅读顺序
-
-| 文档 | 回答的问题 | 主要读者 |
-| --- | --- | --- |
-| [Rust 使用指南](user-guide.md) | 如何选择feature、使用同步API、处理结果和关闭 | Rust 使用者 |
-| [逐服务示例与回环](service-examples.md) | 18个service和独立客户端的普通用法如何进入rustdoc编译并对应非空回环 | Rust 使用者、验收人员 |
-| [Serde 格式与校验](examples-serde.md) | 有限/非有限数、bytes、日期、未知值及checked类型的反序列化边界 | Rust 使用者、数据接口维护者 |
-| [Python 兼容与迁移](python-migration.md) | 用户是否需要改用法；维护者为何保留Python适配 | Python 使用者、绑定维护者 |
-| [候选说明](release-notes.md) | 候选新增范围、未验证事实和已知限制 | 使用者、发布评审人员 |
-| [架构设计](architecture.md) | 为什么这样拆分；数据、控制、所有权如何流动 | 架构、维护、评审人员 |
-| [公共 API 与行为契约](public-api.md) | 类型、单位、错误、关闭、取消、分页、订阅如何使用 | SDK 开发者、使用者 |
-| [HQ 逐接口规格](hq-api-spec.md) | 每个 HQ 服务、query、结果字段和 helper 如何实现 | HQ 实施者、测试人员 |
-| [扩展逐接口规格](extension-api-spec.md) | F10/EX/MAC/文件/财报的完整入口和边界 | 扩展实施者、测试人员 |
-| [内部执行与兼容实现](execution-and-compatibility.md) | 两种执行策略如何共用业务、跨 crate 桥接和 GIL 如何处理 | runtime、绑定实施者 |
-| [能力迁移矩阵](capability-matrix.md) | 当前 Python/Rust 的每类能力迁到哪里，哪些行为要保留 | 迁移实施者、测试人员 |
-| [Python API 基线](python-baseline.md) | 原签名、默认值、导出和字段如何固定与重建 | 兼容维护者 |
-| [逐项兼容案例](compatibility-cases.md) | 用什么具体输入、响应和预期证明两边行为 | 测试人员、评审人员 |
-| [决策与默认值](decision-register.md) | 已决定什么、默认限制多少、什么必须补证据 | 全体实施者 |
-| [详细开发计划](development-plan.md) | 按什么依赖顺序改哪些文件，如何划分可验收任务 | 实施者、任务协调者 |
-| [验证与发布规范](verification.md) | 什么证据才足以说独立 Rust SDK 可用、兼容、可发布 | 测试、CI、发布人员 |
-| [最终验收索引](final-acceptance.md) | R01–R12对应哪些实现、用例、消费者和缺失证据 | 验收、维护人员 |
-| [统一验证记录](unified-validation.md) | 全源码门槛、真实运行阶段、失败与恢复点 | 验收、维护人员 |
-| [发布政策](release-policy.md) | 独立版本、包内容、归档消费和注册表身份如何核实 | 发布人员 |
-| [压力证据](t30-evidence-index.md) / [性能政策](performance-policy.md) | 原生负载如何采集和从原始记录复验 | 性能、验收人员 |
-| [维护手册](maintenance.md) | 如何恢复进度、处理失败和使旧证据失效 | 维护人员 |
-
-架构设计规定依赖方向和模块职责；公共 API 与分域规格规定外部行为；迁移矩阵和基线规定覆盖范围；开发计划规定工作顺序；兼容案例和验证规范规定完成证据。共同类型/生命周期以公共 API 为准，分域query/结果以对应规格为准，实际旧Python事实以固定源码及已录制基线为准。发现矛盾时修订并交叉审阅受影响文档，不能由实施者任选一份执行。
-
-## 本轮补充的具体覆盖
-
-| 范围 | 文档产物 |
+| Feature | 能力 |
 | --- | --- |
-| HQ与仅依赖HQ的组合业务 | 100个拟议业务方法、完整15个service getter、42组具体语料规格 |
-| F10 | 157个现有公开方法逐项映射；已静态比对方法集合，无遗漏或重复 |
-| EX / MAC / MAC-EX | 分别11 / 23 / 13个业务入口，MAC另有3个别名，126个已命名位图字段 |
-| offline / financial | 38个导出函数、8个模型、4个财报组合入口；下载与本地解析上限明确 |
-| Python静态基线 | 134个模块的签名、默认表达式、模型字段、别名与导出，提供可重复生成器 |
-| 行为兼容 | 56个具体场景，分别写明旧Python、新Python、新Rust的输入、预期、请求及资源断言 |
-| 实施边界 | 跨crate兼容桥、GIL、两种执行策略、共享尝试授权、分域关闭、分页续读与证据缺口 |
+| `f10` | 7615 公司资料、财务、资讯和历史资金流 |
+| `offline` | 本地行情文件、股本和专业财报 |
+| `ex` | EX 扩展行情 |
+| `mac` | MAC 与 MAC-EX，包含 `ex` |
+| `serde` | 支持 Serde 的数据类型 |
+| `full` | 启用以上全部 feature |
 
-这些数字表示规格覆盖，不表示接口已实现或业务测试已通过。静态基线候选定义包括内部支持对象，也不能当作稳定公开API总数。
+## 查询行情快照
 
-## 核心决策
+```rust
+use std::time::Duration;
 
-1. 新增 `crates/eltdx`，同时承担稳定 Rust API 和共享业务实现，初期不再增加独立的“业务核心 crate”。
-2. 保留 `eltdx-protocol`、`eltdx-runtime` 的已有基础；`eltdx-python` 逐业务域改为调用 `eltdx`。
-3. 首先交付同步 SDK。真正的异步 API 单独实施，必须设计 Future 取消和资源交接。
-4. 新 SDK 使用显式元数据上下文，不依赖进程级价格精度缓存。
-5. 新 Rust 入口的每次高层操作共享总期限、取消信号和有限重试预算；Python 兼容入口保留原逐请求超时和重试范围，通过执行策略共用业务算法。
-6. `ClientBuilder::build()` 只验证配置，不解析 DNS、不联网、不创建后台线程。
-7. Rust 客户端克隆共享会话；显式关闭影响该会话所有句柄。关闭成功的 SDK 会话不重开；Python 兼容层重开时创建新会话。
-8. F10、EX、MAC、离线文件和序列化为可选功能；F10/EX/MAC 有各自传输和会话边界。
-9. Rust 新接口可以更严格，已有 Python 行为的变更必须单独记录，不能借迁移悄悄改变。
-10. 无 Python 的独立 Cargo 消费者、无 Rust 工具链的 Python wheel 消费者、行为测试、打包验证和兼容套件共同作为发布门禁。
+use eltdx::{OperationOptions, Result, SecurityId, TdxClient};
 
-## 交付层次
+fn main() -> Result<()> {
+    let id: SecurityId = "sh600000".parse()?;
+    let client = TdxClient::builder().build()?;
+    let options = OperationOptions::default().with_timeout(Duration::from_secs(8));
 
-| 阶段 | 可交付结果 |
+    let result = client.quotes().snapshots(&[id], &options);
+    let closed = client.close();
+
+    for item in result?.items() {
+        println!("{} {:?}", item.security(), item.state());
+    }
+    closed
+}
+```
+
+`build()` 创建客户端配置，行情查询时才建立所需连接。`snapshots()` 按输入返回批量结果，使用 `state()` 检查每项状态。需要在部分证券无数据时仍取得其他结果，可调用 `snapshots_with_policy()`。[行情接口](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.QuoteService.html)
+
+## API 参考
+
+- 读取本地日线、分钟线、板块、股本权息或专业财报。[本地行情文件和专业财报](local-files-and-reports.md)
+
+- 按功能或协议搜索 Rust 方法、参数和返回类型。[Rust 接口目录](../index.md?lang=rust)
+- 查看服务入口、类型、方法签名和 Cargo feature。[完整 Rust API 参考](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/)
+- 查看客户端配置、服务入口和会话生命周期。[`TdxClient`](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/struct.TdxClient.html)
+- 查看 HQ、F10、EX、MAC 和离线读取的逐服务示例。[Rust 使用指南与示例](https://github.com/electkismet/eltdx/blob/v3.4.0-beta.3/docs/rust-sdk/service-examples.md)
+
+## 构建原生工具
+
+```sh
+git clone --branch v3.4.0-beta.3 https://github.com/electkismet/eltdx.git
+cd eltdx
+cargo build --locked --release -p eltdx-tools --bins
+```
+
+| 工具 | 用法 |
 | --- | --- |
-| P0 | 可追踪的能力、行为、样本和差异基线 |
-| P1 | SDK 类型、配置、会话生命周期、执行上下文、精度隔离 |
-| P2 | 完整 7709 核心业务与对应 Python 适配迁移 |
-| P3 | F10、离线文件、专业财报及依赖它们的组合功能 |
-| P4 | EX、MAC、MAC-EX 与其余组合功能 |
-| P5 | 全范围兼容验证与独立 Rust 包发布准备 |
-| P6 | 可选后续：真正异步 API、Rust CLI 或服务端入口 |
+| CLI | 运行 `./target/release/eltdx --help` 查看子命令。 |
+| HTTP/WebSocket | 运行 `./target/release/eltdx-http --host 127.0.0.1 --port 8000`，打开 `/docs` 查看 HTTP 接口，连接 `/ws` 后调用 `quotes.subscribe` 订阅行情。 |
+| MCP | 在 MCP 客户端中配置 `target/release/eltdx-mcp` 的绝对路径，通过 stdio 启动。 |
 
-P2 可以形成独立可用的 7709 Rust SDK。它的版本说明必须明确 F10/EX/MAC 等尚未完成，不能写成现有 Python 全产品能力已对齐。P6 不属于 P5 完成的必要条件。
-
-## 审阅证据与限制
-
-两轮审阅覆盖当前第一方 Rust/Python 实现、测试、脚本、Cargo/Python/CI 配置，以及相关架构文档；静态表、契约清单和样本按数据结构及消费者检查。第二轮特别复核了元数据副作用、pin 交接、首次启动期限、Python 重开兼容、扩展协议边界和测试证据质量。
-
-原设计审阅曾包含当时基线的源码阅读、Python AST、离线 Cargo metadata/tree和文档检查；这些历史结果不覆盖新增SDK、依赖声明和Python桥接。当前实施阶段只读写源码/文档并保存Git恢复点，尚未执行新实现的依赖解析、编译、测试或文档检查。Rust生产依赖不应包含PyO3的架构约束仍须用最终候选的normal/build tree和独立环境实际证明。
-
-本方案追求明确边界和可验证的实现，不承诺“零缺陷”或未知服务行为。价格限制规则、未实测响应布局等不确定项有明确的阻断条件和取证任务，见迁移矩阵与验证规范。
+Windows 的可执行文件带 `.exe` 后缀。Rust 网关的部分原始响应字段与 Python 网关有差异。MAC-EX、联网场外基金和 MCP 宏观工具需设置 `ELTDX_MAC_EX_LOGIN_RULES`。[登录规则配置说明](https://github.com/electkismet/eltdx/tree/v3.4.0-beta.3#从源码构建-rust-工具)
