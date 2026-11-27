@@ -1,5 +1,10 @@
 # 变更记录
 
+## v3.4.0-beta.3
+
+- 修复 Python 和 Rust 全市场统计家数被放大十倍的问题。感谢 jerasky 在 PR #33 中贡献修复。
+- 详见 [v3.4.0-beta.3 发布说明](releases/v3.4.0-beta.3.md)。
+
 ## v3.4.0-beta.2
 
 - 新增原生 Rust CLI、HTTP/WebSocket 网关和 MCP 服务，可从仓库源码构建，运行时不依赖 Python。

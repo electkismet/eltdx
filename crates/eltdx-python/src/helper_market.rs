@@ -268,11 +268,10 @@ pub fn helper_market_stat(
     // This positional association is part of the existing Python contract.
     let first = quotes.get_item(0)?;
     let count = |price: Bound<'_, PyAny>| -> PyResult<Py<PyAny>> {
-        let value = product(py, price, 10_i32.into_pyobject(py)?.into_any())?;
         Ok(py
             .import("builtins")?
             .getattr("round")?
-            .call1((value,))?
+            .call1((price,))?
             .unbind())
     };
     let up = count(first.getattr("last_price")?)?;

@@ -176,10 +176,10 @@ fn counter(price: Price) -> Result<u64> {
     if !price.as_f64().is_finite() || price.as_f64() < 0.0 {
         return Err(protocol("market statistic count is negative or nonfinite"));
     }
-    // Decimal integer rounding avoids an extra binary-float tie. This is the
-    // frozen round(value*10), nearest-even contract, not truncation.
+    // Decimal integer rounding avoids an extra binary-float tie.
+    // Counts are rounded to the nearest integer using ties-to-even.
     let value = price
-        .to_scaled_integer(1, RoundingMode::HalfToEven)
+        .to_scaled_integer(0, RoundingMode::HalfToEven)
         .map_err(|error| {
             protocol("market statistic count exceeds its supported integer range")
                 .with_source(error)
@@ -251,10 +251,10 @@ mod source_cases {
         let stats = project_market_stat(&quotes, ResultMeta::default()).unwrap();
         assert_eq!(
             (stats.up(), stats.down(), stats.neutral(), stats.total()),
-            (100, 200, 50, 400)
+            (10, 20, 5, 40)
         );
-        assert_eq!(stats.suspended_or_unclassified(), 50);
-        assert_eq!((stats.limit_up(), stats.limit_down()), (30, 40));
+        assert_eq!(stats.suspended_or_unclassified(), 5);
+        assert_eq!((stats.limit_up(), stats.limit_down()), (3, 4));
         assert_eq!(stats.market_cap().value().as_f64(), 2e10);
         assert_eq!(stats.total_amount().unit(), AmountUnit::Cny);
         assert_eq!(stats.total_amount().value().as_f64(), 123.0);
@@ -285,7 +285,7 @@ mod source_cases {
                 ErrorKind::Protocol
             );
         }
-        assert_eq!(counter(Price::scaled_integer(105, 2)).unwrap(), 10);
-        assert_eq!(counter(Price::scaled_integer(115, 2)).unwrap(), 12);
+        assert_eq!(counter(Price::scaled_integer(150, 2)).unwrap(), 2);
+        assert_eq!(counter(Price::scaled_integer(250, 2)).unwrap(), 2);
     }
 }

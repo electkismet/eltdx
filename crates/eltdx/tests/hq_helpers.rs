@@ -878,10 +878,10 @@ fn market_statistics_join_reordered_pseudo_indices_and_keep_sources_raw_and_unit
         .unwrap();
     assert_eq!(
         (stats.up(), stats.down(), stats.neutral(), stats.total()),
-        (100, 200, 50, 400)
+        (10, 20, 5, 40)
     );
-    assert_eq!(stats.suspended_or_unclassified(), 50);
-    assert_eq!((stats.limit_up(), stats.limit_down()), (30, 40));
+    assert_eq!(stats.suspended_or_unclassified(), 5);
+    assert_eq!((stats.limit_up(), stats.limit_down()), (3, 4));
     assert_eq!(stats.market_cap().value().as_f64(), 2e10);
     assert_eq!(stats.market_cap().unit(), AmountUnit::Cny);
     assert_eq!(stats.total_amount().unit(), AmountUnit::Cny);

@@ -40,7 +40,7 @@
 
 感谢 [injoyai/tdx](https://github.com/injoyai/tdx) 及 [rainx/pytdx](https://github.com/rainx/pytdx) 的启发。
 
-本分支对应 [v3.4.0-beta.2 双端测试版](docs/releases/v3.4.0-beta.2.md)。Python 用户安装 Python 包，Rust 用户添加 Cargo 依赖。
+本分支对应 [v3.4.0-beta.3 双端测试版](docs/releases/v3.4.0-beta.3.md)。Python 用户安装 Python 包，Rust 用户添加 Cargo 依赖。
 
 ## 功能地图
 

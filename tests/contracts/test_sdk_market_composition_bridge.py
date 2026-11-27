@@ -149,8 +149,8 @@ def test_market_stat_keeps_legacy_position_even_when_middle_source_is_missing():
     calls = []
     client = Client(quotes=Client(legacy=lambda codes: calls.append(codes) or [breadth, limits]))
     result = market.fetch_market_stat(client)
-    assert result.up_count == 12 and result.down_count == 2 and result.neutral_count == 4
-    assert result.total_count == 45 and result.suspended_count == 27
+    assert result.up_count == 1 and result.down_count == 0 and result.neutral_count == 0
+    assert result.total_count == 4 and result.suspended_count == 3
     assert result.total_market_cap == 7e10  # Frozen positional behavior.
     assert result.limit_up_count == 0 and result.limit_down_count == 0
     assert result.total_amount == 123 and result.total_volume == 42.0
@@ -161,7 +161,7 @@ def test_market_stat_all_three_rows_and_empty_error():
     values = [stat_row(), Client(last_price=3.0), Client(last_price=2.25, open_price=1.25)]
     client = Client(quotes=Client(legacy=lambda codes: values))
     result = market.fetch_market_stat(client)
-    assert result.limit_up_count == 22 and result.limit_down_count == 12
+    assert result.limit_up_count == 2 and result.limit_down_count == 1
     assert result.total_market_cap == 3e10
     values.clear()
     with pytest.raises(RuntimeError, match="880005/880001/880006"):

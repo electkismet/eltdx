@@ -14,8 +14,8 @@ from eltdx.models.trade import TradeTick
 
 # Statistic pseudo-indices served by the quote server.  880005 carries the
 # up/down/neutral/total counts, 880001 the total market cap and 880006 the
-# limit-up/limit-down counts.  Each counter field is scaled by 1/10 on the
-# wire, so counts are recovered with ``round(value * 10)``.
+# limit-up/limit-down counts.  Each counter field is reported as counts on the
+# wire, and counts are recovered with ``round(value)``.
 _MARKET_STAT_CODES = ("sh880005", "sh880001", "sh880006")
 
 # Tick-amount thresholds (yuan) classifying one trade into the four size
