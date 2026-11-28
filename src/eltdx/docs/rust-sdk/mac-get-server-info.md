@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中启用 `eltdx = { version = "=3.4.0-beta.3", features = ["mac"] }`。示例函数接收已配置的 MAC 客户端。调用方使用结束后关闭客户端。
+在 `Cargo.toml` 中启用 `eltdx = { version = "=3.4.0-beta.4", features = ["mac"] }`。示例函数接收已配置的 MAC 客户端。调用方使用结束后关闭客户端。
 
 客户端的服务器地址与连接步骤见 [连接配置](mac-connection.md)。
 
@@ -38,4 +38,4 @@ fn query(client: &MacClient) -> Result<()> {
 
 用 `today()`、`last_trading_day()` 获取日期观测值，`sessions_1()` 和 `sessions_2()` 读取服务器提供的交易时段。日期可用 `parsed()` 检查能否转为交易日。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/mac/struct.MacClient.html#method.server_info)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/mac/struct.MacClient.html#method.server_info)

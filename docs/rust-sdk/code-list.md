@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{CodeQuery, HqMarket, OperationOptions, Result, TdxClient};
@@ -57,7 +57,7 @@ let indices = client.codes().all_indices(&scan, &options)?;
 
 `list` 返回 `Result<DataPage<Security>>`，`items()` 读取本页证券，`end()` 查看结束证据。一页数据不代表市场的完整目录。`all` 返回 `Result<Collected<Security>>`，自动扫描仍受分页预算限制，应检查结果的结束状态。
 
-[查看所有方法和类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.CodeService.html)
+[查看所有方法和类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.CodeService.html)
 
 ## 出错与关闭
 

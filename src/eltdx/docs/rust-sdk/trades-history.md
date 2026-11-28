@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient, SecurityId};
@@ -62,4 +62,4 @@ let histories = service.collect_many(&[id.clone()], &query, &options)?;
 
 `ticks().items()` 读取明细。`time()`、`price()`、`volume()` 和 `side()` 分别提供时间、价格、数量和方向。用 `ticks().end()` 检查结束状态。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.TradeService.html#method.page)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.TradeService.html#method.page)

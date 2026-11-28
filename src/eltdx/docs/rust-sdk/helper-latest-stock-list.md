@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient};
@@ -41,4 +41,4 @@ fn main() -> Result<()> {
 
 证券的 `id()` 可用于后续行情查询。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/helpers/struct.HelperService.html#method.latest_stock_list)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/helpers/struct.HelperService.html#method.latest_stock_list)

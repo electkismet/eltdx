@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{FinanceQuery, OperationOptions, Result, SecurityId, TdxClient};
@@ -56,7 +56,7 @@ let batches = client.corporate().finance_fields(&[id], &fields, &query, &options
 
 批量返回保留输入顺序。通过 `state()` 区分 `Present` 和 `ConfirmedMissing`，`input_index()` 可映射回原输入。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.CorporateService.html#method.finance)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.CorporateService.html#method.finance)
 
 ## 出错与关闭
 

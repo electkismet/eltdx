@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, SecurityId, TdxClient};
@@ -63,7 +63,7 @@ let histories = service.collect_many(&[id.clone()], &query, &options)?;
 
 `bars().items()` 是 K 线记录。每根 K 线有 `open()`、`high()`、`low()`、`close()`、`volume()` 和 `amount()`。用 `bars().end()` 检查数据结束情况。
 
-[查看 K 线方法和类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.KlineService.html)
+[查看 K 线方法和类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.KlineService.html)
 
 ## 出错与关闭
 

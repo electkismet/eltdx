@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient};
@@ -45,4 +45,4 @@ fn main() -> Result<()> {
 
 不同分类可使用的排序方式取决于服务端。需要连续读取时，检查 `end()` 后按起点请求下一页。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.QuoteService.html#method.category)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.QuoteService.html#method.category)

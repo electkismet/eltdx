@@ -19,7 +19,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`，然后运行以下程序。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`，然后运行以下程序。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient};
@@ -64,4 +64,4 @@ fn main() -> Result<()> {
 
 请求失败时返回错误，可以用 `?` 向上返回，或使用 `match` 自行处理。日期由主站提供，不能直接当作已确认的交易日。
 
-[查看 HandshakeInfo 类型参考](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/types/session/struct.HandshakeInfo.html)
+[查看 HandshakeInfo 类型参考](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/types/session/struct.HandshakeInfo.html)

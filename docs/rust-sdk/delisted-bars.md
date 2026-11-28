@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient, SecurityId};
@@ -62,4 +62,4 @@ let histories = service.delisted_collect_many(&[id.clone()], &query, &options)?;
 
 用 `bars().items()` 读取日线记录。每条包含开高低收和成交量额。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.KlineService.html#method.delisted_page)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.KlineService.html#method.delisted_page)

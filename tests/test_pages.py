@@ -14,7 +14,7 @@ from eltdx.protocol import COMMANDS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = REPO_ROOT / "docs" / "assets" / "interface-catalog-data.js"
-README_BANNER_RELATIVE = ".github/assets/eltdx-readme-banner-v3.3.6.png"
+README_BANNER_RELATIVE = ".github/assets/eltdx-readme-banner-v3.3.7.png"
 README_BANNER_PATH = REPO_ROOT / README_BANNER_RELATIVE
 SPONSOR_BANNER_PATH = REPO_ROOT / "docs" / "assets" / "astlane-sponsor.svg"
 

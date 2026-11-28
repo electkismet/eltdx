@@ -19,7 +19,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`，然后运行以下程序。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`，然后运行以下程序。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient};
@@ -58,4 +58,4 @@ fn main() -> Result<()> {
 
 请求失败时返回错误，可以用 `?` 向上返回，或使用 `match` 自行处理。`client.session().ping()` 是本地应答，要检查主站响应应使用心跳或握手。
 
-[查看 HeartbeatAck 类型参考](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/types/session/struct.HeartbeatAck.html)
+[查看 HeartbeatAck 类型参考](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/types/session/struct.HeartbeatAck.html)

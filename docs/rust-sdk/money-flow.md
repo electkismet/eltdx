@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, SecurityId, TdxClient};
@@ -50,7 +50,7 @@ let batch = client.money_flow().daily_many(&[id], &options)?;
 
 `daily` 返回 `Result<DailyMoneyFlow>`。`daily_many` 接受证券列表，返回 `Result<BatchOutcome<DailyMoneyFlow>>`，应逐项检查结果。`records()` 取得日记录。每条可读取 `date()`、`total_amount()` 和 `main_net()`。日期可能缺失，金额与比例分别使用各自的类型。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.MoneyFlowService.html#method.daily)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.MoneyFlowService.html#method.daily)
 
 ## 出错与关闭
 

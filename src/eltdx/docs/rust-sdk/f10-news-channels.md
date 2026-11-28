@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中启用 `eltdx = { version = "=3.4.0-beta.3", features = ["f10"] }`。
+在 `Cargo.toml` 中启用 `eltdx = { version = "=3.4.0-beta.4", features = ["f10"] }`。
 
 ```rust
 use eltdx::{Result};
@@ -32,4 +32,4 @@ fn main() -> Result<()> {
 
 `news_channels()` 不需要查询参数，返回 `Vec<NewsChannelInfo>`，列表按频道 ID 排序。每项的 `id()`、`label()`、`group()` 分别给出编号、名称和所属分组。使用 [频道资讯](f10-channel-news.md) 按频道查询内容。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/f10/struct.F10Client.html#method.news_channels)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/f10/struct.F10Client.html#method.news_channels)

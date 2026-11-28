@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient};
@@ -53,4 +53,4 @@ println!("已读 {} 字节，状态 {:?}", part.data.len(), part.completion);
 
 下载结果的 `data` 为已读字节，`completion` 说明是否读完整，`next_offset` 提供可能的后续偏移。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.ResourceService.html#method.download_file)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.ResourceService.html#method.download_file)

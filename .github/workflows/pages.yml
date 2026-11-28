@@ -19,7 +19,8 @@ jobs:
     name: Build documentation site
     runs-on: ubuntu-latest
     env:
-      ELTDX_RUST_VERSION: 3.4.0-beta.3
+      ELTDX_RUST_VERSION: 3.4.0-beta.4
+      ELTDX_PREVIOUS_RUST_VERSION: 3.4.0-beta.3
 
     steps:
       - name: Checkout
@@ -43,13 +44,25 @@ jobs:
           path: rust-sdk-source
           persist-credentials: false
 
+      - name: Check out the previous Rust API reference
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ env.ELTDX_PREVIOUS_RUST_VERSION }}
+          path: rust-sdk-previous
+          persist-credentials: false
+
       - name: Build Rust API reference with all SDK features
         run: |
-          target_dir="$RUNNER_TEMP/eltdx-rustdoc"
-          doc_dir="site/rust-api/$ELTDX_RUST_VERSION"
-          (cd rust-sdk-source && cargo doc --locked -p eltdx --features full --no-deps --target-dir "$target_dir")
-          mkdir -p "$doc_dir"
-          cp -R "$target_dir/doc/." "$doc_dir/"
+          build_reference() {
+            local source="$1" version="$2"
+            local target_dir="$RUNNER_TEMP/eltdx-rustdoc-$version"
+            local doc_dir="site/rust-api/$version"
+            (cd "$source" && cargo doc --locked -p eltdx --features full --no-deps --target-dir "$target_dir")
+            mkdir -p "$doc_dir"
+            cp -R "$target_dir/doc/." "$doc_dir/"
+          }
+          build_reference rust-sdk-source "$ELTDX_RUST_VERSION"
+          build_reference rust-sdk-previous "$ELTDX_PREVIOUS_RUST_VERSION"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

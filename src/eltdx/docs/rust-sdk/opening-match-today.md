@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient, SecurityId};
@@ -56,4 +56,4 @@ let batch = client.trades().opening_match_many(&[id], &query, &options)?;
 
 撮合记录的 `auction_matched()` 可读已撮合数量，未提供时为 `None`。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.TradeService.html#method.opening_match)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.TradeService.html#method.opening_match)

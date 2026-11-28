@@ -1,7 +1,7 @@
 window.ELTDX_RUST_CATALOG = (function (pythonCatalog) {
   "use strict";
 
-  var version = "3.4.0-beta.3";
+  var version = "3.4.0-beta.4";
   var docRoot = "rust-api/" + version + "/eltdx/";
   var entries = Object.create(null);
 

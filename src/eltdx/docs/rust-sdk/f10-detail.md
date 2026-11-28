@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中启用 `eltdx = { version = "=3.4.0-beta.3", features = ["f10"] }`。示例函数接收已创建的 F10 客户端，调用方应在使用后关闭客户端。
+在 `Cargo.toml` 中启用 `eltdx = { version = "=3.4.0-beta.4", features = ["f10"] }`。示例函数接收已创建的 F10 客户端，调用方应在使用后关闭客户端。
 
 ```rust
 use eltdx::{OperationOptions, Result};
@@ -48,4 +48,4 @@ fn read_detail(client: &F10Client, detail_type: &str, record_id: &str) -> Result
 
 `ok()` 检查业务状态，`error_code()` 提供服务端错误码。`result_sets()` 遍历结果表，`columns()` 查看列名，`rows()` 和 `cells()` 读取记录与字段。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/f10/struct.F10Client.html#method.detail)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/f10/struct.F10Client.html#method.detail)

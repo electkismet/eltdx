@@ -1,6 +1,6 @@
 # Rust SDK 与原生工具
 
-本指南适用于 `v3.4.0-beta.3`。Rust SDK 提供同步 API，可直接用 Cargo 安装。原生 CLI、HTTP/WebSocket 网关和 MCP 服务可从该版本的源码构建，运行时无需 Python。[测试版发布说明](https://github.com/electkismet/eltdx/releases/tag/v3.4.0-beta.3)
+本指南适用于 `v3.4.0-beta.4`。Rust SDK 提供同步 API，可直接用 Cargo 安装。原生 CLI、HTTP/WebSocket 网关和 MCP 服务可从该版本的源码构建，运行时无需 Python。[测试版发布说明](https://github.com/electkismet/eltdx/releases/tag/v3.4.0-beta.4)
 
 ## 安装 SDK
 
@@ -8,7 +8,7 @@
 
 ```toml
 [dependencies]
-eltdx = "=3.4.0-beta.3"
+eltdx = "=3.4.0-beta.4"
 ```
 
 默认支持 7709 行情，包括证券目录、快照、K 线、分时、成交、竞价和订阅。需要其他数据时，在依赖声明中添加相应的 Cargo feature。
@@ -44,21 +44,21 @@ fn main() -> Result<()> {
 }
 ```
 
-`build()` 创建客户端配置，行情查询时才建立所需连接。`snapshots()` 按输入返回批量结果，使用 `state()` 检查每项状态。需要在部分证券无数据时仍取得其他结果，可调用 `snapshots_with_policy()`。[行情接口](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.QuoteService.html)
+`build()` 创建客户端配置，行情查询时才建立所需连接。`snapshots()` 按输入返回批量结果，使用 `state()` 检查每项状态。需要在部分证券无数据时仍取得其他结果，可调用 `snapshots_with_policy()`。[行情接口](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.QuoteService.html)
 
 ## API 参考
 
 - 读取本地日线、分钟线、板块、股本权息或专业财报。[本地行情文件和专业财报](local-files-and-reports.md)
 
 - 按功能或协议搜索 Rust 方法、参数和返回类型。[Rust 接口目录](../index.md?lang=rust)
-- 查看服务入口、类型、方法签名和 Cargo feature。[完整 Rust API 参考](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/)
-- 查看客户端配置、服务入口和会话生命周期。[`TdxClient`](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/struct.TdxClient.html)
-- 查看 HQ、F10、EX、MAC 和离线读取的逐服务示例。[Rust 使用指南与示例](https://github.com/electkismet/eltdx/blob/v3.4.0-beta.3/docs/rust-sdk/service-examples.md)
+- 查看服务入口、类型、方法签名和 Cargo feature。[完整 Rust API 参考](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/)
+- 查看客户端配置、服务入口和会话生命周期。[`TdxClient`](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/struct.TdxClient.html)
+- 查看 HQ、F10、EX、MAC 和离线读取的逐服务示例。[Rust 使用指南与示例](https://github.com/electkismet/eltdx/blob/v3.4.0-beta.4/docs/rust-sdk/service-examples.md)
 
 ## 构建原生工具
 
 ```sh
-git clone --branch v3.4.0-beta.3 https://github.com/electkismet/eltdx.git
+git clone --branch v3.4.0-beta.4 https://github.com/electkismet/eltdx.git
 cd eltdx
 cargo build --locked --release -p eltdx-tools --bins
 ```
@@ -69,4 +69,4 @@ cargo build --locked --release -p eltdx-tools --bins
 | HTTP/WebSocket | 运行 `./target/release/eltdx-http --host 127.0.0.1 --port 8000`，打开 `/docs` 查看 HTTP 接口，连接 `/ws` 后调用 `quotes.subscribe` 订阅行情。 |
 | MCP | 在 MCP 客户端中配置 `target/release/eltdx-mcp` 的绝对路径，通过 stdio 启动。 |
 
-Windows 的可执行文件带 `.exe` 后缀。Rust 网关的部分原始响应字段与 Python 网关有差异。MAC-EX、联网场外基金和 MCP 宏观工具需设置 `ELTDX_MAC_EX_LOGIN_RULES`。[登录规则配置说明](https://github.com/electkismet/eltdx/tree/v3.4.0-beta.3#从源码构建-rust-工具)
+Windows 的可执行文件带 `.exe` 后缀。Rust 网关的部分原始响应字段与 Python 网关有差异。MAC-EX、联网场外基金和 MCP 宏观工具需设置 `ELTDX_MAC_EX_LOGIN_RULES`。[登录规则配置说明](https://github.com/electkismet/eltdx/tree/v3.4.0-beta.4#从源码构建-rust-工具)
