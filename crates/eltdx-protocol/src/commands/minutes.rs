@@ -15,6 +15,12 @@ pub const TYPE_HISTORICAL_INTRADAY: u16 = 0x0fb4;
 pub const TYPE_SPARKLINE: u16 = 0x0fd1;
 pub const TYPE_RECENT_INTRADAY: u16 = 0x0feb;
 
+/// Legacy calibration value retained for source compatibility.
+#[deprecated(
+    note = "Recent intraday selectors now use the two's complement of YYYYMMDD. Use RecentIntradayRequest::new to build requests."
+)]
+pub const RECENT_DATE_SELECTOR_BASE: u32 = 0xfed6_2304;
+
 pub const DEFAULT_TODAY_RESERVED_TAIL: [u8; 4] = [0x00, 0x00, 0x00, 0x93];
 pub const DEFAULT_SPARKLINE_SELECTOR: u8 = 1;
 pub const DEFAULT_SPARKLINE_WINDOW: u16 = 20;
