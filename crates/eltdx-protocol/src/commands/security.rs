@@ -1,7 +1,7 @@
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{DEFAULT_CODE_PAGE_SIZE, MAX_CODE_PAGE_SIZE, MAX_RESPONSE_PAYLOAD_SIZE};
-use crate::unit::{decode_gbk_text, little_f32, little_u16, register_security_decimal, Market};
+use crate::unit::{decode_gbk_field, little_f32, little_u16, register_security_decimal, Market};
 
 pub const TYPE_SECURITY_LIST: u16 = 0x044d;
 pub const TYPE_SECURITY_COUNT: u16 = 0x044e;
@@ -207,7 +207,7 @@ pub fn parse_security_list_payload(
         items.push(SecurityCode {
             market,
             code,
-            name: decode_gbk_text(&record[8..24]),
+            name: decode_gbk_field(&record[8..24]),
             multiple: little_u16(&record[6..8])?,
             decimal: record[28],
             previous_close_price: little_f32(&previous_close_raw)?,
