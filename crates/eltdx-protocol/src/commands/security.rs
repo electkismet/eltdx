@@ -2,7 +2,7 @@ use crate::context::{ParseContext, ParseOptions, RecordRange};
 use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{DEFAULT_CODE_PAGE_SIZE, MAX_CODE_PAGE_SIZE, MAX_RESPONSE_PAYLOAD_SIZE};
-use crate::unit::{decode_gbk_text, little_f32, little_u16, register_security_decimal, Market};
+use crate::unit::{decode_gbk_field, little_f32, little_u16, register_security_decimal, Market};
 use bytes::Bytes;
 
 pub const TYPE_SECURITY_LIST: u16 = 0x044d;
@@ -232,7 +232,7 @@ fn parse_security_list_payload_body(
         items.push(SecurityCode {
             market,
             code,
-            name: decode_gbk_text(&record[8..24]),
+            name: decode_gbk_field(&record[8..24]),
             multiple: little_u16(&record[6..8])?,
             decimal: record[28],
             previous_close_price: little_f32(&previous_close_raw)?,
@@ -407,7 +407,7 @@ mod tests {
         record.extend_from_slice(b"000001");
         record.extend_from_slice(&100_u16.to_le_bytes());
         record.extend_from_slice(&[0xc6, 0xbd, 0xb0, 0xb2, 0xd2, 0xf8, 0xd0, 0xd0]);
-        record.extend_from_slice(&[0_u8; 8]);
+        record.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, b'G']);
         record.extend_from_slice(&3_956.656_5_f32.to_le_bytes());
         record.push(2);
         record.extend_from_slice(&10.99_f32.to_le_bytes());

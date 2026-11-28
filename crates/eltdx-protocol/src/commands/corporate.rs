@@ -6,7 +6,8 @@ use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{MAX_CAPITAL_CHANGE_CODES, MAX_COMMAND_ITEMS, MAX_RESPONSE_PAYLOAD_SIZE};
 use crate::unit::{
-    decode_gbk_text, little_f32, little_u16, little_u32, DateParts, Market, NormalizedCode,
+    decode_gbk_field, decode_gbk_text, little_f32, little_u16, little_u32, DateParts, Market,
+    NormalizedCode,
 };
 
 pub const TYPE_CAPITAL_CHANGES: u16 = 0x000f;
@@ -866,8 +867,8 @@ pub fn parse_company_info_category_payload(
         let end = offset.saturating_add(COMPANY_INFO_RECORD_SIZE);
         let record = &payload[offset..end];
         items.push(CompanyInfoCategory {
-            name: decode_gbk_text(&record[..COMPANY_INFO_NAME_SIZE]),
-            filename: decode_gbk_text(
+            name: decode_gbk_field(&record[..COMPANY_INFO_NAME_SIZE]),
+            filename: decode_gbk_field(
                 &record
                     [COMPANY_INFO_NAME_SIZE..COMPANY_INFO_NAME_SIZE + COMPANY_INFO_FILENAME_SIZE],
             ),
@@ -976,8 +977,10 @@ mod company_info_tests {
         let mut record = Vec::with_capacity(COMPANY_INFO_RECORD_SIZE);
         record.extend_from_slice(&[0xb9, 0xab, 0xcb, 0xbe, 0xbc, 0xf2, 0xbd, 0xe9]);
         record.resize(64, 0);
+        record[63] = b'G';
         record.extend_from_slice(b"000001.txt");
         record.resize(144, 0);
+        record[143] = b'X';
         record.extend_from_slice(&0_u32.to_le_bytes());
         record.extend_from_slice(&4096_u32.to_le_bytes());
         assert_eq!(record.len(), COMPANY_INFO_RECORD_SIZE);
