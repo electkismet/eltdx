@@ -19,7 +19,7 @@ jobs:
     name: Build documentation site
     runs-on: ubuntu-latest
     env:
-      ELTDX_RUST_VERSION: 3.4.0-beta.2
+      ELTDX_RUST_VERSION: 3.4.0-beta.3
 
     steps:
       - name: Checkout

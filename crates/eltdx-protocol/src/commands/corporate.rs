@@ -5,7 +5,8 @@ use crate::error::ProtocolError;
 use crate::frame::RequestFrame;
 use crate::limits::{MAX_CAPITAL_CHANGE_CODES, MAX_COMMAND_ITEMS, MAX_RESPONSE_PAYLOAD_SIZE};
 use crate::unit::{
-    decode_gbk_text, little_f32, little_u16, little_u32, DateParts, Market, NormalizedCode,
+    decode_gbk_field, decode_gbk_text, little_f32, little_u16, little_u32, DateParts, Market,
+    NormalizedCode,
 };
 
 pub const TYPE_CAPITAL_CHANGES: u16 = 0x000f;
@@ -796,8 +797,8 @@ pub fn parse_company_info_category_payload(
         let end = offset.saturating_add(COMPANY_INFO_RECORD_SIZE);
         let record = &payload[offset..end];
         items.push(CompanyInfoCategory {
-            name: decode_gbk_text(&record[..COMPANY_INFO_NAME_SIZE]),
-            filename: decode_gbk_text(
+            name: decode_gbk_field(&record[..COMPANY_INFO_NAME_SIZE]),
+            filename: decode_gbk_field(
                 &record
                     [COMPANY_INFO_NAME_SIZE..COMPANY_INFO_NAME_SIZE + COMPANY_INFO_FILENAME_SIZE],
             ),

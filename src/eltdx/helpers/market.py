@@ -13,8 +13,11 @@ from eltdx.models.trade import TradeTick
 
 # Statistic pseudo-indices served by the quote server.  880005 carries the
 # up/down/neutral/total counts, 880001 the total market cap and 880006 the
-# limit-up/limit-down counts.  Each counter field is scaled by 1/10 on the
-# wire, so counts are recovered with ``round(value * 10)``.
+# limit-up/limit-down counts.  The counter fields already carry plain counts:
+# a live 880005 reports last=546.0 / open=4951.0 / low=76.0 / high=5581.0,
+# and 546 + 4951 + 76 leaves exactly the suspended remainder of the A-share
+# universe.  Rescaling them by 1/10 therefore inflates every count and must
+# not be applied.
 _MARKET_STAT_CODES = ("sh880005", "sh880001", "sh880006")
 
 # Tick-amount thresholds (yuan) classifying one trade into the four size
@@ -72,13 +75,13 @@ def fetch_market_stat(client) -> MarketStat:
     if not quotes:
         raise RuntimeError("无法获取市场统计指数 880005/880001/880006 行情")
     q = quotes[0]
-    up = round(q.last_price * 10)
-    down = round(q.open_price * 10)
-    neutral = round(q.low_price * 10)
-    total = round(q.high_price * 10)
+    up = round(q.last_price)
+    down = round(q.open_price)
+    neutral = round(q.low_price)
+    total = round(q.high_price)
     market_cap = quotes[1].last_price * 1e10 if len(quotes) > 1 else 0.0
-    limit_down = round(quotes[2].open_price * 10) if len(quotes) > 2 else 0
-    limit_up = round(quotes[2].last_price * 10) if len(quotes) > 2 else 0
+    limit_down = round(quotes[2].open_price) if len(quotes) > 2 else 0
+    limit_up = round(quotes[2].last_price) if len(quotes) > 2 else 0
     return MarketStat(
         up_count=up,
         down_count=down,

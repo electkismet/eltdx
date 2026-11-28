@@ -59,16 +59,52 @@ def test_market_stat_decodes_statistic_indices() -> None:
     client = TdxClient(transport=FakeTransport())
     stat = client.helpers.market_stat()
 
-    assert stat.up_count == 3000
-    assert stat.down_count == 2000
-    assert stat.neutral_count == 500
-    assert stat.total_count == 5500
+    assert stat.up_count == 300
+    assert stat.down_count == 200
+    assert stat.neutral_count == 50
+    assert stat.total_count == 550
     assert stat.suspended_count == 0
     assert stat.total_amount == 9_000.0
     assert stat.total_volume == 123.0
     assert stat.total_market_cap == 5.0 * 1e10
-    assert stat.limit_up_count == 120
-    assert stat.limit_down_count == 40
+    assert stat.limit_up_count == 12
+    assert stat.limit_down_count == 4
+
+
+def test_market_stat_matches_live_statistic_scale() -> None:
+    """Counters from a live server are plain counts, not 1/10-scaled values.
+
+    Sample captured from a live 7709 server: 880005 last=546 / open=4951 /
+    low=76 / high=5581, 880006 last=47 / open=22, 880001 last=9491.57.
+    546 + 4951 + 76 leaves exactly the suspended remainder of the A-share
+    universe, so any extra ``* 10`` inflates every count by an order of
+    magnitude.
+    """
+
+    quotes = [
+        _legacy_quote("880005", last_price=546.0, open_price=4951.0,
+                      high_price=5581.0, low_price=76.0),
+        _legacy_quote("880001", last_price=9491.57, open_price=9640.47,
+                      high_price=9692.94, low_price=9490.43),
+        _legacy_quote("880006", last_price=47.0, open_price=22.0,
+                      high_price=70.0, low_price=4.0),
+    ]
+
+    class FakeTransport:
+        def execute(self, command: int, payload=None):
+            return quotes
+
+    client = TdxClient(transport=FakeTransport())
+    stat = client.helpers.market_stat()
+
+    assert stat.up_count == 546
+    assert stat.down_count == 4951
+    assert stat.neutral_count == 76
+    assert stat.total_count == 5581
+    assert stat.suspended_count == 8
+    assert stat.limit_up_count == 47
+    assert stat.limit_down_count == 22
+    assert stat.total_market_cap == 9491.57 * 1e10
 
 
 def test_market_stat_suspended_count_is_derived() -> None:
@@ -86,11 +122,11 @@ def test_market_stat_suspended_count_is_derived() -> None:
     client = TdxClient(transport=FakeTransport())
     stat = client.helpers.market_stat()
 
-    assert stat.up_count == 1000
-    assert stat.down_count == 500
-    assert stat.neutral_count == 100
-    assert stat.total_count == 2000
-    assert stat.suspended_count == 400
+    assert stat.up_count == 100
+    assert stat.down_count == 50
+    assert stat.neutral_count == 10
+    assert stat.total_count == 200
+    assert stat.suspended_count == 40
 
 
 def test_market_stat_raises_when_server_returns_nothing() -> None:

@@ -412,6 +412,22 @@ pub fn little_f32(data: &[u8]) -> Result<f32, ProtocolError> {
     Ok(f32::from_le_bytes(exact_array(data, "f32")?))
 }
 
+/// Decode a fixed-width field (name, filename, ...): GBK text is `NUL`-terminated,
+/// and the padding that follows may contain leftover random bytes from the server,
+/// so only the bytes **before the first NUL** are decoded.
+///
+/// Unlike [`decode_gbk_text`], which keeps valid bytes after embedded NULs and is
+/// suitable for fixed-header blocks that may contain NULs internally, fixed-width
+/// string fields must use this function; otherwise padding garbage leaks into the
+/// result (for example, a section name followed by a stray byte).
+pub fn decode_gbk_field(data: &[u8]) -> String {
+    let end = data
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(data.len());
+    decode_gbk_text(&data[..end])
+}
+
 pub fn decode_gbk_text(data: &[u8]) -> String {
     let mut decoder = GBK.new_decoder_without_bom_handling();
     let mut output = String::with_capacity(data.len().saturating_mul(3));
@@ -967,5 +983,23 @@ mod tests {
         super::register_security_decimal("sh118076", 4);
         assert_eq!(price_divisor(&bond), 100);
         Ok(())
+    }
+}
+#[cfg(test)]
+mod gbk_field_tests {
+    use super::*;
+
+    #[test]
+    fn field_stops_at_first_nul() {
+        let mut field = [0_u8; 64];
+        field[..8].copy_from_slice(b"\xc8\xc8\xb5\xe3\xcc\xe2\xb2\xc4"); // GBK bytes of a 4-character Chinese section name
+        field[63] = b'G'; // leftover garbage byte in the server padding
+        assert_eq!(decode_gbk_field(&field), "热点题材");
+    }
+
+    #[test]
+    fn field_without_nul_decodes_whole_buffer() {
+        assert_eq!(decode_gbk_field(b"000988.txt"), "000988.txt");
+        assert_eq!(decode_gbk_field(b""), "");
     }
 }
