@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.3", features = ["f10"] }`。
+在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.4", features = ["f10"] }`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient};
@@ -46,4 +46,4 @@ fn main() -> Result<()> {
 
 限制最终结果数时，聚合仍基于查询范围内的完整梯队。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/helpers/struct.HelperService.html#method.theme_strength_rank)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/helpers/struct.HelperService.html#method.theme_strength_rank)

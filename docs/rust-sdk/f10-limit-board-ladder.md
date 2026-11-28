@@ -16,7 +16,7 @@ hide:
 在 `Cargo.toml` 中启用 F10 功能。
 
 ```toml
-eltdx = { version = "=3.4.0-beta.3", features = ["f10"] }
+eltdx = { version = "=3.4.0-beta.4", features = ["f10"] }
 ```
 
 ```rust
@@ -51,4 +51,4 @@ fn main() -> Result<()> {
 
 返回 `Result<LimitBoardLadder>`。请求错误通过 `Result` 返回。`rows()` 读取个股涨跌停记录，`summary()` 读取市场概况，`ladder_counts_by_date()` 读取按日期汇总的连板数量。分别用 `ok()` 和 `summary_ok()` 检查明细和汇总的业务状态。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/f10/struct.F10Client.html#method.limit_up_down_list)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/f10/struct.F10Client.html#method.limit_up_down_list)

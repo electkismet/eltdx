@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, SecurityId, TdxClient};
@@ -46,7 +46,7 @@ fn main() -> Result<()> {
 
 通过 `points()` 取得竞价点。需要正式撮合时搭配 [集合竞价数据](auction-data.md)。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.AuctionService.html#method.series)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.AuctionService.html#method.series)
 
 ## 出错与关闭
 

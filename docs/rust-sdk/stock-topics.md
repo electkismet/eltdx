@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.3", features = ["f10"] }`。
+在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.4", features = ["f10"] }`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient};
@@ -49,4 +49,4 @@ fn main() -> Result<()> {
 
 `ok()` 可检查各 F10 来源的业务状态。可将 `topic_id()` 交给 [概念板块成分股](topic-stocks.md)。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/helpers/struct.HelperService.html#method.stock_topics)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/helpers/struct.HelperService.html#method.stock_topics)

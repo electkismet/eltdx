@@ -16,7 +16,7 @@ hide:
 在 `Cargo.toml` 中启用 F10 功能。
 
 ```toml
-eltdx = { version = "=3.4.0-beta.3", features = ["f10"] }
+eltdx = { version = "=3.4.0-beta.4", features = ["f10"] }
 ```
 
 ```rust
@@ -60,7 +60,7 @@ fn main() -> Result<()> {
 
 先用 `ok()` 检查服务端业务状态。服务端返回错误码时通过 `error_code()` 查看。`result_sets()` 可以遍历全部结果表，`first_table()` 取第一张表。表内的 `columns()`、`rows()` 分别提供列名和记录，`cells()` 逐个读取字段并保留重复列名。不同栏目可能返回不同的列或空表。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/f10/struct.F10Client.html#method.profit_forecast)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/f10/struct.F10Client.html#method.profit_forecast)
 
 ## 出错与关闭
 

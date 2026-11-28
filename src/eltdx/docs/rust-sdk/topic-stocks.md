@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.3", features = ["f10"] }`。
+在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.4", features = ["f10"] }`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient};
@@ -49,4 +49,4 @@ fn main() -> Result<()> {
 
 用 `with_topic_name` 变更题材名称，排序和栏目按具体题材查询场景调整。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/helpers/struct.HelperService.html#method.topic_stocks)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/helpers/struct.HelperService.html#method.topic_stocks)

@@ -11,11 +11,9 @@ hide:
 
 读取服务端近期窗口内的证券分时数据，窗口范围由服务端决定。
 
-`3.4.0-beta.3` 的近期分时日期编码存在偏差。使用该版本查询指定日期时，可以用 [指定日期历史分时](minute-history.md)。
-
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, TdxClient, SecurityId};
@@ -57,4 +55,4 @@ let batch = client.minutes().recent_many(&[id], &query, &options)?;
 
 用 `points()` 访问数据点。每个点对应服务器返回的一段时间。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.MinuteService.html#method.recent)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.MinuteService.html#method.recent)

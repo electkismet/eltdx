@@ -63,6 +63,7 @@ nav:
   - Rust 文档: rust-sdk/index.md
   - 使用指南:
       - 产品与能力: PRODUCT.md
+      - v3.4.0-beta.4 测试版: releases/v3.4.0-beta.4.md
       - v3.4.0-beta.3 测试版: releases/v3.4.0-beta.3.md
       - v3.4.0-beta.2 测试版: releases/v3.4.0-beta.2.md
       - v3.4.0-beta.1 测试版: releases/v3.4.0-beta.1.md

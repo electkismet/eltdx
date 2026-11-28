@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, SecurityId, TdxClient};
@@ -58,7 +58,7 @@ let batch = client.quotes().snapshots_with_policy(
 
 方法返回 `Result<SnapshotBatch>`。成功后用 `items()` 遍历，每项的 `security()` 是证券身份，`input_index()` 是输入位置，`state()` 表示行情存在或确认缺失。请根据状态处理缺失数据。
 
-[查看快照方法和类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.QuoteService.html#method.snapshots)
+[查看快照方法和类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.QuoteService.html#method.snapshots)
 
 ## 出错与关闭
 

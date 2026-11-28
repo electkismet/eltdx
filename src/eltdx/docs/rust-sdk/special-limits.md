@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.3"`。
+在 `Cargo.toml` 中添加 `eltdx = "=3.4.0-beta.4"`。
 
 ```rust
 use eltdx::{OperationOptions, Result, SpecialLimitQuery, TdxClient};
@@ -48,7 +48,7 @@ let records = client.limits().scan_special(&query, &options)?;
 
 `special` 返回 `Result<DataPage<SpecialLimit>>`，表示一页记录。`scan_special` 返回 `Result<Collected<SpecialLimit>>`，会按查询条件连续扫描，应检查结果的完整性。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/services/struct.LimitService.html#method.special)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/services/struct.LimitService.html#method.special)
 
 ## 出错与关闭
 

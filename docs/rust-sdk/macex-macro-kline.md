@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.3", features = ["mac"] }`。示例函数接收已配置并连接的客户端及目录中取得的指标代码。
+在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.4", features = ["mac"] }`。示例函数接收已配置并连接的客户端及目录中取得的指标代码。
 
 客户端的服务器地址与连接步骤见 [连接配置](macex-connection.md)。
 
@@ -45,4 +45,4 @@ fn query(client: &MacExClient, code_from_directory: &str) -> Result<()> {
 
 通过 `time()` 查看时间，`close()` 等字段沿用 K 线模型。指标单位取决于对应的宏观指标。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/mac/struct.MacExClient.html#method.macro_bars)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/mac/struct.MacExClient.html#method.macro_bars)

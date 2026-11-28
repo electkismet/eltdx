@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.3", features = ["mac"] }`。示例函数接收服务器地址，由调用方提供。
+在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.4", features = ["mac"] }`。示例函数接收服务器地址，由调用方提供。
 
 ```rust
 use eltdx::{OperationOptions, Result};
@@ -49,4 +49,4 @@ fn run(endpoint: Endpoint, rules: LoginReplyRules) -> Result<()> {
 - `探测主机` 调用 `MacExClient::probe_endpoints(&self, endpoints: &[Endpoint], discovery: &DiscoveryOptions, options: &OperationOptions)`，返回 `Result<Vec<HostProbe>>`。
 - `关闭` 调用 `MacExClient::close(&self)`，返回 `Result<()>`。
 
-[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/mac/struct.MacExClient.html#method.builder)
+[查看方法和返回类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/mac/struct.MacExClient.html#method.builder)

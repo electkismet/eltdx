@@ -40,7 +40,7 @@
 
 感谢 [injoyai/tdx](https://github.com/injoyai/tdx) 及 [rainx/pytdx](https://github.com/rainx/pytdx) 的启发。
 
-本分支对应 [v3.4.0-beta.3 双端测试版](docs/releases/v3.4.0-beta.3.md)。Python 用户安装 Python 包，Rust 用户添加 Cargo 依赖。
+本分支对应 [v3.4.0-beta.4 双端测试版](docs/releases/v3.4.0-beta.4.md)。Python 用户安装 Python 包，Rust 用户添加 Cargo 依赖。
 
 ## 功能地图
 
@@ -447,7 +447,7 @@ python scripts/smoke/export_auction_925_daily.py --code sz000001 --start 2026-04
 | 底层协议和 F10 Entry | [7709 命令](docs/COMMANDS_7709.md) · [7615 F10](docs/F10_7615.md) |
 | 连接、测速、并发和故障排查 | [调试指南](docs/DEBUG_GUIDE.md) · [架构](docs/ARCHITECTURE.md) |
 | MCP 安装、工具和资源 | [MCP 文档](docs/MCP.md) |
-| 当前版本、变更和旧 API 迁移 | [v3.4.0-beta.3](docs/releases/v3.4.0-beta.3.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
+| 当前版本、变更和旧 API 迁移 | [v3.4.0-beta.4](docs/releases/v3.4.0-beta.4.md) · [变更记录](docs/CHANGELOG.md) · [迁移说明](docs/MIGRATION_FROM_OLD.md) |
 
 ## 常用问题
 

@@ -1,6 +1,6 @@
 # 本地行情文件和专业财报
 
-在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.3", features = ["offline"] }`。本地读取只需要明确的文件或目录路径。联网财报使用 `TdxClient`，示例中使用财报服务的专用连接配置。
+在 `Cargo.toml` 中添加 `eltdx = { version = "=3.4.0-beta.4", features = ["offline"] }`。本地读取只需要明确的文件或目录路径。联网财报使用 `TdxClient`，示例中使用财报服务的专用连接配置。
 
 ## 读取本地行情
 
@@ -32,7 +32,7 @@ fn show_daily(path: &Path) -> Result<()> {
 
 写入接口接受记录切片和 `AppendOptions`，返回 `WriteReport`。可用 `accepted()`、`skipped()` 和 `bytes_written()` 确认实际写入结果。首次操作建议使用单独的输出路径，`write` 的追加语义见对应模块。
 
-[查看本地文件各模块的完整类型和签名](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/offline/)
+[查看本地文件各模块的完整类型和签名](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/offline/)
 
 ## 查找并读取专业财报
 
@@ -64,4 +64,4 @@ fn show_local_report(path: &Path) -> Result<()> {
 - 本地文件使用 `read` 或 `read_detailed`。已有字节时用 `parse_dat`、`parse_dat_detailed`、`parse_zip` 或 `parse_zip_detailed`，按文件格式选择。`FinancialReadOptions` 可设置档案上限、ZIP 内文件选择和报告日期。
 - 用 `rows()` 获取记录，用 `date_source()` 检查报告日期依据，用 `completion()` 判断解析状态。
 
-[查看联网财报服务](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/financial/struct.FinancialService.html) · [查看本地财报解析接口](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/offline/financial/)
+[查看联网财报服务](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/financial/struct.FinancialService.html) · [查看本地财报解析接口](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/offline/financial/)

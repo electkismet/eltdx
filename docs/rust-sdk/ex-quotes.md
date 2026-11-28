@@ -13,7 +13,7 @@ hide:
 
 ## 示例
 
-在 `Cargo.toml` 中启用 `eltdx = { version = "=3.4.0-beta.3", features = ["ex"] }`。示例函数接收调用方已配置的 EX 客户端。使用结束后调用方应关闭客户端。
+在 `Cargo.toml` 中启用 `eltdx = { version = "=3.4.0-beta.4", features = ["ex"] }`。示例函数接收调用方已配置的 EX 客户端。使用结束后调用方应关闭客户端。
 
 客户端的服务器地址与连接步骤见 [连接配置](ex-connection.md)。
 
@@ -45,4 +45,4 @@ fn query(client: &ExClient, market: ExMarketId) -> Result<()> {
 
 每行通过 `id()` 识别商品，`fields()` 列出来源字段。不同的报价分类可能提供不同字段。
 
-[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.3/eltdx/ex/struct.ExClient.html#method.quote_list)
+[查看方法与类型](https://electkismet.github.io/eltdx/rust-api/3.4.0-beta.4/eltdx/ex/struct.ExClient.html#method.quote_list)
